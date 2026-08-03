@@ -6,13 +6,14 @@
 
 # Function: nearestCanonicalUsableTick()
 
-> **nearestCanonicalUsableTick**(`tick`): `number`
+> **nearestCanonicalUsableTick**(`tick`, `tickSpacing`): `number`
 
 ## Parameters
 
-| Parameter | Type     |
-| --------- | -------- |
-| `tick`    | `number` |
+| Parameter     | Type     |
+| ------------- | -------- |
+| `tick`        | `number` |
+| `tickSpacing` | `number` |
 
 ## Returns
 

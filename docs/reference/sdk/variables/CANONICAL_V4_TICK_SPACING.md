@@ -1,9 +1,0 @@
-[**GUM BALL 6900 TypeScript SDK**](../README.md)
-
----
-
-[GUM BALL 6900 TypeScript SDK](../README.md) / CANONICAL_V4_TICK_SPACING
-
-# Variable: CANONICAL_V4_TICK_SPACING
-
-> `const` **CANONICAL_V4_TICK_SPACING**: `60` = `60`

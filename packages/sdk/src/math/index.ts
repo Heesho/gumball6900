@@ -2,7 +2,6 @@ export * from './auction.js';
 export * from './constants.js';
 export * from './decimals.js';
 export * from './emissions.js';
-export * from './genesis.js';
 export * from './integer.js';
 export * from './redemption.js';
 export * from './rewards.js';

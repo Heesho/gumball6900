@@ -8,6 +8,8 @@
 
 > **buildApproval**(`token`, `spender`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
+Encodes the allowance required before staking, redemption, mining, or auction payment.
+
 ## Parameters
 
 | Parameter | Type                |

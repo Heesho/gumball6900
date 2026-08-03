@@ -4,804 +4,334 @@ pragma solidity 0.8.26;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-
 import { IAllocationVoter } from "../interfaces/IAllocationVoter.sol";
 import { IAssetRegistry } from "../interfaces/IAssetRegistry.sol";
-import { IManagerRewards } from "../interfaces/IManagerRewards.sol";
+import { IStrategyRewards } from "../interfaces/IStrategyRewards.sol";
 
 /// @title AllocationVoter
-/// @notice Persistent, delayed liquid signaling and virtual USDG budget accounting for approved strategies.
-/// @dev This contract never takes custody of USDG. Physical funds remain in GumBallVault until a valid strategy fill.
+/// @notice Immediate liquid signaling and vault-backed virtual USDG budget accounting.
+/// @dev This ledger never transfers or custodies USDG.
 contract AllocationVoter is IAllocationVoter, ReentrancyGuard {
-    /// @notice Fixed-point precision used by global allocation and strategy remainder accounting.
+    /// @notice Fixed-point precision used by the global revenue index.
     uint256 public constant INDEX_PRECISION = 1e27;
-    /// @notice Delay applied only to new or increased signal weight.
-    uint256 public constant SIGNAL_ACTIVATION_DELAY = 1 days;
-    /// @notice Maximum unique strategies in one user's active or pending allocation.
+    /// @notice Maximum simultaneous strategy signals maintained by one user.
     uint256 public constant MAX_USER_STRATEGIES = 16;
-    uint256 private constant REVENUE_SOURCE_COUNT = 4;
 
-    enum RevenueSource {
-        GenesisBootstrap,
-        MiningPool,
-        RevenueRouter,
-        LiquidityManager
-    }
-
-    error AllocationVoter__AlreadyConfigured();
-    error AllocationVoter__DependenciesNotConfigured();
-    error AllocationVoter__DuplicateRevenueSource(address source);
-    error AllocationVoter__DuplicateStrategy(address strategy);
-    error AllocationVoter__InsolventRevenueNotification(uint256 notifiedAfter, uint256 physicalBalance);
-    error AllocationVoter__InvalidArrayLength();
-    error AllocationVoter__NoPendingSignals(address user);
-    error AllocationVoter__NotEmergencyGuardian(address caller);
-    error AllocationVoter__NotGuardianOrTimelock(address caller);
-    error AllocationVoter__NotProtocolTimelock(address caller);
-    error AllocationVoter__NotStakedGBX(address caller);
-    error AllocationVoter__NotVault(address caller);
-    error AllocationVoter__PendingSignalRoundsToZero(address strategy);
-    error AllocationVoter__StrategyAlreadyDisabled(address strategy);
-    error AllocationVoter__StrategyBudgetTooLow(address strategy, uint256 requested, uint256 available);
-    error AllocationVoter__StrategyStillLive(address strategy);
-    error AllocationVoter__UnauthorizedInitializer(address caller);
-    error AllocationVoter__UnauthorizedRevenueSource(address caller, RevenueSource source);
-    error AllocationVoter__UnregisteredOrInactiveStrategy(address strategy);
-    error AllocationVoter__UnstakeExceedsBalance(uint256 amount, uint256 balance);
-    error AllocationVoter__ZeroAddress();
-    error AllocationVoter__ZeroAmount();
-    error AllocationVoter__ZeroSignalWeight();
-    error AllocationVoter__ZeroStakedBalance();
-
-    event AllocationVoter__DependenciesConfigured(address indexed vault, address indexed stakedGBX);
-    event AllocationVoter__SignalActivationPauseSet(bool paused);
-    event AllocationVoter__PendingSignalsCancelled(address indexed user);
-    event AllocationVoter__RevenueNotified(
-        address indexed source, RevenueSource indexed sourceType, uint256 amount, uint256 indexDelta, uint256 remainder
-    );
-    event AllocationVoter__SignalsActivated(address indexed user, uint256 activatedAt);
-    event AllocationVoter__SignalsPending(address indexed user, uint256 activationTime);
-    event AllocationVoter__SignalsReset(address indexed user);
-    event AllocationVoter__StrategyBudgetCheckpointed(address indexed strategy, uint256 budget, uint256 globalIndex);
-    event AllocationVoter__StrategyBudgetConsumed(address indexed strategy, uint256 amount, uint256 budgetRemaining);
-    event AllocationVoter__StrategyBudgetScaled(
-        address indexed strategy, uint256 budgetAfter, uint256 scaledRemainderAfter
-    );
-    event AllocationVoter__StrategyDisabled(
-        address indexed strategy, uint64 newGeneration, uint256 budgetReturnedToIdle
-    );
-    event AllocationVoter__StrategyReactivated(address indexed strategy, uint64 generation);
-    event AllocationVoter__StrategyWeightUpdated(address indexed strategy, uint256 previousWeight, uint256 newWeight);
-    event AllocationVoter__UserWeightUpdated(
-        address indexed user, address indexed strategy, uint256 previousWeight, uint256 newWeight
-    );
-    event AllocationVoter__VaultAccountingScaled(uint256 shares, uint256 supplyBefore, uint256 accountedVaultUSDGAfter);
-
-    /// @notice Canonical USDG whose physical vault balance backs all virtual allocation accounting.
+    /// @notice Vault revenue token used only for physical-backing checks.
     IERC20 public immutable USDG;
-    /// @notice Canonical bounded registry used to validate live strategies.
+    /// @notice Registry defining the bounded live strategy set.
     IAssetRegistry public immutable ASSET_REGISTRY;
-    /// @notice Delayed authority permitted to reactivate strategies and resume signal activations.
+    /// @notice Timelock allowed to resume signals and terminally disable strategies.
     address public immutable PROTOCOL_TIMELOCK;
-    /// @notice Stop-only authority permitted to pause activations and disable dead strategy weight.
+    /// @notice Stop-only guardian allowed to pause increases and disable strategies.
     address public immutable EMERGENCY_GUARDIAN;
-    /// @notice One-use prelaunch account permitted to close dependency cycles.
+    /// @notice Deployment coordinator allowed to bind circular dependencies once.
     address public immutable DEPENDENCY_INITIALIZER;
 
-    /// @notice Canonical GumBallVault physically holding every accounted USDG unit.
+    /// @notice Passive vault that physically custodies allocated USDG.
     address public vault;
-    /// @notice Canonical sGBX contract permitted to checkpoint stake balance changes.
+    /// @notice Non-transferable staked GBX token that bounds user signals.
     address public stakedGBX;
-    /// @notice Whether the vault, sGBX, and four revenue sources have been bound exactly once.
-    bool public dependenciesConfigured;
-    /// @notice Whether matured signal increases are temporarily prevented from activating.
-    bool public signalActivationsPaused;
+    /// @notice Mining pool authorized to notify deposited revenue.
+    address public miningPool;
+    /// @notice Liquidity custodian authorized to notify deposited fee revenue.
+    address public liquidityCustodian;
+    /// @notice Whether all circular dependencies have been bound.
+    bool public dependenciesInitialized;
+    /// @notice Whether signal-weight increases are paused.
+    bool public signalIncreasesPaused;
 
-    /// @notice Canonical authorized sender for each enumerated revenue source.
-    mapping(RevenueSource sourceType => address source) public revenueSourceAddress;
-
-    /// @notice Cumulative USDG allocation per unit of live signal weight, scaled by `INDEX_PRECISION`.
-    uint256 public globalAllocationIndex;
-    /// @notice Scaled division remainder carried across global revenue notifications.
-    uint256 public allocationRemainder;
-    /// @notice Raw accounted USDG not assigned because no live weight existed when it arrived.
-    uint256 public idleUSDG;
-    /// @notice Scaled fractional remainder attached to idle USDG accounting.
-    uint256 public idleScaledRemainder;
-    /// @notice Raw USDG balance at the vault that remains assigned to budgets or idle accounting.
+    /// @notice Cumulative USDG revenue index per unit of active weight.
+    uint256 public globalRevenueIndex;
+    /// @notice Aggregate active signal weight across all live strategies.
+    uint256 public override totalActiveWeight;
+    /// @notice Total vault USDG currently represented by budgets and idle backing.
     uint256 public accountedVaultUSDG;
-    /// @notice Aggregate current-generation signal weight across all live strategies.
-    uint256 public totalLiveWeight;
+    /// @notice Accounted vault USDG not assigned to active strategy weight.
+    uint256 public idleUSDG;
 
-    /// @notice Last global allocation index materialized for each strategy.
+    /// @notice Returns the global revenue index last checkpointed for a strategy.
     mapping(address strategy => uint256 index) public strategyIndex;
-    /// @notice Materialized raw virtual USDG budget for each strategy.
+    /// @notice Returns a strategy's checkpointed unconsumed USDG budget.
     mapping(address strategy => uint256 budget) public strategyBudget;
-    /// @notice Scaled fractional budget remainder carried for each strategy.
-    mapping(address strategy => uint256 scaledRemainder) public strategyScaledRemainder;
-    /// @notice Aggregate current-generation active sGBX weight assigned to each strategy.
-    mapping(address strategy => uint256 weight) public strategyWeight;
-    /// @notice Whether a strategy has been removed from allocation denominators.
+    /// @notice Returns the active aggregate signal weight assigned to a strategy.
+    mapping(address strategy => uint256 weight) public override strategyWeight;
+    /// @notice Returns whether a strategy has been terminally disabled in this ledger.
     mapping(address strategy => bool disabled) public strategyDisabled;
-    /// @notice Monotonic generation invalidating all stale user weights after strategy disable.
-    mapping(address strategy => uint64 generation) public strategyGeneration;
+    /// @notice Returns one user's signal weight assigned to a strategy.
+    mapping(address user => mapping(address strategy => uint256 weight)) public userWeight;
+    /// @notice Returns one user's aggregate active signal weight.
+    mapping(address user => uint256 weight) public override usedWeight;
+    mapping(address user => address[] strategies) private _userStrategies;
 
-    mapping(address user => address[] strategies) private _activeStrategies;
-    mapping(address user => mapping(address strategy => uint256 weight)) private _storedActiveWeight;
-    mapping(address user => mapping(address strategy => uint64 generation)) private _activeGeneration;
+    error AllocationVoter__AlreadyInitialized();
+    error AllocationVoter__DuplicateStrategy(address strategy);
+    error AllocationVoter__InsolventNotification(uint256 accountedAfter, uint256 physicalBalance);
+    error AllocationVoter__InvalidArrayLength();
+    error AllocationVoter__NotInitialized();
+    error AllocationVoter__SignalIncreasePaused(address strategy);
+    error AllocationVoter__StrategyBudgetTooLow(address strategy, uint256 requested, uint256 available);
+    error AllocationVoter__StrategyStillLive(address strategy);
+    error AllocationVoter__Unauthorized(address caller);
+    error AllocationVoter__UnregisteredStrategy(address strategy);
+    error AllocationVoter__WeightExceedsStake(uint256 requested, uint256 balance);
+    error AllocationVoter__ZeroAddress();
+    error AllocationVoter__ZeroAmount();
 
-    mapping(address user => address[] strategies) private _pendingStrategies;
-    mapping(address user => mapping(address strategy => uint256 weight)) private _storedPendingWeight;
-    mapping(address user => mapping(address strategy => uint64 generation)) private _pendingGeneration;
-    /// @notice Earliest timestamp when each user's queued signal increases may activate.
-    mapping(address user => uint64 activationTime) public pendingActivationTime;
+    event AllocationVoter__DependenciesInitialized(
+        address indexed vault, address indexed stakedGBX, address indexed miningPool, address liquidityCustodian
+    );
+    event AllocationVoter__RevenueNotified(address indexed source, uint256 amount, uint256 indexDelta);
+    event AllocationVoter__SignalIncreasesPauseSet(bool paused);
+    event AllocationVoter__SignalsReset(address indexed user);
+    event AllocationVoter__SignalsSet(address indexed user, uint256 totalWeight);
+    event AllocationVoter__StrategyBudgetConsumed(address indexed strategy, uint256 amount, uint256 remaining);
+    event AllocationVoter__StrategyBudgetScaled(address indexed strategy, uint256 budgetAfter);
+    event AllocationVoter__StrategyDisabled(address indexed strategy, uint256 strandedBudget);
+    event AllocationVoter__StrategyWeightSet(address indexed strategy, uint256 previousWeight, uint256 newWeight);
 
-    modifier onlyConfigured() {
-        if (!dependenciesConfigured) revert AllocationVoter__DependenciesNotConfigured();
-        _;
-    }
-
-    modifier onlyVault() {
-        if (msg.sender != vault) revert AllocationVoter__NotVault(msg.sender);
-        _;
-    }
-
-    modifier onlyStakedGBX() {
-        if (msg.sender != stakedGBX) revert AllocationVoter__NotStakedGBX(msg.sender);
-        _;
-    }
-
-    /// @notice Deploys voter accounting with immutable canonical token, registry, and maintenance authorities.
-    /// @param usdG_ The canonical USDG token whose vault balance backs virtual budgets.
-    /// @param assetRegistry_ The canonical bounded registry of live strategies.
-    /// @param protocolTimelock_ The purpose-limited delayed maintenance authority.
-    /// @param emergencyGuardian_ The stop-only emergency authority.
-    /// @param dependencyInitializer_ The one-use account permitted to close construction cycles.
+    /// @notice Configures the registry, access-control roles, token, and one-time dependency initializer.
     constructor(
-        address usdG_,
-        address assetRegistry_,
-        address protocolTimelock_,
-        address emergencyGuardian_,
-        address dependencyInitializer_
+        address usdG,
+        IAssetRegistry assetRegistry,
+        address protocolTimelock,
+        address emergencyGuardian,
+        address dependencyInitializer
     ) {
         if (
-            usdG_ == address(0) || assetRegistry_ == address(0) || protocolTimelock_ == address(0)
-                || emergencyGuardian_ == address(0) || dependencyInitializer_ == address(0)
+            usdG == address(0) || address(assetRegistry) == address(0) || protocolTimelock == address(0)
+                || emergencyGuardian == address(0) || dependencyInitializer == address(0)
         ) revert AllocationVoter__ZeroAddress();
-
-        USDG = IERC20(usdG_);
-        ASSET_REGISTRY = IAssetRegistry(assetRegistry_);
-        PROTOCOL_TIMELOCK = protocolTimelock_;
-        EMERGENCY_GUARDIAN = emergencyGuardian_;
-        DEPENDENCY_INITIALIZER = dependencyInitializer_;
+        if (usdG.code.length == 0 || address(assetRegistry).code.length == 0) revert AllocationVoter__ZeroAddress();
+        USDG = IERC20(usdG);
+        ASSET_REGISTRY = assetRegistry;
+        PROTOCOL_TIMELOCK = protocolTimelock;
+        EMERGENCY_GUARDIAN = emergencyGuardian;
+        DEPENDENCY_INITIALIZER = dependencyInitializer;
     }
 
-    /// @notice Resolves deployment-order circularity exactly once and fixes all authorized revenue sources.
-    /// @param vault_ The canonical GumBallVault that physically custodies USDG.
-    /// @param stakedGBX_ The canonical sGBX contract permitted to checkpoint stake changes.
-    /// @param revenueSources Canonical senders in `RevenueSource` enum order.
-    function initializeDependencies(address vault_, address stakedGBX_, address[4] calldata revenueSources) external {
-        if (msg.sender != DEPENDENCY_INITIALIZER) revert AllocationVoter__UnauthorizedInitializer(msg.sender);
-        if (dependenciesConfigured) revert AllocationVoter__AlreadyConfigured();
-        if (vault_ == address(0) || stakedGBX_ == address(0)) revert AllocationVoter__ZeroAddress();
-        if (vault_.code.length == 0 || stakedGBX_.code.length == 0) revert AllocationVoter__ZeroAddress();
-
-        for (uint256 index; index < REVENUE_SOURCE_COUNT; ++index) {
-            address source = revenueSources[index];
-            if (source == address(0) || source.code.length == 0) revert AllocationVoter__ZeroAddress();
-            for (uint256 prior; prior < index; ++prior) {
-                if (revenueSources[prior] == source) revert AllocationVoter__DuplicateRevenueSource(source);
-            }
-            revenueSourceAddress[RevenueSource(index)] = source;
-        }
-
+    /// @notice Binds the vault, staked token, mining pool, and liquidity custodian once.
+    function initializeDependencies(
+        address vault_,
+        address stakedGBX_,
+        address miningPool_,
+        address liquidityCustodian_
+    ) external {
+        if (msg.sender != DEPENDENCY_INITIALIZER) revert AllocationVoter__Unauthorized(msg.sender);
+        if (dependenciesInitialized) revert AllocationVoter__AlreadyInitialized();
+        if (
+            vault_ == address(0) || stakedGBX_ == address(0) || miningPool_ == address(0)
+                || liquidityCustodian_ == address(0)
+        ) revert AllocationVoter__ZeroAddress();
+        if (
+            vault_.code.length == 0 || stakedGBX_.code.length == 0 || miningPool_.code.length == 0
+                || liquidityCustodian_.code.length == 0
+        ) revert AllocationVoter__ZeroAddress();
         vault = vault_;
         stakedGBX = stakedGBX_;
-        dependenciesConfigured = true;
-
-        emit AllocationVoter__DependenciesConfigured(vault_, stakedGBX_);
+        miningPool = miningPool_;
+        liquidityCustodian = liquidityCustodian_;
+        dependenciesInitialized = true;
+        emit AllocationVoter__DependenciesInitialized(vault_, stakedGBX_, miningPool_, liquidityCustodian_);
     }
 
-    /// @notice Replaces the caller's desired relative allocation, delaying only new or increased weight.
-    /// @param strategies The unique, active strategy addresses in the caller's desired allocation.
-    /// @param relativeWeights Positive relative weights normalized across the caller's complete sGBX balance.
-    function signal(address[] calldata strategies, uint256[] calldata relativeWeights)
-        external
-        nonReentrant
-        onlyConfigured
-    {
+    /// @notice Replaces the caller's complete absolute strategy-weight allocation immediately.
+    function signal(address[] calldata strategies, uint256[] calldata weights) external nonReentrant {
+        _requireInitialized();
         uint256 length = strategies.length;
-        if (length == 0 || length > MAX_USER_STRATEGIES || length != relativeWeights.length) {
+        if (length == 0 || length > MAX_USER_STRATEGIES || length != weights.length) {
             revert AllocationVoter__InvalidArrayLength();
         }
-
-        _checkpointMatured(msg.sender);
-        _pruneStaleActive(msg.sender);
-
-        uint256 stakedBalance = IERC20(stakedGBX).balanceOf(msg.sender);
-        if (stakedBalance == 0) revert AllocationVoter__ZeroStakedBalance();
-
-        uint256 totalRelativeWeight;
+        uint256 requestedTotal;
         for (uint256 index; index < length; ++index) {
             address strategy = strategies[index];
-            if (!_isSignalable(strategy)) revert AllocationVoter__UnregisteredOrInactiveStrategy(strategy);
-            if (relativeWeights[index] == 0) revert AllocationVoter__ZeroSignalWeight();
-            totalRelativeWeight += relativeWeights[index];
+            uint256 weight = weights[index];
+            if (!ASSET_REGISTRY.isLiveStrategy(strategy) || strategyDisabled[strategy]) {
+                revert AllocationVoter__UnregisteredStrategy(strategy);
+            }
+            if (weight == 0) revert AllocationVoter__ZeroAmount();
+            if (signalIncreasesPaused && weight > userWeight[msg.sender][strategy]) {
+                revert AllocationVoter__SignalIncreasePaused(strategy);
+            }
+            requestedTotal += weight;
             for (uint256 prior; prior < index; ++prior) {
                 if (strategies[prior] == strategy) revert AllocationVoter__DuplicateStrategy(strategy);
             }
         }
+        uint256 balance = IERC20(stakedGBX).balanceOf(msg.sender);
+        if (requestedTotal > balance) revert AllocationVoter__WeightExceedsStake(requestedTotal, balance);
 
-        _checkpointAllUserRewards(msg.sender);
-        _clearPending(msg.sender);
-
-        uint256[] memory desiredWeights = new uint256[](length);
-        uint256 assigned;
+        _reset(msg.sender);
         for (uint256 index; index < length; ++index) {
-            uint256 desired = index + 1 == length
-                ? stakedBalance - assigned
-                : Math.mulDiv(stakedBalance, relativeWeights[index], totalRelativeWeight);
-            if (desired == 0) revert AllocationVoter__PendingSignalRoundsToZero(strategies[index]);
-            desiredWeights[index] = desired;
-            assigned += desired;
+            _userStrategies[msg.sender].push(strategies[index]);
+            _setUserWeight(msg.sender, strategies[index], weights[index]);
         }
-
-        address[] memory current = _activeStrategies[msg.sender];
-        for (uint256 index; index < current.length; ++index) {
-            address strategy = current[index];
-            uint256 oldWeight = _effectiveActiveWeight(msg.sender, strategy);
-            uint256 desiredWeight = _desiredWeight(strategy, strategies, desiredWeights);
-            if (desiredWeight < oldWeight) _setActiveWeight(msg.sender, strategy, desiredWeight);
-        }
-
-        bool hasPending;
-        for (uint256 index; index < length; ++index) {
-            address strategy = strategies[index];
-            uint256 active = _effectiveActiveWeight(msg.sender, strategy);
-            if (desiredWeights[index] > active) {
-                _pendingStrategies[msg.sender].push(strategy);
-                _storedPendingWeight[msg.sender][strategy] = desiredWeights[index] - active;
-                _pendingGeneration[msg.sender][strategy] = strategyGeneration[strategy];
-                hasPending = true;
-            }
-        }
-
-        if (hasPending) {
-            uint64 activationTime = SafeCast.toUint64(block.timestamp + SIGNAL_ACTIVATION_DELAY);
-            pendingActivationTime[msg.sender] = activationTime;
-            emit AllocationVoter__SignalsPending(msg.sender, activationTime);
-        }
+        emit AllocationVoter__SignalsSet(msg.sender, requestedTotal);
     }
 
-    /// @notice Permissionlessly activates a user's matured pending signal increases.
-    /// @param user The account whose mature signals and manager rewards are checkpointed.
-    function checkpointUser(address user) external nonReentrant onlyConfigured {
-        _checkpointMatured(user);
-        _pruneStaleActive(user);
-        _checkpointAllUserRewards(user);
-    }
-
-    /// @notice Immediately pauses only matured signal increases; reductions, resets, and unstaking remain live.
-    function pauseSignalActivations() external {
-        if (msg.sender != EMERGENCY_GUARDIAN) revert AllocationVoter__NotEmergencyGuardian(msg.sender);
-        signalActivationsPaused = true;
-        emit AllocationVoter__SignalActivationPauseSet(true);
-    }
-
-    /// @notice Reopens delayed signal activation only through the protocol timelock.
-    function unpauseSignalActivations() external {
-        if (msg.sender != PROTOCOL_TIMELOCK) revert AllocationVoter__NotProtocolTimelock(msg.sender);
-        signalActivationsPaused = false;
-        emit AllocationVoter__SignalActivationPauseSet(false);
-    }
-
-    /// @notice Cancels every pending increase before a permissionless activation transaction executes.
-    function cancelPendingSignals() external nonReentrant onlyConfigured {
-        if (_pendingStrategies[msg.sender].length == 0) revert AllocationVoter__NoPendingSignals(msg.sender);
-        _clearPending(msg.sender);
-        emit AllocationVoter__PendingSignalsCancelled(msg.sender);
-    }
-
-    /// @notice Immediately removes all active and pending signals after checkpointing manager rewards.
-    function resetSignals() external nonReentrant onlyConfigured {
-        _checkpointMatured(msg.sender);
-        _pruneStaleActive(msg.sender);
-        _checkpointAllUserRewards(msg.sender);
-        _clearPending(msg.sender);
-
-        address[] memory current = _activeStrategies[msg.sender];
-        for (uint256 index; index < current.length; ++index) {
-            _setActiveWeight(msg.sender, current[index], 0);
-        }
-
+    /// @notice Clears the caller's complete strategy allocation immediately.
+    function resetSignals() external nonReentrant {
+        _requireInitialized();
+        _reset(msg.sender);
         emit AllocationVoter__SignalsReset(msg.sender);
     }
 
-    /// @inheritdoc IAllocationVoter
-    function onStake(address user) external nonReentrant onlyConfigured onlyStakedGBX {
-        _checkpointMatured(user);
-        _pruneStaleActive(user);
-        _checkpointAllUserRewards(user);
-    }
-
-    /// @inheritdoc IAllocationVoter
-    function onUnstake(address user, uint256 amount) external nonReentrant onlyConfigured onlyStakedGBX {
-        if (amount == 0) revert AllocationVoter__ZeroAmount();
-
-        uint256 balanceBefore = IERC20(stakedGBX).balanceOf(user);
-        if (amount > balanceBefore) revert AllocationVoter__UnstakeExceedsBalance(amount, balanceBefore);
-
-        _checkpointMatured(user);
-        _pruneStaleActive(user);
-        _pruneStalePending(user);
-
-        uint256 remainingBalance = balanceBefore - amount;
-        uint256 activeTotal = activeWeightTotal(user);
-        uint256 pendingTotal = pendingWeightTotal(user);
-        uint256 assigned = activeTotal + pendingTotal;
-        if (assigned <= remainingBalance) return;
-
-        _checkpointAllUserRewards(user);
-        uint256 excess = assigned - remainingBalance;
-
-        if (pendingTotal != 0) {
-            uint256 pendingReduction = Math.min(excess, pendingTotal);
-            _scalePending(user, pendingTotal - pendingReduction, pendingTotal);
-            excess -= pendingReduction;
-        }
-
-        if (excess != 0) {
-            activeTotal = activeWeightTotal(user);
-            _scaleActive(user, activeTotal - excess, activeTotal);
-        }
-    }
-
-    /// @notice Accounts newly deposited USDG using only current effective signal weights.
-    /// @param amount The raw USDG balance increase already observed at GumBallVault.
-    /// @param source The source class whose prebound sender must match the caller.
-    function notifyRevenue(uint256 amount, RevenueSource source) external nonReentrant onlyConfigured {
-        address expectedSource = revenueSourceAddress[source];
-        if (msg.sender != expectedSource) {
-            revert AllocationVoter__UnauthorizedRevenueSource(msg.sender, source);
+    /// @notice Accounts newly deposited vault USDG across active strategy weight.
+    function notifyRevenue(uint256 amount) external override nonReentrant {
+        _requireInitialized();
+        if (msg.sender != miningPool && msg.sender != liquidityCustodian) {
+            revert AllocationVoter__Unauthorized(msg.sender);
         }
         if (amount == 0) revert AllocationVoter__ZeroAmount();
-
-        uint256 notifiedAfter = accountedVaultUSDG + amount;
+        uint256 accountedAfter = accountedVaultUSDG + amount;
         uint256 physicalBalance = USDG.balanceOf(vault);
-        if (notifiedAfter > physicalBalance) {
-            revert AllocationVoter__InsolventRevenueNotification(notifiedAfter, physicalBalance);
+        if (accountedAfter > physicalBalance) {
+            revert AllocationVoter__InsolventNotification(accountedAfter, physicalBalance);
         }
-        accountedVaultUSDG = notifiedAfter;
+        accountedVaultUSDG = accountedAfter;
 
         uint256 indexDelta;
-        if (totalLiveWeight == 0) {
+        if (totalActiveWeight == 0) {
             idleUSDG += amount;
-            _creditIdleScaled(allocationRemainder);
-            allocationRemainder = 0;
         } else {
-            indexDelta = Math.mulDiv(amount, INDEX_PRECISION, totalLiveWeight);
-            uint256 combinedRemainder = mulmod(amount, INDEX_PRECISION, totalLiveWeight) + allocationRemainder;
-            indexDelta += combinedRemainder / totalLiveWeight;
-            allocationRemainder = combinedRemainder % totalLiveWeight;
-            globalAllocationIndex += indexDelta;
+            indexDelta = Math.mulDiv(amount, INDEX_PRECISION, totalActiveWeight);
+            globalRevenueIndex += indexDelta;
         }
-
-        emit AllocationVoter__RevenueNotified(msg.sender, source, amount, indexDelta, allocationRemainder);
+        emit AllocationVoter__RevenueNotified(msg.sender, amount, indexDelta);
     }
 
-    /// @inheritdoc IAllocationVoter
-    function consumeStrategyBudget(address strategy, uint256 amount) external nonReentrant onlyConfigured onlyVault {
+    /// @notice Debits already accrued USDG budget for the calling vault and strategy.
+    function consumeStrategyBudget(address strategy, uint256 amount) external override nonReentrant {
+        _requireInitialized();
+        if (msg.sender != vault) revert AllocationVoter__Unauthorized(msg.sender);
         if (amount == 0) revert AllocationVoter__ZeroAmount();
-        _checkpointStrategyBudget(strategy);
+        _checkpointStrategy(strategy);
         uint256 available = strategyBudget[strategy];
         if (amount > available) revert AllocationVoter__StrategyBudgetTooLow(strategy, amount, available);
-
         strategyBudget[strategy] = available - amount;
         accountedVaultUSDG -= amount;
         emit AllocationVoter__StrategyBudgetConsumed(strategy, amount, available - amount);
     }
 
-    /// @inheritdoc IAllocationVoter
-    function scaleBudgetsAfterRedemption(uint256 shares, uint256 supplyBefore)
-        external
-        nonReentrant
-        onlyConfigured
-        onlyVault
-    {
-        if (shares == 0 || supplyBefore == 0 || shares > supplyBefore) {
-            revert AllocationVoter__ZeroAmount();
-        }
-        uint256 remainingSupply = supplyBefore - shares;
+    /// @notice Scales all accounted USDG after an in-kind redemption reduces vault balances.
+    function scaleBudgetsAfterRedemption(uint256 shares, uint256 supplyBefore) external override nonReentrant {
+        _requireInitialized();
+        if (msg.sender != vault) revert AllocationVoter__Unauthorized(msg.sender);
+        if (shares == 0 || supplyBefore == 0 || shares > supplyBefore) revert AllocationVoter__ZeroAmount();
+        uint256 remaining = supplyBefore - shares;
         uint256 count = ASSET_REGISTRY.strategyCount();
-
         for (uint256 index; index < count; ++index) {
             address strategy = ASSET_REGISTRY.strategyAt(index);
-            _checkpointStrategyBudget(strategy);
-            (strategyBudget[strategy], strategyScaledRemainder[strategy]) = _scaleWholeAndRemainder(
-                strategyBudget[strategy], strategyScaledRemainder[strategy], remainingSupply, supplyBefore
-            );
-            emit AllocationVoter__StrategyBudgetScaled(
-                strategy, strategyBudget[strategy], strategyScaledRemainder[strategy]
-            );
+            _checkpointStrategy(strategy);
+            strategyBudget[strategy] = Math.mulDiv(strategyBudget[strategy], remaining, supplyBefore);
+            emit AllocationVoter__StrategyBudgetScaled(strategy, strategyBudget[strategy]);
         }
-
-        allocationRemainder = Math.mulDiv(allocationRemainder, remainingSupply, supplyBefore);
-        (idleUSDG, idleScaledRemainder) =
-            _scaleWholeAndRemainder(idleUSDG, idleScaledRemainder, remainingSupply, supplyBefore);
-        accountedVaultUSDG = Math.mulDiv(accountedVaultUSDG, remainingSupply, supplyBefore);
-
-        emit AllocationVoter__VaultAccountingScaled(shares, supplyBefore, accountedVaultUSDG);
+        idleUSDG = Math.mulDiv(idleUSDG, remaining, supplyBefore);
+        accountedVaultUSDG = Math.mulDiv(accountedVaultUSDG, remaining, supplyBefore);
     }
 
-    /// @notice Removes a registry-disabled strategy from all allocation denominators without iterating over users.
-    /// @param strategy The registered strategy already disabled in AssetRegistry.
-    function disableStrategy(address strategy) external nonReentrant onlyConfigured {
-        if (msg.sender != EMERGENCY_GUARDIAN && msg.sender != PROTOCOL_TIMELOCK) {
-            revert AllocationVoter__NotGuardianOrTimelock(msg.sender);
+    /// @notice Removes a registry-disabled strategy from future revenue and strands its budget as idle backing.
+    function disableStrategy(address strategy) external override nonReentrant {
+        _requireInitialized();
+        if (msg.sender != PROTOCOL_TIMELOCK && msg.sender != EMERGENCY_GUARDIAN) {
+            revert AllocationVoter__Unauthorized(msg.sender);
         }
-        if (strategyDisabled[strategy]) revert AllocationVoter__StrategyAlreadyDisabled(strategy);
         if (ASSET_REGISTRY.isLiveStrategy(strategy)) revert AllocationVoter__StrategyStillLive(strategy);
-
-        _checkpointStrategyBudget(strategy);
-        uint256 oldWeight = strategyWeight[strategy];
-        uint64 nextGeneration = strategyGeneration[strategy] + 1;
-        address token = ASSET_REGISTRY.tokenForStrategy(strategy);
-        if (token != address(0)) {
-            address rewards = ASSET_REGISTRY.configFor(token).rewards;
-            if (rewards != address(0)) IManagerRewards(rewards).advanceGeneration(nextGeneration);
-        }
-        if (oldWeight != 0) {
-            _settleAllocationRemainderToIdle();
-            totalLiveWeight -= oldWeight;
-        }
-        strategyWeight[strategy] = 0;
-        strategyDisabled[strategy] = true;
-        strategyGeneration[strategy] = nextGeneration;
-
-        uint256 returnedBudget = strategyBudget[strategy];
-        uint256 returnedScaledRemainder = strategyScaledRemainder[strategy];
-        strategyBudget[strategy] = 0;
-        strategyScaledRemainder[strategy] = 0;
-        idleUSDG += returnedBudget;
-        _creditIdleScaled(returnedScaledRemainder);
-        if (totalLiveWeight == 0) {
-            _creditIdleScaled(allocationRemainder);
-            allocationRemainder = 0;
-        }
-
-        emit AllocationVoter__StrategyDisabled(strategy, nextGeneration, returnedBudget);
-    }
-
-    /// @notice Allows fresh signals after the timelock re-enables a reviewed strategy; stale user weights never revive.
-    /// @param strategy The registered live strategy whose voter generation remains reset.
-    function reactivateStrategy(address strategy) external onlyConfigured {
-        if (msg.sender != PROTOCOL_TIMELOCK) revert AllocationVoter__NotProtocolTimelock(msg.sender);
-        if (!strategyDisabled[strategy]) revert AllocationVoter__UnregisteredOrInactiveStrategy(strategy);
-        if (!ASSET_REGISTRY.isLiveStrategy(strategy)) revert AllocationVoter__UnregisteredOrInactiveStrategy(strategy);
-
-        strategyDisabled[strategy] = false;
-        strategyIndex[strategy] = globalAllocationIndex;
-        emit AllocationVoter__StrategyReactivated(strategy, strategyGeneration[strategy]);
-    }
-
-    /// @notice Checkpoints lazy allocation for one strategy.
-    /// @param strategy The registered strategy whose global allocation index is materialized.
-    /// @return budget The strategy's raw USDG virtual budget after checkpointing.
-    function checkpointStrategyBudget(address strategy) external nonReentrant onlyConfigured returns (uint256 budget) {
-        _checkpointStrategyBudget(strategy);
-        budget = strategyBudget[strategy];
-    }
-
-    /// @notice Returns a strategy's budget including revenue accrued since its last state-changing checkpoint.
-    /// @dev This mirrors `_checkpointStrategyBudget` without mutating indices or remainders.
-    /// @param strategy The registered strategy whose lazy budget is previewed.
-    /// @return budget The raw USDG virtual budget including uncheckpointed index accrual.
-    function previewStrategyBudget(address strategy) external view returns (uint256 budget) {
-        budget = strategyBudget[strategy];
-        uint256 currentIndex = globalAllocationIndex;
-        uint256 priorIndex = strategyIndex[strategy];
+        if (strategyDisabled[strategy]) revert AllocationVoter__UnregisteredStrategy(strategy);
+        _checkpointStrategy(strategy);
         uint256 weight = strategyWeight[strategy];
-        if (currentIndex <= priorIndex || weight < 1) return budget;
-
-        uint256 indexDelta = currentIndex - priorIndex;
-        uint256 wholeBudget = Math.mulDiv(weight, indexDelta, INDEX_PRECISION);
-        uint256 combinedRemainder = strategyScaledRemainder[strategy] + mulmod(weight, indexDelta, INDEX_PRECISION);
-        return budget + wholeBudget + combinedRemainder / INDEX_PRECISION;
+        if (weight != 0) totalActiveWeight -= weight;
+        uint256 stranded = strategyBudget[strategy];
+        strategyBudget[strategy] = 0;
+        idleUSDG += stranded;
+        strategyDisabled[strategy] = true;
+        emit AllocationVoter__StrategyDisabled(strategy, stranded);
     }
 
-    /// @notice Returns a user's effective active weight for one strategy.
-    /// @param user The signaling account to query.
-    /// @param strategy The strategy whose effective generation-bound weight is queried.
-    /// @return weight The user's current active sGBX weight for the strategy.
-    function activeWeight(address user, address strategy) external view returns (uint256 weight) {
-        weight = _effectiveActiveWeight(user, strategy);
+    /// @notice Checkpoints and returns one strategy's current USDG budget.
+    function checkpointStrategyBudget(address strategy) external nonReentrant returns (uint256 budget) {
+        _requireInitialized();
+        _checkpointStrategy(strategy);
+        return strategyBudget[strategy];
     }
 
-    /// @notice Returns generation-bound stored weight that has not yet been settled by ManagerRewards.
-    /// @dev Stale weight is intentionally exposed here but remains excluded from signaling and allocation totals.
-    /// @param user The signaling account to query.
-    /// @param strategy The strategy whose reward-settlement weight is queried.
-    /// @return weight The stored weight, including an uncheckpointed prior-generation weight.
-    /// @return generation The generation in which `weight` was active, or the current generation for zero weight.
-    function rewardWeight(address user, address strategy) external view returns (uint256 weight, uint64 generation) {
-        weight = _storedActiveWeight[user][strategy];
-        generation = weight == 0 ? strategyGeneration[strategy] : _activeGeneration[user][strategy];
+    /// @notice Previews one strategy's checkpointed and newly indexed USDG budget.
+    function previewStrategyBudget(address strategy) external view override returns (uint256 budget) {
+        budget = strategyBudget[strategy];
+        if (strategyDisabled[strategy]) return budget;
+        uint256 delta = globalRevenueIndex - strategyIndex[strategy];
+        if (delta != 0) budget += Math.mulDiv(strategyWeight[strategy], delta, INDEX_PRECISION);
     }
 
-    /// @notice Returns the sum of a user's effective active weights across at most sixteen strategies.
-    /// @param user The signaling account to query.
-    /// @return total The sum of all current generation-bound active weights.
-    function activeWeightTotal(address user) public view returns (uint256 total) {
-        address[] storage strategies = _activeStrategies[user];
-        for (uint256 index; index < strategies.length; ++index) {
-            total += _effectiveActiveWeight(user, strategies[index]);
+    /// @notice Returns the strategies currently carrying nonzero signal entries for a user.
+    function activeStrategies(address user) external view returns (address[] memory) {
+        return _userStrategies[user];
+    }
+
+    /// @notice Stops signal increases while preserving reductions, resets, and unstaking exits.
+    function pauseSignalIncreases() external override {
+        if (msg.sender != EMERGENCY_GUARDIAN) revert AllocationVoter__Unauthorized(msg.sender);
+        signalIncreasesPaused = true;
+        emit AllocationVoter__SignalIncreasesPauseSet(true);
+    }
+
+    /// @notice Re-enables signal increases through the protocol timelock.
+    function resumeSignalIncreases() external override {
+        if (msg.sender != PROTOCOL_TIMELOCK) revert AllocationVoter__Unauthorized(msg.sender);
+        signalIncreasesPaused = false;
+        emit AllocationVoter__SignalIncreasesPauseSet(false);
+    }
+
+    function _reset(address user) private {
+        address[] storage strategies = _userStrategies[user];
+        while (strategies.length != 0) {
+            address strategy = strategies[strategies.length - 1];
+            strategies.pop();
+            _setUserWeight(user, strategy, 0);
         }
     }
 
-    /// @notice Returns the sum of a user's valid pending increases.
-    /// @param user The signaling account to query.
-    /// @return total The sum of all signalable current-generation pending increases.
-    function pendingWeightTotal(address user) public view returns (uint256 total) {
-        address[] storage strategies = _pendingStrategies[user];
-        for (uint256 index; index < strategies.length; ++index) {
-            address strategy = strategies[index];
-            if (_pendingGeneration[user][strategy] == strategyGeneration[strategy] && _isSignalable(strategy)) {
-                total += _storedPendingWeight[user][strategy];
-            }
-        }
-    }
+    function _setUserWeight(address user, address strategy, uint256 newWeight) private {
+        uint256 previous = userWeight[user][strategy];
+        if (previous == newWeight) return;
+        _checkpointStrategy(strategy);
 
-    /// @notice Returns one user's still-valid pending increase for a strategy.
-    /// @param user The signaling account to query.
-    /// @param strategy The strategy whose pending increase is queried.
-    /// @return weight The still-valid pending sGBX weight, or zero if stale or no longer signalable.
-    function pendingWeight(address user, address strategy) external view returns (uint256 weight) {
-        if (_pendingGeneration[user][strategy] != strategyGeneration[strategy] || !_isSignalable(strategy)) return 0;
-        weight = _storedPendingWeight[user][strategy];
-    }
-
-    /// @notice Returns a copy of the user's bounded active strategy list.
-    /// @param user The signaling account to query.
-    /// @return strategies The stored bounded list; effective weights must still be checked by generation.
-    function activeStrategies(address user) external view returns (address[] memory strategies) {
-        strategies = _activeStrategies[user];
-    }
-
-    /// @notice Returns a copy of the user's bounded pending strategy list.
-    /// @param user The signaling account to query.
-    /// @return strategies The stored bounded pending list; validity must still be checked by generation.
-    function pendingStrategies(address user) external view returns (address[] memory strategies) {
-        strategies = _pendingStrategies[user];
-    }
-
-    function _checkpointMatured(address user) private {
-        _pruneStaleActive(user);
-        _pruneStalePending(user);
-        uint64 activationTime = pendingActivationTime[user];
-        if (activationTime == 0 || block.timestamp < activationTime) return;
-        if (signalActivationsPaused) return;
-
-        _checkpointAllUserRewards(user);
-        address[] memory pendingForRewards = _pendingStrategies[user];
-        for (uint256 index; index < pendingForRewards.length; ++index) {
-            address strategy = pendingForRewards[index];
-            _checkpointReward(user, strategy, _effectiveActiveWeight(user, strategy));
-        }
-        address[] memory pending = _pendingStrategies[user];
-        for (uint256 index; index < pending.length; ++index) {
-            address strategy = pending[index];
-            if (_pendingGeneration[user][strategy] != strategyGeneration[strategy] || !_isSignalable(strategy)) {
-                continue;
-            }
-            uint256 newWeight = _effectiveActiveWeight(user, strategy) + _storedPendingWeight[user][strategy];
-            _setActiveWeight(user, strategy, newWeight);
+        bool disabled = strategyDisabled[strategy];
+        if (!disabled) {
+            address rewards = ASSET_REGISTRY.rewardsForStrategy(strategy);
+            if (rewards != address(0)) IStrategyRewards(rewards).setWeight(user, newWeight);
         }
 
-        _clearPending(user);
-        emit AllocationVoter__SignalsActivated(user, block.timestamp);
-    }
-
-    function _setActiveWeight(address user, address strategy, uint256 newWeight) private {
-        uint256 oldWeight = _effectiveActiveWeight(user, strategy);
-        if (oldWeight == newWeight) return;
-
-        _checkpointStrategyBudget(strategy);
-        _settleAllocationRemainderToIdle();
-        uint256 oldStrategyWeight = strategyWeight[strategy];
-        if (newWeight > oldWeight) {
-            uint256 increase = newWeight - oldWeight;
-            strategyWeight[strategy] = oldStrategyWeight + increase;
-            totalLiveWeight += increase;
+        if (disabled) {
+            if (newWeight != 0) revert AllocationVoter__UnregisteredStrategy(strategy);
+            // The registry is already terminally disabled before this voter bit is set. Skipping the admitted rewards
+            // code entirely bounds reset gas and preserves exit liveness even if that code reverts or burns all gas.
+            // Honest StrategyRewards keeps a terminal weight snapshot; with fills disabled, its index cannot advance,
+            // so previously indexed claims remain correct without a final callback.
+            strategyWeight[strategy] -= previous;
         } else {
-            uint256 decrease = oldWeight - newWeight;
-            strategyWeight[strategy] = oldStrategyWeight - decrease;
-            totalLiveWeight -= decrease;
+            uint256 oldStrategyWeight = strategyWeight[strategy];
+            uint256 nextStrategyWeight = oldStrategyWeight - previous + newWeight;
+            strategyWeight[strategy] = nextStrategyWeight;
+            totalActiveWeight = totalActiveWeight - previous + newWeight;
+            emit AllocationVoter__StrategyWeightSet(strategy, oldStrategyWeight, nextStrategyWeight);
         }
-
-        if (newWeight == 0) {
-            delete _storedActiveWeight[user][strategy];
-            delete _activeGeneration[user][strategy];
-            _removeAddress(_activeStrategies[user], strategy);
-        } else {
-            if (oldWeight == 0) _activeStrategies[user].push(strategy);
-            _storedActiveWeight[user][strategy] = newWeight;
-            _activeGeneration[user][strategy] = strategyGeneration[strategy];
-        }
-
-        if (oldStrategyWeight != 0 && strategyWeight[strategy] == 0) {
-            address token = ASSET_REGISTRY.tokenForStrategy(strategy);
-            if (token != address(0)) {
-                address rewards = ASSET_REGISTRY.configFor(token).rewards;
-                if (rewards != address(0)) IManagerRewards(rewards).settleTerminalDust();
-            }
-        }
-
-        emit AllocationVoter__UserWeightUpdated(user, strategy, oldWeight, newWeight);
-        emit AllocationVoter__StrategyWeightUpdated(strategy, oldStrategyWeight, strategyWeight[strategy]);
+        userWeight[user][strategy] = newWeight;
+        usedWeight[user] = usedWeight[user] - previous + newWeight;
     }
 
-    function _checkpointStrategyBudget(address strategy) private {
-        uint256 currentIndex = globalAllocationIndex;
-        uint256 priorIndex = strategyIndex[strategy];
-        if (currentIndex != priorIndex) {
-            uint256 weight = strategyWeight[strategy];
-            if (weight != 0) {
-                uint256 indexDelta = currentIndex - priorIndex;
-                uint256 wholeBudget = Math.mulDiv(weight, indexDelta, INDEX_PRECISION);
-                uint256 combinedRemainder =
-                    strategyScaledRemainder[strategy] + mulmod(weight, indexDelta, INDEX_PRECISION);
-                strategyBudget[strategy] += wholeBudget + combinedRemainder / INDEX_PRECISION;
-                strategyScaledRemainder[strategy] = combinedRemainder % INDEX_PRECISION;
+    function _checkpointStrategy(address strategy) private {
+        uint256 currentIndex = globalRevenueIndex;
+        uint256 prior = strategyIndex[strategy];
+        if (currentIndex != prior) {
+            if (!strategyDisabled[strategy]) {
+                strategyBudget[strategy] += Math.mulDiv(strategyWeight[strategy], currentIndex - prior, INDEX_PRECISION);
             }
             strategyIndex[strategy] = currentIndex;
         }
-        emit AllocationVoter__StrategyBudgetCheckpointed(strategy, strategyBudget[strategy], currentIndex);
     }
 
-    function _checkpointAllUserRewards(address user) private {
-        address[] storage strategies = _activeStrategies[user];
-        for (uint256 index; index < strategies.length; ++index) {
-            address strategy = strategies[index];
-            _checkpointReward(user, strategy, _storedActiveWeight[user][strategy]);
-        }
-    }
-
-    function _checkpointReward(address user, address strategy, uint256 weight) private {
-        address token = ASSET_REGISTRY.tokenForStrategy(strategy);
-        if (token == address(0)) return;
-        address rewards = ASSET_REGISTRY.configFor(token).rewards;
-        if (rewards != address(0)) {
-            uint64 weightGeneration = weight == 0 ? strategyGeneration[strategy] : _activeGeneration[user][strategy];
-            IManagerRewards(rewards).checkpointUser(user, weight, weightGeneration);
-        }
-    }
-
-    function _pruneStaleActive(address user) private {
-        uint256 index = _activeStrategies[user].length;
-        while (index != 0) {
-            --index;
-            address strategy = _activeStrategies[user][index];
-            if (_activeGeneration[user][strategy] != strategyGeneration[strategy] || strategyDisabled[strategy]) {
-                _checkpointReward(user, strategy, _storedActiveWeight[user][strategy]);
-                delete _storedActiveWeight[user][strategy];
-                delete _activeGeneration[user][strategy];
-                _removeAt(_activeStrategies[user], index);
-            }
-        }
-    }
-
-    function _pruneStalePending(address user) private {
-        uint256 index = _pendingStrategies[user].length;
-        while (index != 0) {
-            --index;
-            address strategy = _pendingStrategies[user][index];
-            if (_pendingGeneration[user][strategy] != strategyGeneration[strategy] || !_isSignalable(strategy)) {
-                delete _storedPendingWeight[user][strategy];
-                delete _pendingGeneration[user][strategy];
-                _removeAt(_pendingStrategies[user], index);
-            }
-        }
-        if (_pendingStrategies[user].length == 0) pendingActivationTime[user] = 0;
-    }
-
-    function _scalePending(address user, uint256 targetTotal, uint256 oldTotal) private {
-        address[] memory strategies = _pendingStrategies[user];
-        uint64 activationTime = pendingActivationTime[user];
-        uint256[] memory scaled = new uint256[](strategies.length);
-        for (uint256 index; index < strategies.length; ++index) {
-            scaled[index] = Math.mulDiv(_storedPendingWeight[user][strategies[index]], targetTotal, oldTotal);
-        }
-        _clearPending(user);
-        for (uint256 index; index < strategies.length; ++index) {
-            if (scaled[index] == 0) continue;
-            address strategy = strategies[index];
-            _pendingStrategies[user].push(strategy);
-            _storedPendingWeight[user][strategy] = scaled[index];
-            _pendingGeneration[user][strategy] = strategyGeneration[strategy];
-        }
-        if (_pendingStrategies[user].length != 0) pendingActivationTime[user] = activationTime;
-    }
-
-    function _scaleActive(address user, uint256 targetTotal, uint256 oldTotal) private {
-        address[] memory strategies = _activeStrategies[user];
-        for (uint256 index; index < strategies.length; ++index) {
-            address strategy = strategies[index];
-            uint256 scaled = Math.mulDiv(_effectiveActiveWeight(user, strategy), targetTotal, oldTotal);
-            _setActiveWeight(user, strategy, scaled);
-        }
-    }
-
-    function _clearPending(address user) private {
-        address[] storage strategies = _pendingStrategies[user];
-        for (uint256 index; index < strategies.length; ++index) {
-            address strategy = strategies[index];
-            delete _storedPendingWeight[user][strategy];
-            delete _pendingGeneration[user][strategy];
-        }
-        delete _pendingStrategies[user];
-        pendingActivationTime[user] = 0;
-    }
-
-    function _effectiveActiveWeight(address user, address strategy) private view returns (uint256) {
-        if (strategyDisabled[strategy] || _activeGeneration[user][strategy] != strategyGeneration[strategy]) return 0;
-        return _storedActiveWeight[user][strategy];
-    }
-
-    function _isSignalable(address strategy) private view returns (bool) {
-        return !strategyDisabled[strategy] && ASSET_REGISTRY.isLiveStrategy(strategy);
-    }
-
-    function _desiredWeight(address strategy, address[] calldata desiredStrategies, uint256[] memory desiredWeights)
-        private
-        pure
-        returns (uint256)
-    {
-        for (uint256 index; index < desiredStrategies.length; ++index) {
-            if (desiredStrategies[index] == strategy) return desiredWeights[index];
-        }
-        return 0;
-    }
-
-    function _removeAddress(address[] storage values, address value) private {
-        for (uint256 index; index < values.length; ++index) {
-            if (values[index] == value) {
-                _removeAt(values, index);
-                return;
-            }
-        }
-    }
-
-    function _removeAt(address[] storage values, uint256 index) private {
-        uint256 last = values.length - 1;
-        if (index != last) values[index] = values[last];
-        values.pop();
-    }
-
-    function _creditIdleScaled(uint256 scaledAmount) private {
-        uint256 combined = idleScaledRemainder + scaledAmount;
-        idleUSDG += combined / INDEX_PRECISION;
-        idleScaledRemainder = combined % INDEX_PRECISION;
-    }
-
-    function _settleAllocationRemainderToIdle() private {
-        uint256 remainder = allocationRemainder;
-        if (remainder == 0) return;
-        allocationRemainder = 0;
-        _creditIdleScaled(remainder);
-    }
-
-    function _scaleWholeAndRemainder(
-        uint256 wholeAmount,
-        uint256 scaledRemainder,
-        uint256 numerator,
-        uint256 denominator
-    ) private pure returns (uint256 scaledWholeAmount, uint256 nextScaledRemainder) {
-        scaledWholeAmount = Math.mulDiv(wholeAmount, numerator, denominator);
-        uint256 wholeFraction = Math.mulDiv(mulmod(wholeAmount, numerator, denominator), INDEX_PRECISION, denominator);
-        uint256 carriedFraction = Math.mulDiv(scaledRemainder, numerator, denominator);
-        uint256 combined = wholeFraction + carriedFraction;
-        scaledWholeAmount += combined / INDEX_PRECISION;
-        nextScaledRemainder = combined % INDEX_PRECISION;
+    function _requireInitialized() private view {
+        if (!dependenciesInitialized) revert AllocationVoter__NotInitialized();
     }
 }

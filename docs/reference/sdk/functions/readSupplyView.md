@@ -6,16 +6,16 @@
 
 # Function: readSupplyView()
 
-> **readSupplyView**(`client`, `gumBallLens`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `cumulativeBurned`: `bigint`; `cumulativeMinted`: `bigint`; `remainingMintCapacity`: `bigint`; `totalSupply`: `bigint`; \}\>
+> **readSupplyView**(`client`, `gbx`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `cumulativeBurned`: `bigint`; `cumulativeMinted`: `bigint`; `emissionController`: `` `0x${string}` ``; `remainingMintCapacity`: `bigint`; `totalSupply`: `bigint`; \}\>
 
 ## Parameters
 
-| Parameter     | Type                                          |
-| ------------- | --------------------------------------------- |
-| `client`      | \{ \}                                         |
-| `gumBallLens` | `` `0x${string}` ``                           |
-| `options`     | [`ReadOptions`](../interfaces/ReadOptions.md) |
+| Parameter | Type                                          |
+| --------- | --------------------------------------------- |
+| `client`  | \{ \}                                         |
+| `gbx`     | `` `0x${string}` ``                           |
+| `options` | [`ReadOptions`](../interfaces/ReadOptions.md) |
 
 ## Returns
 
-`Promise`\<\{ `blockNumber`: `bigint`; `cumulativeBurned`: `bigint`; `cumulativeMinted`: `bigint`; `remainingMintCapacity`: `bigint`; `totalSupply`: `bigint`; \}\>
+`Promise`\<\{ `blockNumber`: `bigint`; `cumulativeBurned`: `bigint`; `cumulativeMinted`: `bigint`; `emissionController`: `` `0x${string}` ``; `remainingMintCapacity`: `bigint`; `totalSupply`: `bigint`; \}\>

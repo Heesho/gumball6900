@@ -8,7 +8,9 @@
 
 > **quoteMiningEpoch**(`input`): [`MiningEpochQuote`](../interfaces/MiningEpochQuote.md)
 
-Quotes a settled mining epoch from raw USDG units. Prices and GBX amounts remain 18-decimal values.
+Mirrors EmissionController.settleMiningEpoch: every non-empty epoch receives
+the complete cap-bounded schedule, while an empty epoch receives zero and
+permanently forfeits that day's schedule. Contribution size is intentionally irrelevant.
 
 ## Parameters
 

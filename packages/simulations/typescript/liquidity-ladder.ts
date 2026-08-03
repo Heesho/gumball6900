@@ -3,27 +3,24 @@ import { TickMath } from '@uniswap/v3-sdk';
 import { Pool, Position } from '@uniswap/v4-sdk';
 
 import {
-  CANONICAL_V4_FEE,
-  CANONICAL_V4_TICK_SPACING,
   sqrtPriceX96AtTick,
   sqrtPriceX96FromRawAmounts,
   tickAtSqrtPriceX96,
+  validateHooklessV4PoolConfiguration,
+  type HooklessV4PoolConfiguration,
 } from '@gumball-6900/sdk';
 
 const WAD = 10n ** 18n;
 const BPS_DENOMINATOR = 10_000n;
 const Q128 = 1n << 128n;
 
-export const GENESIS_LIQUIDITY_GBX_RAW = 20_000_000n * WAD;
-export const GENESIS_MINER_GBX_RAW = 80_000_000n * WAD;
-export const GENESIS_COMMUNITY_USDG_RAW = 80_000_000n * 10n ** 6n;
+export const ZERO_V4_HOOK_ADDRESS = '0x0000000000000000000000000000000000000000';
 
-export const DEFAULT_GENESIS_LADDER = [
-  { allocationBps: 5_000, cumulativeTickDelta: 4_080 },
-  { allocationBps: 3_000, cumulativeTickDelta: 10_980 },
-  { allocationBps: 1_500, cumulativeTickDelta: 17_940 },
-  { allocationBps: 500, cumulativeTickDelta: 24_900 },
-] as const;
+export const GENESIS_LIQUIDITY_GBX_RAW = 20_000_000n * WAD;
+export const GENESIS_REFERENCE_GBX_RAW = GENESIS_LIQUIDITY_GBX_RAW;
+export const GENESIS_REFERENCE_USDG_RAW = 20_000_000n * 10n ** 6n;
+
+export const DEFAULT_GENESIS_LADDER = [{ allocationBps: 10_000, cumulativeTickDelta: 24_900 }] as const;
 
 export type LadderOrdering = 'gbx-token0' | 'gbx-token1';
 
@@ -57,7 +54,7 @@ export interface LadderTradeResult {
   readonly inputRaw: bigint;
   readonly midPriceOutputRaw: bigint;
   readonly poolAfter: Pool;
-  /** Execution-price loss versus the pre-trade mid price, including the canonical 0.30% LP fee. */
+  /** Execution-price loss versus the pre-trade mid price, including the explicitly configured LP fee. */
   readonly priceImpactBps: bigint;
 }
 
@@ -77,6 +74,7 @@ export interface CanonicalLadderModel {
   readonly genesisResidualGBXRaw: bigint;
   readonly ordering: LadderOrdering;
   readonly pool: Pool;
+  readonly poolConfiguration: HooklessV4PoolConfiguration;
   readonly positions: readonly LadderPositionDefinition[];
   readonly usdG: Token;
 }
@@ -93,24 +91,24 @@ function tokenAddresses(ordering: LadderOrdering) {
       };
 }
 
-function alignTickDown(tick: number): number {
-  return Math.floor(tick / CANONICAL_V4_TICK_SPACING) * CANONICAL_V4_TICK_SPACING;
+function alignTickDown(tick: number, tickSpacing: number): number {
+  return Math.floor(tick / tickSpacing) * tickSpacing;
 }
 
-function alignTickUp(tick: number): number {
-  return Math.ceil(tick / CANONICAL_V4_TICK_SPACING) * CANONICAL_V4_TICK_SPACING;
+function alignTickUp(tick: number, tickSpacing: number): number {
+  return Math.ceil(tick / tickSpacing) * tickSpacing;
 }
 
-function oneSidedGBXBoundary(sqrtPriceX96: bigint, tick: number, gbxIsToken0: boolean): number {
-  if (!gbxIsToken0) return alignTickDown(tick);
-  const aligned = alignTickUp(tick);
-  return sqrtPriceX96AtTick(aligned) < sqrtPriceX96 ? aligned + CANONICAL_V4_TICK_SPACING : aligned;
+function oneSidedGBXBoundary(sqrtPriceX96: bigint, tick: number, gbxIsToken0: boolean, tickSpacing: number): number {
+  if (!gbxIsToken0) return alignTickDown(tick, tickSpacing);
+  const aligned = alignTickUp(tick, tickSpacing);
+  return sqrtPriceX96AtTick(aligned) < sqrtPriceX96 ? aligned + tickSpacing : aligned;
 }
 
 function genesisSqrtPriceX96(gbxIsToken0: boolean): bigint {
   return gbxIsToken0
-    ? sqrtPriceX96FromRawAmounts(GENESIS_MINER_GBX_RAW, GENESIS_COMMUNITY_USDG_RAW)
-    : sqrtPriceX96FromRawAmounts(GENESIS_COMMUNITY_USDG_RAW, GENESIS_MINER_GBX_RAW);
+    ? sqrtPriceX96FromRawAmounts(GENESIS_REFERENCE_GBX_RAW, GENESIS_REFERENCE_USDG_RAW)
+    : sqrtPriceX96FromRawAmounts(GENESIS_REFERENCE_USDG_RAW, GENESIS_REFERENCE_GBX_RAW);
 }
 
 function poolGBXPriceUSDGWad(pool: Pool, gbx: Token, usdG: Token): bigint {
@@ -150,8 +148,12 @@ function activeLiquidityAtTick(positions: readonly LadderPositionDefinition[], t
   );
 }
 
-/** Builds both currency-ordering variants with official Uniswap v3 TickMath and v4 Pool/Position implementations. */
-export function createCanonicalLadderModel(ordering: LadderOrdering = 'gbx-token0'): CanonicalLadderModel {
+/** Builds a one-position mechanics scenario from explicit pool inputs using official Uniswap SDK math. */
+export function createCanonicalLadderModel(
+  poolConfiguration: HooklessV4PoolConfiguration,
+  ordering: LadderOrdering = 'gbx-token0',
+): CanonicalLadderModel {
+  const configuration = validateHooklessV4PoolConfiguration(poolConfiguration);
   const addresses = tokenAddresses(ordering);
   const gbx = new Token(46_630, addresses.gbx, 18, 'GBX');
   const usdG = new Token(46_630, addresses.usdG, 6, 'USDG');
@@ -160,13 +162,13 @@ export function createCanonicalLadderModel(ordering: LadderOrdering = 'gbx-token
 
   const sqrtPriceX96 = genesisSqrtPriceX96(gbxIsToken0);
   const currentTick = tickAtSqrtPriceX96(sqrtPriceX96);
-  const boundary = oneSidedGBXBoundary(sqrtPriceX96, currentTick, gbxIsToken0);
+  const boundary = oneSidedGBXBoundary(sqrtPriceX96, currentTick, gbxIsToken0, configuration.tickSpacing);
   const emptyPool = new Pool(
     gbx,
     usdG,
-    CANONICAL_V4_FEE,
-    CANONICAL_V4_TICK_SPACING,
-    '0x0000000000000000000000000000000000002000',
+    configuration.fee,
+    configuration.tickSpacing,
+    ZERO_V4_HOOK_ADDRESS,
     sqrtPriceX96.toString(),
     '0',
     currentTick,
@@ -211,9 +213,9 @@ export function createCanonicalLadderModel(ordering: LadderOrdering = 'gbx-token
   const pool = new Pool(
     gbx,
     usdG,
-    CANONICAL_V4_FEE,
-    CANONICAL_V4_TICK_SPACING,
-    '0x0000000000000000000000000000000000002000',
+    configuration.fee,
+    configuration.tickSpacing,
+    ZERO_V4_HOOK_ADDRESS,
     sqrtPriceX96.toString(),
     activeLiquidity.toString(),
     currentTick,
@@ -230,6 +232,7 @@ export function createCanonicalLadderModel(ordering: LadderOrdering = 'gbx-token
     genesisResidualGBXRaw,
     ordering,
     pool,
+    poolConfiguration: configuration,
     positions,
     usdG,
   };
@@ -300,9 +303,10 @@ async function simulateExactInput(
 /** Executes a fee-aware exact-input USDG buy through the official v4 SDK tick traversal. */
 export function simulateLadderBuy(
   usdGInRaw: bigint,
+  poolConfiguration: HooklessV4PoolConfiguration,
   ordering: LadderOrdering = 'gbx-token0',
 ): Promise<LadderTradeResult> {
-  const model = createCanonicalLadderModel(ordering);
+  const model = createCanonicalLadderModel(poolConfiguration, ordering);
   return simulateExactInput(model, model.pool, model.usdG, usdGInRaw);
 }
 
@@ -310,9 +314,10 @@ export function simulateLadderBuy(
 export async function simulateLadderSellAfterBuy(
   priorUSDGBuyRaw: bigint,
   gbxInRaw: bigint,
+  poolConfiguration: HooklessV4PoolConfiguration,
   ordering: LadderOrdering = 'gbx-token0',
 ): Promise<{ readonly buy: LadderTradeResult; readonly sell: LadderTradeResult }> {
-  const model = createCanonicalLadderModel(ordering);
+  const model = createCanonicalLadderModel(poolConfiguration, ordering);
   const buy = await simulateExactInput(model, model.pool, model.usdG, priorUSDGBuyRaw);
   const sell = await simulateExactInput(model, buy.poolAfter, model.gbx, gbxInRaw);
   return { buy, sell };

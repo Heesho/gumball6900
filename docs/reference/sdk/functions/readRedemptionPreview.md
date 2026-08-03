@@ -6,17 +6,19 @@
 
 # Function: readRedemptionPreview()
 
-> **readRedemptionPreview**(`client`, `gumBallLens`, `shares`, `options?`): `Promise`\<\{ `amountsOutRaw`: `bigint`[]; `blockNumber`: `bigint`; `shares`: `bigint`; `tokens`: `` `0x${string}` ``[]; \}\>
+> **readRedemptionPreview**(`client`, `contracts`, `shares`, `options?`): `Promise`\<\{ `amounts`: `bigint`[]; `assets`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `shares`: `bigint`; `supplyBefore`: `bigint`; \}\>
+
+Computes the exact raw-basket preview from the same pre-burn balance and supply inputs used by the vault.
 
 ## Parameters
 
-| Parameter     | Type                                          |
-| ------------- | --------------------------------------------- |
-| `client`      | \{ \}                                         |
-| `gumBallLens` | `` `0x${string}` ``                           |
-| `shares`      | `bigint`                                      |
-| `options`     | [`ReadOptions`](../interfaces/ReadOptions.md) |
+| Parameter   | Type                                                                                  |
+| ----------- | ------------------------------------------------------------------------------------- |
+| `client`    | \{ \}                                                                                 |
+| `contracts` | `Readonly`\<\{ `assetRegistry`: `Address`; `gbx`: `Address`; `vault`: `Address`; \}\> |
+| `shares`    | `bigint`                                                                              |
+| `options`   | [`ReadOptions`](../interfaces/ReadOptions.md)                                         |
 
 ## Returns
 
-`Promise`\<\{ `amountsOutRaw`: `bigint`[]; `blockNumber`: `bigint`; `shares`: `bigint`; `tokens`: `` `0x${string}` ``[]; \}\>
+`Promise`\<\{ `amounts`: `bigint`[]; `assets`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `shares`: `bigint`; `supplyBefore`: `bigint`; \}\>

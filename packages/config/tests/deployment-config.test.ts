@@ -224,26 +224,6 @@ describe('deployment config target binding', () => {
       }),
     ).toThrow('mainnet-only');
   });
-
-  it('keeps the public testnet alias pinned to the guarded config runner', () => {
-    const configPackage = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')) as {
-      scripts: Record<string, string>;
-    };
-    const rootPackage = JSON.parse(readFileSync(new URL('../../../package.json', import.meta.url), 'utf8')) as {
-      scripts: Record<string, string>;
-    };
-    expect(configPackage.scripts['deployment:run:testnet']).toContain('DEPLOYMENT_EXPECTED_CHAIN_ID=46630');
-    expect(rootPackage.scripts['contracts:deploy:testnet']).toBe(
-      'pnpm --filter @gumball-6900/config deployment:run:testnet --',
-    );
-    const runner = readFileSync(new URL('../scripts/run-authorized-deployment.ts', import.meta.url), 'utf8');
-    expect(runner).toContain("requireValue(arguments_, 'protocol-admin-safe-evidence')");
-    expect(runner).toContain("requireValue(arguments_, 'emergency-guardian-safe-evidence')");
-    expect(runner).toContain("requireValue(arguments_, 'safe-bundle')");
-    expect(runner).toContain('DEPLOYMENT_PROTOCOL_ADMIN_SAFE_EVIDENCE_PATH');
-    expect(runner).toContain('DEPLOYMENT_EMERGENCY_GUARDIAN_SAFE_EVIDENCE_PATH');
-    expect(runner).toContain('DEPLOYMENT_SAFE_BUNDLE_PATH');
-  });
 });
 
 describe('provisional Robinhood testnet dependencies', () => {

@@ -40,8 +40,6 @@ id = "generic-api-key"
   condition = "AND"
   regexTarget = "match"
   paths = [
-    '''(^|/)apps/web/tests/runtime-config\.test\.ts$''',
-    '''(^|/)packages/contracts/test/hardhat/unit/ReleaseManifestBinding\.test\.ts$''',
     '''(^|/)scripts/release/export-mainnet-fork-context(?:\.test)?\.mjs$''',
   ]
   regexes = ['''^key(?::| ===) 'uniswapV4\.(?:permit2|quoter)'$''']

@@ -1,6 +1,6 @@
 # ADR-0010: Permissioned-Pool Release Boundary
 
-- Status: Accepted
+- Status: Superseded by ADR-0012; archival baseline only.
 - Date: 2026-08-02
 - Decision owners: protocol engineering, security review, and legal/compliance review
 

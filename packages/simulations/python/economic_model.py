@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import json
 import sys
+from decimal import Decimal, ROUND_FLOOR, localcontext
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 WAD = 10**18
 BPS = 10_000
@@ -18,11 +19,21 @@ TARGET_UNIT = WAD
 UNIT_TARGET_PER_USDG_RATE = WAD
 
 MAX_CUMULATIVE_MINT = 1_000_000_000 * WAD
-GENESIS_MINER_GBX = 80_000_000 * WAD
 GENESIS_LP_GBX = 20_000_000 * WAD
-GENESIS_SUPPLY = GENESIS_MINER_GBX + GENESIS_LP_GBX
-INITIAL_DAILY_EMISSION = 427_181_096_645_855_643_000_000
+GENESIS_SUPPLY = GENESIS_LP_GBX
+MINING_EMISSION_ALLOCATION = MAX_CUMULATIVE_MINT - GENESIS_SUPPLY
 DAILY_DECAY_WAD = 999_525_354_337_060_160
+
+
+def derive_initial_daily_emission() -> int:
+    with localcontext() as context:
+        context.prec = 100
+        daily_real_decay = Decimal(2) ** (Decimal(-1) / Decimal(1460))
+        derived = Decimal(MINING_EMISSION_ALLOCATION) * (Decimal(1) - daily_real_decay)
+        return int(derived.to_integral_value(rounding=ROUND_FLOOR))
+
+
+INITIAL_DAILY_EMISSION = derive_initial_daily_emission()
 
 HORIZON_DAYS = [365, 1_460, 2_920, 5_840, 11_680]
 EMISSION_BURN_BPS = [0, 5_000, 10_000, 12_500, 15_000]
@@ -58,85 +69,45 @@ def usdg_price_wad(raw_usdg: int, gbx_amount: int) -> int:
     return mul_div(normalize_usdg(raw_usdg), WAD, gbx_amount)
 
 
-def raw_usdg_for_emission_up(gbx_amount: int, price_wad: int) -> int:
-    return mul_div_up(gbx_amount, price_wad, WAD * USDG_NORMALIZATION_SCALE)
-
-
-def minimum_mining_price(reference_price: int) -> int:
-    if reference_price <= 0:
-        raise ValueError("reference price must be positive")
-    return max(mul_div(reference_price, 9_500, BPS), 1)
-
-
-def update_reference_price(previous: int, clearing: int, had_contributions: bool) -> int:
-    lower = minimum_mining_price(previous)
-    if not had_contributions:
-        return lower
-    if clearing <= 0:
-        raise ValueError("a contributed epoch requires a positive clearing price")
-    # Solidity floors the terms independently.
-    weighted = mul_div(previous, 8_000, BPS) + mul_div(clearing, 2_000, BPS)
-    upper = mul_div(previous, 15_000, BPS)
-    return min(max(weighted, lower), upper)
-
-
-def demand_funding_bps(pattern: str, day_index: int) -> int:
-    if pattern == "fully-funded":
-        return BPS
-    if pattern == "fifty-percent-funded":
-        return 5_000
-    if pattern == "sporadic-demand":
-        weekly = [10_000, 0, 2_500, 0, 10_000, 5_000, 0]
+def contribution_for_epoch(pattern: str, day_index: int) -> int:
+    if pattern == "all-nonempty-large":
+        return usd_g(1_000)
+    if pattern == "all-nonempty-one-atom":
+        return 1
+    if pattern == "sporadic-nonempty":
+        weekly = [1, 0, usd_g(100), 0, usd_g(1_000), 1, 0]
         return weekly[day_index % len(weekly)]
     if pattern == "long-empty-period":
         if day_index < 365:
-            return BPS
+            return 1
         if day_index < 2_365:
             return 0
-        return BPS if day_index % 3 == 0 else 5_000
-    raise ValueError(f"unknown demand pattern: {pattern}")
+        return 1 if day_index % 3 == 0 else 0
+    raise ValueError(f"unknown participation pattern: {pattern}")
 
 
-def simulate_demand_pattern(pattern: str) -> Dict[str, Any]:
+def simulate_participation_pattern(pattern: str) -> Dict[str, Any]:
     scheduled = INITIAL_DAILY_EMISSION
     cumulative_minted = GENESIS_SUPPLY
-    reference_price = WAD
     total_usdg_accepted_raw = 0
-    fully_funded_epochs = 0
-    partially_funded_epochs = 0
+    forfeited_scheduled = 0
+    non_empty_epochs = 0
     empty_epochs = 0
     checkpoints: List[Dict[str, Any]] = []
 
     for day_index in range(HORIZON_DAYS[-1]):
         epoch_scheduled = min(scheduled, MAX_CUMULATIVE_MINT - cumulative_minted)
-        funding_bps = demand_funding_bps(pattern, day_index)
-        desired_emission = mul_div(epoch_scheduled, funding_bps, BPS)
-        reserve_price = minimum_mining_price(reference_price)
-        contributed_usdg_raw = raw_usdg_for_emission_up(desired_emission, reserve_price)
-        affordable_emission = (
-            0
-            if contributed_usdg_raw == 0
-            else mul_div(normalize_usdg(contributed_usdg_raw), WAD, reserve_price)
-        )
-        actual_emission = min(epoch_scheduled, affordable_emission)
-        fully_funded = epoch_scheduled > 0 and actual_emission == epoch_scheduled
-        if contributed_usdg_raw == 0:
-            clearing_price = 0
-        elif fully_funded:
-            clearing_price = usdg_price_wad(contributed_usdg_raw, epoch_scheduled)
-        else:
-            clearing_price = reserve_price
+        contributed_usdg_raw = contribution_for_epoch(pattern, day_index)
+        actual_emission = 0 if contributed_usdg_raw == 0 else epoch_scheduled
 
         cumulative_minted += actual_emission
         total_usdg_accepted_raw += contributed_usdg_raw
         if contributed_usdg_raw == 0:
             empty_epochs += 1
-        elif fully_funded:
-            fully_funded_epochs += 1
+            forfeited_scheduled += scheduled
         else:
-            partially_funded_epochs += 1
+            non_empty_epochs += 1
 
-        reference_price = update_reference_price(reference_price, clearing_price, contributed_usdg_raw != 0)
         scheduled = mul_div(scheduled, DAILY_DECAY_WAD, WAD)
 
         elapsed_days = day_index + 1
@@ -148,171 +119,40 @@ def simulate_demand_pattern(pattern: str) -> Dict[str, Any]:
                     "totalCumulativeMinted": cumulative_minted,
                     "totalUSDGAcceptedRaw": total_usdg_accepted_raw,
                     "nextScheduledEmission": scheduled,
-                    "nextReferenceMiningPrice": reference_price,
-                    "fullyFundedEpochs": fully_funded_epochs,
-                    "partiallyFundedEpochs": partially_funded_epochs,
+                    "forfeitedScheduled": forfeited_scheduled,
+                    "nonEmptyEpochs": non_empty_epochs,
                     "emptyEpochs": empty_epochs,
                 }
             )
     return {"id": pattern, "checkpoints": checkpoints}
 
 
-def price_shock_trace(identifier: str, requested_market_prices: List[int]) -> Dict[str, Any]:
-    reference_price = WAD
-    points: List[Dict[str, Any]] = []
-    for epoch, requested_market_price in enumerate(requested_market_prices, start=1):
-        previous = reference_price
-        reserve = minimum_mining_price(previous)
-        effective = max(requested_market_price, reserve)
-        reference_price = update_reference_price(previous, effective, True)
-        points.append(
-            {
-                "epoch": epoch,
-                "requestedMarketPrice": requested_market_price,
-                "reservePrice": reserve,
-                "effectiveClearingPrice": effective,
-                "previousReferencePrice": previous,
-                "nextReferencePrice": reference_price,
-            }
-        )
-    return {"id": identifier, "points": points}
-
-
-def integer_square_root(value: int) -> int:
-    if value < 0:
-        raise ValueError("square root value must be non-negative")
-    if value < 2:
-        return value
-    estimate = 1 << ((value.bit_length() + 1) // 2)
-    while True:
-        following = (estimate + value // estimate) // 2
-        if following >= estimate:
-            return estimate
-        estimate = following
-
-
-def sqrt_wad(value_wad: int) -> int:
-    return integer_square_root(value_wad * WAD)
-
-
-def inverse_sqrt_wad(value_wad: int) -> int:
-    return WAD * WAD // sqrt_wad(value_wad)
-
-
-LADDER = [
-    {"allocation": tokens(10_000_000), "lower": WAD, "upper": 15 * 10**17},
-    {"allocation": tokens(6_000_000), "lower": 15 * 10**17, "upper": 3 * WAD},
-    {"allocation": tokens(3_000_000), "lower": 3 * WAD, "upper": 6 * WAD},
-    {"allocation": tokens(1_000_000), "lower": 6 * WAD, "upper": 12 * WAD},
-]
-
-
-def ladder_state(price_multiple_wad: int, genesis_price_wad: int = WAD) -> Dict[str, Any]:
-    positions: List[Dict[str, Any]] = []
-    for price_range in LADDER:
-        inverse_lower = inverse_sqrt_wad(price_range["lower"])
-        inverse_upper = inverse_sqrt_wad(price_range["upper"])
-        liquidity = mul_div(price_range["allocation"], WAD, inverse_lower - inverse_upper)
-        if price_multiple_wad <= price_range["lower"]:
-            gbx_remaining = price_range["allocation"]
-            usd_g_raised_wad = 0
-        elif price_multiple_wad >= price_range["upper"]:
-            gbx_remaining = 0
-            usd_g_raised_wad = mul_div(
-                liquidity,
-                sqrt_wad(price_range["upper"]) - sqrt_wad(price_range["lower"]),
-                WAD,
-            )
-        else:
-            gbx_remaining = mul_div(
-                liquidity,
-                inverse_sqrt_wad(price_multiple_wad) - inverse_upper,
-                WAD,
-            )
-            usd_g_raised_wad = mul_div(
-                liquidity,
-                sqrt_wad(price_multiple_wad) - sqrt_wad(price_range["lower"]),
-                WAD,
-            )
-        usd_g_raised_wad = mul_div(usd_g_raised_wad, genesis_price_wad, WAD)
-        positions.append(
-            {
-                "gbxAllocation": price_range["allocation"],
-                "lowerPriceMultipleWad": price_range["lower"],
-                "upperPriceMultipleWad": price_range["upper"],
-                "gbxRemaining": gbx_remaining,
-                "usdGRaisedWad": usd_g_raised_wad,
-                "usdGRaisedRaw": usd_g_raised_wad // USDG_NORMALIZATION_SCALE,
-            }
-        )
-    gbx_remaining = sum(position["gbxRemaining"] for position in positions)
-    usd_g_raised_wad = sum(position["usdGRaisedWad"] for position in positions)
-    usd_g_raised_raw = sum(position["usdGRaisedRaw"] for position in positions)
+def emission_schedule_lifetime() -> Dict[str, int]:
+    emission = INITIAL_DAILY_EMISSION
+    scheduled_total = 0
+    positive_epochs = 0
+    while emission != 0:
+        scheduled_total += emission
+        emission = mul_div(emission, DAILY_DECAY_WAD, WAD)
+        positive_epochs += 1
     return {
-        "priceMultipleWad": price_multiple_wad,
-        "gbxRemaining": gbx_remaining,
-        "gbxSold": GENESIS_LP_GBX - gbx_remaining,
-        "usdGRaisedWad": usd_g_raised_wad,
-        "usdGRaisedRaw": usd_g_raised_raw,
-        "positions": positions,
+        "positiveEpochs": positive_epochs,
+        "sequentialScheduledTotal": scheduled_total,
+        "nominalAllocationResidual": MINING_EMISSION_ALLOCATION - scheduled_total,
     }
 
 
-def quote_bootstrap(community_raise: int) -> Dict[str, Any]:
-    sponsor = mul_div_up(community_raise, GENESIS_LP_GBX, GENESIS_MINER_GBX)
-    total_backing = community_raise + sponsor
-    initial_price = usdg_price_wad(community_raise, GENESIS_MINER_GBX)
-    backing_per_gbx = usdg_price_wad(total_backing, GENESIS_SUPPLY)
-    participant_contribution = community_raise // 100
-    participant_gbx = mul_div(participant_contribution, GENESIS_MINER_GBX, community_raise)
-    fully_converted_ladder_usdg_raw = ladder_state(12 * WAD, initial_price)["usdGRaisedRaw"]
-    return {
-        "communityRaiseUSDGRaw": community_raise,
-        "sponsorRequirementUSDGRaw": sponsor,
-        "totalGenesisBackingUSDGRaw": total_backing,
-        "genesisMinerAllocation": GENESIS_MINER_GBX,
-        "oneSidedLPAllocation": GENESIS_LP_GBX,
-        "initialGBXPrice": initial_price,
-        "backingPerGBX": backing_per_gbx,
-        "lpBackingRequirementUSDGRaw": sponsor,
-        "initialOneSidedLPUSDGRaw": 0,
-        "fullyConvertedLadderUSDGRaw": fully_converted_ladder_usdg_raw,
-        "participantContributionUSDGRaw": participant_contribution,
-        "participantGBX": participant_gbx,
-        "genesisRedemptionUSDGRaw": mul_div(total_backing, participant_gbx, GENESIS_SUPPLY),
-    }
+def auction_price(init_price: int, elapsed_seconds: int, epoch_period: int = DAY) -> int:
+    if init_price <= 0 or elapsed_seconds < 0 or epoch_period <= 0:
+        raise ValueError("invalid auction input")
+    if elapsed_seconds > epoch_period:
+        return 0
+    return init_price - mul_div(init_price, elapsed_seconds, epoch_period)
 
 
-def auction_rate(reference_rate: int, elapsed_seconds: int) -> int:
-    start = mul_div(reference_rate, 12_500, BPS)
-    floor = mul_div(reference_rate, 8_000, BPS)
-    if elapsed_seconds >= DAY:
-        return floor
-    return start - mul_div(start - floor, elapsed_seconds, DAY)
-
-
-def market_rate_with_drift(start_rate: int, drift_bps: int, elapsed_seconds: int) -> int:
-    magnitude = mul_div(start_rate, abs(drift_bps), BPS)
-    elapsed_drift = mul_div(magnitude, elapsed_seconds, DAY)
-    return start_rate - elapsed_drift if drift_bps < 0 else start_rate + elapsed_drift
-
-
-def find_auction_fill_second(options: Dict[str, Any]) -> Optional[int]:
-    if not options["makerAvailable"]:
-        return None
-    for second in range(DAY + 1):
-        halted = (
-            "haltStartSecond" in options
-            and "haltEndSecond" in options
-            and second >= options["haltStartSecond"]
-            and second <= options["haltEndSecond"]
-        )
-        if halted:
-            continue
-        market_rate = market_rate_with_drift(options["marketStartRate"], options["dailyDriftBps"], second)
-        if auction_rate(UNIT_TARGET_PER_USDG_RATE, second) <= market_rate:
-            return second
-    return None
+def next_auction_init_price(payment_amount: int, price_multiplier: int, min_init_price: int) -> int:
+    absolute_maximum = 2**192 - 1
+    return min(max(mul_div(payment_amount, price_multiplier, WAD), min_init_price), absolute_maximum)
 
 
 def acquisition_destinations(acquired: int, has_active_weight: bool) -> Dict[str, Any]:
@@ -436,14 +276,31 @@ def sequential_redemptions() -> List[Dict[str, Any]]:
     return trace
 
 
+def reward_index_example(reward_amount: int, total_weight: int, precision: int = 10**27) -> Dict[str, int]:
+    reward_per_weight_increment = mul_div(reward_amount, precision, total_weight)
+    indexed_reward = mul_div(reward_per_weight_increment, total_weight, precision)
+    return {
+        "rewardAmount": reward_amount,
+        "totalWeight": total_weight,
+        "rewardPerWeightIncrement": reward_per_weight_increment,
+        "indexedReward": indexed_reward,
+        "residue": reward_amount - indexed_reward,
+    }
+
+
 def compute_economic_suite_raw() -> Dict[str, Any]:
-    demand_scenarios = [
-        simulate_demand_pattern(pattern)
-        for pattern in ["fully-funded", "fifty-percent-funded", "sporadic-demand", "long-empty-period"]
+    participation_scenarios = [
+        simulate_participation_pattern(pattern)
+        for pattern in [
+            "all-nonempty-large",
+            "all-nonempty-one-atom",
+            "sporadic-nonempty",
+            "long-empty-period",
+        ]
     ]
-    full_demand = demand_scenarios[0]
+    all_non_empty = participation_scenarios[0]
     burn_sweep: List[Dict[str, Any]] = []
-    for checkpoint in full_demand["checkpoints"]:
+    for checkpoint in all_non_empty["checkpoints"]:
         for burn_rate_bps in EMISSION_BURN_BPS:
             requested = mul_div(checkpoint["recurringMinted"], burn_rate_bps, BPS)
             actual = min(requested, checkpoint["totalCumulativeMinted"])
@@ -458,45 +315,9 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
                 }
             )
 
-    auction_drift_inputs = [
-        {"id": "stable-market", "marketStartRate": UNIT_TARGET_PER_USDG_RATE, "dailyDriftBps": 0, "makerAvailable": True},
-        {"id": "target-appreciates", "marketStartRate": UNIT_TARGET_PER_USDG_RATE, "dailyDriftBps": -2_000, "makerAvailable": True},
-        {"id": "target-depreciates", "marketStartRate": UNIT_TARGET_PER_USDG_RATE, "dailyDriftBps": 2_000, "makerAvailable": True},
-        {"id": "missing-market-maker", "marketStartRate": UNIT_TARGET_PER_USDG_RATE, "dailyDriftBps": 0, "makerAvailable": False},
-        {
-            "id": "trading-halt-at-crossing",
-            "marketStartRate": UNIT_TARGET_PER_USDG_RATE,
-            "dailyDriftBps": 0,
-            "makerAvailable": True,
-            "haltStartSecond": 36_000,
-            "haltEndSecond": DAY,
-        },
-    ]
-    price_multiples = [WAD, 125 * 10**16, 15 * 10**17, 2 * WAD, 3 * WAD, 6 * WAD, 12 * WAD]
-    lp_inventory = [ladder_state(price_multiple) for price_multiple in price_multiples]
-    reference_after_two_thousand_empty_epochs = WAD
-    for _ in range(2_000):
-        reference_after_two_thousand_empty_epochs = update_reference_price(
-            reference_after_two_thousand_empty_epochs, 0, False
-        )
-
-    drift_results: List[Dict[str, Any]] = []
-    for input_case in auction_drift_inputs:
-        fill_second = find_auction_fill_second(input_case)
-        lot = usd_g(10_000)
-        fill_rate = None if fill_second is None else auction_rate(UNIT_TARGET_PER_USDG_RATE, fill_second)
-        drift_results.append(
-            {
-                **input_case,
-                "usdGLotRaw": lot,
-                "fillSecond": fill_second,
-                "fillRate": fill_rate,
-                "requiredTarget": None
-                if fill_rate is None
-                else mul_div_up(normalize_usdg(lot), fill_rate, WAD),
-                "budgetRetainedUSDGRaw": lot if fill_second is None else 0,
-            }
-        )
+    auction_init_price = tokens(100_000)
+    auction_multiplier = 2 * WAD
+    auction_min_init_price = 1_000_000
 
     strategy_yields: List[Dict[str, Any]] = []
     strategy_inputs = [
@@ -535,7 +356,7 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
         )
 
     return {
-        "schemaVersion": 2,
+        "schemaVersion": 3,
         "purpose": "Deterministic protocol-mechanics scenarios; not forecasts, valuations, or investment projections.",
         "assumptions": {
             "arithmetic": "Unsigned integer arithmetic with explicit floor/ceiling semantics; GBX and modeled targets use 18 decimals, canonical USDG uses raw 6-decimal units.",
@@ -549,33 +370,29 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
             "horizonDays": HORIZON_DAYS,
             "cumulativeMintCap": MAX_CUMULATIVE_MINT,
             "genesisSupply": GENESIS_SUPPLY,
+            "miningEmissionAllocation": MINING_EMISSION_ALLOCATION,
+            "initialDailyScheduledEmission": INITIAL_DAILY_EMISSION,
+            "dailyDecayWad": DAILY_DECAY_WAD,
             "auctionDurationSeconds": DAY,
             "managerRewardBps": 200,
             "noOnchainNavOracle": True,
         },
         "emissions": {
-            "demandScenarios": demand_scenarios,
-            "priceShockTraces": [
-                price_shock_trace("large-price-increase", [8 * WAD] * 10),
-                price_shock_trace("large-price-decrease", [WAD // 10] * 10),
-                price_shock_trace(
-                    "reference-price-lag",
-                    [WAD, WAD, 2 * WAD, 2 * WAD, 4 * WAD, 4 * WAD, WAD, WAD, WAD, WAD],
-                ),
-            ],
+            "participationScenarios": participation_scenarios,
+            "scheduleLifetime": emission_schedule_lifetime(),
             "roundingRegressions": {
-                "solidityTermByTermEma": update_reference_price(101, 104, True),
-                "referenceAfterTwoThousandEmptyEpochs": reference_after_two_thousand_empty_epochs,
-                "minimumNonzeroPrice": minimum_mining_price(reference_after_two_thousand_empty_epochs),
-                "affordableGBXWeiFromOneRawUSDGAtOneDollar": mul_div(normalize_usdg(1), WAD, WAD),
+                "nextScheduledEmission": mul_div(INITIAL_DAILY_EMISSION, DAILY_DECAY_WAD, WAD),
+                "oneAtomContributionEmission": INITIAL_DAILY_EMISSION,
+                "largeContributionEmission": INITIAL_DAILY_EMISSION,
+                "emptyContributionEmission": 0,
             },
             "burnSweep": burn_sweep,
         },
-        "bootstrap": {
-            "raises": [quote_bootstrap(usd_g(amount)) for amount in [1_000_000, 10_000_000, 80_000_000, 160_000_000]],
-            "ladderRanges": LADDER,
-            "lpInventory": lp_inventory,
-            "fullyConvertedUSDGRawAtOneDollarP0": lp_inventory[-1]["usdGRaisedRaw"],
+        "genesisLiquidity": {
+            "publicBootstrap": False,
+            "constructorMintGBXRaw": GENESIS_LP_GBX,
+            "oneSidedPositionBudgetGBXRaw": GENESIS_LP_GBX,
+            "unusedResidualPolicy": "burn",
             "sixDecimalRegression": {
                 "oneUSDGRaw": USDG_UNIT,
                 "normalizedOneUSDG": normalize_usdg(USDG_UNIT),
@@ -587,64 +404,44 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
         },
         "auctions": {
             "bounds": {
-                "referenceRate": UNIT_TARGET_PER_USDG_RATE,
-                "startRate": auction_rate(UNIT_TARGET_PER_USDG_RATE, 0),
-                "floorRate": auction_rate(UNIT_TARGET_PER_USDG_RATE, DAY),
-                "startRateBps": 12_500,
-                "floorRateBps": 8_000,
+                "minEpochPeriod": 3_600,
+                "maxEpochPeriod": 365 * DAY,
+                "minPriceMultiplier": 1_100_000_000_000_000_000,
+                "maxPriceMultiplier": 3 * WAD,
+                "absoluteMinInitPrice": 1_000_000,
+                "absoluteMaxInitPrice": 2**192 - 1,
             },
             "curve": [
-                {"elapsedSeconds": elapsed, "rate": auction_rate(UNIT_TARGET_PER_USDG_RATE, elapsed)}
-                for elapsed in [0, 21_600, 43_200, 64_800, DAY]
-            ],
-            "driftAndAvailability": drift_results,
-            "lotSizesAtMidpoint": [
                 {
-                    "usdGLotRaw": usd_g(amount),
-                    "rate": auction_rate(UNIT_TARGET_PER_USDG_RATE, DAY // 2),
-                    "requiredTarget": mul_div_up(
-                        normalize_usdg(usd_g(amount)),
-                        auction_rate(UNIT_TARGET_PER_USDG_RATE, DAY // 2),
-                        WAD,
+                    "elapsedSeconds": elapsed,
+                    "paymentAmount": auction_price(auction_init_price, elapsed),
+                }
+                for elapsed in [0, 21_600, 43_200, 64_800, DAY - 1, DAY, DAY + 1]
+            ],
+            "transitions": [
+                {
+                    "elapsedSeconds": elapsed,
+                    "quotedPaymentAmount": auction_price(auction_init_price, elapsed),
+                    "nextInitPrice": next_auction_init_price(
+                        auction_price(auction_init_price, elapsed),
+                        auction_multiplier,
+                        auction_min_init_price,
                     ),
                 }
-                for amount in [1_000, 10_000, 100_000]
+                for elapsed in [0, DAY // 2, DAY, DAY + 1]
             ],
             "budgetAccumulation": budget_accumulation_trace(),
         },
         "managerRewards": {
             "rewardYieldByStrategy": strategy_yields,
             "voteConcentration": reward_concentration(),
-            "frequentSwitching": [
-                {"hour": 0, "event": "signal-strategy-b", "activeStrategy": "none", "pendingStrategy": "strategy-b", "reward": 0},
-                {"hour": 12, "event": "fill-strategy-b-before-activation", "activeStrategy": "none", "pendingStrategy": "strategy-b", "reward": 0},
-                {"hour": 24, "event": "checkpoint-and-fill-strategy-b", "activeStrategy": "strategy-b", "pendingStrategy": "none", "reward": tokens(20)},
-                {"hour": 30, "event": "switch-to-strategy-a", "activeStrategy": "none", "pendingStrategy": "strategy-a", "reward": 0},
-                {"hour": 36, "event": "fill-strategy-a-during-delay", "activeStrategy": "none", "pendingStrategy": "strategy-a", "reward": 0},
-                {"hour": 54, "event": "checkpoint-and-fill-strategy-a", "activeStrategy": "strategy-a", "pendingStrategy": "none", "reward": tokens(20)},
-            ],
-            "activationDelay": [
-                {"elapsedSeconds": 0, "effectiveWeight": 0, "pendingWeight": tokens(100_000)},
-                {"elapsedSeconds": DAY - 1, "effectiveWeight": 0, "pendingWeight": tokens(100_000)},
-                {"elapsedSeconds": DAY, "effectiveWeight": tokens(100_000), "pendingWeight": 0},
-            ],
-            "noLockStakeChurn": {
-                "earlyExit": {
-                    "stakedAtSecond": 0,
-                    "unstakedAtSecond": 21_600,
-                    "activeWeightAtExit": 0,
-                    "cancelledPendingWeight": tokens(100_000),
-                    "rewardCaptured": 0,
+            "rewardIndexExamples": [
+                {
+                    "id": "production-scale",
+                    **reward_index_example(840_000_000_000_000_000, tokens(200)),
                 },
-                "postActivationExit": {
-                    "stakedAtSecond": 0,
-                    "activatedAtSecond": DAY,
-                    "filledAtSecond": DAY,
-                    "unstakedAtSecond": DAY,
-                    "activeWeightAtFill": tokens(100_000),
-                    "accruedRewardAfterUnstake": tokens(20),
-                },
-            },
+                {"id": "independent-floor-residue", **reward_index_example(10, 3, 10)},
+            ],
             "rewardLeakageVsVaultGrowth": [
                 {"id": "one-hundred-fills-with-live-weight", "fillCount": 100, **acquisition_destinations(tokens(100_000), True)},
                 {"id": "ten-fills-without-live-weight", "fillCount": 10, **acquisition_destinations(tokens(10_000), False)},
@@ -658,7 +455,6 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
             "revenueSourceComparison": [revenue_funded_buyback("mining-revenue"), revenue_funded_buyback("lp-fee-revenue")],
             "simultaneousEmissionAndBurn": simultaneous,
             "sequentialLargeRedemptions": sequential_redemptions(),
-            "lpInventorySoldOverTime": lp_inventory,
         },
     }
 

@@ -3,27 +3,45 @@
     "type": "constructor",
     "inputs": [
       {
-        "name": "controllerInitializer_",
+        "name": "genesisRecipient",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "eligibilityModule_",
+        "name": "controllerInitializer",
         "type": "address",
-        "internalType": "contract IEligibilityModule"
+        "internalType": "address"
+      },
+      {
+        "name": "protocolTimelock",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "nonpayable"
   },
   {
     "type": "function",
-    "name": "DOMAIN_SEPARATOR",
+    "name": "CONTROLLER_INITIALIZER",
     "inputs": [],
     "outputs": [
       {
         "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "GENESIS_LIQUIDITY_ALLOCATION",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"
@@ -37,6 +55,19 @@
         "name": "",
         "type": "uint256",
         "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "PROTOCOL_TIMELOCK",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "stateMutability": "view"
@@ -141,7 +172,7 @@
   },
   {
     "type": "function",
-    "name": "controllerInitializer",
+    "name": "canonicalMiningPool",
     "inputs": [],
     "outputs": [
       {
@@ -193,62 +224,6 @@
   },
   {
     "type": "function",
-    "name": "eip712Domain",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "fields",
-        "type": "bytes1",
-        "internalType": "bytes1"
-      },
-      {
-        "name": "name",
-        "type": "string",
-        "internalType": "string"
-      },
-      {
-        "name": "version",
-        "type": "string",
-        "internalType": "string"
-      },
-      {
-        "name": "chainId",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "verifyingContract",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "salt",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "extensions",
-        "type": "uint256[]",
-        "internalType": "uint256[]"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "eligibilityModule",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IEligibilityModule"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "emissionController",
     "inputs": [],
     "outputs": [
@@ -275,7 +250,7 @@
   },
   {
     "type": "function",
-    "name": "mint",
+    "name": "mintMiningEmission",
     "inputs": [
       {
         "name": "receiver",
@@ -306,14 +281,8 @@
   },
   {
     "type": "function",
-    "name": "nonces",
-    "inputs": [
-      {
-        "name": "owner",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
+    "name": "remainingMintCapacity",
+    "inputs": [],
     "outputs": [
       {
         "name": "",
@@ -325,42 +294,12 @@
   },
   {
     "type": "function",
-    "name": "permit",
+    "name": "replaceEmissionController",
     "inputs": [
       {
-        "name": "owner",
+        "name": "controller",
         "type": "address",
         "internalType": "address"
-      },
-      {
-        "name": "spender",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "value",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "deadline",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "v",
-        "type": "uint8",
-        "internalType": "uint8"
-      },
-      {
-        "name": "r",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "s",
-        "type": "bytes32",
-        "internalType": "bytes32"
       }
     ],
     "outputs": [],
@@ -472,12 +411,6 @@
   },
   {
     "type": "event",
-    "name": "EIP712DomainChanged",
-    "inputs": [],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "GBXToken__Burned",
     "inputs": [
       {
@@ -513,6 +446,25 @@
     "inputs": [
       {
         "name": "controller",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "GBXToken__EmissionControllerReplaced",
+    "inputs": [
+      {
+        "name": "previousController",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newController",
         "type": "address",
         "indexed": true,
         "internalType": "address"
@@ -569,33 +521,6 @@
       }
     ],
     "anonymous": false
-  },
-  {
-    "type": "error",
-    "name": "ECDSAInvalidSignature",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "ECDSAInvalidSignatureLength",
-    "inputs": [
-      {
-        "name": "length",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "ECDSAInvalidSignatureS",
-    "inputs": [
-      {
-        "name": "s",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ]
   },
   {
     "type": "error",
@@ -685,42 +610,20 @@
   },
   {
     "type": "error",
-    "name": "ERC2612ExpiredSignature",
-    "inputs": [
-      {
-        "name": "deadline",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "ERC2612InvalidSigner",
-    "inputs": [
-      {
-        "name": "signer",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "owner",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
+    "name": "GBXToken__AlreadyInitialized",
+    "inputs": []
   },
   {
     "type": "error",
     "name": "GBXToken__CumulativeMintCapExceeded",
     "inputs": [
       {
-        "name": "requestedAmount",
+        "name": "requested",
         "type": "uint256",
         "internalType": "uint256"
       },
       {
-        "name": "remainingCapacity",
+        "name": "remaining",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -728,34 +631,7 @@
   },
   {
     "type": "error",
-    "name": "GBXToken__EligibilityCheckFailed",
-    "inputs": [
-      {
-        "name": "module",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "GBXToken__EligibilityModuleMustBeContract",
-    "inputs": [
-      {
-        "name": "module",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "GBXToken__EmissionControllerAlreadyInitialized",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "GBXToken__EmissionControllerMustBeContract",
+    "name": "GBXToken__IncompatibleController",
     "inputs": [
       {
         "name": "controller",
@@ -766,39 +642,7 @@
   },
   {
     "type": "error",
-    "name": "GBXToken__IneligibleHolder",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "GBXToken__IneligibleTransfer",
-    "inputs": [
-      {
-        "name": "from",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "to",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "GBXToken__UnauthorizedControllerInitializer",
+    "name": "GBXToken__Unauthorized",
     "inputs": [
       {
         "name": "caller",
@@ -809,65 +653,12 @@
   },
   {
     "type": "error",
-    "name": "GBXToken__UnauthorizedMinter",
-    "inputs": [
-      {
-        "name": "caller",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "GBXToken__ZeroAccount",
+    "name": "GBXToken__ZeroAddress",
     "inputs": []
   },
   {
     "type": "error",
     "name": "GBXToken__ZeroAmount",
     "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "GBXToken__ZeroControllerInitializer",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "GBXToken__ZeroEmissionController",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "InvalidAccountNonce",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "currentNonce",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "InvalidShortString",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "StringTooLong",
-    "inputs": [
-      {
-        "name": "str",
-        "type": "string",
-        "internalType": "string"
-      }
-    ]
   }
 ]

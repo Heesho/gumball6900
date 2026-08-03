@@ -3,14 +3,14 @@
     "type": "constructor",
     "inputs": [
       {
-        "name": "gbx_",
+        "name": "gbx",
         "type": "address",
-        "internalType": "address"
+        "internalType": "contract IGBXToken"
       },
       {
-        "name": "allocationVoter_",
+        "name": "allocationVoter",
         "type": "address",
-        "internalType": "address"
+        "internalType": "contract IAllocationVoter"
       }
     ],
     "stateMutability": "nonpayable"
@@ -24,19 +24,6 @@
         "name": "",
         "type": "address",
         "internalType": "contract IAllocationVoter"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "ELIGIBILITY_MODULE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IEligibilityModule"
       }
     ],
     "stateMutability": "view"
@@ -88,19 +75,19 @@
         "internalType": "address"
       },
       {
-        "name": "amount",
+        "name": "value",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
     "outputs": [
       {
-        "name": "approved",
+        "name": "",
         "type": "bool",
         "internalType": "bool"
       }
     ],
-    "stateMutability": "pure"
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -152,42 +139,12 @@
     "name": "stake",
     "inputs": [
       {
-        "name": "requestedAmount",
+        "name": "amount",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
-    "outputs": [
-      {
-        "name": "receivedAmount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "stakeFor",
-    "inputs": [
-      {
-        "name": "beneficiary",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "requestedAmount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "receivedAmount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable"
   },
   {
@@ -221,53 +178,53 @@
     "name": "transfer",
     "inputs": [
       {
-        "name": "receiver",
+        "name": "to",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "amount",
+        "name": "value",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
     "outputs": [
       {
-        "name": "transferred",
+        "name": "",
         "type": "bool",
         "internalType": "bool"
       }
     ],
-    "stateMutability": "pure"
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
     "name": "transferFrom",
     "inputs": [
       {
-        "name": "owner",
+        "name": "from",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "receiver",
+        "name": "to",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "amount",
+        "name": "value",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
     "outputs": [
       {
-        "name": "transferred",
+        "name": "",
         "type": "bool",
         "internalType": "bool"
       }
     ],
-    "stateMutability": "pure"
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -309,37 +266,6 @@
   },
   {
     "type": "event",
-    "name": "StakedGBX__StakeFunded",
-    "inputs": [
-      {
-        "name": "payer",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "beneficiary",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "requestedAmount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "receivedAmount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "StakedGBX__Staked",
     "inputs": [
       {
@@ -349,13 +275,7 @@
         "internalType": "address"
       },
       {
-        "name": "requestedAmount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "receivedAmount",
+        "name": "amount",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -511,23 +431,22 @@
   },
   {
     "type": "error",
-    "name": "StakedGBX__EligibilityCheckFailed",
+    "name": "StakedGBX__InexactTransfer",
     "inputs": [
       {
-        "name": "module",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "StakedGBX__IneligibleStaker",
-    "inputs": [
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
       {
-        "name": "staker",
-        "type": "address",
-        "internalType": "address"
+        "name": "debit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "receipt",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },
@@ -538,17 +457,23 @@
   },
   {
     "type": "error",
+    "name": "StakedGBX__SignalsNotReset",
+    "inputs": [
+      {
+        "name": "usedWeight",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "StakedGBX__ZeroAddress",
     "inputs": []
   },
   {
     "type": "error",
     "name": "StakedGBX__ZeroAmount",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "StakedGBX__ZeroReceived",
     "inputs": []
   }
 ]

@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / MAX_AUCTION_EPOCH_PERIOD
+
+# Variable: MAX_AUCTION_EPOCH_PERIOD
+
+> `const` **MAX_AUCTION_EPOCH_PERIOD**: `bigint`

@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / MIN_AUCTION_EPOCH_PERIOD
+
+# Variable: MIN_AUCTION_EPOCH_PERIOD
+
+> `const` **MIN_AUCTION_EPOCH_PERIOD**: `3600n` = `3_600n`

@@ -6,6 +6,6 @@
 
 # Variable: INITIAL_DAILY_SCHEDULED_EMISSION
 
-> `const` **INITIAL_DAILY_SCHEDULED_EMISSION**: `427181096645855643000000n` = `427_181_096_645_855_643_000_000n`
+> `const` **INITIAL_DAILY_SCHEDULED_EMISSION**: `bigint`
 
-Exact integer selected from the specification's initial daily emission value.
+Exact wei-floor of 980M GBX multiplied by the real four-year daily decay complement.

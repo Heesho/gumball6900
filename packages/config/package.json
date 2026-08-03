@@ -32,9 +32,6 @@
     "fork:evidence:live:verify": "tsx scripts/verify-testnet-fork-observation.ts",
     "authorization:validate": "tsx scripts/validate-deployment-authorization.ts",
     "authorization:hash-json": "tsx scripts/hash-canonical-json.ts",
-    "deployment:prepare:local": "node scripts/keyless-deployment-bootstrap.mjs prepare-local",
-    "deployment:run": "node scripts/keyless-deployment-bootstrap.mjs authorized",
-    "deployment:run:testnet": "DEPLOYMENT_EXPECTED_CHAIN_ID=46630 node scripts/keyless-deployment-bootstrap.mjs authorized",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },

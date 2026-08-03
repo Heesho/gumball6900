@@ -6,10 +6,12 @@
 
 # Interface: ContractTransaction
 
+Wallet-ready call with no native-currency transfer.
+
 ## Properties
 
-| Property                            | Type                |
-| ----------------------------------- | ------------------- |
-| <a id="property-data"></a> `data`   | `` `0x${string}` `` |
-| <a id="property-to"></a> `to`       | `` `0x${string}` `` |
-| <a id="property-value"></a> `value` | `0n`                |
+| Property                            | Modifier   | Type                |
+| ----------------------------------- | ---------- | ------------------- |
+| <a id="property-data"></a> `data`   | `readonly` | `` `0x${string}` `` |
+| <a id="property-to"></a> `to`       | `readonly` | `` `0x${string}` `` |
+| <a id="property-value"></a> `value` | `readonly` | `0n`                |

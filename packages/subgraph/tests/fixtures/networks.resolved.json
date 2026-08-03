@@ -1,16 +1,15 @@
 {
   "robinhood": {
     "GBXToken": { "address": "0x0000000000000000000000000000000000000001", "startBlock": 1 },
-    "GenesisBootstrap": { "address": "0x0000000000000000000000000000000000000002", "startBlock": 1 },
-    "GenesisClaims": { "address": "0x0000000000000000000000000000000000000003", "startBlock": 1 },
-    "MiningPool": { "address": "0x0000000000000000000000000000000000000004", "startBlock": 1 },
-    "MiningClaims": { "address": "0x0000000000000000000000000000000000000005", "startBlock": 1 },
-    "StakedGBX": { "address": "0x0000000000000000000000000000000000000006", "startBlock": 1 },
-    "AllocationVoter": { "address": "0x0000000000000000000000000000000000000007", "startBlock": 1 },
-    "RevenueRouter": { "address": "0x0000000000000000000000000000000000000008", "startBlock": 1 },
-    "BuybackBurnStrategy": { "address": "0x0000000000000000000000000000000000000009", "startBlock": 1 },
-    "GumBallVault": { "address": "0x000000000000000000000000000000000000000a", "startBlock": 1 },
-    "AssetRegistry": { "address": "0x000000000000000000000000000000000000000b", "startBlock": 1 },
-    "LiquidityManager": { "address": "0x000000000000000000000000000000000000000c", "startBlock": 1 }
+    "EmissionController": { "address": "0x0000000000000000000000000000000000000002", "startBlock": 1 },
+    "MiningPool": { "address": "0x0000000000000000000000000000000000000003", "startBlock": 1 },
+    "MiningClaims": { "address": "0x0000000000000000000000000000000000000004", "startBlock": 1 },
+    "StakedGBX": { "address": "0x0000000000000000000000000000000000000005", "startBlock": 1 },
+    "AllocationVoter": { "address": "0x0000000000000000000000000000000000000006", "startBlock": 1 },
+    "GumBallVault": { "address": "0x0000000000000000000000000000000000000007", "startBlock": 1 },
+    "AssetRegistry": { "address": "0x0000000000000000000000000000000000000008", "startBlock": 1 },
+    "LiquidityCustodian": { "address": "0x0000000000000000000000000000000000000009", "startBlock": 1 },
+    "EmergencyGuardian": { "address": "0x000000000000000000000000000000000000000a", "startBlock": 1 },
+    "ProtocolTimelock": { "address": "0x000000000000000000000000000000000000000b", "startBlock": 1 }
   }
 }

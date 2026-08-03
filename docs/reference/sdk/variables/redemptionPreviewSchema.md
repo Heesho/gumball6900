@@ -6,4 +6,4 @@
 
 # Variable: redemptionPreviewSchema
 
-> `const` **redemptionPreviewSchema**: `ZodObject`\<\{ `amountsOutRaw`: `ZodArray`\<`ZodBigInt`\>; `blockNumber`: `ZodBigInt`; `shares`: `ZodBigInt`; `tokens`: `ZodArray`\<`ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>\>; \}, `$strip`\>
+> `const` **redemptionPreviewSchema**: `ZodObject`\<\{ `amounts`: `ZodArray`\<`ZodBigInt`\>; `assets`: `ZodArray`\<`ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>\>; `blockNumber`: `ZodBigInt`; `shares`: `ZodBigInt`; `supplyBefore`: `ZodBigInt`; \}, `$strip`\>

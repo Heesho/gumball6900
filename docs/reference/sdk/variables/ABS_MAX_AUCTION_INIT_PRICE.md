@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / ABS_MAX_AUCTION_INIT_PRICE
+
+# Variable: ABS_MAX_AUCTION_INIT_PRICE
+
+> `const` **ABS_MAX_AUCTION_INIT_PRICE**: `bigint`

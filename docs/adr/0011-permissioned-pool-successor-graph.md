@@ -1,6 +1,6 @@
 # ADR-0011: Permissioned-Pool Successor Graph
 
-- Status: Implemented and locally rehearsed; not release-authorized
+- Status: Superseded by ADR-0012; archival baseline only.
 - Date: 2026-08-02
 - Decision owners: protocol engineering, independent security review, and legal/compliance review
 

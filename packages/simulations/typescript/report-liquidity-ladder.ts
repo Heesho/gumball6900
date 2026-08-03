@@ -9,6 +9,7 @@ import {
 
 const GBX = 10n ** 18n;
 const USDG = 10n ** 6n;
+const ILLUSTRATIVE_POOL_CONFIGURATION = { fee: 3_000, tickSpacing: 60 } as const;
 
 function stateJson(state: ReturnType<typeof liquidityLadderState>) {
   return {
@@ -34,12 +35,17 @@ function tradeJson(result: LadderTradeResult) {
 }
 
 async function orderingReport(ordering: LadderOrdering) {
-  const model = createCanonicalLadderModel(ordering);
+  const model = createCanonicalLadderModel(ILLUSTRATIVE_POOL_CONFIGURATION, ordering);
   const buySizes = [100_000n * USDG, 1_000_000n * USDG, 5_000_000n * USDG];
-  const buys = await Promise.all(buySizes.map((amount) => simulateLadderBuy(amount, ordering)));
+  const buys = await Promise.all(
+    buySizes.map((amount) => simulateLadderBuy(amount, ILLUSTRATIVE_POOL_CONFIGURATION, ordering)),
+  );
   const sellSizes = [100_000n * GBX, 1_000_000n * GBX];
   const sells = await Promise.all(
-    sellSizes.map(async (amount) => (await simulateLadderSellAfterBuy(5_000_000n * USDG, amount, ordering)).sell),
+    sellSizes.map(
+      async (amount) =>
+        (await simulateLadderSellAfterBuy(5_000_000n * USDG, amount, ILLUSTRATIVE_POOL_CONFIGURATION, ordering)).sell,
+    ),
   );
   return {
     buys: buys.map(tradeJson),
@@ -66,8 +72,9 @@ const orderings = await Promise.all(
   (['gbx-token0', 'gbx-token1'] as const).map((ordering) => orderingReport(ordering)),
 );
 const report = {
-  disclaimer: 'Deterministic official-Uniswap-SDK mechanics; not a forecast, NAV, or promised execution price.',
-  feeHundredthsOfBasisPoint: 3_000,
+  disclaimer:
+    'Deterministic one-position official-Uniswap-SDK mechanics with illustrative explicit ticks; not a deployment configuration, forecast, NAV, or promised execution price.',
+  poolConfiguration: ILLUSTRATIVE_POOL_CONFIGURATION,
   orderings,
 };
 if (!process.argv.includes('--check')) process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);

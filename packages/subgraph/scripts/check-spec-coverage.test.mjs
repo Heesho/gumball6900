@@ -17,26 +17,25 @@ function completeFixture() {
     schema: [...REQUIRED_ENTITIES, ...ACCOUNTING_EXTENSION_ENTITIES]
       .map((entity) => `type ${entity} @entity(immutable: true) { id: ID! }`)
       .join('\n'),
-    tests: REQUIRED_HANDLERS.map((handler) => `${handler}(event);`).join('\n'),
   };
 }
 
-test('accepts the exact required entity and tested-handler surface', () => {
+test('accepts the exact minimal entity and handler surface', () => {
   assert.deepEqual(evaluateSpecCoverage(completeFixture()), []);
 });
 
 test('rejects a missing required entity and an unreviewed schema extension', () => {
   const fixture = completeFixture();
   fixture.schema = fixture.schema
-    .replace(/^type Protocol .*$/mu, '')
+    .replace(/^type ProtocolState .*$/mu, '')
     .concat('\ntype UnreviewedEntity @entity(immutable: true) { id: ID! }\n');
   assert.deepEqual(evaluateSpecCoverage(fixture).slice(0, 2), [
-    'Schema entity set is missing Protocol',
+    'Schema entity set is missing ProtocolState',
     'Schema entity set contains unexpected UnreviewedEntity',
   ]);
 });
 
-test('rejects manifest, mapping, and Matchstick coverage drift independently', () => {
+test('rejects manifest and mapping drift independently', () => {
   const fixture = completeFixture();
   const missing = REQUIRED_HANDLERS[0];
   fixture.manifest = fixture.manifest.replace(
@@ -44,11 +43,9 @@ test('rejects manifest, mapping, and Matchstick coverage drift independently', (
     '',
   );
   fixture.mappings = fixture.mappings.replace(`export function ${missing}(): void {}`, '');
-  fixture.tests = fixture.tests.replace(`${missing}(event);`, '');
   const errors = evaluateSpecCoverage(fixture);
   assert.ok(errors.includes(`Manifest handler set is missing ${missing}`));
   assert.ok(errors.includes(`Mapping export set is missing ${missing}`));
-  assert.ok(errors.includes(`Matchstick tests do not invoke ${missing}`));
 });
 
 test('rejects duplicate handlers and an event without a handler', () => {

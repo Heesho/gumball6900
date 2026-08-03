@@ -1,67 +1,23 @@
-enum PendingSignalAction {
-  PENDING
-  ACTIVATED
-  RESET
-  CANCELLED
-}
-
-enum StrategyKind {
-  ACQUISITION
-  BUYBACK
-  HOLD_USDG
-  UNKNOWN
-}
-
-enum LiquidityEventKind {
-  POOL_SEEDED
-  POSITION_MINTED
-  FEES_COLLECTED
-  RANGE_SWEPT
-  MIGRATION_STARTED
-  MIGRATION_POSITION_REMOVED
-  MIGRATION_POSITION_ADDED
-  MIGRATION_COMPLETED
-  MIGRATION_PAUSE_SET
-}
-
-enum RevenueNotificationKind {
-  ALLOCATION_ACCOUNTING
-  ROUTER_TRANSFER
-}
-
-type Protocol @entity(immutable: false) {
+type ProtocolState @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
-  gbxToken: GBXToken
-  genesisBootstrap: GenesisBootstrap
+  gbxToken: Bytes
+  emissionController: Bytes
   miningPool: Bytes
-  usdgAsset: VaultAsset
   cumulativeMintedRaw: BigInt!
   cumulativeBurnedRaw: BigInt!
   totalSupplyRaw: BigInt!
-  genesisContributedRaw: BigInt!
-  miningContributedRaw: BigInt!
-  revenueNotifiedUSDGRaw: BigInt!
+  miningContributedUSDGRaw: BigInt!
+  miningEmittedGBXRaw: BigInt!
+  vaultRevenueUSDGRaw: BigInt!
+  redeemedGBXRaw: BigInt!
   strategySpentUSDGRaw: BigInt!
-  redeemedSharesRaw: BigInt!
-  buybackSpentUSDGRaw: BigInt!
   buybackBurnedGBXRaw: BigInt!
-  liquidityGBXFeesBurnedRaw: BigInt!
-  liquidityUSDGFeesToVaultRaw: BigInt!
+  liquidityFeesBurnedGBXRaw: BigInt!
+  liquidityFeesToVaultUSDGRaw: BigInt!
   stakedGBXRaw: BigInt!
   assetCount: Int!
   strategyCount: Int!
-  redemptionCount: Int!
-  lastBlockNumber: BigInt!
-  lastTimestamp: BigInt!
-}
-
-type GBXToken @entity(immutable: false) {
-  id: ID!
-  address: Bytes!
-  cumulativeMintedRaw: BigInt!
-  cumulativeBurnedRaw: BigInt!
-  totalSupplyRaw: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
 }
@@ -69,464 +25,99 @@ type GBXToken @entity(immutable: false) {
 type Account @entity(immutable: false) {
   id: ID!
   address: Bytes!
-  genesisContributedRaw: BigInt!
-  miningContributedRaw: BigInt!
-  genesisClaimedGBXRaw: BigInt!
-  miningClaimedGBXRaw: BigInt!
   gbxMintedRaw: BigInt!
   gbxBurnedRaw: BigInt!
+  miningContributedUSDGRaw: BigInt!
+  miningClaimedGBXRaw: BigInt!
   stakedGBXRaw: BigInt!
-  redeemedSharesRaw: BigInt!
+  signalWeightRaw: BigInt!
+  redeemedGBXRaw: BigInt!
   buybackSoldGBXRaw: BigInt!
-  managerRewardClaimCount: Int!
-  signalEventCount: Int!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
-}
-
-type GenesisBootstrap @entity(immutable: false) {
-  id: ID!
-  address: Bytes!
-  contributionStart: BigInt
-  contributionEnd: BigInt
-  settled: Boolean!
-  communityUSDGRaw: BigInt!
-  sponsorUSDGRaw: BigInt!
-  vaultUSDGRaw: BigInt!
-  sponsorRefundUSDGRaw: BigInt!
-  genesisPriceWad: BigInt
-  sqrtPriceX96: BigInt
-  claimedGBXRaw: BigInt!
-  lastBlockNumber: BigInt!
-  lastTimestamp: BigInt!
-}
-
-type GenesisContribution @entity(immutable: true) {
-  id: ID!
-  bootstrap: GenesisBootstrap!
-  payer: Account!
-  beneficiary: Account!
-  requestedUSDGRaw: BigInt!
-  receivedUSDGRaw: BigInt!
-  communityUSDGAfterRaw: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type GenesisClaim @entity(immutable: true) {
-  id: ID!
-  bootstrap: GenesisBootstrap
-  distributionId: BigInt!
-  beneficiary: Account!
-  caller: Account!
-  amountGBXRaw: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
 }
 
 type MiningEpoch @entity(immutable: false) {
   id: ID!
   pool: Bytes!
   epochId: BigInt!
+  startTime: BigInt
   endTime: BigInt
-  extensionUsed: BigInt!
   totalContributedUSDGRaw: BigInt!
+  teamFeeUSDGRaw: BigInt!
+  vaultRevenueUSDGRaw: BigInt!
+  emissionGBXRaw: BigInt!
+  scheduledEmissionGBXRaw: BigInt
+  nextScheduledEmissionGBXRaw: BigInt
+  nonEmpty: Boolean
   settled: Boolean!
-  scheduledEmissionGBXRaw: BigInt!
-  actualEmissionGBXRaw: BigInt!
-  clearingPrice: BigInt
-  nextReferencePrice: BigInt
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
-}
-
-type MiningContribution @entity(immutable: true) {
-  id: ID!
-  epoch: MiningEpoch!
-  payer: Account!
-  beneficiary: Account!
-  requestedUSDGRaw: BigInt!
-  receivedUSDGRaw: BigInt!
-  epochTotalAfterRaw: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type MiningClaim @entity(immutable: true) {
-  id: ID!
-  distributionId: BigInt!
-  beneficiary: Account!
-  caller: Account!
-  amountGBXRaw: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
 }
 
 type VaultAsset @entity(immutable: false) {
   id: ID!
   token: Bytes!
-  assetId: Bytes
-  symbolHash: Bytes
-  decimals: Int!
-  isStockToken: Boolean!
-  strategy: Strategy
+  strategy: Bytes
   rewards: Bytes
-  acquisitionEnabled: Boolean!
-  redemptionEnabled: Boolean!
-  redemptionEnabledKnown: Boolean!
-  trackedBalanceRaw: BigInt!
-  acquiredByStrategiesRaw: BigInt!
-  redeemedRaw: BigInt!
-  currentUIMultiplierRaw: BigInt
-  pendingUIMultiplierRaw: BigInt
-  multiplierEffectiveAt: BigInt
-  registeredBlockNumber: BigInt
+  assetIndex: BigInt!
+  live: Boolean!
+  registeredBlockNumber: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
-}
-
-type VaultSnapshot @entity(immutable: true) {
-  id: ID!
-  asset: VaultAsset!
-  reason: String!
-  deltaRaw: BigInt!
-  trackedBalanceAfterRaw: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type Redemption @entity(immutable: true) {
-  id: ID!
-  owner: Account!
-  receiver: Account!
-  sharesGBXRaw: BigInt!
-  supplyBeforeRaw: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type RedemptionAsset @entity(immutable: true) {
-  id: ID!
-  receiver: Account!
-  asset: VaultAsset!
-  amountRaw: BigInt!
-  redemptionTransactionHash: Bytes!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type SignalAccount @entity(immutable: false) {
-  id: ID!
-  account: Account!
-  stakedGBXRaw: BigInt!
-  lastActivatedAt: BigInt
-  lastBlockNumber: BigInt!
-  lastTimestamp: BigInt!
-}
-
-type SignalAllocation @entity(immutable: false) {
-  id: ID!
-  account: SignalAccount!
-  strategy: Strategy!
-  """
-  Last weight recorded for this account and strategy in `generation`.
-  """
-  recordedWeightRaw: BigInt!
-  """
-  Strategy generation in which `recordedWeightRaw` was active.
-  """
-  generation: BigInt!
-  lastBlockNumber: BigInt!
-  lastTimestamp: BigInt!
-}
-
-type PendingSignal @entity(immutable: true) {
-  id: ID!
-  account: SignalAccount!
-  action: PendingSignalAction!
-  activationTime: BigInt
-  activatedAt: BigInt
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
 }
 
 type Strategy @entity(immutable: false) {
   id: ID!
   address: Bytes!
-  kind: StrategyKind!
-  asset: VaultAsset
+  kind: String!
+  targetToken: Bytes
   rewards: Bytes
-  enabled: Boolean!
-  generation: BigInt!
-  currentAuctionId: BigInt
-  referenceRate: BigInt
-  startRate: BigInt
-  floorRate: BigInt
-  auctionStartTime: BigInt
-  totalUSDGSpentRaw: BigInt!
-  totalTargetReceivedRaw: BigInt!
-  totalVaultReceivedRaw: BigInt!
-  totalManagerReceivedRaw: BigInt!
-  pendingManagerRewardDustRaw: BigInt!
-  fillCount: Int!
-  lastBlockNumber: BigInt!
-  lastTimestamp: BigInt!
-}
-
-type StrategyBudget @entity(immutable: false) {
-  id: ID!
-  strategy: Strategy!
+  strategyIndex: BigInt
+  live: Boolean!
+  fillsPaused: Boolean!
+  totalWeightRaw: BigInt!
   budgetUSDGRaw: BigInt!
-  scaledRemainder: BigInt!
-  globalIndex: BigInt!
-  totalConsumedUSDGRaw: BigInt!
-  returnedToIdleUSDGRaw: BigInt!
-  lastBlockNumber: BigInt!
-  lastTimestamp: BigInt!
-}
-
-type StrategyFill @entity(immutable: true) {
-  id: ID!
-  strategy: Strategy!
-  auctionId: BigInt!
-  taker: Account!
-  usdgReceiver: Bytes!
-  usdgAmountRaw: BigInt!
-  targetReceivedRaw: BigInt!
-  vaultAmountRaw: BigInt!
-  managerAmountRaw: BigInt!
-  clearingRate: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type ManagerRewardNotification @entity(immutable: true) {
-  id: ID!
-  rewardsContract: Bytes!
-  strategy: Strategy!
-  rewardAsset: VaultAsset
-  amountRaw: BigInt!
-  strategyWeightRaw: BigInt!
-  rewardPerWeightDelta: BigInt!
-  remainder: BigInt!
-  redirectedToVault: Boolean!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type ManagerRewardClaim @entity(immutable: true) {
-  id: ID!
-  rewardsContract: Bytes!
-  strategy: Strategy!
-  rewardAsset: VaultAsset
-  user: Account!
-  receiver: Account!
-  amountRaw: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type ManagerRewardTerminalDust @entity(immutable: false) {
-  # Natural key: <chainId>-<managerRewardsAddress>-<generation>-<remainderCycle>.
-  id: ID!
-  rewardsContract: Bytes!
-  strategy: Strategy!
-  rewardAsset: VaultAsset
-  generation: BigInt!
-  remainderCycle: BigInt!
-  amountRaw: BigInt!
-  settled: Boolean!
-  queuedBlockNumber: BigInt!
-  queuedTimestamp: BigInt!
-  queuedTransactionHash: Bytes!
-  queuedLogIndex: BigInt!
-  settledBlockNumber: BigInt
-  settledTimestamp: BigInt
-  settledTransactionHash: Bytes
-  settledLogIndex: BigInt
-}
-
-type Buyback @entity(immutable: true) {
-  id: ID!
-  strategy: Strategy!
-  auctionId: BigInt!
-  taker: Account!
-  usdgReceiver: Bytes!
-  usdgSpentRaw: BigInt!
-  gbxBurnedRaw: BigInt!
-  clearingRate: BigInt!
-  totalSupplyAfterRaw: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type Burn @entity(immutable: true) {
-  id: ID!
-  operator: Account!
-  account: Account!
-  amountGBXRaw: BigInt!
-  cumulativeBurnedAfterRaw: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type RevenueNotification @entity(immutable: true) {
-  id: ID!
-  kind: RevenueNotificationKind!
-  source: Bytes!
-  sourceType: Int
-  payer: Account
-  sourceId: Bytes
-  requestedUSDGRaw: BigInt
-  amountUSDGRaw: BigInt!
-  indexDelta: BigInt
-  remainder: BigInt
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type LiquidityPool @entity(immutable: false) {
-  id: ID!
-  manager: Bytes!
-  poolKeyHash: Bytes
-  seeded: Boolean!
-  sqrtPriceX96: BigInt
-  initialTick: Int
-  firstPositionId: BigInt
-  gbxGenesisAllocationRaw: BigInt!
-  gbxPrincipalRaw: BigInt!
-  gbxResidualRaw: BigInt!
-  gbxFeesBurnedRaw: BigInt!
-  gbxMigrationResidualBurnedRaw: BigInt!
-  usdgToVaultRaw: BigInt!
-  activePositionCount: Int!
-  migrationCount: Int!
-  migrationsPaused: Boolean!
-  lastMigrationPlanHash: Bytes
+  totalUSDGSpentRaw: BigInt!
+  totalQuotedPaymentRaw: BigInt!
+  totalObservedPaymentRaw: BigInt!
+  totalVaultReceivedRaw: BigInt!
+  totalRewardsNotifiedRaw: BigInt!
+  totalRewardsClaimedRaw: BigInt!
+  fillCount: Int!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
 }
 
 type LiquidityPosition @entity(immutable: false) {
   id: ID!
-  pool: LiquidityPool!
+  custodian: Bytes!
   positionId: BigInt!
-  tickLower: Int!
-  tickUpper: Int!
-  liquidity: BigInt!
-  gbxPrincipalRaw: BigInt
-  gbxPrincipalKnown: Boolean!
-  active: Boolean!
+  poolKeyHash: Bytes!
+  previousOwner: Bytes!
+  inCustody: Boolean!
+  transferredTo: Bytes
   gbxFeesBurnedRaw: BigInt!
-  usdgCollectedRaw: BigInt!
+  usdgFeesToVaultRaw: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
 }
 
-type LiquidityEvent @entity(immutable: true) {
+"""
+Immutable positional record for each protocol-specific event indexed by the
+manifest after its data source exists. `addresses`, `values`, `bytesValues`,
+and `flag` follow event ABI order; `eventType` supplies the semantic label.
+"""
+type ProtocolEvent @entity(immutable: true) {
   id: ID!
-  pool: LiquidityPool!
-  position: LiquidityPosition
-  kind: LiquidityEventKind!
-  gbxAmountRaw: BigInt!
-  gbxResidualRaw: BigInt!
-  usdgAmountRaw: BigInt!
-  currentTick: Int
-  planHash: Bytes
-  destinationPoolKeyHash: Bytes
-  removalCount: BigInt
-  replacementCount: BigInt
-  deadline: BigInt
-  amount0Raw: BigInt
-  amount1Raw: BigInt
-  removedPositionIds: [BigInt!]
-  replacementPositionIds: [BigInt!]
-  paused: Boolean
+  eventType: String!
+  contractAddress: Bytes!
+  addresses: [Bytes!]!
+  values: [BigInt!]!
+  bytesValues: [Bytes!]!
+  flag: Boolean
   blockNumber: BigInt!
   timestamp: BigInt!
   transactionHash: Bytes!
   logIndex: BigInt!
-}
-
-type CorporateAction @entity(immutable: true) {
-  id: ID!
-  asset: VaultAsset!
-  actionType: String!
-  oldMultiplierRaw: BigInt!
-  newMultiplierRaw: BigInt!
-  effectiveAt: BigInt!
-  blockNumber: BigInt!
-  timestamp: BigInt!
-  transactionHash: Bytes!
-  logIndex: BigInt!
-}
-
-type DailyProtocolSnapshot @entity(immutable: false) {
-  id: ID!
-  dayStartTimestamp: BigInt!
-  eventCount: Int!
-  mintedGBXRaw: BigInt!
-  burnedGBXRaw: BigInt!
-  genesisContributedUSDGRaw: BigInt!
-  miningContributedUSDGRaw: BigInt!
-  revenueNotifiedUSDGRaw: BigInt!
-  strategySpentUSDGRaw: BigInt!
-  redeemedSharesGBXRaw: BigInt!
-  buybackSpentUSDGRaw: BigInt!
-  buybackBurnedGBXRaw: BigInt!
-  cumulativeMintedGBXRaw: BigInt!
-  cumulativeBurnedGBXRaw: BigInt!
-  totalSupplyGBXRaw: BigInt!
-  totalStakedGBXRaw: BigInt!
-  lastBlockNumber: BigInt!
-  lastTimestamp: BigInt!
-}
-
-type DailyAccountSnapshot @entity(immutable: false) {
-  id: ID!
-  account: Account!
-  dayStartTimestamp: BigInt!
-  eventCount: Int!
-  gbxMintedRaw: BigInt!
-  gbxBurnedRaw: BigInt!
-  genesisContributedUSDGRaw: BigInt!
-  miningContributedUSDGRaw: BigInt!
-  genesisClaimedGBXRaw: BigInt!
-  miningClaimedGBXRaw: BigInt!
-  stakedGBXRaw: BigInt!
-  unstakedGBXRaw: BigInt!
-  redeemedSharesGBXRaw: BigInt!
-  buybackSoldGBXRaw: BigInt!
-  managerRewardClaimCount: Int!
-  signalEventCount: Int!
-  lastBlockNumber: BigInt!
-  lastTimestamp: BigInt!
 }

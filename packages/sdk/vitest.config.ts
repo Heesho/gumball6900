@@ -5,6 +5,7 @@ export default defineConfig({
   // Keep their harmless dependency warning from drowning out protocol test output.
   logLevel: 'error',
   test: {
+    include: ['tests/**/*.test.ts'],
     passWithNoTests: false,
   },
 });

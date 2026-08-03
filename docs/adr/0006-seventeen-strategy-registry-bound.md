@@ -1,6 +1,6 @@
 # ADR-0006: Seventeen-Strategy Registry Bound
 
-- Status: Accepted
+- Status: Superseded by ADR-0012; archival baseline only.
 - Date: 2026-08-01
 - Decision owners: protocol engineering and security review
 - Supersedes: the literal sixteen-entry bound for the complete strategy registry

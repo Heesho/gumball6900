@@ -1,19 +1,13 @@
 import {
-  BPS_DENOMINATOR,
   DAILY_DECAY_WAD,
   GENESIS_TOTAL_SUPPLY,
   INITIAL_DAILY_SCHEDULED_EMISSION,
   MAX_CUMULATIVE_MINT,
-  MINING_REFERENCE_FLOOR_BPS,
-  REFERENCE_EMA_NEW_BPS,
-  REFERENCE_EMA_OLD_BPS,
-  REFERENCE_MAX_INCREASE_BPS,
   WAD,
 } from './constants.js';
-import { normalizeRawTokenAmountToWad } from './decimals.js';
-import { assertEpochCount, assertNonNegative, assertPositive, clampBigInt, minBigInt, mulDiv } from './integer.js';
+import { assertEpochCount, assertNonNegative, assertPositive, minBigInt, mulDiv } from './integer.js';
 
-export interface FullyFundedEmissionResult {
+export interface AllNonEmptyEmissionResult {
   epochCount: number;
   recurringMinted: bigint;
   totalCumulativeMinted: bigint;
@@ -23,21 +17,16 @@ export interface FullyFundedEmissionResult {
 export interface MiningEpochQuoteInput {
   scheduledEmission: bigint;
   cumulativeMinted: bigint;
-  /** Raw USDG units, not an 18-decimal normalized amount. */
-  totalUSDGRaw: bigint;
-  /** The verified decimals() value for the USDG deployment. */
-  usdGDecimals: number;
-  referenceMiningPrice: bigint;
+  /** Observed raw USDG receipt. Its magnitude does not scale the emission. */
+  totalContributedRaw: bigint;
 }
 
 export interface MiningEpochQuote {
   scheduledEmission: bigint;
-  minimumMiningPrice: bigint;
-  affordableEmission: bigint;
+  availableEmission: bigint;
   actualEmission: bigint;
-  clearingPrice: bigint;
-  nextReferenceMiningPrice: bigint;
-  fullyFunded: boolean;
+  forfeitedEmission: bigint;
+  nonEmpty: boolean;
 }
 
 export function remainingMintCapacity(cumulativeMinted: bigint): bigint {
@@ -51,7 +40,7 @@ export function advanceScheduledEmission(currentEmission: bigint, elapsedEpochs 
   assertEpochCount(elapsedEpochs, 'elapsedEpochs');
 
   let emission = currentEmission;
-  for (let epoch = 0; epoch < elapsedEpochs; epoch += 1) {
+  for (let epoch = 0; epoch < elapsedEpochs && emission !== 0n; epoch += 1) {
     emission = mulDiv(emission, DAILY_DECAY_WAD, WAD);
   }
   return emission;
@@ -62,16 +51,15 @@ export function scheduledEmissionForEpoch(epochId: number): bigint {
   return advanceScheduledEmission(INITIAL_DAILY_SCHEDULED_EMISSION, epochId);
 }
 
-/** Fully funded reference path, including the cumulative one-billion mint ceiling. */
-export function simulateFullyFundedEmissions(epochCount: number): FullyFundedEmissionResult {
+/** Canonical path in which every epoch is non-empty, including the cumulative one-billion mint ceiling. */
+export function simulateAllNonEmptyEmissions(epochCount: number): AllNonEmptyEmissionResult {
   assertEpochCount(epochCount);
 
   let currentEmission = INITIAL_DAILY_SCHEDULED_EMISSION;
   let cumulativeMinted = GENESIS_TOTAL_SUPPLY;
 
-  for (let epoch = 0; epoch < epochCount; epoch += 1) {
-    const actualEmission = minBigInt(currentEmission, remainingMintCapacity(cumulativeMinted));
-    cumulativeMinted += actualEmission;
+  for (let epoch = 0; epoch < epochCount && currentEmission !== 0n; epoch += 1) {
+    cumulativeMinted += minBigInt(currentEmission, remainingMintCapacity(cumulativeMinted));
     currentEmission = advanceScheduledEmission(currentEmission);
   }
 
@@ -83,73 +71,24 @@ export function simulateFullyFundedEmissions(epochCount: number): FullyFundedEmi
   };
 }
 
-export function minimumMiningPrice(referenceMiningPrice: bigint): bigint {
-  assertPositive(referenceMiningPrice, 'referenceMiningPrice');
-  const price = mulDiv(referenceMiningPrice, MINING_REFERENCE_FLOOR_BPS, BPS_DENOMINATOR);
-  return price > 0n ? price : 1n;
-}
-
-export function updateReferenceMiningPrice(
-  previousReference: bigint,
-  clearingPrice: bigint,
-  hadContributions: boolean,
-): bigint {
-  assertPositive(previousReference, 'previousReference');
-  assertNonNegative(clearingPrice, 'clearingPrice');
-
-  const lowerBound = minimumMiningPrice(previousReference);
-  if (!hadContributions) {
-    return lowerBound;
-  }
-
-  assertPositive(clearingPrice, 'clearingPrice');
-  // MiningMath.nextReferencePrice floors each weighted term independently. Keep the
-  // offchain quote byte-for-byte equivalent instead of algebraically combining the
-  // numerator, which can differ by one atomic unit after integer division.
-  const weightedReference =
-    mulDiv(previousReference, REFERENCE_EMA_OLD_BPS, BPS_DENOMINATOR) +
-    mulDiv(clearingPrice, REFERENCE_EMA_NEW_BPS, BPS_DENOMINATOR);
-  const upperBound = mulDiv(previousReference, REFERENCE_MAX_INCREASE_BPS, BPS_DENOMINATOR);
-  return clampBigInt(weightedReference, lowerBound, upperBound);
-}
-
 /**
- * Quotes a settled mining epoch from raw USDG units. Prices and GBX amounts remain 18-decimal values.
+ * Mirrors EmissionController.settleMiningEpoch: every non-empty epoch receives
+ * the complete cap-bounded schedule, while an empty epoch receives zero and
+ * permanently forfeits that day's schedule. Contribution size is intentionally irrelevant.
  */
 export function quoteMiningEpoch(input: MiningEpochQuoteInput): MiningEpochQuote {
   assertNonNegative(input.scheduledEmission, 'scheduledEmission');
   assertNonNegative(input.cumulativeMinted, 'cumulativeMinted');
-  const totalUSDGWad = normalizeRawTokenAmountToWad(input.totalUSDGRaw, input.usdGDecimals, 'totalUSDGRaw');
-  assertPositive(input.referenceMiningPrice, 'referenceMiningPrice');
+  assertNonNegative(input.totalContributedRaw, 'totalContributedRaw');
 
-  const scheduledEmission = minBigInt(input.scheduledEmission, remainingMintCapacity(input.cumulativeMinted));
-  const reservePrice = minimumMiningPrice(input.referenceMiningPrice);
-
-  if (input.totalUSDGRaw === 0n) {
-    return {
-      scheduledEmission,
-      minimumMiningPrice: reservePrice,
-      affordableEmission: 0n,
-      actualEmission: 0n,
-      clearingPrice: 0n,
-      nextReferenceMiningPrice: updateReferenceMiningPrice(input.referenceMiningPrice, 0n, false),
-      fullyFunded: false,
-    };
-  }
-
-  const affordableEmission = mulDiv(totalUSDGWad, WAD, reservePrice);
-  const actualEmission = minBigInt(scheduledEmission, affordableEmission);
-  const fullyFunded = scheduledEmission > 0n && affordableEmission >= scheduledEmission;
-  const clearingPrice = fullyFunded ? mulDiv(totalUSDGWad, WAD, scheduledEmission) : reservePrice;
-
+  const availableEmission = minBigInt(input.scheduledEmission, remainingMintCapacity(input.cumulativeMinted));
+  const nonEmpty = input.totalContributedRaw !== 0n;
   return {
-    scheduledEmission,
-    minimumMiningPrice: reservePrice,
-    affordableEmission,
-    actualEmission,
-    clearingPrice,
-    nextReferenceMiningPrice: updateReferenceMiningPrice(input.referenceMiningPrice, clearingPrice, true),
-    fullyFunded,
+    scheduledEmission: input.scheduledEmission,
+    availableEmission,
+    actualEmission: nonEmpty ? availableEmission : 0n,
+    forfeitedEmission: nonEmpty ? 0n : input.scheduledEmission,
+    nonEmpty,
   };
 }
 

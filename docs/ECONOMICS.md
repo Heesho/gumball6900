@@ -1,200 +1,188 @@
-# GUM BALL 6900 Economics
+# Minimal GBX economics
 
-This document records the integer arithmetic implemented by the contracts. It is an accounting specification, not
-a promise of market value, liquidity, yield, or profitable auction execution. All divisions round down unless a
-ceiling is stated explicitly.
+> These formulas describe integer contract mechanics. They are not forecasts, valuations, or claims that any asset,
+> issuer, market, or deployment is safe. Every token in scope is assumed to be a reviewed standard ERC-20 that is
+> non-rebasing and non-fee-on-transfer.
 
-## Units
+## Supply
 
-- GBX and sGBX use 18 decimals.
-- Mining prices use 18-decimal USDG-per-GBX WAD values.
-- Auction rates use human-normalized target tokens per USDG, scaled by 1e18. Shared decimal-aware math converts raw
-  token amounts with ceil-on-quote and floor-on-clearing semantics.
-- Vault custody and redemption always use each token's raw atomic units.
-- Allocation and manager-reward indices use `1e27` precision.
-
-No contract adds unlike assets into an onchain NAV. Any USD display value is non-authoritative presentation data.
-
-## Lifetime supply
+All GBX amounts use 18 decimals.
 
 ```text
+MAX_CUMULATIVE_MINT = 1,000,000,000e18
+CONSTRUCTOR_ALLOCATION = 20,000,000e18
+NOMINAL_MINING_ALLOCATION = 980,000,000e18
+```
+
+The token constructor mints the 20M allocation once. The script contributes the maximal usable amount to one
+single-sided v4 position and burns the integer-rounding residual:
+
+```text
+positionPrincipal + residualBurned = 20,000,000e18
+```
+
+The position principal is not deposited in `GumBallVault`, so it is not part of the vault's redemption basket.
+
+At all times:
+
+```text
+cumulativeMinted <= 1,000,000,000e18
 totalSupply = cumulativeMinted - cumulativeBurned
-cumulativeMinted <= 1,000,000,000 GBX
+remainingMintCapacity = MAX_CUMULATIVE_MINT - cumulativeMinted
 ```
 
-Every mint increments `cumulativeMinted`. Every burn increments `cumulativeBurned` and reduces `totalSupply`.
-Burning never reduces `cumulativeMinted`, so it never creates new mint capacity.
+Burns lower `totalSupply` and increase `cumulativeBurned`; they do not lower `cumulativeMinted` or restore capacity.
 
-## Sponsor-backed genesis
+## Daily mining
 
-Let `C` be accepted community USDG, `M = 80,000,000 GBX`, and `L = 20,000,000 GBX`.
+The canonical initial controller uses:
 
 ```text
-genesisPrice = C / M
-requiredSponsorUSDG = ceil(C * L / M)
+epochDuration = 1 day
+dailyDecayWad = 999,525,354,337,060,160
+initialScheduledEmission = 465,152,749,681,042,811,702,004 raw GBX wei
+next = floor(current * dailyDecayWad / 1e18)
 ```
 
-Ceiling rounding is the smallest atomic sponsor amount satisfying:
+This is a smooth four-year half-life. Sequential floor rounding of every positive scheduled amount totals:
 
 ```text
-requiredSponsorUSDG * M >= C * L
+979,999,999,999,999,181,815,005,172 raw GBX wei
 ```
 
-The full `M + L` supply is minted atomically with the transfer of community and required sponsor USDG into
-GumBallVault. The LP allocation therefore has the same claim value per GBX as the community allocation at the
-genesis clearing price. Excess sponsor escrow is returned; a failed launch is refundable.
+The canonical curve therefore leaves `818,184,994,828` raw wei of the nominal 980M unused even if every positive
+epoch is non-empty. Empty epochs create additional permanently unrealized issuance under this controller: they mint
+zero, advance one decay step, and do not carry the missed amount forward.
 
-Genesis claims are claim-on-behalf and can be submitted individually or as a batch of at most 64 distinct
-beneficiaries. Every transfer is fixed to the recorded beneficiary. A batch consumes all entitlements before making
-payments, so a duplicate, zero-entitlement, expired, or otherwise invalid entry reverts every mutation and transfer.
+This curve is not an immutable token guarantee. A seven-day typed operation can select a compatible replacement
+controller. That code can choose another schedule and receiver up to the token's remaining cumulative capacity.
 
-## Recurring mining
+## Contributions and claims
 
-The first post-genesis daily schedule is:
+`MiningPool` accounts for the USDG amount it actually receives. Payer and beneficiary may differ. For a non-empty
+ended epoch with contribution total `C`:
 
 ```text
-427,181.096645855643 GBX
+teamFee = team == address(0) ? 0 : floor(C * 200 / 10,000)
+vaultRevenue = C - teamFee
 ```
 
-For each epoch, the next schedule is floor-rounded sequentially:
+The vault must receive `vaultRevenue` exactly before it is reported to the allocation ledger. The epoch emission is
+not scaled by contribution demand or price. For a beneficiary contribution `c_i` and settled emission `E`:
 
 ```text
-nextScheduled = floor(currentScheduled * 0.999525354337060160)
+claim_i = floor(c_i * E / C)
 ```
 
-The schedule advances on empty epochs. Unused scheduled emission is forfeited.
+Claim-floor dust stays in `MiningClaims`; there is no administrator sweep or expiry path. Contributions are final;
+there is no cancellation or repayment state.
 
-For a funded epoch:
+## Virtual USDG allocation
+
+`AllocationVoter` never owns USDG. It accounts only for USDG already present in `GumBallVault`.
+
+For notified revenue `R`, total active weight `W`, and precision `Q = 1e27`:
 
 ```text
-scheduled = min(currentScheduled, remaining lifetime mint capacity)
-minimumPrice = max(1 atomic WAD unit, floor(referencePrice * 95%))
-affordable = normalizedEpochUSDG / minimumPrice
-actualEmission = min(scheduled, affordable)
+if W == 0:
+    idleUSDG += R
+else:
+    globalRevenueIndex += floor(R * Q / W)
 ```
 
-If `affordable >= scheduled`, the clearing price is `normalizedEpochUSDG / scheduled`; otherwise it is the minimum
-price. The one-unit lower bound matters only after an extreme empty-epoch tail and prevents a later funded epoch
-from dividing by zero.
-
-The reference update mirrors Solidity's two independent floors:
+For a strategy weight `w_j` checkpointed across index delta `d`:
 
 ```text
-rawNext = floor(previous * 80%) + floor(clearing * 20%)
-next = clamp(rawNext, minimumPrice, floor(previous * 150%))
+strategyBudget_j += floor(w_j * d / Q)
 ```
 
-An empty or invalidated epoch moves directly to `minimumPrice`. This reference is endogenous mining history, not an
-asset-price oracle.
+Revenue made idle at notification time is not assigned later. Index and checkpoint rounding can also leave physical
+USDG in the vault that is not releasable by a strategy. It remains redemption backing.
 
-Each beneficiary's claim is:
+When `s` shares are redeemed from pre-burn supply `S`, every budget, `idleUSDG`, and `accountedVaultUSDG` is scaled by:
 
 ```text
-floor(beneficiaryUSDG * actualEmission / totalEpochUSDG)
+floor(value * (S - s) / S)
 ```
 
-The complete emission is minted to MiningClaims at settlement. Per-user floor dust remains in that claims escrow
-until the two-year expiry, when it is burned with every other unclaimed unit.
+This keeps virtual claims proportional to the vault backing retained after the in-kind withdrawal.
 
-## Signals and virtual USDG budgets
+## Reverse Dutch auctions
 
-sGBX is a non-transferable 1:1 receipt. New or increased signals activate after 24 hours; decreases and unstaking
-reduce weight immediately after reward checkpointing.
-
-AllocationVoter never holds USDG. When live weight is nonzero, a revenue notification updates a global index. The
-implementation carries the exact scaled numerator remainder:
+Each strategy sells one immutable USDG lot. `initPrice` is the target-token amount for acquisition or GBX amount for
+buyback. With elapsed time `t` and immutable period `T`:
 
 ```text
-baseDelta = floor(revenue * P / totalWeight)
-combined = (revenue * P mod totalWeight) + previousScaledRemainder
-indexDelta = baseDelta + floor(combined / totalWeight)
-nextScaledRemainder = combined mod totalWeight
+price(t) = initPrice - floor(initPrice * t / T), 0 <= t <= T
+price(t) = 0, t > T
 ```
 
-where `P = 1e27`. A strategy lazily realizes `weight * indexDelta / P`, with its own scaled remainder. With zero
-live weight, revenue remains idle USDG and is not allocated retroactively. Physical USDG remains in GumBallVault
-until a live strategy consumes its virtual budget during a valid fill.
+The price is exactly zero at and after the endpoint. A valid zero-price fill can therefore consume a full strategy
+budget lot and release USDG without target-token or GBX payment. This is part of the pinned auction transition and
+must be reflected in lot, duration, monitoring, and risk review.
 
-## Acquisition and manager rewards
-
-The reverse Dutch rate is target-token units per USDG. It begins at 125% of the reference, decays linearly for one
-day, and stops at a nonzero 80% floor. Required target input rounds up so the taker cannot underpay by atomic dust.
-The signed `maxTargetAmount` bounds both that quote and the taker's observed balance decrease, so a sender surcharge
-limited to the pull cannot silently charge above the accepted maximum.
-
-For actual observed target receipt `T`:
+After a fill at quoted payment `p`:
 
 ```text
-managerAmount = floor(T * 2% )
-vaultAmount = T - managerAmount
+nextInitPrice = clamp(floor(p * priceMultiplier / 1e18), minInitPrice, ABS_MAX_INIT_PRICE)
 ```
 
-Assigning split dust to the vault guarantees managers never receive more than 2%. With zero active strategy weight,
-ManagerRewards redirects its entire received share to GumBallVault. Both that redirect and every manager claim
-require an exact observed receiver-balance increase and sender-balance decrease, so a token that later enables either
-a receiver-deducted fee or sender-paid surcharge cannot silently consume the nominal reward liability. Acquisition
-distribution applies the same two-sided check and also requires each observed vault and ManagerRewards delta to equal
-its nominal 98/2 leg; offsetting transfer behavior cannot preserve the total while shifting value between recipients.
+The transition uses the quote, not the observed receipt. Exact debit/receipt assertions fail closed where equality is
+required; other measured deltas only account for observed amounts. Neither pattern supports transfer-tax, rebasing,
+callback, or other exotic tokens.
 
-ManagerRewards uses the same scaled-numerator carry pattern as allocation. User accrual also carries a per-user
-`1e27` fractional remainder, so repeated tiny rewards can eventually become claimable while manager weight remains
-live. When the voter individually checkpoints and removes the final live weight, ManagerRewards fixes a terminal
-remainder cycle. It retains the aggregate unpaid whole-token entitlement, clears notification and per-user fractional
-carry for that cycle, and finalizes the residual whole-token dust into a generation-and-cycle queue without calling
-the reward token. Therefore:
+## Acquisition split
+
+The seller transfers the target token before USDG release. Let `A` be the target amount actually observed by the
+strategy:
 
 ```text
-notified rewards = cumulative whole-token entitlements + finalized terminal dust
-finalized terminal dust = redirected terminal dust + pending terminal dust
-accounted rewards >= aggregate unpaid whole-token entitlements + pending terminal dust
+if supporterWeight == 0:
+    vaultTarget = A
+    supporterReward = 0
+else:
+    supporterReward = floor(A * 200 / 10,000)
+    vaultTarget = A - supporterReward
 ```
 
-Anyone may sweep a nonzero queued amount, but the destination and amount are fixed by ManagerRewards: the complete
-pending cycle amount goes to GumBallVault using the same exact debit and receipt checks as a claim. Pending dust stays
-in `accountedRewards`, so it cannot be presented again as an unaccounted reward notification. A failed sweep leaves
-the queue intact for retry and does not affect the already completed signal reset, vote change, or unstake. A zero-dust
-terminal cycle creates no sweepable entry. A manager that later re-signals starts in a fresh remainder cycle and
-cannot revive a fraction already finalized as dust. Only the immutable associated strategy can notify; arbitrary
-bribes are not indexed.
-
-Disabling a strategy closes its current ManagerRewards index before AllocationVoter increments the strategy
-generation. The closed generation records its unresolved stored weight and defers terminal dust until every such
-weight receives its final checkpoint. An uncheckpointed old signal settles only through that fixed terminal index,
-even if the strategy is later reactivated and new managers earn rewards. This preserves latent whole claims without
-letting stale weight or fractional carry cross a reactivation boundary. Once those checkpoints complete, the old
-generation queues its terminal dust without introducing a reward-token dependency into the cleanup path.
-
-## Redemption
-
-For shares `x`, pre-burn supply `S`, and each registered raw vault balance `B[i]`:
-
-```text
-assetOut[i] = floor(B[i] * x / S)
-```
-
-`S` is total supply, not a circulating-supply estimate. It includes wallet, staking, claims, and liquidity-manager
-balances. Outstanding virtual USDG budgets are scaled by `(S - x) / S` before GBX burns. Every registered asset
-transfer is atomic and succeeds only when the vault debit and receiver credit both equal `assetOut[i]`; independent
-floor dust stays in the vault for remaining holders. Strategy USDG release applies the same exact debit/credit rule
-to the consumed virtual budget. A token that enables a receiver fee or sender surcharge after onboarding therefore
-reverts the burn or fill instead of silently shifting value between redeemers, takers, or remaining holders.
+The rewards contract distributes its observed 2% share through a `1e27` cumulative index. Reward floor dust remains
+in that contract; there is no sweep.
 
 ## Buyback
 
-BuybackBurnStrategy receives GBX, measures the actual balance increase, burns all of it, and only then releases its
-budgeted USDG. It pays no manager reward.
+The filler transfers the quoted GBX amount first. The strategy measures its balance increase and burns every observed
+unit before asking the vault to release its fixed USDG lot. A burn does not create new issuance capacity. Buyback is
+not a treasury repurchase: the received GBX does not remain owned by the protocol.
+
+## In-kind redemption
+
+For burn shares `s`, pre-burn total supply `S`, and each registered vault balance `B_i`:
 
 ```text
-net supply change = newly emitted GBX - actually burned GBX
+redemption_i = floor(B_i * s / S)
 ```
 
-The contracts do not assert that a buyback is accretive because they do not calculate basket NAV. A buyback funded
-by mining USDG has different economics from one funded by non-emission fees or external revenue, and the web app
-must label that distinction.
+The vault snapshots all amounts before the burn, burns the caller's GBX, scales virtual USDG accounting, and performs
+exact transfers. It does not price assets or offset one asset against another. Disabled-strategy assets remain in the
+ordered basket.
 
-## Oracleless risk
+## Liquidity fees
 
-Oracleless removes an external price feed from mint, redemption, signal, and auction state transitions. It does not
-guarantee fair execution. Mining references can lag, auction reference resets use bounded human review, market
-makers may disappear, Uniswap liquidity can be thin, and external assets can depeg, freeze, or become untradeable.
-The hard protocol exit is an in-kind pro-rata basket redemption when every registered token remains transferable.
+Anyone may collect fees from the one canonical position while the NFT remains in custody. Collected GBX is burned.
+Collected USDG must be received exactly by the vault before notification. Position principal is not withdrawn by fee
+collection and is not included in vault redemption.
+
+## Economic risks
+
+- A very small non-empty contribution earns the same complete scheduled epoch emission as a large contribution,
+  divided only among that epoch's beneficiaries.
+- The auction reaches zero, allowing a zero-payment fixed-lot release.
+- Signals assign future notified revenue, not past idle revenue.
+- A registered token's transfer behavior can block atomic all-asset redemption.
+- Unsupported token behavior can revert deposits, fills, fee routing, rewards, or redemption; deployment review must
+  exclude rebasing and fee-on-transfer tokens rather than rely on the balance checks as compatibility logic.
+- The token cap does not preserve the canonical mining curve against a malicious replacement controller.
+- A malicious admitted strategy can choose any receiver for no more than its current signaled USDG budget.
+- Transfer of the canonical NFT can surrender the position to arbitrary deployed recipient code.
+
+No production parameter is implied by this document.

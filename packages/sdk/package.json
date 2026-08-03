@@ -17,7 +17,7 @@
   "scripts": {
     "abi:check": "node scripts/generate-abis.mjs --check",
     "abi:generate": "node scripts/generate-abis.mjs",
-    "build": "tsc -p tsconfig.build.json && node scripts/bundle-uniswap.mjs",
+    "build": "pnpm run clean && tsc -p tsconfig.build.json && node scripts/bundle-uniswap.mjs",
     "clean": "rm -rf dist coverage",
     "docs:check": "node scripts/generate-docs.mjs --check",
     "docs:generate": "node scripts/generate-docs.mjs",

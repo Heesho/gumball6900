@@ -1,13 +1,15 @@
 import {
-  AUCTION_DURATION_SECONDS,
-  AUCTION_FLOOR_RATE_BPS,
-  AUCTION_START_RATE_BPS,
+  ABS_MAX_AUCTION_INIT_PRICE,
+  ABS_MIN_AUCTION_INIT_PRICE,
   BPS_DENOMINATOR,
   MANAGER_REWARD_BPS,
+  MAX_AUCTION_EPOCH_PERIOD,
+  MAX_AUCTION_PRICE_MULTIPLIER,
+  MIN_AUCTION_EPOCH_PERIOD,
+  MIN_AUCTION_PRICE_MULTIPLIER,
   WAD,
 } from './constants.js';
-import { assertWadCompatibleTokenDecimals, rawTokenUnit } from './decimals.js';
-import { assertNonNegative, assertPositive, mulDiv, mulDivUp } from './integer.js';
+import { assertNonNegative, assertPositive, clampBigInt, mulDiv } from './integer.js';
 
 export interface AcquisitionSplit {
   actualTargetReceived: bigint;
@@ -15,60 +17,49 @@ export interface AcquisitionSplit {
   managerAmount: bigint;
 }
 
-/** Linear reverse-Dutch rate in human target-token units per human USDG, represented as WAD. */
-export function auctionRateAt(
-  referenceRate: bigint,
-  elapsedSeconds: bigint,
-  durationSeconds = AUCTION_DURATION_SECONDS,
-): bigint {
-  assertPositive(referenceRate, 'referenceRate');
-  assertNonNegative(elapsedSeconds, 'elapsedSeconds');
-  assertPositive(durationSeconds, 'durationSeconds');
+export interface AuctionConfig {
+  initPrice: bigint;
+  epochPeriod: bigint;
+  priceMultiplier: bigint;
+  minInitPrice: bigint;
+}
 
-  const startRate = mulDiv(referenceRate, AUCTION_START_RATE_BPS, BPS_DENOMINATOR);
-  const floorRate = mulDiv(referenceRate, AUCTION_FLOOR_RATE_BPS, BPS_DENOMINATOR);
-  if (elapsedSeconds >= durationSeconds) {
-    return floorRate;
+/** Validates the same constructor bounds and ordering as AuctionEngine. */
+export function validateAuctionConfig(config: AuctionConfig): AuctionConfig {
+  if (config.initPrice < config.minInitPrice || config.initPrice > ABS_MAX_AUCTION_INIT_PRICE) {
+    throw new RangeError('initPrice is outside the configured bounds');
   }
-
-  const decay = mulDiv(startRate - floorRate, elapsedSeconds, durationSeconds);
-  return startRate - decay;
+  if (config.epochPeriod < MIN_AUCTION_EPOCH_PERIOD || config.epochPeriod > MAX_AUCTION_EPOCH_PERIOD) {
+    throw new RangeError('epochPeriod is outside the protocol bounds');
+  }
+  if (config.priceMultiplier < MIN_AUCTION_PRICE_MULTIPLIER || config.priceMultiplier > MAX_AUCTION_PRICE_MULTIPLIER) {
+    throw new RangeError('priceMultiplier is outside the protocol bounds');
+  }
+  if (config.minInitPrice < ABS_MIN_AUCTION_INIT_PRICE || config.minInitPrice > ABS_MAX_AUCTION_INIT_PRICE) {
+    throw new RangeError('minInitPrice is outside the protocol bounds');
+  }
+  return config;
 }
 
-/**
- * Returns the denominator that converts a human-normalized WAD rate into raw token units:
- * `targetRaw = ceil(usdGRaw * rateWad / rateScaleWad)`.
- */
-export function auctionRateScaleWad(usdGDecimals: number, targetDecimals: number): bigint {
-  assertWadCompatibleTokenDecimals(usdGDecimals, 'usdGDecimals');
-  assertWadCompatibleTokenDecimals(targetDecimals, 'targetDecimals');
-  const usdGUnit = rawTokenUnit(usdGDecimals);
-  const targetUnit = rawTokenUnit(targetDecimals);
-  return targetUnit >= usdGUnit ? WAD / (targetUnit / usdGUnit) : WAD * (usdGUnit / targetUnit);
+/** Exact AuctionEngine.getPrice arithmetic, including E => 0 and t > E => 0. */
+export function auctionPriceAt(initPrice: bigint, elapsedSeconds: bigint, epochPeriod: bigint): bigint {
+  assertPositive(initPrice, 'initPrice');
+  assertNonNegative(elapsedSeconds, 'elapsedSeconds');
+  assertPositive(epochPeriod, 'epochPeriod');
+  if (elapsedSeconds > epochPeriod) return 0n;
+  return initPrice - mulDiv(initPrice, elapsedSeconds, epochPeriod);
 }
 
-/** Required raw target payment, rounded upward so a taker cannot underpay by atomic-unit dust. */
-export function quoteAuctionTargetAmount(
-  usdGAmountRaw: bigint,
-  targetPerUSDGRateWad: bigint,
-  usdGDecimals: number,
-  targetDecimals: number,
+/** Exact quoted-payment transition, with floor multiplication and min/max clamps. */
+export function nextAuctionInitPrice(
+  quotedPaymentAmount: bigint,
+  priceMultiplier: bigint,
+  minInitPrice: bigint,
 ): bigint {
-  assertNonNegative(usdGAmountRaw, 'usdGAmountRaw');
-  assertPositive(targetPerUSDGRateWad, 'targetPerUSDGRateWad');
-  return mulDivUp(usdGAmountRaw, targetPerUSDGRateWad, auctionRateScaleWad(usdGDecimals, targetDecimals));
-}
-
-/** Endogenous human-normalized WAD clearing rate, rounded down to mirror Solidity Math.mulDiv. */
-export function clearingAuctionRateWad(
-  targetAmountRaw: bigint,
-  usdGAmountRaw: bigint,
-  usdGDecimals: number,
-  targetDecimals: number,
-): bigint {
-  assertPositive(targetAmountRaw, 'targetAmountRaw');
-  assertPositive(usdGAmountRaw, 'usdGAmountRaw');
-  return mulDiv(targetAmountRaw, auctionRateScaleWad(usdGDecimals, targetDecimals), usdGAmountRaw);
+  assertNonNegative(quotedPaymentAmount, 'quotedPaymentAmount');
+  assertPositive(priceMultiplier, 'priceMultiplier');
+  assertPositive(minInitPrice, 'minInitPrice');
+  return clampBigInt(mulDiv(quotedPaymentAmount, priceMultiplier, WAD), minInitPrice, ABS_MAX_AUCTION_INIT_PRICE);
 }
 
 export function splitAcquiredAsset(
@@ -83,10 +74,5 @@ export function splitAcquiredAsset(
   }
 
   const managerAmount = hasLiveManagerWeight ? mulDiv(actualTargetReceived, managerRewardBps, BPS_DENOMINATOR) : 0n;
-
-  return {
-    actualTargetReceived,
-    vaultAmount: actualTargetReceived - managerAmount,
-    managerAmount,
-  };
+  return { actualTargetReceived, vaultAmount: actualTargetReceived - managerAmount, managerAmount };
 }

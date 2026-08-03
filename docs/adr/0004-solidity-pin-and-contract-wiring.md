@@ -1,6 +1,6 @@
 # ADR-0004: Solidity Pin and Contract Wiring
 
-- Status: Accepted for the implementation baseline
+- Status: Superseded by ADR-0012; archival baseline only.
 - Date: 2026-08-01
 - Decision owners: protocol engineering and security review
 - Supersedes: none

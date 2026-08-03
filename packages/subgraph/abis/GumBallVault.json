@@ -3,36 +3,27 @@
     "type": "constructor",
     "inputs": [
       {
-        "name": "usdG_",
+        "name": "gbx",
+        "type": "address",
+        "internalType": "contract IGBXToken"
+      },
+      {
+        "name": "usdG",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "gbx_",
+        "name": "assetRegistry",
         "type": "address",
-        "internalType": "address"
+        "internalType": "contract IAssetRegistry"
       },
       {
-        "name": "assetRegistry_",
+        "name": "allocationVoter",
         "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "allocationVoter_",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "eligibilityModule_",
-        "type": "address",
-        "internalType": "address"
+        "internalType": "contract IAllocationVoter"
       }
     ],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "receive",
-    "stateMutability": "payable"
   },
   {
     "type": "function",
@@ -56,19 +47,6 @@
         "name": "",
         "type": "address",
         "internalType": "contract IAssetRegistry"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "ELIGIBILITY_MODULE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract IEligibilityModule"
       }
     ],
     "stateMutability": "view"
@@ -101,25 +79,6 @@
   },
   {
     "type": "function",
-    "name": "rawBalance",
-    "inputs": [
-      {
-        "name": "token",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "balance",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "redeem",
     "inputs": [
       {
@@ -135,7 +94,7 @@
     ],
     "outputs": [
       {
-        "name": "amountsOut",
+        "name": "amounts",
         "type": "uint256[]",
         "internalType": "uint256[]"
       }
@@ -159,31 +118,6 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "event",
-    "name": "GumBallVault__AssetRedeemed",
-    "inputs": [
-      {
-        "name": "receiver",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "asset",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
   },
   {
     "type": "event",
@@ -212,6 +146,12 @@
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "amounts",
+        "type": "uint256[]",
+        "indexed": false,
+        "internalType": "uint256[]"
       }
     ],
     "anonymous": false
@@ -243,18 +183,33 @@
   },
   {
     "type": "error",
-    "name": "GumBallVault__IneligibleReceiver",
+    "name": "GumBallVault__InexactTransfer",
     "inputs": [
       {
-        "name": "receiver",
+        "name": "token",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "debit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "receipt",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },
   {
     "type": "error",
-    "name": "GumBallVault__InsufficientPhysicalUSDG",
+    "name": "GumBallVault__InsufficientShares",
     "inputs": [
       {
         "name": "requested",
@@ -262,7 +217,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "available",
+        "name": "balance",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -270,64 +225,7 @@
   },
   {
     "type": "error",
-    "name": "GumBallVault__NativeETHNotAccepted",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "GumBallVault__NoSupply",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "GumBallVault__ObservedDebitMismatch",
-    "inputs": [
-      {
-        "name": "token",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "expected",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "observed",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "GumBallVault__ObservedReceiptMismatch",
-    "inputs": [
-      {
-        "name": "token",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "receiver",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "expected",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "observed",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "GumBallVault__UnauthorizedStrategy",
+    "name": "GumBallVault__StrategyNotLive",
     "inputs": [
       {
         "name": "strategy",
@@ -344,16 +242,6 @@
   {
     "type": "error",
     "name": "GumBallVault__ZeroAmount",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "GumBallVault__ZeroReceiver",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "GumBallVault__ZeroShares",
     "inputs": []
   },
   {

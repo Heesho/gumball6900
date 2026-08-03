@@ -3,27 +3,27 @@
     "type": "constructor",
     "inputs": [
       {
-        "name": "usdG_",
+        "name": "usdG",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "assetRegistry_",
+        "name": "assetRegistry",
+        "type": "address",
+        "internalType": "contract IAssetRegistry"
+      },
+      {
+        "name": "protocolTimelock",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "protocolTimelock_",
+        "name": "emergencyGuardian",
         "type": "address",
         "internalType": "address"
       },
       {
-        "name": "emergencyGuardian_",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "dependencyInitializer_",
+        "name": "dependencyInitializer",
         "type": "address",
         "internalType": "address"
       }
@@ -110,19 +110,6 @@
   },
   {
     "type": "function",
-    "name": "SIGNAL_ACTIVATION_DELAY",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "USDG",
     "inputs": [],
     "outputs": [
@@ -159,75 +146,12 @@
     ],
     "outputs": [
       {
-        "name": "strategies",
+        "name": "",
         "type": "address[]",
         "internalType": "address[]"
       }
     ],
     "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "activeWeight",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "strategy",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "weight",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "activeWeightTotal",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "total",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "allocationRemainder",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "cancelPendingSignals",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -250,19 +174,6 @@
   },
   {
     "type": "function",
-    "name": "checkpointUser",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "consumeStrategyBudget",
     "inputs": [
       {
@@ -281,7 +192,7 @@
   },
   {
     "type": "function",
-    "name": "dependenciesConfigured",
+    "name": "dependenciesInitialized",
     "inputs": [],
     "outputs": [
       {
@@ -307,20 +218,7 @@
   },
   {
     "type": "function",
-    "name": "globalAllocationIndex",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "idleScaledRemainder",
+    "name": "globalRevenueIndex",
     "inputs": [],
     "outputs": [
       {
@@ -359,13 +257,44 @@
         "internalType": "address"
       },
       {
-        "name": "revenueSources",
-        "type": "address[4]",
-        "internalType": "address[4]"
+        "name": "miningPool_",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "liquidityCustodian_",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "liquidityCustodian",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "miningPool",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -375,11 +304,6 @@
         "name": "amount",
         "type": "uint256",
         "internalType": "uint256"
-      },
-      {
-        "name": "source",
-        "type": "uint8",
-        "internalType": "enum AllocationVoter.RevenueSource"
       }
     ],
     "outputs": [],
@@ -387,122 +311,10 @@
   },
   {
     "type": "function",
-    "name": "onStake",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "onUnstake",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "pauseSignalActivations",
+    "name": "pauseSignalIncreases",
     "inputs": [],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "pendingActivationTime",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "activationTime",
-        "type": "uint64",
-        "internalType": "uint64"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "pendingStrategies",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "strategies",
-        "type": "address[]",
-        "internalType": "address[]"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "pendingWeight",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "strategy",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "weight",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "pendingWeightTotal",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "total",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -525,19 +337,6 @@
   },
   {
     "type": "function",
-    "name": "reactivateStrategy",
-    "inputs": [
-      {
-        "name": "strategy",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "resetSignals",
     "inputs": [],
     "outputs": [],
@@ -545,51 +344,10 @@
   },
   {
     "type": "function",
-    "name": "revenueSourceAddress",
-    "inputs": [
-      {
-        "name": "sourceType",
-        "type": "uint8",
-        "internalType": "enum AllocationVoter.RevenueSource"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "source",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "rewardWeight",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "strategy",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "weight",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "generation",
-        "type": "uint64",
-        "internalType": "uint64"
-      }
-    ],
-    "stateMutability": "view"
+    "name": "resumeSignalIncreases",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -619,7 +377,7 @@
         "internalType": "address[]"
       },
       {
-        "name": "relativeWeights",
+        "name": "weights",
         "type": "uint256[]",
         "internalType": "uint256[]"
       }
@@ -629,7 +387,7 @@
   },
   {
     "type": "function",
-    "name": "signalActivationsPaused",
+    "name": "signalIncreasesPaused",
     "inputs": [],
     "outputs": [
       {
@@ -693,25 +451,6 @@
   },
   {
     "type": "function",
-    "name": "strategyGeneration",
-    "inputs": [
-      {
-        "name": "strategy",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "generation",
-        "type": "uint64",
-        "internalType": "uint64"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "strategyIndex",
     "inputs": [
       {
@@ -723,25 +462,6 @@
     "outputs": [
       {
         "name": "index",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "strategyScaledRemainder",
-    "inputs": [
-      {
-        "name": "strategy",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "scaledRemainder",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -769,7 +489,7 @@
   },
   {
     "type": "function",
-    "name": "totalLiveWeight",
+    "name": "totalActiveWeight",
     "inputs": [],
     "outputs": [
       {
@@ -782,10 +502,46 @@
   },
   {
     "type": "function",
-    "name": "unpauseSignalActivations",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
+    "name": "usedWeight",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "weight",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "userWeight",
+    "inputs": [
+      {
+        "name": "user",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "strategy",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "weight",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -802,7 +558,7 @@
   },
   {
     "type": "event",
-    "name": "AllocationVoter__DependenciesConfigured",
+    "name": "AllocationVoter__DependenciesInitialized",
     "inputs": [
       {
         "name": "vault",
@@ -815,18 +571,17 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "AllocationVoter__PendingSignalsCancelled",
-    "inputs": [
+      },
       {
-        "name": "user",
+        "name": "miningPool",
         "type": "address",
         "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "liquidityCustodian",
+        "type": "address",
+        "indexed": false,
         "internalType": "address"
       }
     ],
@@ -843,12 +598,6 @@
         "internalType": "address"
       },
       {
-        "name": "sourceType",
-        "type": "uint8",
-        "indexed": true,
-        "internalType": "enum AllocationVoter.RevenueSource"
-      },
-      {
         "name": "amount",
         "type": "uint256",
         "indexed": false,
@@ -859,63 +608,19 @@
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
-      },
-      {
-        "name": "remainder",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
       }
     ],
     "anonymous": false
   },
   {
     "type": "event",
-    "name": "AllocationVoter__SignalActivationPauseSet",
+    "name": "AllocationVoter__SignalIncreasesPauseSet",
     "inputs": [
       {
         "name": "paused",
         "type": "bool",
         "indexed": false,
         "internalType": "bool"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "AllocationVoter__SignalsActivated",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "activatedAt",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "AllocationVoter__SignalsPending",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "activationTime",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -935,22 +640,16 @@
   },
   {
     "type": "event",
-    "name": "AllocationVoter__StrategyBudgetCheckpointed",
+    "name": "AllocationVoter__SignalsSet",
     "inputs": [
       {
-        "name": "strategy",
+        "name": "user",
         "type": "address",
         "indexed": true,
         "internalType": "address"
       },
       {
-        "name": "budget",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "globalIndex",
+        "name": "totalWeight",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -975,7 +674,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "budgetRemaining",
+        "name": "remaining",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -998,12 +697,6 @@
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
-      },
-      {
-        "name": "scaledRemainderAfter",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -1019,13 +712,7 @@
         "internalType": "address"
       },
       {
-        "name": "newGeneration",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
-      },
-      {
-        "name": "budgetReturnedToIdle",
+        "name": "strandedBudget",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1035,26 +722,7 @@
   },
   {
     "type": "event",
-    "name": "AllocationVoter__StrategyReactivated",
-    "inputs": [
-      {
-        "name": "strategy",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "generation",
-        "type": "uint64",
-        "indexed": false,
-        "internalType": "uint64"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "AllocationVoter__StrategyWeightUpdated",
+    "name": "AllocationVoter__StrategyWeightSet",
     "inputs": [
       {
         "name": "strategy",
@@ -1078,81 +746,9 @@
     "anonymous": false
   },
   {
-    "type": "event",
-    "name": "AllocationVoter__UserWeightUpdated",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "strategy",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "previousWeight",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "newWeight",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "AllocationVoter__VaultAccountingScaled",
-    "inputs": [
-      {
-        "name": "shares",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "supplyBefore",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "accountedVaultUSDGAfter",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
     "type": "error",
-    "name": "AllocationVoter__AlreadyConfigured",
+    "name": "AllocationVoter__AlreadyInitialized",
     "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "AllocationVoter__DependenciesNotConfigured",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "AllocationVoter__DuplicateRevenueSource",
-    "inputs": [
-      {
-        "name": "source",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
   },
   {
     "type": "error",
@@ -1167,10 +763,10 @@
   },
   {
     "type": "error",
-    "name": "AllocationVoter__InsolventRevenueNotification",
+    "name": "AllocationVoter__InsolventNotification",
     "inputs": [
       {
-        "name": "notifiedAfter",
+        "name": "accountedAfter",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -1188,84 +784,12 @@
   },
   {
     "type": "error",
-    "name": "AllocationVoter__NoPendingSignals",
-    "inputs": [
-      {
-        "name": "user",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
+    "name": "AllocationVoter__NotInitialized",
+    "inputs": []
   },
   {
     "type": "error",
-    "name": "AllocationVoter__NotEmergencyGuardian",
-    "inputs": [
-      {
-        "name": "caller",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "AllocationVoter__NotGuardianOrTimelock",
-    "inputs": [
-      {
-        "name": "caller",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "AllocationVoter__NotProtocolTimelock",
-    "inputs": [
-      {
-        "name": "caller",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "AllocationVoter__NotStakedGBX",
-    "inputs": [
-      {
-        "name": "caller",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "AllocationVoter__NotVault",
-    "inputs": [
-      {
-        "name": "caller",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "AllocationVoter__PendingSignalRoundsToZero",
-    "inputs": [
-      {
-        "name": "strategy",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "AllocationVoter__StrategyAlreadyDisabled",
+    "name": "AllocationVoter__SignalIncreasePaused",
     "inputs": [
       {
         "name": "strategy",
@@ -1308,7 +832,7 @@
   },
   {
     "type": "error",
-    "name": "AllocationVoter__UnauthorizedInitializer",
+    "name": "AllocationVoter__Unauthorized",
     "inputs": [
       {
         "name": "caller",
@@ -1319,23 +843,7 @@
   },
   {
     "type": "error",
-    "name": "AllocationVoter__UnauthorizedRevenueSource",
-    "inputs": [
-      {
-        "name": "caller",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "source",
-        "type": "uint8",
-        "internalType": "enum AllocationVoter.RevenueSource"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "AllocationVoter__UnregisteredOrInactiveStrategy",
+    "name": "AllocationVoter__UnregisteredStrategy",
     "inputs": [
       {
         "name": "strategy",
@@ -1346,10 +854,10 @@
   },
   {
     "type": "error",
-    "name": "AllocationVoter__UnstakeExceedsBalance",
+    "name": "AllocationVoter__WeightExceedsStake",
     "inputs": [
       {
-        "name": "amount",
+        "name": "requested",
         "type": "uint256",
         "internalType": "uint256"
       },
@@ -1372,33 +880,7 @@
   },
   {
     "type": "error",
-    "name": "AllocationVoter__ZeroSignalWeight",
-    "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "AllocationVoter__ZeroStakedBalance",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "ReentrancyGuardReentrantCall",
     "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "SafeCastOverflowedUintDowncast",
-    "inputs": [
-      {
-        "name": "bits",
-        "type": "uint8",
-        "internalType": "uint8"
-      },
-      {
-        "name": "value",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
   }
 ]

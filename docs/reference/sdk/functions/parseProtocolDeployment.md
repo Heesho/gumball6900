@@ -30,13 +30,9 @@
 
 > **assetRegistry**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.buybackBurnStrategy
+#### addresses.buybackStrategy
 
-> **buybackBurnStrategy**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.eligibilityModule
-
-> **eligibilityModule**: `` `0x${string}` `` = `addressSchema`
+> **buybackStrategy**: `` `0x${string}` `` = `addressSchema`
 
 #### addresses.emergencyGuardian
 
@@ -50,41 +46,13 @@
 
 > **gbx**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.genesisBootstrap
-
-> **genesisBootstrap**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.genesisClaims
-
-> **genesisClaims**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.genesisLiquidityCalculator
-
-> **genesisLiquidityCalculator**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.gumBallLens
-
-> **gumBallLens**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.gumBallRouter
-
-> **gumBallRouter**: `` `0x${string}` `` = `addressSchema`
-
 #### addresses.gumBallVault
 
 > **gumBallVault**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.holdUSDGStrategy
+#### addresses.liquidityCustodian
 
-> **holdUSDGStrategy**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.launchGuardHook
-
-> **launchGuardHook**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.liquidityManager
-
-> **liquidityManager**: `` `0x${string}` `` = `addressSchema`
+> **liquidityCustodian**: `` `0x${string}` `` = `addressSchema`
 
 #### addresses.miningClaims
 
@@ -98,17 +66,9 @@
 
 > **protocolTimelock**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.revenueRouter
-
-> **revenueRouter**: `` `0x${string}` `` = `addressSchema`
-
 #### addresses.stakedGBX
 
 > **stakedGBX**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.strategyDeployer
-
-> **strategyDeployer**: `` `0x${string}` `` = `addressSchema`
 
 ### chainId
 

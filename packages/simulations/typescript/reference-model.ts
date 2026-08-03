@@ -1,25 +1,25 @@
 import { createHash } from 'node:crypto';
 
 import {
-  auctionRateAt,
+  DAILY_DECAY_WAD,
+  GENESIS_TOTAL_SUPPLY,
+  INITIAL_DAILY_SCHEDULED_EMISSION,
+  MINING_EMISSION_ALLOCATION,
+  auctionPriceAt,
   currentTotalSupply,
-  earnedManagerReward,
-  estimateGenesisClaim,
+  earnedStrategyReward,
   netSupplyChange,
   previewRedemption,
   projectTotalSupply,
-  quoteAuctionTargetAmount,
-  quoteGenesis,
+  nextAuctionInitPrice,
   quoteMiningEpoch,
   redemptionPercentageWad,
-  simulateFullyFundedEmissions,
+  simulateAllNonEmptyEmissions,
   splitAcquiredAsset,
-  updateRewardAccumulator,
+  updateRewardIndex,
 } from '@gumball-6900/sdk';
 
 const WAD = 10n ** 18n;
-const INITIAL_DAILY_SCHEDULED_EMISSION = 427_181_096_645_855_643_000_000n;
-const DAILY_DECAY_WAD = 999_525_354_337_060_160n;
 const DAILY_DIFFERENTIAL_DAYS = 36_500;
 
 function uint256Bytes(value: bigint): Buffer {
@@ -38,25 +38,36 @@ function emissionDailyDigest(days: number): string {
   return `0x${digest.toString('hex')}`;
 }
 
+function emissionScheduleLifetime() {
+  let emission = INITIAL_DAILY_SCHEDULED_EMISSION;
+  let scheduledTotal = 0n;
+  let positiveEpochs = 0;
+  while (emission !== 0n) {
+    scheduledTotal += emission;
+    emission = (emission * DAILY_DECAY_WAD) / WAD;
+    positiveEpochs += 1;
+  }
+  return {
+    positiveEpochs: positiveEpochs.toString(),
+    sequentialScheduledTotal: scheduledTotal.toString(),
+    nominalAllocationResidual: (MINING_EMISSION_ALLOCATION - scheduledTotal).toString(),
+  };
+}
+
 interface MiningCase {
   id: string;
   scheduledEmission: string;
   cumulativeMinted: string;
-  totalUSDGRaw: string;
-  referenceMiningPrice: string;
-}
-
-interface GenesisCase {
-  id: string;
-  communityUSDGRaw: string;
-  participantUSDGRaw: string;
+  totalContributedRaw: string;
 }
 
 interface AuctionCase {
   id: string;
-  referenceRate: string;
+  initPrice: string;
   elapsedSeconds: string;
-  usdGLotRaw: string;
+  epochPeriod: string;
+  priceMultiplier: string;
+  minInitPrice: string;
   actualTargetReceived: string;
   hasLiveManagerWeight: boolean;
 }
@@ -65,7 +76,6 @@ interface RewardCase {
   id: string;
   rewardAmount: string;
   totalActiveWeight: string;
-  priorRemainder: string;
   precision: string;
   userActiveWeight: string;
   userRewardPerWeightPaid: string;
@@ -93,7 +103,6 @@ export interface ReferenceScenarios {
   targetDecimals: string;
   emissionHorizonsDays: string[];
   miningCases: MiningCase[];
-  genesisCases: GenesisCase[];
   auctionCases: AuctionCase[];
   rewardCases: RewardCase[];
   redemptionCases: RedemptionCase[];
@@ -150,21 +159,16 @@ export function parseReferenceScenarios(value: unknown): ReferenceScenarios {
     id: asIdentifier(record.id, `${label}.id`),
     scheduledEmission: asString(record.scheduledEmission, `${label}.scheduledEmission`),
     cumulativeMinted: asString(record.cumulativeMinted, `${label}.cumulativeMinted`),
-    totalUSDGRaw: asString(record.totalUSDGRaw, `${label}.totalUSDGRaw`),
-    referenceMiningPrice: asString(record.referenceMiningPrice, `${label}.referenceMiningPrice`),
-  }));
-
-  const genesisCases = parseObjects(root, 'genesisCases', (record, label) => ({
-    id: asIdentifier(record.id, `${label}.id`),
-    communityUSDGRaw: asString(record.communityUSDGRaw, `${label}.communityUSDGRaw`),
-    participantUSDGRaw: asString(record.participantUSDGRaw, `${label}.participantUSDGRaw`),
+    totalContributedRaw: asString(record.totalContributedRaw, `${label}.totalContributedRaw`),
   }));
 
   const auctionCases = parseObjects(root, 'auctionCases', (record, label) => ({
     id: asIdentifier(record.id, `${label}.id`),
-    referenceRate: asString(record.referenceRate, `${label}.referenceRate`),
+    initPrice: asString(record.initPrice, `${label}.initPrice`),
     elapsedSeconds: asString(record.elapsedSeconds, `${label}.elapsedSeconds`),
-    usdGLotRaw: asString(record.usdGLotRaw, `${label}.usdGLotRaw`),
+    epochPeriod: asString(record.epochPeriod, `${label}.epochPeriod`),
+    priceMultiplier: asString(record.priceMultiplier, `${label}.priceMultiplier`),
+    minInitPrice: asString(record.minInitPrice, `${label}.minInitPrice`),
     actualTargetReceived: asString(record.actualTargetReceived, `${label}.actualTargetReceived`),
     hasLiveManagerWeight: asBoolean(record.hasLiveManagerWeight, `${label}.hasLiveManagerWeight`),
   }));
@@ -173,7 +177,6 @@ export function parseReferenceScenarios(value: unknown): ReferenceScenarios {
     id: asIdentifier(record.id, `${label}.id`),
     rewardAmount: asString(record.rewardAmount, `${label}.rewardAmount`),
     totalActiveWeight: asString(record.totalActiveWeight, `${label}.totalActiveWeight`),
-    priorRemainder: asString(record.priorRemainder, `${label}.priorRemainder`),
     precision: asString(record.precision, `${label}.precision`),
     userActiveWeight: asString(record.userActiveWeight, `${label}.userActiveWeight`),
     userRewardPerWeightPaid: asString(record.userRewardPerWeightPaid, `${label}.userRewardPerWeightPaid`),
@@ -209,7 +212,6 @@ export function parseReferenceScenarios(value: unknown): ReferenceScenarios {
       asString(item, `emissionHorizonsDays[${index}]`),
     ),
     miningCases,
-    genesisCases,
     auctionCases,
     rewardCases,
     redemptionCases,
@@ -226,15 +228,19 @@ function safeCount(value: string, label: string): number {
 }
 
 export function computeReferenceResults(scenarios: ReferenceScenarios) {
-  const usdGDecimals = safeCount(scenarios.usdGDecimals, 'usdGDecimals');
-  const targetDecimals = safeCount(scenarios.targetDecimals, 'targetDecimals');
+  safeCount(scenarios.usdGDecimals, 'usdGDecimals');
+  safeCount(scenarios.targetDecimals, 'targetDecimals');
   return {
     schemaVersion: scenarios.schemaVersion,
     usdGDecimals: scenarios.usdGDecimals,
     targetDecimals: scenarios.targetDecimals,
+    genesisSupply: GENESIS_TOTAL_SUPPLY.toString(),
+    miningEmissionAllocation: MINING_EMISSION_ALLOCATION.toString(),
+    initialDailyScheduledEmission: INITIAL_DAILY_SCHEDULED_EMISSION.toString(),
     emissionDaily100YearDigest: emissionDailyDigest(DAILY_DIFFERENTIAL_DAYS),
+    emissionScheduleLifetime: emissionScheduleLifetime(),
     emissionHorizons: scenarios.emissionHorizonsDays.map((days) => {
-      const result = simulateFullyFundedEmissions(safeCount(days, 'emission horizon'));
+      const result = simulateAllNonEmptyEmissions(safeCount(days, 'emission horizon'));
       return {
         days,
         recurringMinted: result.recurringMinted.toString(),
@@ -246,46 +252,31 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
       const quote = quoteMiningEpoch({
         scheduledEmission: BigInt(scenario.scheduledEmission),
         cumulativeMinted: BigInt(scenario.cumulativeMinted),
-        totalUSDGRaw: BigInt(scenario.totalUSDGRaw),
-        usdGDecimals,
-        referenceMiningPrice: BigInt(scenario.referenceMiningPrice),
+        totalContributedRaw: BigInt(scenario.totalContributedRaw),
       });
       return {
         id: scenario.id,
         scheduledEmission: quote.scheduledEmission.toString(),
-        minimumMiningPrice: quote.minimumMiningPrice.toString(),
-        affordableEmission: quote.affordableEmission.toString(),
+        availableEmission: quote.availableEmission.toString(),
         actualEmission: quote.actualEmission.toString(),
-        clearingPrice: quote.clearingPrice.toString(),
-        nextReferenceMiningPrice: quote.nextReferenceMiningPrice.toString(),
-        fullyFunded: quote.fullyFunded,
-      };
-    }),
-    genesisQuotes: scenarios.genesisCases.map((scenario) => {
-      const communityUSDGRaw = BigInt(scenario.communityUSDGRaw);
-      const quote = quoteGenesis(communityUSDGRaw, usdGDecimals);
-      return {
-        id: scenario.id,
-        communityUSDGRaw: quote.communityUSDGRaw.toString(),
-        requiredSponsorUSDGRaw: quote.requiredSponsorUSDGRaw.toString(),
-        totalGenesisAssetsUSDGRaw: quote.totalGenesisAssetsUSDGRaw.toString(),
-        totalGenesisSupplyGBXRaw: quote.totalGenesisSupplyGBXRaw.toString(),
-        genesisPriceWad: quote.genesisPriceWad.toString(),
-        backingPerGBXWad: quote.backingPerGBXWad.toString(),
-        participantClaim: estimateGenesisClaim(BigInt(scenario.participantUSDGRaw), communityUSDGRaw).toString(),
+        forfeitedEmission: quote.forfeitedEmission.toString(),
+        nonEmpty: quote.nonEmpty,
       };
     }),
     auctionQuotes: scenarios.auctionCases.map((scenario) => {
-      const rate = auctionRateAt(BigInt(scenario.referenceRate), BigInt(scenario.elapsedSeconds));
+      const paymentAmount = auctionPriceAt(
+        BigInt(scenario.initPrice),
+        BigInt(scenario.elapsedSeconds),
+        BigInt(scenario.epochPeriod),
+      );
       const split = splitAcquiredAsset(BigInt(scenario.actualTargetReceived), scenario.hasLiveManagerWeight);
       return {
         id: scenario.id,
-        rate: rate.toString(),
-        requiredTargetAmount: quoteAuctionTargetAmount(
-          BigInt(scenario.usdGLotRaw),
-          rate,
-          usdGDecimals,
-          targetDecimals,
+        paymentAmount: paymentAmount.toString(),
+        nextInitPrice: nextAuctionInitPrice(
+          paymentAmount,
+          BigInt(scenario.priceMultiplier),
+          BigInt(scenario.minInitPrice),
         ).toString(),
         vaultAmount: split.vaultAmount.toString(),
         managerAmount: split.managerAmount.toString(),
@@ -293,19 +284,14 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
     }),
     rewardQuotes: scenarios.rewardCases.map((scenario) => {
       const precision = BigInt(scenario.precision);
-      const update = updateRewardAccumulator(
-        BigInt(scenario.rewardAmount),
-        BigInt(scenario.totalActiveWeight),
-        BigInt(scenario.priorRemainder),
-        precision,
-      );
+      const update = updateRewardIndex(BigInt(scenario.rewardAmount), BigInt(scenario.totalActiveWeight), precision);
       return {
         id: scenario.id,
-        distributableReward: update.distributableReward.toString(),
+        notifiedReward: update.notifiedReward.toString(),
         rewardPerWeightIncrement: update.rewardPerWeightIncrement.toString(),
-        representedReward: update.representedReward.toString(),
-        nextRemainder: update.nextRemainder.toString(),
-        userEarned: earnedManagerReward(
+        indexedReward: update.indexedReward.toString(),
+        residue: update.residue.toString(),
+        userEarned: earnedStrategyReward(
           BigInt(scenario.userActiveWeight),
           update.rewardPerWeightIncrement,
           BigInt(scenario.userRewardPerWeightPaid),

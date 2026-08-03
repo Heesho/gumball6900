@@ -1,6 +1,6 @@
 # ADR-0005: Genesis v4 Integer-Liquidity Residual
 
-- Status: Accepted
+- Status: Superseded by ADR-0012; archival baseline only.
 - Date: 2026-08-01
 - Decision owners: protocol engineering, economic review, and release security
 - Supersedes: the literal assumption that four fixed v4 ranges can always represent all 20,000,000 GBX as principal

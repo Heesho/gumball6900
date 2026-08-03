@@ -2,35 +2,37 @@ import { describe, expect, it } from 'vitest';
 
 import {
   ACCUMULATOR_PRECISION,
-  AUCTION_DURATION_SECONDS,
+  ABS_MAX_AUCTION_INIT_PRICE,
+  ABS_MIN_AUCTION_INIT_PRICE,
   DAILY_DECAY_WAD,
-  GENESIS_MINER_ALLOCATION,
   GENESIS_TOTAL_SUPPLY,
+  HALF_LIFE_DECAY_COMPLEMENT_X54,
+  HALF_LIFE_DERIVATION_PRECISION,
   INITIAL_DAILY_SCHEDULED_EMISSION,
+  MAX_AUCTION_EPOCH_PERIOD,
+  MAX_AUCTION_PRICE_MULTIPLIER,
   MAX_CUMULATIVE_MINT,
+  MINING_EMISSION_ALLOCATION,
+  MIN_AUCTION_EPOCH_PERIOD,
+  MIN_AUCTION_PRICE_MULTIPLIER,
   WAD,
   advanceScheduledEmission,
-  auctionRateAt,
-  auctionRateScaleWad,
-  clearingAuctionRateWad,
+  auctionPriceAt,
   currentTotalSupply,
-  earnedManagerReward,
-  estimateGenesisClaim,
+  earnedStrategyReward,
   estimateMiningClaim,
   mulDiv,
   mulDivUp,
   netSupplyChange,
+  nextAuctionInitPrice,
   previewRedemption,
   projectTotalSupply,
-  quoteAuctionTargetAmount,
-  quoteGenesis,
   quoteMiningEpoch,
   redemptionPercentageWad,
-  requiredSponsorUSDGRaw,
-  simulateFullyFundedEmissions,
+  simulateAllNonEmptyEmissions,
   splitAcquiredAsset,
-  updateReferenceMiningPrice,
-  updateRewardAccumulator,
+  updateRewardIndex,
+  validateAuctionConfig,
 } from '../src/index.js';
 
 const token = (wholeTokens: bigint): bigint => wholeTokens * WAD;
@@ -52,7 +54,12 @@ describe('integer helpers', () => {
 describe('emission schedule and mining quotes', () => {
   it('uses the fixed constants from the master specification', () => {
     expect(DAILY_DECAY_WAD).toBe(999_525_354_337_060_160n);
-    expect(INITIAL_DAILY_SCHEDULED_EMISSION).toBe(427_181_096_645_855_643_000_000n);
+    expect(GENESIS_TOTAL_SUPPLY).toBe(token(20_000_000n));
+    expect(MINING_EMISSION_ALLOCATION).toBe(token(980_000_000n));
+    expect(INITIAL_DAILY_SCHEDULED_EMISSION).toBe(465_152_749_681_042_811_702_004n);
+    expect(INITIAL_DAILY_SCHEDULED_EMISSION).toBe(
+      mulDiv(MINING_EMISSION_ALLOCATION, HALF_LIFE_DECAY_COMPLEMENT_X54, HALF_LIFE_DERIVATION_PRECISION),
+    );
   });
 
   it('advances empty epochs instead of carrying their emissions forward', () => {
@@ -65,8 +72,8 @@ describe('emission schedule and mining quotes', () => {
   });
 
   it('tracks the four-year half-life with integer-rounding tolerance', () => {
-    const fourYears = simulateFullyFundedEmissions(1_460);
-    const expected = token(450_000_000n);
+    const fourYears = simulateAllNonEmptyEmissions(1_460);
+    const expected = token(490_000_000n);
     const tolerance = token(1n);
 
     expect(fourYears.recurringMinted).toBeGreaterThanOrEqual(expected - tolerance);
@@ -74,53 +81,28 @@ describe('emission schedule and mining quotes', () => {
   });
 
   it('never exceeds the cumulative mint cap over 100 years', () => {
-    const result = simulateFullyFundedEmissions(36_500);
+    const result = simulateAllNonEmptyEmissions(36_500);
 
     expect(result.totalCumulativeMinted).toBeLessThanOrEqual(MAX_CUMULATIVE_MINT);
-    expect(result.recurringMinted).toBeLessThanOrEqual(token(900_000_000n));
+    expect(result.recurringMinted).toBeLessThanOrEqual(MINING_EMISSION_ALLOCATION);
   });
 
-  it('quotes fully funded, underfunded, and empty epochs', () => {
+  it('quotes complete non-empty emissions without demand scaling and forfeits empty epochs', () => {
     const common = {
       scheduledEmission: token(100n),
       cumulativeMinted: GENESIS_TOTAL_SUPPLY,
-      referenceMiningPrice: 2n * WAD,
     };
 
-    const full = quoteMiningEpoch({ ...common, totalUSDGRaw: usdg(250n), usdGDecimals: 6 });
-    expect(full.fullyFunded).toBe(true);
-    expect(full.actualEmission).toBe(token(100n));
-    expect(full.clearingPrice).toBe((5n * WAD) / 2n);
-    expect(full.nextReferenceMiningPrice).toBe((21n * WAD) / 10n);
+    const large = quoteMiningEpoch({ ...common, totalContributedRaw: usdg(250n) });
+    const oneAtom = quoteMiningEpoch({ ...common, totalContributedRaw: 1n });
+    expect(large.nonEmpty).toBe(true);
+    expect(large.actualEmission).toBe(token(100n));
+    expect(oneAtom.actualEmission).toBe(large.actualEmission);
 
-    const partial = quoteMiningEpoch({ ...common, totalUSDGRaw: usdg(95n), usdGDecimals: 6 });
-    expect(partial.fullyFunded).toBe(false);
-    expect(partial.minimumMiningPrice).toBe((19n * WAD) / 10n);
-    expect(partial.actualEmission).toBe(token(50n));
-    expect(partial.clearingPrice).toBe((19n * WAD) / 10n);
-    expect(partial.nextReferenceMiningPrice).toBe((198n * WAD) / 100n);
-
-    const empty = quoteMiningEpoch({ ...common, totalUSDGRaw: 0n, usdGDecimals: 6 });
+    const empty = quoteMiningEpoch({ ...common, totalContributedRaw: 0n });
+    expect(empty.nonEmpty).toBe(false);
     expect(empty.actualEmission).toBe(0n);
-    expect(empty.clearingPrice).toBe(0n);
-    expect(empty.nextReferenceMiningPrice).toBe((19n * WAD) / 10n);
-  });
-
-  it('clamps reference updates to their daily bounds', () => {
-    expect(updateReferenceMiningPrice(WAD, WAD / 10n, true)).toBe((95n * WAD) / 100n);
-    expect(updateReferenceMiningPrice(WAD, 10n * WAD, true)).toBe((15n * WAD) / 10n);
-  });
-
-  it('keeps a nonzero atomic reserve after a long empty-epoch tail', () => {
-    let reference = WAD;
-    for (let epoch = 0; epoch < 2_000; epoch += 1) {
-      reference = updateReferenceMiningPrice(reference, 0n, false);
-    }
-    expect(reference).toBe(1n);
-  });
-
-  it('matches Solidity by flooring the two EMA terms independently', () => {
-    expect(updateReferenceMiningPrice(101n, 104n, true)).toBe(100n);
+    expect(empty.forfeitedEmission).toBe(token(100n));
   });
 
   it('uses pro-rata claim accounting', () => {
@@ -128,56 +110,59 @@ describe('emission schedule and mining quotes', () => {
   });
 });
 
-describe('genesis backing', () => {
-  it('requires one sponsor USDG for every four community USDG', () => {
-    const community = usdg(80_000_000n);
-    const quote = quoteGenesis(community, 6);
-
-    expect(quote.requiredSponsorUSDGRaw).toBe(usdg(20_000_000n));
-    expect(quote.totalGenesisAssetsUSDGRaw).toBe(usdg(100_000_000n));
-    expect(quote.totalGenesisSupplyGBXRaw).toBe(token(100_000_000n));
-    expect(quote.genesisPriceWad).toBe(WAD);
-    expect(quote.backingPerGBXWad).toBe(WAD);
-    expect(quote.usdGDecimals).toBe(6);
-  });
-
-  it('rounds sponsor requirements upward to prevent atomic-unit underbacking', () => {
-    expect(requiredSponsorUSDGRaw(1n)).toBe(1n);
-    expect(requiredSponsorUSDGRaw(5n)).toBe(2n);
-  });
-
-  it('calculates claims against the complete miner allocation', () => {
-    expect(estimateGenesisClaim(token(10n), token(80n))).toBe(token(10_000_000n));
-    expect(estimateGenesisClaim(token(80n), token(80n))).toBe(GENESIS_MINER_ALLOCATION);
-  });
-});
-
 describe('auctions and manager rewards', () => {
-  it('uses the 125%-to-80% linear reverse-Dutch curve', () => {
-    expect(auctionRateAt(WAD, 0n)).toBe((125n * WAD) / 100n);
-    expect(auctionRateAt(WAD, AUCTION_DURATION_SECONDS / 2n)).toBe((1025n * WAD) / 1_000n);
-    expect(auctionRateAt(WAD, AUCTION_DURATION_SECONDS)).toBe((80n * WAD) / 100n);
-    expect(auctionRateAt(WAD, AUCTION_DURATION_SECONDS * 10n)).toBe((80n * WAD) / 100n);
+  it('matches the give.fun linear-decay endpoints and Solidity floor order', () => {
+    expect(auctionPriceAt(100n, 0n, 6n)).toBe(100n);
+    expect(auctionPriceAt(100n, 1n, 6n)).toBe(84n);
+    expect(auctionPriceAt(100n, 5n, 6n)).toBe(17n);
+    expect(auctionPriceAt(100n, 6n, 6n)).toBe(0n);
+    expect(auctionPriceAt(100n, 7n, 6n)).toBe(0n);
   });
 
-  it('rounds required taker payment upward', () => {
-    expect(auctionRateScaleWad(6, 18)).toBe(1_000_000n);
-    expect(quoteAuctionTargetAmount(usdg(10_000n), 4_200_000_000_000_000n, 6, 18)).toBe(token(42n));
-    expect(clearingAuctionRateWad(token(42n), usdg(10_000n), 6, 18)).toBe(4_200_000_000_000_000n);
-    expect(quoteAuctionTargetAmount(1n, WAD, 6, 18)).toBe(1_000_000_000_000n);
+  it('clamps the floor-multiplied quoted payment when advancing', () => {
+    expect(nextAuctionInitPrice(101n, 1_100_000_000_000_000_000n, 1n)).toBe(111n);
+    expect(nextAuctionInitPrice(0n, MIN_AUCTION_PRICE_MULTIPLIER, ABS_MIN_AUCTION_INIT_PRICE)).toBe(
+      ABS_MIN_AUCTION_INIT_PRICE,
+    );
+    expect(nextAuctionInitPrice(ABS_MAX_AUCTION_INIT_PRICE, 3n * WAD, 1n)).toBe(ABS_MAX_AUCTION_INIT_PRICE);
   });
 
-  it('requires explicit WAD-compatible token decimals for auction and mining math', () => {
-    expect(() => quoteAuctionTargetAmount(1n, WAD, 6, 19)).toThrow('must not exceed 18');
-    expect(() =>
-      quoteMiningEpoch({
-        scheduledEmission: token(1n),
-        cumulativeMinted: GENESIS_TOTAL_SUPPLY,
-        totalUSDGRaw: 1n,
-        usdGDecimals: 19,
-        referenceMiningPrice: WAD,
-      }),
-    ).toThrow('must not exceed 18');
+  it('validates the exact constructor bounds', () => {
+    const minimum = {
+      initPrice: ABS_MIN_AUCTION_INIT_PRICE,
+      epochPeriod: MIN_AUCTION_EPOCH_PERIOD,
+      priceMultiplier: MIN_AUCTION_PRICE_MULTIPLIER,
+      minInitPrice: ABS_MIN_AUCTION_INIT_PRICE,
+    };
+    const maximum = {
+      initPrice: ABS_MAX_AUCTION_INIT_PRICE,
+      epochPeriod: MAX_AUCTION_EPOCH_PERIOD,
+      priceMultiplier: MAX_AUCTION_PRICE_MULTIPLIER,
+      minInitPrice: ABS_MAX_AUCTION_INIT_PRICE,
+    };
+    expect(validateAuctionConfig(minimum)).toBe(minimum);
+    expect(validateAuctionConfig(maximum)).toBe(maximum);
+    expect(() => validateAuctionConfig({ ...minimum, initPrice: ABS_MIN_AUCTION_INIT_PRICE - 1n })).toThrow(
+      'initPrice',
+    );
+    expect(() => validateAuctionConfig({ ...maximum, initPrice: ABS_MAX_AUCTION_INIT_PRICE + 1n })).toThrow(
+      'initPrice',
+    );
+    expect(() => validateAuctionConfig({ ...minimum, epochPeriod: MIN_AUCTION_EPOCH_PERIOD - 1n })).toThrow(
+      'epochPeriod',
+    );
+    expect(() => validateAuctionConfig({ ...maximum, epochPeriod: MAX_AUCTION_EPOCH_PERIOD + 1n })).toThrow(
+      'epochPeriod',
+    );
+    expect(() => validateAuctionConfig({ ...minimum, priceMultiplier: MIN_AUCTION_PRICE_MULTIPLIER - 1n })).toThrow(
+      'priceMultiplier',
+    );
+    expect(() => validateAuctionConfig({ ...maximum, priceMultiplier: MAX_AUCTION_PRICE_MULTIPLIER + 1n })).toThrow(
+      'priceMultiplier',
+    );
+    expect(() => validateAuctionConfig({ ...minimum, minInitPrice: ABS_MIN_AUCTION_INIT_PRICE - 1n })).toThrow(
+      'minInitPrice',
+    );
   });
 
   it('sends 98% to the vault and 2% to active managers', () => {
@@ -191,33 +176,31 @@ describe('auctions and manager rewards', () => {
     expect(zeroWeight.managerAmount).toBe(0n);
   });
 
-  it('carries unrepresented reward dust into the next notification', () => {
-    const update = updateRewardAccumulator(10n, 3n, 0n, 10n);
+  it('leaves independently floored reward residue in the contract', () => {
+    const update = updateRewardIndex(10n, 3n, 10n);
     expect(update.rewardPerWeightIncrement).toBe(33n);
-    expect(update.representedReward).toBe(9n);
-    expect(update.nextRemainder).toBe(1n);
+    expect(update.indexedReward).toBe(9n);
+    expect(update.residue).toBe(1n);
 
-    expect(earnedManagerReward(2n, 33n, 0n, 1n, 10n)).toBe(7n);
+    expect(earnedStrategyReward(2n, 33n, 0n, 1n, 10n)).toBe(7n);
   });
 
-  it('does not double count scaled carry across tiny notifications', () => {
+  it('does not carry scaled numerator dust across tiny notifications', () => {
     let rewardPerWeightStored = 0n;
-    let remainder = 0n;
 
     for (let notification = 0; notification < 3; notification += 1) {
-      const update = updateRewardAccumulator(1n, 3n, remainder, 10n);
+      const update = updateRewardIndex(1n, 3n, 10n);
       rewardPerWeightStored += update.rewardPerWeightIncrement;
-      remainder = update.nextRemainder;
+      expect(update.residue).toBe(1n);
     }
 
-    expect(rewardPerWeightStored).toBe(10n);
-    expect(remainder).toBe(0n);
+    expect(rewardPerWeightStored).toBe(9n);
   });
 
   it('handles production-scale accumulator precision', () => {
-    const update = updateRewardAccumulator(840_000_000_000_000_000n, token(200n));
+    const update = updateRewardIndex(840_000_000_000_000_000n, token(200n));
     expect(update.rewardPerWeightIncrement).toBe(4_200_000_000_000_000_000_000_000n);
-    expect(update.nextRemainder).toBe(0n);
+    expect(update.residue).toBe(0n);
     expect(ACCUMULATOR_PRECISION).toBe(10n ** 27n);
   });
 });

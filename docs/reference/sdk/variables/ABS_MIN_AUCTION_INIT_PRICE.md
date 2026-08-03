@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / ABS_MIN_AUCTION_INIT_PRICE
+
+# Variable: ABS_MIN_AUCTION_INIT_PRICE
+
+> `const` **ABS_MIN_AUCTION_INIT_PRICE**: `1000000n` = `1_000_000n`

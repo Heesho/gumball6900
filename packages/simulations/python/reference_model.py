@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import hashlib
 import sys
+from decimal import Decimal, ROUND_FLOOR, localcontext
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -13,22 +14,33 @@ ACCUMULATOR_PRECISION = 10**27
 BPS_DENOMINATOR = 10_000
 
 MAX_CUMULATIVE_MINT = 1_000_000_000 * WAD
-GENESIS_MINER_ALLOCATION = 80_000_000 * WAD
 GENESIS_LIQUIDITY_ALLOCATION = 20_000_000 * WAD
-GENESIS_TOTAL_SUPPLY = GENESIS_MINER_ALLOCATION + GENESIS_LIQUIDITY_ALLOCATION
+GENESIS_TOTAL_SUPPLY = GENESIS_LIQUIDITY_ALLOCATION
+MINING_EMISSION_ALLOCATION = MAX_CUMULATIVE_MINT - GENESIS_TOTAL_SUPPLY
 
-INITIAL_DAILY_SCHEDULED_EMISSION = 427_181_096_645_855_643_000_000
 DAILY_DECAY_WAD = 999_525_354_337_060_160
 
-MINING_REFERENCE_FLOOR_BPS = 9_500
-REFERENCE_EMA_OLD_BPS = 8_000
-REFERENCE_EMA_NEW_BPS = 2_000
-REFERENCE_MAX_INCREASE_BPS = 15_000
-
-AUCTION_DURATION_SECONDS = 86_400
-AUCTION_START_RATE_BPS = 12_500
-AUCTION_FLOOR_RATE_BPS = 8_000
+MIN_AUCTION_EPOCH_PERIOD = 3_600
+MAX_AUCTION_EPOCH_PERIOD = 365 * 86_400
+MIN_AUCTION_PRICE_MULTIPLIER = 1_100_000_000_000_000_000
+MAX_AUCTION_PRICE_MULTIPLIER = 3 * WAD
+ABS_MIN_AUCTION_INIT_PRICE = 1_000_000
+ABS_MAX_AUCTION_INIT_PRICE = 2**192 - 1
 MANAGER_REWARD_BPS = 200
+
+
+def derive_initial_daily_scheduled_emission(allocation: int = MINING_EMISSION_ALLOCATION) -> int:
+    """Derive floor(allocation * (1 - 2^(-1/1460))) with ample decimal precision."""
+    if allocation < 0:
+        raise ValueError("allocation must be non-negative")
+    with localcontext() as context:
+        context.prec = 100
+        daily_real_decay = Decimal(2) ** (Decimal(-1) / Decimal(1460))
+        derived = Decimal(allocation) * (Decimal(1) - daily_real_decay)
+        return int(derived.to_integral_value(rounding=ROUND_FLOOR))
+
+
+INITIAL_DAILY_SCHEDULED_EMISSION = derive_initial_daily_scheduled_emission()
 
 
 def _non_negative(value: int, name: str) -> None:
@@ -78,7 +90,7 @@ def advance_scheduled_emission(current_emission: int, elapsed_epochs: int = 1) -
     return emission
 
 
-def simulate_fully_funded_emissions(epoch_count: int) -> Dict[str, int]:
+def simulate_all_nonempty_emissions(epoch_count: int) -> Dict[str, int]:
     _non_negative(epoch_count, "epoch_count")
     current_emission = INITIAL_DAILY_SCHEDULED_EMISSION
     cumulative_minted = GENESIS_TOTAL_SUPPLY
@@ -106,136 +118,64 @@ def emission_daily_digest(days: int) -> str:
     return "0x" + digest.hex()
 
 
-def minimum_mining_price(reference_mining_price: int) -> int:
-    _positive(reference_mining_price, "reference_mining_price")
-    return max(1, mul_div(reference_mining_price, MINING_REFERENCE_FLOOR_BPS, BPS_DENOMINATOR))
-
-
-def update_reference_mining_price(previous_reference: int, clearing_price: int, had_contributions: bool) -> int:
-    _positive(previous_reference, "previous_reference")
-    _non_negative(clearing_price, "clearing_price")
-    lower_bound = minimum_mining_price(previous_reference)
-    if not had_contributions:
-        return lower_bound
-
-    _positive(clearing_price, "clearing_price")
-    # Solidity floors the two weighted terms independently. Combining the
-    # numerator first can overstate the reference by one atomic unit.
-    weighted_reference = mul_div(
-        previous_reference, REFERENCE_EMA_OLD_BPS, BPS_DENOMINATOR
-    ) + mul_div(clearing_price, REFERENCE_EMA_NEW_BPS, BPS_DENOMINATOR)
-    upper_bound = mul_div(previous_reference, REFERENCE_MAX_INCREASE_BPS, BPS_DENOMINATOR)
-    return min(max(weighted_reference, lower_bound), upper_bound)
+def emission_schedule_lifetime() -> Dict[str, int]:
+    emission = INITIAL_DAILY_SCHEDULED_EMISSION
+    scheduled_total = 0
+    positive_epochs = 0
+    while emission != 0:
+        scheduled_total += emission
+        emission = advance_scheduled_emission(emission)
+        positive_epochs += 1
+    return {
+        "positive_epochs": positive_epochs,
+        "sequential_scheduled_total": scheduled_total,
+        "nominal_allocation_residual": MINING_EMISSION_ALLOCATION - scheduled_total,
+    }
 
 
 def quote_mining_epoch(
     scheduled_emission: int,
     cumulative_minted: int,
-    total_usdg_raw: int,
-    usd_g_decimals: int,
-    reference_mining_price: int,
+    total_contributed_raw: int,
 ) -> Dict[str, Any]:
     _non_negative(scheduled_emission, "scheduled_emission")
     _non_negative(cumulative_minted, "cumulative_minted")
-    _non_negative(total_usdg_raw, "total_usdg_raw")
-    total_usdg_wad = normalize_raw_token_amount(total_usdg_raw, usd_g_decimals)
-    _positive(reference_mining_price, "reference_mining_price")
-
-    scheduled = min(scheduled_emission, remaining_mint_capacity(cumulative_minted))
-    reserve_price = minimum_mining_price(reference_mining_price)
-    if total_usdg_raw == 0:
-        return {
-            "scheduled_emission": scheduled,
-            "minimum_mining_price": reserve_price,
-            "affordable_emission": 0,
-            "actual_emission": 0,
-            "clearing_price": 0,
-            "next_reference_mining_price": update_reference_mining_price(reference_mining_price, 0, False),
-            "fully_funded": False,
-        }
-
-    affordable_emission = mul_div(total_usdg_wad, WAD, reserve_price)
-    actual_emission = min(scheduled, affordable_emission)
-    fully_funded = scheduled > 0 and affordable_emission >= scheduled
-    clearing_price = mul_div(total_usdg_wad, WAD, scheduled) if fully_funded else reserve_price
+    _non_negative(total_contributed_raw, "total_contributed_raw")
+    available = min(scheduled_emission, remaining_mint_capacity(cumulative_minted))
+    non_empty = total_contributed_raw != 0
     return {
-        "scheduled_emission": scheduled,
-        "minimum_mining_price": reserve_price,
-        "affordable_emission": affordable_emission,
-        "actual_emission": actual_emission,
-        "clearing_price": clearing_price,
-        "next_reference_mining_price": update_reference_mining_price(
-            reference_mining_price, clearing_price, True
-        ),
-        "fully_funded": fully_funded,
+        "scheduled_emission": scheduled_emission,
+        "available_emission": available,
+        "actual_emission": available if non_empty else 0,
+        "forfeited_emission": 0 if non_empty else scheduled_emission,
+        "non_empty": non_empty,
     }
 
 
-def required_sponsor_usdg(community_usdg: int) -> int:
-    _non_negative(community_usdg, "community_usdg")
-    return mul_div_up(community_usdg, GENESIS_LIQUIDITY_ALLOCATION, GENESIS_MINER_ALLOCATION)
-
-
-def quote_genesis(community_usdg_raw: int, usd_g_decimals: int) -> Dict[str, int]:
-    _non_negative(community_usdg_raw, "community_usdg_raw")
-    sponsor = required_sponsor_usdg(community_usdg_raw)
-    total_assets = community_usdg_raw + sponsor
-    community_usdg_wad = normalize_raw_token_amount(community_usdg_raw, usd_g_decimals)
-    total_assets_wad = normalize_raw_token_amount(total_assets, usd_g_decimals)
-    return {
-        "community_usdg_raw": community_usdg_raw,
-        "required_sponsor_usdg_raw": sponsor,
-        "total_genesis_assets_usdg_raw": total_assets,
-        "total_genesis_supply_gbx_raw": GENESIS_TOTAL_SUPPLY,
-        "genesis_price_wad": mul_div(community_usdg_wad, WAD, GENESIS_MINER_ALLOCATION),
-        "backing_per_gbx_wad": mul_div(total_assets_wad, WAD, GENESIS_TOTAL_SUPPLY),
-    }
-
-
-def estimate_genesis_claim(participant_contribution: int, total_community_usdg: int) -> int:
-    _non_negative(participant_contribution, "participant_contribution")
-    _positive(total_community_usdg, "total_community_usdg")
-    if participant_contribution > total_community_usdg:
-        raise ValueError("participant_contribution must not exceed total_community_usdg")
-    return mul_div(participant_contribution, GENESIS_MINER_ALLOCATION, total_community_usdg)
-
-
-def auction_rate_at(
-    reference_rate: int,
+def auction_price_at(
+    init_price: int,
     elapsed_seconds: int,
-    duration_seconds: int = AUCTION_DURATION_SECONDS,
+    epoch_period: int,
 ) -> int:
-    _positive(reference_rate, "reference_rate")
+    _positive(init_price, "init_price")
     _non_negative(elapsed_seconds, "elapsed_seconds")
-    _positive(duration_seconds, "duration_seconds")
-    start_rate = mul_div(reference_rate, AUCTION_START_RATE_BPS, BPS_DENOMINATOR)
-    floor_rate = mul_div(reference_rate, AUCTION_FLOOR_RATE_BPS, BPS_DENOMINATOR)
-    if elapsed_seconds >= duration_seconds:
-        return floor_rate
-    decay = mul_div(start_rate - floor_rate, elapsed_seconds, duration_seconds)
-    return start_rate - decay
+    _positive(epoch_period, "epoch_period")
+    if elapsed_seconds > epoch_period:
+        return 0
+    return init_price - mul_div(init_price, elapsed_seconds, epoch_period)
 
 
-def auction_rate_scale_wad(usd_g_decimals: int, target_decimals: int) -> int:
-    if usd_g_decimals < 0 or usd_g_decimals > 18 or target_decimals < 0 or target_decimals > 18:
-        raise ValueError("token decimals must be between zero and 18")
-    usd_g_unit = 10**usd_g_decimals
-    target_unit = 10**target_decimals
-    return WAD // (target_unit // usd_g_unit) if target_unit >= usd_g_unit else WAD * (usd_g_unit // target_unit)
-
-
-def quote_auction_target_amount(
-    usdg_amount_raw: int,
-    target_per_usdg_rate: int,
-    usd_g_decimals: int,
-    target_decimals: int,
+def next_auction_init_price(
+    quoted_payment_amount: int,
+    price_multiplier: int,
+    min_init_price: int,
 ) -> int:
-    _non_negative(usdg_amount_raw, "usdg_amount_raw")
-    _positive(target_per_usdg_rate, "target_per_usdg_rate")
-    return mul_div_up(
-        usdg_amount_raw,
-        target_per_usdg_rate,
-        auction_rate_scale_wad(usd_g_decimals, target_decimals),
+    _non_negative(quoted_payment_amount, "quoted_payment_amount")
+    _positive(price_multiplier, "price_multiplier")
+    _positive(min_init_price, "min_init_price")
+    return min(
+        max(mul_div(quoted_payment_amount, price_multiplier, WAD), min_init_price),
+        ABS_MAX_AUCTION_INIT_PRICE,
     )
 
 
@@ -259,30 +199,25 @@ def split_acquired_asset(
     }
 
 
-def update_reward_accumulator(
+def update_reward_index(
     reward_amount: int,
     total_active_weight: int,
-    prior_remainder: int = 0,
     precision: int = ACCUMULATOR_PRECISION,
 ) -> Dict[str, int]:
     _non_negative(reward_amount, "reward_amount")
     _positive(total_active_weight, "total_active_weight")
-    _non_negative(prior_remainder, "prior_remainder")
     _positive(precision, "precision")
     increment = mul_div(reward_amount, precision, total_active_weight)
-    combined_remainder = (reward_amount * precision) % total_active_weight + prior_remainder
-    increment += combined_remainder // total_active_weight
-    represented = mul_div(increment, total_active_weight, precision)
+    indexed_reward = mul_div(increment, total_active_weight, precision)
     return {
-        "distributable_reward": reward_amount,
+        "notified_reward": reward_amount,
         "reward_per_weight_increment": increment,
-        "represented_reward": represented,
-        # Scaled numerator carry, denominated modulo total_active_weight.
-        "next_remainder": combined_remainder % total_active_weight,
+        "indexed_reward": indexed_reward,
+        "residue": reward_amount - indexed_reward,
     }
 
 
-def earned_manager_reward(
+def earned_strategy_reward(
     active_weight: int,
     reward_per_weight_stored: int,
     user_reward_per_weight_paid: int,
@@ -348,7 +283,7 @@ def compute_reference_results(scenarios: Dict[str, Any]) -> Dict[str, Any]:
     emission_horizons: List[Dict[str, Any]] = []
     for days_value in scenarios["emissionHorizonsDays"]:
         days = int(days_value)
-        result = simulate_fully_funded_emissions(days)
+        result = simulate_all_nonempty_emissions(days)
         emission_horizons.append(
             {
                 "days": days_value,
@@ -363,55 +298,38 @@ def compute_reference_results(scenarios: Dict[str, Any]) -> Dict[str, Any]:
         quote = quote_mining_epoch(
             int(scenario["scheduledEmission"]),
             int(scenario["cumulativeMinted"]),
-            int(scenario["totalUSDGRaw"]),
-            usd_g_decimals,
-            int(scenario["referenceMiningPrice"]),
+            int(scenario["totalContributedRaw"]),
         )
         mining_quotes.append(
             {
                 "id": scenario["id"],
                 "scheduledEmission": _decimal(quote["scheduled_emission"]),
-                "minimumMiningPrice": _decimal(quote["minimum_mining_price"]),
-                "affordableEmission": _decimal(quote["affordable_emission"]),
+                "availableEmission": _decimal(quote["available_emission"]),
                 "actualEmission": _decimal(quote["actual_emission"]),
-                "clearingPrice": _decimal(quote["clearing_price"]),
-                "nextReferenceMiningPrice": _decimal(quote["next_reference_mining_price"]),
-                "fullyFunded": quote["fully_funded"],
-            }
-        )
-
-    genesis_quotes: List[Dict[str, Any]] = []
-    for scenario in scenarios["genesisCases"]:
-        community_usdg_raw = int(scenario["communityUSDGRaw"])
-        quote = quote_genesis(community_usdg_raw, usd_g_decimals)
-        genesis_quotes.append(
-            {
-                "id": scenario["id"],
-                "communityUSDGRaw": _decimal(quote["community_usdg_raw"]),
-                "requiredSponsorUSDGRaw": _decimal(quote["required_sponsor_usdg_raw"]),
-                "totalGenesisAssetsUSDGRaw": _decimal(quote["total_genesis_assets_usdg_raw"]),
-                "totalGenesisSupplyGBXRaw": _decimal(quote["total_genesis_supply_gbx_raw"]),
-                "genesisPriceWad": _decimal(quote["genesis_price_wad"]),
-                "backingPerGBXWad": _decimal(quote["backing_per_gbx_wad"]),
-                "participantClaim": _decimal(
-                    estimate_genesis_claim(int(scenario["participantUSDGRaw"]), community_usdg_raw)
-                ),
+                "forfeitedEmission": _decimal(quote["forfeited_emission"]),
+                "nonEmpty": quote["non_empty"],
             }
         )
 
     auction_quotes: List[Dict[str, Any]] = []
     for scenario in scenarios["auctionCases"]:
-        rate = auction_rate_at(int(scenario["referenceRate"]), int(scenario["elapsedSeconds"]))
+        payment_amount = auction_price_at(
+            int(scenario["initPrice"]),
+            int(scenario["elapsedSeconds"]),
+            int(scenario["epochPeriod"]),
+        )
         split = split_acquired_asset(
             int(scenario["actualTargetReceived"]), scenario["hasLiveManagerWeight"]
         )
         auction_quotes.append(
             {
                 "id": scenario["id"],
-                "rate": _decimal(rate),
-                "requiredTargetAmount": _decimal(
-                    quote_auction_target_amount(
-                        int(scenario["usdGLotRaw"]), rate, usd_g_decimals, target_decimals
+                "paymentAmount": _decimal(payment_amount),
+                "nextInitPrice": _decimal(
+                    next_auction_init_price(
+                        payment_amount,
+                        int(scenario["priceMultiplier"]),
+                        int(scenario["minInitPrice"]),
                     )
                 ),
                 "vaultAmount": _decimal(split["vault_amount"]),
@@ -422,21 +340,20 @@ def compute_reference_results(scenarios: Dict[str, Any]) -> Dict[str, Any]:
     reward_quotes: List[Dict[str, Any]] = []
     for scenario in scenarios["rewardCases"]:
         precision = int(scenario["precision"])
-        update = update_reward_accumulator(
+        update = update_reward_index(
             int(scenario["rewardAmount"]),
             int(scenario["totalActiveWeight"]),
-            int(scenario["priorRemainder"]),
             precision,
         )
         reward_quotes.append(
             {
                 "id": scenario["id"],
-                "distributableReward": _decimal(update["distributable_reward"]),
+                "notifiedReward": _decimal(update["notified_reward"]),
                 "rewardPerWeightIncrement": _decimal(update["reward_per_weight_increment"]),
-                "representedReward": _decimal(update["represented_reward"]),
-                "nextRemainder": _decimal(update["next_remainder"]),
+                "indexedReward": _decimal(update["indexed_reward"]),
+                "residue": _decimal(update["residue"]),
                 "userEarned": _decimal(
-                    earned_manager_reward(
+                    earned_strategy_reward(
                         int(scenario["userActiveWeight"]),
                         update["reward_per_weight_increment"],
                         int(scenario["userRewardPerWeightPaid"]),
@@ -487,10 +404,21 @@ def compute_reference_results(scenarios: Dict[str, Any]) -> Dict[str, Any]:
         "schemaVersion": scenarios["schemaVersion"],
         "usdGDecimals": scenarios["usdGDecimals"],
         "targetDecimals": scenarios["targetDecimals"],
+        "genesisSupply": _decimal(GENESIS_TOTAL_SUPPLY),
+        "miningEmissionAllocation": _decimal(MINING_EMISSION_ALLOCATION),
+        "initialDailyScheduledEmission": _decimal(INITIAL_DAILY_SCHEDULED_EMISSION),
         "emissionDaily100YearDigest": emission_daily_digest(36_500),
+        "emissionScheduleLifetime": {
+            "positiveEpochs": _decimal(emission_schedule_lifetime()["positive_epochs"]),
+            "sequentialScheduledTotal": _decimal(
+                emission_schedule_lifetime()["sequential_scheduled_total"]
+            ),
+            "nominalAllocationResidual": _decimal(
+                emission_schedule_lifetime()["nominal_allocation_residual"]
+            ),
+        },
         "emissionHorizons": emission_horizons,
         "miningQuotes": mining_quotes,
-        "genesisQuotes": genesis_quotes,
         "auctionQuotes": auction_quotes,
         "rewardQuotes": reward_quotes,
         "redemptionQuotes": redemption_quotes,

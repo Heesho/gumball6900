@@ -40,11 +40,11 @@ function polyline(points: Array<{ x: bigint; y: bigint }>, color: string): strin
 
 function emissionChart(root: { [key: string]: DecimalJson }): string {
   const emissions = object(root.emissions!, 'emissions');
-  const scenarios = array(emissions.demandScenarios, 'demandScenarios');
+  const scenarios = array(emissions.participationScenarios, 'participationScenarios');
   const colors = ['#f7c948', '#56b4e9', '#9bdb7c', '#f27d8a'];
   const parts: string[] = [];
   scenarios.forEach((entry, scenarioIndex) => {
-    const scenario = object(entry, 'demandScenario');
+    const scenario = object(entry, 'participationScenario');
     const checkpoints = array(scenario.checkpoints, 'checkpoints');
     const points = checkpoints.map((checkpoint, index) => {
       const parsed = object(checkpoint, 'checkpoint');
@@ -63,8 +63,8 @@ function emissionChart(root: { [key: string]: DecimalJson }): string {
     );
   });
   return frame(
-    'Cumulative supply by demand path',
-    'Genesis supply plus recurring emissions; cumulative mint cap = 1B GBX',
+    'Cumulative supply by participation path',
+    'Every non-empty day receives its full schedule; empty days forfeit it; cumulative mint cap = 1B GBX',
     parts.join('\n'),
   );
 }
@@ -72,13 +72,14 @@ function emissionChart(root: { [key: string]: DecimalJson }): string {
 function auctionChart(root: { [key: string]: DecimalJson }): string {
   const auctions = object(root.auctions!, 'auctions');
   const curve = array(auctions.curve, 'curve');
+  const initialPayment = BigInt(string(object(curve[0]!, 'initial curve point').paymentAmount, 'paymentAmount'));
   const points = curve.map((entry) => {
     const point = object(entry, 'curve point');
     const elapsed = BigInt(string(point.elapsedSeconds, 'elapsedSeconds'));
-    const rate = BigInt(string(point.rate, 'rate'));
+    const paymentAmount = BigInt(string(point.paymentAmount, 'paymentAmount'));
     return {
       x: 78n + (elapsed * 720n) / 86_400n,
-      y: 410n - ((rate - 750_000_000_000_000_000n) * 300n) / 550_000_000_000_000_000n,
+      y: 410n - (paymentAmount * 300n) / initialPayment,
     };
   });
   const labels = curve
@@ -89,36 +90,28 @@ function auctionChart(root: { [key: string]: DecimalJson }): string {
     );
   return frame(
     'Oracleless reverse Dutch auction',
-    'Required target units per USDG decline linearly from 125% to the nonzero 80% floor',
+    'Raw target payment declines linearly from initPrice to zero; the endpoint and later times quote zero',
     [
       polyline(points, '#f7c948'),
       ...labels,
-      '  <text x="90" y="112" fill="#f7c948" font-family="ui-sans-serif,system-ui" font-size="12">1.25×</text>',
-      '  <text x="748" y="402" fill="#f7c948" font-family="ui-sans-serif,system-ui" font-size="12">0.80×</text>',
+      '  <text x="90" y="112" fill="#f7c948" font-family="ui-sans-serif,system-ui" font-size="12">initPrice</text>',
+      '  <text x="748" y="402" fill="#f7c948" font-family="ui-sans-serif,system-ui" font-size="12">zero</text>',
     ].join('\n'),
   );
 }
 
 function liquidityChart(root: { [key: string]: DecimalJson }): string {
-  const bootstrap = object(root.bootstrap!, 'bootstrap');
-  const inventory = array(bootstrap.lpInventory, 'lpInventory');
-  const points = inventory.map((entry, index) => {
-    const state = object(entry, 'inventory point');
-    const remaining = BigInt(string(state.gbxRemaining, 'gbxRemaining'));
-    return { x: 90n + BigInt(index) * 116n, y: 410n - (remaining * 300n) / (20_000_000n * WAD) };
-  });
-  const labels = inventory.map((entry, index) => {
-    const state = object(entry, 'inventory point');
-    const multiple = BigInt(string(state.priceMultipleWad, 'priceMultipleWad'));
-    const whole = multiple / WAD;
-    const fraction = ((multiple % WAD) * 100n) / WAD;
-    const display = fraction === 0n ? `${whole}×` : `${whole}.${fraction.toString().padStart(2, '0')}×`;
-    return `  <text x="${90 + index * 116}" y="432" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">${display}</text>`;
-  });
+  const genesis = object(root.genesisLiquidity!, 'genesisLiquidity');
+  const allocation = BigInt(string(genesis.constructorMintGBXRaw, 'constructorMintGBXRaw'));
+  const height = Number((allocation * 300n) / (20_000_000n * WAD));
   return frame(
-    'Protocol-owned LP inventory',
-    '20M fully backed GBX sells progressively through the fixed one-sided range ladder',
-    [polyline(points, '#56b4e9'), ...labels].join('\n'),
+    'Deployment-script genesis liquidity',
+    'The one-time 20M constructor mint is budgeted to one hookless, one-sided position; unusable residue is burned',
+    [
+      `  <rect x="330" y="${410 - height}" width="180" height="${height}" rx="8" fill="#56b4e9"/>`,
+      '  <text x="420" y="432" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">20M GBX constructor mint</text>',
+      '  <text x="420" y="128" text-anchor="middle" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="13">No public bootstrap</text>',
+    ].join('\n'),
   );
 }
 
@@ -161,7 +154,7 @@ export function renderEconomicCharts(): Record<string, string> {
   return {
     'emissions-supply.svg': emissionChart(suite),
     'auction-curve.svg': auctionChart(suite),
-    'bootstrap-liquidity.svg': liquidityChart(suite),
+    'genesis-liquidity.svg': liquidityChart(suite),
     'buyback-backing.svg': buybackChart(suite),
   };
 }

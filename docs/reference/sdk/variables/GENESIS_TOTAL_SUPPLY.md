@@ -6,4 +6,4 @@
 
 # Variable: GENESIS_TOTAL_SUPPLY
 
-> `const` **GENESIS_TOTAL_SUPPLY**: `bigint`
+> `const` **GENESIS_TOTAL_SUPPLY**: `bigint` = `GENESIS_LIQUIDITY_ALLOCATION`

@@ -1,55 +1,77 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { IClaimsSource } from "../interfaces/IClaimsSource.sol";
 import { IGBXToken } from "../interfaces/IGBXToken.sol";
 import { IMiningClaims } from "../interfaces/IMiningClaims.sol";
-import { ClaimsBase } from "./ClaimsBase.sol";
 
 /// @title MiningClaims
-/// @notice Holds complete settled daily emissions and pays immutable per-epoch pro-rata entitlements.
-contract MiningClaims is ClaimsBase, IMiningClaims {
-    /// @notice Maximum epochs accepted by one batched claim.
-    uint256 public constant MAX_BATCH_CLAIMS = 64;
+/// @notice Claim-once escrow for GBX already minted at epoch settlement.
+contract MiningClaims is IMiningClaims, ReentrancyGuard {
+    using SafeERC20 for IERC20;
 
-    /// @notice Deploys the recurring mining escrow before MiningPool exists.
-    /// @param gbx_ The canonical GBX token whose complete settled epoch emissions are held in escrow.
-    /// @param sourceInitializer_ The one-use account permitted to bind MiningPool as the claim source.
-    constructor(IGBXToken gbx_, address sourceInitializer_) ClaimsBase(gbx_, sourceInitializer_) { }
+    /// @notice GBX token escrowed for settled mining claims.
+    IGBXToken public immutable GBX;
+    /// @notice Deployment coordinator allowed to bind the claims source once.
+    address public immutable SOURCE_INITIALIZER;
+    /// @notice Bound source of beneficiary epoch entitlements.
+    IClaimsSource public source;
 
-    /// @inheritdoc IMiningClaims
-    function initializeSource(address source_) external override {
-        _initializeSource(source_);
-    }
+    /// @notice Returns whether a beneficiary has claimed a settled epoch.
+    mapping(uint256 epochId => mapping(address beneficiary => bool claimed)) public hasClaimed;
 
-    /// @inheritdoc IMiningClaims
-    function claim(address beneficiary, uint256 epochId) external override nonReentrant returns (uint256 amount) {
-        amount = _consumeClaim(epochId, beneficiary);
-        _transferClaim(beneficiary, amount);
-    }
+    error MiningClaims__AlreadyClaimed(uint256 epochId, address beneficiary);
+    error MiningClaims__AlreadyInitialized();
+    error MiningClaims__NoClaim(uint256 epochId, address beneficiary);
+    error MiningClaims__NotSettled(uint256 epochId);
+    error MiningClaims__Unauthorized(address caller);
+    error MiningClaims__ZeroAddress();
 
-    /// @inheritdoc IMiningClaims
-    function claimBatch(address beneficiary, uint256[] calldata epochIds)
-        external
-        override
-        nonReentrant
-        returns (uint256 totalAmount)
-    {
-        uint256 length = epochIds.length;
-        if (length == 0 || length > MAX_BATCH_CLAIMS) revert ClaimsBase__InvalidClaimArrayLength();
+    event MiningClaims__SourceInitialized(address indexed source);
+    event MiningClaims__Claimed(
+        uint256 indexed epochId, address indexed beneficiary, address indexed caller, uint256 amount
+    );
 
-        for (uint256 index; index < length; ++index) {
-            totalAmount += _consumeClaim(epochIds[index], beneficiary);
+    /// @notice Configures the GBX escrow token and one-time source initializer.
+    constructor(IGBXToken gbx, address sourceInitializer) {
+        if (address(gbx) == address(0) || address(gbx).code.length == 0 || sourceInitializer == address(0)) {
+            revert MiningClaims__ZeroAddress();
         }
-        _transferClaim(beneficiary, totalAmount);
+        GBX = gbx;
+        SOURCE_INITIALIZER = sourceInitializer;
     }
 
-    /// @inheritdoc IMiningClaims
-    function burnExpired(uint256 epochId) external override nonReentrant returns (uint256 amountBurned) {
-        return _burnExpired(epochId);
+    /// @notice Binds the mining claims data source once.
+    function initializeSource(address source_) external override {
+        if (msg.sender != SOURCE_INITIALIZER) revert MiningClaims__Unauthorized(msg.sender);
+        if (address(source) != address(0)) revert MiningClaims__AlreadyInitialized();
+        if (source_ == address(0) || source_.code.length == 0) revert MiningClaims__ZeroAddress();
+        source = IClaimsSource(source_);
+        emit MiningClaims__SourceInitialized(source_);
     }
 
-    /// @inheritdoc IMiningClaims
+    /// @notice Permissionlessly pays one beneficiary's unclaimed settled epoch entitlement.
+    function claim(address beneficiary, uint256 epochId) external override nonReentrant returns (uint256 amount) {
+        if (beneficiary == address(0)) revert MiningClaims__ZeroAddress();
+        if (hasClaimed[epochId][beneficiary]) revert MiningClaims__AlreadyClaimed(epochId, beneficiary);
+        bool settled;
+        (amount,, settled) = source.claimData(epochId, beneficiary);
+        if (!settled) revert MiningClaims__NotSettled(epochId);
+        if (amount == 0) revert MiningClaims__NoClaim(epochId, beneficiary);
+
+        hasClaimed[epochId][beneficiary] = true;
+        IERC20(address(GBX)).safeTransfer(beneficiary, amount);
+        emit MiningClaims__Claimed(epochId, beneficiary, msg.sender, amount);
+    }
+
+    /// @notice Returns one beneficiary's currently claimable epoch entitlement.
     function previewClaim(address beneficiary, uint256 epochId) external view override returns (uint256 amount) {
-        return _previewClaim(epochId, beneficiary);
+        if (address(source) == address(0) || beneficiary == address(0) || hasClaimed[epochId][beneficiary]) return 0;
+        bool settled;
+        (amount,, settled) = source.claimData(epochId, beneficiary);
+        if (!settled) return 0;
     }
 }

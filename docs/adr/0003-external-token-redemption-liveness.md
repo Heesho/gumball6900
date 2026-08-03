@@ -1,6 +1,6 @@
 # ADR-0003: External-Token Redemption Liveness
 
-- Status: Accepted with high-impact residual risk
+- Status: Superseded by ADR-0012; archival baseline only.
 - Date: 2026-08-01
 - Decision owners: protocol engineering, security review, legal/compliance review
 - Supersedes: none

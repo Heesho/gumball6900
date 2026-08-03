@@ -6,17 +6,17 @@
 
 # Function: genesisSqrtPriceX96()
 
-> **genesisSqrtPriceX96**(`gbx`, `usdG`, `communityUSDGRaw`): `bigint`
+> **genesisSqrtPriceX96**(`gbx`, `usdG`, `initialUSDGRaw`): `bigint`
 
-Sorts GBX/USDG and delegates the exact finalized genesis ratio to Uniswap's official SDK encoder.
+Sorts GBX/USDG and encodes an explicit deployment-time USDG/20M-GBX reference ratio.
 
 ## Parameters
 
-| Parameter          | Type                |
-| ------------------ | ------------------- |
-| `gbx`              | `` `0x${string}` `` |
-| `usdG`             | `` `0x${string}` `` |
-| `communityUSDGRaw` | `bigint`            |
+| Parameter        | Type                |
+| ---------------- | ------------------- |
+| `gbx`            | `` `0x${string}` `` |
+| `usdG`           | `` `0x${string}` `` |
+| `initialUSDGRaw` | `bigint`            |
 
 ## Returns
 

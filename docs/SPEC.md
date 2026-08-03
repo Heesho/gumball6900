@@ -1,88 +1,94 @@
-# GUM BALL 6900 Protocol Specification
+# Minimal GBX specification
 
-This repository implements the August 1, 2026 GUM BALL 6900 master build specification. This file is the compact
-in-repository normative map; detailed arithmetic, security boundaries, and operating procedures live in the linked
-documents and contract NatSpec.
+This is the concise normative map for the current rebuild. Detailed arithmetic and risks are linked below. When prose
+and implementation differ, production is blocked until the discrepancy is resolved, tested, and recorded when it
+changes economics or trust.
 
-## Product invariants
+## System boundary
 
-GUM BALL 6900 is one directly deployed, non-upgradeable basket protocol on Robinhood Chain. It has no public factory,
-token-holder proposal system, conventional DAO treasury executor, onchain NAV oracle, arbitrary vault execution, or
-staking withdrawal lock.
+- Core contracts are direct, non-upgradeable deployments.
+- There is no public factory, generic executor, arbitrary vault call, NAV/price feed, conventional DAO, public launch
+  funding, repayment state, or staking withdrawal lock.
+- USDG and every acquisition or registered asset must be a reviewed standard ERC-20, non-rebasing and
+  non-fee-on-transfer. Exact debit/receipt assertions fail closed; other measured deltas are accounting guards.
+  Neither supports exotic tokens.
 
-- USDG contributors receive already-minted GBX claims from genesis or daily recurring epochs.
-- GBX is a burnable pro-rata claim on every registered raw token balance held by GumBallVault.
-- Lifetime cumulative mint is capped at one billion GBX; burns never reopen capacity.
-- GBX stakes 1:1 into non-transferable sGBX. Unstaking is immediate.
-- New/increased signals activate after 24 hours and allocate only future notified USDG.
-- Each asset acquisition uses a bounded oracleless reverse Dutch auction.
-- The vault receives all target receipt except the manager share; active managers receive at most 2%.
-- Buyback accepts GBX for budgeted USDG and performs a real burn before USDG release.
-- The 20 million genesis LP GBX is backed by sponsor USDG before entering canonical single-sided v4 liquidity.
+## Token and mining
 
-## Protocol graph
+- The constructor mints exactly 20M GBX once for canonical liquidity.
+- Lifetime cumulative minting is capped at one billion; burns do not restore capacity.
+- The canonical controller advances a daily four-year-half-life schedule for the nominal remaining 980M.
+- Each non-empty ended epoch mints its complete scheduled amount into `MiningClaims`; an empty epoch mints zero and
+  advances without carry.
+- Mining contributions are final, attributed separately to payer and beneficiary, and optionally pay a fixed 2% team
+  fee before exact net vault deposit.
+- Claims are floor-proportional transfers of already-minted GBX to the beneficiary.
 
-```mermaid
-flowchart TD
-  USDG["USDG contributor"] --> Bootstrap["GenesisBootstrap / MiningPool"]
-  Bootstrap --> Vault["GumBallVault"]
-  Emission["EmissionController"] --> Claims["GenesisClaims / MiningClaims"]
-  Claims --> Holder["GBX holder"]
-  Holder --> Stake["StakedGBX"]
-  Stake --> Voter["AllocationVoter"]
-  Voter --> Strategy["Approved strategy budgets"]
-  Taker["Auction taker"] --> Strategy
-  Strategy --> Vault
-  Strategy --> Rewards["ManagerRewards"]
-  Holder -->|"burn GBX"| Vault
-  Vault -->|"raw pro-rata basket"| Holder
-  Liquidity["LiquidityManager"] --> Vault
-```
+## Liquidity setup
 
-## Lifecycle
+- The script initializes one hookless GBX/USDG v4 pool from explicit inputs.
+- It mints one entirely single-sided position using maximal integer GBX principal, burns the residual, clears
+  approvals, and transfers the exact expected NFT to `LiquidityCustodian`.
+- Mining starts only after custody and graph invariants pass.
+- The position is outside the vault's raw redemption basket.
 
-1. Deployment tooling resolves current canonical dependencies, mines the hook address, deploys the complete graph,
-   closes every set-once dependency, registers assets/strategies through the purpose-limited timelock, and publishes
-   canonical deployment evidence. The Hardhat runner records resumable phase state; Foundry phase entrypoints are
-   one-shot and require manual receipt reconciliation after any interrupted broadcast.
-2. The sponsor escrows a known maximum. Community bootstrap runs for seven days under a fixed cap.
-3. Failure enters permissionless refunds. Success atomically transfers backing, mints 80M claims + 20M LP GBX,
-   initializes mining and the guarded v4 pool, mints the four range positions, and notifies genesis USDG.
-4. Daily mining escrows USDG, demand-scales emission, transfers settlement backing to the vault, and mints complete
-   claims allocations. Empty epochs advance without carryover.
-5. Holders stake and signal. Strategies exchange only their virtual USDG budgets for target assets; they cannot sell
-   existing basket holdings.
-6. Holders may immediately unstake, trade through market liquidity, or burn GBX for the in-kind registered basket.
+## Staking, signals, and budgets
 
-## Authority
+- StakedGBX is a non-transferable 1:1 receipt.
+- Signals are immediate absolute weights over at most 16 live strategies, bounded by stake.
+- Users may reset and unstake once used weight is zero. Live acquisition-reward callbacks are strict; after terminal
+  strategy disablement, zero-weight reset makes no call to that rewards code, so reverting or gas-burning hooks cannot
+  block reset and unstake. Honest rewards retain their terminal weight snapshot and already indexed claims.
+- Only physically deposited mining and liquidity-fee USDG may be notified to `AllocationVoter`.
+- With zero total active weight, notified revenue becomes permanently idle and is not retroactively allocated.
+- Strategy budgets are virtual claims against vault USDG and scale down pro rata on redemption.
 
-ProtocolTimelock is controlled by a disclosed multisig but is not a generic executor. It accepts only hard-coded
-target/selector classes with 48-hour or seven-day delays. EmergencyGuardian can only stop new exposure. Neither can
-mint GBX, sweep the vault, redirect claims/rewards, transfer LP NFTs to an EOA, or pause redemption, unstaking, burns,
-refunds, settled claims, or accrued reward claims.
+## Strategies
 
-Production eligibility is a separate disclosed trust boundary. Test mode may use `NoopEligibilityModule`; mainnet
-requires a legally approved immutable registry adapter or explicit approval for unrestricted operation.
+- The script deploys one acquisition/rewards pair and one buyback strategy but leaves both unregistered and inactive.
+- Each requires its own typed seven-day registration before signaling or fills.
+- Both sell an immutable USDG lot through the exact pinned give.fun reverse Dutch transition. Price reaches zero at
+  and after the endpoint.
+- Acquisition receives target tokens first and routes observed receipt 98% to the vault plus 2% to supporters, or
+  100% to the vault when supporter weight is zero.
+- Buyback receives and burns observed GBX before USDG release.
+- The vault releases only a live caller strategy's current budget, but accepts that strategy's selected receiver.
 
-## Normative documents
+## Basket and redemption
+
+- The registry holds at most 16 assets including USDG and at most 16 strategies.
+- Strategy disablement is terminal; an associated asset remains in the basket.
+- Redemption is public, atomic, and unpausable.
+- A redemption burns GBX against pre-burn total supply and transfers the floor-proportional raw balance of every
+  registered asset.
+- No valuation, substitution, skip, or administrative sweep path exists.
+
+## Controls and trust
+
+- `ProtocolTimelock` exposes only typed operations with a fixed seven-day delay and no generic execution.
+- `EmergencyGuardian` can only stop new exposure and cannot block exits or move value.
+- Three delayed trust surfaces remain: replacement controller code, recipient code for the exact position NFT, and
+  admitted strategy code.
+- Controller/registry getter checks and recipient code-presence checks are not bytecode or semantic attestation.
+- A malicious controller may consume all remaining mint capacity; a malicious NFT recipient may control the complete
+  position; a malicious live strategy may send no more than its current budget to any receiver.
+- Mature operations have no cancellation or expiry and remain permissionlessly executable until consumed.
+
+## Release boundary
+
+No deployment is canonical. Addresses, token approvals, pool and auction inputs, roles, pinned-fork evidence,
+independent audits, legal approvals, a signed manifest, and licensing resolution remain production blockers. Local
+tests do not authorize broadcast or release.
+
+## Normative detail
 
 - [Architecture](ARCHITECTURE.md)
-- [Economics and formulas](ECONOMICS.md)
-- [Emission schedule](EMISSIONS.md)
-- [Economic/security invariants](INVARIANTS.md)
-- [Canonical Uniswap v4 design](UNISWAP_V4.md)
-- [Permissioned-pool release boundary](adr/0010-permissioned-pool-release-boundary.md)
-- [Permissioned-pool successor graph](adr/0011-permissioned-pool-successor-graph.md)
-- [Access control](ACCESS_CONTROL.md)
-- [Threat model](THREAT_MODEL.md)
+- [Economics](ECONOMICS.md)
+- [Emissions](EMISSIONS.md)
+- [Invariants](INVARIANTS.md)
+- [Uniswap v4](UNISWAP_V4.md)
 - [Trust assumptions](TRUST_ASSUMPTIONS.md)
-- [Audit scope](AUDIT_SCOPE.md)
+- [Threat model](THREAT_MODEL.md)
+- [Access control](ACCESS_CONTROL.md)
 - [Deployment](DEPLOYMENT.md)
-- [Subgraph](SUBGRAPH.md)
-- [Web application](WEBAPP.md)
-- [Operations](OPERATIONS.md)
-- [Incident response](INCIDENT_RESPONSE.md)
-- [Mainnet launch checklist](LAUNCH_CHECKLIST.md)
-
-If implementation and prose disagree, production remains blocked until the discrepancy is resolved, tested, and
-recorded in an ADR. A local passing build is not deployment authorization.
+- [ADR-0012](adr/0012-minimal-genesis-controller-and-liquidity-custody.md)

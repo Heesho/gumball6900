@@ -8,6 +8,7 @@ import {
   getAddress,
   isHex,
   size,
+  zeroAddress,
   type Address,
   type Hex,
   type PublicClient,
@@ -16,11 +17,34 @@ import { z } from 'zod';
 
 import { v4QuoterAbi } from './abis.js';
 import { pinBlockSnapshot, revalidateBlockSnapshot } from './block-snapshot.js';
-import { GENESIS_MINER_ALLOCATION } from './math/constants.js';
+import { GENESIS_LIQUIDITY_ALLOCATION } from './math/constants.js';
 import { assertTokenDecimals, assertUint, positiveBigIntSchema, tokenDecimalsSchema } from './validation.js';
 
-export const CANONICAL_V4_FEE = 3_000;
-export const CANONICAL_V4_TICK_SPACING = 60;
+const MAX_STATIC_V4_FEE = 1_000_000;
+const MAX_V4_TICK_SPACING = 32_767;
+const staticV4FeeSchema = z.number().int().min(0).max(MAX_STATIC_V4_FEE);
+const v4TickSpacingSchema = z.number().int().min(1).max(MAX_V4_TICK_SPACING);
+
+export interface HooklessV4PoolConfiguration {
+  /** Static LP fee in hundredths of one basis point, reviewed for the exact deployment. */
+  readonly fee: number;
+  /** Positive tick spacing reviewed for the exact deployment. */
+  readonly tickSpacing: number;
+}
+
+export const hooklessV4PoolConfigurationSchema = z
+  .object({
+    fee: staticV4FeeSchema,
+    tickSpacing: v4TickSpacingSchema,
+  })
+  .strict();
+
+/** Validates the hookless static-fee bounds enforced by Uniswap v4 core. */
+export function validateHooklessV4PoolConfiguration(
+  configuration: HooklessV4PoolConfiguration,
+): HooklessV4PoolConfiguration {
+  return hooklessV4PoolConfigurationSchema.parse(configuration);
+}
 
 export interface CanonicalPoolKey {
   readonly currency0: Address;
@@ -50,25 +74,20 @@ function sdkToken(metadata: PoolTokenMetadata): Token {
 }
 
 /**
- * Builds the canonical Solidity PoolKey through Uniswap's v4 SDK.
- * Token metadata is mandatory because the canonical USDG token uses six decimals.
+ * Builds the canonical hookless Solidity PoolKey through Uniswap's v4 SDK.
+ * Token metadata, fee, and tick spacing are mandatory; this helper supplies no deployment defaults.
  */
 export function canonicalPoolKey(
   gbx: Address,
   usdG: Address,
-  launchGuardHook: Address,
   metadata: Readonly<{ chainId: number; gbxDecimals: number; usdGDecimals: number }>,
+  configuration: HooklessV4PoolConfiguration,
 ): CanonicalPoolKey {
+  const { fee, tickSpacing } = validateHooklessV4PoolConfiguration(configuration);
   const gbxToken = sdkToken({ address: getAddress(gbx), chainId: metadata.chainId, decimals: metadata.gbxDecimals });
   const usdGToken = sdkToken({ address: getAddress(usdG), chainId: metadata.chainId, decimals: metadata.usdGDecimals });
   if (gbxToken.equals(usdGToken)) throw new RangeError('pool tokens must differ');
-  const key = Pool.getPoolKey(
-    gbxToken,
-    usdGToken,
-    CANONICAL_V4_FEE,
-    CANONICAL_V4_TICK_SPACING,
-    getAddress(launchGuardHook),
-  );
+  const key = Pool.getPoolKey(gbxToken, usdGToken, fee, tickSpacing, zeroAddress);
   return {
     currency0: getAddress(key.currency0),
     currency1: getAddress(key.currency1),
@@ -78,23 +97,18 @@ export function canonicalPoolKey(
   };
 }
 
-/** Returns the official Uniswap v4 SDK PoolId for the canonical sorted GBX/USDG PoolKey. */
+/** Returns the official Uniswap v4 SDK PoolId for the explicitly configured, sorted GBX/USDG PoolKey. */
 export function canonicalPoolId(
   gbx: Address,
   usdG: Address,
-  launchGuardHook: Address,
   metadata: Readonly<{ chainId: number; gbxDecimals: number; usdGDecimals: number }>,
+  configuration: HooklessV4PoolConfiguration,
 ): Hex {
+  const { fee, tickSpacing } = validateHooklessV4PoolConfiguration(configuration);
   const gbxToken = sdkToken({ address: getAddress(gbx), chainId: metadata.chainId, decimals: metadata.gbxDecimals });
   const usdGToken = sdkToken({ address: getAddress(usdG), chainId: metadata.chainId, decimals: metadata.usdGDecimals });
   if (gbxToken.equals(usdGToken)) throw new RangeError('pool tokens must differ');
-  const id = Pool.getPoolId(
-    gbxToken,
-    usdGToken,
-    CANONICAL_V4_FEE,
-    CANONICAL_V4_TICK_SPACING,
-    getAddress(launchGuardHook),
-  );
+  const id = Pool.getPoolId(gbxToken, usdGToken, fee, tickSpacing, zeroAddress);
   if (!isHex(id, { strict: true }) || size(id) !== 32) throw new Error('Uniswap v4 SDK returned an invalid PoolId.');
   return id;
 }
@@ -108,15 +122,15 @@ export function sqrtPriceX96FromRawAmounts(amount0: bigint, amount1: bigint): bi
   return result;
 }
 
-/** Sorts GBX/USDG and delegates the exact finalized genesis ratio to Uniswap's official SDK encoder. */
-export function genesisSqrtPriceX96(gbx: Address, usdG: Address, communityUSDGRaw: bigint): bigint {
+/** Sorts GBX/USDG and encodes an explicit deployment-time USDG/20M-GBX reference ratio. */
+export function genesisSqrtPriceX96(gbx: Address, usdG: Address, initialUSDGRaw: bigint): bigint {
   const canonicalGbx = getAddress(gbx);
   const canonicalUsdG = getAddress(usdG);
   if (canonicalGbx === canonicalUsdG) throw new RangeError('genesis pool tokens must differ');
-  positiveBigIntSchema.parse(communityUSDGRaw);
+  positiveBigIntSchema.parse(initialUSDGRaw);
   return BigInt(canonicalGbx) < BigInt(canonicalUsdG)
-    ? sqrtPriceX96FromRawAmounts(GENESIS_MINER_ALLOCATION, communityUSDGRaw)
-    : sqrtPriceX96FromRawAmounts(communityUSDGRaw, GENESIS_MINER_ALLOCATION);
+    ? sqrtPriceX96FromRawAmounts(GENESIS_LIQUIDITY_ALLOCATION, initialUSDGRaw)
+    : sqrtPriceX96FromRawAmounts(initialUSDGRaw, GENESIS_LIQUIDITY_ALLOCATION);
 }
 
 export function sqrtPriceX96AtTick(tick: number): bigint {
@@ -130,9 +144,9 @@ export function tickAtSqrtPriceX96(sqrtPriceX96: bigint): number {
   return TickMath.getTickAtSqrtRatio(JSBI.BigInt(sqrtPriceX96.toString()));
 }
 
-export function nearestCanonicalUsableTick(tick: number): number {
+export function nearestCanonicalUsableTick(tick: number, tickSpacing: number): number {
   if (!Number.isSafeInteger(tick)) throw new RangeError('tick must be a safe integer');
-  return nearestUsableTick(tick, CANONICAL_V4_TICK_SPACING);
+  return nearestUsableTick(tick, v4TickSpacingSchema.parse(tickSpacing));
 }
 
 /**
@@ -169,7 +183,7 @@ export interface CanonicalV4PoolStateParameters {
   readonly activeLiquidity: bigint;
   readonly currentTick: number;
   readonly gbx: PoolTokenMetadata;
-  readonly launchGuardHook: Address;
+  readonly poolConfiguration: HooklessV4PoolConfiguration;
   readonly sqrtPriceX96: bigint;
   readonly usdG: PoolTokenMetadata;
 }
@@ -197,16 +211,20 @@ export interface CanonicalV4GBXPrice {
 function canonicalV4PoolState(parameters: CanonicalV4PoolStateParameters) {
   const gbx = sdkToken(parameters.gbx);
   const usdG = sdkToken(parameters.usdG);
+  const { fee, tickSpacing } = validateHooklessV4PoolConfiguration(parameters.poolConfiguration);
   if (gbx.chainId !== usdG.chainId) throw new RangeError('pool tokens must share a chain');
   if (gbx.equals(usdG)) throw new RangeError('pool tokens must differ');
   assertUint(parameters.sqrtPriceX96, 160, 'sqrtPriceX96');
   assertUint(parameters.activeLiquidity, 128, 'activeLiquidity');
+  if (fee === MAX_STATIC_V4_FEE) {
+    throw new RangeError('the pinned Uniswap v4 SDK cannot construct a pool with a 100% static fee');
+  }
   const pool = new Pool(
     gbx,
     usdG,
-    CANONICAL_V4_FEE,
-    CANONICAL_V4_TICK_SPACING,
-    getAddress(parameters.launchGuardHook),
+    fee,
+    tickSpacing,
+    zeroAddress,
     parameters.sqrtPriceX96.toString(),
     parameters.activeLiquidity.toString(),
     parameters.currentTick,
@@ -296,8 +314,12 @@ export async function readCanonicalV4ExactInputQuote(
   assertUint(parameters.exactAmountRaw, 128, 'exactAmountRaw');
   assertTokenDecimals(parameters.inputDecimals, 'inputDecimals');
   assertTokenDecimals(parameters.outputDecimals, 'outputDecimals');
-  if (parameters.poolKey.fee !== CANONICAL_V4_FEE || parameters.poolKey.tickSpacing !== CANONICAL_V4_TICK_SPACING) {
-    throw new RangeError('quote PoolKey must use the canonical fee and tick spacing');
+  const { fee, tickSpacing } = validateHooklessV4PoolConfiguration({
+    fee: parameters.poolKey.fee,
+    tickSpacing: parameters.poolKey.tickSpacing,
+  });
+  if (getAddress(parameters.poolKey.hooks) !== zeroAddress) {
+    throw new RangeError('quote PoolKey must be hookless');
   }
   const currency0 = getAddress(parameters.poolKey.currency0);
   const currency1 = getAddress(parameters.poolKey.currency1);
@@ -326,9 +348,9 @@ export async function readCanonicalV4ExactInputQuote(
           poolKey: {
             currency0,
             currency1,
-            fee: parameters.poolKey.fee,
+            fee,
             hooks: getAddress(parameters.poolKey.hooks),
-            tickSpacing: parameters.poolKey.tickSpacing,
+            tickSpacing,
           },
           zeroForOne,
         },

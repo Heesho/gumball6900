@@ -1,0 +1,41 @@
+# Deployment evidence
+
+`deployment-manifest.ts` schema version 3 is the active machine-readable evidence format for the minimal rebuild. It
+records exactly these 14 direct deployments:
+
+1. `ProtocolTimelock`
+2. `EmergencyGuardian`
+3. `GBXToken`
+4. `MiningClaims`
+5. `AssetRegistry`
+6. `AllocationVoter`
+7. `GumBallVault`
+8. `StakedGBX`
+9. `StrategyRewards`
+10. `AcquisitionStrategy`
+11. `BuybackStrategy`
+12. `LiquidityCustodian`
+13. `MiningPool`
+14. `EmissionController`
+
+Non-draft candidates must list that exact graph and the exact external identities for USDG, Uniswap v4
+PositionManager, Permit2, and the PoolManager behind the PositionManager. Records may remain explicitly `unresolved`
+with null or zero evidence while a candidate is incomplete. `release-approved` evidence instead requires nonzero
+verified addresses, runtime hashes, constructor arguments, deployment receipts, initialization receipts/events, the
+complete post-deployment wiring snapshot, passed evidence gates, and the configured signature quorum. The committed
+signer policy is intentionally unresolved, so no current file can validate as release-approved.
+
+The deployment snapshot includes both auction lots and price bounds, epoch period and multiplier, the explicit
+hookless PoolKey, initial sqrt price, ticks, and the absolute `GBX_V4_LIQUIDITY_DEADLINE`. Its initial-state snapshot
+keeps both strategies unregistered with `startTime == 0`, binds the acquisition/rewards pair and buyback dependencies,
+records the GBX controller and cached mining pool, proves the genesis NFT is in `LiquidityCustodian`, records principal
+and the residual burn, and confirms mining started only after initialization.
+
+Validate a local draft or candidate with:
+
+```bash
+pnpm --filter @gumball-6900/config manifest:validate --file path/to/manifest.json
+```
+
+The examples and policy files in this directory remain provisional evidence or archival inputs; they do not supply
+canonical addresses, approvals, or deployment authorization.

@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / MAX_AUCTION_PRICE_MULTIPLIER
+
+# Variable: MAX_AUCTION_PRICE_MULTIPLIER
+
+> `const` **MAX_AUCTION_PRICE_MULTIPLIER**: `bigint`

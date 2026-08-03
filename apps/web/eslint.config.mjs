@@ -5,7 +5,7 @@ import nextTypescript from 'eslint-config-next/typescript';
 export default defineConfig([
   ...nextVitals,
   ...nextTypescript,
-  globalIgnores(['.next/**', 'coverage/**', 'playwright-report/**', 'storybook-static/**', 'test-results/**']),
+  globalIgnores(['.next/**', 'coverage/**', 'playwright-report/**', 'test-results/**']),
   {
     name: 'gumball/web-security-baseline',
     files: ['**/*.{js,mjs,cjs,ts,tsx}'],

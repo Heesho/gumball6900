@@ -1,292 +1,134 @@
-# GUM BALL 6900 Invariants
+# Minimal protocol invariants
 
-Status: normative verification baseline. An implementation is incomplete until automated tests exercise these
-properties across unit, fuzz, stateful invariant, differential, integration, fork, and adversarial-token suites.
+These properties are the review and test baseline for the current direct-deployment contracts. “Always” means across
+contract-reachable states, subject to normal EVM atomicity and the explicitly identified external-token liveness
+risk. Properties that depend on admitted code are separated from token- or vault-enforced bounds.
 
-## Notation
+USDG, GBX counterparties, and every acquisition or registered asset are required to be standard ERC-20 contracts,
+non-rebasing and non-fee-on-transfer. Exact debit/receipt assertions are fail-closed checks; other measured deltas are
+accounting guards. Passing or partially tolerating one transfer pattern does not make an exotic token supported.
 
-- `CM`: cumulative GBX minted.
-- `CB`: cumulative GBX burned.
-- `TS`: current GBX total supply.
-- `CAP`: `1,000,000,000e18` GBX units.
-- `M`: `80,000,000e18`, the genesis miner allocation.
-- `L`: `20,000,000e18`, the genesis liquidity allocation.
-- `C`: accepted community bootstrap USDG in raw token units.
-- `S`: required sponsor USDG in raw token units.
-- `B[i]`: pre-redemption raw vault balance of registered asset `i`.
-- `x`: GBX shares redeemed.
+## Supply
 
-Unless stated otherwise, integer division rounds down and the implementation uses overflow-safe `Math.mulDiv`.
+- `cumulativeMinted <= 1_000_000_000 ether`.
+- `totalSupply() == cumulativeMinted - cumulativeBurned`.
+- Constructor minting occurs once and is exactly `20_000_000 ether`.
+- After construction, only `emissionController` may mint.
+- Burns increase `cumulativeBurned` and never increase `remainingMintCapacity()`.
+- The deployment script ends with `positionPrincipal + residualBurned == 20_000_000 ether` and zero deployment-account
+  GBX.
 
-## Supply integrity
+The token does not enforce the canonical daily schedule or mint receiver. A delayed replacement controller remains
+bounded by the cumulative cap but can otherwise spend all remaining capacity.
 
-At every reachable state:
+## Mining and claims
 
-```text
-TS = CM - CB
-CM <= CAP
-```
+- Mining cannot start until the exact canonical NFT is in `LiquidityCustodian` and a compatible epoch-zero controller
+  is bound.
+- Epochs are sequential, one day long, and settle at most once.
+- Settlement is permissionless after the current epoch ends, even when contributions are paused.
+- A non-empty epoch sends the exact net USDG receipt to the vault before notification and mints the complete available
+  scheduled emission into `MiningClaims`.
+- An empty epoch mints zero, advances the schedule once, and carries nothing forward.
+- Team fee is zero when the team address is zero; otherwise it is exactly `floor(totalContributed * 200 / 10_000)`.
+- Beneficiary entitlement is `floor(contributionOf * epochEmission / totalContributed)`.
+- A claim is single-use and always transfers to its beneficiary, regardless of caller.
+- Claims transfer existing GBX and never mint.
 
-Every mint increments `CM` by the exact minted amount. Every real burn increments `CB` by the exact burned amount
-and decreases `TS`. A burn never decreases `CM`, so it never reopens mint capacity.
+## Staking and signaling
 
-Only EmissionController may mint. Its public surface contains role-specific genesis and recurring emission methods;
-there is no generic admin mint path, mutable minter, cap setter, rebase, or balance seizure.
+- sGBX is minted and burned 1:1 against exact GBX transfers and cannot be transferred between accounts.
+- A user cannot signal more total weight than their sGBX balance.
+- A signal call replaces the user's complete allocation and contains at most 16 unique, live strategies with nonzero
+  weights.
+- Signal reset and weight decreases remain possible while increases are paused, subject to strict callbacks from a
+  live strategy's admitted rewards hook.
+- Unstake has no delay but requires `usedWeight == 0`.
+- `AllocationVoter` never transfers or custodies USDG.
+- After terminal strategy disablement, a zero-weight reset clears voter weight without calling that strategy's rewards
+  hook, restoring unstaking liveness even against gas-burning code. Live-strategy reward callbacks remain strict;
+  honest disabled rewards retain their terminal weight snapshot and already indexed claims.
 
-## Genesis backing
+## Revenue and budgets
 
-Genesis may mint only the exact pair `(M, L)`. Sponsor backing uses ceiling rounding:
+- Only the initialized mining pool and liquidity custodian may notify revenue.
+- Notification cannot make `accountedVaultUSDG` exceed the vault's physical USDG balance.
+- Revenue notified at zero total active weight increases `idleUSDG` and can never be allocated retroactively.
+- A live strategy's budget increases only from its weight across later index deltas.
+- `GumBallVault.releaseUSDG` accepts only a live caller strategy, checkpoints and consumes its budget first, and makes
+  an exact USDG transfer.
+- A strategy can release no more than its current signaled budget, but the vault intentionally accepts that strategy's
+  chosen receiver.
+- Redemption scales budgets, idle USDG, and accounted USDG by the remaining-supply fraction.
+- Disabling a strategy is terminal; its checkpointed budget becomes idle and future weight is excluded.
 
-```text
-S = ceil(C * L / M)
-S * M >= C * L
-S = 0 or (S - 1) * M < C * L
-```
+Registration wiring checks are not code attestation. These budget bounds survive malicious strategy code, but honest
+payment-before-release semantics do not.
 
-This is the smallest raw USDG amount that never underbacks the LP allocation relative to community GBX. Any
-granularity surplus is less than one raw USDG unit. The same rule applies to maximum sponsor escrow from the
-bootstrap contribution cap. See [ADR-0002](adr/0002-safe-sponsor-backing-rounding.md).
+## Registry and basket
 
-Genesis settlement is atomic. If the minimum raise, sponsor balance, pool initialization, position creation, mint,
-vault transfer, allocation notification, or sponsor refund fails, none of the launch state changes persist. A failed
-bootstrap remains permissionlessly refundable.
+- USDG is registered at asset index zero during construction.
+- Asset count is at most 16, including USDG; strategy count is at most 16.
+- Assets and strategies are append-only and deterministically ordered.
+- An acquisition registration binds one target, strategy, and rewards tuple through getter checks.
+- Standalone registration does not add GBX to the redeemable asset list.
+- Initial script completion has exactly one registered asset, zero registered strategies, and both deployed strategies
+  inactive.
+- A disabled acquisition target remains a registered redemption asset.
 
-Before any community claim, the full `M + L` is already included in `TS`.
+## Auctions
 
-## Recurring emissions and claims
+- Lot, duration, multiplier, minimum initial price, assets, vault, registry, guardian, and timelock are immutable per
+  deployed strategy.
+- Duration is within 1 hour and 365 days; multiplier is within 1.1e18 and 3e18.
+- Price is linear, equals zero at the exact endpoint, and remains zero afterward.
+- Fill checks expected epoch, deadline, and maximum quoted payment.
+- State advances once per successful fill and uses the quoted payment for the next initial price.
+- Acquisition transfers target value before USDG release; its reward split uses observed receipt.
+- With zero reward weight, all observed target receipt goes to the vault.
+- Buyback burns all observed GBX before USDG release.
 
-For epoch `e`:
-
-```text
-scheduled[e] <= CAP - CM_before
-affordable[e] = contributedUSDG[e] / minimumMiningPrice[e]
-actual[e] = min(scheduled[e], affordable[e])
-```
-
-`actual[e]` is zero when contributions are zero. The scheduled-emission state advances for every elapsed epoch,
-including empty epochs. Unused emission is forfeited and never carried forward.
-
-At settlement, all accepted epoch USDG enters GumBallVault, exactly `actual[e]` GBX is minted to MiningClaims, and:
-
-```text
-sum(user entitlements) + claim rounding dust <= actual[e]
-```
-
-A claim can be triggered by any caller but always pays the recorded beneficiary. It cannot be replayed. After two
-years, unclaimed epoch GBX is permissionlessly burned and is never redirected.
-
-GenesisClaims additionally accepts at most 64 beneficiaries in one call. The complete batch is atomic: each entry is
-consumed for genesis distribution zero before any beneficiary transfer, and any invalid or duplicate entry reverts
-all claim flags, aggregate accounting, and payments.
-
-Every refundable genesis contribution, genesis sponsor escrow, and invalidated-epoch contribution is cleared only if
-the custody contract's observed USDG debit and the recorded beneficiary's observed USDG credit both equal the full
-liability. A later transfer fee or sender surcharge reverts the transfer and liability update atomically.
-
-Every genesis sponsor/community contribution and recurring mining contribution also treats its requested USDG amount
-as a hard payer-debit maximum. The receiver's observed increase determines accepted accounting, while any payer
-decrease above the request reverts the pull and all contribution state.
-
-The Solidity emission schedule must match independent Python and TypeScript models for at least 100 years of daily
-epochs, including fully funded, underfunded, empty, and burn-heavy scenarios.
+The payment-before-release statements describe the deployed strategy implementations, not arbitrary future admitted
+strategy code. A zero-price fill is valid and can release a full USDG lot.
 
 ## Redemption
 
-For `0 < x <= TS_before`:
+- Redemption is public and has no pause flag.
+- Denominator is total supply immediately before the burn.
+- Every registered amount is `floor(rawVaultBalance * shares / supplyBefore)` and is snapshotted before transfer.
+- The user's GBX burns before outbound asset transfers; the transaction remains atomic on any failure.
+- Each outbound token transfer must debit and credit exactly the computed amount.
+- No administrator can omit a registered asset, select a substitute, use a NAV, or sweep the vault.
 
-```text
-out[i] = floor(B[i] * x / TS_before)
-```
+A reverting, blocked, rebasing, taxed, or inexact registered token can revert the all-asset redemption. Such tokens
+are outside the compatibility boundary, but issuer controls can still make a previously standard token noncompliant.
+This external-token liveness risk is not repairable by a privileged bypass.
 
-The denominator is `GBXToken.totalSupply()` before the burn. Wallet-held, staked, claims-held, escrowed, and
-LiquidityManager-held GBX all count. “Circulating supply” is never a protocol input.
+## Canonical position
 
-For every registered asset:
+- Pool currencies are sorted GBX/USDG, the hook address is zero, and fee/tick spacing are immutable.
+- The custodian accepts one NFT only from the configured PositionManager, configured deployment depositor, expected
+  token ID, and exact PoolKey.
+- The script creates one entirely single-sided position with maximal integer liquidity and burns the GBX residual.
+- Fee collection removes zero principal, burns observed GBX fees, deposits exact USDG fees into the vault, and only
+  then notifies revenue.
+- The custodian exposes no approval, rescue, range change, arbitrary PositionManager call, or principal withdrawal.
+- A typed seven-day operation may transfer only the recorded NFT to a nonzero deployed-code recipient.
 
-```text
-0 <= out[i] <= B[i]
-vaultBalanceAfter[i] = B[i] - out[i]
-receiverBalanceAfter[i] = receiverBalanceBefore[i] + out[i]
-```
+After that transfer, the original custodian no longer enforces how recipient code treats the position.
 
-Modulo independent integer rounding, the same fraction `x / TS_before` is applied to every registered asset.
-Rounding dust remains in the vault. The burn and every asset transfer are atomic: any transfer failure, including a
-successful-return token that debits or credits a non-exact amount after onboarding, reverts the entire redemption.
-The vault exposes no protocol-controlled redemption pause or asset-skip switch.
+## Control plane
 
-## Allocation custody and budgets
+- Every timelocked operation is action- and parameter-bound and has a fixed seven-day delay.
+- Only the immutable proposer schedules; execution is permissionless after maturity.
+- There is no generic target/calldata executor.
+- The guardian is stop-only and cannot resume, mint, transfer the NFT, release vault assets, or block exit paths.
+- Timelock resumption never changes the guardian into a value-moving authority.
 
-AllocationVoter never holds USDG. At every externally observable state:
+Three delayed code/value trust surfaces are explicitly outside semantic enforcement:
 
-```text
-sum(live strategy virtual USDG budgets) <= GumBallVault USDG balance
-```
+1. replacement emission-controller code;
+2. the recipient of the exact position NFT; and
+3. newly registered strategy code.
 
-Every revenue notification corresponds to USDG newly deposited into GumBallVault. A source cannot double-notify a
-deposit or notify more than the deposit. With zero live weight, new revenue remains idle USDG and creates no virtual
-budget. RevenueRouter likewise rejects any payer debit above its requested route amount.
-
-Revenue allocation uses at least 1e27 precision and carries the scaled numerator rather than treating it as whole
-USDG:
-
-```text
-baseDelta = floor(newRevenue * PRECISION / totalLiveWeight)
-combined = (newRevenue * PRECISION mod totalLiveWeight) + previousScaledRemainder
-indexDelta = baseDelta + floor(combined / totalLiveWeight)
-nextScaledRemainder = combined mod totalLiveWeight
-```
-
-No revenue silently disappears. Before weight change, strategy disable, budget spend, or redemption scaling, the
-affected indices are checkpointed.
-
-Before a redemption, every outstanding strategy budget is scaled by the same remaining-supply fraction. A disabled
-strategy has no live denominator weight, receives no new allocation, and returns its unused budget to idle USDG.
-Each scaled strategy budget is emitted exactly for deterministic index reconstruction.
-Every successful strategy release decreases GumBallVault's raw USDG balance and increases the fill receiver's raw
-USDG balance by exactly the budget amount consumed; receiver fees and sender surcharges revert the complete fill.
-The scaling loop is bounded to sixteen asset-linked strategies plus the standalone buyback as specified in
-[ADR-0006](adr/0006-seventeen-strategy-registry-bound.md); the independent per-user signal limit remains sixteen.
-
-## Stake and signal consistency
-
-sGBX is non-transferable and minted 1:1 against the actual GBX balance increase on stake. For every user:
-
-```text
-activeSignalWeight + pendingSignalWeight <= sGBX balance
-```
-
-Globally:
-
-```text
-sum(user active weights) = sum(strategy live weights) = totalLiveWeight
-```
-
-New and increased signal weight cannot become effective before the 24-hour activation delay and a checkpoint. It
-has no same-block effect. Reductions and resets checkpoint rewards before decreasing effective weight.
-
-After any unstake, both active and pending weight fit within the remaining stake. Unstaking requires no prior reset,
-cannot strand votes, and cannot destroy already accrued rewards.
-
-Signals affect only USDG notified after their effective checkpoint. They confer no authority to sell, rebalance, or
-execute against assets already held by the vault.
-
-## Strategy fills
-
-For each acquisition fill:
-
-```text
-actualTargetReceived = targetBalanceAfterPull - targetBalanceBeforePull
-actualTakerDebit = takerBalanceBeforePull - takerBalanceAfterPull
-actualTakerDebit <= maxTargetAmount
-vaultPortion + managerPortion = actualTargetReceived
-managerPortion = floor(actualTargetReceived * 200 / 10_000)
-vaultPortion = actualTargetReceived - managerPortion
-```
-
-The remainder assignment above preserves the exact split identity and ensures managers never receive more than 2%.
-Every successful fill observes a strategy balance decrease equal to `actualTargetReceived`, a vault increase equal to
-`vaultPortion`, and a ManagerRewards increase equal to `managerPortion`. Deployment validation also rejects target
-tokens whose transfer behavior prevents those exact deltas.
-
-The lot is within configured minimum and maximum bounds and no larger than the live virtual budget. Both the quoted
-requirement and the observed taker debit are bounded by the taker's `maxTargetAmount`, including sender surcharges
-that apply only to the pull. The auction rate is always positive. A stale auction ID, expired deadline, excessive
-target requirement, disabled asset, or trading halt prevents the fill.
-
-Target receipt, accounting updates, vault/reward delivery, and only then USDG release occur in one non-reentrant
-transaction. Therefore:
-
-```text
-USDG released <= budget debited
-target asset arrives before any USDG leaves GumBallVault
-```
-
-If live strategy weight is zero, the would-be manager portion goes to GumBallVault. Normal strategies pay exactly
-2%; HoldUSDG and BuybackBurn pay zero. Those percentages have no mutable v1 setter.
-
-## Manager rewards
-
-For one strategy and its single target reward token:
-
-```text
-total manager assets paid + currently owed <= total manager assets actually notified
-```
-
-Accumulator precision is at least 1e27, and notification remainder is included in the next update. Claims pay the
-user or an explicitly authorized receiver. A claim or zero-weight vault redirect succeeds only when the receiver's
-observed balance increases and ManagerRewards' balance decreases by the exact liability amount. Receiver-deducted
-fees and sender-paid surcharges therefore revert every accounting change. Accrued rewards survive signal changes and
-unstaking. Only the associated strategy may notify; third-party bribes cannot enter reward accounting.
-
-After the final live manager weight is individually checkpointed and removed, the generation or live remainder cycle
-must satisfy:
-
-```text
-generationNotifiedRewards = generationWholeEntitlements + generationFinalizedTerminalDust
-generationFinalizedTerminalDust = generationRedirectedDust + generationPendingTerminalDust
-totalAccruedRewards + totalPendingTerminalDust <= accountedRewards
-```
-
-Terminal finalization queues a nonzero residual without calling the reward token. Pending dust remains in
-`accountedRewards`, cannot be notified again as an unaccounted deposit, and becomes `generationRedirectedDust` only
-after a permissionless fixed-destination sweep transfers the exact amount to GumBallVault. A failed sweep preserves
-the pending amount for retry and cannot roll back staking, voting, reset, or unstake. A zero residual finalizes the
-cycle without creating a pending sweep. Every unpaid whole-token entitlement remains accounted and claimable. The
-terminal boundary invalidates per-user fractional carry, so a later signal cannot claim finalized dust. An
-administrative generation close records unresolved stored weight and waits for its final checkpoints before
-performing this reconciliation; it never treats dormant, uncheckpointed whole claims as dust.
-
-Every strategy disable fixes the terminal reward index for the generation being invalidated. A stale user's weight
-can accrue only through that generation's terminal index, never through reward increments after reactivation. A new
-generation starts at the existing global index, so newly activated weight cannot claim earlier rewards.
-
-## Buyback and burn
-
-Every GBX unit accepted by BuybackBurnStrategy is burned before USDG is released:
-
-```text
-TS_after = TS_before + newEmission - GBXActuallyBurned
-CM_after = CM_before + newEmission
-```
-
-Buyback pays no manager reward. Contracts do not calculate whether a fill is accretive because there is no onchain
-NAV oracle.
-
-## Assets and liquidity
-
-- Registered asset token and strategy addresses are unique; the set is bounded to 16.
-- An asset with a nonzero GumBallVault balance cannot be removed from redemption.
-- Unexpected tokens sent to the vault do not become registered redemption assets.
-- Stock-token raw balances do not change when `uiMultiplier()` changes.
-- The canonical LP allocation is exactly 20 million GBX and is backed before entering the pool.
-- Every live canonical position NFT is owned by LiquidityManager; migration burns old NFTs and atomically mints
-  precommitted replacements back to LiquidityManager.
-- At most 16 canonical position records are active at once. Genesis establishes four, completed-range sweeps decrement
-  the count, and every migration preflights its resulting active count before PositionManager execution.
-- A migration destination equals the one canonical PoolKey byte-for-byte. The path cannot choose a new hook, fee,
-  tick spacing, currency ordering, pool, spender, or recipient.
-- Replacement inputs cannot exceed the v4 credits created by the removed positions. The batch never settles a debt
-  from LiquidityManager or Permit2.
-- Removed principal can go only to a replacement position or, as residual, to GumBallVault (USDG) / burn (GBX).
-- Collected USDG fees go to GumBallVault and allocation; collected GBX fees are really burned.
-
-## Privilege invariants
-
-No guardian, timelock, deployer, multisig, hook, strategy, or liquidity operator can:
-
-- mint beyond explicit EmissionController paths;
-- change the cumulative cap;
-- sweep or arbitrarily call GumBallVault;
-- pause redemption, unstaking, burns, refunds, or settled/accrued claims;
-- redirect claims or manager rewards;
-- transfer protocol position NFTs to an EOA;
-- replace immutable economic splits or core references; or
-- upgrade a core contract.
-
-## Stateful verification minimum
-
-Handlers must include at least five miners, five signal managers, three auction takers, two redeemers, one guardian,
-one timelock, multiple assets, variable time, empty epochs, buybacks, and multiplier updates. Ghost variables track
-aggregate deposits, mints, burns, claims, budgets, acquired assets, reward notifications, and LP custody.
-
-Any invariant exception must be documented in an ADR with the replacement property and a test that demonstrates it.
+Review and monitoring of those scheduled parameters are required; the delay alone is not an attestation.

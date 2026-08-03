@@ -1,44 +1,34 @@
 import { z } from 'zod';
 
-import { addressSchema } from './validation.js';
-import { bytes32Schema } from './validation.js';
+import { addressSchema, bytes32Schema } from './validation.js';
 
 export { addressSchema } from './validation.js';
 
+/** Fixed contracts in one minimal GBX deployment. Acquisition/reward pairs remain registry-discovered. */
 export const protocolAddressesSchema = z
   .object({
-    gbx: addressSchema,
-    protocolTimelock: addressSchema,
-    strategyDeployer: addressSchema,
-    emergencyGuardian: addressSchema,
-    eligibilityModule: addressSchema,
-    genesisBootstrap: addressSchema,
-    genesisClaims: addressSchema,
-    emissionController: addressSchema,
-    miningPool: addressSchema,
-    miningClaims: addressSchema,
-    gumBallVault: addressSchema,
-    assetRegistry: addressSchema,
-    stakedGBX: addressSchema,
     allocationVoter: addressSchema,
-    revenueRouter: addressSchema,
-    holdUSDGStrategy: addressSchema,
-    buybackBurnStrategy: addressSchema,
-    liquidityManager: addressSchema,
-    launchGuardHook: addressSchema,
-    genesisLiquidityCalculator: addressSchema,
-    gumBallLens: addressSchema,
-    gumBallRouter: addressSchema,
+    assetRegistry: addressSchema,
+    buybackStrategy: addressSchema,
+    emergencyGuardian: addressSchema,
+    emissionController: addressSchema,
+    gbx: addressSchema,
+    gumBallVault: addressSchema,
+    liquidityCustodian: addressSchema,
+    miningClaims: addressSchema,
+    miningPool: addressSchema,
+    protocolTimelock: addressSchema,
+    stakedGBX: addressSchema,
   })
   .strict()
   .superRefine((addresses, context) => {
-    const values = Object.values(addresses);
-    values.forEach((address, index) => {
+    const entries = Object.entries(addresses);
+    for (const [name, address] of entries) {
       if (/^0x0{40}$/u.test(address.toLowerCase())) {
-        context.addIssue({ code: 'custom', message: 'Protocol addresses cannot be zero', path: [index] });
+        context.addIssue({ code: 'custom', message: 'Protocol addresses cannot be zero', path: [name] });
       }
-    });
-    if (new Set(values.map((address) => address.toLowerCase())).size !== values.length) {
+    }
+    if (new Set(entries.map(([, address]) => address.toLowerCase())).size !== entries.length) {
       context.addIssue({ code: 'custom', message: 'Protocol addresses must be unique' });
     }
   });

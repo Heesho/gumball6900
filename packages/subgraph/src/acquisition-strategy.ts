@@ -1,65 +1,37 @@
-import { VaultAsset } from '../generated/schema';
 import {
-  AcquisitionStrategy__AuctionStarted,
   AcquisitionStrategy__Filled,
-} from '../generated/templates/AcquisitionStrategy/AcquisitionStrategy';
-import { StrategyFill } from '../generated/schema';
-import { getDailyProtocol, syncDailyProtocol } from './daily';
-import { getAccount, getProtocol, getStrategy } from './entities';
-import { eventId } from './ids';
-import { applyVaultDelta } from './vault-accounting';
-
-export function handleAcquisitionAuctionStarted(event: AcquisitionStrategy__AuctionStarted): void {
-  const strategy = getStrategy(event.address, event);
-  strategy.kind = 'ACQUISITION';
-  strategy.currentAuctionId = event.params.auctionId;
-  strategy.referenceRate = event.params.referenceRate;
-  strategy.startRate = event.params.startRate;
-  strategy.floorRate = event.params.floorRate;
-  strategy.auctionStartTime = event.params.startTime;
-  strategy.save();
-}
+  AcquisitionStrategy__FillsPauseSet,
+} from '../generated/templates/AcquisitionStrategyTemplate/AcquisitionStrategy';
+import { getStrategy, recordEvent } from './entities';
 
 export function handleAcquisitionFilled(event: AcquisitionStrategy__Filled): void {
   const strategy = getStrategy(event.address, event);
   strategy.kind = 'ACQUISITION';
-  strategy.totalUSDGSpentRaw = strategy.totalUSDGSpentRaw.plus(event.params.usdGAmount);
-  strategy.totalTargetReceivedRaw = strategy.totalTargetReceivedRaw.plus(event.params.targetReceived);
+  strategy.totalQuotedPaymentRaw = strategy.totalQuotedPaymentRaw.plus(event.params.quotedPayment);
+  strategy.totalObservedPaymentRaw = strategy.totalObservedPaymentRaw.plus(event.params.observedPayment);
   strategy.totalVaultReceivedRaw = strategy.totalVaultReceivedRaw.plus(event.params.vaultAmount);
-  strategy.totalManagerReceivedRaw = strategy.totalManagerReceivedRaw.plus(event.params.managerAmount);
   strategy.fillCount += 1;
   strategy.save();
 
-  const taker = getAccount(event.params.taker, event);
-  taker.save();
+  const record = recordEvent(event, 'ACQUISITION_FILLED');
+  record.addresses = [event.params.filler];
+  record.values = [
+    event.params.epochId,
+    event.params.quotedPayment,
+    event.params.observedPayment,
+    event.params.vaultAmount,
+    event.params.rewardAmount,
+    event.params.usdGLot,
+  ];
+  record.save();
+}
 
-  const fill = new StrategyFill(eventId(event));
-  fill.strategy = strategy.id;
-  fill.auctionId = event.params.auctionId;
-  fill.taker = taker.id;
-  fill.usdgReceiver = event.params.usdGReceiver;
-  fill.usdgAmountRaw = event.params.usdGAmount;
-  fill.targetReceivedRaw = event.params.targetReceived;
-  fill.vaultAmountRaw = event.params.vaultAmount;
-  fill.managerAmountRaw = event.params.managerAmount;
-  fill.clearingRate = event.params.clearingRate;
-  fill.blockNumber = event.block.number;
-  fill.timestamp = event.block.timestamp;
-  fill.transactionHash = event.transaction.hash;
-  fill.logIndex = event.logIndex;
-  fill.save();
+export function handleAcquisitionFillsPauseSet(event: AcquisitionStrategy__FillsPauseSet): void {
+  const strategy = getStrategy(event.address, event);
+  strategy.fillsPaused = event.params.paused;
+  strategy.save();
 
-  if (strategy.asset != null) {
-    const asset = VaultAsset.load(strategy.asset!);
-    if (asset != null) {
-      asset.acquiredByStrategiesRaw = asset.acquiredByStrategiesRaw.plus(event.params.vaultAmount);
-      applyVaultDelta(asset, event.params.vaultAmount, 'STRATEGY_FILL', event);
-    }
-  }
-
-  const protocol = getProtocol(event);
-  protocol.save();
-  const daily = getDailyProtocol(event);
-  syncDailyProtocol(daily, protocol);
-  daily.save();
+  const record = recordEvent(event, 'ACQUISITION_FILLS_PAUSE_SET');
+  record.flag = event.params.paused;
+  record.save();
 }

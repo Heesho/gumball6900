@@ -6,18 +6,18 @@
 
 # Function: canonicalPoolId()
 
-> **canonicalPoolId**(`gbx`, `usdG`, `launchGuardHook`, `metadata`): `` `0x${string}` ``
+> **canonicalPoolId**(`gbx`, `usdG`, `metadata`, `configuration`): `` `0x${string}` ``
 
-Returns the official Uniswap v4 SDK PoolId for the canonical sorted GBX/USDG PoolKey.
+Returns the official Uniswap v4 SDK PoolId for the explicitly configured, sorted GBX/USDG PoolKey.
 
 ## Parameters
 
-| Parameter         | Type                                                                                        |
-| ----------------- | ------------------------------------------------------------------------------------------- |
-| `gbx`             | `` `0x${string}` ``                                                                         |
-| `usdG`            | `` `0x${string}` ``                                                                         |
-| `launchGuardHook` | `` `0x${string}` ``                                                                         |
-| `metadata`        | `Readonly`\<\{ `chainId`: `number`; `gbxDecimals`: `number`; `usdGDecimals`: `number`; \}\> |
+| Parameter       | Type                                                                                        |
+| --------------- | ------------------------------------------------------------------------------------------- |
+| `gbx`           | `` `0x${string}` ``                                                                         |
+| `usdG`          | `` `0x${string}` ``                                                                         |
+| `metadata`      | `Readonly`\<\{ `chainId`: `number`; `gbxDecimals`: `number`; `usdGDecimals`: `number`; \}\> |
+| `configuration` | [`HooklessV4PoolConfiguration`](../interfaces/HooklessV4PoolConfiguration.md)               |
 
 ## Returns
 

@@ -1,6 +1,6 @@
 # ADR-0002: Safe Sponsor-Backing Rounding
 
-- Status: Accepted
+- Status: Superseded by ADR-0012; archival baseline only.
 - Date: 2026-08-01
 - Decision owners: protocol engineering and economic review
 - Supersedes: none

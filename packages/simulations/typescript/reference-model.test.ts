@@ -23,7 +23,7 @@ describe('TypeScript economic reference model', () => {
     if (firstCase === undefined) {
       throw new Error('expected a mining scenario');
     }
-    firstCase.totalUSDGRaw = 250;
+    firstCase.totalContributedRaw = 250;
 
     expect(() => parseReferenceScenarios(scenarios)).toThrow('must be a decimal integer string');
   });
@@ -32,11 +32,34 @@ describe('TypeScript economic reference model', () => {
     expect(fixturePath.endsWith('/fixtures/reference-results.json')).toBe(true);
   });
 
-  it('quotes canonical 6-decimal USDG into 18-decimal target units', () => {
+  it('retains explicit token-decimal metadata and exact auction endpoints', () => {
     const results = loadTypeScriptResults();
     expect(results.usdGDecimals).toBe('6');
     expect(results.targetDecimals).toBe('18');
-    expect(results.auctionQuotes[0]?.requiredTargetAmount).toBe('52500000000000000000');
-    expect(results.genesisQuotes[0]?.genesisPriceWad).toBe('1000000000000000000');
+    expect(results.auctionQuotes.map(({ paymentAmount }) => paymentAmount)).toEqual([
+      '100000000000000000000',
+      '50000000000000000000',
+      '1157407407407408',
+      '0',
+      '0',
+    ]);
+  });
+
+  it('pins the 20M genesis, 980M schedule, and empty/non-empty settlement semantics', () => {
+    const results = loadTypeScriptResults();
+    expect(results.genesisSupply).toBe('20000000000000000000000000');
+    expect(results.miningEmissionAllocation).toBe('980000000000000000000000000');
+    expect(results.initialDailyScheduledEmission).toBe('465152749681042811702004');
+    expect(results.emissionDaily100YearDigest).toBe(
+      '0x22aef4fca7057d13da902b2bd05d3fd4b3bca71cb0e4c3ca4c35a1898f2a41db',
+    );
+    expect(results.emissionScheduleLifetime).toEqual({
+      positiveEpochs: '99884',
+      sequentialScheduledTotal: '979999999999999181815005172',
+      nominalAllocationResidual: '818184994828',
+    });
+    expect(results.miningQuotes[0]?.actualEmission).toBe(results.miningQuotes[1]?.actualEmission);
+    expect(results.miningQuotes[2]?.actualEmission).toBe('0');
+    expect(results.miningQuotes[2]?.forfeitedEmission).toBe('100000000000000000000');
   });
 });

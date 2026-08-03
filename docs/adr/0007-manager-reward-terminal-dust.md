@@ -1,6 +1,6 @@
 # ADR-0007: Manager Reward Terminal Dust
 
-- Status: Accepted; amended 2026-08-02 to separate terminal accounting from token delivery
+- Status: Superseded by ADR-0012; archival baseline only.
 - Date: 2026-08-02
 - Decision owners: protocol engineering, economic review, and release security
 - Supersedes: indefinite carry of fractional manager rewards after all live manager weight exits

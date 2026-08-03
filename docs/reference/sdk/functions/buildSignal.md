@@ -6,7 +6,9 @@
 
 # Function: buildSignal()
 
-> **buildSignal**(`allocationVoter`, `strategies`, `relativeWeights`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildSignal**(`allocationVoter`, `strategies`, `weights`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+
+Replaces the caller's complete immediate absolute strategy allocation.
 
 ## Parameters
 
@@ -14,7 +16,7 @@
 | ----------------- | ------------------------------ |
 | `allocationVoter` | `` `0x${string}` ``            |
 | `strategies`      | readonly `` `0x${string}` ``[] |
-| `relativeWeights` | readonly `bigint`[]            |
+| `weights`         | readonly `bigint`[]            |
 
 ## Returns
 

@@ -13,17 +13,17 @@ const contracts = [
   'AcquisitionStrategy',
   'AllocationVoter',
   'AssetRegistry',
-  'BuybackBurnStrategy',
+  'BuybackStrategy',
+  'EmergencyGuardian',
+  'EmissionController',
   'GBXToken',
-  'GenesisBootstrap',
-  'GenesisClaims',
   'GumBallVault',
-  'LiquidityManager',
-  'ManagerRewards',
+  'LiquidityCustodian',
   'MiningClaims',
   'MiningPool',
-  'RevenueRouter',
+  'ProtocolTimelock',
   'StakedGBX',
+  'StrategyRewards',
 ];
 
 if (!skipBuild) {

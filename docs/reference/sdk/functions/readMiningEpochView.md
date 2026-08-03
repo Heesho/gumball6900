@@ -6,7 +6,7 @@
 
 # Function: readMiningEpochView()
 
-> **readMiningEpochView**(`client`, `contracts`, `epochId`, `beneficiary`, `options?`): `Promise`\<\{ `beneficiaryContribution`: `bigint`; `beneficiaryPreviewClaim`: `bigint`; `blockNumber`: `bigint`; `contributionsPaused`: `boolean`; `currentEpochId`: `bigint`; `epoch`: \{ `actualEmission`: `bigint`; `clearingPrice`: `bigint`; `endTime`: `bigint`; `extensionUsed`: `bigint`; `invalidated`: `boolean`; `minimumMiningPrice`: `bigint`; `scheduledEmission`: `bigint`; `settled`: `boolean`; `settledAt`: `bigint`; `startTime`: `bigint`; `totalContributed`: `bigint`; \}; `epochId`: `bigint`; `referenceMiningPriceWad`: `bigint`; `usdGDecimals`: `number`; \}\>
+> **readMiningEpochView**(`client`, `contracts`, `epochId`, `beneficiary`, `options?`): `Promise`\<\{ `beneficiaryContribution`: `bigint`; `beneficiaryHasClaimed`: `boolean`; `beneficiaryPreviewClaim`: `bigint`; `blockNumber`: `bigint`; `contributionsPaused`: `boolean`; `currentEpochId`: `bigint`; `emission`: `bigint`; `endTime`: `bigint`; `epochId`: `bigint`; `settled`: `boolean`; `settledAt`: `bigint`; `started`: `boolean`; `startTime`: `bigint`; `teamFee`: `bigint`; `totalContributed`: `bigint`; `vaultRevenue`: `bigint`; \}\>
 
 ## Parameters
 
@@ -20,4 +20,4 @@
 
 ## Returns
 
-`Promise`\<\{ `beneficiaryContribution`: `bigint`; `beneficiaryPreviewClaim`: `bigint`; `blockNumber`: `bigint`; `contributionsPaused`: `boolean`; `currentEpochId`: `bigint`; `epoch`: \{ `actualEmission`: `bigint`; `clearingPrice`: `bigint`; `endTime`: `bigint`; `extensionUsed`: `bigint`; `invalidated`: `boolean`; `minimumMiningPrice`: `bigint`; `scheduledEmission`: `bigint`; `settled`: `boolean`; `settledAt`: `bigint`; `startTime`: `bigint`; `totalContributed`: `bigint`; \}; `epochId`: `bigint`; `referenceMiningPriceWad`: `bigint`; `usdGDecimals`: `number`; \}\>
+`Promise`\<\{ `beneficiaryContribution`: `bigint`; `beneficiaryHasClaimed`: `boolean`; `beneficiaryPreviewClaim`: `bigint`; `blockNumber`: `bigint`; `contributionsPaused`: `boolean`; `currentEpochId`: `bigint`; `emission`: `bigint`; `endTime`: `bigint`; `epochId`: `bigint`; `settled`: `boolean`; `settledAt`: `bigint`; `started`: `boolean`; `startTime`: `bigint`; `teamFee`: `bigint`; `totalContributed`: `bigint`; `vaultRevenue`: `bigint`; \}\>

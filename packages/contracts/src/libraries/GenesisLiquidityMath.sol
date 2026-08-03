@@ -1,16 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.26;
 
-import { FixedPoint96 } from "@uniswap/v4-core/src/libraries/FixedPoint96.sol";
-import { FullMath } from "@uniswap/v4-core/src/libraries/FullMath.sol";
 import { SqrtPriceMath } from "@uniswap/v4-core/src/libraries/SqrtPriceMath.sol";
-import { LiquidityAmounts } from "@uniswap/v4-periphery/src/libraries/LiquidityAmounts.sol";
 
 /// @title GenesisLiquidityMath
 /// @notice Finds the greatest integer v4 liquidity that cannot spend more than a one-sided token cap.
-/// @dev The periphery amount0 helper deliberately truncates an intermediate product. That is a safe lower bound,
-///      but it need not be the maximal representable liquidity. A ceil-intermediate calculation supplies a proven
-///      upper bound, and a bounded binary search validates candidates with v4 core's canonical amount-delta math.
+/// @dev A full uint128 binary search avoids periphery helper casts that revert instead of saturating on narrow ranges.
+///      Every candidate is validated with v4 core's canonical rounded-up amount-delta math.
 library GenesisLiquidityMath {
     error GenesisLiquidityMath__InvalidRange(uint160 sqrtPriceAX96, uint160 sqrtPriceBX96);
     error GenesisLiquidityMath__InvariantViolation(uint256 amountCap, uint256 principal);
@@ -28,12 +24,8 @@ library GenesisLiquidityMath {
     {
         (uint160 sqrtLower, uint160 sqrtUpper) = _orderedRange(sqrtPriceAX96, sqrtPriceBX96);
 
-        uint128 lower = LiquidityAmounts.getLiquidityForAmount0(sqrtLower, sqrtUpper, amount0Cap);
-        uint256 intermediateUpper = FullMath.mulDivRoundingUp(sqrtLower, sqrtUpper, FixedPoint96.Q96);
-        uint256 upper256 = FullMath.mulDiv(amount0Cap, intermediateUpper, sqrtUpper - sqrtLower);
-        uint128 upper = upper256 > type(uint128).max ? type(uint128).max : uint128(upper256);
-        if (upper < lower) revert GenesisLiquidityMath__InvariantViolation(amount0Cap, upper);
-
+        uint128 lower;
+        uint128 upper = type(uint128).max;
         while (lower < upper) {
             uint128 middle = lower + uint128((uint256(upper) - lower + 1) / 2);
             if (SqrtPriceMath.getAmount0Delta(sqrtLower, sqrtUpper, middle, true) <= amount0Cap) {
@@ -60,7 +52,17 @@ library GenesisLiquidityMath {
         returns (uint128 liquidity, uint256 principal)
     {
         (uint160 sqrtLower, uint160 sqrtUpper) = _orderedRange(sqrtPriceAX96, sqrtPriceBX96);
-        liquidity = LiquidityAmounts.getLiquidityForAmount1(sqrtLower, sqrtUpper, amount1Cap);
+        uint128 lower;
+        uint128 upper = type(uint128).max;
+        while (lower < upper) {
+            uint128 middle = lower + uint128((uint256(upper) - lower + 1) / 2);
+            if (SqrtPriceMath.getAmount1Delta(sqrtLower, sqrtUpper, middle, true) <= amount1Cap) {
+                lower = middle;
+            } else {
+                upper = middle - 1;
+            }
+        }
+        liquidity = lower;
         principal = SqrtPriceMath.getAmount1Delta(sqrtLower, sqrtUpper, liquidity, true);
         if (principal > amount1Cap) revert GenesisLiquidityMath__InvariantViolation(amount1Cap, principal);
         if (
@@ -94,7 +96,7 @@ library GenesisLiquidityMath {
         pure
         returns (uint160 sqrtLower, uint160 sqrtUpper)
     {
-        if (sqrtPriceAX96 == sqrtPriceBX96) {
+        if (sqrtPriceAX96 == 0 || sqrtPriceBX96 == 0 || sqrtPriceAX96 == sqrtPriceBX96) {
             revert GenesisLiquidityMath__InvalidRange(sqrtPriceAX96, sqrtPriceBX96);
         }
         (sqrtLower, sqrtUpper) =

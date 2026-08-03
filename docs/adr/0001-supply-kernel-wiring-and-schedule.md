@@ -1,6 +1,6 @@
 # ADR 0001: Supply-kernel wiring and bounded schedule calculation
 
-- Status: Accepted
+- Status: Superseded by ADR-0012; archival baseline only.
 - Date: 2026-08-01
 - Scope: `GBXToken`, `EmissionController`, and daily emission math
 

@@ -8,12 +8,10 @@
 
 ## Properties
 
-| Property                                                                  | Type      |
-| ------------------------------------------------------------------------- | --------- |
-| <a id="property-actualemission"></a> `actualEmission`                     | `bigint`  |
-| <a id="property-affordableemission"></a> `affordableEmission`             | `bigint`  |
-| <a id="property-clearingprice"></a> `clearingPrice`                       | `bigint`  |
-| <a id="property-fullyfunded"></a> `fullyFunded`                           | `boolean` |
-| <a id="property-minimumminingprice"></a> `minimumMiningPrice`             | `bigint`  |
-| <a id="property-nextreferenceminingprice"></a> `nextReferenceMiningPrice` | `bigint`  |
-| <a id="property-scheduledemission"></a> `scheduledEmission`               | `bigint`  |
+| Property                                                    | Type      |
+| ----------------------------------------------------------- | --------- |
+| <a id="property-actualemission"></a> `actualEmission`       | `bigint`  |
+| <a id="property-availableemission"></a> `availableEmission` | `bigint`  |
+| <a id="property-forfeitedemission"></a> `forfeitedEmission` | `bigint`  |
+| <a id="property-nonempty"></a> `nonEmpty`                   | `boolean` |
+| <a id="property-scheduledemission"></a> `scheduledEmission` | `bigint`  |

@@ -6,52 +6,62 @@ export const acquisitionStrategyAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'targetToken_',
+        name: 'usdG',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'gumBallVault_',
+        name: 'targetToken',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'allocationVoter_',
+        name: 'gumBallVault',
+        type: 'address',
+        internalType: 'contract IGumBallVault',
+      },
+      {
+        name: 'assetRegistry',
+        type: 'address',
+        internalType: 'contract IAssetRegistry',
+      },
+      {
+        name: 'strategyRewards',
+        type: 'address',
+        internalType: 'contract IStrategyRewards',
+      },
+      {
+        name: 'emergencyGuardian',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'assetRegistry_',
+        name: 'protocolTimelock',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'protocolTimelock_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'emergencyGuardian_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'dependencyInitializer_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'minimumLotUSDG_',
+        name: 'usdGLot',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'maximumLotUSDG_',
+        name: 'initPrice_',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'initialReferenceRate_',
+        name: 'epochPeriod_',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'priceMultiplier_',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'minInitPrice_',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -60,13 +70,26 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'ALLOCATION_VOTER',
+    name: 'ABS_MAX_INIT_PRICE',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'address',
-        internalType: 'contract IAcquisitionAllocationVoter',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'ABS_MIN_INIT_PRICE',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
     stateMutability: 'view',
@@ -86,19 +109,6 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'AUCTION_DURATION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'BPS_DENOMINATOR',
     inputs: [],
     outputs: [
@@ -106,19 +116,6 @@ export const acquisitionStrategyAbi = [
         name: '',
         type: 'uint256',
         internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'DEPENDENCY_INITIALIZER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -138,19 +135,6 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'FLOOR_RATE_BPS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'GUM_BALL_VAULT',
     inputs: [],
     outputs: [
@@ -164,7 +148,7 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'MANAGER_REWARD_BPS',
+    name: 'MAX_EPOCH_PERIOD',
     inputs: [],
     outputs: [
       {
@@ -177,7 +161,7 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'MAXIMUM_LOT_USDG',
+    name: 'MAX_PRICE_MULTIPLIER',
     inputs: [],
     outputs: [
       {
@@ -190,7 +174,7 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'MAX_REFERENCE_RATE',
+    name: 'MIN_EPOCH_PERIOD',
     inputs: [],
     outputs: [
       {
@@ -203,7 +187,7 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'MAX_REFERENCE_RESET_BPS',
+    name: 'MIN_PRICE_MULTIPLIER',
     inputs: [],
     outputs: [
       {
@@ -216,20 +200,7 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'MINIMUM_LOT_USDG',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MIN_REFERENCE_RESET_BPS',
+    name: 'PRECISION',
     inputs: [],
     outputs: [
       {
@@ -255,7 +226,7 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'RATE_PRECISION',
+    name: 'REWARD_BPS',
     inputs: [],
     outputs: [
       {
@@ -268,26 +239,13 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'START_RATE_BPS',
+    name: 'STRATEGY_REWARDS',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'TARGET_DECIMALS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint8',
-        internalType: 'uint8',
+        type: 'address',
+        internalType: 'contract IStrategyRewards',
       },
     ],
     stateMutability: 'view',
@@ -300,6 +258,19 @@ export const acquisitionStrategyAbi = [
       {
         name: '',
         type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'USDG',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
         internalType: 'contract IERC20',
       },
     ],
@@ -307,20 +278,7 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'USDG_DECIMALS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'VAULT_BPS',
+    name: 'USDG_LOT',
     inputs: [],
     outputs: [
       {
@@ -333,37 +291,31 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'auctionId',
+    name: 'activateAuction',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'epochId',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'uint64',
-        internalType: 'uint64',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    name: 'auctionStartTime',
+    name: 'epochPeriod',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'currentRate',
-    inputs: [],
-    outputs: [
-      {
-        name: 'rate',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -375,12 +327,12 @@ export const acquisitionStrategyAbi = [
     name: 'fill',
     inputs: [
       {
-        name: 'expectedAuctionId',
-        type: 'uint64',
-        internalType: 'uint64',
+        name: 'expectedEpochId',
+        type: 'uint256',
+        internalType: 'uint256',
       },
       {
-        name: 'usdGAmount',
+        name: 'deadline',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -389,20 +341,15 @@ export const acquisitionStrategyAbi = [
         type: 'uint256',
         internalType: 'uint256',
       },
-      {
-        name: 'usdGReceiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
     ],
     outputs: [
       {
-        name: 'targetReceived',
+        name: 'paymentAmount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'observedPayment',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -424,7 +371,7 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'floorRate',
+    name: 'getPrice',
     inputs: [],
     outputs: [
       {
@@ -437,26 +384,26 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'initializeManagerRewards',
-    inputs: [
-      {
-        name: 'managerRewards_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'managerRewards',
+    name: 'initPrice',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'address',
-        internalType: 'contract IManagerRewards',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'minInitPrice',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
     stateMutability: 'view',
@@ -470,7 +417,7 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'referenceRate',
+    name: 'priceMultiplier',
     inputs: [],
     outputs: [
       {
@@ -483,32 +430,14 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'resetReferenceRate',
-    inputs: [
-      {
-        name: 'expectedReferenceRate',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'newReferenceRate',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'restartExpiredAuction',
+    name: 'resumeFills',
     inputs: [],
     outputs: [],
     stateMutability: 'nonpayable',
   },
   {
     type: 'function',
-    name: 'startRate',
+    name: 'startTime',
     inputs: [],
     outputs: [
       {
@@ -518,94 +447,31 @@ export const acquisitionStrategyAbi = [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'unpauseFills',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'event',
-    name: 'AcquisitionStrategy__AuctionStarted',
-    inputs: [
-      {
-        name: 'auctionId',
-        type: 'uint64',
-        indexed: true,
-        internalType: 'uint64',
-      },
-      {
-        name: 'referenceRate',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'startRate',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'floorRate',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'startTime',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'AcquisitionStrategy__FillPauseSet',
-    inputs: [
-      {
-        name: 'paused',
-        type: 'bool',
-        indexed: false,
-        internalType: 'bool',
-      },
-    ],
-    anonymous: false,
   },
   {
     type: 'event',
     name: 'AcquisitionStrategy__Filled',
     inputs: [
       {
-        name: 'auctionId',
-        type: 'uint64',
+        name: 'epochId',
+        type: 'uint256',
         indexed: true,
-        internalType: 'uint64',
+        internalType: 'uint256',
       },
       {
-        name: 'taker',
+        name: 'filler',
         type: 'address',
         indexed: true,
         internalType: 'address',
       },
       {
-        name: 'usdGReceiver',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'usdGAmount',
+        name: 'quotedPayment',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
       },
       {
-        name: 'targetReceived',
+        name: 'observedPayment',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -617,13 +483,13 @@ export const acquisitionStrategyAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'managerAmount',
+        name: 'rewardAmount',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
       },
       {
-        name: 'clearingRate',
+        name: 'usdGLot',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -633,105 +499,16 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'event',
-    name: 'AcquisitionStrategy__ManagerRewardsConfigured',
+    name: 'AcquisitionStrategy__FillsPauseSet',
     inputs: [
       {
-        name: 'managerRewards',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
+        name: 'paused',
+        type: 'bool',
+        indexed: false,
+        internalType: 'bool',
       },
     ],
     anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'AcquisitionStrategy__ReferenceRateReset',
-    inputs: [
-      {
-        name: 'previousRate',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'newRate',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'auctionId',
-        type: 'uint64',
-        indexed: true,
-        internalType: 'uint64',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__AlreadyConfigured',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__AuctionExpired',
-    inputs: [
-      {
-        name: 'auctionId',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__AuctionNotExpired',
-    inputs: [
-      {
-        name: 'auctionId',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__DeadlineExpired',
-    inputs: [
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__DecimalsChanged',
-    inputs: [
-      {
-        name: 'expectedUSDG',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'actualUSDG',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'expectedTarget',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'actualTarget',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
   },
   {
     type: 'error',
@@ -740,89 +517,25 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'error',
-    name: 'AcquisitionStrategy__InactiveStrategy',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__InsufficientBudget',
+    name: 'AcquisitionStrategy__InexactTransfer',
     inputs: [
       {
-        name: 'requested',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'available',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__InvalidLotBounds',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__InvalidRate',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__ManagerRewardsNotConfigured',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__MaxTargetExceeded',
-    inputs: [
-      {
-        name: 'required',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'maximum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__NotEmergencyGuardian',
-    inputs: [
-      {
-        name: 'caller',
+        name: 'token',
         type: 'address',
         internalType: 'address',
       },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__NotProtocolTimelock',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__ObservedDebitMismatch',
-    inputs: [
       {
         name: 'expected',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'observed',
+        name: 'debit',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'receipt',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -830,107 +543,22 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'error',
-    name: 'AcquisitionStrategy__ObservedSplitMismatch',
-    inputs: [
-      {
-        name: 'expectedVault',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observedVault',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'expectedManagers',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observedManagers',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    name: 'AcquisitionStrategy__InvalidConfiguration',
+    inputs: [],
   },
   {
     type: 'error',
-    name: 'AcquisitionStrategy__ReferenceResetOutOfBounds',
-    inputs: [
-      {
-        name: 'proposed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'minimum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'maximum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    name: 'AcquisitionStrategy__StrategyNotLive',
+    inputs: [],
   },
   {
     type: 'error',
-    name: 'AcquisitionStrategy__StaleAuctionId',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'actual',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__UnauthorizedInitializer',
+    name: 'AcquisitionStrategy__Unauthorized',
     inputs: [
       {
         name: 'caller',
         type: 'address',
         internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__UnderpaidTarget',
-    inputs: [
-      {
-        name: 'required',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'received',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AcquisitionStrategy__UnsupportedDecimals',
-    inputs: [
-      {
-        name: 'usdGDecimals',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'targetDecimals',
-        type: 'uint8',
-        internalType: 'uint8',
       },
     ],
   },
@@ -941,45 +569,58 @@ export const acquisitionStrategyAbi = [
   },
   {
     type: 'error',
-    name: 'AcquisitionStrategy__ZeroReceiver',
+    name: 'AcquisitionStrategy__ZeroAmount',
     inputs: [],
   },
   {
     type: 'error',
-    name: 'RateMath__UnsupportedDecimals',
-    inputs: [
-      {
-        name: 'decimals',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
+    name: 'AuctionEngine__AlreadyActivated',
+    inputs: [],
   },
   {
     type: 'error',
-    name: 'RateMath__ZeroAmount',
+    name: 'AuctionEngine__DeadlinePassed',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AuctionEngine__EpochIdMismatch',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AuctionEngine__EpochPeriodOutOfRange',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AuctionEngine__InitPriceOutOfRange',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AuctionEngine__MaxPaymentAmountExceeded',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AuctionEngine__MinInitPriceOutOfRange',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AuctionEngine__NotActivated',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AuctionEngine__PriceMultiplierOutOfRange',
     inputs: [],
   },
   {
     type: 'error',
     name: 'ReentrancyGuardReentrantCall',
     inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'SafeCastOverflowedUintDowncast',
-    inputs: [
-      {
-        name: 'bits',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'value',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
   },
   {
     type: 'error',
@@ -993,363 +634,32 @@ export const acquisitionStrategyAbi = [
     ],
   },
 ] as const;
-export const adapterVerificationEscrowContractAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'poolManager_',
-        type: 'address',
-        internalType: 'contract IPoolManager',
-      },
-      {
-        name: 'permissionsAdapter_',
-        type: 'address',
-        internalType: 'contract IUniswapPermissionsAdapter',
-      },
-      {
-        name: 'permissionsAdapterFactory_',
-        type: 'address',
-        internalType: 'contract IUniswapPermissionsAdapterFactory',
-      },
-      {
-        name: 'positionManager_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'permissionedHook_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'dependencyInitializer_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'DEPENDENCY_INITIALIZER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'LIQUIDITY_MANAGER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'PERMISSIONED_HOOK',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'PERMISSIONS_ADAPTER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IUniswapPermissionsAdapter',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'PERMISSIONS_ADAPTER_FACTORY',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IUniswapPermissionsAdapterFactory',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'POOL_MANAGER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IPoolManager',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'POSITION_MANAGER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'VERIFICATION_DEPOSIT',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'initializeLiquidityManager',
-    inputs: [
-      {
-        name: 'liquidityManager_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'recoverVerificationDeposit',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'unlockCallback',
-    inputs: [
-      {
-        name: '',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'event',
-    name: 'AdapterVerificationEscrow__LiquidityManagerInitialized',
-    inputs: [
-      {
-        name: 'liquidityManager',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'AdapterVerificationEscrow__VerificationDepositRecovered',
-    inputs: [
-      {
-        name: 'liquidityManager',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__AlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__BalanceMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__LiquidityManagerMustBeContract',
-    inputs: [
-      {
-        name: 'manager',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__LiquidityPermissionMissing',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__NotLiquidityManager',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__NotPoolManager',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__PositionManagerHookNotAllowed',
-    inputs: [
-      {
-        name: 'hook',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__SettlementMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__UnauthorizedDependencyInitializer',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__VerificationStateMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'actual',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AdapterVerificationEscrow__ZeroAddress',
-    inputs: [],
-  },
-] as const;
 export const allocationVoterAbi = [
   {
     type: 'constructor',
     inputs: [
       {
-        name: 'usdG_',
+        name: 'usdG',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'assetRegistry_',
+        name: 'assetRegistry',
+        type: 'address',
+        internalType: 'contract IAssetRegistry',
+      },
+      {
+        name: 'protocolTimelock',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'protocolTimelock_',
+        name: 'emergencyGuardian',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'emergencyGuardian_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'dependencyInitializer_',
+        name: 'dependencyInitializer',
         type: 'address',
         internalType: 'address',
       },
@@ -1436,19 +746,6 @@ export const allocationVoterAbi = [
   },
   {
     type: 'function',
-    name: 'SIGNAL_ACTIVATION_DELAY',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'USDG',
     inputs: [],
     outputs: [
@@ -1485,75 +782,12 @@ export const allocationVoterAbi = [
     ],
     outputs: [
       {
-        name: 'strategies',
+        name: '',
         type: 'address[]',
         internalType: 'address[]',
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'activeWeight',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'weight',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'activeWeightTotal',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'total',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'allocationRemainder',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'cancelPendingSignals',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -1576,19 +810,6 @@ export const allocationVoterAbi = [
   },
   {
     type: 'function',
-    name: 'checkpointUser',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     name: 'consumeStrategyBudget',
     inputs: [
       {
@@ -1607,7 +828,7 @@ export const allocationVoterAbi = [
   },
   {
     type: 'function',
-    name: 'dependenciesConfigured',
+    name: 'dependenciesInitialized',
     inputs: [],
     outputs: [
       {
@@ -1633,20 +854,7 @@ export const allocationVoterAbi = [
   },
   {
     type: 'function',
-    name: 'globalAllocationIndex',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'idleScaledRemainder',
+    name: 'globalRevenueIndex',
     inputs: [],
     outputs: [
       {
@@ -1685,13 +893,44 @@ export const allocationVoterAbi = [
         internalType: 'address',
       },
       {
-        name: 'revenueSources',
-        type: 'address[4]',
-        internalType: 'address[4]',
+        name: 'miningPool_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'liquidityCustodian_',
+        type: 'address',
+        internalType: 'address',
       },
     ],
     outputs: [],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'liquidityCustodian',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'miningPool',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -1702,133 +941,16 @@ export const allocationVoterAbi = [
         type: 'uint256',
         internalType: 'uint256',
       },
-      {
-        name: 'source',
-        type: 'uint8',
-        internalType: 'enum AllocationVoter.RevenueSource',
-      },
     ],
     outputs: [],
     stateMutability: 'nonpayable',
   },
   {
     type: 'function',
-    name: 'onStake',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'onUnstake',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'pauseSignalActivations',
+    name: 'pauseSignalIncreases',
     inputs: [],
     outputs: [],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'pendingActivationTime',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'activationTime',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'pendingStrategies',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'strategies',
-        type: 'address[]',
-        internalType: 'address[]',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'pendingWeight',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'weight',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'pendingWeightTotal',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'total',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -1851,19 +973,6 @@ export const allocationVoterAbi = [
   },
   {
     type: 'function',
-    name: 'reactivateStrategy',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     name: 'resetSignals',
     inputs: [],
     outputs: [],
@@ -1871,51 +980,10 @@ export const allocationVoterAbi = [
   },
   {
     type: 'function',
-    name: 'revenueSourceAddress',
-    inputs: [
-      {
-        name: 'sourceType',
-        type: 'uint8',
-        internalType: 'enum AllocationVoter.RevenueSource',
-      },
-    ],
-    outputs: [
-      {
-        name: 'source',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'rewardWeight',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'weight',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
+    name: 'resumeSignalIncreases',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -1945,7 +1013,7 @@ export const allocationVoterAbi = [
         internalType: 'address[]',
       },
       {
-        name: 'relativeWeights',
+        name: 'weights',
         type: 'uint256[]',
         internalType: 'uint256[]',
       },
@@ -1955,7 +1023,7 @@ export const allocationVoterAbi = [
   },
   {
     type: 'function',
-    name: 'signalActivationsPaused',
+    name: 'signalIncreasesPaused',
     inputs: [],
     outputs: [
       {
@@ -2019,25 +1087,6 @@ export const allocationVoterAbi = [
   },
   {
     type: 'function',
-    name: 'strategyGeneration',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'strategyIndex',
     inputs: [
       {
@@ -2049,25 +1098,6 @@ export const allocationVoterAbi = [
     outputs: [
       {
         name: 'index',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'strategyScaledRemainder',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'scaledRemainder',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -2095,7 +1125,7 @@ export const allocationVoterAbi = [
   },
   {
     type: 'function',
-    name: 'totalLiveWeight',
+    name: 'totalActiveWeight',
     inputs: [],
     outputs: [
       {
@@ -2108,10 +1138,46 @@ export const allocationVoterAbi = [
   },
   {
     type: 'function',
-    name: 'unpauseSignalActivations',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
+    name: 'usedWeight',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'weight',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'userWeight',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'weight',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -2128,7 +1194,7 @@ export const allocationVoterAbi = [
   },
   {
     type: 'event',
-    name: 'AllocationVoter__DependenciesConfigured',
+    name: 'AllocationVoter__DependenciesInitialized',
     inputs: [
       {
         name: 'vault',
@@ -2142,17 +1208,16 @@ export const allocationVoterAbi = [
         indexed: true,
         internalType: 'address',
       },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'AllocationVoter__PendingSignalsCancelled',
-    inputs: [
       {
-        name: 'user',
+        name: 'miningPool',
         type: 'address',
         indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'liquidityCustodian',
+        type: 'address',
+        indexed: false,
         internalType: 'address',
       },
     ],
@@ -2169,12 +1234,6 @@ export const allocationVoterAbi = [
         internalType: 'address',
       },
       {
-        name: 'sourceType',
-        type: 'uint8',
-        indexed: true,
-        internalType: 'enum AllocationVoter.RevenueSource',
-      },
-      {
         name: 'amount',
         type: 'uint256',
         indexed: false,
@@ -2186,62 +1245,18 @@ export const allocationVoterAbi = [
         indexed: false,
         internalType: 'uint256',
       },
-      {
-        name: 'remainder',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
     ],
     anonymous: false,
   },
   {
     type: 'event',
-    name: 'AllocationVoter__SignalActivationPauseSet',
+    name: 'AllocationVoter__SignalIncreasesPauseSet',
     inputs: [
       {
         name: 'paused',
         type: 'bool',
         indexed: false,
         internalType: 'bool',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'AllocationVoter__SignalsActivated',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'activatedAt',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'AllocationVoter__SignalsPending',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'activationTime',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
       },
     ],
     anonymous: false,
@@ -2261,22 +1276,16 @@ export const allocationVoterAbi = [
   },
   {
     type: 'event',
-    name: 'AllocationVoter__StrategyBudgetCheckpointed',
+    name: 'AllocationVoter__SignalsSet',
     inputs: [
       {
-        name: 'strategy',
+        name: 'user',
         type: 'address',
         indexed: true,
         internalType: 'address',
       },
       {
-        name: 'budget',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'globalIndex',
+        name: 'totalWeight',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -2301,7 +1310,7 @@ export const allocationVoterAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'budgetRemaining',
+        name: 'remaining',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -2325,12 +1334,6 @@ export const allocationVoterAbi = [
         indexed: false,
         internalType: 'uint256',
       },
-      {
-        name: 'scaledRemainderAfter',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
     ],
     anonymous: false,
   },
@@ -2345,13 +1348,7 @@ export const allocationVoterAbi = [
         internalType: 'address',
       },
       {
-        name: 'newGeneration',
-        type: 'uint64',
-        indexed: false,
-        internalType: 'uint64',
-      },
-      {
-        name: 'budgetReturnedToIdle',
+        name: 'strandedBudget',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -2361,26 +1358,7 @@ export const allocationVoterAbi = [
   },
   {
     type: 'event',
-    name: 'AllocationVoter__StrategyReactivated',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'generation',
-        type: 'uint64',
-        indexed: false,
-        internalType: 'uint64',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'AllocationVoter__StrategyWeightUpdated',
+    name: 'AllocationVoter__StrategyWeightSet',
     inputs: [
       {
         name: 'strategy',
@@ -2404,81 +1382,9 @@ export const allocationVoterAbi = [
     anonymous: false,
   },
   {
-    type: 'event',
-    name: 'AllocationVoter__UserWeightUpdated',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'strategy',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'previousWeight',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'newWeight',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'AllocationVoter__VaultAccountingScaled',
-    inputs: [
-      {
-        name: 'shares',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'supplyBefore',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'accountedVaultUSDGAfter',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
     type: 'error',
-    name: 'AllocationVoter__AlreadyConfigured',
+    name: 'AllocationVoter__AlreadyInitialized',
     inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AllocationVoter__DependenciesNotConfigured',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AllocationVoter__DuplicateRevenueSource',
-    inputs: [
-      {
-        name: 'source',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
   },
   {
     type: 'error',
@@ -2493,10 +1399,10 @@ export const allocationVoterAbi = [
   },
   {
     type: 'error',
-    name: 'AllocationVoter__InsolventRevenueNotification',
+    name: 'AllocationVoter__InsolventNotification',
     inputs: [
       {
-        name: 'notifiedAfter',
+        name: 'accountedAfter',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -2514,84 +1420,12 @@ export const allocationVoterAbi = [
   },
   {
     type: 'error',
-    name: 'AllocationVoter__NoPendingSignals',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    name: 'AllocationVoter__NotInitialized',
+    inputs: [],
   },
   {
     type: 'error',
-    name: 'AllocationVoter__NotEmergencyGuardian',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AllocationVoter__NotGuardianOrTimelock',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AllocationVoter__NotProtocolTimelock',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AllocationVoter__NotStakedGBX',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AllocationVoter__NotVault',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AllocationVoter__PendingSignalRoundsToZero',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AllocationVoter__StrategyAlreadyDisabled',
+    name: 'AllocationVoter__SignalIncreasePaused',
     inputs: [
       {
         name: 'strategy',
@@ -2634,7 +1468,7 @@ export const allocationVoterAbi = [
   },
   {
     type: 'error',
-    name: 'AllocationVoter__UnauthorizedInitializer',
+    name: 'AllocationVoter__Unauthorized',
     inputs: [
       {
         name: 'caller',
@@ -2645,23 +1479,7 @@ export const allocationVoterAbi = [
   },
   {
     type: 'error',
-    name: 'AllocationVoter__UnauthorizedRevenueSource',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'source',
-        type: 'uint8',
-        internalType: 'enum AllocationVoter.RevenueSource',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AllocationVoter__UnregisteredOrInactiveStrategy',
+    name: 'AllocationVoter__UnregisteredStrategy',
     inputs: [
       {
         name: 'strategy',
@@ -2672,10 +1490,10 @@ export const allocationVoterAbi = [
   },
   {
     type: 'error',
-    name: 'AllocationVoter__UnstakeExceedsBalance',
+    name: 'AllocationVoter__WeightExceedsStake',
     inputs: [
       {
-        name: 'amount',
+        name: 'requested',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -2698,34 +1516,8 @@ export const allocationVoterAbi = [
   },
   {
     type: 'error',
-    name: 'AllocationVoter__ZeroSignalWeight',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AllocationVoter__ZeroStakedBalance',
-    inputs: [],
-  },
-  {
-    type: 'error',
     name: 'ReentrancyGuardReentrantCall',
     inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'SafeCastOverflowedUintDowncast',
-    inputs: [
-      {
-        name: 'bits',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'value',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
   },
 ] as const;
 export const assetRegistryAbi = [
@@ -2733,22 +1525,17 @@ export const assetRegistryAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'usdG_',
+        name: 'usdG',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'protocolTimelock_',
+        name: 'protocolTimelock',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'emergencyGuardian_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'strategyDeployer_',
+        name: 'emergencyGuardian',
         type: 'address',
         internalType: 'address',
       },
@@ -2803,19 +1590,6 @@ export const assetRegistryAbi = [
         name: '',
         type: 'address',
         internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'STRATEGY_DEPLOYER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IStrategyDeployer',
       },
     ],
     stateMutability: 'view',
@@ -2887,21 +1661,6 @@ export const assetRegistryAbi = [
             internalType: 'address',
           },
           {
-            name: 'assetId',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'symbolHash',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'decimals',
-            type: 'uint8',
-            internalType: 'uint8',
-          },
-          {
             name: 'strategy',
             type: 'address',
             internalType: 'address',
@@ -2912,17 +1671,7 @@ export const assetRegistryAbi = [
             internalType: 'address',
           },
           {
-            name: 'isStockToken',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'acquisitionEnabled',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'redemptionEnabled',
+            name: 'live',
             type: 'bool',
             internalType: 'bool',
           },
@@ -2933,59 +1682,7 @@ export const assetRegistryAbi = [
   },
   {
     type: 'function',
-    name: 'configureVault',
-    inputs: [
-      {
-        name: 'vault_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'disableAcquisition',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'disableStandaloneStrategy',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'enableAcquisition',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'enableStandaloneStrategy',
+    name: 'disableStrategy',
     inputs: [
       {
         name: 'strategy',
@@ -3039,56 +1736,19 @@ export const assetRegistryAbi = [
     name: 'registerAsset',
     inputs: [
       {
-        name: 'config',
-        type: 'tuple',
-        internalType: 'struct IAssetRegistry.AssetConfig',
-        components: [
-          {
-            name: 'token',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'assetId',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'symbolHash',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'decimals',
-            type: 'uint8',
-            internalType: 'uint8',
-          },
-          {
-            name: 'strategy',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'rewards',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'isStockToken',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'acquisitionEnabled',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'redemptionEnabled',
-            type: 'bool',
-            internalType: 'bool',
-          },
-        ],
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'rewards',
+        type: 'address',
+        internalType: 'address',
       },
     ],
     outputs: [],
@@ -3109,166 +1769,19 @@ export const assetRegistryAbi = [
   },
   {
     type: 'function',
-    name: 'registerStockAsset',
+    name: 'rewardsForStrategy',
     inputs: [
       {
-        name: 'config',
-        type: 'tuple',
-        internalType: 'struct IAssetRegistry.AssetConfig',
-        components: [
-          {
-            name: 'token',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'assetId',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'symbolHash',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'decimals',
-            type: 'uint8',
-            internalType: 'uint8',
-          },
-          {
-            name: 'strategy',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'rewards',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'isStockToken',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'acquisitionEnabled',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'redemptionEnabled',
-            type: 'bool',
-            internalType: 'bool',
-          },
-        ],
-      },
-      {
-        name: 'dependency',
-        type: 'tuple',
-        internalType: 'struct IAssetRegistry.StockTokenDependency',
-        components: [
-          {
-            name: 'tokenRuntimeCodeHash',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'beacon',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'beaconRuntimeCodeHash',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'implementation',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'implementationRuntimeCodeHash',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'uiMultiplier',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-        ],
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'setRedemptionEnabled',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'enabled',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'stockTokenDependencyFor',
-    inputs: [
-      {
-        name: 'token',
+        name: 'strategy',
         type: 'address',
         internalType: 'address',
       },
     ],
     outputs: [
       {
-        name: '',
-        type: 'tuple',
-        internalType: 'struct IAssetRegistry.StockTokenDependency',
-        components: [
-          {
-            name: 'tokenRuntimeCodeHash',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'beacon',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'beaconRuntimeCodeHash',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'implementation',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'implementationRuntimeCodeHash',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'uiMultiplier',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-        ],
+        name: 'rewards',
+        type: 'address',
+        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -3325,44 +1838,6 @@ export const assetRegistryAbi = [
     stateMutability: 'view',
   },
   {
-    type: 'function',
-    name: 'vault',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    name: 'AssetRegistry__AcquisitionStatusSet',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'strategy',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'enabled',
-        type: 'bool',
-        indexed: false,
-        internalType: 'bool',
-      },
-    ],
-    anonymous: false,
-  },
-  {
     type: 'event',
     name: 'AssetRegistry__AssetRegistered',
     inputs: [
@@ -3385,59 +1860,10 @@ export const assetRegistryAbi = [
         internalType: 'address',
       },
       {
-        name: 'assetId',
-        type: 'bytes32',
+        name: 'assetIndex',
+        type: 'uint256',
         indexed: false,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'symbolHash',
-        type: 'bytes32',
-        indexed: false,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'decimals',
-        type: 'uint8',
-        indexed: false,
-        internalType: 'uint8',
-      },
-      {
-        name: 'isStockToken',
-        type: 'bool',
-        indexed: false,
-        internalType: 'bool',
-      },
-      {
-        name: 'acquisitionEnabled',
-        type: 'bool',
-        indexed: false,
-        internalType: 'bool',
-      },
-      {
-        name: 'redemptionEnabled',
-        type: 'bool',
-        indexed: false,
-        internalType: 'bool',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'AssetRegistry__RedemptionStatusSet',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'enabled',
-        type: 'bool',
-        indexed: false,
-        internalType: 'bool',
+        internalType: 'uint256',
       },
     ],
     anonymous: false,
@@ -3452,33 +1878,8 @@ export const assetRegistryAbi = [
         indexed: true,
         internalType: 'address',
       },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'AssetRegistry__StockTokenDependencyValidated',
-    inputs: [
       {
-        name: 'token',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'beacon',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'implementation',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'uiMultiplier',
+        name: 'strategyIndex',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -3488,10 +1889,10 @@ export const assetRegistryAbi = [
   },
   {
     type: 'event',
-    name: 'AssetRegistry__VaultConfigured',
+    name: 'AssetRegistry__StrategyDisabled',
     inputs: [
       {
-        name: 'vault',
+        name: 'strategy',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -3504,85 +1905,16 @@ export const assetRegistryAbi = [
     name: 'AssetRegistry__AlreadyRegistered',
     inputs: [
       {
-        name: 'token',
+        name: 'account',
         type: 'address',
         internalType: 'address',
       },
     ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__AssetIdRequired',
-    inputs: [],
   },
   {
     type: 'error',
     name: 'AssetRegistry__AssetLimitReached',
     inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__BeaconIdentityMismatch',
-    inputs: [
-      {
-        name: 'beacon',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__DecimalsMismatch',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'actual',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__DependencyCodeHashMismatch',
-    inputs: [
-      {
-        name: 'dependency',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 'actual',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__FirstAssetMustBeUSDG',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
   },
   {
     type: 'error',
@@ -3597,262 +1929,15 @@ export const assetRegistryAbi = [
   },
   {
     type: 'error',
-    name: 'AssetRegistry__InvalidStrategyProvenance',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    name: 'AssetRegistry__StrategyLimitReached',
+    inputs: [],
   },
   {
     type: 'error',
-    name: 'AssetRegistry__NotGuardianOrTimelock',
+    name: 'AssetRegistry__Unauthorized',
     inputs: [
       {
         name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__NotProtocolTimelock',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__RewardsNotAllowed',
-    inputs: [
-      {
-        name: 'rewards',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__RewardsRequired',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__StandaloneStrategyNotCanonical',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__StockIdentityMismatch',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__StockIdentityRequired',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__StockTokenPaused',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__StockTransferAccountBlocked',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__StrategyAlreadyRegistered',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__StrategyDecimalsMismatch',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expectedUSDG',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'actualUSDG',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'expectedSubject',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'actualSubject',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__StrategyHasNoCode',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__StrategyRequired',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__SymbolCallFailed',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__SymbolCharacterInvalid',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'index',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'character',
-        type: 'bytes1',
-        internalType: 'bytes1',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__SymbolEncodingInvalid',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__SymbolHashMismatch',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 'actual',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__SymbolHashRequired',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__SymbolLengthInvalid',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'length',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__TokenHasNoCode',
-    inputs: [
-      {
-        name: 'token',
         type: 'address',
         internalType: 'address',
       },
@@ -3871,46 +1956,14 @@ export const assetRegistryAbi = [
   },
   {
     type: 'error',
-    name: 'AssetRegistry__VaultAlreadyConfigured',
+    name: 'AssetRegistry__UnknownStrategy',
     inputs: [
       {
-        name: 'vault',
+        name: 'strategy',
         type: 'address',
         internalType: 'address',
       },
     ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__VaultHasNoCode',
-    inputs: [
-      {
-        name: 'vault',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__VaultHasTokenBalance',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'balance',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'AssetRegistry__VaultNotConfigured',
-    inputs: [],
   },
   {
     type: 'error',
@@ -3923,47 +1976,57 @@ export const buybackStrategyAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'gbx_',
+        name: 'gbx',
+        type: 'address',
+        internalType: 'contract IGBXToken',
+      },
+      {
+        name: 'usdG',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'gumBallVault_',
+        name: 'gumBallVault',
+        type: 'address',
+        internalType: 'contract IGumBallVault',
+      },
+      {
+        name: 'assetRegistry',
+        type: 'address',
+        internalType: 'contract IAssetRegistry',
+      },
+      {
+        name: 'emergencyGuardian',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'allocationVoter_',
+        name: 'protocolTimelock',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'assetRegistry_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'protocolTimelock_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'emergencyGuardian_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'minimumLotUSDG_',
+        name: 'usdGLot',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'maximumLotUSDG_',
+        name: 'initPrice_',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'initialReferenceRate_',
+        name: 'epochPeriod_',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'priceMultiplier_',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'minInitPrice_',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -3972,13 +2035,26 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'ALLOCATION_VOTER',
+    name: 'ABS_MAX_INIT_PRICE',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'address',
-        internalType: 'contract IBuybackAllocationVoter',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'ABS_MIN_INIT_PRICE',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
     stateMutability: 'view',
@@ -3998,32 +2074,6 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'AUCTION_DURATION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'BPS_DENOMINATOR',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'EMERGENCY_GUARDIAN',
     inputs: [],
     outputs: [
@@ -4031,19 +2081,6 @@ export const buybackStrategyAbi = [
         name: '',
         type: 'address',
         internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'FLOOR_RATE_BPS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
       },
     ],
     stateMutability: 'view',
@@ -4063,19 +2100,6 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'GBX_DECIMALS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'GUM_BALL_VAULT',
     inputs: [],
     outputs: [
@@ -4089,7 +2113,7 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'MAXIMUM_LOT_USDG',
+    name: 'MAX_EPOCH_PERIOD',
     inputs: [],
     outputs: [
       {
@@ -4102,7 +2126,7 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'MAX_REFERENCE_RATE',
+    name: 'MAX_PRICE_MULTIPLIER',
     inputs: [],
     outputs: [
       {
@@ -4115,7 +2139,7 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'MAX_REFERENCE_RESET_BPS',
+    name: 'MIN_EPOCH_PERIOD',
     inputs: [],
     outputs: [
       {
@@ -4128,7 +2152,7 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'MINIMUM_LOT_USDG',
+    name: 'MIN_PRICE_MULTIPLIER',
     inputs: [],
     outputs: [
       {
@@ -4141,7 +2165,7 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'MIN_REFERENCE_RESET_BPS',
+    name: 'PRECISION',
     inputs: [],
     outputs: [
       {
@@ -4167,7 +2191,20 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'RATE_PRECISION',
+    name: 'USDG',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'contract IERC20',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'USDG_LOT',
     inputs: [],
     outputs: [
       {
@@ -4180,7 +2217,14 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'START_RATE_BPS',
+    name: 'activateAuction',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'epochId',
     inputs: [],
     outputs: [
       {
@@ -4193,50 +2237,11 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'USDG_DECIMALS',
+    name: 'epochPeriod',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'auctionId',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'auctionStartTime',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'currentRate',
-    inputs: [],
-    outputs: [
-      {
-        name: 'rate',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -4248,12 +2253,12 @@ export const buybackStrategyAbi = [
     name: 'fill',
     inputs: [
       {
-        name: 'expectedAuctionId',
-        type: 'uint64',
-        internalType: 'uint64',
+        name: 'expectedEpochId',
+        type: 'uint256',
+        internalType: 'uint256',
       },
       {
-        name: 'usdGAmount',
+        name: 'deadline',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -4262,18 +2267,13 @@ export const buybackStrategyAbi = [
         type: 'uint256',
         internalType: 'uint256',
       },
+    ],
+    outputs: [
       {
-        name: 'usdGReceiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'deadline',
+        name: 'paymentAmount',
         type: 'uint256',
         internalType: 'uint256',
       },
-    ],
-    outputs: [
       {
         name: 'gbxBurned',
         type: 'uint256',
@@ -4297,7 +2297,33 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'floorRate',
+    name: 'getPrice',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'initPrice',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'minInitPrice',
     inputs: [],
     outputs: [
       {
@@ -4317,7 +2343,7 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'referenceRate',
+    name: 'priceMultiplier',
     inputs: [],
     outputs: [
       {
@@ -4330,32 +2356,14 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'function',
-    name: 'resetReferenceRate',
-    inputs: [
-      {
-        name: 'expectedReferenceRate',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'newReferenceRate',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'restartExpiredAuction',
+    name: 'resumeFills',
     inputs: [],
     outputs: [],
     stateMutability: 'nonpayable',
   },
   {
     type: 'function',
-    name: 'startRate',
+    name: 'startTime',
     inputs: [],
     outputs: [
       {
@@ -4367,86 +2375,23 @@ export const buybackStrategyAbi = [
     stateMutability: 'view',
   },
   {
-    type: 'function',
-    name: 'unpauseFills',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
     type: 'event',
-    name: 'BuybackBurnStrategy__AuctionStarted',
+    name: 'BuybackStrategy__Filled',
     inputs: [
       {
-        name: 'auctionId',
-        type: 'uint64',
+        name: 'epochId',
+        type: 'uint256',
         indexed: true,
-        internalType: 'uint64',
-      },
-      {
-        name: 'referenceRate',
-        type: 'uint256',
-        indexed: false,
         internalType: 'uint256',
       },
       {
-        name: 'startRate',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'floorRate',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'startTime',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'BuybackBurnStrategy__FillPauseSet',
-    inputs: [
-      {
-        name: 'paused',
-        type: 'bool',
-        indexed: false,
-        internalType: 'bool',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'BuybackBurnStrategy__GBXBoughtAndBurned',
-    inputs: [
-      {
-        name: 'auctionId',
-        type: 'uint64',
-        indexed: true,
-        internalType: 'uint64',
-      },
-      {
-        name: 'taker',
+        name: 'filler',
         type: 'address',
         indexed: true,
         internalType: 'address',
       },
       {
-        name: 'usdGReceiver',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'usdGSpent',
+        name: 'quotedPayment',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -4458,13 +2403,7 @@ export const buybackStrategyAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'clearingRate',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'totalSupplyAfter',
+        name: 'usdGLot',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -4474,210 +2413,88 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'event',
-    name: 'BuybackBurnStrategy__ReferenceRateReset',
+    name: 'BuybackStrategy__FillsPauseSet',
     inputs: [
       {
-        name: 'previousRate',
-        type: 'uint256',
+        name: 'paused',
+        type: 'bool',
         indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'newRate',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'auctionId',
-        type: 'uint64',
-        indexed: true,
-        internalType: 'uint64',
+        internalType: 'bool',
       },
     ],
     anonymous: false,
   },
   {
     type: 'error',
-    name: 'BuybackBurnStrategy__AuctionExpired',
-    inputs: [
-      {
-        name: 'auctionId',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'BuybackBurnStrategy__AuctionNotExpired',
-    inputs: [
-      {
-        name: 'auctionId',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'BuybackBurnStrategy__DeadlineExpired',
-    inputs: [
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'BuybackBurnStrategy__DecimalsChanged',
-    inputs: [
-      {
-        name: 'expectedUSDG',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'actualUSDG',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'expectedGBX',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'actualGBX',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'BuybackBurnStrategy__FillsPaused',
+    name: 'AuctionEngine__AlreadyActivated',
     inputs: [],
   },
   {
     type: 'error',
-    name: 'BuybackBurnStrategy__InactiveStrategy',
+    name: 'AuctionEngine__DeadlinePassed',
     inputs: [],
   },
   {
     type: 'error',
-    name: 'BuybackBurnStrategy__InsufficientBudget',
-    inputs: [
-      {
-        name: 'requested',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'available',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'BuybackBurnStrategy__InvalidLotBounds',
+    name: 'AuctionEngine__EpochIdMismatch',
     inputs: [],
   },
   {
     type: 'error',
-    name: 'BuybackBurnStrategy__InvalidRate',
+    name: 'AuctionEngine__EpochPeriodOutOfRange',
     inputs: [],
   },
   {
     type: 'error',
-    name: 'BuybackBurnStrategy__MaxGBXExceeded',
-    inputs: [
-      {
-        name: 'required',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'maximum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    name: 'AuctionEngine__InitPriceOutOfRange',
+    inputs: [],
   },
   {
     type: 'error',
-    name: 'BuybackBurnStrategy__NotEmergencyGuardian',
+    name: 'AuctionEngine__MaxPaymentAmountExceeded',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AuctionEngine__MinInitPriceOutOfRange',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AuctionEngine__NotActivated',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'AuctionEngine__PriceMultiplierOutOfRange',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'BuybackStrategy__FillsPaused',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'BuybackStrategy__InexactTransfer',
     inputs: [
       {
-        name: 'caller',
+        name: 'token',
         type: 'address',
         internalType: 'address',
       },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'BuybackBurnStrategy__NotProtocolTimelock',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'BuybackBurnStrategy__ReferenceResetOutOfBounds',
-    inputs: [
-      {
-        name: 'proposed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'minimum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'maximum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'BuybackBurnStrategy__StaleAuctionId',
-    inputs: [
       {
         name: 'expected',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'actual',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'BuybackBurnStrategy__UnderpaidGBX',
-    inputs: [
-      {
-        name: 'required',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'received',
+        name: 'debit',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'receipt',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -4685,66 +2502,39 @@ export const buybackStrategyAbi = [
   },
   {
     type: 'error',
-    name: 'BuybackBurnStrategy__UnsupportedDecimals',
+    name: 'BuybackStrategy__InvalidConfiguration',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'BuybackStrategy__StrategyNotLive',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'BuybackStrategy__Unauthorized',
     inputs: [
       {
-        name: 'usdGDecimals',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'gbxDecimals',
-        type: 'uint8',
-        internalType: 'uint8',
+        name: 'caller',
+        type: 'address',
+        internalType: 'address',
       },
     ],
   },
   {
     type: 'error',
-    name: 'BuybackBurnStrategy__ZeroAddress',
+    name: 'BuybackStrategy__ZeroAddress',
     inputs: [],
   },
   {
     type: 'error',
-    name: 'BuybackBurnStrategy__ZeroReceiver',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'RateMath__UnsupportedDecimals',
-    inputs: [
-      {
-        name: 'decimals',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'RateMath__ZeroAmount',
+    name: 'BuybackStrategy__ZeroAmount',
     inputs: [],
   },
   {
     type: 'error',
     name: 'ReentrancyGuardReentrantCall',
     inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'SafeCastOverflowedUintDowncast',
-    inputs: [
-      {
-        name: 'bits',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'value',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
   },
   {
     type: 'error',
@@ -4758,86 +2548,17 @@ export const buybackStrategyAbi = [
     ],
   },
 ] as const;
-export const eligibilityModuleAbi = [
-  {
-    type: 'function',
-    name: 'canHold',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'canRedeem',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'canTransfer',
-    inputs: [
-      {
-        name: 'from',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'to',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-] as const;
 export const emergencyGuardianAbi = [
   {
     type: 'constructor',
     inputs: [
       {
-        name: 'protocolTimelock',
+        name: 'operator',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'initialOperator',
+        name: 'targetInitializer',
         type: 'address',
         internalType: 'address',
       },
@@ -4846,7 +2567,20 @@ export const emergencyGuardianAbi = [
   },
   {
     type: 'function',
-    name: 'PROTOCOL_TIMELOCK',
+    name: 'OPERATOR',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'TARGET_INITIALIZER',
     inputs: [],
     outputs: [
       {
@@ -4865,7 +2599,7 @@ export const emergencyGuardianAbi = [
       {
         name: '',
         type: 'address',
-        internalType: 'contract IEmergencyAllocationVoter',
+        internalType: 'contract IAllocationVoter',
       },
     ],
     stateMutability: 'view',
@@ -4878,43 +2612,17 @@ export const emergencyGuardianAbi = [
       {
         name: '',
         type: 'address',
-        internalType: 'contract IEmergencyAssetRegistry',
+        internalType: 'contract IAssetRegistry',
       },
     ],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    name: 'disableAssetAcquisition',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'disableStandaloneStrategy',
+    name: 'disableStrategy',
     inputs: [
       {
         name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'finalizePermissionedPoolController',
-    inputs: [
-      {
-        name: 'controller',
         type: 'address',
         internalType: 'address',
       },
@@ -4927,14 +2635,19 @@ export const emergencyGuardianAbi = [
     name: 'initializeTargets',
     inputs: [
       {
-        name: 'registry',
+        name: 'miningPool_',
         type: 'address',
-        internalType: 'address',
+        internalType: 'contract IMiningPool',
       },
       {
-        name: 'voter',
+        name: 'allocationVoter_',
         type: 'address',
-        internalType: 'address',
+        internalType: 'contract IAllocationVoter',
+      },
+      {
+        name: 'assetRegistry_',
+        type: 'address',
+        internalType: 'contract IAssetRegistry',
       },
     ],
     outputs: [],
@@ -4942,73 +2655,27 @@ export const emergencyGuardianAbi = [
   },
   {
     type: 'function',
-    name: 'invalidateMiningEpoch',
-    inputs: [
-      {
-        name: 'miningPool',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'operator',
+    name: 'miningPool',
     inputs: [],
     outputs: [
       {
         name: '',
         type: 'address',
-        internalType: 'address',
+        internalType: 'contract IMiningPool',
       },
     ],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    name: 'pauseLiquidityMigrations',
-    inputs: [
-      {
-        name: 'liquidityManager',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     name: 'pauseMiningContributions',
-    inputs: [
-      {
-        name: 'miningPool',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'pausePermissionedPoolLiquidity',
     inputs: [],
     outputs: [],
     stateMutability: 'nonpayable',
   },
   {
     type: 'function',
-    name: 'pausePermissionedPoolSwaps',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'pauseSignalActivations',
+    name: 'pauseSignalIncreases',
     inputs: [],
     outputs: [],
     stateMutability: 'nonpayable',
@@ -5019,45 +2686,6 @@ export const emergencyGuardianAbi = [
     inputs: [
       {
         name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'permissionedPoolController',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IEmergencyPermissionedPoolController',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'permissionedPoolControllerFinalized',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'rotateOperator',
-    inputs: [
-      {
-        name: 'newOperator',
         type: 'address',
         internalType: 'address',
       },
@@ -5080,51 +2708,7 @@ export const emergencyGuardianAbi = [
   },
   {
     type: 'event',
-    name: 'EmergencyGuardian__AssetAcquisitionDisabled',
-    inputs: [
-      {
-        name: 'registry',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'allocationVoter',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'token',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'strategy',
-        type: 'address',
-        indexed: false,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'EmergencyGuardian__LiquidityMigrationsPaused',
-    inputs: [
-      {
-        name: 'liquidityManager',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'EmergencyGuardian__MiningContributionsPaused',
+    name: 'EmergencyGuardian__MiningPaused',
     inputs: [
       {
         name: 'miningPool',
@@ -5137,10 +2721,10 @@ export const emergencyGuardianAbi = [
   },
   {
     type: 'event',
-    name: 'EmergencyGuardian__MiningEpochInvalidated',
+    name: 'EmergencyGuardian__SignalIncreasesPaused',
     inputs: [
       {
-        name: 'miningPool',
+        name: 'voter',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -5150,91 +2734,8 @@ export const emergencyGuardianAbi = [
   },
   {
     type: 'event',
-    name: 'EmergencyGuardian__OperatorRotated',
+    name: 'EmergencyGuardian__StrategyDisabled',
     inputs: [
-      {
-        name: 'previousOperator',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'newOperator',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'EmergencyGuardian__PermissionedPoolControllerFinalized',
-    inputs: [
-      {
-        name: 'controller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'EmergencyGuardian__PermissionedPoolLiquidityDisabled',
-    inputs: [
-      {
-        name: 'controller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'EmergencyGuardian__PermissionedPoolSwappingDisabled',
-    inputs: [
-      {
-        name: 'controller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'EmergencyGuardian__SignalActivationsPaused',
-    inputs: [
-      {
-        name: 'allocationVoter',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'EmergencyGuardian__StandaloneStrategyDisabled',
-    inputs: [
-      {
-        name: 'registry',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'allocationVoter',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
       {
         name: 'strategy',
         type: 'address',
@@ -5262,7 +2763,7 @@ export const emergencyGuardianAbi = [
     name: 'EmergencyGuardian__TargetsInitialized',
     inputs: [
       {
-        name: 'registry',
+        name: 'miningPool',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -5273,15 +2774,26 @@ export const emergencyGuardianAbi = [
         indexed: true,
         internalType: 'address',
       },
+      {
+        name: 'assetRegistry',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
     ],
     anonymous: false,
   },
   {
     type: 'error',
-    name: 'EmergencyGuardian__AssetHasNoStrategy',
+    name: 'EmergencyGuardian__AlreadyInitialized',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'EmergencyGuardian__StrategyNotLive',
     inputs: [
       {
-        name: 'token',
+        name: 'strategy',
         type: 'address',
         internalType: 'address',
       },
@@ -5289,18 +2801,7 @@ export const emergencyGuardianAbi = [
   },
   {
     type: 'error',
-    name: 'EmergencyGuardian__InvalidTargetWiring',
-    inputs: [
-      {
-        name: 'target',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'EmergencyGuardian__NotOperator',
+    name: 'EmergencyGuardian__Unauthorized',
     inputs: [
       {
         name: 'caller',
@@ -5308,48 +2809,6 @@ export const emergencyGuardianAbi = [
         internalType: 'address',
       },
     ],
-  },
-  {
-    type: 'error',
-    name: 'EmergencyGuardian__NotProtocolTimelock',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'EmergencyGuardian__PermissionedPoolControllerAlreadyFinalized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'EmergencyGuardian__PermissionedPoolControllerNotConfigured',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'EmergencyGuardian__TargetMustBeContract',
-    inputs: [
-      {
-        name: 'target',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'EmergencyGuardian__TargetsAlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'EmergencyGuardian__TargetsNotInitialized',
-    inputs: [],
   },
   {
     type: 'error',
@@ -5367,38 +2826,22 @@ export const emissionControllerAbi = [
         internalType: 'contract IGBXToken',
       },
       {
-        name: 'callerInitializer_',
+        name: 'miningPool_',
         type: 'address',
         internalType: 'address',
       },
+      {
+        name: 'nextEpochId_',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'scheduledEmission_',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_LIQUIDITY_ALLOCATION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_MINER_ALLOCATION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -5409,32 +2852,6 @@ export const emissionControllerAbi = [
         name: '',
         type: 'uint256',
         internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'callerInitializer',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'callersInitialized',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
       },
     ],
     stateMutability: 'view',
@@ -5467,50 +2884,6 @@ export const emissionControllerAbi = [
   },
   {
     type: 'function',
-    name: 'genesisBootstrap',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisMinted',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'initializeCallers',
-    inputs: [
-      {
-        name: 'genesisBootstrap_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'miningPool_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     name: 'miningPool',
     inputs: [],
     outputs: [
@@ -5521,47 +2894,6 @@ export const emissionControllerAbi = [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'mintGenesis',
-    inputs: [
-      {
-        name: 'claimsReceiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'liquidityReceiver',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'mintMiningEpoch',
-    inputs: [
-      {
-        name: 'epochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'claimsReceiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -5609,58 +2941,37 @@ export const emissionControllerAbi = [
     stateMutability: 'pure',
   },
   {
-    type: 'event',
-    name: 'EmissionController__CallersInitialized',
+    type: 'function',
+    name: 'settleMiningEpoch',
     inputs: [
       {
-        name: 'genesisBootstrap',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
+        name: 'epochId',
+        type: 'uint256',
+        internalType: 'uint256',
       },
-      {
-        name: 'miningPool',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'EmissionController__GenesisMinted',
-    inputs: [
       {
         name: 'claimsReceiver',
         type: 'address',
-        indexed: true,
         internalType: 'address',
       },
       {
-        name: 'liquidityReceiver',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
+        name: 'nonEmpty',
+        type: 'bool',
+        internalType: 'bool',
       },
+    ],
+    outputs: [
       {
-        name: 'minerAllocation',
+        name: 'emission',
         type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'liquidityAllocation',
-        type: 'uint256',
-        indexed: false,
         internalType: 'uint256',
       },
     ],
-    anonymous: false,
+    stateMutability: 'nonpayable',
   },
   {
     type: 'event',
-    name: 'EmissionController__MiningEpochMinted',
+    name: 'EmissionController__MiningEpochSettled',
     inputs: [
       {
         name: 'epochId',
@@ -5675,7 +2986,13 @@ export const emissionControllerAbi = [
         internalType: 'address',
       },
       {
-        name: 'actualEmission',
+        name: 'nonEmpty',
+        type: 'bool',
+        indexed: false,
+        internalType: 'bool',
+      },
+      {
+        name: 'emission',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -5697,27 +3014,7 @@ export const emissionControllerAbi = [
   },
   {
     type: 'error',
-    name: 'EmissionController__CallersAlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__CallersNotInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__DuplicateGenesisReceiver',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__DuplicateMintCaller',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__GBXControllerMismatch',
+    name: 'EmissionController__ControllerMismatch',
     inputs: [
       {
         name: 'configuredController',
@@ -5728,28 +3025,12 @@ export const emissionControllerAbi = [
   },
   {
     type: 'error',
-    name: 'EmissionController__GBXTokenMustBeContract',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__GenesisAlreadyMinted',
+    name: 'EmissionController__InvalidConfiguration',
     inputs: [],
   },
   {
     type: 'error',
-    name: 'EmissionController__GenesisNotMinted',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__MintCallerMustBeContract',
+    name: 'EmissionController__Unauthorized',
     inputs: [
       {
         name: 'caller',
@@ -5760,99 +3041,19 @@ export const emissionControllerAbi = [
   },
   {
     type: 'error',
-    name: 'EmissionController__RemainingMintCapacityExceeded',
+    name: 'EmissionController__UnexpectedEpoch',
     inputs: [
       {
-        name: 'requestedAmount',
+        name: 'expected',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'remainingCapacity',
+        name: 'provided',
         type: 'uint256',
         internalType: 'uint256',
       },
     ],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__ScheduledEmissionExceeded',
-    inputs: [
-      {
-        name: 'requestedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'scheduledAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__UnauthorizedCallerInitializer',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__UnauthorizedGenesisBootstrap',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__UnauthorizedMiningPool',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__UnexpectedMiningEpoch',
-    inputs: [
-      {
-        name: 'expectedEpochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'providedEpochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__ZeroCallerInitializer',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__ZeroGBXToken',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'EmissionController__ZeroMintCaller',
-    inputs: [],
   },
   {
     type: 'error',
@@ -5865,27 +3066,45 @@ export const gbxAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'controllerInitializer_',
+        name: 'genesisRecipient',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'eligibilityModule_',
+        name: 'controllerInitializer',
         type: 'address',
-        internalType: 'contract IEligibilityModule',
+        internalType: 'address',
+      },
+      {
+        name: 'protocolTimelock',
+        type: 'address',
+        internalType: 'address',
       },
     ],
     stateMutability: 'nonpayable',
   },
   {
     type: 'function',
-    name: 'DOMAIN_SEPARATOR',
+    name: 'CONTROLLER_INITIALIZER',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'bytes32',
-        internalType: 'bytes32',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'GENESIS_LIQUIDITY_ALLOCATION',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
     stateMutability: 'view',
@@ -5899,6 +3118,19 @@ export const gbxAbi = [
         name: '',
         type: 'uint256',
         internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'PROTOCOL_TIMELOCK',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -6003,7 +3235,7 @@ export const gbxAbi = [
   },
   {
     type: 'function',
-    name: 'controllerInitializer',
+    name: 'canonicalMiningPool',
     inputs: [],
     outputs: [
       {
@@ -6055,62 +3287,6 @@ export const gbxAbi = [
   },
   {
     type: 'function',
-    name: 'eip712Domain',
-    inputs: [],
-    outputs: [
-      {
-        name: 'fields',
-        type: 'bytes1',
-        internalType: 'bytes1',
-      },
-      {
-        name: 'name',
-        type: 'string',
-        internalType: 'string',
-      },
-      {
-        name: 'version',
-        type: 'string',
-        internalType: 'string',
-      },
-      {
-        name: 'chainId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'verifyingContract',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'salt',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 'extensions',
-        type: 'uint256[]',
-        internalType: 'uint256[]',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'eligibilityModule',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IEligibilityModule',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'emissionController',
     inputs: [],
     outputs: [
@@ -6137,7 +3313,7 @@ export const gbxAbi = [
   },
   {
     type: 'function',
-    name: 'mint',
+    name: 'mintMiningEmission',
     inputs: [
       {
         name: 'receiver',
@@ -6168,14 +3344,8 @@ export const gbxAbi = [
   },
   {
     type: 'function',
-    name: 'nonces',
-    inputs: [
-      {
-        name: 'owner',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    name: 'remainingMintCapacity',
+    inputs: [],
     outputs: [
       {
         name: '',
@@ -6187,42 +3357,12 @@ export const gbxAbi = [
   },
   {
     type: 'function',
-    name: 'permit',
+    name: 'replaceEmissionController',
     inputs: [
       {
-        name: 'owner',
+        name: 'controller',
         type: 'address',
         internalType: 'address',
-      },
-      {
-        name: 'spender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'value',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'v',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'r',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 's',
-        type: 'bytes32',
-        internalType: 'bytes32',
       },
     ],
     outputs: [],
@@ -6334,12 +3474,6 @@ export const gbxAbi = [
   },
   {
     type: 'event',
-    name: 'EIP712DomainChanged',
-    inputs: [],
-    anonymous: false,
-  },
-  {
-    type: 'event',
     name: 'GBXToken__Burned',
     inputs: [
       {
@@ -6375,6 +3509,25 @@ export const gbxAbi = [
     inputs: [
       {
         name: 'controller',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'GBXToken__EmissionControllerReplaced',
+    inputs: [
+      {
+        name: 'previousController',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'newController',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -6431,33 +3584,6 @@ export const gbxAbi = [
       },
     ],
     anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'ECDSAInvalidSignature',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ECDSAInvalidSignatureLength',
-    inputs: [
-      {
-        name: 'length',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ECDSAInvalidSignatureS',
-    inputs: [
-      {
-        name: 's',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
   },
   {
     type: 'error',
@@ -6547,42 +3673,20 @@ export const gbxAbi = [
   },
   {
     type: 'error',
-    name: 'ERC2612ExpiredSignature',
-    inputs: [
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ERC2612InvalidSigner',
-    inputs: [
-      {
-        name: 'signer',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'owner',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    name: 'GBXToken__AlreadyInitialized',
+    inputs: [],
   },
   {
     type: 'error',
     name: 'GBXToken__CumulativeMintCapExceeded',
     inputs: [
       {
-        name: 'requestedAmount',
+        name: 'requested',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'remainingCapacity',
+        name: 'remaining',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -6590,34 +3694,7 @@ export const gbxAbi = [
   },
   {
     type: 'error',
-    name: 'GBXToken__EligibilityCheckFailed',
-    inputs: [
-      {
-        name: 'module',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GBXToken__EligibilityModuleMustBeContract',
-    inputs: [
-      {
-        name: 'module',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GBXToken__EmissionControllerAlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GBXToken__EmissionControllerMustBeContract',
+    name: 'GBXToken__IncompatibleController',
     inputs: [
       {
         name: 'controller',
@@ -6628,39 +3705,7 @@ export const gbxAbi = [
   },
   {
     type: 'error',
-    name: 'GBXToken__IneligibleHolder',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GBXToken__IneligibleTransfer',
-    inputs: [
-      {
-        name: 'from',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'to',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GBXToken__UnauthorizedControllerInitializer',
+    name: 'GBXToken__Unauthorized',
     inputs: [
       {
         name: 'caller',
@@ -6671,18 +3716,7 @@ export const gbxAbi = [
   },
   {
     type: 'error',
-    name: 'GBXToken__UnauthorizedMinter',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GBXToken__ZeroAccount',
+    name: 'GBXToken__ZeroAddress',
     inputs: [],
   },
   {
@@ -6690,1698 +3724,15 @@ export const gbxAbi = [
     name: 'GBXToken__ZeroAmount',
     inputs: [],
   },
-  {
-    type: 'error',
-    name: 'GBXToken__ZeroControllerInitializer',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GBXToken__ZeroEmissionController',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'InvalidAccountNonce',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'currentNonce',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InvalidShortString',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'StringTooLong',
-    inputs: [
-      {
-        name: 'str',
-        type: 'string',
-        internalType: 'string',
-      },
-    ],
-  },
 ] as const;
-export const genesisBootstrapAbi = [
+export const gumBallVaultAbi = [
   {
     type: 'constructor',
     inputs: [
       {
-        name: 'dependencies',
-        type: 'tuple',
-        internalType: 'struct GenesisBootstrap.Dependencies',
-        components: [
-          {
-            name: 'usdG',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'gumBallVault',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'allocationVoter',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'emissionController',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'genesisClaims',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'miningPool',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'genesisLiquidityBacker',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'dependencyInitializer',
-            type: 'address',
-            internalType: 'address',
-          },
-        ],
-      },
-      {
-        name: 'minimumBootstrapUSDG_',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'bootstrapContributionCap_',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'ALLOCATION_VOTER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IMiningAllocationVoter',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'BOOTSTRAP_DURATION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'DEPENDENCY_INITIALIZER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'ELIGIBILITY_MODULE',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IEligibilityModule',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'EMISSION_CONTROLLER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IEmissionController',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_CLAIMS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_LIQUIDITY_BACKER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_MINER_ALLOCATION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GUM_BALL_VAULT',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MINING_POOL',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IMiningPool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'SETTLEMENT_GRACE_PERIOD',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'USDG',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IERC20',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'USDG_DECIMALS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'activateRefunds',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'bootstrapContributionCap',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'claimData',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'entitlement',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'totalAllocation',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'claimSettledAt',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'claimSettled',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'close',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'communityContribution',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'communityUSDG',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'contribute',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'requestedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'receivedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'contributionEnd',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'contributionStart',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'fundSponsor',
-    inputs: [
-      {
-        name: 'requestedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'receivedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'genesisPriceWad',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'initializeLiquidityManager',
-    inputs: [
-      {
-        name: 'liquidityManager_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'liquidityManager',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IGenesisLiquidityManager',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'liquidityManagerInitialized',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'maxSponsorUSDG',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'minimumBootstrapUSDG',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'openContributions',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'refund',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'refundSponsor',
-    inputs: [],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'requiredSponsorUSDG',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'settle',
-    inputs: [
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    outputs: [
-      {
-        name: 'initializedSqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'settledAt',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'settlementDeadline',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'sponsorEscrow',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'state',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint8',
-        internalType: 'enum GenesisBootstrap.State',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    name: 'GenesisBootstrap__CommunityContribution',
-    inputs: [
-      {
-        name: 'payer',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'beneficiary',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'requestedAmount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'receivedAmount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'communityUSDGAfter',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'GenesisBootstrap__ContributionsOpened',
-    inputs: [
-      {
-        name: 'startTime',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'endTime',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'GenesisBootstrap__LaunchSettled',
-    inputs: [
-      {
-        name: 'communityUSDG',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'sponsorUSDG',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'vaultUSDG',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'sponsorRefund',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'genesisPriceWad',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        indexed: false,
-        internalType: 'uint160',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'GenesisBootstrap__LiquidityManagerInitialized',
-    inputs: [
-      {
-        name: 'manager',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'GenesisBootstrap__Refunded',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'GenesisBootstrap__RefundsActivated',
-    inputs: [
-      {
-        name: 'communityUSDG',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'sponsorEscrow',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'GenesisBootstrap__SponsorEscrowed',
-    inputs: [
-      {
-        name: 'requestedAmount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'receivedAmount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'escrowAfter',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'GenesisBootstrap__SponsorRefunded',
-    inputs: [
-      {
-        name: 'backer',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'GenesisBootstrap__StateChanged',
-    inputs: [
-      {
-        name: 'previousState',
-        type: 'uint8',
-        indexed: true,
-        internalType: 'enum GenesisBootstrap.State',
-      },
-      {
-        name: 'newState',
-        type: 'uint8',
-        indexed: true,
-        internalType: 'enum GenesisBootstrap.State',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__AlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__ContributionCapExceeded',
-    inputs: [
-      {
-        name: 'receivedAfter',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'cap',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__ContributionPeriodActive',
-    inputs: [
-      {
-        name: 'endTime',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__ContributionPeriodEnded',
-    inputs: [
-      {
-        name: 'endTime',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__EligibilityCheckFailed',
-    inputs: [
-      {
-        name: 'module',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__IneligibleBeneficiary',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__InvalidConfiguration',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__InvalidState',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint8',
-        internalType: 'enum GenesisBootstrap.State',
-      },
-      {
-        name: 'actual',
-        type: 'uint8',
-        internalType: 'enum GenesisBootstrap.State',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__LiquidityManagerMustBeContract',
-    inputs: [
-      {
-        name: 'manager',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__NoContribution',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__ObservedDebitMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__ObservedReceiptMismatch',
-    inputs: [
-      {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__ObservedTransferMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__PayerDebitExceededMaximum',
-    inputs: [
-      {
-        name: 'maximum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__SettlementDeadlineElapsed',
-    inputs: [
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__SettlementGracePeriodActive',
-    inputs: [
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__SponsorEscrowCapExceeded',
-    inputs: [
-      {
-        name: 'receivedAfter',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'cap',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__UnauthorizedDependencyInitializer',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__UnauthorizedSponsor',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__UnsupportedUSDGDecimals',
-    inputs: [
-      {
-        name: 'decimals',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__ZeroAmount',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GenesisBootstrap__ZeroGenesisPrice',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ReentrancyGuardReentrantCall',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'SafeCastOverflowedUintDowncast',
-    inputs: [
-      {
-        name: 'bits',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'value',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'SafeERC20FailedOperation',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-] as const;
-export const genesisClaimsAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'gbx_',
-        type: 'address',
-        internalType: 'contract IGBXToken',
-      },
-      {
-        name: 'sourceInitializer_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'CLAIM_EXPIRY',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GBX',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IGBXToken',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MAX_BATCH_CLAIMS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'SOURCE_INITIALIZER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'burnExpired',
-    inputs: [],
-    outputs: [
-      {
-        name: 'amountBurned',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'claim',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'claimBatch',
-    inputs: [
-      {
-        name: 'beneficiaries',
-        type: 'address[]',
-        internalType: 'address[]',
-      },
-    ],
-    outputs: [
-      {
-        name: 'totalAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'claimedAmount',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'distributionExpired',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'expired',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'expiredBurnedAmount',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'hasClaimed',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'claimed',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'initializeSource',
-    inputs: [
-      {
-        name: 'source_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'previewClaim',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'source',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IClaimsSource',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'sourceInitialized',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    name: 'ClaimsBase__Claimed',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'beneficiary',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'caller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ClaimsBase__ExpiredBurned',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ClaimsBase__SourceInitialized',
-    inputs: [
-      {
-        name: 'source',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__AlreadyClaimed',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__DistributionAlreadyExpired',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__DistributionNotSettled',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__GBXMustBeContract',
-    inputs: [
-      {
         name: 'gbx',
         type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__InvalidClaimArrayLength',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__NoClaim',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__NotExpired',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'expiryTime',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__SourceAlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__SourceMustBeContract',
-    inputs: [
-      {
-        name: 'source',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__SourceNotInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__UnauthorizedSourceInitializer',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ReentrancyGuardReentrantCall',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'SafeERC20FailedOperation',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-] as const;
-export const genesisLiquidityCalculatorAbi = [
-  {
-    type: 'function',
-    name: 'maxLiquidityForAmount0',
-    inputs: [
-      {
-        name: 'sqrtPriceAX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-      {
-        name: 'sqrtPriceBX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-      {
-        name: 'amount0Cap',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'liquidity',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-      {
-        name: 'principal',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'pure',
-  },
-  {
-    type: 'function',
-    name: 'maxLiquidityForAmount1',
-    inputs: [
-      {
-        name: 'sqrtPriceAX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-      {
-        name: 'sqrtPriceBX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-      {
-        name: 'amount1Cap',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'liquidity',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-      {
-        name: 'principal',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'pure',
-  },
-  {
-    type: 'function',
-    name: 'validateGenesisSqrtPriceX96',
-    inputs: [
-      {
-        name: 'gbx',
-        type: 'address',
-        internalType: 'address',
+        internalType: 'contract IGBXToken',
       },
       {
         name: 'usdG',
@@ -8389,2006 +3740,17 @@ export const genesisLiquidityCalculatorAbi = [
         internalType: 'address',
       },
       {
-        name: 'communityUSDG',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'genesisMinerGBX',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'pure',
-  },
-  {
-    type: 'error',
-    name: 'GenesisLiquidityMath__InvalidRange',
-    inputs: [
-      {
-        name: 'sqrtPriceAX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-      {
-        name: 'sqrtPriceBX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisLiquidityMath__InvariantViolation',
-    inputs: [
-      {
-        name: 'amountCap',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'principal',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisPriceMath__IdenticalTokens',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GenesisPriceMath__PriceDoesNotMatchAmounts',
-    inputs: [
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisPriceMath__PriceOutsideTickBounds',
-    inputs: [
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GenesisPriceMath__ZeroAmount',
-    inputs: [],
-  },
-] as const;
-export const gumBallLensAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'gbx',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'gumBallVault',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
         name: 'assetRegistry',
         type: 'address',
-        internalType: 'address',
+        internalType: 'contract IAssetRegistry',
       },
       {
         name: 'allocationVoter',
         type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'stakedGBX',
-        type: 'address',
-        internalType: 'address',
+        internalType: 'contract IAllocationVoter',
       },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'ALLOCATION_VOTER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract AllocationVoter',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'ASSET_REGISTRY',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IAssetRegistry',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GBX',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IGBXToken',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GUM_BALL_VAULT',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'STAKED_GBX',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IERC20',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'assetViews',
-    inputs: [],
-    outputs: [
-      {
-        name: 'results',
-        type: 'tuple[]',
-        internalType: 'struct GumBallLens.AssetView[]',
-        components: [
-          {
-            name: 'token',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'assetId',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'symbolHash',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-          {
-            name: 'decimals',
-            type: 'uint8',
-            internalType: 'uint8',
-          },
-          {
-            name: 'vaultBalance',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'strategy',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'rewards',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'isStockToken',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'acquisitionEnabled',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'redemptionEnabled',
-            type: 'bool',
-            internalType: 'bool',
-          },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'previewRedemption',
-    inputs: [
-      {
-        name: 'shares',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'tokens',
-        type: 'address[]',
-        internalType: 'address[]',
-      },
-      {
-        name: 'amountsOut',
-        type: 'uint256[]',
-        internalType: 'uint256[]',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'strategyViews',
-    inputs: [],
-    outputs: [
-      {
-        name: 'results',
-        type: 'tuple[]',
-        internalType: 'struct GumBallLens.StrategyView[]',
-        components: [
-          {
-            name: 'strategy',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'token',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'activeWeight',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'virtualUSDGBudget',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'live',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'voterDisabled',
-            type: 'bool',
-            internalType: 'bool',
-          },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'supplyView',
-    inputs: [],
-    outputs: [
-      {
-        name: 'result',
-        type: 'tuple',
-        internalType: 'struct GumBallLens.SupplyView',
-        components: [
-          {
-            name: 'totalSupply',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'cumulativeMinted',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'cumulativeBurned',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'remainingMintCapacity',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'userSignalViews',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'stakedBalance',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'activationTime',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'activationsPaused',
-        type: 'bool',
-        internalType: 'bool',
-      },
-      {
-        name: 'results',
-        type: 'tuple[]',
-        internalType: 'struct GumBallLens.UserSignalView[]',
-        components: [
-          {
-            name: 'strategy',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'activeWeight',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'pendingIncrease',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'error',
-    name: 'GumBallLens__InvalidShares',
-    inputs: [
-      {
-        name: 'shares',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'supply',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GumBallLens__ZeroAddress',
-    inputs: [],
-  },
-] as const;
-export const gumBallPermissionedHookContractAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'poolManager_',
-        type: 'address',
-        internalType: 'contract IPoolManager',
-      },
-      {
-        name: 'permissionsAdapterFactory_',
-        type: 'address',
-        internalType: 'contract IUniswapPermissionsAdapterFactory',
-      },
-      {
-        name: 'dependencyInitializer_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'gbxPermissionsAdapter_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'usdG_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'poolFee_',
-        type: 'uint24',
-        internalType: 'uint24',
-      },
-      {
-        name: 'tickSpacing_',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'DEPENDENCY_INITIALIZER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'PERMISSIONS_ADAPTER_FACTORY',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IUniswapPermissionsAdapterFactory',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'POOL_FEE',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint24',
-        internalType: 'uint24',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'TICK_SPACING',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'TOKEN0',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'TOKEN1',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'afterAddLiquidity',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct ModifyLiquidityParams',
-        components: [
-          {
-            name: 'tickLower',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'tickUpper',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'liquidityDelta',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'salt',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-        ],
-      },
-      {
-        name: 'delta',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-      {
-        name: 'feesAccrued',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-      {
-        name: '',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'afterDonate',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'amount0',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'amount1',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'afterInitialize',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-      {
-        name: 'tick',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'afterRemoveLiquidity',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct ModifyLiquidityParams',
-        components: [
-          {
-            name: 'tickLower',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'tickUpper',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'liquidityDelta',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'salt',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-        ],
-      },
-      {
-        name: 'delta',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-      {
-        name: 'feesAccrued',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-      {
-        name: '',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'afterSwap',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct SwapParams',
-        components: [
-          {
-            name: 'zeroForOne',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'amountSpecified',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'sqrtPriceLimitX96',
-            type: 'uint160',
-            internalType: 'uint160',
-          },
-        ],
-      },
-      {
-        name: 'delta',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-      {
-        name: '',
-        type: 'int128',
-        internalType: 'int128',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'beforeAddLiquidity',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct ModifyLiquidityParams',
-        components: [
-          {
-            name: 'tickLower',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'tickUpper',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'liquidityDelta',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'salt',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-        ],
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'beforeDonate',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'amount0',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'amount1',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'beforeInitialize',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'beforeRemoveLiquidity',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct ModifyLiquidityParams',
-        components: [
-          {
-            name: 'tickLower',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'tickUpper',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'liquidityDelta',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'salt',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-        ],
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'beforeSwap',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct SwapParams',
-        components: [
-          {
-            name: 'zeroForOne',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'amountSpecified',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'sqrtPriceLimitX96',
-            type: 'uint160',
-            internalType: 'uint160',
-          },
-        ],
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-      {
-        name: '',
-        type: 'int256',
-        internalType: 'BeforeSwapDelta',
-      },
-      {
-        name: '',
-        type: 'uint24',
-        internalType: 'uint24',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'canonicalPoolInitialized',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'getHookPermissions',
-    inputs: [],
-    outputs: [
-      {
-        name: 'permissions',
-        type: 'tuple',
-        internalType: 'struct Hooks.Permissions',
-        components: [
-          {
-            name: 'beforeInitialize',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterInitialize',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'beforeAddLiquidity',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterAddLiquidity',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'beforeRemoveLiquidity',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterRemoveLiquidity',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'beforeSwap',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterSwap',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'beforeDonate',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterDonate',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'beforeSwapReturnDelta',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterSwapReturnDelta',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterAddLiquidityReturnDelta',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterRemoveLiquidityReturnDelta',
-            type: 'bool',
-            internalType: 'bool',
-          },
-        ],
-      },
-    ],
-    stateMutability: 'pure',
-  },
-  {
-    type: 'function',
-    name: 'initializeLiquidityManager',
-    inputs: [
-      {
-        name: 'liquidityManager_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'liquidityManager',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'poolManager',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IPoolManager',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    name: 'GumBallPermissionedHook__CanonicalPoolInitialized',
-    inputs: [
-      {
-        name: 'poolKeyHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        indexed: false,
-        internalType: 'uint160',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'GumBallPermissionedHook__LiquidityManagerInitialized',
-    inputs: [
-      {
-        name: 'liquidityManager',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'Swap',
-    inputs: [
-      {
-        name: 'id',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'PoolId',
-      },
-      {
-        name: 'sender',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount0',
-        type: 'int128',
-        indexed: false,
-        internalType: 'int128',
-      },
-      {
-        name: 'amount1',
-        type: 'int128',
-        indexed: false,
-        internalType: 'int128',
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        indexed: false,
-        internalType: 'uint160',
-      },
-      {
-        name: 'liquidity',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'tick',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'fee',
-        type: 'uint24',
-        indexed: false,
-        internalType: 'uint24',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__AlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__InvalidPoolKey',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__LiquidityManagerAlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__LiquidityManagerMustBeContract',
-    inputs: [
-      {
-        name: 'manager',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__NoVerifiedAdapter',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__SwappingDisabled',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__Unauthorized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__UnauthorizedDependencyInitializer',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__UnauthorizedInitializer',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__UnverifiedAdapter',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallPermissionedHook__ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'HookNotImplemented',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'NotPoolManager',
-    inputs: [],
-  },
-] as const;
-export const gumBallRouterAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'gbx_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'stakedGBX_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'gumBallVault_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'GBX',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IGBXToken',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GUM_BALL_VAULT',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract GumBallVault',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'STAKED_GBX',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract StakedGBX',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'redeem',
-    inputs: [
-      {
-        name: 'shares',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amountsOut',
-        type: 'uint256[]',
-        internalType: 'uint256[]',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'redeemWithPermit',
-    inputs: [
-      {
-        name: 'shares',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'permitDeadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'v',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'r',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 's',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amountsOut',
-        type: 'uint256[]',
-        internalType: 'uint256[]',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'stake',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'receivedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'stakeWithPermit',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'permitDeadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'v',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'r',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 's',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-    outputs: [
-      {
-        name: 'receivedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'event',
-    name: 'GumBallRouter__Redeemed',
-    inputs: [
-      {
-        name: 'owner',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'receiver',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'shares',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'assetCount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'GumBallRouter__Staked',
-    inputs: [
-      {
-        name: 'payer',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'GumBallRouter__GBXBalanceMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GumBallRouter__InvalidPeer',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'actual',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GumBallRouter__ObservedGBXMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GumBallRouter__StakedAmountMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GumBallRouter__ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallRouter__ZeroAmount',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ReentrancyGuardReentrantCall',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'SafeERC20FailedOperation',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-] as const;
-export const gumBallVaultAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'usdG_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'gbx_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'assetRegistry_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'allocationVoter_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'eligibilityModule_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'receive',
-    stateMutability: 'payable',
   },
   {
     type: 'function',
@@ -10418,19 +3780,6 @@ export const gumBallVaultAbi = [
   },
   {
     type: 'function',
-    name: 'ELIGIBILITY_MODULE',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IEligibilityModule',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'GBX',
     inputs: [],
     outputs: [
@@ -10457,25 +3806,6 @@ export const gumBallVaultAbi = [
   },
   {
     type: 'function',
-    name: 'rawBalance',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'balance',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'redeem',
     inputs: [
       {
@@ -10491,7 +3821,7 @@ export const gumBallVaultAbi = [
     ],
     outputs: [
       {
-        name: 'amountsOut',
+        name: 'amounts',
         type: 'uint256[]',
         internalType: 'uint256[]',
       },
@@ -10515,31 +3845,6 @@ export const gumBallVaultAbi = [
     ],
     outputs: [],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'event',
-    name: 'GumBallVault__AssetRedeemed',
-    inputs: [
-      {
-        name: 'receiver',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'asset',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
   },
   {
     type: 'event',
@@ -10568,6 +3873,12 @@ export const gumBallVaultAbi = [
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
+      },
+      {
+        name: 'amounts',
+        type: 'uint256[]',
+        indexed: false,
+        internalType: 'uint256[]',
       },
     ],
     anonymous: false,
@@ -10599,18 +3910,33 @@ export const gumBallVaultAbi = [
   },
   {
     type: 'error',
-    name: 'GumBallVault__IneligibleReceiver',
+    name: 'GumBallVault__InexactTransfer',
     inputs: [
       {
-        name: 'receiver',
+        name: 'token',
         type: 'address',
         internalType: 'address',
+      },
+      {
+        name: 'expected',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'debit',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'receipt',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
   },
   {
     type: 'error',
-    name: 'GumBallVault__InsufficientPhysicalUSDG',
+    name: 'GumBallVault__InsufficientShares',
     inputs: [
       {
         name: 'requested',
@@ -10618,7 +3944,7 @@ export const gumBallVaultAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'available',
+        name: 'balance',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -10626,64 +3952,7 @@ export const gumBallVaultAbi = [
   },
   {
     type: 'error',
-    name: 'GumBallVault__NativeETHNotAccepted',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallVault__NoSupply',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallVault__ObservedDebitMismatch',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GumBallVault__ObservedReceiptMismatch',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'GumBallVault__UnauthorizedStrategy',
+    name: 'GumBallVault__StrategyNotLive',
     inputs: [
       {
         name: 'strategy',
@@ -10704,16 +3973,6 @@ export const gumBallVaultAbi = [
   },
   {
     type: 'error',
-    name: 'GumBallVault__ZeroReceiver',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'GumBallVault__ZeroShares',
-    inputs: [],
-  },
-  {
-    type: 'error',
     name: 'ReentrancyGuardReentrantCall',
     inputs: [],
   },
@@ -10729,1152 +3988,30 @@ export const gumBallVaultAbi = [
     ],
   },
 ] as const;
-export const holdUSDGStrategyAbi = [
-  {
-    type: 'function',
-    name: 'strategyId',
-    inputs: [],
-    outputs: [
-      {
-        name: 'id',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-    stateMutability: 'pure',
-  },
-] as const;
-export const launchGuardHookAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'poolManager_',
-        type: 'address',
-        internalType: 'contract IPoolManager',
-      },
-      {
-        name: 'dependencyInitializer_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'gbx_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'usdG_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'poolFee_',
-        type: 'uint24',
-        internalType: 'uint24',
-      },
-      {
-        name: 'tickSpacing_',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'DEPENDENCY_INITIALIZER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'POOL_FEE',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint24',
-        internalType: 'uint24',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'TICK_SPACING',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'TOKEN0',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'TOKEN1',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'afterAddLiquidity',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct ModifyLiquidityParams',
-        components: [
-          {
-            name: 'tickLower',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'tickUpper',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'liquidityDelta',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'salt',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-        ],
-      },
-      {
-        name: 'delta',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-      {
-        name: 'feesAccrued',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-      {
-        name: '',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'afterDonate',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'amount0',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'amount1',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'afterInitialize',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-      {
-        name: 'tick',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'afterRemoveLiquidity',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct ModifyLiquidityParams',
-        components: [
-          {
-            name: 'tickLower',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'tickUpper',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'liquidityDelta',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'salt',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-        ],
-      },
-      {
-        name: 'delta',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-      {
-        name: 'feesAccrued',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-      {
-        name: '',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'afterSwap',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct SwapParams',
-        components: [
-          {
-            name: 'zeroForOne',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'amountSpecified',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'sqrtPriceLimitX96',
-            type: 'uint160',
-            internalType: 'uint160',
-          },
-        ],
-      },
-      {
-        name: 'delta',
-        type: 'int256',
-        internalType: 'BalanceDelta',
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-      {
-        name: '',
-        type: 'int128',
-        internalType: 'int128',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'beforeAddLiquidity',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct ModifyLiquidityParams',
-        components: [
-          {
-            name: 'tickLower',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'tickUpper',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'liquidityDelta',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'salt',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-        ],
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'beforeDonate',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'amount0',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'amount1',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'beforeInitialize',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'beforeRemoveLiquidity',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct ModifyLiquidityParams',
-        components: [
-          {
-            name: 'tickLower',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'tickUpper',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'liquidityDelta',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'salt',
-            type: 'bytes32',
-            internalType: 'bytes32',
-          },
-        ],
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'beforeSwap',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-      {
-        name: 'params',
-        type: 'tuple',
-        internalType: 'struct SwapParams',
-        components: [
-          {
-            name: 'zeroForOne',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'amountSpecified',
-            type: 'int256',
-            internalType: 'int256',
-          },
-          {
-            name: 'sqrtPriceLimitX96',
-            type: 'uint160',
-            internalType: 'uint160',
-          },
-        ],
-      },
-      {
-        name: 'hookData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-      {
-        name: '',
-        type: 'int256',
-        internalType: 'BeforeSwapDelta',
-      },
-      {
-        name: '',
-        type: 'uint24',
-        internalType: 'uint24',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'canonicalPoolInitialized',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'getHookPermissions',
-    inputs: [],
-    outputs: [
-      {
-        name: 'permissions',
-        type: 'tuple',
-        internalType: 'struct Hooks.Permissions',
-        components: [
-          {
-            name: 'beforeInitialize',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterInitialize',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'beforeAddLiquidity',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterAddLiquidity',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'beforeRemoveLiquidity',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterRemoveLiquidity',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'beforeSwap',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterSwap',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'beforeDonate',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterDonate',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'beforeSwapReturnDelta',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterSwapReturnDelta',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterAddLiquidityReturnDelta',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'afterRemoveLiquidityReturnDelta',
-            type: 'bool',
-            internalType: 'bool',
-          },
-        ],
-      },
-    ],
-    stateMutability: 'pure',
-  },
-  {
-    type: 'function',
-    name: 'initializeLiquidityManager',
-    inputs: [
-      {
-        name: 'liquidityManager_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'liquidityManager',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'poolManager',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IPoolManager',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    name: 'LaunchGuardHook__CanonicalPoolInitialized',
-    inputs: [
-      {
-        name: 'poolKeyHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        indexed: false,
-        internalType: 'uint160',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LaunchGuardHook__LiquidityManagerInitialized',
-    inputs: [
-      {
-        name: 'liquidityManager',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'HookNotImplemented',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LaunchGuardHook__AlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LaunchGuardHook__InvalidPoolKey',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LaunchGuardHook__LiquidityManagerAlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LaunchGuardHook__LiquidityManagerMustBeContract',
-    inputs: [
-      {
-        name: 'manager',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LaunchGuardHook__UnauthorizedDependencyInitializer',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LaunchGuardHook__UnauthorizedInitializer',
-    inputs: [
-      {
-        name: 'sender',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LaunchGuardHook__ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'NotPoolManager',
-    inputs: [],
-  },
-] as const;
-export const liquidityManagerAbi = [
+export const liquidityCustodianAbi = [
   {
     type: 'constructor',
     inputs: [
       {
         name: 'dependencies',
         type: 'tuple',
-        internalType: 'struct LiquidityManager.Dependencies',
+        internalType: 'struct LiquidityCustodian.Dependencies',
         components: [
+          {
+            name: 'positionManager',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'positionDepositor',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'expectedPositionTokenId',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
           {
             name: 'gbx',
             type: 'address',
@@ -11896,54 +4033,29 @@ export const liquidityManagerAbi = [
             internalType: 'address',
           },
           {
-            name: 'poolManager',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'positionManager',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'permit2',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'launchGuardHook',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'genesisBootstrap',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'genesisLiquidityCalculator',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
             name: 'protocolTimelock',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'emergencyGuardian',
             type: 'address',
             internalType: 'address',
           },
         ],
       },
       {
-        name: 'ladder',
+        name: 'canonicalPoolKey',
         type: 'tuple',
-        internalType: 'struct LiquidityManager.LadderConfig',
+        internalType: 'struct PoolKey',
         components: [
           {
-            name: 'poolFee',
+            name: 'currency0',
+            type: 'address',
+            internalType: 'Currency',
+          },
+          {
+            name: 'currency1',
+            type: 'address',
+            internalType: 'Currency',
+          },
+          {
+            name: 'fee',
             type: 'uint24',
             internalType: 'uint24',
           },
@@ -11953,14 +4065,9 @@ export const liquidityManagerAbi = [
             internalType: 'int24',
           },
           {
-            name: 'allocationBps',
-            type: 'uint16[4]',
-            internalType: 'uint16[4]',
-          },
-          {
-            name: 'cumulativeTickDeltas',
-            type: 'int24[4]',
-            internalType: 'int24[4]',
+            name: 'hooks',
+            type: 'address',
+            internalType: 'contract IHooks',
           },
         ],
       },
@@ -11975,33 +4082,46 @@ export const liquidityManagerAbi = [
       {
         name: '',
         type: 'address',
-        internalType: 'contract AllocationVoter',
+        internalType: 'contract IAllocationVoter',
       },
     ],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    name: 'BPS_DENOMINATOR',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'EMERGENCY_GUARDIAN',
+    name: 'CURRENCY0',
     inputs: [],
     outputs: [
       {
         name: '',
         type: 'address',
         internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'CURRENCY1',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'EXPECTED_POSITION_TOKEN_ID',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
     stateMutability: 'view',
@@ -12021,58 +4141,6 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'function',
-    name: 'GENESIS_BOOTSTRAP',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_LIQUIDITY_ALLOCATION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_LIQUIDITY_CALCULATOR',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract GenesisLiquidityCalculator',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_MINER_ALLOCATION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'GUM_BALL_VAULT',
     inputs: [],
     outputs: [
@@ -12080,58 +4148,6 @@ export const liquidityManagerAbi = [
         name: '',
         type: 'address',
         internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'LAUNCH_GUARD_HOOK',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IHooks',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MAX_ACTIVE_POSITIONS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MAX_MIGRATION_POSITIONS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'PERMIT2',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IAllowanceTransfer',
       },
     ],
     stateMutability: 'view',
@@ -12151,26 +4167,26 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'function',
-    name: 'POOL_MANAGER',
+    name: 'POOL_KEY_HASH',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'address',
-        internalType: 'contract IPoolManager',
+        type: 'bytes32',
+        internalType: 'bytes32',
       },
     ],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    name: 'POSITION_COUNT',
+    name: 'POSITION_DEPOSITOR',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'uint256',
-        internalType: 'uint256',
+        type: 'address',
+        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -12229,46 +4245,8 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'function',
-    name: 'activePositionCount',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'allocationBps',
-    inputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'uint16',
-        internalType: 'uint16',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'collectFees',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    inputs: [],
     outputs: [
       {
         name: 'gbxBurned',
@@ -12285,275 +4263,6 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'function',
-    name: 'cumulativeTickDeltas',
-    inputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisLiquidityPrincipal',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisLiquidityResidual',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisSeeded',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisSqrtPriceX96',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisTick',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'initializeAndSeed',
-    inputs: [
-      {
-        name: 'communityUSDG',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    outputs: [
-      {
-        name: 'initializedSqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'lastMigrationPlanHash',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'migrateLiquidity',
-    inputs: [
-      {
-        name: 'plan',
-        type: 'tuple',
-        internalType: 'struct LiquidityManager.MigrationPlan',
-        components: [
-          {
-            name: 'destinationPoolKey',
-            type: 'tuple',
-            internalType: 'struct PoolKey',
-            components: [
-              {
-                name: 'currency0',
-                type: 'address',
-                internalType: 'Currency',
-              },
-              {
-                name: 'currency1',
-                type: 'address',
-                internalType: 'Currency',
-              },
-              {
-                name: 'fee',
-                type: 'uint24',
-                internalType: 'uint24',
-              },
-              {
-                name: 'tickSpacing',
-                type: 'int24',
-                internalType: 'int24',
-              },
-              {
-                name: 'hooks',
-                type: 'address',
-                internalType: 'contract IHooks',
-              },
-            ],
-          },
-          {
-            name: 'removals',
-            type: 'tuple[]',
-            internalType: 'struct LiquidityManager.MigrationRemoval[]',
-            components: [
-              {
-                name: 'positionId',
-                type: 'uint256',
-                internalType: 'uint256',
-              },
-              {
-                name: 'amount0Min',
-                type: 'uint128',
-                internalType: 'uint128',
-              },
-              {
-                name: 'amount1Min',
-                type: 'uint128',
-                internalType: 'uint128',
-              },
-            ],
-          },
-          {
-            name: 'replacements',
-            type: 'tuple[]',
-            internalType: 'struct LiquidityManager.MigrationReplacement[]',
-            components: [
-              {
-                name: 'tickLower',
-                type: 'int24',
-                internalType: 'int24',
-              },
-              {
-                name: 'tickUpper',
-                type: 'int24',
-                internalType: 'int24',
-              },
-              {
-                name: 'liquidity',
-                type: 'uint128',
-                internalType: 'uint128',
-              },
-              {
-                name: 'amount0Max',
-                type: 'uint128',
-                internalType: 'uint128',
-              },
-              {
-                name: 'amount1Max',
-                type: 'uint128',
-                internalType: 'uint128',
-              },
-            ],
-          },
-          {
-            name: 'deadline',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-        ],
-      },
-    ],
-    outputs: [
-      {
-        name: 'replacementPositionIds',
-        type: 'uint256[]',
-        internalType: 'uint256[]',
-      },
-      {
-        name: 'gbxResidualBurned',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'usdGResidualToVault',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'migrationCount',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'migrationsPaused',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'onERC721Received',
     inputs: [
       {
@@ -12562,12 +4271,12 @@ export const liquidityManagerAbi = [
         internalType: 'address',
       },
       {
-        name: '',
+        name: 'from',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: '',
+        name: 'tokenId',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -12584,13 +4293,6 @@ export const liquidityManagerAbi = [
         internalType: 'bytes4',
       },
     ],
-    stateMutability: 'pure',
-  },
-  {
-    type: 'function',
-    name: 'pauseMigrations',
-    inputs: [],
-    outputs: [],
     stateMutability: 'nonpayable',
   },
   {
@@ -12599,7 +4301,7 @@ export const liquidityManagerAbi = [
     inputs: [],
     outputs: [
       {
-        name: 'key',
+        name: '',
         type: 'tuple',
         internalType: 'struct PoolKey',
         components: [
@@ -12635,56 +4337,11 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'function',
-    name: 'positionIds',
-    inputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    name: 'positionInCustody',
+    inputs: [],
     outputs: [
       {
         name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'positionRecord',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'tickLower',
-        type: 'int24',
-        internalType: 'int24',
-      },
-      {
-        name: 'tickUpper',
-        type: 'int24',
-        internalType: 'int24',
-      },
-      {
-        name: 'liquidity',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-      {
-        name: 'gbxPrincipal',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'exists',
         type: 'bool',
         internalType: 'bool',
       },
@@ -12693,81 +4350,46 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'function',
-    name: 'sweepCompletedRange',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    name: 'positionRecorded',
+    inputs: [],
     outputs: [
       {
-        name: 'gbxDustBurned',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'usdGPrincipalAndFeesToVault',
-        type: 'uint256',
-        internalType: 'uint256',
+        name: '',
+        type: 'bool',
+        internalType: 'bool',
       },
     ],
-    stateMutability: 'nonpayable',
+    stateMutability: 'view',
   },
   {
     type: 'function',
-    name: 'unpauseMigrations',
+    name: 'positionTokenId',
     inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'transferPosition',
+    inputs: [
+      {
+        name: 'recipient',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
     outputs: [],
     stateMutability: 'nonpayable',
   },
   {
     type: 'event',
-    name: 'LiquidityManager__CanonicalPoolSeeded',
-    inputs: [
-      {
-        name: 'poolKeyHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        indexed: false,
-        internalType: 'uint160',
-      },
-      {
-        name: 'initialTick',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'firstPositionId',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'gbxPrincipal',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'gbxResidual',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__CompletedRangeSwept',
+    name: 'LiquidityCustodian__FeesCollected',
     inputs: [
       {
         name: 'positionId',
@@ -12776,35 +4398,10 @@ export const liquidityManagerAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'currentTick',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'gbxDustBurned',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'usdGPrincipalAndFeesToVault',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__FeesCollected',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
+        name: 'caller',
+        type: 'address',
         indexed: true,
-        internalType: 'uint256',
+        internalType: 'address',
       },
       {
         name: 'gbxBurned',
@@ -12823,198 +4420,7 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'event',
-    name: 'LiquidityManager__MigrationCompleted',
-    inputs: [
-      {
-        name: 'planHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'destinationPoolKeyHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'removedPositionIds',
-        type: 'uint256[]',
-        indexed: false,
-        internalType: 'uint256[]',
-      },
-      {
-        name: 'replacementPositionIds',
-        type: 'uint256[]',
-        indexed: false,
-        internalType: 'uint256[]',
-      },
-      {
-        name: 'gbxResidualBurned',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'usdGResidualToVault',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__MigrationPauseSet',
-    inputs: [
-      {
-        name: 'paused',
-        type: 'bool',
-        indexed: false,
-        internalType: 'bool',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__MigrationPositionAfter',
-    inputs: [
-      {
-        name: 'planHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'positionId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'tickLower',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'tickUpper',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'liquidity',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'amount0Max',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'amount1Max',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__MigrationPositionBefore',
-    inputs: [
-      {
-        name: 'planHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'positionId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'tickLower',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'tickUpper',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'liquidity',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'amount0Min',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'amount1Min',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__MigrationStarted',
-    inputs: [
-      {
-        name: 'planHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'destinationPoolKeyHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'removalCount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'replacementCount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'deadline',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__PositionRecorded',
+    name: 'LiquidityCustodian__PositionRecorded',
     inputs: [
       {
         name: 'positionId',
@@ -13023,66 +4429,42 @@ export const liquidityManagerAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'tickLower',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
+        name: 'previousOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
       },
       {
-        name: 'tickUpper',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
+        name: 'poolKeyHash',
+        type: 'bytes32',
+        indexed: true,
+        internalType: 'bytes32',
       },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'LiquidityCustodian__PositionTransferred',
+    inputs: [
       {
-        name: 'liquidity',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'gbxPrincipal',
+        name: 'positionId',
         type: 'uint256',
-        indexed: false,
+        indexed: true,
         internalType: 'uint256',
+      },
+      {
+        name: 'recipient',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
       },
     ],
     anonymous: false,
   },
   {
     type: 'error',
-    name: 'GenesisPriceMath__InvalidTickSpacing',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__ActivePositionLimitExceeded',
-    inputs: [
-      {
-        name: 'currentActive',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'removalCount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'replacementCount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'maximumActive',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__AddressHasNoCode',
+    name: 'LiquidityCustodian__AddressHasNoCode',
     inputs: [
       {
         name: 'account',
@@ -13093,34 +4475,7 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'error',
-    name: 'LiquidityManager__AlreadySeeded',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__DeadlineExpired',
-    inputs: [
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__DuplicateMigrationPosition',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__GenesisBalanceMismatch',
+    name: 'LiquidityCustodian__InexactUSDGTransfer',
     inputs: [
       {
         name: 'expected',
@@ -13128,7 +4483,12 @@ export const liquidityManagerAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'actual',
+        name: 'debit',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'receipt',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -13136,49 +4496,23 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'error',
-    name: 'LiquidityManager__GenesisNotSeeded',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__GenesisPrincipalMismatch',
+    name: 'LiquidityCustodian__InvalidPoolCurrencies',
     inputs: [
       {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
+        name: 'currency0',
+        type: 'address',
+        internalType: 'address',
       },
       {
-        name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
+        name: 'currency1',
+        type: 'address',
+        internalType: 'address',
       },
     ],
   },
   {
     type: 'error',
-    name: 'LiquidityManager__InsufficientGenesisGBX',
-    inputs: [
-      {
-        name: 'required',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'available',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__InvalidAllocation',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__InvalidDestinationPoolKey',
+    name: 'LiquidityCustodian__InvalidPoolKey',
     inputs: [
       {
         name: 'expected',
@@ -13194,38 +4528,23 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'error',
-    name: 'LiquidityManager__InvalidMigrationLength',
+    name: 'LiquidityCustodian__NoPositionRecorded',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'LiquidityCustodian__NonzeroHook',
     inputs: [
       {
-        name: 'removals',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'replacements',
-        type: 'uint256',
-        internalType: 'uint256',
+        name: 'hook',
+        type: 'address',
+        internalType: 'address',
       },
     ],
   },
   {
     type: 'error',
-    name: 'LiquidityManager__InvalidMigrationSlippage',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__InvalidRange',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__MigrationsPaused',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__NotEmergencyGuardian',
+    name: 'LiquidityCustodian__NotProtocolTimelock',
     inputs: [
       {
         name: 'caller',
@@ -13236,50 +4555,29 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'error',
-    name: 'LiquidityManager__NotGenesisBootstrap',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__NotProtocolTimelock',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__PositionLiquidityMismatch',
+    name: 'LiquidityCustodian__PositionAlreadyRecorded',
     inputs: [
       {
         name: 'positionId',
         type: 'uint256',
         internalType: 'uint256',
       },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'LiquidityCustodian__PositionNotInCustody',
+    inputs: [
       {
-        name: 'expected',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-      {
-        name: 'actual',
-        type: 'uint128',
-        internalType: 'uint128',
+        name: 'positionId',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
   },
   {
     type: 'error',
-    name: 'LiquidityManager__PositionNotOwned',
+    name: 'LiquidityCustodian__PositionNotOwned',
     inputs: [
       {
         name: 'positionId',
@@ -13295,972 +4593,10 @@ export const liquidityManagerAbi = [
   },
   {
     type: 'error',
-    name: 'LiquidityManager__RangeNotCompleted',
+    name: 'LiquidityCustodian__UnexpectedNFTSender',
     inputs: [
       {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'currentTick',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__UnexpectedMintedPositionCount',
-    inputs: [
-      {
-        name: 'expectedNextPositionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actualNextPositionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__UnknownPosition',
-    inputs: [
-      {
-        name: 'tokenId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__ZeroUSDGReceived',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ReentrancyGuardReentrantCall',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'SafeCastOverflowedUintDowncast',
-    inputs: [
-      {
-        name: 'bits',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'value',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'SafeERC20FailedOperation',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-] as const;
-export const managerRewardsAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'rewardToken_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'strategy_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'allocationVoter_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'gumBallVault_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'eligibilityModule_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'ALLOCATION_VOTER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IAllocationVoterRewards',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'ELIGIBILITY_MODULE',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IEligibilityModule',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GUM_BALL_VAULT',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'REWARD_PRECISION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'REWARD_TOKEN',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IERC20',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'STRATEGY',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'accountedRewards',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'accruedRewards',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'advanceGeneration',
-    inputs: [
-      {
-        name: 'nextGeneration',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'checkpointUser',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'activeWeight',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'weightGeneration',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'claim',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'currentGeneration',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'currentRemainderCycle',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'earned',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'generationClosed',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'closed',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'generationEndRemainderCycle',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'cycle',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'generationEndRewardPerWeight',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'endingIndex',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'generationFinalizedTerminalDust',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'generationNotifiedRewards',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'generationPendingTerminalDust',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'generationRedirectedDust',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'generationUnsettledWeight',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'weight',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'generationUserSettled',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'settled',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'generationWholeEntitlements',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'notifyReward',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'pendingTerminalDust',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'remainderCycle',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'rewardPerWeightStored',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'rewardReceiver',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'rewardRemainder',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'setRewardReceiver',
-    inputs: [
-      {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'settleTerminalDust',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'sweepTerminalDust',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'remainderCycle',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'terminalCycleFinalized',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'remainderCycle',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    outputs: [
-      {
-        name: 'finalized',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'totalAccruedRewards',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'totalPendingTerminalDust',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'userRemainderCycle',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'cycle',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'userRewardPerWeightPaid',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'paid',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'userScaledRemainder',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'scaledRemainder',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    name: 'ManagerRewards__Claimed',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'receiver',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ManagerRewards__GenerationAdvanced',
-    inputs: [
-      {
-        name: 'closedGeneration',
-        type: 'uint64',
-        indexed: true,
-        internalType: 'uint64',
-      },
-      {
-        name: 'nextGeneration',
-        type: 'uint64',
-        indexed: true,
-        internalType: 'uint64',
-      },
-      {
-        name: 'endingRewardPerWeight',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ManagerRewards__Notified',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'strategyWeight',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'rewardPerWeightDelta',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'remainder',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ManagerRewards__ReceiverSet',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'receiver',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ManagerRewards__RedirectedToVault',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ManagerRewards__TerminalDustQueued',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        indexed: true,
-        internalType: 'uint64',
-      },
-      {
-        name: 'remainderCycle',
-        type: 'uint64',
-        indexed: true,
-        internalType: 'uint64',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'generationPendingAfter',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'totalPendingAfter',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ManagerRewards__TerminalDustSettled',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        indexed: true,
-        internalType: 'uint64',
-      },
-      {
-        name: 'remainderCycle',
-        type: 'uint64',
-        indexed: true,
-        internalType: 'uint64',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'accountedRewardsAfter',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ManagerRewards__UserCheckpointed',
-    inputs: [
-      {
-        name: 'user',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'activeWeight',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'accrued',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'ManagerRewards__IneligibleReceiver',
-    inputs: [
-      {
-        name: 'receiver',
+        name: 'sender',
         type: 'address',
         internalType: 'address',
       },
@@ -14268,58 +4604,26 @@ export const managerRewardsAbi = [
   },
   {
     type: 'error',
-    name: 'ManagerRewards__InsufficientUnaccountedReward',
+    name: 'LiquidityCustodian__UnexpectedPositionDepositor',
     inputs: [
       {
-        name: 'notified',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'unaccounted',
-        type: 'uint256',
-        internalType: 'uint256',
+        name: 'depositor',
+        type: 'address',
+        internalType: 'address',
       },
     ],
   },
   {
     type: 'error',
-    name: 'ManagerRewards__InvalidGeneration',
+    name: 'LiquidityCustodian__UnexpectedPositionTokenId',
     inputs: [
       {
         name: 'expected',
-        type: 'uint64',
-        internalType: 'uint64',
+        type: 'uint256',
+        internalType: 'uint256',
       },
       {
         name: 'actual',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ManagerRewards__NoPendingTerminalDust',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'remainderCycle',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ManagerRewards__NonZeroStrategyWeight',
-    inputs: [
-      {
-        name: 'strategyWeight',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -14327,108 +4631,7 @@ export const managerRewardsAbi = [
   },
   {
     type: 'error',
-    name: 'ManagerRewards__NotAllocationVoter',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ManagerRewards__NotStrategy',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ManagerRewards__ObservedDebitMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ManagerRewards__ObservedReceiptMismatch',
-    inputs: [
-      {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ManagerRewards__TerminalCycleAlreadyFinalized',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'remainderCycle',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ManagerRewards__UnsettledWeightUnderflow',
-    inputs: [
-      {
-        name: 'generation',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
-        name: 'settling',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'remaining',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ManagerRewards__ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ManagerRewards__ZeroAmount',
+    name: 'LiquidityCustodian__ZeroAddress',
     inputs: [],
   },
   {
@@ -14453,30 +4656,17 @@ export const miningClaimsAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'gbx_',
+        name: 'gbx',
         type: 'address',
         internalType: 'contract IGBXToken',
       },
       {
-        name: 'sourceInitializer_',
+        name: 'sourceInitializer',
         type: 'address',
         internalType: 'address',
       },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'CLAIM_EXPIRY',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -14493,19 +4683,6 @@ export const miningClaimsAbi = [
   },
   {
     type: 'function',
-    name: 'MAX_BATCH_CLAIMS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'SOURCE_INITIALIZER',
     inputs: [],
     outputs: [
@@ -14516,25 +4693,6 @@ export const miningClaimsAbi = [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'burnExpired',
-    inputs: [
-      {
-        name: 'epochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amountBurned',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -14562,91 +4720,10 @@ export const miningClaimsAbi = [
   },
   {
     type: 'function',
-    name: 'claimBatch',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'epochIds',
-        type: 'uint256[]',
-        internalType: 'uint256[]',
-      },
-    ],
-    outputs: [
-      {
-        name: 'totalAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'claimedAmount',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'distributionExpired',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'expired',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'expiredBurnedAmount',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'hasClaimed',
     inputs: [
       {
-        name: 'distributionId',
+        name: 'epochId',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -14716,24 +4793,11 @@ export const miningClaimsAbi = [
     stateMutability: 'view',
   },
   {
-    type: 'function',
-    name: 'sourceInitialized',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
     type: 'event',
-    name: 'ClaimsBase__Claimed',
+    name: 'MiningClaims__Claimed',
     inputs: [
       {
-        name: 'distributionId',
+        name: 'epochId',
         type: 'uint256',
         indexed: true,
         internalType: 'uint256',
@@ -14761,26 +4825,7 @@ export const miningClaimsAbi = [
   },
   {
     type: 'event',
-    name: 'ClaimsBase__ExpiredBurned',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ClaimsBase__SourceInitialized',
+    name: 'MiningClaims__SourceInitialized',
     inputs: [
       {
         name: 'source',
@@ -14793,10 +4838,10 @@ export const miningClaimsAbi = [
   },
   {
     type: 'error',
-    name: 'ClaimsBase__AlreadyClaimed',
+    name: 'MiningClaims__AlreadyClaimed',
     inputs: [
       {
-        name: 'distributionId',
+        name: 'epochId',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -14809,48 +4854,15 @@ export const miningClaimsAbi = [
   },
   {
     type: 'error',
-    name: 'ClaimsBase__DistributionAlreadyExpired',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__DistributionNotSettled',
-    inputs: [
-      {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__GBXMustBeContract',
-    inputs: [
-      {
-        name: 'gbx',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__InvalidClaimArrayLength',
+    name: 'MiningClaims__AlreadyInitialized',
     inputs: [],
   },
   {
     type: 'error',
-    name: 'ClaimsBase__NoClaim',
+    name: 'MiningClaims__NoClaim',
     inputs: [
       {
-        name: 'distributionId',
+        name: 'epochId',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -14863,15 +4875,10 @@ export const miningClaimsAbi = [
   },
   {
     type: 'error',
-    name: 'ClaimsBase__NotExpired',
+    name: 'MiningClaims__NotSettled',
     inputs: [
       {
-        name: 'distributionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'expiryTime',
+        name: 'epochId',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -14879,28 +4886,7 @@ export const miningClaimsAbi = [
   },
   {
     type: 'error',
-    name: 'ClaimsBase__SourceAlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__SourceMustBeContract',
-    inputs: [
-      {
-        name: 'source',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__SourceNotInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ClaimsBase__UnauthorizedSourceInitializer',
+    name: 'MiningClaims__Unauthorized',
     inputs: [
       {
         name: 'caller',
@@ -14911,7 +4897,7 @@ export const miningClaimsAbi = [
   },
   {
     type: 'error',
-    name: 'ClaimsBase__ZeroAddress',
+    name: 'MiningClaims__ZeroAddress',
     inputs: [],
   },
   {
@@ -14936,51 +4922,54 @@ export const miningPoolAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'dependencies',
-        type: 'tuple',
-        internalType: 'struct MiningPool.Dependencies',
-        components: [
-          {
-            name: 'usdG',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'gumBallVault',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'allocationVoter',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'emissionController',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'miningClaims',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'emergencyGuardian',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'protocolTimelock',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'dependencyInitializer',
-            type: 'address',
-            internalType: 'address',
-          },
-        ],
+        name: 'usdG',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'gumBallVault',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'allocationVoter',
+        type: 'address',
+        internalType: 'contract IAllocationVoter',
+      },
+      {
+        name: 'gbx',
+        type: 'address',
+        internalType: 'contract IGBXToken',
+      },
+      {
+        name: 'miningClaims',
+        type: 'address',
+        internalType: 'contract IMiningClaims',
+      },
+      {
+        name: 'liquidityCustodian',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'emergencyGuardian',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'protocolTimelock',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'startInitializer',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'team',
+        type: 'address',
+        internalType: 'address',
       },
     ],
     stateMutability: 'nonpayable',
@@ -14993,59 +4982,20 @@ export const miningPoolAbi = [
       {
         name: '',
         type: 'address',
-        internalType: 'contract IMiningAllocationVoter',
+        internalType: 'contract IAllocationVoter',
       },
     ],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    name: 'ANTI_SNIPING_EXTENSION',
+    name: 'BPS_DENOMINATOR',
     inputs: [],
     outputs: [
       {
         name: '',
         type: 'uint256',
         internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'ANTI_SNIPING_WINDOW',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'DEPENDENCY_INITIALIZER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'ELIGIBILITY_MODULE',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IEligibilityModule',
       },
     ],
     stateMutability: 'view',
@@ -15065,19 +5015,6 @@ export const miningPoolAbi = [
   },
   {
     type: 'function',
-    name: 'EMISSION_CONTROLLER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IEmissionController',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'EPOCH_DURATION',
     inputs: [],
     outputs: [
@@ -15085,6 +5022,19 @@ export const miningPoolAbi = [
         name: '',
         type: 'uint256',
         internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'GBX',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'contract IGBXToken',
       },
     ],
     stateMutability: 'view',
@@ -15104,26 +5054,13 @@ export const miningPoolAbi = [
   },
   {
     type: 'function',
-    name: 'MATERIAL_CONTRIBUTION_BPS',
+    name: 'LIQUIDITY_CUSTODIAN',
     inputs: [],
     outputs: [
       {
         name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MAX_ANTI_SNIPING_EXTENSION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
+        type: 'address',
+        internalType: 'contract ILiquidityCustodianStatus',
       },
     ],
     stateMutability: 'view',
@@ -15156,6 +5093,32 @@ export const miningPoolAbi = [
   },
   {
     type: 'function',
+    name: 'START_INITIALIZER',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'TEAM_FEE_BPS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'USDG',
     inputs: [],
     outputs: [
@@ -15166,43 +5129,6 @@ export const miningPoolAbi = [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'USDG_DECIMALS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'claim',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'epochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -15229,11 +5155,6 @@ export const miningPoolAbi = [
         name: 'totalAllocation',
         type: 'uint256',
         internalType: 'uint256',
-      },
-      {
-        name: 'settledAt',
-        type: 'uint64',
-        internalType: 'uint64',
       },
       {
         name: 'settled',
@@ -15344,32 +5265,22 @@ export const miningPoolAbi = [
         internalType: 'uint64',
       },
       {
-        name: 'extensionUsed',
-        type: 'uint64',
-        internalType: 'uint64',
-      },
-      {
         name: 'totalContributed',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'scheduledEmission',
+        name: 'teamFee',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'actualEmission',
+        name: 'vaultRevenue',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'minimumMiningPrice',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'clearingPrice',
+        name: 'emission',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -15378,148 +5289,8 @@ export const miningPoolAbi = [
         type: 'bool',
         internalType: 'bool',
       },
-      {
-        name: 'invalidated',
-        type: 'bool',
-        internalType: 'bool',
-      },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisBootstrap',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisBootstrapInitialized',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'getEpoch',
-    inputs: [
-      {
-        name: 'epochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'epoch',
-        type: 'tuple',
-        internalType: 'struct MiningPool.Epoch',
-        components: [
-          {
-            name: 'startTime',
-            type: 'uint64',
-            internalType: 'uint64',
-          },
-          {
-            name: 'endTime',
-            type: 'uint64',
-            internalType: 'uint64',
-          },
-          {
-            name: 'settledAt',
-            type: 'uint64',
-            internalType: 'uint64',
-          },
-          {
-            name: 'extensionUsed',
-            type: 'uint64',
-            internalType: 'uint64',
-          },
-          {
-            name: 'totalContributed',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'scheduledEmission',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'actualEmission',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'minimumMiningPrice',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'clearingPrice',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'settled',
-            type: 'bool',
-            internalType: 'bool',
-          },
-          {
-            name: 'invalidated',
-            type: 'bool',
-            internalType: 'bool',
-          },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'initializeGenesisBootstrap',
-    inputs: [
-      {
-        name: 'genesisBootstrap_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'initializeReferencePrice',
-    inputs: [
-      {
-        name: 'genesisPriceWad',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'invalidateCurrentEpoch',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -15530,20 +5301,47 @@ export const miningPoolAbi = [
   },
   {
     type: 'function',
-    name: 'referenceMiningPrice',
+    name: 'resumeContributions',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'setTeamAddress',
+    inputs: [
+      {
+        name: 'team',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'settleCurrentEpoch',
     inputs: [],
     outputs: [
       {
-        name: '',
+        name: 'emission',
         type: 'uint256',
         internalType: 'uint256',
       },
     ],
-    stateMutability: 'view',
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
-    name: 'referencePriceInitialized',
+    name: 'start',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'started',
     inputs: [],
     outputs: [
       {
@@ -15556,47 +5354,16 @@ export const miningPoolAbi = [
   },
   {
     type: 'function',
-    name: 'refund',
-    inputs: [
+    name: 'teamAddress',
+    inputs: [],
+    outputs: [
       {
-        name: 'beneficiary',
+        name: '',
         type: 'address',
         internalType: 'address',
       },
-      {
-        name: 'epochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
     ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'settleCurrentEpoch',
-    inputs: [],
-    outputs: [
-      {
-        name: 'actualEmission',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'unpauseContributions',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
+    stateMutability: 'view',
   },
   {
     type: 'event',
@@ -15656,69 +5423,6 @@ export const miningPoolAbi = [
   },
   {
     type: 'event',
-    name: 'MiningPool__EpochExtended',
-    inputs: [
-      {
-        name: 'epochId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'newEndTime',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'extensionUsed',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'MiningPool__EpochInvalidated',
-    inputs: [
-      {
-        name: 'epochId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'MiningPool__EpochRefunded',
-    inputs: [
-      {
-        name: 'epochId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'beneficiary',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
     name: 'MiningPool__EpochSettled',
     inputs: [
       {
@@ -15734,25 +5438,19 @@ export const miningPoolAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'scheduledEmission',
+        name: 'teamFee',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
       },
       {
-        name: 'actualEmission',
+        name: 'vaultRevenue',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
       },
       {
-        name: 'clearingPrice',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'nextReferencePrice',
+        name: 'emission',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -15762,10 +5460,41 @@ export const miningPoolAbi = [
   },
   {
     type: 'event',
-    name: 'MiningPool__GenesisBootstrapInitialized',
+    name: 'MiningPool__MiningStarted',
     inputs: [
       {
-        name: 'genesisBootstrap',
+        name: 'epochId',
+        type: 'uint256',
+        indexed: true,
+        internalType: 'uint256',
+      },
+      {
+        name: 'startTime',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'endTime',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'MiningPool__TeamAddressSet',
+    inputs: [
+      {
+        name: 'previousTeam',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'newTeam',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -15774,33 +5503,8 @@ export const miningPoolAbi = [
     anonymous: false,
   },
   {
-    type: 'event',
-    name: 'MiningPool__ReferencePriceInitialized',
-    inputs: [
-      {
-        name: 'referencePrice',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'epochStart',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'epochEnd',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
     type: 'error',
-    name: 'MiningPool__AlreadyInitialized',
+    name: 'MiningPool__AlreadyStarted',
     inputs: [],
   },
   {
@@ -15826,30 +5530,8 @@ export const miningPoolAbi = [
   },
   {
     type: 'error',
-    name: 'MiningPool__EligibilityCheckFailed',
-    inputs: [
-      {
-        name: 'module',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'MiningPool__EmissionsExhausted',
     inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__EpochAlreadyInvalidated',
-    inputs: [
-      {
-        name: 'epochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
   },
   {
     type: 'error',
@@ -15869,23 +5551,27 @@ export const miningPoolAbi = [
   },
   {
     type: 'error',
-    name: 'MiningPool__GenesisBootstrapMustBeContract',
+    name: 'MiningPool__InexactTransfer',
     inputs: [
       {
-        name: 'bootstrap',
+        name: 'token',
         type: 'address',
         internalType: 'address',
       },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__IneligibleBeneficiary',
-    inputs: [
       {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
+        name: 'expected',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'debit',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'receipt',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
   },
@@ -15896,68 +5582,14 @@ export const miningPoolAbi = [
   },
   {
     type: 'error',
-    name: 'MiningPool__InvalidatedEpoch',
-    inputs: [
-      {
-        name: 'epochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__NoContribution',
-    inputs: [
-      {
-        name: 'epochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__NotInvalidated',
-    inputs: [
-      {
-        name: 'epochId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__ObservedDebitMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    name: 'MiningPool__MiningNotStarted',
+    inputs: [],
   },
   {
     type: 'error',
     name: 'MiningPool__ObservedReceiptMismatch',
     inputs: [
       {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
         name: 'expected',
         type: 'uint256',
         internalType: 'uint256',
@@ -15971,93 +5603,17 @@ export const miningPoolAbi = [
   },
   {
     type: 'error',
-    name: 'MiningPool__ObservedTransferMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__PayerDebitExceededMaximum',
-    inputs: [
-      {
-        name: 'maximum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__ReferencePriceNotInitialized',
+    name: 'MiningPool__PositionNotInCustody',
     inputs: [],
   },
   {
     type: 'error',
-    name: 'MiningPool__UnauthorizedDependencyInitializer',
+    name: 'MiningPool__Unauthorized',
     inputs: [
       {
         name: 'caller',
         type: 'address',
         internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__UnauthorizedGenesisBootstrap',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__UnauthorizedGuardian',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__UnauthorizedProtocolTimelock',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'MiningPool__UnsupportedUSDGDecimals',
-    inputs: [
-      {
-        name: 'decimals',
-        type: 'uint8',
-        internalType: 'uint8',
       },
     ],
   },
@@ -16104,86 +5660,12 @@ export const miningPoolAbi = [
     ],
   },
 ] as const;
-export const noopEligibilityModuleAbi = [
-  {
-    type: 'function',
-    name: 'canHold',
-    inputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'pure',
-  },
-  {
-    type: 'function',
-    name: 'canRedeem',
-    inputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'pure',
-  },
-  {
-    type: 'function',
-    name: 'canTransfer',
-    inputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'pure',
-  },
-] as const;
 export const protocolTimelockAbi = [
   {
     type: 'constructor',
     inputs: [
       {
-        name: 'proposerMultisig',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'deploymentInitializer',
+        name: 'proposer',
         type: 'address',
         internalType: 'address',
       },
@@ -16192,7 +5674,7 @@ export const protocolTimelockAbi = [
   },
   {
     type: 'function',
-    name: 'BOUNDED_MAINTENANCE_DELAY',
+    name: 'DELAY',
     inputs: [],
     outputs: [
       {
@@ -16205,20 +5687,7 @@ export const protocolTimelockAbi = [
   },
   {
     type: 'function',
-    name: 'CRITICAL_CHANGE_DELAY',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'DEPLOYMENT_INITIALIZER',
+    name: 'PROPOSER',
     inputs: [],
     outputs: [
       {
@@ -16231,92 +5700,18 @@ export const protocolTimelockAbi = [
   },
   {
     type: 'function',
-    name: 'EXECUTION_GRACE_PERIOD',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'PROPOSER_MULTISIG',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'allocationVoter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'assetRegistry',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IAssetRegistry',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'bootstrapDeployAcquisition',
+    name: 'executeAssetRegistration',
     inputs: [
       {
-        name: 'strategyCreationCode',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-      {
-        name: 'rewardsCreationCode',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-      {
-        name: 'targetToken',
+        name: 'registry',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'minimumLotUSDG',
-        type: 'uint256',
-        internalType: 'uint256',
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
       },
-      {
-        name: 'maximumLotUSDG',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'initialReferenceRate',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
       {
         name: 'strategy',
         type: 'address',
@@ -16327,68 +5722,8 @@ export const protocolTimelockAbi = [
         type: 'address',
         internalType: 'address',
       },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'bootstrapDeployBuyback',
-    inputs: [
       {
-        name: 'creationCode',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-      {
-        name: 'minimumLotUSDG',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'maximumLotUSDG',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'initialReferenceRate',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'bootstrapDeployHoldUSDG',
-    inputs: [
-      {
-        name: 'creationCode',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'cancel',
-    inputs: [
-      {
-        name: 'operationId',
+        name: 'salt',
         type: 'bytes32',
         internalType: 'bytes32',
       },
@@ -16398,67 +5733,22 @@ export const protocolTimelockAbi = [
   },
   {
     type: 'function',
-    name: 'emergencyGuardian',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'execute',
+    name: 'executeEmissionControllerReplacement',
     inputs: [
       {
-        name: 'target',
+        name: 'token',
         type: 'address',
-        internalType: 'address',
+        internalType: 'contract IGBXToken',
       },
-      {
-        name: 'data',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-      {
-        name: 'salt',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-    outputs: [
-      {
-        name: 'returnData',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'finalizePermissionedPoolController',
-    inputs: [
       {
         name: 'controller',
         type: 'address',
         internalType: 'address',
       },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'finalizeStrategyBootstrap',
-    inputs: [
       {
-        name: 'expectedAcquisitionTargets',
-        type: 'address[]',
-        internalType: 'address[]',
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
       },
     ],
     outputs: [],
@@ -16466,17 +5756,168 @@ export const protocolTimelockAbi = [
   },
   {
     type: 'function',
-    name: 'hashOperation',
+    name: 'executeMiningResume',
     inputs: [
       {
-        name: 'target',
+        name: 'miningPool',
+        type: 'address',
+        internalType: 'contract IMiningPool',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'executePositionTransfer',
+    inputs: [
+      {
+        name: 'custodian',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'data',
-        type: 'bytes',
-        internalType: 'bytes',
+        name: 'recipient',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'executeSignalResume',
+    inputs: [
+      {
+        name: 'voter',
+        type: 'address',
+        internalType: 'contract IAllocationVoter',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'executeStandaloneStrategyRegistration',
+    inputs: [
+      {
+        name: 'registry',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'executeStrategyDisablement',
+    inputs: [
+      {
+        name: 'registry',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'voter',
+        type: 'address',
+        internalType: 'contract IAllocationVoter',
+      },
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'executeStrategyResume',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'executeTeamAddressUpdate',
+    inputs: [
+      {
+        name: 'miningPool',
+        type: 'address',
+        internalType: 'contract IMiningPool',
+      },
+      {
+        name: 'team',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'hashEmissionControllerReplacement',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'contract IGBXToken',
+      },
+      {
+        name: 'controller',
+        type: 'address',
+        internalType: 'address',
       },
       {
         name: 'salt',
@@ -16486,7 +5927,7 @@ export const protocolTimelockAbi = [
     ],
     outputs: [
       {
-        name: 'operationId',
+        name: '',
         type: 'bytes32',
         internalType: 'bytes32',
       },
@@ -16495,64 +5936,29 @@ export const protocolTimelockAbi = [
   },
   {
     type: 'function',
-    name: 'initializeTargets',
+    name: 'hashPositionTransfer',
     inputs: [
       {
-        name: 'assetRegistryAddress',
+        name: 'custodian',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'emergencyGuardianAddress',
+        name: 'recipient',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'allocationVoterAddress',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'miningPoolAddress',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'liquidityManagerAddress',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'strategyDeployerAddress',
-        type: 'address',
-        internalType: 'address',
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
       },
     ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'liquidityManager',
-    inputs: [],
     outputs: [
       {
         name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'miningPool',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
+        type: 'bytes32',
+        internalType: 'bytes32',
       },
     ],
     stateMutability: 'view',
@@ -16578,67 +5984,27 @@ export const protocolTimelockAbi = [
   },
   {
     type: 'function',
-    name: 'permissionedPoolController',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IPermissionedPoolController',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'permissionedPoolControllerFinalized',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'requiredDelay',
+    name: 'scheduleAssetRegistration',
     inputs: [
       {
-        name: 'target',
+        name: 'registry',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'data',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: 'delay',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'schedule',
-    inputs: [
-      {
-        name: 'target',
+        name: 'token',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'data',
-        type: 'bytes',
-        internalType: 'bytes',
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'rewards',
+        type: 'address',
+        internalType: 'address',
       },
       {
         name: 'salt',
@@ -16657,52 +6023,278 @@ export const protocolTimelockAbi = [
   },
   {
     type: 'function',
-    name: 'strategyBootstrapFinalized',
-    inputs: [],
-    outputs: [
+    name: 'scheduleEmissionControllerReplacement',
+    inputs: [
       {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'strategyDeployer',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
+        name: 'token',
         type: 'address',
-        internalType: 'contract IStrategyDeployer',
+        internalType: 'contract IGBXToken',
+      },
+      {
+        name: 'controller',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
       },
     ],
-    stateMutability: 'view',
+    outputs: [
+      {
+        name: 'operationId',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
-    name: 'targetsInitialized',
-    inputs: [],
-    outputs: [
+    name: 'scheduleMiningResume',
+    inputs: [
       {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
+        name: 'miningPool',
+        type: 'address',
+        internalType: 'contract IMiningPool',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
       },
     ],
-    stateMutability: 'view',
+    outputs: [
+      {
+        name: 'operationId',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'schedulePositionTransfer',
+    inputs: [
+      {
+        name: 'custodian',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'recipient',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [
+      {
+        name: 'operationId',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'scheduleSignalResume',
+    inputs: [
+      {
+        name: 'voter',
+        type: 'address',
+        internalType: 'contract IAllocationVoter',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [
+      {
+        name: 'operationId',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'scheduleStandaloneStrategyRegistration',
+    inputs: [
+      {
+        name: 'registry',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [
+      {
+        name: 'operationId',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'scheduleStrategyDisablement',
+    inputs: [
+      {
+        name: 'registry',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'voter',
+        type: 'address',
+        internalType: 'contract IAllocationVoter',
+      },
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [
+      {
+        name: 'operationId',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'scheduleStrategyResume',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [
+      {
+        name: 'operationId',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'scheduleTeamAddressUpdate',
+    inputs: [
+      {
+        name: 'miningPool',
+        type: 'address',
+        internalType: 'contract IMiningPool',
+      },
+      {
+        name: 'team',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'salt',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    outputs: [
+      {
+        name: 'operationId',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'event',
-    name: 'ProtocolTimelock__OperationCancelled',
+    name: 'ProtocolTimelock__ControllerReplacementExecuted',
     inputs: [
       {
         name: 'operationId',
         type: 'bytes32',
         indexed: true,
         internalType: 'bytes32',
+      },
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'controller',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'ProtocolTimelock__ControllerReplacementScheduled',
+    inputs: [
+      {
+        name: 'operationId',
+        type: 'bytes32',
+        indexed: true,
+        internalType: 'bytes32',
+      },
+      {
+        name: 'token',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'controller',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'readyAt',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
       },
     ],
     anonymous: false,
@@ -16718,28 +6310,10 @@ export const protocolTimelockAbi = [
         internalType: 'bytes32',
       },
       {
-        name: 'target',
-        type: 'address',
+        name: 'action',
+        type: 'uint8',
         indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'selector',
-        type: 'bytes4',
-        indexed: true,
-        internalType: 'bytes4',
-      },
-      {
-        name: 'dataHash',
-        type: 'bytes32',
-        indexed: false,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'salt',
-        type: 'bytes32',
-        indexed: false,
-        internalType: 'bytes32',
+        internalType: 'enum ProtocolTimelock.Action',
       },
     ],
     anonymous: false,
@@ -16755,28 +6329,10 @@ export const protocolTimelockAbi = [
         internalType: 'bytes32',
       },
       {
-        name: 'target',
-        type: 'address',
+        name: 'action',
+        type: 'uint8',
         indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'selector',
-        type: 'bytes4',
-        indexed: true,
-        internalType: 'bytes4',
-      },
-      {
-        name: 'dataHash',
-        type: 'bytes32',
-        indexed: false,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'salt',
-        type: 'bytes32',
-        indexed: false,
-        internalType: 'bytes32',
+        internalType: 'enum ProtocolTimelock.Action',
       },
       {
         name: 'readyAt',
@@ -16784,86 +6340,61 @@ export const protocolTimelockAbi = [
         indexed: false,
         internalType: 'uint256',
       },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'ProtocolTimelock__PositionTransferExecuted',
+    inputs: [
       {
-        name: 'delay',
+        name: 'operationId',
+        type: 'bytes32',
+        indexed: true,
+        internalType: 'bytes32',
+      },
+      {
+        name: 'custodian',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'recipient',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'ProtocolTimelock__PositionTransferScheduled',
+    inputs: [
+      {
+        name: 'operationId',
+        type: 'bytes32',
+        indexed: true,
+        internalType: 'bytes32',
+      },
+      {
+        name: 'custodian',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'recipient',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'readyAt',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ProtocolTimelock__PermissionedPoolControllerFinalized',
-    inputs: [
-      {
-        name: 'controller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ProtocolTimelock__StrategyBootstrapFinalized',
-    inputs: [
-      {
-        name: 'holdUSDG',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'buybackBurn',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'ProtocolTimelock__TargetsInitialized',
-    inputs: [
-      {
-        name: 'assetRegistry',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'emergencyGuardian',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'allocationVoter',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'miningPool',
-        type: 'address',
-        indexed: false,
-        internalType: 'address',
-      },
-      {
-        name: 'liquidityManager',
-        type: 'address',
-        indexed: false,
-        internalType: 'address',
-      },
-      {
-        name: 'strategyDeployer',
-        type: 'address',
-        indexed: false,
-        internalType: 'address',
       },
     ],
     anonymous: false,
@@ -16876,91 +6407,6 @@ export const protocolTimelockAbi = [
         name: 'operationId',
         type: 'bytes32',
         internalType: 'bytes32',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__DataLengthMismatch',
-    inputs: [
-      {
-        name: 'selector',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-      {
-        name: 'actualLength',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__ExecutionExpired',
-    inputs: [
-      {
-        name: 'operationId',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 'expiresAt',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__ExecutionFailed',
-    inputs: [
-      {
-        name: 'operationId',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 'reason',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__InvalidMigrationCalldata',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__InvalidMigrationPoolKey',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 'actual',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__InvalidStrategyDeploymentCalldata',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__InvalidStrategyRegistrationProvenance',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
       },
     ],
   },
@@ -16993,2104 +6439,10 @@ export const protocolTimelockAbi = [
   },
   {
     type: 'error',
-    name: 'ProtocolTimelock__NotScheduled',
-    inputs: [
-      {
-        name: 'operationId',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__PermissionedPoolControllerAlreadyFinalized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__PermissionedPoolControllerNotFinalized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__ReferenceRateBaselineMismatch',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__StrategyBootstrapAlreadyFinalized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__StrategyBootstrapIncomplete',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__StrategyBootstrapNotFinalized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__TargetsAlreadyInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__TargetsNotInitialized',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__UnauthorizedInitializer',
+    name: 'ProtocolTimelock__Unauthorized',
     inputs: [
       {
         name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__UnauthorizedProposer',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__UnsupportedOperation',
-    inputs: [
-      {
-        name: 'target',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'selector',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ProtocolTimelock__ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ReentrancyGuardReentrantCall',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'SafeCastOverflowedUintDowncast',
-    inputs: [
-      {
-        name: 'bits',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'value',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-] as const;
-export const permissionedLiquidityManagerContractAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'dependencies',
-        type: 'tuple',
-        internalType: 'struct LiquidityManager.Dependencies',
-        components: [
-          {
-            name: 'gbx',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'usdG',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'gumBallVault',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'allocationVoter',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'poolManager',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'positionManager',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'permit2',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'launchGuardHook',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'genesisBootstrap',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'genesisLiquidityCalculator',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'protocolTimelock',
-            type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'emergencyGuardian',
-            type: 'address',
-            internalType: 'address',
-          },
-        ],
-      },
-      {
-        name: 'ladder',
-        type: 'tuple',
-        internalType: 'struct LiquidityManager.LadderConfig',
-        components: [
-          {
-            name: 'poolFee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'allocationBps',
-            type: 'uint16[4]',
-            internalType: 'uint16[4]',
-          },
-          {
-            name: 'cumulativeTickDeltas',
-            type: 'int24[4]',
-            internalType: 'int24[4]',
-          },
-        ],
-      },
-      {
-        name: 'permissionsAdapterFactory_',
-        type: 'address',
-        internalType: 'contract IUniswapPermissionsAdapterFactory',
-      },
-      {
-        name: 'gbxPermissionsAdapter_',
-        type: 'address',
-        internalType: 'contract IUniswapPermissionsAdapter',
-      },
-      {
-        name: 'adapterVerificationEscrow_',
-        type: 'address',
-        internalType: 'contract IAdapterVerificationEscrow',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'ADAPTER_VERIFICATION_ESCROW',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IAdapterVerificationEscrow',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'ALLOCATION_VOTER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract AllocationVoter',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'BPS_DENOMINATOR',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'EMERGENCY_GUARDIAN',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GBX',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IGBXToken',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GBX_PERMISSIONS_ADAPTER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IUniswapPermissionsAdapter',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_BOOTSTRAP',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_LIQUIDITY_ALLOCATION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_LIQUIDITY_CALCULATOR',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract GenesisLiquidityCalculator',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GENESIS_MINER_ALLOCATION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GUM_BALL_VAULT',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'LAUNCH_GUARD_HOOK',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IHooks',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MAX_ACTIVE_POSITIONS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MAX_MIGRATION_POSITIONS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'PERMISSIONS_ADAPTER_FACTORY',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IUniswapPermissionsAdapterFactory',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'PERMIT2',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IAllowanceTransfer',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'POOL_FEE',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint24',
-        internalType: 'uint24',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'POOL_MANAGER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IPoolManager',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'POSITION_COUNT',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'POSITION_MANAGER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IPositionManager',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'PROTOCOL_TIMELOCK',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'TICK_SPACING',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'USDG',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IERC20',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'activePositionCount',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'allocationBps',
-    inputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'uint16',
-        internalType: 'uint16',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'collectFees',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'gbxBurned',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'usdGToVault',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'cumulativeTickDeltas',
-    inputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisLiquidityPrincipal',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisLiquidityResidual',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisSeeded',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisSqrtPriceX96',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'genesisTick',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'initializeAndSeed',
-    inputs: [
-      {
-        name: 'communityUSDG',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    outputs: [
-      {
-        name: 'initializedSqrtPriceX96',
-        type: 'uint160',
-        internalType: 'uint160',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'lastMigrationPlanHash',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'migrateLiquidity',
-    inputs: [
-      {
-        name: 'plan',
-        type: 'tuple',
-        internalType: 'struct LiquidityManager.MigrationPlan',
-        components: [
-          {
-            name: 'destinationPoolKey',
-            type: 'tuple',
-            internalType: 'struct PoolKey',
-            components: [
-              {
-                name: 'currency0',
-                type: 'address',
-                internalType: 'Currency',
-              },
-              {
-                name: 'currency1',
-                type: 'address',
-                internalType: 'Currency',
-              },
-              {
-                name: 'fee',
-                type: 'uint24',
-                internalType: 'uint24',
-              },
-              {
-                name: 'tickSpacing',
-                type: 'int24',
-                internalType: 'int24',
-              },
-              {
-                name: 'hooks',
-                type: 'address',
-                internalType: 'contract IHooks',
-              },
-            ],
-          },
-          {
-            name: 'removals',
-            type: 'tuple[]',
-            internalType: 'struct LiquidityManager.MigrationRemoval[]',
-            components: [
-              {
-                name: 'positionId',
-                type: 'uint256',
-                internalType: 'uint256',
-              },
-              {
-                name: 'amount0Min',
-                type: 'uint128',
-                internalType: 'uint128',
-              },
-              {
-                name: 'amount1Min',
-                type: 'uint128',
-                internalType: 'uint128',
-              },
-            ],
-          },
-          {
-            name: 'replacements',
-            type: 'tuple[]',
-            internalType: 'struct LiquidityManager.MigrationReplacement[]',
-            components: [
-              {
-                name: 'tickLower',
-                type: 'int24',
-                internalType: 'int24',
-              },
-              {
-                name: 'tickUpper',
-                type: 'int24',
-                internalType: 'int24',
-              },
-              {
-                name: 'liquidity',
-                type: 'uint128',
-                internalType: 'uint128',
-              },
-              {
-                name: 'amount0Max',
-                type: 'uint128',
-                internalType: 'uint128',
-              },
-              {
-                name: 'amount1Max',
-                type: 'uint128',
-                internalType: 'uint128',
-              },
-            ],
-          },
-          {
-            name: 'deadline',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-        ],
-      },
-    ],
-    outputs: [
-      {
-        name: 'replacementPositionIds',
-        type: 'uint256[]',
-        internalType: 'uint256[]',
-      },
-      {
-        name: 'gbxResidualBurned',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'usdGResidualToVault',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'migrationCount',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'migrationsPaused',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'onERC721Received',
-    inputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: '',
-        type: 'bytes',
-        internalType: 'bytes',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bytes4',
-        internalType: 'bytes4',
-      },
-    ],
-    stateMutability: 'pure',
-  },
-  {
-    type: 'function',
-    name: 'pauseMigrations',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'poolKey',
-    inputs: [],
-    outputs: [
-      {
-        name: 'key',
-        type: 'tuple',
-        internalType: 'struct PoolKey',
-        components: [
-          {
-            name: 'currency0',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'currency1',
-            type: 'address',
-            internalType: 'Currency',
-          },
-          {
-            name: 'fee',
-            type: 'uint24',
-            internalType: 'uint24',
-          },
-          {
-            name: 'tickSpacing',
-            type: 'int24',
-            internalType: 'int24',
-          },
-          {
-            name: 'hooks',
-            type: 'address',
-            internalType: 'contract IHooks',
-          },
-        ],
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'positionIds',
-    inputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'positionRecord',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'tickLower',
-        type: 'int24',
-        internalType: 'int24',
-      },
-      {
-        name: 'tickUpper',
-        type: 'int24',
-        internalType: 'int24',
-      },
-      {
-        name: 'liquidity',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-      {
-        name: 'gbxPrincipal',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'exists',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'sweepCompletedRange',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'gbxDustBurned',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'usdGPrincipalAndFeesToVault',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'unpauseMigrations',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__CanonicalPoolSeeded',
-    inputs: [
-      {
-        name: 'poolKeyHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'sqrtPriceX96',
-        type: 'uint160',
-        indexed: false,
-        internalType: 'uint160',
-      },
-      {
-        name: 'initialTick',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'firstPositionId',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'gbxPrincipal',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'gbxResidual',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__CompletedRangeSwept',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'currentTick',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'gbxDustBurned',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'usdGPrincipalAndFeesToVault',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__FeesCollected',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'gbxBurned',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'usdGToVault',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__MigrationCompleted',
-    inputs: [
-      {
-        name: 'planHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'destinationPoolKeyHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'removedPositionIds',
-        type: 'uint256[]',
-        indexed: false,
-        internalType: 'uint256[]',
-      },
-      {
-        name: 'replacementPositionIds',
-        type: 'uint256[]',
-        indexed: false,
-        internalType: 'uint256[]',
-      },
-      {
-        name: 'gbxResidualBurned',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'usdGResidualToVault',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__MigrationPauseSet',
-    inputs: [
-      {
-        name: 'paused',
-        type: 'bool',
-        indexed: false,
-        internalType: 'bool',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__MigrationPositionAfter',
-    inputs: [
-      {
-        name: 'planHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'positionId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'tickLower',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'tickUpper',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'liquidity',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'amount0Max',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'amount1Max',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__MigrationPositionBefore',
-    inputs: [
-      {
-        name: 'planHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'positionId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'tickLower',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'tickUpper',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'liquidity',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'amount0Min',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'amount1Min',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__MigrationStarted',
-    inputs: [
-      {
-        name: 'planHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'destinationPoolKeyHash',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'removalCount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'replacementCount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'deadline',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'LiquidityManager__PositionRecorded',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'tickLower',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'tickUpper',
-        type: 'int24',
-        indexed: false,
-        internalType: 'int24',
-      },
-      {
-        name: 'liquidity',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'gbxPrincipal',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'GenesisPriceMath__InvalidTickSpacing',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__ActivePositionLimitExceeded',
-    inputs: [
-      {
-        name: 'currentActive',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'removalCount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'replacementCount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'maximumActive',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__AddressHasNoCode',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__AlreadySeeded',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__DeadlineExpired',
-    inputs: [
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__DuplicateMigrationPosition',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__GenesisBalanceMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__GenesisNotSeeded',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__GenesisPrincipalMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__InsufficientGenesisGBX',
-    inputs: [
-      {
-        name: 'required',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'available',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__InvalidAllocation',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__InvalidDestinationPoolKey',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 'actual',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__InvalidMigrationLength',
-    inputs: [
-      {
-        name: 'removals',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'replacements',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__InvalidMigrationSlippage',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__InvalidRange',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__MigrationsPaused',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__NotEmergencyGuardian',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__NotGenesisBootstrap',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__NotProtocolTimelock',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__PositionLiquidityMismatch',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'expected',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-      {
-        name: 'actual',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__PositionNotOwned',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'owner',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__RangeNotCompleted',
-    inputs: [
-      {
-        name: 'positionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'currentTick',
-        type: 'int24',
-        internalType: 'int24',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__UnexpectedMintedPositionCount',
-    inputs: [
-      {
-        name: 'expectedNextPositionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actualNextPositionId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__UnknownPosition',
-    inputs: [
-      {
-        name: 'tokenId',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'LiquidityManager__ZeroUSDGReceived',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'PermissionedLiquidityManager__AdapterFactoryMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'actual',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'PermissionedLiquidityManager__AdapterPoolManagerMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'actual',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'PermissionedLiquidityManager__AdapterTokenMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'actual',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'PermissionedLiquidityManager__AddressHasNoCode',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'PermissionedLiquidityManager__HookConfigurationMismatch',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'PermissionedLiquidityManager__HookLiquidityManagerMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'actual',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'PermissionedLiquidityManager__PositionManagerNotAllowedWrapper',
-    inputs: [
-      {
-        name: 'positionManager',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'PermissionedLiquidityManager__UnverifiedAdapter',
-    inputs: [
-      {
-        name: 'adapter',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'PermissionedLiquidityManager__VerificationEscrowMismatch',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'PermissionedLiquidityManager__VerificationStateMismatch',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'actual',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ReentrancyGuardReentrantCall',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'SafeCastOverflowedUintDowncast',
-    inputs: [
-      {
-        name: 'bits',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'value',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'SafeERC20FailedOperation',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-] as const;
-export const registryEligibilityModuleAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'registry_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'ELIGIBILITY_REGISTRY',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IEligibilityRegistry',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'canHold',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'canRedeem',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'canTransfer',
-    inputs: [
-      {
-        name: 'from',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'to',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: '',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'error',
-    name: 'RegistryEligibilityModule__RegistryHasNoCode',
-    inputs: [
-      {
-        name: 'registry',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'RegistryEligibilityModule__ZeroRegistry',
-    inputs: [],
-  },
-] as const;
-export const revenueRouterAbi = [
-  {
-    type: 'constructor',
-    inputs: [
-      {
-        name: 'usdG_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'gumBallVault_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'allocationVoter_',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'ALLOCATION_VOTER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract AllocationVoter',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'GUM_BALL_VAULT',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'USDG',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IERC20',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'routeRevenue',
-    inputs: [
-      {
-        name: 'requestedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'sourceId',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-    ],
-    outputs: [
-      {
-        name: 'vaultReceived',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'event',
-    name: 'RevenueRouter__RevenueRouted',
-    inputs: [
-      {
-        name: 'payer',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'sourceId',
-        type: 'bytes32',
-        indexed: true,
-        internalType: 'bytes32',
-      },
-      {
-        name: 'requestedAmount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'vaultReceived',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'ReentrancyGuardReentrantCall',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'RevenueRouter__PayerDebitExceededMaximum',
-    inputs: [
-      {
-        name: 'maximum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'observed',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'RevenueRouter__TargetHasNoCode',
-    inputs: [
-      {
-        name: 'target',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'RevenueRouter__ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'RevenueRouter__ZeroAmount',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'RevenueRouter__ZeroReceived',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'SafeERC20FailedOperation',
-    inputs: [
-      {
-        name: 'token',
         type: 'address',
         internalType: 'address',
       },
@@ -19102,14 +6454,14 @@ export const stakedGbxAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'gbx_',
+        name: 'gbx',
         type: 'address',
-        internalType: 'address',
+        internalType: 'contract IGBXToken',
       },
       {
-        name: 'allocationVoter_',
+        name: 'allocationVoter',
         type: 'address',
-        internalType: 'address',
+        internalType: 'contract IAllocationVoter',
       },
     ],
     stateMutability: 'nonpayable',
@@ -19123,19 +6475,6 @@ export const stakedGbxAbi = [
         name: '',
         type: 'address',
         internalType: 'contract IAllocationVoter',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'ELIGIBILITY_MODULE',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IEligibilityModule',
       },
     ],
     stateMutability: 'view',
@@ -19187,19 +6526,19 @@ export const stakedGbxAbi = [
         internalType: 'address',
       },
       {
-        name: 'amount',
+        name: 'value',
         type: 'uint256',
         internalType: 'uint256',
       },
     ],
     outputs: [
       {
-        name: 'approved',
+        name: '',
         type: 'bool',
         internalType: 'bool',
       },
     ],
-    stateMutability: 'pure',
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -19251,42 +6590,12 @@ export const stakedGbxAbi = [
     name: 'stake',
     inputs: [
       {
-        name: 'requestedAmount',
+        name: 'amount',
         type: 'uint256',
         internalType: 'uint256',
       },
     ],
-    outputs: [
-      {
-        name: 'receivedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'stakeFor',
-    inputs: [
-      {
-        name: 'beneficiary',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'requestedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'receivedAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    outputs: [],
     stateMutability: 'nonpayable',
   },
   {
@@ -19320,53 +6629,53 @@ export const stakedGbxAbi = [
     name: 'transfer',
     inputs: [
       {
-        name: 'receiver',
+        name: 'to',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'amount',
+        name: 'value',
         type: 'uint256',
         internalType: 'uint256',
       },
     ],
     outputs: [
       {
-        name: 'transferred',
+        name: '',
         type: 'bool',
         internalType: 'bool',
       },
     ],
-    stateMutability: 'pure',
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
     name: 'transferFrom',
     inputs: [
       {
-        name: 'owner',
+        name: 'from',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'receiver',
+        name: 'to',
         type: 'address',
         internalType: 'address',
       },
       {
-        name: 'amount',
+        name: 'value',
         type: 'uint256',
         internalType: 'uint256',
       },
     ],
     outputs: [
       {
-        name: 'transferred',
+        name: '',
         type: 'bool',
         internalType: 'bool',
       },
     ],
-    stateMutability: 'pure',
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -19408,37 +6717,6 @@ export const stakedGbxAbi = [
   },
   {
     type: 'event',
-    name: 'StakedGBX__StakeFunded',
-    inputs: [
-      {
-        name: 'payer',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'beneficiary',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'requestedAmount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'receivedAmount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
     name: 'StakedGBX__Staked',
     inputs: [
       {
@@ -19448,13 +6726,7 @@ export const stakedGbxAbi = [
         internalType: 'address',
       },
       {
-        name: 'requestedAmount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'receivedAmount',
+        name: 'amount',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -19610,23 +6882,22 @@ export const stakedGbxAbi = [
   },
   {
     type: 'error',
-    name: 'StakedGBX__EligibilityCheckFailed',
+    name: 'StakedGBX__InexactTransfer',
     inputs: [
       {
-        name: 'module',
-        type: 'address',
-        internalType: 'address',
+        name: 'expected',
+        type: 'uint256',
+        internalType: 'uint256',
       },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'StakedGBX__IneligibleStaker',
-    inputs: [
       {
-        name: 'staker',
-        type: 'address',
-        internalType: 'address',
+        name: 'debit',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'receipt',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
   },
@@ -19634,6 +6905,17 @@ export const stakedGbxAbi = [
     type: 'error',
     name: 'StakedGBX__NonTransferable',
     inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'StakedGBX__SignalsNotReset',
+    inputs: [
+      {
+        name: 'usedWeight',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
   },
   {
     type: 'error',
@@ -19645,9 +6927,434 @@ export const stakedGbxAbi = [
     name: 'StakedGBX__ZeroAmount',
     inputs: [],
   },
+] as const;
+export const strategyRewardsAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'rewardToken',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'allocationVoter',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'strategyInitializer',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'ALLOCATION_VOTER',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'REWARD_PRECISION',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'REWARD_TOKEN',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'STRATEGY',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'STRATEGY_INITIALIZER',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'accountedRewards',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'accrued',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'claim',
+    inputs: [
+      {
+        name: 'beneficiary',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'earned',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'initializeStrategy',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'notifyReward',
+    inputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'rewardPerWeightPaid',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'index',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'rewardPerWeightStored',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'setWeight',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'newWeight',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'totalWeight',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'weightOf',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'weight',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    name: 'StrategyRewards__Claimed',
+    inputs: [
+      {
+        name: 'beneficiary',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'caller',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'StrategyRewards__RewardNotified',
+    inputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'rewardPerWeightAfter',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'StrategyRewards__WeightSet',
+    inputs: [
+      {
+        name: 'user',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'previousWeight',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'newWeight',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
   {
     type: 'error',
-    name: 'StakedGBX__ZeroReceived',
+    name: 'ReentrancyGuardReentrantCall',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'SafeERC20FailedOperation',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'StrategyRewards__AlreadyInitialized',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'StrategyRewards__InexactTransfer',
+    inputs: [
+      {
+        name: 'expected',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'debit',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'receipt',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'StrategyRewards__InsufficientFunding',
+    inputs: [
+      {
+        name: 'required',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'balance',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'StrategyRewards__NoReward',
+    inputs: [
+      {
+        name: 'beneficiary',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'StrategyRewards__Unauthorized',
+    inputs: [
+      {
+        name: 'caller',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'StrategyRewards__ZeroAddress',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'StrategyRewards__ZeroAmount',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'StrategyRewards__ZeroWeight',
     inputs: [],
   },
 ] as const;

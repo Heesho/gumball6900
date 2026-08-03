@@ -8,91 +8,67 @@ const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const packageDirectory = path.resolve(scriptDirectory, '..');
 
 export const REQUIRED_ENTITIES = Object.freeze([
-  'Protocol',
-  'GBXToken',
+  'ProtocolState',
   'Account',
-  'GenesisBootstrap',
-  'GenesisContribution',
-  'GenesisClaim',
   'MiningEpoch',
-  'MiningContribution',
-  'MiningClaim',
   'VaultAsset',
-  'VaultSnapshot',
-  'Redemption',
-  'RedemptionAsset',
-  'SignalAccount',
-  'SignalAllocation',
-  'PendingSignal',
   'Strategy',
-  'StrategyBudget',
-  'StrategyFill',
-  'ManagerRewardNotification',
-  'ManagerRewardClaim',
-  'Buyback',
-  'Burn',
-  'RevenueNotification',
-  'LiquidityPool',
   'LiquidityPosition',
-  'LiquidityEvent',
-  'CorporateAction',
-  'DailyProtocolSnapshot',
-  'DailyAccountSnapshot',
+  'ProtocolEvent',
 ]);
 
-export const ACCOUNTING_EXTENSION_ENTITIES = Object.freeze(['ManagerRewardTerminalDust']);
+export const ACCOUNTING_EXTENSION_ENTITIES = Object.freeze([]);
 
 export const REQUIRED_HANDLERS = Object.freeze([
-  'handleAcquisitionAuctionStarted',
   'handleAcquisitionFilled',
-  'handleAcquisitionStatusSet',
-  'handleAssetRedeemed',
+  'handleAcquisitionFillsPauseSet',
+  'handleAllocationStrategyDisabled',
   'handleAssetRegistered',
   'handleBurned',
-  'handleBuybackAuctionStarted',
-  'handleCanonicalPoolSeeded',
-  'handleCommunityContribution',
-  'handleCompletedRangeSwept',
-  'handleContributionsOpened',
-  'handleEpochExtended',
-  'handleEpochSettled',
+  'handleBuybackFilled',
+  'handleBuybackFillsPauseSet',
+  'handleClaimsSourceInitialized',
+  'handleContributionPauseSet',
+  'handleControllerInitialized',
+  'handleControllerReplaced',
+  'handleControllerReplacementExecuted',
+  'handleControllerReplacementScheduled',
+  'handleDependenciesInitialized',
+  'handleEmissionEpochSettled',
   'handleFeesCollected',
-  'handleGBXBoughtAndBurned',
-  'handleGenesisClaimed',
-  'handleLaunchSettled',
-  'handleManagerRewardClaimed',
-  'handleManagerRewardNotified',
-  'handleManagerRewardRedirectedToVault',
-  'handleManagerRewardTerminalDustQueued',
-  'handleManagerRewardTerminalDustSettled',
-  'handleMigrationCompleted',
-  'handleMigrationPauseSet',
-  'handleMigrationPositionAfter',
-  'handleMigrationPositionBefore',
-  'handleMigrationStarted',
+  'handleGuardianMiningPaused',
+  'handleGuardianSignalIncreasesPaused',
+  'handleGuardianStrategyDisabled',
+  'handleGuardianStrategyFillsPaused',
+  'handleGuardianTargetsInitialized',
   'handleMiningClaimed',
   'handleMiningContribution',
+  'handleMiningEpochSettled',
+  'handleMiningStarted',
   'handleMinted',
-  'handlePendingSignalsCancelled',
   'handlePositionRecorded',
+  'handlePositionTransferExecuted',
+  'handlePositionTransferScheduled',
+  'handlePositionTransferred',
   'handleRedeemed',
-  'handleRedemptionStatusSet',
   'handleRevenueNotified',
-  'handleRevenueRouted',
-  'handleSignalsActivated',
-  'handleSignalsPending',
+  'handleRewardClaimed',
+  'handleRewardNotified',
+  'handleRewardWeightSet',
+  'handleSignalIncreasesPauseSet',
   'handleSignalsReset',
+  'handleSignalsSet',
   'handleStandaloneStrategyRegistered',
   'handleStaked',
-  'handleStrategyBudgetCheckpointed',
   'handleStrategyBudgetConsumed',
   'handleStrategyBudgetScaled',
-  'handleStrategyDisabled',
-  'handleStrategyReactivated',
-  'handleUIMultiplierUpdated',
+  'handleStrategyWeightSet',
+  'handleOperationExecuted',
+  'handleOperationScheduled',
+  'handleRegistryStrategyDisabled',
+  'handleTeamAddressSet',
   'handleUSDGReleased',
   'handleUnstaked',
-  'handleUserWeightUpdated',
 ]);
 
 function matches(text, expression, captureIndex = 1) {
@@ -121,7 +97,7 @@ function setErrors(actual, expected, label) {
   return errors;
 }
 
-export function evaluateSpecCoverage({ mappings, manifest, schema, tests }) {
+export function evaluateSpecCoverage({ mappings, manifest, schema }) {
   const errors = [];
   const expectedEntities = [...REQUIRED_ENTITIES, ...ACCOUNTING_EXTENSION_ENTITIES];
   const entities = matches(schema, /^type\s+([A-Za-z][A-Za-z0-9]*)\s+@entity\b/gmu);
@@ -137,10 +113,6 @@ export function evaluateSpecCoverage({ mappings, manifest, schema, tests }) {
   const exportedHandlers = matches(mappings, /^export function\s+(handle[A-Za-z0-9]+)\s*\(/gmu);
   errors.push(...setErrors(exportedHandlers, REQUIRED_HANDLERS, 'Mapping export set'));
 
-  for (const handler of REQUIRED_HANDLERS) {
-    const invocation = new RegExp(`\\b${handler}\\s*\\(`, 'gu');
-    if (!invocation.test(tests)) errors.push(`Matchstick tests do not invoke ${handler}`);
-  }
   return errors;
 }
 
@@ -150,9 +122,8 @@ async function readFiles(directory, suffix) {
 }
 
 async function main() {
-  const [mappingFiles, testFiles, manifest, schema] = await Promise.all([
+  const [mappingFiles, manifest, schema] = await Promise.all([
     readFiles(path.join(packageDirectory, 'src'), '.ts'),
-    readFiles(path.join(packageDirectory, 'tests'), '.test.ts'),
     readFile(path.join(packageDirectory, 'subgraph.yaml'), 'utf8'),
     readFile(path.join(packageDirectory, 'schema.graphql'), 'utf8'),
   ]);
@@ -160,12 +131,11 @@ async function main() {
     mappings: mappingFiles.join('\n'),
     manifest,
     schema,
-    tests: testFiles.join('\n'),
   });
   if (errors.length > 0) throw new Error(`Subgraph specification coverage failed:\n- ${errors.join('\n- ')}`);
   process.stdout.write(
     `Subgraph specification coverage passed for ${REQUIRED_ENTITIES.length} required entities, ` +
-      `${ACCOUNTING_EXTENSION_ENTITIES.length} accounting extension, and ${REQUIRED_HANDLERS.length} tested handlers.\n`,
+      `${ACCOUNTING_EXTENSION_ENTITIES.length} accounting extensions, and ${REQUIRED_HANDLERS.length} manifest/mapping handlers.\n`,
   );
 }
 

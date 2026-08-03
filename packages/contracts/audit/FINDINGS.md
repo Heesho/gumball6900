@@ -1,7 +1,118 @@
 # Static-analysis finding register
 
-This register documents findings rather than suppressing them. Raw reports are generated under `audit/reports/` and
-uploaded by CI. A release review must refresh the reports and update this register for the exact release commit.
+## Current minimal graph internal audit — 2026-08-03
+
+This section reviews the exact dirty working tree on `codex/minimal-gbx-rebuild` at base commit
+`04559b9308c8b7933a13a7f68e0b1894a7667997`. It covers all 26 Solidity source units under `src` (2,813 physical
+lines; 2,064 Aderyn SLOC), the minimal deployment script, and their active Foundry/Hardhat build graph. The economic
+review assumes every protocol token is a standard, non-rebasing, non-fee-on-transfer ERC-20, as specified by the
+protocol owner. Adversarial token tests are retained only as fail-closed evidence; supporting those token types is not
+an objective.
+
+This is an internal engineering review, not an independent audit or a release approval. Three findings remain open:
+
+> **Owner decision — 2026-08-03.** Proceed with the deliberately minimal contract graph as the audit candidate while
+> M-01, L-01, and I-01 remain explicitly deferred and open. This decision freezes the simpler architecture for further
+> review; it does not accept the findings for production, authorize deployment, or waive the independent audit and
+> release gates.
+
+### M-01 — Open — timelock disablement does not bind the registry to its canonical voter
+
+`ProtocolTimelock.scheduleStrategyDisablement` and `executeStrategyDisablement` accept any code-bearing registry and
+voter pair. A proposer can therefore schedule the canonical registry together with a substituted voter. Execution
+terminally disables the strategy in the canonical registry and sets the disabled bit only in the substituted voter.
+The canonical voter remains in its live-callback mode. A later correct timelock operation cannot repair the split
+because the registry disable repeats and reverts; the guardian also rejects the now-non-live strategy before reaching
+the voter.
+
+If the admitted rewards hook is faulty, reverting, or gas-burning, users can consequently remain unable to reset the
+affected signal and unstake even though the registry reports the strategy terminally disabled. This violates the
+documented terminal-disablement exit fallback. Exploitation requires a mistaken or compromised trusted proposer and
+survives a seven-day visible delay; an untrusted executor cannot substitute parameters for an already scheduled
+operation. The regression `test_AuditProof_StrategyDisablementDoesNotBindTheRegistryToTheCanonicalVoter` reproduces
+the irreparable split.
+
+Recommended remediation: one-time bind the canonical registry/voter pair in the timelock, or at minimum validate at
+both scheduling and execution that the voter's immutable registry is the supplied registry and that both targets are
+controlled by this timelock. After remediation, invert the regression so every substituted pair reverts before either
+terminal bit changes.
+
+### L-01 — Open — selecting MiningPool as the team recipient strands every future team fee
+
+`MiningPool.setTeamAddress` permits `address(this)`. With the specified standard ERC-20 semantics, settlement's
+`USDG.safeTransfer(address(this), teamFee)` succeeds without changing the pool balance. Settlement then sends only the
+98% net amount to the vault and records the 2% fee as paid. The retained fee has no claim, refund, or rescue path and
+remains permanently stranded in `MiningPool`. This requires a mistaken or compromised timelock configuration, but it
+can lock 2% of every contribution settled while the value is configured. The regression
+`test_AuditProof_MiningPoolAsTeamRecipientStrandsTheTwoPercentFee` proves the accounting and balance outcome.
+
+Recommended remediation: reject `team == address(this)` in both construction and `setTeamAddress`, while preserving
+the intentional zero address that returns the complete contribution to the vault.
+
+### I-01 — Open — exact-price one-sided genesis ranges are rejected
+
+`DeployMinimal._positionPlan` compares `tickLower <= initialTick` for GBX-as-token0 and
+`tickUpper >= initialTick` for GBX-as-token1. At an exact tick-boundary price, equality is still a valid one-sided
+liquidity configuration, but the deployment reverts `DeployMinimal__InvalidRange`. This is a deployment availability
+and documentation mismatch rather than a value-loss path. The regression
+`test_AuditProof_ExactPriceBoundaryIsRejectedEvenThoughItIsSingleSided` reproduces the rejection.
+
+Recommended remediation: validate the actual square-root boundaries instead: token0 requires
+`sqrtLower >= initialSqrtPriceX96`, and token1 requires `sqrtUpper <= initialSqrtPriceX96`, with equality accepted.
+
+### Test and analyzer evidence
+
+- The final configured Foundry run passed 150/150 tests. Ten fuzz properties completed 10,000 cases each, and eight
+  invariants completed 1,000 runs at depth 500 with zero handler reverts: 100,000 configured fuzz cases and 4,000,000
+  configured stateful calls. Additional deterministic seed matrices brought the campaign totals to 427,680 fuzz cases
+  and 6,097,152 stateful calls. The two invariant graphs compose the live GBX, emissions, mining, staking, signaling,
+  registry, vault, rewards, acquisition, buyback, timelock, guardian, and a gas-burning rewards dependency.
+- New boundary and penetration-style tests cover every typed scheduling authority, operation-ID domain separation and
+  replay, constructor/dependency binding, callback reentrancy across voter/mining/strategy/custodian boundaries,
+  exact transfer rollback, lifetime-cap exhaustion, maximum 16-strategy reset, maximum 16-asset redemption, destroyed
+  position custody, time-varying auction quotes, independent pro-rata/split/reward models, and terminal exits through
+  a poisoned rewards hook. Exotic token cases are fail-closed tests only; support remains intentionally out of scope.
+- The complete monorepo build and test gates, Hardhat bytecode-parity and supply tests, SDK ABI check, subgraph
+  build/Matchstick tests, and six Playwright desktop/mobile checks passed under pinned Node 22.23.1 and an isolated
+  Python 3.11.14 environment with all five exact dependency pins.
+- Production-only IR coverage reported 958/1,025 lines (93.46%), 143/230 branches (62.17%), and 131/131 functions
+  (100%). Ordinary instrumentation does not compile this graph because it triggers a compiler stack-depth failure;
+  `--ir-minimum` emits inaccurate-source-mapping warnings. The figures are therefore directional, and branch-source
+  locations are not treated as exact proof even though newly added revert paths execute successfully in normal mode.
+- Slither 0.11.5 emitted 196 results across the Foundry graph: 5 high, 22 medium, 39 low, and 130 informational. The
+  production-source subset contains 190 results: 3 high, 19 medium, 38 low, and 130 informational. The three high
+  results are balance-after-call heuristics on `LiquidityCustodian`; `nonReentrant`, exact-delta rollback, custody-loss,
+  and callback tests cover those paths. Manual review found no additional practical untrusted exploit beyond the open
+  findings above.
+- Aderyn 0.6.8 scanned all 26 source units with 88 detectors and emitted 2 high classes plus 9 low classes. Its high
+  classes are reentrancy-state-change instances on guarded/constructor/trusted-dependency paths and the
+  `uint64(readyAt)` cast in `ProtocolTimelock`. An executable audit-proof test demonstrates delay collapse only beyond
+  the `uint64` timestamp horizon; this is not a realistic present-day path, but the lifetime bound is now explicit.
+- A six-rule Semgrep 1.162.0 audit policy emitted one blocking match: unchecked `epochId` increment in `AuctionEngine`.
+  An executable audit-proof test demonstrates wrap only after `2^256` successful fills. This is not a practical path,
+  but it records the arithmetic assumption instead of silently dismissing the analyzer result.
+- A scoped mutation probe found three surviving GBX event-deletion mutants. Explicit initialization, controller
+  replacement, mint, and burn event assertions were added and pass. No mutation kill ratio is claimed: the runner
+  rewrote the working-directory source despite a temporary target, so the campaign was stopped; the production source
+  was restored from its pre-run copy and verified byte-for-byte before the complete suite was rerun.
+- Solhint 6.0.1 emitted no errors and 848 warnings, dominated by 704 NatSpec suggestions plus event naming, ordering,
+  and gas-style rules. These are documentation/style debt, not suppressed security conclusions.
+- Gitleaks 8.30.1 emitted two false positives: a public onchain address and a committed public hash/address field in
+  candidate configuration evidence. No credential or secret was identified.
+- `pnpm audit` reported one moderate and three low advisories, all in Hardhat's transitive developer/tooling graph
+  (`uuid`, `cookie`, `elliptic`, and `diff`); there were no high or critical advisories. These do not execute in the
+  deployed protocol, but the toolchain should be upgraded or overridden where patches are available before release.
+
+Fresh raw reports are `audit/reports/current-{slither,aderyn,semgrep,gitleaks}.*`; the earlier full-tool snapshot remains
+under `audit/reports/current-minimal-2026-08-03/`. These reports are ignored review evidence rather than release gates.
+
+> **Superseded archive.** The findings and dispositions below apply to the pre-rebuild contract graph. Their analyzer
+> runners and CI/package entrypoints are disabled because they reference removed contracts and scripts. None of the
+> counts or conclusions below describes the current 14-contract architecture; a fresh campaign and review are required.
+
+This register documented findings rather than suppressing them. Raw reports were generated under `audit/reports/` and
+uploaded by the prior CI. Any future review must replace the target inventory and refresh the reports for the exact
+current commit before adding a new reviewed section.
 
 ## Slither 0.11.5 and Aderyn 0.6.8 — 2026-08-02
 

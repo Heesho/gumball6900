@@ -1,50 +1,40 @@
 import { ACCUMULATOR_PRECISION } from './constants.js';
 import { assertNonNegative, assertPositive, mulDiv } from './integer.js';
 
-export interface RewardAccumulatorUpdate {
-  distributableReward: bigint;
+export interface RewardIndexUpdate {
+  notifiedReward: bigint;
   rewardPerWeightIncrement: bigint;
-  representedReward: bigint;
-  /** Scaled numerator carry, denominated modulo totalActiveWeight rather than reward-token units. */
-  nextRemainder: bigint;
+  indexedReward: bigint;
+  residue: bigint;
 }
 
-/**
- * Applies a reward notification to a live strategy weight. Zero-weight notifications must be
- * redirected to the vault before reaching this accounting helper.
- */
-export function updateRewardAccumulator(
+/** Mirrors StrategyRewards.notifyReward. Each notification floors independently; residue is not carried. */
+export function updateRewardIndex(
   rewardAmount: bigint,
-  totalActiveWeight: bigint,
-  priorRemainder = 0n,
+  totalWeight: bigint,
   precision = ACCUMULATOR_PRECISION,
-): RewardAccumulatorUpdate {
+): RewardIndexUpdate {
   assertNonNegative(rewardAmount, 'rewardAmount');
-  assertPositive(totalActiveWeight, 'totalActiveWeight');
-  assertNonNegative(priorRemainder, 'priorRemainder');
+  assertPositive(totalWeight, 'totalWeight');
   assertPositive(precision, 'precision');
-
-  let rewardPerWeightIncrement = mulDiv(rewardAmount, precision, totalActiveWeight);
-  const combinedRemainder = ((rewardAmount * precision) % totalActiveWeight) + priorRemainder;
-  rewardPerWeightIncrement += combinedRemainder / totalActiveWeight;
-  const representedReward = mulDiv(rewardPerWeightIncrement, totalActiveWeight, precision);
-
+  const rewardPerWeightIncrement = mulDiv(rewardAmount, precision, totalWeight);
+  const indexedReward = mulDiv(rewardPerWeightIncrement, totalWeight, precision);
   return {
-    distributableReward: rewardAmount,
+    notifiedReward: rewardAmount,
     rewardPerWeightIncrement,
-    representedReward,
-    nextRemainder: combinedRemainder % totalActiveWeight,
+    indexedReward,
+    residue: rewardAmount - indexedReward,
   };
 }
 
-export function earnedManagerReward(
-  activeWeight: bigint,
+export function earnedStrategyReward(
+  weight: bigint,
   rewardPerWeightStored: bigint,
   userRewardPerWeightPaid: bigint,
   accruedReward = 0n,
   precision = ACCUMULATOR_PRECISION,
 ): bigint {
-  assertNonNegative(activeWeight, 'activeWeight');
+  assertNonNegative(weight, 'weight');
   assertNonNegative(rewardPerWeightStored, 'rewardPerWeightStored');
   assertNonNegative(userRewardPerWeightPaid, 'userRewardPerWeightPaid');
   assertNonNegative(accruedReward, 'accruedReward');
@@ -52,7 +42,5 @@ export function earnedManagerReward(
   if (userRewardPerWeightPaid > rewardPerWeightStored) {
     throw new RangeError('userRewardPerWeightPaid must not exceed rewardPerWeightStored');
   }
-
-  const newlyEarned = mulDiv(activeWeight, rewardPerWeightStored - userRewardPerWeightPaid, precision);
-  return accruedReward + newlyEarned;
+  return accruedReward + mulDiv(weight, rewardPerWeightStored - userRewardPerWeightPaid, precision);
 }

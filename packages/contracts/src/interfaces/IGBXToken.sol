@@ -2,47 +2,31 @@
 pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import { IEligibilityModule } from "./IEligibilityModule.sol";
 
-/// @title IGBXToken
-/// @notice Interface for the capped, burnable protocol share token.
-interface IGBXToken is IERC20, IERC20Permit {
-    /// @notice Returns the maximum amount of GBX that may ever be minted.
-    /// @return The immutable lifetime mint cap.
+/// @notice Narrow interface for the canonical lifetime-capped GBX token.
+interface IGBXToken is IERC20 {
+    /// @notice Returns the one-billion-token lifetime mint ceiling.
     function MAX_CUMULATIVE_MINT() external view returns (uint256);
-
-    /// @notice Returns the address authorized to mint GBX.
-    /// @return The EmissionController address.
+    /// @notice Returns the fixed genesis-liquidity allocation.
+    function GENESIS_LIQUIDITY_ALLOCATION() external view returns (uint256);
+    /// @notice Returns the currently authorized mining controller.
     function emissionController() external view returns (address);
-
-    /// @notice Returns the optional immutable transfer-eligibility module.
-    /// @return The configured eligibility module, or the zero address for permissionless mode.
-    function eligibilityModule() external view returns (IEligibilityModule);
-
-    /// @notice Returns the total amount of GBX minted over the token's lifetime.
-    /// @return The cumulative minted amount.
+    /// @notice Returns the mining pool pinned by the initial controller binding.
+    function canonicalMiningPool() external view returns (address);
+    /// @notice Returns all GBX minted over the token's lifetime.
     function cumulativeMinted() external view returns (uint256);
-
-    /// @notice Returns the total amount of GBX burned over the token's lifetime.
-    /// @return The cumulative burned amount.
+    /// @notice Returns all GBX burned over the token's lifetime.
     function cumulativeBurned() external view returns (uint256);
-
-    /// @notice Assigns the sole GBX minter exactly once.
-    /// @param controller The deployed EmissionController address.
+    /// @notice Returns the remaining lifetime mint capacity.
+    function remainingMintCapacity() external view returns (uint256);
+    /// @notice Binds the initial emission controller once.
     function initializeEmissionController(address controller) external;
-
-    /// @notice Mints GBX without allowing burns to restore mint capacity.
-    /// @param receiver The account receiving newly minted GBX.
-    /// @param amount The amount of GBX to mint.
-    function mint(address receiver, uint256 amount) external;
-
+    /// @notice Replaces the emission controller through the protocol timelock.
+    function replaceEmissionController(address controller) external;
+    /// @notice Mints a mining emission through the current controller.
+    function mintMiningEmission(address receiver, uint256 amount) external;
     /// @notice Burns GBX owned by the caller.
-    /// @param amount The amount of GBX to burn.
     function burn(uint256 amount) external;
-
-    /// @notice Burns GBX from an account after spending the caller's allowance.
-    /// @param account The account whose GBX is burned.
-    /// @param amount The amount of GBX to burn.
+    /// @notice Burns approved GBX from an account.
     function burnFrom(address account, uint256 amount) external;
 }

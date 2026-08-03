@@ -1,6 +1,6 @@
 # ADR-0008: Canonical v4 Active-Position Bound
 
-- Status: Accepted
+- Status: Superseded by ADR-0012; archival baseline only.
 - Date: 2026-08-02
 - Decision owners: protocol engineering and security review
 - Supersedes: a client-only 16-position read bound paired with a per-migration, rather than global, contract bound

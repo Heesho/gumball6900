@@ -16,7 +16,6 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: workspaceRoot,
   poweredByHeader: false,
   reactStrictMode: true,
-  transpilePackages: ['@gumball-6900/config', '@gumball-6900/sdk', '@gumball-6900/ui'],
   turbopack: {
     root: workspaceRoot,
   },
