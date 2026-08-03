@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / AUCTION_FLOOR_RATE_BPS
+
+# Variable: AUCTION_FLOOR_RATE_BPS
+
+> `const` **AUCTION_FLOOR_RATE_BPS**: `8000n` = `8_000n`

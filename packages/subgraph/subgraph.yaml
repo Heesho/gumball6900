@@ -1,0 +1,459 @@
+specVersion: 1.3.0
+schema:
+  file: ./schema.graphql
+indexerHints:
+  prune: auto
+dataSources:
+  - kind: ethereum/contract
+    name: GBXToken
+    network: robinhood
+    source:
+      abi: GBXToken
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - GBXToken
+        - Account
+        - Burn
+        - DailyProtocolSnapshot
+        - DailyAccountSnapshot
+      abis:
+        - name: GBXToken
+          file: ./abis/GBXToken.json
+      eventHandlers:
+        - event: GBXToken__Minted(indexed address,uint256,uint256)
+          handler: handleMinted
+        - event: GBXToken__Burned(indexed address,indexed address,uint256,uint256)
+          handler: handleBurned
+      file: ./src/gbx-token.ts
+  - kind: ethereum/contract
+    name: GenesisBootstrap
+    network: robinhood
+    source:
+      abi: GenesisBootstrap
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - Account
+        - GenesisBootstrap
+        - GenesisContribution
+        - DailyProtocolSnapshot
+        - DailyAccountSnapshot
+      abis:
+        - name: GenesisBootstrap
+          file: ./abis/GenesisBootstrap.json
+      eventHandlers:
+        - event: GenesisBootstrap__CommunityContribution(indexed address,indexed
+            address,uint256,uint256,uint256)
+          handler: handleCommunityContribution
+        - event: GenesisBootstrap__ContributionsOpened(uint256,uint256)
+          handler: handleContributionsOpened
+        - event: GenesisBootstrap__LaunchSettled(uint256,uint256,uint256,uint256,uint256,uint160)
+          handler: handleLaunchSettled
+      file: ./src/genesis-bootstrap.ts
+  - kind: ethereum/contract
+    name: GenesisClaims
+    network: robinhood
+    source:
+      abi: GenesisClaims
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Account
+        - GenesisBootstrap
+        - GenesisClaim
+        - DailyAccountSnapshot
+      abis:
+        - name: GenesisClaims
+          file: ./abis/GenesisClaims.json
+      eventHandlers:
+        - event: ClaimsBase__Claimed(indexed uint256,indexed address,indexed
+            address,uint256)
+          handler: handleGenesisClaimed
+      file: ./src/genesis-claims.ts
+  - kind: ethereum/contract
+    name: MiningPool
+    network: robinhood
+    source:
+      abi: MiningPool
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - Account
+        - MiningEpoch
+        - MiningContribution
+        - DailyProtocolSnapshot
+        - DailyAccountSnapshot
+      abis:
+        - name: MiningPool
+          file: ./abis/MiningPool.json
+      eventHandlers:
+        - event: MiningPool__Contribution(indexed uint256,indexed address,indexed
+            address,uint256,uint256,uint256)
+          handler: handleMiningContribution
+        - event: MiningPool__EpochExtended(indexed uint256,uint256,uint256)
+          handler: handleEpochExtended
+        - event: MiningPool__EpochSettled(indexed
+            uint256,uint256,uint256,uint256,uint256,uint256)
+          handler: handleEpochSettled
+      file: ./src/mining-pool.ts
+  - kind: ethereum/contract
+    name: MiningClaims
+    network: robinhood
+    source:
+      abi: MiningClaims
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Account
+        - MiningClaim
+        - DailyAccountSnapshot
+      abis:
+        - name: MiningClaims
+          file: ./abis/MiningClaims.json
+      eventHandlers:
+        - event: ClaimsBase__Claimed(indexed uint256,indexed address,indexed
+            address,uint256)
+          handler: handleMiningClaimed
+      file: ./src/mining-claims.ts
+  - kind: ethereum/contract
+    name: StakedGBX
+    network: robinhood
+    source:
+      abi: StakedGBX
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - Account
+        - SignalAccount
+        - DailyProtocolSnapshot
+        - DailyAccountSnapshot
+      abis:
+        - name: StakedGBX
+          file: ./abis/StakedGBX.json
+      eventHandlers:
+        - event: StakedGBX__Staked(indexed address,uint256,uint256)
+          handler: handleStaked
+        - event: StakedGBX__Unstaked(indexed address,uint256)
+          handler: handleUnstaked
+      file: ./src/staked-gbx.ts
+  - kind: ethereum/contract
+    name: AllocationVoter
+    network: robinhood
+    source:
+      abi: AllocationVoter
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - Account
+        - PendingSignal
+        - RevenueNotification
+        - SignalAccount
+        - SignalAllocation
+        - Strategy
+        - StrategyBudget
+        - DailyProtocolSnapshot
+        - DailyAccountSnapshot
+      abis:
+        - name: AllocationVoter
+          file: ./abis/AllocationVoter.json
+      eventHandlers:
+        - event: AllocationVoter__RevenueNotified(indexed address,indexed
+            uint8,uint256,uint256,uint256)
+          handler: handleRevenueNotified
+        - event: AllocationVoter__SignalsPending(indexed address,uint256)
+          handler: handleSignalsPending
+        - event: AllocationVoter__SignalsActivated(indexed address,uint256)
+          handler: handleSignalsActivated
+        - event: AllocationVoter__SignalsReset(indexed address)
+          handler: handleSignalsReset
+        - event: AllocationVoter__PendingSignalsCancelled(indexed address)
+          handler: handlePendingSignalsCancelled
+        - event: AllocationVoter__StrategyBudgetCheckpointed(indexed
+            address,uint256,uint256)
+          handler: handleStrategyBudgetCheckpointed
+        - event: AllocationVoter__StrategyBudgetConsumed(indexed address,uint256,uint256)
+          handler: handleStrategyBudgetConsumed
+        - event: AllocationVoter__StrategyBudgetScaled(indexed address,uint256,uint256)
+          handler: handleStrategyBudgetScaled
+        - event: AllocationVoter__StrategyDisabled(indexed address,uint64,uint256)
+          handler: handleStrategyDisabled
+        - event: AllocationVoter__StrategyReactivated(indexed address,uint64)
+          handler: handleStrategyReactivated
+        - event: AllocationVoter__UserWeightUpdated(indexed address,indexed
+            address,uint256,uint256)
+          handler: handleUserWeightUpdated
+      file: ./src/allocation-voter.ts
+  - kind: ethereum/contract
+    name: RevenueRouter
+    network: robinhood
+    source:
+      abi: RevenueRouter
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Account
+        - RevenueNotification
+      abis:
+        - name: RevenueRouter
+          file: ./abis/RevenueRouter.json
+      eventHandlers:
+        - event: RevenueRouter__RevenueRouted(indexed address,indexed
+            bytes32,uint256,uint256)
+          handler: handleRevenueRouted
+      file: ./src/revenue-router.ts
+  - kind: ethereum/contract
+    name: BuybackBurnStrategy
+    network: robinhood
+    source:
+      abi: BuybackBurnStrategy
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - Account
+        - Strategy
+        - Buyback
+        - DailyProtocolSnapshot
+        - DailyAccountSnapshot
+      abis:
+        - name: BuybackBurnStrategy
+          file: ./abis/BuybackBurnStrategy.json
+      eventHandlers:
+        - event: BuybackBurnStrategy__AuctionStarted(indexed
+            uint64,uint256,uint256,uint256,uint256)
+          handler: handleBuybackAuctionStarted
+        - event: BuybackBurnStrategy__GBXBoughtAndBurned(indexed uint64,indexed
+            address,indexed address,uint256,uint256,uint256,uint256)
+          handler: handleGBXBoughtAndBurned
+      file: ./src/buyback-burn-strategy.ts
+  - kind: ethereum/contract
+    name: GumBallVault
+    network: robinhood
+    source:
+      abi: GumBallVault
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - Account
+        - VaultAsset
+        - VaultSnapshot
+        - Redemption
+        - RedemptionAsset
+        - DailyProtocolSnapshot
+        - DailyAccountSnapshot
+      abis:
+        - name: GumBallVault
+          file: ./abis/GumBallVault.json
+      eventHandlers:
+        - event: GumBallVault__AssetRedeemed(indexed address,indexed address,uint256)
+          handler: handleAssetRedeemed
+        - event: GumBallVault__Redeemed(indexed address,indexed address,uint256,uint256)
+          handler: handleRedeemed
+        - event: GumBallVault__USDGReleased(indexed address,indexed address,uint256)
+          handler: handleUSDGReleased
+      file: ./src/gumball-vault.ts
+  - kind: ethereum/contract
+    name: AssetRegistry
+    network: robinhood
+    source:
+      abi: AssetRegistry
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - VaultAsset
+        - Strategy
+      abis:
+        - name: AssetRegistry
+          file: ./abis/AssetRegistry.json
+        - name: AcquisitionStrategy
+          file: ./abis/AcquisitionStrategy.json
+      eventHandlers:
+        - event: AssetRegistry__AssetRegistered(indexed address,indexed address,indexed
+            address,bytes32,bytes32,uint8,bool,bool,bool)
+          handler: handleAssetRegistered
+        - event: AssetRegistry__AcquisitionStatusSet(indexed address,indexed address,bool)
+          handler: handleAcquisitionStatusSet
+        - event: AssetRegistry__RedemptionStatusSet(indexed address,bool)
+          handler: handleRedemptionStatusSet
+        - event: AssetRegistry__StandaloneStrategyRegistered(indexed address)
+          handler: handleStandaloneStrategyRegistered
+      file: ./src/asset-registry.ts
+  - kind: ethereum/contract
+    name: LiquidityManager
+    network: robinhood
+    source:
+      abi: LiquidityManager
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - LiquidityPool
+        - LiquidityPosition
+        - LiquidityEvent
+      abis:
+        - name: LiquidityManager
+          file: ./abis/LiquidityManager.json
+      eventHandlers:
+        - event: LiquidityManager__CanonicalPoolSeeded(indexed
+            bytes32,uint160,int24,uint256,uint256,uint256)
+          handler: handleCanonicalPoolSeeded
+        - event: LiquidityManager__PositionRecorded(indexed
+            uint256,int24,int24,uint128,uint256)
+          handler: handlePositionRecorded
+        - event: LiquidityManager__FeesCollected(indexed uint256,uint256,uint256)
+          handler: handleFeesCollected
+        - event: LiquidityManager__CompletedRangeSwept(indexed
+            uint256,int24,uint256,uint256)
+          handler: handleCompletedRangeSwept
+        - event: LiquidityManager__MigrationStarted(indexed bytes32,indexed
+            bytes32,uint256,uint256,uint256)
+          handler: handleMigrationStarted
+        - event: LiquidityManager__MigrationPositionBefore(indexed bytes32,indexed
+            uint256,int24,int24,uint128,uint128,uint128)
+          handler: handleMigrationPositionBefore
+        - event: LiquidityManager__MigrationPositionAfter(indexed bytes32,indexed
+            uint256,int24,int24,uint128,uint128,uint128)
+          handler: handleMigrationPositionAfter
+        - event: LiquidityManager__MigrationCompleted(indexed bytes32,indexed
+            bytes32,uint256[],uint256[],uint256,uint256)
+          handler: handleMigrationCompleted
+        - event: LiquidityManager__MigrationPauseSet(bool)
+          handler: handleMigrationPauseSet
+      file: ./src/liquidity-manager.ts
+templates:
+  - kind: ethereum/contract
+    name: AcquisitionStrategy
+    network: robinhood
+    source:
+      abi: AcquisitionStrategy
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Protocol
+        - Account
+        - VaultAsset
+        - VaultSnapshot
+        - Strategy
+        - StrategyFill
+        - DailyProtocolSnapshot
+      abis:
+        - name: AcquisitionStrategy
+          file: ./abis/AcquisitionStrategy.json
+      eventHandlers:
+        - event: AcquisitionStrategy__AuctionStarted(indexed
+            uint64,uint256,uint256,uint256,uint256)
+          handler: handleAcquisitionAuctionStarted
+        - event: AcquisitionStrategy__Filled(indexed uint64,indexed address,indexed
+            address,uint256,uint256,uint256,uint256,uint256)
+          handler: handleAcquisitionFilled
+      file: ./src/acquisition-strategy.ts
+  - kind: ethereum/contract
+    name: ManagerRewards
+    network: robinhood
+    source:
+      abi: ManagerRewards
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Account
+        - VaultAsset
+        - Strategy
+        - ManagerRewardNotification
+        - ManagerRewardClaim
+        - ManagerRewardTerminalDust
+        - DailyAccountSnapshot
+      abis:
+        - name: ManagerRewards
+          file: ./abis/ManagerRewards.json
+      eventHandlers:
+        - event: ManagerRewards__Notified(uint256,uint256,uint256,uint256)
+          handler: handleManagerRewardNotified
+        - event: ManagerRewards__RedirectedToVault(uint256)
+          handler: handleManagerRewardRedirectedToVault
+        - event: ManagerRewards__TerminalDustQueued(indexed uint64,indexed
+            uint64,uint256,uint256,uint256)
+          handler: handleManagerRewardTerminalDustQueued
+        - event: ManagerRewards__TerminalDustSettled(indexed uint64,indexed
+            uint64,uint256,uint256)
+          handler: handleManagerRewardTerminalDustSettled
+        - event: ManagerRewards__Claimed(indexed address,indexed address,uint256)
+          handler: handleManagerRewardClaimed
+      file: ./src/manager-rewards.ts
+  - kind: ethereum/contract
+    name: StockToken
+    network: robinhood
+    source:
+      abi: StockToken
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - VaultAsset
+        - CorporateAction
+      abis:
+        - name: StockToken
+          file: ./abis/StockToken.json
+      eventHandlers:
+        - event: UIMultiplierUpdated(uint256,uint256,uint256)
+          handler: handleUIMultiplierUpdated
+      file: ./src/stock-token.ts

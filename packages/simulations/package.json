@@ -1,0 +1,41 @@
+{
+  "name": "@gumball-6900/simulations",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "prebuild": "pnpm --filter @gumball-6900/sdk build",
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist .pytest_cache",
+    "prefixtures:check": "pnpm --filter @gumball-6900/sdk build",
+    "charts:check": "tsx typescript/check-charts.ts",
+    "charts:generate": "tsx typescript/generate-charts.ts",
+    "fixtures:check": "pnpm run fixtures:check:reference && pnpm run fixtures:check:economic && pnpm run charts:check",
+    "fixtures:check:economic": "tsx typescript/check-economic-fixtures.ts",
+    "fixtures:check:reference": "tsx typescript/check-fixtures.ts",
+    "fixtures:generate": "pnpm run fixtures:generate:reference && pnpm run fixtures:generate:economic && pnpm run charts:generate",
+    "fixtures:generate:economic": "tsx typescript/generate-economic-fixtures.ts",
+    "fixtures:generate:reference": "tsx typescript/generate-fixtures.ts",
+    "liquidity:check": "node scripts/run-liquidity-report.mjs --check",
+    "liquidity:report": "node scripts/run-liquidity-report.mjs",
+    "lint": "tsc --noEmit",
+    "test": "pnpm run test:ts && pnpm run test:python && pnpm run fixtures:check && pnpm run liquidity:check",
+    "test:python": "node --test scripts/python-environment.test.mjs && node scripts/run-python-tests.mjs",
+    "pretest:ts": "pnpm --filter @gumball-6900/sdk build",
+    "test:ts": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@gumball-6900/sdk": "workspace:*",
+    "@uniswap/sdk-core": "7.19.0",
+    "@uniswap/v3-sdk": "3.31.1",
+    "@uniswap/v4-sdk": "2.3.1",
+    "jsbi": "3.2.5"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.1",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2",
+    "vitest": "4.1.10"
+  }
+}

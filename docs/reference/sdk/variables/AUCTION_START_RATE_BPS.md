@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / AUCTION_START_RATE_BPS
+
+# Variable: AUCTION_START_RATE_BPS
+
+> `const` **AUCTION_START_RATE_BPS**: `12500n` = `12_500n`

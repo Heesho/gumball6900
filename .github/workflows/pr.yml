@@ -1,0 +1,175 @@
+name: Pull request
+
+on:
+  pull_request:
+  workflow_call:
+
+concurrency:
+  group: pr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  NODE_VERSION: 22.23.1
+  PNPM_VERSION: 10.14.0
+  PYTHON_VERSION: 3.11.9
+
+jobs:
+  workspace:
+    name: Workspace and offline fixtures
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          cache: pnpm
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          cache: pip
+          cache-dependency-path: packages/simulations/requirements-dev.lock
+          python-version: ${{ env.PYTHON_VERSION }}
+      - name: Install frozen workspace
+        run: pnpm install --frozen-lockfile
+      - name: Install pinned Python simulation test tools
+        run: |
+          python -m pip install --requirement packages/simulations/requirements-dev.lock
+          python -m pip check
+      - name: Formatting
+        run: pnpm format:check
+      - name: ESLint
+        run: pnpm lint:eslint
+      - name: Config and manifest tests use fixtures only
+        run: pnpm config:test
+      - name: Release and evidence tooling regression tests
+        run: pnpm release:tools:test
+      - name: Non-contract lint, typecheck, build, and unit tests
+        run: pnpm turbo run lint typecheck build test --filter="!@gumball-6900/contracts"
+      - name: SDK package artifact is public and allowlisted
+        run: pnpm sdk:pack:check
+
+  contracts:
+    name: Foundry and Hardhat
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          cache: pnpm
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v1.7.1
+      - run: pnpm install --frozen-lockfile
+      - name: Forge formatting and build
+        working-directory: packages/contracts
+        run: |
+          forge fmt --check
+          forge build --sizes
+      - name: Web strategy creation code matches Foundry artifacts
+        run: pnpm --filter @gumball-6900/web strategy-code:check
+      - name: Contract deployment tooling typecheck
+        run: pnpm --filter @gumball-6900/contracts typecheck
+      - name: Forge source-coverage policy tests
+        run: pnpm contracts:coverage:policy:test
+      - name: Foundry artifacts match committed SDK ABIs
+        run: pnpm sdk:abi:check
+      - name: Foundry artifacts match committed subgraph ABIs
+        run: pnpm subgraph:abi:check
+      - name: Generated contract and SDK API references are current
+        run: pnpm docs:check
+      - name: Forge unit and configured fuzz suite
+        env:
+          FOUNDRY_PROFILE: ci
+        working-directory: packages/contracts
+        run: forge test
+      - name: Hardhat compile and tests
+        run: pnpm contracts:test:hardhat
+
+  security:
+    name: Static analysis, dependencies, licenses, and secrets
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          cache: pnpm
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Resolve analyzer Python from the committed environment policy
+        id: analyzer_environment
+        run: |
+          node packages/contracts/audit/resolve-analyzer-environment.mjs \
+            --workspace "$GITHUB_WORKSPACE" \
+            --github-output "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          architecture: x64
+          python-version: ${{ steps.analyzer_environment.outputs.python_version }}
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v1.7.1
+      - run: pnpm install --frozen-lockfile
+      - name: Verify the exact dependency-advisory exception policy
+        run: pnpm audit:policy:test
+      - name: Install repository-pinned static analyzers
+        run: packages/contracts/audit/install-tools.sh static
+      - name: Run and archive all static evidence
+        run: packages/contracts/audit/run-static.sh
+      - name: Upload static-analysis evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: error
+          name: static-analysis-${{ github.sha }}
+          path: packages/contracts/audit/reports/
+          retention-days: 30
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: github/codeql-action/init@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+      - name: Analyze and upload JavaScript and TypeScript CodeQL results
+        uses: github/codeql-action/analyze@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
+        with:
+          post-processed-sarif-path: ${{ runner.temp }}/codeql-post-processed
+          upload: always
+      - name: Archive and enforce zero-result CodeQL SARIF
+        run: |
+          node packages/contracts/scripts/archive-audit-reports.mjs \
+            codeql "$RUNNER_TEMP/codeql-post-processed"
+      - name: Upload CodeQL SARIF evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: warn
+          name: codeql-sarif-${{ github.sha }}
+          path: packages/contracts/audit/reports/codeql-javascript-typescript.sarif
+          retention-days: 30

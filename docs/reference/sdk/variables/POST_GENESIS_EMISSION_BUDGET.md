@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / POST_GENESIS_EMISSION_BUDGET
+
+# Variable: POST_GENESIS_EMISSION_BUDGET
+
+> `const` **POST_GENESIS_EMISSION_BUDGET**: `bigint`

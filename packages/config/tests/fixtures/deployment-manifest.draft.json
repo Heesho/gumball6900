@@ -1,0 +1,106 @@
+{
+  "assets": [],
+  "compliance": {
+    "decisionReference": null,
+    "eligibilityModule": null,
+    "gbxContractHolders": [],
+    "mode": "unresolved",
+    "permissionedPoolArchitectureReviewed": false
+  },
+  "constructorParameters": {},
+  "create2Salts": {},
+  "deployedContracts": [],
+  "externalContracts": [],
+  "gates": {
+    "canonicalTokens": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Canonical USDG and WETH bytecode hashes have not been pinned."
+    },
+    "compliance": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Production eligibility and pool mode require counsel and issuer approval."
+    },
+    "economicReview": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Independent economic review has not completed."
+    },
+    "incidentReadiness": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Incident response rehearsal has not completed."
+    },
+    "legalReview": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Legal review has not completed."
+    },
+    "roleTransfer": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Timelock, guardian, and deployer role closure are unresolved."
+    },
+    "securityAudit": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Independent security audit has not completed."
+    },
+    "stockTokens": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Live stock-token candidates are provisional and require deployment-time revalidation."
+    },
+    "testnetDependencies": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Testnet USDG, WETH, and Permit2 are provisional; wrapped BTC, stock tokens, and Uniswap v4 core/periphery remain unresolved."
+    },
+    "testnetRehearsal": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Atomic testnet launch rehearsal has not completed."
+    },
+    "uniswapV4": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Mainnet Uniswap v4 addresses are provisional until bytecode hashes are pinned and verified."
+    },
+    "wrappedBtc": {
+      "evidence": [],
+      "state": "unresolved",
+      "summary": "Canonical wrapped BTC on Robinhood Chain has not been resolved."
+    }
+  },
+  "kind": "gumball-6900-deployment-manifest",
+  "network": {
+    "archiveRpcProviderLabel": "UNRESOLVED",
+    "chainId": 4663,
+    "explorerUrl": "https://robinhoodchain.blockscout.com",
+    "name": "Robinhood Chain"
+  },
+  "protocol": "GUM BALL 6900",
+  "release": {
+    "createdAt": "2026-08-01T00:00:00Z",
+    "gitCommit": "0000000000000000000000000000000000000000",
+    "status": "draft",
+    "version": "v0.0.0-draft"
+  },
+  "releaseEvidence": null,
+  "roles": {
+    "deployer": "0x0000000000000000000000000000000000000001",
+    "deployerPrivilegesRenouncedOrIrrelevant": false,
+    "emergencyGuardianMultisig": "0x0000000000000000000000000000000000000002",
+    "protocolTimelock": "0x0000000000000000000000000000000000000003",
+    "protocolTimelockMultisig": "0x0000000000000000000000000000000000000004"
+  },
+  "schemaVersion": 1,
+  "signaturePolicy": {
+    "authorizedSigners": [],
+    "policyId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+    "threshold": 0
+  },
+  "signatures": [],
+  "transactions": {}
+}

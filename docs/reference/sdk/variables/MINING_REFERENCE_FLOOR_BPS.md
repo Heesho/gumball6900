@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / MINING_REFERENCE_FLOOR_BPS
+
+# Variable: MINING_REFERENCE_FLOOR_BPS
+
+> `const` **MINING_REFERENCE_FLOOR_BPS**: `9500n` = `9_500n`

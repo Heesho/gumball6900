@@ -1,0 +1,118 @@
+name: Main branch
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: main-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  baseline:
+    uses: ./.github/workflows/pr.yml
+    permissions:
+      contents: read
+      security-events: write
+
+  extended-verification:
+    name: Coverage, invariants, configured testnet fork, and dry runs
+    needs: baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      NODE_VERSION: 22.23.1
+      PNPM_VERSION: 10.14.0
+      ROBINHOOD_TESTNET_RPC_URL: ${{ secrets.ROBINHOOD_TESTNET_ARCHIVE_RPC_URL }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          cache: pnpm
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v1.7.1
+      - run: pnpm install --frozen-lockfile
+      - name: Load build-bound Robinhood testnet fork evidence
+        run: |
+          pnpm --filter @gumball-6900/config fork:evidence:export -- \
+            --github-env "$GITHUB_ENV" \
+            --context "$RUNNER_TEMP/testnet-fork-evidence.json"
+      - name: Verify the signed testnet observation against a live canonical head
+        run: |
+          set -o pipefail
+          pnpm --filter @gumball-6900/config fork:evidence:live:verify 2>&1 \
+            | node "$GITHUB_WORKSPACE/scripts/release/redact-stream.mjs" ROBINHOOD_TESTNET_RPC_URL
+      - name: Offline manifest-schema regression
+        run: pnpm config:test
+      - name: Require pinned archive-fork evidence inputs
+        run: |
+          for variable in \
+            ROBINHOOD_TESTNET_FORK_BLOCK ROBINHOOD_TESTNET_FORK_BLOCK_HASH \
+            ROBINHOOD_TESTNET_OBSERVED_AT_UNIX \
+            ROBINHOOD_TESTNET_PARENT_BLOCK_HASH ROBINHOOD_TESTNET_RPC_URL \
+            ROBINHOOD_TESTNET_USDG_ADDRESS ROBINHOOD_TESTNET_USDG_CODE_HASH \
+            ROBINHOOD_TESTNET_WETH_ADDRESS ROBINHOOD_TESTNET_WETH_CODE_HASH \
+            ROBINHOOD_TESTNET_POOL_MANAGER_ADDRESS ROBINHOOD_TESTNET_POOL_MANAGER_CODE_HASH \
+            ROBINHOOD_TESTNET_POSITION_MANAGER_ADDRESS ROBINHOOD_TESTNET_POSITION_MANAGER_CODE_HASH \
+            ROBINHOOD_TESTNET_PERMIT2_ADDRESS ROBINHOOD_TESTNET_PERMIT2_CODE_HASH; do
+            test -n "${!variable}"
+          done
+      - name: Forge gas, coverage, and invariant profile
+        working-directory: packages/contracts
+        run: |
+          FOUNDRY_PROFILE=ci forge snapshot --check
+          forge test --gas-report
+          forge coverage --report lcov
+          pnpm run coverage:check
+          FOUNDRY_PROFILE=ci forge test
+      - name: Web strategy creation code matches Foundry artifacts
+        run: pnpm --filter @gumball-6900/web strategy-code:check
+      - name: Generated contract and SDK API references are current
+        run: pnpm docs:check
+      - name: Hardhat coverage
+        run: pnpm --filter @gumball-6900/contracts exec hardhat coverage
+      - name: Validate and archive Forge and Hardhat coverage evidence
+        run: pnpm --filter @gumball-6900/contracts audit:reports:coverage
+      - name: Robinhood testnet fork suite
+        working-directory: packages/contracts
+        run: forge test --match-path 'test/foundry/fork-testnet/*'
+      - name: Phased deployment build and local launch rehearsal
+        working-directory: packages/contracts
+        run: |
+          forge build \
+            script/foundry/DeployPhase1.s.sol \
+            script/foundry/ScheduleRegistrationsPhase2.s.sol \
+            script/foundry/ExecuteRegistrationsPhase3.s.sol \
+            script/foundry/FundGenesisPhase4.s.sol \
+            script/foundry/SettleGenesisPhase5.s.sol
+          forge test --match-path test/foundry/integration/DeploymentRehearsal.t.sol -vv
+      - name: Install the pinned Playwright browser
+        run: pnpm --filter @gumball-6900/web exec playwright install --with-deps chromium
+      - name: Browser routes, demo fail-closed, and local Anvil write journey
+        run: pnpm web:test:e2e
+      - name: Build Storybook production artifact
+        run: pnpm --filter @gumball-6900/web storybook:build
+      - name: Build deployable subgraph bundle with resolved fixture
+        run: pnpm --filter @gumball-6900/subgraph build:dry-run
+      - name: Build production web container
+        run: pnpm docker:build
+      - name: Upload verification evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: warn
+          name: main-verification-${{ github.sha }}
+          path: |
+            packages/contracts/audit/reports/
+            packages/contracts/coverage/
+            packages/contracts/lcov.info
+            packages/contracts/.gas-snapshot
+          retention-days: 30

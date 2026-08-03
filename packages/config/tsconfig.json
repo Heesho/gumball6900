@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "."
+  },
+  "include": [
+    "index.ts",
+    "assets/**/*.ts",
+    "chains/**/*.ts",
+    "deployments/**/*.ts",
+    "schemas/**/*.ts",
+    "scripts/**/*.ts",
+    "tests/**/*.ts",
+    "tooling/**/*.ts"
+  ]
+}

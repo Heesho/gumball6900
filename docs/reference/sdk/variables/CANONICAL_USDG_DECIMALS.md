@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / CANONICAL_USDG_DECIMALS
+
+# Variable: CANONICAL_USDG_DECIMALS
+
+> `const` **CANONICAL_USDG_DECIMALS**: `6`

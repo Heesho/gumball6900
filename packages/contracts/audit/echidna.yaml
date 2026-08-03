@@ -1,0 +1,20 @@
+projectName: GUM BALL 6900 protocol state-machine campaign
+testMode: property
+testLimit: 100000
+seqLen: 150
+timeout: 3600
+seed: 6900
+shrinkLimit: 5000
+maxTimeDelay: 172800
+maxBlockDelay: 50400
+coverage: true
+corpusDir: audit/reports/echidna-corpus
+coverageDir: audit/reports/echidna-coverage
+format: json
+stopOnFail: true
+testDestruction: true
+allContracts: false
+disableOnchainSources: true
+cryticArgs:
+  - --compile-force-framework
+  - foundry

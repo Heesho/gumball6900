@@ -1,0 +1,78 @@
+{
+  "_fixture": {
+    "capturedAt": "2026-08-01T00:00:00Z",
+    "source": "https://api.robinhood.com/rhj/assets"
+  },
+  "assets": [
+    {
+      "id": "0x000000000000000000000000000000001aa9c9cc0bf34c5e95cfe7168463d310",
+      "tokenSymbol": "SPCX",
+      "tokenName": "Space Exploration Technologies Corp. Class A Common Stock • Robinhood Token",
+      "deployments": [
+        {
+          "contractAddress": "0x4a0E65A3EcceC6dBe60AE065F2e7bb85Fae35eEa",
+          "chainId": 4663
+        }
+      ],
+      "currentMultiplier": "1.000000000000000000",
+      "pendingMultiplier": "",
+      "status": "ASSET_STATUS_ACTIVE"
+    },
+    {
+      "id": "0x000000000000000000000000000000002470b933c52d47ccad017ed9ee80c9ed",
+      "tokenSymbol": "QQQ",
+      "tokenName": "Invesco QQQ • Robinhood Token",
+      "deployments": [
+        {
+          "contractAddress": "0xD5f3879160bc7c32ebb4dC785F8a4F505888de68",
+          "chainId": 4663
+        }
+      ],
+      "currentMultiplier": "1.000000000000000000",
+      "pendingMultiplier": "",
+      "status": "ASSET_STATUS_ACTIVE"
+    },
+    {
+      "id": "0x00000000000000000000000000000000915f477416294f5099a5e0e09f327ce5",
+      "tokenSymbol": "NVDA",
+      "tokenName": "NVIDIA • Robinhood Token",
+      "deployments": [
+        {
+          "contractAddress": "0xd0601CE157Db5bdC3162BbaC2a2C8aF5320D9EEC",
+          "chainId": 4663
+        }
+      ],
+      "currentMultiplier": "1.000000000000000000",
+      "pendingMultiplier": "",
+      "status": "ASSET_STATUS_ACTIVE"
+    },
+    {
+      "id": "0x00000000000000000000000000000000c2425be3658540dd8e2424cbf3c5c649",
+      "tokenSymbol": "AAPL",
+      "tokenName": "Apple • Robinhood Token",
+      "deployments": [
+        {
+          "contractAddress": "0xaF3D76f1834A1d425780943C99Ea8A608f8a93f9",
+          "chainId": 4663
+        }
+      ],
+      "currentMultiplier": "1.000000000000000000",
+      "pendingMultiplier": "",
+      "status": "ASSET_STATUS_ACTIVE"
+    },
+    {
+      "id": "0x00000000000000000000000000000000cfece3244ea34bb29414dd9488b32d9f",
+      "tokenSymbol": "TSLA",
+      "tokenName": "Tesla • Robinhood Token",
+      "deployments": [
+        {
+          "contractAddress": "0x322F0929c4625eD5bAd873c95208D54E1c003b2d",
+          "chainId": 4663
+        }
+      ],
+      "currentMultiplier": "1.000000000000000000",
+      "pendingMultiplier": "",
+      "status": "ASSET_STATUS_ACTIVE"
+    }
+  ]
+}

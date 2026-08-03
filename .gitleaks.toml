@@ -1,0 +1,54 @@
+title = "GUM BALL 6900 secret-scanning policy"
+minVersion = "8.30.1"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Generated output and installed dependencies are reproduced and scanned from their authored inputs."
+paths = [
+  '''(^|/)node_modules/''',
+  '''(^|/)packages/contracts/lib/''',
+  '''(^|/)\.next/''',
+  '''(^|/)\.turbo/''',
+  '''(^|/)\.pytest_cache/''',
+  '''(^|/)artifacts/''',
+  '''(^|/)audit/reports/''',
+  '''(^|/)build(?:-dry-run)?/''',
+  '''(^|/)cache/''',
+  '''(^|/)coverage/''',
+  '''(^|/)dist/''',
+  '''(^|/)generated/''',
+  '''(^|/)out/''',
+  '''(^|/)playwright-report/''',
+  '''(^|/)storybook-static/''',
+  '''(^|/)test-results/''',
+]
+
+[[rules]]
+id = "generic-api-key"
+
+  [[rules.allowlists]]
+  description = "Solidity inheritance declaration is misparsed as a token assignment."
+  condition = "AND"
+  regexTarget = "match"
+  paths = ['''(^|/)packages/contracts/src/interfaces/IGBXToken\.sol$''']
+  regexes = ['''^IGBXToken is IERC20, IERC20Permit $''']
+
+  [[rules.allowlists]]
+  description = "Canonical Uniswap manifest keys are public identifiers, not credentials."
+  condition = "AND"
+  regexTarget = "match"
+  paths = [
+    '''(^|/)apps/web/tests/runtime-config\.test\.ts$''',
+    '''(^|/)packages/contracts/test/hardhat/unit/ReleaseManifestBinding\.test\.ts$''',
+    '''(^|/)scripts/release/export-mainnet-fork-context(?:\.test)?\.mjs$''',
+  ]
+  regexes = ['''^key(?::| ===) 'uniswapV4\.(?:permit2|quoter)'$''']
+
+  [[rules.allowlists]]
+  description = "USDG access-control role hashes are public bytes32 protocol constants."
+  condition = "AND"
+  regexTarget = "match"
+  paths = ['''(^|/)scripts/release/export-mainnet-fork-context(?:\.test)?\.mjs$''']
+  regexes = ['''^TOKEN_(?:DEPLOYER|PAUSER)_ROLE: '0x[0-9a-f]{64}'$''']

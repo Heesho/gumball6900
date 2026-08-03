@@ -1,0 +1,8 @@
+{
+  "authorizedSigners": [],
+  "kind": "gumball-6900-deployment-authorization-policy",
+  "policyId": "0x0000000000000000000000000000000000000000000000000000000000000000",
+  "protocol": "GUM BALL 6900",
+  "schemaVersion": 1,
+  "threshold": 0
+}

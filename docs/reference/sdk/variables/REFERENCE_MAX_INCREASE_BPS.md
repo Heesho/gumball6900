@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / REFERENCE_MAX_INCREASE_BPS
+
+# Variable: REFERENCE_MAX_INCREASE_BPS
+
+> `const` **REFERENCE_MAX_INCREASE_BPS**: `15000n` = `15_000n`

@@ -1,0 +1,29 @@
+{
+  "bindings": [
+    {
+      "path": "packages/contracts/audit/python-locks/semgrep-linux-x64.txt",
+      "sha256": "028fc3fc96cf4d21502e4c909e686a955aebe0c31569b86867766376e1f07619",
+      "tool": "semgrep"
+    },
+    {
+      "path": "packages/contracts/audit/python-locks/slither-linux-x64.txt",
+      "sha256": "e3d8bd5528518ea07737fa99c341704d4a9ff3bd240051ff03435a3550e376ca",
+      "tool": "slither"
+    }
+  ],
+  "hermetic": true,
+  "kind": "gumball-6900-analyzer-environment-policy",
+  "mythrilImage": {
+    "digest": "sha256:ca947a2a79204667ae2ae93ea6aaaca0cea669f61bc4db6958e7556ea263bd80",
+    "platform": "linux/amd64",
+    "reference": "mythril/myth:0.24.8@sha256:ca947a2a79204667ae2ae93ea6aaaca0cea669f61bc4db6958e7556ea263bd80",
+    "version": "0.24.8"
+  },
+  "platform": "linux-x64",
+  "protocol": "GUM BALL 6900",
+  "pythonVersion": "3.10.20",
+  "releaseEligible": false,
+  "review": null,
+  "schemaVersion": 2,
+  "state": "dependencies-prepared"
+}

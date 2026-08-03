@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="840" height="500" viewBox="0 0 840 500" role="img">
+  <rect width="840" height="500" rx="18" fill="#0b0d12"/>
+  <text x="42" y="46" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="24" font-weight="700">Cumulative supply by demand path</text>
+  <text x="42" y="72" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="13">Genesis supply plus recurring emissions; cumulative mint cap = 1B GBX</text>
+  <line x1="78" y1="410" x2="798" y2="410" stroke="#394150"/>
+  <line x1="78" y1="100" x2="78" y2="410" stroke="#394150"/>
+  <polyline points="108,338 273,246 438,178 603,127 768,112" fill="none" stroke="#f7c948" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="120" y="455" fill="#f7c948" font-family="ui-sans-serif,system-ui" font-size="12">fully-funded</text>
+  <polyline points="108,359 273,313 438,271 603,220 768,204" fill="none" stroke="#56b4e9" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="295" y="455" fill="#56b4e9" font-family="ui-sans-serif,system-ui" font-size="12">fifty-percent-funded</text>
+  <polyline points="108,364 273,324 438,290 603,265 768,258" fill="none" stroke="#9bdb7c" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="470" y="455" fill="#9bdb7c" font-family="ui-sans-serif,system-ui" font-size="12">sporadic-demand</text>
+  <polyline points="108,338 273,338 438,317 603,267 768,251" fill="none" stroke="#f27d8a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="645" y="455" fill="#f27d8a" font-family="ui-sans-serif,system-ui" font-size="12">long-empty-period</text>
+  <text x="108" y="430" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">1y</text>
+  <text x="273" y="430" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">4y</text>
+  <text x="438" y="430" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">8y</text>
+  <text x="603" y="430" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">16y</text>
+  <text x="768" y="430" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">32y</text>
+  <text x="798" y="474" text-anchor="end" fill="#697586" font-family="ui-sans-serif,system-ui" font-size="11">Mechanics scenario — not an investment projection</text>
+</svg>

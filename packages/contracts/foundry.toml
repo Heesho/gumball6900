@@ -1,0 +1,38 @@
+[profile.default]
+src = "src"
+test = "test/foundry"
+script = "script/foundry"
+out = "out"
+libs = ["../../node_modules", "node_modules", "lib"]
+cache_path = "cache/forge"
+solc_version = "0.8.26"
+evm_version = "cancun"
+optimizer = true
+optimizer_runs = 10_000
+bytecode_hash = "none"
+cbor_metadata = false
+fuzz = { runs = 10_000, max_test_rejects = 1_000_000 }
+invariant = { runs = 1_000, depth = 500, fail_on_revert = true }
+fs_permissions = [
+  { access = "read-write", path = "./" },
+  { access = "read", path = "../simulations/fixtures" },
+]
+
+[profile.ci]
+fuzz = { runs = 10_000 }
+invariant = { runs = 1_000, depth = 500, fail_on_revert = true }
+
+[profile.nightly]
+fuzz = { runs = 100_000 }
+invariant = { runs = 10_000, depth = 1_000, fail_on_revert = true }
+
+[fmt]
+line_length = 120
+tab_width = 4
+bracket_spacing = true
+int_types = "long"
+quote_style = "double"
+
+[rpc_endpoints]
+robinhood = "${ROBINHOOD_MAINNET_RPC_URL}"
+robinhood_testnet = "${ROBINHOOD_TESTNET_RPC_URL}"

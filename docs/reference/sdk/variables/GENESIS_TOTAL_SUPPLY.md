@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / GENESIS_TOTAL_SUPPLY
+
+# Variable: GENESIS_TOTAL_SUPPLY
+
+> `const` **GENESIS_TOTAL_SUPPLY**: `bigint`

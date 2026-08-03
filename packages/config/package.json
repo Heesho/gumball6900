@@ -1,0 +1,51 @@
+{
+  "name": "@gumball-6900/config",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./chains": {
+      "types": "./dist/chains/robinhood.d.ts",
+      "import": "./dist/chains/robinhood.js"
+    },
+    "./uniswap-v4": {
+      "types": "./dist/deployments/uniswap-v4.d.ts",
+      "import": "./dist/deployments/uniswap-v4.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "lint": "tsc --noEmit",
+    "nightly:mainnet:pin": "tsx scripts/select-robinhood-mainnet-nightly-pin.ts",
+    "manifest:assets": "tsx scripts/generate-robinhood-asset-manifest.ts",
+    "manifest:assets:reviewed:validate": "tsx scripts/validate-reviewed-robinhood-asset-manifest.ts",
+    "manifest:wrapped-btc": "tsx scripts/generate-wrapped-btc-candidate.ts",
+    "manifest:bytecode": "tsx scripts/verify-canonical-bytecode.ts",
+    "manifest:validate": "tsx scripts/validate-deployment-manifest.ts",
+    "permissioned-pool:graph:validate": "tsx scripts/validate-permissioned-pool-graph.ts",
+    "fork:evidence:export": "tsx scripts/export-testnet-fork-evidence.ts",
+    "fork:evidence:live:verify": "tsx scripts/verify-testnet-fork-observation.ts",
+    "authorization:validate": "tsx scripts/validate-deployment-authorization.ts",
+    "authorization:hash-json": "tsx scripts/hash-canonical-json.ts",
+    "deployment:prepare:local": "node scripts/keyless-deployment-bootstrap.mjs prepare-local",
+    "deployment:run": "node scripts/keyless-deployment-bootstrap.mjs authorized",
+    "deployment:run:testnet": "DEPLOYMENT_EXPECTED_CHAIN_ID=46630 node scripts/keyless-deployment-bootstrap.mjs authorized",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "viem": "2.55.10",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.0",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2",
+    "vitest": "4.1.10"
+  }
+}

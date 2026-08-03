@@ -1,0 +1,1263 @@
+name: Release candidate evidence
+
+on:
+  workflow_dispatch:
+    inputs:
+      deploymentManifest:
+        description: Tracked repository-relative path to the signed release-approved manifest
+        required: true
+        type: string
+      releaseTag:
+        description: GitHub-verified annotated SemVer tag, for example v1.0.0
+        required: true
+        type: string
+
+concurrency:
+  group: release-candidate-${{ inputs.releaseTag }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FOUNDRY_VERSION: 1.7.1
+  NODE_VERSION: 22.23.1
+  PNPM_VERSION: 10.14.0
+  PYTHON_VERSION: 3.11.9
+  RELEASE_CONTROL_REF: refs/heads/main
+  RELEASE_MANIFEST_PATH: ${{ inputs.deploymentManifest }}
+  RELEASE_TAG: ${{ inputs.releaseTag }}
+
+jobs:
+  resolve_tag:
+    name: Resolve verified annotated tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      evidence_commit: ${{ steps.resolve.outputs.evidence_commit }}
+      source_commit: ${{ steps.resolve.outputs.source_commit }}
+      tag_object: ${{ steps.resolve.outputs.tag_object }}
+    steps:
+      - name: Bind workflow execution to the protected control branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected_workflow_ref="$GITHUB_REPOSITORY/.github/workflows/release.yml@$RELEASE_CONTROL_REF"
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF_TYPE" = branch
+          test "$GITHUB_REF_NAME" = "${RELEASE_CONTROL_REF#refs/heads/}"
+          test "$GITHUB_REF" = "$RELEASE_CONTROL_REF"
+          test "$GITHUB_REF_PROTECTED" = true
+          [[ "$GITHUB_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$GITHUB_SHA" = "$GITHUB_WORKFLOW_SHA"
+          test "$GITHUB_WORKFLOW_REF" = "$expected_workflow_ref"
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.workflow_sha }}
+      - name: Prove trusted control-tool checkout
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_WORKFLOW_SHA"
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Require strict SemVer and GitHub-verified annotated signature
+        id: resolve
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node --input-type=module - "$RELEASE_TAG" <<'NODE'
+          const tag = process.argv[2];
+          const semver = /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*)|(?:[A-Za-z-][0-9A-Za-z-]*))(?:\.(?:(?:0|[1-9]\d*)|(?:[A-Za-z-][0-9A-Za-z-]*)))*)?$/;
+          if (!semver.test(tag)) throw new Error(`Invalid release tag: ${tag}`);
+          NODE
+          expected_workflow_ref="$GITHUB_REPOSITORY/.github/workflows/release.yml@$RELEASE_CONTROL_REF"
+          test "$GITHUB_EVENT_NAME" = workflow_dispatch
+          test "$GITHUB_REF_TYPE" = branch
+          test "$GITHUB_REF_NAME" = "${RELEASE_CONTROL_REF#refs/heads/}"
+          test "$GITHUB_REF" = "$RELEASE_CONTROL_REF"
+          test "$GITHUB_REF_PROTECTED" = true
+          test "$GITHUB_SHA" = "$GITHUB_WORKFLOW_SHA"
+          test "$GITHUB_WORKFLOW_REF" = "$expected_workflow_ref"
+          ref_json="$(curl --fail-with-body --silent --show-error \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG")"
+          test "$(jq -r '.object.type' <<<"$ref_json")" = tag
+          tag_object="$(jq -r '.object.sha' <<<"$ref_json")"
+          [[ "$tag_object" =~ ^[0-9a-f]{40}$ ]]
+          tag_json="$(curl --fail-with-body --silent --show-error \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/git/tags/$tag_object")"
+          jq --exit-status --arg tag "$RELEASE_TAG" '
+            .tag == $tag and
+            .object.type == "commit" and
+            .verification.verified == true and
+            .verification.reason == "valid"
+          ' <<<"$tag_json" >/dev/null
+          evidence_commit="$(jq -r '.object.sha' <<<"$tag_json")"
+          [[ "$evidence_commit" =~ ^[0-9a-f]{40}$ ]]
+          commit_json="$(curl --fail-with-body --silent --show-error \
+            --header "Accept: application/vnd.github+json" \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "$GITHUB_API_URL/repos/$GITHUB_REPOSITORY/git/commits/$evidence_commit")"
+          test "$(jq '.parents | length' <<<"$commit_json")" = 1
+          source_commit="$(jq -r '.parents[0].sha' <<<"$commit_json")"
+          [[ "$source_commit" =~ ^[0-9a-f]{40}$ ]]
+          test "$source_commit" = "$GITHUB_WORKFLOW_SHA"
+          echo "evidence_commit=$evidence_commit" >>"$GITHUB_OUTPUT"
+          echo "source_commit=$source_commit" >>"$GITHUB_OUTPUT"
+          echo "tag_object=$tag_object" >>"$GITHUB_OUTPUT"
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          path: release-evidence
+          persist-credentials: false
+          ref: refs/tags/${{ inputs.releaseTag }}
+      - name: Prove checkout and manifest are bound to the annotated tag
+        env:
+          EVIDENCE_COMMIT: ${{ steps.resolve.outputs.evidence_commit }}
+          RELEASE_TAG_OBJECT: ${{ steps.resolve.outputs.tag_object }}
+          SOURCE_COMMIT: ${{ steps.resolve.outputs.source_commit }}
+        run: |
+          set -euo pipefail
+          release_workspace="$GITHUB_WORKSPACE/release-evidence"
+          test "$SOURCE_COMMIT" = "$GITHUB_WORKFLOW_SHA"
+          test "$(git -C "$release_workspace" cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test "$(git -C "$release_workspace" rev-parse "refs/tags/$RELEASE_TAG")" = "$RELEASE_TAG_OBJECT"
+          test "$(git -C "$release_workspace" rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$EVIDENCE_COMMIT"
+          test "$(git -C "$release_workspace" rev-parse HEAD)" = "$EVIDENCE_COMMIT"
+          test "$(git -C "$release_workspace" rev-parse "$EVIDENCE_COMMIT^")" = "$SOURCE_COMMIT"
+          test "$(git -C "$release_workspace" rev-list --parents -n 1 "$EVIDENCE_COMMIT" | awk '{print NF}')" = 2
+          git -C "$release_workspace" diff --exit-code
+          git -C "$release_workspace" diff --cached --exit-code
+          node "$GITHUB_WORKSPACE/scripts/release/assert-tracked-worktree.mjs" \
+            --workspace "$release_workspace" --commit "$EVIDENCE_COMMIT"
+          node "$GITHUB_WORKSPACE/scripts/release/robinhood-registry-revalidation.mjs" \
+            --workspace "$release_workspace" \
+            --manifest "$RELEASE_MANIFEST_PATH" \
+            --tag "$RELEASE_TAG" \
+            --tag-object "$RELEASE_TAG_OBJECT" \
+            --evidence-commit "$EVIDENCE_COMMIT" \
+            --source-commit "$SOURCE_COMMIT" \
+            --stage preliminary \
+            --output "$RUNNER_TEMP/registry-preliminary/robinhood-registry-revalidation.json" \
+            --source-archive-output "$RUNNER_TEMP/registry-preliminary/robinhood-registry-response.json"
+          node "$GITHUB_WORKSPACE/scripts/release/prepare-release.mjs" \
+            --workspace "$release_workspace" \
+            --manifest "$RELEASE_MANIFEST_PATH" \
+            --tag "$RELEASE_TAG" \
+            --tag-object "$RELEASE_TAG_OBJECT" \
+            --evidence-commit "$EVIDENCE_COMMIT" \
+            --source-commit "$SOURCE_COMMIT" \
+            --registry-revalidation "$RUNNER_TEMP/registry-preliminary/robinhood-registry-revalidation.json" \
+            --registry-revalidation-stage preliminary \
+            --registry-response-archive "$RUNNER_TEMP/registry-preliminary/robinhood-registry-response.json" \
+            --output-dir "$RUNNER_TEMP/release-inputs"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: error
+          name: release-input-binding-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/release-inputs/
+          retention-days: 365
+
+  release_readiness:
+    name: License, notice, and security-contact gate
+    needs: resolve_tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EVIDENCE_COMMIT: ${{ needs.resolve_tag.outputs.evidence_commit }}
+      RELEASE_TAG_OBJECT: ${{ needs.resolve_tag.outputs.tag_object }}
+      SOURCE_COMMIT: ${{ needs.resolve_tag.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.resolve_tag.outputs.source_commit }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Fail closed on unresolved distribution or reporting policy
+        run: |
+          test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG")" = "$RELEASE_TAG_OBJECT"
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$EVIDENCE_COMMIT"
+          test "$(git rev-parse "$EVIDENCE_COMMIT^")" = "$SOURCE_COMMIT"
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+          mkdir -p "$RUNNER_TEMP/release-readiness"
+          node scripts/release/check-release-readiness.mjs \
+            --workspace "$GITHUB_WORKSPACE" \
+            --report "$RUNNER_TEMP/release-readiness/readiness.json"
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: error
+          name: release-readiness-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/release-readiness/
+          retention-days: 365
+
+  offline_gates:
+    name: Reproducible build and container release gates
+    needs: resolve_tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      EVIDENCE_COMMIT: ${{ needs.resolve_tag.outputs.evidence_commit }}
+      GUM_BALL_RELEASE_BUILD_ID: ${{ needs.resolve_tag.outputs.source_commit }}
+      RELEASE_TAG_OBJECT: ${{ needs.resolve_tag.outputs.tag_object }}
+      SOURCE_COMMIT: ${{ needs.resolve_tag.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: refs/tags/${{ inputs.releaseTag }}
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: release-input-binding-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/release-input-binding
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          cache: pnpm
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          cache: pip
+          cache-dependency-path: packages/simulations/requirements-dev.lock
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v${{ env.FOUNDRY_VERSION }}
+      - name: Install frozen JavaScript and Python toolchains
+        run: |
+          pnpm install --frozen-lockfile
+          python -m pip install --requirement packages/simulations/requirements-dev.lock
+          python -m pip check
+          test "$(node --version)" = "v$NODE_VERSION"
+          test "$(pnpm --version)" = "$PNPM_VERSION"
+          test "$(python --version 2>&1)" = "Python $PYTHON_VERSION"
+          forge --version | grep --fixed-strings "Version: $FOUNDRY_VERSION"
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$EVIDENCE_COMMIT"
+      - name: Revalidate checkout and signed manifest
+        run: |
+          test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG")" = "$RELEASE_TAG_OBJECT"
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$EVIDENCE_COMMIT"
+          test "$(git rev-parse "$EVIDENCE_COMMIT^")" = "$SOURCE_COMMIT"
+          test "$(git rev-parse HEAD)" = "$EVIDENCE_COMMIT"
+          node scripts/release/prepare-release.mjs \
+            --workspace "$GITHUB_WORKSPACE" \
+            --manifest "$RELEASE_MANIFEST_PATH" \
+            --tag "$RELEASE_TAG" \
+            --tag-object "$RELEASE_TAG_OBJECT" \
+            --evidence-commit "$EVIDENCE_COMMIT" \
+            --source-commit "$SOURCE_COMMIT" \
+            --registry-revalidation "$RUNNER_TEMP/release-input-binding/robinhood-registry-revalidation.json" \
+            --registry-revalidation-stage preliminary \
+            --registry-response-archive "$RUNNER_TEMP/release-input-binding/robinhood-registry-response.json" \
+            --output-dir "$RUNNER_TEMP/release-derived"
+          pnpm config:manifest:validate -- \
+            --file "$RELEASE_MANIFEST_PATH" --require-release-evidence
+          echo "SOURCE_DATE_EPOCH=$(jq -r '.sourceDateEpoch' "$RUNNER_TEMP/release-derived/release-metadata.json")" \
+            >>"$GITHUB_ENV"
+          git checkout --quiet --detach "$SOURCE_COMMIT"
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+      - name: Test release tooling and dependency-exception policy
+        run: |
+          pnpm release:tools:test
+          pnpm audit:policy:test
+      - name: Reproduce Foundry and Hardhat artifacts twice
+        run: |
+          pnpm --filter @gumball-6900/contracts clean
+          pnpm contracts:compile
+          node scripts/release/record-build-evidence.mjs \
+            --workspace "$GITHUB_WORKSPACE" --mode contracts --output-dir "$RUNNER_TEMP/contracts-pass-a"
+          pnpm --filter @gumball-6900/contracts clean
+          pnpm contracts:compile
+          node scripts/release/record-build-evidence.mjs \
+            --workspace "$GITHUB_WORKSPACE" --mode contracts --output-dir "$RUNNER_TEMP/contracts-pass-b"
+          diff --recursive --unified "$RUNNER_TEMP/contracts-pass-a" "$RUNNER_TEMP/contracts-pass-b"
+          cp "$RUNNER_TEMP/contracts-pass-a/foundry-artifacts.sha256" \
+            "$RUNNER_TEMP/release-derived/foundry-artifacts-pass-a.sha256"
+          cp "$RUNNER_TEMP/contracts-pass-b/foundry-artifacts.sha256" \
+            "$RUNNER_TEMP/release-derived/foundry-artifacts-pass-b.sha256"
+          cp "$RUNNER_TEMP/contracts-pass-a/hardhat-artifacts.sha256" \
+            "$RUNNER_TEMP/release-derived/hardhat-artifacts-pass-a.sha256"
+          cp "$RUNNER_TEMP/contracts-pass-b/hardhat-artifacts.sha256" \
+            "$RUNNER_TEMP/release-derived/hardhat-artifacts-pass-b.sha256"
+      - name: Web strategy creation code matches reproduced Foundry artifacts
+        run: pnpm --filter @gumball-6900/web strategy-code:check
+      - name: Run complete available workspace gates
+        run: |
+          pnpm format:check
+          pnpm lint
+          pnpm typecheck
+          pnpm build
+          pnpm test
+          pnpm sdk:abi:check
+          pnpm docs:check
+          pnpm sdk:pack:check
+          pnpm --filter @gumball-6900/subgraph abi:check
+      - name: Run available browser suite
+        run: |
+          pnpm --filter @gumball-6900/web exec playwright install --with-deps chromium
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+          pnpm web:test:e2e
+      - name: Reproduce deployable web output twice
+        run: |
+          pnpm --filter @gumball-6900/web clean
+          pnpm --filter @gumball-6900/web build
+          mkdir -p "$RUNNER_TEMP/web-next-build-cache"
+          test -s apps/web/.next/cache/.previewinfo
+          test -s apps/web/.next/cache/.rscinfo
+          install -m 600 apps/web/.next/cache/.previewinfo \
+            "$RUNNER_TEMP/web-next-build-cache/.previewinfo"
+          install -m 600 apps/web/.next/cache/.rscinfo \
+            "$RUNNER_TEMP/web-next-build-cache/.rscinfo"
+          node scripts/release/record-build-evidence.mjs \
+            --workspace "$GITHUB_WORKSPACE" --mode web --output-dir "$RUNNER_TEMP/web-pass-a"
+          pnpm --filter @gumball-6900/web clean
+          mkdir -p apps/web/.next/cache
+          install -m 600 "$RUNNER_TEMP/web-next-build-cache/.previewinfo" \
+            apps/web/.next/cache/.previewinfo
+          install -m 600 "$RUNNER_TEMP/web-next-build-cache/.rscinfo" \
+            apps/web/.next/cache/.rscinfo
+          pnpm --filter @gumball-6900/web build
+          cmp "$RUNNER_TEMP/web-next-build-cache/.previewinfo" apps/web/.next/cache/.previewinfo
+          cmp "$RUNNER_TEMP/web-next-build-cache/.rscinfo" apps/web/.next/cache/.rscinfo
+          node scripts/release/record-build-evidence.mjs \
+            --workspace "$GITHUB_WORKSPACE" --mode web --output-dir "$RUNNER_TEMP/web-pass-b"
+          diff --recursive --unified "$RUNNER_TEMP/web-pass-a" "$RUNNER_TEMP/web-pass-b"
+          cp "$RUNNER_TEMP/web-pass-a/web.sha256" \
+            "$RUNNER_TEMP/release-derived/web-pass-a.sha256"
+          cp "$RUNNER_TEMP/web-pass-b/web.sha256" \
+            "$RUNNER_TEMP/release-derived/web-pass-b.sha256"
+      - name: Produce full contract coverage and gas evidence
+        run: |
+          pnpm contracts:coverage
+          pnpm --filter @gumball-6900/contracts audit:reports:coverage
+          pnpm --filter @gumball-6900/contracts snapshot
+      - name: Build release-resolved subgraph and mapping coverage
+        run: |
+          node packages/subgraph/scripts/validate-network-config.mjs \
+            "$RUNNER_TEMP/release-derived/subgraph-networks.json"
+          pnpm --filter @gumball-6900/subgraph codegen
+          pnpm --filter @gumball-6900/subgraph exec graph build \
+            --network robinhood \
+            --network-file "$RUNNER_TEMP/release-derived/subgraph-networks.json" \
+            --output-dir build-release
+          pnpm --filter @gumball-6900/subgraph test:coverage
+      - name: Build generated contract docs and Storybook
+        run: |
+          mkdir -p "$RUNNER_TEMP/contract-docs"
+          forge doc --root packages/contracts --build --out "$RUNNER_TEMP/contract-docs"
+          pnpm --filter @gumball-6900/web storybook:build
+      - name: Build production web container without publishing it
+        run: |
+          web_container_context="$RUNNER_TEMP/web-container-context"
+          mkdir -p "$web_container_context"
+          cp -R apps/web/.next/standalone "$web_container_context/standalone"
+          cp -R apps/web/.next/static "$web_container_context/static"
+          cp -R apps/web/public "$web_container_context/public"
+          cp scripts/release/Dockerfile.web-artifact "$web_container_context/Dockerfile"
+          docker build \
+            --build-arg "SOURCE_DATE_EPOCH=$SOURCE_DATE_EPOCH" \
+            --file "$web_container_context/Dockerfile" \
+            --tag gumball-6900-web:local \
+            "$web_container_context"
+          docker image inspect gumball-6900-web:local \
+            | jq '.[0] | {architecture: .Architecture, configDigest: .Id, os: .Os, repoTags: .RepoTags}' \
+            >"$RUNNER_TEMP/release-derived/web-container.json"
+      - name: Exercise the production container under restricted runtime settings
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-container-security-evidence"
+          node scripts/release/container-smoke.mjs \
+            --image gumball-6900-web:local \
+            --output "$RUNNER_TEMP/release-container-security-evidence/web-container-smoke.json"
+      - name: Generate SBOMs and enforce the container vulnerability policy
+        run: |
+          bash scripts/release/run-container-security.sh \
+            gumball-6900-web:local \
+            "$RUNNER_TEMP/release-container-security-evidence"
+          for evidence in \
+            container-security-policy.json \
+            web-container-smoke.json \
+            web-container.sbom.syft.json \
+            web-container.sbom.spdx.json \
+            web-container.grype.json \
+            web-container.grype-db-status.json \
+            web-container-vulnerability-summary.json; do
+            test -s "$RUNNER_TEMP/release-container-security-evidence/$evidence"
+            cp "$RUNNER_TEMP/release-container-security-evidence/$evidence" \
+              "$RUNNER_TEMP/release-derived/$evidence"
+          done
+      - name: Restore reproduced contract build and record all artifact hashes
+        run: |
+          pnpm --filter @gumball-6900/contracts clean
+          pnpm contracts:compile
+          node scripts/release/record-build-evidence.mjs \
+            --workspace "$GITHUB_WORKSPACE" \
+            --mode contracts \
+            --output-dir "$RUNNER_TEMP/contracts-final"
+          diff --recursive --unified "$RUNNER_TEMP/contracts-pass-b" "$RUNNER_TEMP/contracts-final"
+          node scripts/release/record-build-evidence.mjs \
+            --workspace "$GITHUB_WORKSPACE" \
+            --mode full \
+            --generated-docs "$RUNNER_TEMP/contract-docs" \
+            --output-dir "$RUNNER_TEMP/release-derived"
+          diff --unified \
+            "$RUNNER_TEMP/web-pass-b/web.sha256" \
+            "$RUNNER_TEMP/release-derived/web.sha256"
+      - name: Re-prove source checkout after all builds and tests
+        run: |
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+      - name: Package normalized candidate artifacts and checksums
+        env:
+          CONTRACT_DOCS_DIR: ${{ runner.temp }}/contract-docs
+          RELEASE_DERIVED_DIR: ${{ runner.temp }}/release-derived
+          RELEASE_OUTPUT_DIR: ${{ runner.temp }}/release-offline-evidence
+          REPOSITORY_DIR: ${{ github.workspace }}
+        run: bash scripts/release/package-offline-evidence.sh
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: warn
+          name: release-offline-evidence-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/release-offline-evidence/
+          retention-days: 365
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: warn
+          name: release-container-security-evidence-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/release-container-security-evidence/
+          retention-days: 365
+
+  fork_gates:
+    name: Required Robinhood archive-fork gates
+    needs: resolve_tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      EVIDENCE_COMMIT: ${{ needs.resolve_tag.outputs.evidence_commit }}
+      RELEASE_TAG_OBJECT: ${{ needs.resolve_tag.outputs.tag_object }}
+      SOURCE_COMMIT: ${{ needs.resolve_tag.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: refs/tags/${{ inputs.releaseTag }}
+      - uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5.0.0
+        with:
+          name: release-input-binding-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/release-input-binding
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          cache: pnpm
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v${{ env.FOUNDRY_VERSION }}
+      - name: Prepare and validate the exact signed mainnet evidence snapshots
+        run: |
+          pnpm install --frozen-lockfile
+          test "$(git rev-parse HEAD)" = "$EVIDENCE_COMMIT"
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$EVIDENCE_COMMIT"
+          node scripts/release/prepare-release.mjs \
+            --workspace "$GITHUB_WORKSPACE" \
+            --manifest "$RELEASE_MANIFEST_PATH" \
+            --tag "$RELEASE_TAG" \
+            --tag-object "$RELEASE_TAG_OBJECT" \
+            --evidence-commit "$EVIDENCE_COMMIT" \
+            --source-commit "$SOURCE_COMMIT" \
+            --registry-revalidation "$RUNNER_TEMP/release-input-binding/robinhood-registry-revalidation.json" \
+            --registry-revalidation-stage preliminary \
+            --registry-response-archive "$RUNNER_TEMP/release-input-binding/robinhood-registry-response.json" \
+            --output-dir "$RUNNER_TEMP/release-mainnet-inputs"
+          pnpm config:manifest:validate -- \
+            --file "$RELEASE_MANIFEST_PATH" --require-release-evidence
+          node scripts/release/export-mainnet-fork-context.mjs \
+            --workspace "$GITHUB_WORKSPACE" \
+            --asset-candidate "$RUNNER_TEMP/release-mainnet-inputs/reviewed-asset-candidate.json" \
+            --manifest "$RUNNER_TEMP/release-mainnet-inputs/deployment-manifest.json" \
+            --config "$RUNNER_TEMP/release-mainnet-inputs/deployment-config.json" \
+            --manifest-repository-path "$RELEASE_MANIFEST_PATH" \
+            --registry-revalidation "$RUNNER_TEMP/release-mainnet-inputs/robinhood-registry-revalidation.json" \
+            --registry-response-archive "$RUNNER_TEMP/release-mainnet-inputs/robinhood-registry-response.json" \
+            --registry-revalidation-stage preliminary \
+            --evidence-commit "$EVIDENCE_COMMIT" \
+            --source-commit "$SOURCE_COMMIT" \
+            --tag "$RELEASE_TAG" \
+            --tag-object "$RELEASE_TAG_OBJECT" \
+            --github-env "$GITHUB_ENV" \
+            --context "$RUNNER_TEMP/release-fork-evidence/mainnet-fork-context.json"
+          git checkout --quiet --detach "$SOURCE_COMMIT"
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+      - name: Load testnet fork facts bound to source commit C
+        run: |
+          pnpm --filter @gumball-6900/config fork:evidence:export -- \
+            --github-env "$GITHUB_ENV" \
+            --context "$RUNNER_TEMP/release-fork-evidence/testnet-fork-evidence.json"
+      - name: Verify signed testnet observation against a live canonical head
+        env:
+          ROBINHOOD_TESTNET_RPC_URL: ${{ secrets.ROBINHOOD_TESTNET_ARCHIVE_RPC_URL }}
+        run: |
+          set -o pipefail
+          pnpm --filter @gumball-6900/config fork:evidence:live:verify 2>&1 \
+            | node "$GITHUB_WORKSPACE/scripts/release/redact-stream.mjs" ROBINHOOD_TESTNET_RPC_URL \
+            | tee "$RUNNER_TEMP/release-fork-evidence/live-testnet-observation.txt"
+      - name: Require exact pinned archive-fork evidence inputs
+        env:
+          ROBINHOOD_MAINNET_RPC_URL: ${{ secrets.ROBINHOOD_MAINNET_ARCHIVE_RPC_URL }}
+          ROBINHOOD_TESTNET_RPC_URL: ${{ secrets.ROBINHOOD_TESTNET_ARCHIVE_RPC_URL }}
+        run: |
+          mainnet_context="$RUNNER_TEMP/release-fork-evidence/mainnet-fork-context.json"
+          test "$(jq -r '.kind' "$mainnet_context")" = gumball-6900-mainnet-fork-context
+          test "$(jq -r '.schemaVersion' "$mainnet_context")" = 1
+          manifest_schema="$(jq -r '.schemaVersion' "$RUNNER_TEMP/release-mainnet-inputs/deployment-manifest.json")"
+          expected_variables=88
+          if test "$manifest_schema" = 2; then expected_variables=92; fi
+          test "$(jq -r '.variables | length' "$mainnet_context")" = "$expected_variables"
+          while IFS= read -r variable; do
+            test -n "${!variable}"
+            test "${!variable}" = "$(jq -r --arg variable "$variable" '.variables[$variable]' "$mainnet_context")"
+          done < <(jq -r '.variables | keys[]' "$mainnet_context")
+          for variable in \
+            ROBINHOOD_MAINNET_RPC_URL \
+            ROBINHOOD_TESTNET_FORK_BLOCK ROBINHOOD_TESTNET_FORK_BLOCK_HASH \
+            ROBINHOOD_TESTNET_OBSERVED_AT_UNIX \
+            ROBINHOOD_TESTNET_PARENT_BLOCK_HASH ROBINHOOD_TESTNET_RPC_URL \
+            ROBINHOOD_TESTNET_USDG_ADDRESS ROBINHOOD_TESTNET_USDG_CODE_HASH \
+            ROBINHOOD_TESTNET_WETH_ADDRESS ROBINHOOD_TESTNET_WETH_CODE_HASH \
+            ROBINHOOD_TESTNET_POOL_MANAGER_ADDRESS ROBINHOOD_TESTNET_POOL_MANAGER_CODE_HASH \
+            ROBINHOOD_TESTNET_POSITION_MANAGER_ADDRESS ROBINHOOD_TESTNET_POSITION_MANAGER_CODE_HASH \
+            ROBINHOOD_TESTNET_PERMIT2_ADDRESS ROBINHOOD_TESTNET_PERMIT2_CODE_HASH; do
+            test -n "${!variable}"
+          done
+      - name: Verify source-C artifacts, deployment receipts, and graph at the signed observation block
+        env:
+          ROBINHOOD_MAINNET_RPC_URL: ${{ secrets.ROBINHOOD_MAINNET_ARCHIVE_RPC_URL }}
+        run: |
+          set -o pipefail
+          mkdir -p "$RUNNER_TEMP/release-fork-evidence"
+          pnpm contracts:compile
+          evidence_commit_epoch="$(git show -s --format=%ct "$EVIDENCE_COMMIT")"
+          evidence_commit_committed_at="$(node -e \
+            'process.stdout.write(new Date(Number(process.argv[1]) * 1000).toISOString())' \
+            "$evidence_commit_epoch")"
+          manifest_repository_path="$RELEASE_MANIFEST_PATH"
+          status=0
+          if ! DEPLOYMENT_CONFIG_PATH="$RUNNER_TEMP/release-mainnet-inputs/deployment-config.json" \
+            DEPLOYMENT_STATE_PATH="$RUNNER_TEMP/release-mainnet-inputs/deployment-state.json" \
+            RELEASE_ASSET_CANDIDATE_PATH="$RUNNER_TEMP/release-mainnet-inputs/reviewed-asset-candidate.json" \
+            RELEASE_EVIDENCE_COMMIT="$EVIDENCE_COMMIT" \
+            RELEASE_EVIDENCE_COMMITTED_AT="$evidence_commit_committed_at" \
+            RELEASE_MANIFEST_PATH="$RUNNER_TEMP/release-mainnet-inputs/deployment-manifest.json" \
+            RELEASE_MANIFEST_REPOSITORY_PATH="$manifest_repository_path" \
+            RELEASE_PERMISSIONED_POOL_FORK_REHEARSAL_PATH="$RUNNER_TEMP/release-mainnet-inputs/permissioned-pool-robinhood-fork-rehearsal.json" \
+            RELEASE_PERMISSIONED_POOL_GRAPH_PATH="$RUNNER_TEMP/release-mainnet-inputs/permissioned-pool-graph.json" \
+            RELEASE_PERMISSIONED_POOL_OFFICIAL_SOURCE_BUILD_PATH="$RUNNER_TEMP/release-mainnet-inputs/permissioned-pool-official-source-build.json" \
+            RELEASE_REGISTRY_REVALIDATION_STAGE=preliminary \
+            RELEASE_ROBINHOOD_REGISTRY_RESPONSE_PATH="$RUNNER_TEMP/release-mainnet-inputs/robinhood-registry-response.json" \
+            RELEASE_ROBINHOOD_REGISTRY_REVALIDATION_PATH="$RUNNER_TEMP/release-mainnet-inputs/robinhood-registry-revalidation.json" \
+            RELEASE_SOURCE_COMMIT="$SOURCE_COMMIT" \
+            RELEASE_TAG_OBJECT="$RELEASE_TAG_OBJECT" \
+            SUBMIT_EXPLORER_VERIFICATION=false \
+            pnpm contracts:verify:mainnet 2>&1 \
+              | node "$GITHUB_WORKSPACE/scripts/release/redact-stream.mjs" ROBINHOOD_MAINNET_RPC_URL \
+              | tee "$RUNNER_TEMP/release-fork-evidence/mainnet-manifest-verification.txt"; then
+            status=1
+          fi
+          exit "$status"
+      - name: Run pinned mainnet and configured testnet fork suites
+        env:
+          ROBINHOOD_MAINNET_RPC_URL: ${{ secrets.ROBINHOOD_MAINNET_ARCHIVE_RPC_URL }}
+          ROBINHOOD_TESTNET_RPC_URL: ${{ secrets.ROBINHOOD_TESTNET_ARCHIVE_RPC_URL }}
+        working-directory: packages/contracts
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-fork-evidence"
+          test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG")" = "$RELEASE_TAG_OBJECT"
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$EVIDENCE_COMMIT"
+          test "$(git rev-parse "$EVIDENCE_COMMIT^")" = "$SOURCE_COMMIT"
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          set -o pipefail
+          status=0
+          if ! forge test --match-path 'test/foundry/fork/*' -vv 2>&1 \
+            | node "$GITHUB_WORKSPACE/scripts/release/redact-stream.mjs" ROBINHOOD_MAINNET_RPC_URL \
+            | tee "$RUNNER_TEMP/release-fork-evidence/mainnet-fork.txt"; then
+            status=1
+          fi
+          if ! forge test --match-path 'test/foundry/fork-testnet/*' -vv 2>&1 \
+            | node "$GITHUB_WORKSPACE/scripts/release/redact-stream.mjs" ROBINHOOD_TESTNET_RPC_URL \
+            | tee "$RUNNER_TEMP/release-fork-evidence/testnet-fork.txt"; then
+            status=1
+          fi
+          exit "$status"
+      - name: Re-prove source checkout after fork suites
+        if: always()
+        run: |
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+      - name: Checksum fork evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-fork-evidence"
+          printf '%s\n' "releaseTag=$RELEASE_TAG" "sourceCommit=$SOURCE_COMMIT" \
+            "evidenceCommit=$EVIDENCE_COMMIT" \
+            "mainnetForkBlock=$ROBINHOOD_MAINNET_FORK_BLOCK" \
+            "mainnetForkBlockHash=$ROBINHOOD_MAINNET_FORK_BLOCK_HASH" \
+            "testnetForkBlock=$ROBINHOOD_TESTNET_FORK_BLOCK" \
+            "testnetForkBlockHash=$ROBINHOOD_TESTNET_FORK_BLOCK_HASH" \
+            "testnetObservedAtUnix=$ROBINHOOD_TESTNET_OBSERVED_AT_UNIX" \
+            "testnetParentBlockHash=$ROBINHOOD_TESTNET_PARENT_BLOCK_HASH" \
+            "testnetUSDG=$ROBINHOOD_TESTNET_USDG_ADDRESS" \
+            "testnetUSDGCodeHash=$ROBINHOOD_TESTNET_USDG_CODE_HASH" \
+            "testnetWETH=$ROBINHOOD_TESTNET_WETH_ADDRESS" \
+            "testnetWETHCodeHash=$ROBINHOOD_TESTNET_WETH_CODE_HASH" \
+            "testnetPoolManager=$ROBINHOOD_TESTNET_POOL_MANAGER_ADDRESS" \
+            "testnetPoolManagerCodeHash=$ROBINHOOD_TESTNET_POOL_MANAGER_CODE_HASH" \
+            "testnetPositionManager=$ROBINHOOD_TESTNET_POSITION_MANAGER_ADDRESS" \
+            "testnetPositionManagerCodeHash=$ROBINHOOD_TESTNET_POSITION_MANAGER_CODE_HASH" \
+            "testnetPermit2=$ROBINHOOD_TESTNET_PERMIT2_ADDRESS" \
+            "testnetPermit2CodeHash=$ROBINHOOD_TESTNET_PERMIT2_CODE_HASH" \
+            >"$RUNNER_TEMP/release-fork-evidence/context.txt"
+          cd "$RUNNER_TEMP/release-fork-evidence"
+          find . -type f ! -name SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 sha256sum >SHA256SUMS
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: error
+          name: release-fork-evidence-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/release-fork-evidence/
+          retention-days: 365
+
+  security_evidence:
+    name: Fresh CodeQL, static, dependency, license, and secret evidence
+    needs: resolve_tag
+    permissions:
+      contents: read
+      security-events: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      EVIDENCE_COMMIT: ${{ needs.resolve_tag.outputs.evidence_commit }}
+      RELEASE_TAG_OBJECT: ${{ needs.resolve_tag.outputs.tag_object }}
+      SOURCE_COMMIT: ${{ needs.resolve_tag.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.resolve_tag.outputs.source_commit }}
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          cache: pnpm
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: github/codeql-action/init@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+      - name: Resolve analyzer Python from the committed environment policy
+        id: analyzer_environment
+        run: |
+          node packages/contracts/audit/resolve-analyzer-environment.mjs \
+            --workspace "$GITHUB_WORKSPACE" \
+            --github-output "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          architecture: x64
+          python-version: ${{ steps.analyzer_environment.outputs.python_version }}
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v${{ env.FOUNDRY_VERSION }}
+      - name: Install frozen JavaScript dependencies and prove source checkout
+        run: |
+          pnpm install --frozen-lockfile
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+      - name: Analyze and upload JavaScript and TypeScript CodeQL results
+        uses: github/codeql-action/analyze@f205ea1c3313d32999d8d6a48b4f6530d4437b38 # v4.37.4
+        with:
+          post-processed-sarif-path: ${{ runner.temp }}/codeql-post-processed
+          ref: refs/tags/${{ inputs.releaseTag }}
+          sha: ${{ needs.resolve_tag.outputs.source_commit }}
+          upload: always
+      - name: Archive and enforce zero-result CodeQL SARIF
+        run: |
+          node packages/contracts/scripts/archive-audit-reports.mjs \
+            codeql "$RUNNER_TEMP/codeql-post-processed"
+      - name: Install pinned static analyzers
+        run: |
+          packages/contracts/audit/install-tools.sh static
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+      - name: Re-run release static evidence
+        run: |
+          test "$(git cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG")" = "$RELEASE_TAG_OBJECT"
+          test "$(git rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$EVIDENCE_COMMIT"
+          test "$(git rev-parse "$EVIDENCE_COMMIT^")" = "$SOURCE_COMMIT"
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          packages/contracts/audit/run-static.sh
+      - name: Re-prove source checkout after static analysis
+        if: always()
+        run: |
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+      - name: Package security evidence even when a scanner blocks release
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/release-security-evidence/reports"
+          cp -R packages/contracts/audit/reports/. "$RUNNER_TEMP/release-security-evidence/reports/"
+          cp packages/contracts/audit/FINDINGS.md "$RUNNER_TEMP/release-security-evidence/FINDINGS.md"
+          cp packages/contracts/audit/analyzer-environment-policy.json \
+            "$RUNNER_TEMP/release-security-evidence/analyzer-environment-policy.json"
+          if jq --exit-status '.state == "configured" or .state == "dependencies-prepared"' \
+            packages/contracts/audit/analyzer-environment-policy.json >/dev/null; then
+            mkdir -p "$RUNNER_TEMP/release-security-evidence/python-locks"
+            for analyzer_lock_path in \
+              packages/contracts/audit/python-locks/semgrep-linux-x64.txt \
+              packages/contracts/audit/python-locks/slither-linux-x64.txt; do
+              test -f "$analyzer_lock_path"
+              test ! -L "$analyzer_lock_path"
+              analyzer_lock_filename="${analyzer_lock_path##*/}"
+              analyzer_lock="${analyzer_lock_filename%-linux-x64.txt}"
+              analyzer_lock_sha256="$(
+                jq --exit-status --raw-output \
+                  --arg analyzer "$analyzer_lock" \
+                  --arg analyzer_path "$analyzer_lock_path" \
+                  '.bindings[] | select(.tool == $analyzer and .path == $analyzer_path) | .sha256' \
+                  packages/contracts/audit/analyzer-environment-policy.json
+              )"
+              [[ "$analyzer_lock_sha256" =~ ^[0-9a-f]{64}$ ]]
+              printf '%s  %s\n' "$analyzer_lock_sha256" "$analyzer_lock_path" \
+                | sha256sum --check --status
+              cp "$analyzer_lock_path" "$RUNNER_TEMP/release-security-evidence/python-locks/"
+            done
+          fi
+          cp packages/contracts/audit/toolchain.lock "$RUNNER_TEMP/release-security-evidence/toolchain.lock"
+          printf '%s\n' "releaseTag=$RELEASE_TAG" "sourceCommit=$SOURCE_COMMIT" \
+            "evidenceCommit=$EVIDENCE_COMMIT" \
+            >"$RUNNER_TEMP/release-security-evidence/context.txt"
+          cd "$RUNNER_TEMP/release-security-evidence"
+          find . -type f ! -name SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 sha256sum >SHA256SUMS
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: error
+          name: release-security-evidence-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/release-security-evidence/
+          retention-days: 365
+
+  deep_contracts_economics:
+    name: Commit-bound 100k fuzz, deep invariants, and long-horizon economics
+    needs: resolve_tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      EVIDENCE_COMMIT: ${{ needs.resolve_tag.outputs.evidence_commit }}
+      SOURCE_COMMIT: ${{ needs.resolve_tag.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.resolve_tag.outputs.source_commit }}
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          cache: pnpm
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          cache: pip
+          cache-dependency-path: packages/simulations/requirements-dev.lock
+          python-version: ${{ env.PYTHON_VERSION }}
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v${{ env.FOUNDRY_VERSION }}
+      - name: Install exact campaign dependencies and initialize evidence identity
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          python -m pip install --requirement packages/simulations/requirements-dev.lock
+          python -m pip check
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          test "$(node --version)" = "v$NODE_VERSION"
+          test "$(pnpm --version)" = "$PNPM_VERSION"
+          test "$(python --version 2>&1)" = "Python $PYTHON_VERSION"
+          forge --version | grep --fixed-strings "Version: $FOUNDRY_VERSION"
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+          mkdir -p "$RUNNER_TEMP/deep-contracts-economics"
+          printf '%s\n' \
+            "campaign=deep-contracts-economics" \
+            "releaseTag=$RELEASE_TAG" \
+            "sourceCommit=$SOURCE_COMMIT" \
+            "evidenceCommit=$EVIDENCE_COMMIT" \
+            "workflowSha=$GITHUB_WORKFLOW_SHA" \
+            "runId=$GITHUB_RUN_ID" \
+            "runAttempt=$GITHUB_RUN_ATTEMPT" \
+            >"$RUNNER_TEMP/deep-contracts-economics/context.txt"
+      - name: Run source-C 100,000-case fuzz and deep invariant campaigns
+        env:
+          FOUNDRY_PROFILE: nightly
+        working-directory: packages/contracts
+        run: |
+          set -o pipefail
+          forge test -vv 2>&1 | tee "$RUNNER_TEMP/deep-contracts-economics/foundry-nightly.txt"
+      - name: Run source-C long-horizon differential economic campaigns
+        run: |
+          set -o pipefail
+          pnpm simulations:test 2>&1 | tee "$RUNNER_TEMP/deep-contracts-economics/simulations.txt"
+          node --input-type=module <<'NODE'
+          import { readFileSync } from 'node:fs';
+          const scenarios = JSON.parse(readFileSync('packages/simulations/scenarios/reference-cases.json', 'utf8'));
+          const results = JSON.parse(readFileSync('packages/simulations/fixtures/reference-results.json', 'utf8'));
+          if (!scenarios.emissionHorizonsDays.includes('36500')) throw new Error('100-year scenario is absent');
+          if (!results.emissionHorizons.some(({ days }) => days === '36500')) {
+            throw new Error('100-year differential result is absent');
+          }
+          NODE
+      - name: Package exact deep contracts and economics evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/deep-contracts-economics"
+          mkdir -p "$output/fixtures" "$output/charts"
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+          cp packages/contracts/foundry.toml "$output/foundry.toml"
+          cp packages/contracts/audit/toolchain.lock "$output/toolchain.lock"
+          cp packages/simulations/requirements-dev.lock "$output/requirements-dev.lock"
+          cp packages/simulations/fixtures/*.json "$output/fixtures/"
+          cp packages/simulations/charts/*.svg "$output/charts/"
+          {
+            node --version
+            pnpm --version
+            python --version
+            forge --version
+          } >"$output/tool-versions.txt"
+          cd "$output"
+          find . -type f ! -name SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 sha256sum >SHA256SUMS
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: error
+          name: deep-contracts-economics-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/deep-contracts-economics/
+          retention-days: 365
+
+  deep_external_security:
+    name: Commit-bound Echidna, Medusa, and Mythril campaigns
+    needs: resolve_tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    env:
+      EVIDENCE_COMMIT: ${{ needs.resolve_tag.outputs.evidence_commit }}
+      SOURCE_COMMIT: ${{ needs.resolve_tag.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ needs.resolve_tag.outputs.source_commit }}
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          cache: pnpm
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Initialize external-campaign identity before fail-closed analyzer resolution
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          mkdir -p "$RUNNER_TEMP/deep-external-security"
+          printf '%s\n' \
+            "campaign=deep-external-security" \
+            "releaseTag=$RELEASE_TAG" \
+            "sourceCommit=$SOURCE_COMMIT" \
+            "evidenceCommit=$EVIDENCE_COMMIT" \
+            "workflowSha=$GITHUB_WORKFLOW_SHA" \
+            "runId=$GITHUB_RUN_ID" \
+            "runAttempt=$GITHUB_RUN_ATTEMPT" \
+            >"$RUNNER_TEMP/deep-external-security/context.txt"
+      - name: Resolve release-hermetic analyzer Python from source C
+        id: deep_analyzer_environment
+        run: |
+          node packages/contracts/audit/resolve-analyzer-environment.mjs \
+            --workspace "$GITHUB_WORKSPACE" \
+            --github-output "$GITHUB_OUTPUT"
+      - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548 # v6.1.0
+        with:
+          architecture: x64
+          python-version: ${{ steps.deep_analyzer_environment.outputs.python_version }}
+      - uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
+        with:
+          go-version: '1.24.6'
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v${{ env.FOUNDRY_VERSION }}
+      - name: Install exact external campaign toolchain
+        run: |
+          set -euo pipefail
+          pnpm install --frozen-lockfile
+          packages/contracts/audit/install-tools.sh nightly
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+      - name: Run source-C Echidna, Medusa, and selected Mythril campaigns
+        run: |
+          set -o pipefail
+          packages/contracts/audit/run-nightly.sh 2>&1 \
+            | tee "$RUNNER_TEMP/deep-external-security/nightly-runner.txt"
+      - name: Package external security evidence even when compatibility blocks
+        if: always()
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/deep-external-security"
+          mkdir -p "$output/reports"
+          test "$(git rev-parse HEAD)" = "$SOURCE_COMMIT"
+          git diff --exit-code
+          git diff --cached --exit-code
+          node scripts/release/assert-tracked-worktree.mjs \
+            --workspace "$GITHUB_WORKSPACE" --commit "$SOURCE_COMMIT"
+          if test -d packages/contracts/audit/reports; then
+            cp -R packages/contracts/audit/reports/. "$output/reports/"
+          fi
+          cp packages/contracts/audit/analyzer-environment-policy.json "$output/analyzer-environment-policy.json"
+          cp packages/contracts/audit/echidna.yaml "$output/echidna.yaml"
+          cp packages/contracts/audit/medusa.json "$output/medusa.json"
+          cp packages/contracts/audit/mythril-policy.json "$output/mythril-policy.json"
+          cp packages/contracts/audit/toolchain.lock "$output/toolchain.lock"
+          {
+            node --version
+            pnpm --version
+            command -v python >/dev/null 2>&1 && python --version || true
+            command -v forge >/dev/null 2>&1 && forge --version || true
+            command -v medusa >/dev/null 2>&1 && medusa version || true
+            command -v myth >/dev/null 2>&1 && myth version || true
+          } >"$output/tool-versions.txt"
+          cd "$output"
+          find . -type f ! -name SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 sha256sum >SHA256SUMS
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: error
+          name: deep-external-security-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/deep-external-security/
+          retention-days: 365
+
+  candidate_authorization:
+    name: Protected candidate authorization; never publish or deploy
+    needs:
+      [
+        resolve_tag,
+        release_readiness,
+        offline_gates,
+        fork_gates,
+        security_evidence,
+        deep_contracts_economics,
+        deep_external_security,
+      ]
+    environment: release-approval
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      EVIDENCE_COMMIT: ${{ needs.resolve_tag.outputs.evidence_commit }}
+      RELEASE_SOURCE_WORKSPACE: ${{ github.workspace }}/release-source
+      RELEASE_TAG_OBJECT: ${{ needs.resolve_tag.outputs.tag_object }}
+      SOURCE_COMMIT: ${{ needs.resolve_tag.outputs.source_commit }}
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+          ref: ${{ github.workflow_sha }}
+      - name: Prove trusted authorization-tool checkout
+        run: |
+          set -euo pipefail
+          test "$SOURCE_COMMIT" = "$GITHUB_WORKFLOW_SHA"
+          test "$(git rev-parse HEAD)" = "$GITHUB_WORKFLOW_SHA"
+          git diff --exit-code
+          git diff --cached --exit-code
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+          path: release-source
+          persist-credentials: false
+          ref: ${{ needs.resolve_tag.outputs.evidence_commit }}
+      - uses: pnpm/action-setup@0e279bb959325dab635dd2c09392533439d90093 # v6.0.8
+        with:
+          version: ${{ env.PNPM_VERSION }}
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          cache: pnpm
+          cache-dependency-path: release-source/pnpm-lock.yaml
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: foundry-rs/foundry-toolchain@908c540300062bd5a7e473851cdb4282204cee09 # v1
+        with:
+          version: v${{ env.FOUNDRY_VERSION }}
+      - name: Revalidate exact evidence E after protected-environment approval
+        run: |
+          set -euo pipefail
+          test "$SOURCE_COMMIT" = "$GITHUB_WORKFLOW_SHA"
+          test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_WORKFLOW_SHA"
+          git -C "$GITHUB_WORKSPACE" diff --exit-code
+          git -C "$GITHUB_WORKSPACE" diff --cached --exit-code
+          test "$(git -C "$RELEASE_SOURCE_WORKSPACE" rev-parse HEAD)" = "$EVIDENCE_COMMIT"
+          test "$(git -C "$RELEASE_SOURCE_WORKSPACE" cat-file -t "refs/tags/$RELEASE_TAG")" = tag
+          test "$(git -C "$RELEASE_SOURCE_WORKSPACE" rev-parse "refs/tags/$RELEASE_TAG")" = "$RELEASE_TAG_OBJECT"
+          test "$(git -C "$RELEASE_SOURCE_WORKSPACE" rev-parse "refs/tags/$RELEASE_TAG^{commit}")" = "$EVIDENCE_COMMIT"
+          test "$(git -C "$RELEASE_SOURCE_WORKSPACE" rev-parse "$EVIDENCE_COMMIT^")" = "$SOURCE_COMMIT"
+          node "$GITHUB_WORKSPACE/scripts/release/assert-tracked-worktree.mjs" \
+            --workspace "$RELEASE_SOURCE_WORKSPACE" --commit "$EVIDENCE_COMMIT"
+          node "$GITHUB_WORKSPACE/scripts/release/robinhood-registry-revalidation.mjs" \
+            --workspace "$RELEASE_SOURCE_WORKSPACE" \
+            --manifest "$RELEASE_MANIFEST_PATH" \
+            --tag "$RELEASE_TAG" \
+            --tag-object "$RELEASE_TAG_OBJECT" \
+            --evidence-commit "$EVIDENCE_COMMIT" \
+            --source-commit "$SOURCE_COMMIT" \
+            --stage protected-final \
+            --output "$RUNNER_TEMP/protected-registry/robinhood-registry-revalidation.json" \
+            --source-archive-output "$RUNNER_TEMP/protected-registry/robinhood-registry-response.json"
+          node "$GITHUB_WORKSPACE/scripts/release/prepare-release.mjs" \
+            --workspace "$RELEASE_SOURCE_WORKSPACE" \
+            --manifest "$RELEASE_MANIFEST_PATH" \
+            --tag "$RELEASE_TAG" \
+            --tag-object "$RELEASE_TAG_OBJECT" \
+            --evidence-commit "$EVIDENCE_COMMIT" \
+            --source-commit "$SOURCE_COMMIT" \
+            --registry-revalidation "$RUNNER_TEMP/protected-registry/robinhood-registry-revalidation.json" \
+            --registry-revalidation-stage protected-final \
+            --registry-response-archive "$RUNNER_TEMP/protected-registry/robinhood-registry-response.json" \
+            --output-dir "$RUNNER_TEMP/release-authorization-inputs"
+          pnpm --dir "$RELEASE_SOURCE_WORKSPACE" install --frozen-lockfile --ignore-scripts
+          test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_WORKFLOW_SHA"
+          git -C "$GITHUB_WORKSPACE" diff --exit-code
+          git -C "$GITHUB_WORKSPACE" diff --cached --exit-code
+          node "$GITHUB_WORKSPACE/scripts/release/assert-tracked-worktree.mjs" \
+            --workspace "$RELEASE_SOURCE_WORKSPACE" --commit "$EVIDENCE_COMMIT"
+          pnpm --dir "$RELEASE_SOURCE_WORKSPACE" config:manifest:validate -- \
+            --file "$RELEASE_SOURCE_WORKSPACE/$RELEASE_MANIFEST_PATH" --require-release-evidence
+          git -c core.hooksPath=/dev/null -C "$RELEASE_SOURCE_WORKSPACE" checkout --quiet --detach "$SOURCE_COMMIT"
+          node "$GITHUB_WORKSPACE/scripts/release/assert-tracked-worktree.mjs" \
+            --workspace "$RELEASE_SOURCE_WORKSPACE" --commit "$SOURCE_COMMIT"
+      - name: Bind protected-final registry evidence to the signed mainnet fork context
+        run: |
+          set -euo pipefail
+          test "$SOURCE_COMMIT" = "$GITHUB_WORKFLOW_SHA"
+          test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_WORKFLOW_SHA"
+          git -C "$GITHUB_WORKSPACE" diff --exit-code
+          git -C "$GITHUB_WORKSPACE" diff --cached --exit-code
+          node "$GITHUB_WORKSPACE/scripts/release/assert-tracked-worktree.mjs" \
+            --workspace "$RELEASE_SOURCE_WORKSPACE" --commit "$SOURCE_COMMIT"
+          node "$GITHUB_WORKSPACE/scripts/release/export-mainnet-fork-context.mjs" \
+            --workspace "$RELEASE_SOURCE_WORKSPACE" \
+            --asset-candidate "$RUNNER_TEMP/release-authorization-inputs/reviewed-asset-candidate.json" \
+            --manifest "$RUNNER_TEMP/release-authorization-inputs/deployment-manifest.json" \
+            --config "$RUNNER_TEMP/release-authorization-inputs/deployment-config.json" \
+            --manifest-repository-path "$RELEASE_MANIFEST_PATH" \
+            --registry-revalidation "$RUNNER_TEMP/release-authorization-inputs/robinhood-registry-revalidation.json" \
+            --registry-response-archive "$RUNNER_TEMP/release-authorization-inputs/robinhood-registry-response.json" \
+            --registry-revalidation-stage protected-final \
+            --evidence-commit "$EVIDENCE_COMMIT" \
+            --source-commit "$SOURCE_COMMIT" \
+            --tag "$RELEASE_TAG" \
+            --tag-object "$RELEASE_TAG_OBJECT" \
+            --github-env "$GITHUB_ENV" \
+            --context "$RUNNER_TEMP/release-authorization-inputs/protected-final-mainnet-fork-context.json"
+          context="$RUNNER_TEMP/release-authorization-inputs/protected-final-mainnet-fork-context.json"
+          test "$(jq -r '.registryRevalidation.stage' "$context")" = protected-final
+          test "$(jq -r '.registryRevalidation.authorizationEligible' "$context")" = true
+          manifest_schema="$(jq -r '.schemaVersion' "$RUNNER_TEMP/release-authorization-inputs/deployment-manifest.json")"
+          expected_variables=88
+          if test "$manifest_schema" = 2; then expected_variables=92; fi
+          test "$(jq -r '.variables | length' "$context")" = "$expected_variables"
+      - name: Rehearse the complete protected-final mainnet fork context
+        env:
+          ROBINHOOD_MAINNET_RPC_URL: ${{ secrets.ROBINHOOD_MAINNET_ARCHIVE_RPC_URL }}
+        working-directory: ${{ env.RELEASE_SOURCE_WORKSPACE }}/packages/contracts
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          test "$SOURCE_COMMIT" = "$GITHUB_WORKFLOW_SHA"
+          test -n "$ROBINHOOD_MAINNET_RPC_URL"
+          test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_WORKFLOW_SHA"
+          git -C "$GITHUB_WORKSPACE" diff --exit-code
+          git -C "$GITHUB_WORKSPACE" diff --cached --exit-code
+          node "$GITHUB_WORKSPACE/scripts/release/assert-tracked-worktree.mjs" \
+            --workspace "$RELEASE_SOURCE_WORKSPACE" --commit "$SOURCE_COMMIT"
+          forge test \
+            --match-path test/foundry/fork/RobinhoodMainnetFork.t.sol \
+            -vv 2>&1 \
+            | node "$GITHUB_WORKSPACE/scripts/release/redact-stream.mjs" ROBINHOOD_MAINNET_RPC_URL \
+            | tee "$RUNNER_TEMP/release-authorization-inputs/protected-final-mainnet-fork.txt"
+      - name: Requery signed block and current head immediately before authorization
+        env:
+          ROBINHOOD_MAINNET_RPC_URL: ${{ secrets.ROBINHOOD_MAINNET_ARCHIVE_RPC_URL }}
+          ROBINHOOD_TESTNET_RPC_URL: ${{ secrets.ROBINHOOD_TESTNET_ARCHIVE_RPC_URL }}
+        run: |
+          set -euo pipefail
+          set -o pipefail
+          test "$SOURCE_COMMIT" = "$GITHUB_WORKFLOW_SHA"
+          test -n "$ROBINHOOD_MAINNET_RPC_URL"
+          test -n "$ROBINHOOD_TESTNET_RPC_URL"
+          test "$(git -C "$GITHUB_WORKSPACE" rev-parse HEAD)" = "$GITHUB_WORKFLOW_SHA"
+          git -C "$GITHUB_WORKSPACE" diff --exit-code
+          git -C "$GITHUB_WORKSPACE" diff --cached --exit-code
+          node "$GITHUB_WORKSPACE/scripts/release/assert-tracked-worktree.mjs" \
+            --workspace "$RELEASE_SOURCE_WORKSPACE" --commit "$SOURCE_COMMIT"
+          manifest_repository_path="$RELEASE_MANIFEST_PATH"
+          RELEASE_MANIFEST_PATH="$RUNNER_TEMP/release-authorization-inputs/deployment-manifest.json" \
+            pnpm --dir "$RELEASE_SOURCE_WORKSPACE" contracts:release-observation:mainnet 2>&1 \
+              | node "$GITHUB_WORKSPACE/scripts/release/redact-stream.mjs" ROBINHOOD_MAINNET_RPC_URL \
+              | tee "$RUNNER_TEMP/release-authorization-inputs/protected-final-release-observation.txt"
+          evidence_commit_epoch="$(git -C "$RELEASE_SOURCE_WORKSPACE" show -s --format=%ct "$EVIDENCE_COMMIT")"
+          evidence_commit_committed_at="$(node -e \
+            'process.stdout.write(new Date(Number(process.argv[1]) * 1000).toISOString())' \
+            "$evidence_commit_epoch")"
+          DEPLOYMENT_CONFIG_PATH="$RUNNER_TEMP/release-authorization-inputs/deployment-config.json" \
+          DEPLOYMENT_STATE_PATH="$RUNNER_TEMP/release-authorization-inputs/deployment-state.json" \
+          RELEASE_ASSET_CANDIDATE_PATH="$RUNNER_TEMP/release-authorization-inputs/reviewed-asset-candidate.json" \
+          RELEASE_EVIDENCE_COMMIT="$EVIDENCE_COMMIT" \
+          RELEASE_EVIDENCE_COMMITTED_AT="$evidence_commit_committed_at" \
+          RELEASE_MANIFEST_PATH="$RUNNER_TEMP/release-authorization-inputs/deployment-manifest.json" \
+          RELEASE_MANIFEST_REPOSITORY_PATH="$manifest_repository_path" \
+          RELEASE_PERMISSIONED_POOL_FORK_REHEARSAL_PATH="$RUNNER_TEMP/release-authorization-inputs/permissioned-pool-robinhood-fork-rehearsal.json" \
+          RELEASE_PERMISSIONED_POOL_GRAPH_PATH="$RUNNER_TEMP/release-authorization-inputs/permissioned-pool-graph.json" \
+          RELEASE_PERMISSIONED_POOL_OFFICIAL_SOURCE_BUILD_PATH="$RUNNER_TEMP/release-authorization-inputs/permissioned-pool-official-source-build.json" \
+          RELEASE_REGISTRY_REVALIDATION_STAGE=protected-final \
+          RELEASE_ROBINHOOD_REGISTRY_RESPONSE_PATH="$RUNNER_TEMP/release-authorization-inputs/robinhood-registry-response.json" \
+          RELEASE_ROBINHOOD_REGISTRY_REVALIDATION_PATH="$RUNNER_TEMP/release-authorization-inputs/robinhood-registry-revalidation.json" \
+          RELEASE_SOURCE_COMMIT="$SOURCE_COMMIT" \
+          RELEASE_TAG_OBJECT="$RELEASE_TAG_OBJECT" \
+          SUBMIT_EXPLORER_VERIFICATION=false \
+            pnpm --dir "$RELEASE_SOURCE_WORKSPACE" contracts:verify:mainnet 2>&1 \
+              | node "$GITHUB_WORKSPACE/scripts/release/redact-stream.mjs" ROBINHOOD_MAINNET_RPC_URL \
+              | tee "$RUNNER_TEMP/release-authorization-inputs/protected-final-manifest-verification.txt"
+          pnpm --dir "$RELEASE_SOURCE_WORKSPACE" --filter @gumball-6900/config fork:evidence:export -- \
+            --github-env "$RUNNER_TEMP/release-authorization-inputs/protected-final-testnet-fork.env" \
+            --context "$RUNNER_TEMP/release-authorization-inputs/protected-final-testnet-fork-evidence.json"
+          pnpm --dir "$RELEASE_SOURCE_WORKSPACE" --filter @gumball-6900/config fork:evidence:live:verify 2>&1 \
+            | node "$GITHUB_WORKSPACE/scripts/release/redact-stream.mjs" ROBINHOOD_TESTNET_RPC_URL \
+            | tee "$RUNNER_TEMP/release-authorization-inputs/protected-final-testnet-observation.txt"
+          git -C "$RELEASE_SOURCE_WORKSPACE" diff --exit-code
+          git -C "$RELEASE_SOURCE_WORKSPACE" diff --cached --exit-code
+          node "$GITHUB_WORKSPACE/scripts/release/assert-tracked-worktree.mjs" \
+            --workspace "$RELEASE_SOURCE_WORKSPACE" --commit "$SOURCE_COMMIT"
+          node --input-type=module - \
+            "$RUNNER_TEMP/release-authorization-inputs/protected-authorization-context.json" <<'NODE'
+          import { writeFileSync } from 'node:fs';
+
+          const output = process.argv[2];
+          const env = process.env;
+          const oid = /^[0-9a-f]{40}$/;
+          const positiveInteger = /^[1-9][0-9]*$/;
+          if (!oid.test(env.SOURCE_COMMIT ?? '') || env.SOURCE_COMMIT !== env.GITHUB_WORKFLOW_SHA) {
+            throw new Error('Protected authorization source/workflow binding is invalid');
+          }
+          for (const [name, value] of [
+            ['EVIDENCE_COMMIT', env.EVIDENCE_COMMIT],
+            ['RELEASE_TAG_OBJECT', env.RELEASE_TAG_OBJECT],
+          ]) {
+            if (!oid.test(value ?? '')) throw new Error(`${name} is invalid`);
+          }
+          if (!positiveInteger.test(env.GITHUB_RUN_ID ?? '')) throw new Error('GITHUB_RUN_ID is invalid');
+          if (!positiveInteger.test(env.GITHUB_RUN_ATTEMPT ?? '')) throw new Error('GITHUB_RUN_ATTEMPT is invalid');
+          if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(env.GITHUB_REPOSITORY ?? '')) {
+            throw new Error('GITHUB_REPOSITORY is invalid');
+          }
+          const expectedWorkflowRef = `${env.GITHUB_REPOSITORY}/.github/workflows/release.yml@refs/heads/main`;
+          if (env.GITHUB_WORKFLOW_REF !== expectedWorkflowRef) throw new Error('GITHUB_WORKFLOW_REF is invalid');
+          const context = {
+            environment: 'release-approval',
+            evidenceCommit: env.EVIDENCE_COMMIT,
+            kind: 'gumball-6900-protected-authorization-context',
+            releaseTag: env.RELEASE_TAG,
+            repository: env.GITHUB_REPOSITORY,
+            runAttempt: env.GITHUB_RUN_ATTEMPT,
+            runId: env.GITHUB_RUN_ID,
+            schemaVersion: 1,
+            sourceCommit: env.SOURCE_COMMIT,
+            tagObject: env.RELEASE_TAG_OBJECT,
+            workflowRef: env.GITHUB_WORKFLOW_REF,
+            workflowSha: env.GITHUB_WORKFLOW_SHA,
+          };
+          writeFileSync(output, `${JSON.stringify(context, null, 2)}\n`, { encoding: 'utf8', flag: 'wx', mode: 0o600 });
+          NODE
+          echo 'Release-candidate evidence is technically authorized.'
+          echo 'No package, subgraph, web artifact, verification request, role transfer, funding, or mainnet transaction was published or sent.'
+          echo 'Those actions remain separate protected external stages requiring explicit authorization and configured destinations.'
+      - name: Checksum protected authorization evidence
+        if: always()
+        run: |
+          set -euo pipefail
+          output="$RUNNER_TEMP/release-authorization-inputs"
+          mkdir -p "$output"
+          cd "$output"
+          find . -type f ! -name SHA256SUMS -print0 | LC_ALL=C sort -z | xargs -0 sha256sum >SHA256SUMS
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          if-no-files-found: error
+          name: protected-release-authorization-inputs-${{ inputs.releaseTag }}
+          path: ${{ runner.temp }}/release-authorization-inputs/
+          retention-days: 365

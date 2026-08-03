@@ -1,0 +1,37 @@
+{
+  "name": "@gumball-6900/subgraph",
+  "version": "0.1.0",
+  "private": true,
+  "license": "BUSL-1.1",
+  "scripts": {
+    "abi:check": "node scripts/sync-abis.mjs --check",
+    "abi:sync": "node scripts/sync-abis.mjs",
+    "prebuild": "pnpm run codegen && pnpm run spec:check",
+    "build": "graph build --network robinhood",
+    "build:dry-run": "pnpm run codegen && pnpm run spec:check && pnpm run network:validate:fixture && graph build --network robinhood --network-file tests/fixtures/networks.resolved.json --output-dir build-dry-run",
+    "build:production": "pnpm run network:validate && pnpm run codegen && pnpm run spec:check && graph build --network robinhood",
+    "clean": "rm -rf build build-dry-run generated",
+    "codegen": "graph codegen",
+    "prelint": "pnpm run codegen && pnpm run spec:check",
+    "lint": "graph build --network robinhood",
+    "network:validate": "node scripts/validate-network-config.mjs",
+    "network:validate:fixture": "node scripts/validate-network-config.mjs tests/fixtures/networks.resolved.json",
+    "pretest": "pnpm run codegen && pnpm run spec:check",
+    "test": "pnpm run spec:test && graph test -v 0.6.0",
+    "pretest:coverage": "pnpm run codegen",
+    "test:coverage": "graph test -v 0.6.0 --coverage",
+    "pretypecheck": "pnpm run codegen && pnpm run spec:check",
+    "spec:check": "node scripts/check-spec-coverage.mjs",
+    "spec:test": "node --test scripts/check-spec-coverage.test.mjs",
+    "typecheck": "graph build --network robinhood"
+  },
+  "dependencies": {
+    "@graphprotocol/graph-ts": "0.38.2"
+  },
+  "devDependencies": {
+    "@graphprotocol/graph-cli": "0.98.1",
+    "assemblyscript": "0.19.23",
+    "matchstick-as": "0.6.0",
+    "wabt": "1.0.24"
+  }
+}

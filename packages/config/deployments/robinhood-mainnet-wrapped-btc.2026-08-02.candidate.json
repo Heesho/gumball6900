@@ -1,0 +1,88 @@
+{
+  "bridge": {
+    "controlPlane": {
+      "gatewayProxy": {
+        "implementationAddress": "0xdf988cF6D83ebd578f6801820d01FEe7280886d6",
+        "implementationRuntimeBytecodeHash": "0x724a06d91de80548c572a5876ea5dc096ee4fb11f778fece89628efc7ae2f861",
+        "kind": "eip1967-transparent",
+        "proxyAdminAddress": "0xa3Acd31AFb851B4eB9DAD00F5204c01D924267dF"
+      },
+      "gatewayRouterProxy": {
+        "implementationAddress": "0x030c64a359Be400AF05F9230A6F65F30537cdd12",
+        "implementationRuntimeBytecodeHash": "0x186c4766bc3709cece5c920259555049b8a24252270a66ce7b36d717ecff2b29",
+        "kind": "eip1967-transparent",
+        "proxyAdminAddress": "0xa3Acd31AFb851B4eB9DAD00F5204c01D924267dF"
+      },
+      "sharedProxyAdmin": {
+        "address": "0xa3Acd31AFb851B4eB9DAD00F5204c01D924267dF",
+        "owner": {
+          "address": "0x2A153c6A1B66DBc930a8d7017230ab0253005C09",
+          "adminRole": "0xa49807205ce4d355092ef5a8a18f56e8913cf4a201fbe287825b095693c21775",
+          "executorRole": "0xd8aa0f3194971a2a116679f7c2090f6939c8d4e01a2a8d7e41d55e5351469e63",
+          "proxy": {
+            "implementationAddress": "0x3c3E52bC8C181D06A76e2518bBc655C5BB3Ce7Cd",
+            "implementationRuntimeBytecodeHash": "0x0d88feac198ef1b50b99fddf06aa9f6b1050bfe7211d6f04173de9b6d8953bcb",
+            "kind": "eip1967-transparent",
+            "proxyAdminAddress": "0xa3Acd31AFb851B4eB9DAD00F5204c01D924267dF"
+          },
+          "runtimeBytecodeHash": "0x5706be52f64875fee65a2cec0d80e47a23d8793cbe85d214b48445e2d05f5353"
+        },
+        "runtimeBytecodeHash": "0xa4b2186ab82fa36fb4ae158582e5615ea519e757c26c13ba4a33daaaed8902a7"
+      }
+    },
+    "l1Token": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+    "l2Gateway": "0xfd9b17206278C16DdaacF6AC8f05dBf97EdCb31e",
+    "l2GatewayRouter": "0x1E324B9316138CA9a73F960213621AD1aaf01B89",
+    "l2GatewayRouterRuntimeBytecodeHash": "0x5706be52f64875fee65a2cec0d80e47a23d8793cbe85d214b48445e2d05f5353",
+    "l2GatewayRuntimeBytecodeHash": "0x5706be52f64875fee65a2cec0d80e47a23d8793cbe85d214b48445e2d05f5353"
+  },
+  "chainId": 4663,
+  "deploymentApproved": false,
+  "kind": "gumball-6900-wrapped-btc-bridge-candidate",
+  "observation": {
+    "blockHash": "0xa5be7da21aef4fa84cf49dd3c7dadc6aa0bbdbce3b9bb57bbc71dd6691045b7c",
+    "blockNumber": "26198585",
+    "observedAt": "2026-08-02T20:46:32.000Z",
+    "parentBlockHash": "0xad2ffa9bd0dfcac0fc2ae673c08487f5ffa6283ef5620c1106b128bcfd8e8bc9"
+  },
+  "protocol": "GUM BALL 6900",
+  "proxy": {
+    "beaconAddress": "0x883d9F54F50c9d096b6B3823532Fdc8fd8DFA293",
+    "beaconRuntimeBytecodeHash": "0xc56839de3666971ce2ca986d3b5b7e43baf1049b79e51d5180bad2ff542afc3c",
+    "implementationAddress": "0xEf3b461697C6bd38c5458AFa31e1250C98fd0f5F",
+    "implementationRuntimeBytecodeHash": "0x48945cb32b27f60c389cef706cccb74daef5c61d197257a159ddf61f586c0c15",
+    "kind": "eip1967-beacon"
+  },
+  "schemaVersion": 1,
+  "sources": {
+    "bridgeDocumentation": "https://docs.robinhood.com/chain/bridging/",
+    "protocolContracts": "https://docs.robinhood.com/chain/protocol-contracts/",
+    "wbtcTokenRegistry": "https://www.wbtc.network/transparency"
+  },
+  "status": "provisional",
+  "token": {
+    "address": "0x6bac06600D220Ac5Ac281AD1f504D2Cf0F90F6e6",
+    "decimals": 8,
+    "l1Address": "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599",
+    "l2Gateway": "0xfd9b17206278C16DdaacF6AC8f05dBf97EdCb31e",
+    "name": "Wrapped BTC",
+    "runtimeBytecodeHash": "0x487e3e7ba0f6ef76ccd39c373954f0edcdfe15c8817bdca4ef73f6df3963e694",
+    "symbol": "WBTC",
+    "totalSupplyRaw": "164213"
+  },
+  "validations": {
+    "beaconImplementationHasCode": true,
+    "beaconProxyHasCode": true,
+    "bridgeContractsHaveCode": true,
+    "bridgeProxyImplementationsHaveCode": true,
+    "chainIdMatches": true,
+    "controlPlaneTopologyMatches": true,
+    "decimalsMatch": true,
+    "exactBlockStable": true,
+    "gatewayMatches": true,
+    "l1TokenMatches": true,
+    "routerDerivationMatches": true,
+    "sharedProxyAdminHasCode": true,
+    "symbolMatches": true
+  }
+}

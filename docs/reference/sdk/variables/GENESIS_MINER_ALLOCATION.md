@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / GENESIS_MINER_ALLOCATION
+
+# Variable: GENESIS_MINER_ALLOCATION
+
+> `const` **GENESIS_MINER_ALLOCATION**: `bigint`

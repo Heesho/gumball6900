@@ -1,0 +1,35 @@
+{
+  "database": {
+    "maximumAgeHours": 72,
+    "maximumFutureSkewMinutes": 15,
+    "requireValid": true
+  },
+  "images": {
+    "grype": {
+      "reference": "anchore/grype:v0.116.1@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db",
+      "releaseSource": "https://github.com/anchore/grype/releases/tag/v0.116.1",
+      "version": "0.116.1"
+    },
+    "nodeRuntime": {
+      "reference": "node:22.23.1-bookworm-slim@sha256:6c74791e557ce11fc957704f6d4fe134a7bc8d6f5ca4403205b2966bd488f6b3",
+      "releaseSource": "https://nodejs.org/en/blog/release/v22.23.1",
+      "version": "22.23.1"
+    },
+    "syft": {
+      "reference": "anchore/syft:v1.50.0@sha256:1288ea4c8b38767b4e620c1e312c8cb26b6e887a99b4f07ab6cd19fc6f225026",
+      "releaseSource": "https://github.com/anchore/syft/releases/tag/v1.50.0",
+      "version": "1.50.0"
+    }
+  },
+  "kind": "gumball-6900-container-security-policy",
+  "platform": "linux/amd64",
+  "protocol": "GUM BALL 6900",
+  "reviewedAt": "2026-08-02",
+  "schemaVersion": 1,
+  "severity": {
+    "blockedSeverities": ["Critical", "High"],
+    "maximumBlockedMatches": 0,
+    "maximumIgnoredMatches": 0,
+    "maximumPackageAlerts": 0
+  }
+}

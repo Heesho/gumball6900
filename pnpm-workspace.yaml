@@ -1,0 +1,21 @@
+packages:
+  - apps/*
+  - packages/*
+
+onlyBuiltDependencies:
+  - esbuild
+  - keccak
+  - secp256k1
+
+# Keep dependency-license evidence identical on developer Macs and Linux release
+# runners by installing the complete supported runtime artifact union.
+supportedArchitectures:
+  os:
+    - darwin
+    - linux
+  cpu:
+    - arm64
+    - x64
+  libc:
+    - glibc
+    - musl

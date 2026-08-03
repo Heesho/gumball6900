@@ -1,0 +1,37 @@
+{
+  "kind": "gumball-6900-mythril-policy",
+  "schemaVersion": 1,
+  "state": "zero-findings-required",
+  "analysis": {
+    "bytecodeResolution": "require-constructor-resolved-no-link-or-immutable-references",
+    "executionTimeoutSeconds": 600,
+    "inputMode": "deployed-runtime-bytecode",
+    "onchainData": "disabled",
+    "opcodeCompatibility": "reject-cancun-opcodes-0x49-0x4a-0x5c-0x5d-0x5e",
+    "outform": "jsonv2",
+    "transactionCount": 3
+  },
+  "expectedTargets": [
+    {
+      "artifact": "out/GBXToken.sol/GBXToken.json",
+      "contract": "GBXToken"
+    },
+    {
+      "artifact": "out/GumBallVault.sol/GumBallVault.json",
+      "contract": "GumBallVault"
+    },
+    {
+      "artifact": "out/AcquisitionStrategy.sol/AcquisitionStrategy.json",
+      "contract": "AcquisitionStrategy"
+    },
+    {
+      "artifact": "out/BuybackBurnStrategy.sol/BuybackBurnStrategy.json",
+      "contract": "BuybackBurnStrategy"
+    },
+    {
+      "artifact": "out/ProtocolTimelock.sol/ProtocolTimelock.json",
+      "contract": "ProtocolTimelock"
+    }
+  ],
+  "acceptedFindings": []
+}

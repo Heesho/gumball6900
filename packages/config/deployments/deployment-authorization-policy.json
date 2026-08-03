@@ -1,0 +1,7 @@
+{
+  "kind": "gumball-6900-deployment-authorization-policy-unconfigured",
+  "protocol": "GUM BALL 6900",
+  "reason": "No production organizational signer set or threshold has been approved. Replace this sentinel only through the documented review process.",
+  "schemaVersion": 1,
+  "status": "unconfigured"
+}

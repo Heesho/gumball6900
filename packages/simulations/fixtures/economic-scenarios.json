@@ -1,0 +1,1883 @@
+{
+  "schemaVersion": "2",
+  "purpose": "Deterministic protocol-mechanics scenarios; not forecasts, valuations, or investment projections.",
+  "assumptions": {
+    "arithmetic": "Unsigned integer arithmetic with explicit floor/ceiling semantics; GBX and modeled targets use 18 decimals, canonical USDG uses raw 6-decimal units.",
+    "wad": "1000000000000000000",
+    "usdGDecimals": "6",
+    "usdGAtomicUnit": "1000000",
+    "usdGNormalizationScale": "1000000000000",
+    "targetTokenDecimals": "18",
+    "unitTargetPerUSDGRate": "1000000000000000000",
+    "bpsDenominator": "10000",
+    "horizonDays": ["365", "1460", "2920", "5840", "11680"],
+    "cumulativeMintCap": "1000000000000000000000000000",
+    "genesisSupply": "100000000000000000000000000",
+    "auctionDurationSeconds": "86400",
+    "managerRewardBps": "200",
+    "noOnchainNavOracle": true
+  },
+  "emissions": {
+    "demandScenarios": [
+      {
+        "id": "fully-funded",
+        "checkpoints": [
+          {
+            "days": "365",
+            "recurringMinted": "143193226271656901106056396",
+            "totalCumulativeMinted": "243193226271656901106056396",
+            "totalUSDGAcceptedRaw": "37929106948757",
+            "nextScheduledEmission": "359215052833650539558316",
+            "nextReferenceMiningPrice": "25517964477257592",
+            "fullyFundedEpochs": "365",
+            "partiallyFundedEpochs": "0",
+            "emptyEpochs": "0"
+          },
+          {
+            "days": "1460",
+            "recurringMinted": "449999999999999884371340621",
+            "totalCumulativeMinted": "549999999999999884371340621",
+            "totalUSDGAcceptedRaw": "38760827388760",
+            "nextScheduledEmission": "213590548322927697881931",
+            "nextReferenceMiningPrice": "424063563018",
+            "fullyFundedEpochs": "1460",
+            "partiallyFundedEpochs": "0",
+            "emptyEpochs": "0"
+          },
+          {
+            "days": "2920",
+            "recurringMinted": "674999999999999696335359860",
+            "totalCumulativeMinted": "774999999999999696335359860",
+            "totalUSDGAcceptedRaw": "38760835625220",
+            "nextScheduledEmission": "106795274161463787131657",
+            "nextReferenceMiningPrice": "177489069",
+            "fullyFundedEpochs": "2920",
+            "partiallyFundedEpochs": "0",
+            "emptyEpochs": "0"
+          },
+          {
+            "days": "5840",
+            "recurringMinted": "843749999999999425085559366",
+            "totalCumulativeMinted": "943749999999999425085559366",
+            "totalUSDGAcceptedRaw": "38760835680700",
+            "nextScheduledEmission": "26698818540365915877745",
+            "nextReferenceMiningPrice": "709956283",
+            "fullyFundedEpochs": "5840",
+            "partiallyFundedEpochs": "0",
+            "emptyEpochs": "0"
+          },
+          {
+            "days": "11680",
+            "recurringMinted": "896484374999999267065514559",
+            "totalCumulativeMinted": "996484374999999267065514559",
+            "totalUSDGAcceptedRaw": "38760835791660",
+            "nextScheduledEmission": "1668676158772865878307",
+            "nextReferenceMiningPrice": "11359300606",
+            "fullyFundedEpochs": "11680",
+            "partiallyFundedEpochs": "0",
+            "emptyEpochs": "0"
+          }
+        ]
+      },
+      {
+        "id": "fifty-percent-funded",
+        "checkpoints": [
+          {
+            "days": "365",
+            "recurringMinted": "71596613137802092514110075",
+            "totalCumulativeMinted": "171596613137802092514110075",
+            "totalUSDGAcceptedRaw": "18964553473277",
+            "nextScheduledEmission": "359215052833650539558316",
+            "nextReferenceMiningPrice": "25517964452291127",
+            "fullyFundedEpochs": "0",
+            "partiallyFundedEpochs": "365",
+            "emptyEpochs": "0"
+          },
+          {
+            "days": "1460",
+            "recurringMinted": "225000127816892565600308967",
+            "totalCumulativeMinted": "325000127816892565600308967",
+            "totalUSDGAcceptedRaw": "19380413688540",
+            "nextScheduledEmission": "213590548322927697881931",
+            "nextReferenceMiningPrice": "424017823383",
+            "fullyFundedEpochs": "0",
+            "partiallyFundedEpochs": "1460",
+            "emptyEpochs": "0"
+          },
+          {
+            "days": "2920",
+            "recurringMinted": "365352472822930564190423415",
+            "totalCumulativeMinted": "465352472822930564190423415",
+            "totalUSDGAcceptedRaw": "19380417798227",
+            "nextScheduledEmission": "106795274161463787131657",
+            "nextReferenceMiningPrice": "9341526",
+            "fullyFundedEpochs": "380",
+            "partiallyFundedEpochs": "2540",
+            "emptyEpochs": "0"
+          },
+          {
+            "days": "5840",
+            "recurringMinted": "534102472822930292940622921",
+            "totalCumulativeMinted": "634102472822930292940622921",
+            "totalUSDGAcceptedRaw": "19380417801147",
+            "nextScheduledEmission": "26698818540365915877745",
+            "nextReferenceMiningPrice": "37366116",
+            "fullyFundedEpochs": "3300",
+            "partiallyFundedEpochs": "2540",
+            "emptyEpochs": "0"
+          },
+          {
+            "days": "11680",
+            "recurringMinted": "586836847822930134920578114",
+            "totalCumulativeMinted": "686836847822930134920578114",
+            "totalUSDGAcceptedRaw": "19380417806987",
+            "nextScheduledEmission": "1668676158772865878307",
+            "nextReferenceMiningPrice": "597857923",
+            "fullyFundedEpochs": "9140",
+            "partiallyFundedEpochs": "2540",
+            "emptyEpochs": "0"
+          }
+        ]
+      },
+      {
+        "id": "sporadic-demand",
+        "checkpoints": [
+          {
+            "days": "365",
+            "recurringMinted": "56484792381482180362231559",
+            "totalCumulativeMinted": "156484792381482180362231559",
+            "totalUSDGAcceptedRaw": "5786869851474",
+            "nextScheduledEmission": "359215052833650539558316",
+            "nextReferenceMiningPrice": "40986244543695",
+            "fullyFundedEpochs": "105",
+            "partiallyFundedEpochs": "104",
+            "emptyEpochs": "156"
+          },
+          {
+            "days": "1460",
+            "recurringMinted": "189757473325057431319914554",
+            "totalCumulativeMinted": "289757473325057431319914554",
+            "totalUSDGAcceptedRaw": "5787057279894",
+            "nextScheduledEmission": "213590548322927697881931",
+            "nextReferenceMiningPrice": "6303765",
+            "fullyFundedEpochs": "417",
+            "partiallyFundedEpochs": "417",
+            "emptyEpochs": "626"
+          },
+          {
+            "days": "2920",
+            "recurringMinted": "300695617081006293328431363",
+            "totalCumulativeMinted": "400695617081006293328431363",
+            "totalUSDGAcceptedRaw": "5787057281147",
+            "nextScheduledEmission": "106795274161463787131657",
+            "nextReferenceMiningPrice": "14130790",
+            "fullyFundedEpochs": "835",
+            "partiallyFundedEpochs": "834",
+            "emptyEpochs": "1251"
+          },
+          {
+            "days": "5840",
+            "recurringMinted": "383767002282568030408245779",
+            "totalCumulativeMinted": "483767002282568030408245779",
+            "totalUSDGAcceptedRaw": "5787057283649",
+            "nextScheduledEmission": "26698818540365915877745",
+            "nextReferenceMiningPrice": "53671537",
+            "fullyFundedEpochs": "1669",
+            "partiallyFundedEpochs": "1668",
+            "emptyEpochs": "2503"
+          },
+          {
+            "days": "11680",
+            "recurringMinted": "409742827952552050872465032",
+            "totalCumulativeMinted": "509742827952552050872465032",
+            "totalUSDGAcceptedRaw": "5787057288654",
+            "nextScheduledEmission": "1668676158772865878307",
+            "nextReferenceMiningPrice": "806882899",
+            "fullyFundedEpochs": "3337",
+            "partiallyFundedEpochs": "3337",
+            "emptyEpochs": "5006"
+          }
+        ]
+      },
+      {
+        "id": "long-empty-period",
+        "checkpoints": [
+          {
+            "days": "365",
+            "recurringMinted": "143193226271656901106056396",
+            "totalCumulativeMinted": "243193226271656901106056396",
+            "totalUSDGAcceptedRaw": "37929106948757",
+            "nextScheduledEmission": "359215052833650539558316",
+            "nextReferenceMiningPrice": "25517964477257592",
+            "fullyFundedEpochs": "365",
+            "partiallyFundedEpochs": "0",
+            "emptyEpochs": "0"
+          },
+          {
+            "days": "1460",
+            "recurringMinted": "143193226271656901106056396",
+            "totalCumulativeMinted": "243193226271656901106056396",
+            "totalUSDGAcceptedRaw": "37929106948757",
+            "nextScheduledEmission": "213590548322927697881931",
+            "nextReferenceMiningPrice": "1",
+            "fullyFundedEpochs": "365",
+            "partiallyFundedEpochs": "0",
+            "emptyEpochs": "1095"
+          },
+          {
+            "days": "2920",
+            "recurringMinted": "211022947096682909672341538",
+            "totalCumulativeMinted": "311022947096682909672341538",
+            "totalUSDGAcceptedRaw": "37929106949312",
+            "nextScheduledEmission": "106795274161463787131657",
+            "nextReferenceMiningPrice": "1",
+            "fullyFundedEpochs": "920",
+            "partiallyFundedEpochs": "0",
+            "emptyEpochs": "2000"
+          },
+          {
+            "days": "5840",
+            "recurringMinted": "379772947096682638422541044",
+            "totalCumulativeMinted": "479772947096682638422541044",
+            "totalUSDGAcceptedRaw": "37929106952232",
+            "nextScheduledEmission": "26698818540365915877745",
+            "nextReferenceMiningPrice": "1",
+            "fullyFundedEpochs": "3840",
+            "partiallyFundedEpochs": "0",
+            "emptyEpochs": "2000"
+          },
+          {
+            "days": "11680",
+            "recurringMinted": "432507322096682480402496237",
+            "totalCumulativeMinted": "532507322096682480402496237",
+            "totalUSDGAcceptedRaw": "37929106958072",
+            "nextScheduledEmission": "1668676158772865878307",
+            "nextReferenceMiningPrice": "1",
+            "fullyFundedEpochs": "9680",
+            "partiallyFundedEpochs": "0",
+            "emptyEpochs": "2000"
+          }
+        ]
+      }
+    ],
+    "priceShockTraces": [
+      {
+        "id": "large-price-increase",
+        "points": [
+          {
+            "epoch": "1",
+            "requestedMarketPrice": "8000000000000000000",
+            "reservePrice": "950000000000000000",
+            "effectiveClearingPrice": "8000000000000000000",
+            "previousReferencePrice": "1000000000000000000",
+            "nextReferencePrice": "1500000000000000000"
+          },
+          {
+            "epoch": "2",
+            "requestedMarketPrice": "8000000000000000000",
+            "reservePrice": "1425000000000000000",
+            "effectiveClearingPrice": "8000000000000000000",
+            "previousReferencePrice": "1500000000000000000",
+            "nextReferencePrice": "2250000000000000000"
+          },
+          {
+            "epoch": "3",
+            "requestedMarketPrice": "8000000000000000000",
+            "reservePrice": "2137500000000000000",
+            "effectiveClearingPrice": "8000000000000000000",
+            "previousReferencePrice": "2250000000000000000",
+            "nextReferencePrice": "3375000000000000000"
+          },
+          {
+            "epoch": "4",
+            "requestedMarketPrice": "8000000000000000000",
+            "reservePrice": "3206250000000000000",
+            "effectiveClearingPrice": "8000000000000000000",
+            "previousReferencePrice": "3375000000000000000",
+            "nextReferencePrice": "4300000000000000000"
+          },
+          {
+            "epoch": "5",
+            "requestedMarketPrice": "8000000000000000000",
+            "reservePrice": "4085000000000000000",
+            "effectiveClearingPrice": "8000000000000000000",
+            "previousReferencePrice": "4300000000000000000",
+            "nextReferencePrice": "5040000000000000000"
+          },
+          {
+            "epoch": "6",
+            "requestedMarketPrice": "8000000000000000000",
+            "reservePrice": "4788000000000000000",
+            "effectiveClearingPrice": "8000000000000000000",
+            "previousReferencePrice": "5040000000000000000",
+            "nextReferencePrice": "5632000000000000000"
+          },
+          {
+            "epoch": "7",
+            "requestedMarketPrice": "8000000000000000000",
+            "reservePrice": "5350400000000000000",
+            "effectiveClearingPrice": "8000000000000000000",
+            "previousReferencePrice": "5632000000000000000",
+            "nextReferencePrice": "6105600000000000000"
+          },
+          {
+            "epoch": "8",
+            "requestedMarketPrice": "8000000000000000000",
+            "reservePrice": "5800320000000000000",
+            "effectiveClearingPrice": "8000000000000000000",
+            "previousReferencePrice": "6105600000000000000",
+            "nextReferencePrice": "6484480000000000000"
+          },
+          {
+            "epoch": "9",
+            "requestedMarketPrice": "8000000000000000000",
+            "reservePrice": "6160256000000000000",
+            "effectiveClearingPrice": "8000000000000000000",
+            "previousReferencePrice": "6484480000000000000",
+            "nextReferencePrice": "6787584000000000000"
+          },
+          {
+            "epoch": "10",
+            "requestedMarketPrice": "8000000000000000000",
+            "reservePrice": "6448204800000000000",
+            "effectiveClearingPrice": "8000000000000000000",
+            "previousReferencePrice": "6787584000000000000",
+            "nextReferencePrice": "7030067200000000000"
+          }
+        ]
+      },
+      {
+        "id": "large-price-decrease",
+        "points": [
+          {
+            "epoch": "1",
+            "requestedMarketPrice": "100000000000000000",
+            "reservePrice": "950000000000000000",
+            "effectiveClearingPrice": "950000000000000000",
+            "previousReferencePrice": "1000000000000000000",
+            "nextReferencePrice": "990000000000000000"
+          },
+          {
+            "epoch": "2",
+            "requestedMarketPrice": "100000000000000000",
+            "reservePrice": "940500000000000000",
+            "effectiveClearingPrice": "940500000000000000",
+            "previousReferencePrice": "990000000000000000",
+            "nextReferencePrice": "980100000000000000"
+          },
+          {
+            "epoch": "3",
+            "requestedMarketPrice": "100000000000000000",
+            "reservePrice": "931095000000000000",
+            "effectiveClearingPrice": "931095000000000000",
+            "previousReferencePrice": "980100000000000000",
+            "nextReferencePrice": "970299000000000000"
+          },
+          {
+            "epoch": "4",
+            "requestedMarketPrice": "100000000000000000",
+            "reservePrice": "921784050000000000",
+            "effectiveClearingPrice": "921784050000000000",
+            "previousReferencePrice": "970299000000000000",
+            "nextReferencePrice": "960596010000000000"
+          },
+          {
+            "epoch": "5",
+            "requestedMarketPrice": "100000000000000000",
+            "reservePrice": "912566209500000000",
+            "effectiveClearingPrice": "912566209500000000",
+            "previousReferencePrice": "960596010000000000",
+            "nextReferencePrice": "950990049900000000"
+          },
+          {
+            "epoch": "6",
+            "requestedMarketPrice": "100000000000000000",
+            "reservePrice": "903440547405000000",
+            "effectiveClearingPrice": "903440547405000000",
+            "previousReferencePrice": "950990049900000000",
+            "nextReferencePrice": "941480149401000000"
+          },
+          {
+            "epoch": "7",
+            "requestedMarketPrice": "100000000000000000",
+            "reservePrice": "894406141930950000",
+            "effectiveClearingPrice": "894406141930950000",
+            "previousReferencePrice": "941480149401000000",
+            "nextReferencePrice": "932065347906990000"
+          },
+          {
+            "epoch": "8",
+            "requestedMarketPrice": "100000000000000000",
+            "reservePrice": "885462080511640500",
+            "effectiveClearingPrice": "885462080511640500",
+            "previousReferencePrice": "932065347906990000",
+            "nextReferencePrice": "922744694427920100"
+          },
+          {
+            "epoch": "9",
+            "requestedMarketPrice": "100000000000000000",
+            "reservePrice": "876607459706524095",
+            "effectiveClearingPrice": "876607459706524095",
+            "previousReferencePrice": "922744694427920100",
+            "nextReferencePrice": "913517247483640899"
+          },
+          {
+            "epoch": "10",
+            "requestedMarketPrice": "100000000000000000",
+            "reservePrice": "867841385109458854",
+            "effectiveClearingPrice": "867841385109458854",
+            "previousReferencePrice": "913517247483640899",
+            "nextReferencePrice": "904382075008804489"
+          }
+        ]
+      },
+      {
+        "id": "reference-price-lag",
+        "points": [
+          {
+            "epoch": "1",
+            "requestedMarketPrice": "1000000000000000000",
+            "reservePrice": "950000000000000000",
+            "effectiveClearingPrice": "1000000000000000000",
+            "previousReferencePrice": "1000000000000000000",
+            "nextReferencePrice": "1000000000000000000"
+          },
+          {
+            "epoch": "2",
+            "requestedMarketPrice": "1000000000000000000",
+            "reservePrice": "950000000000000000",
+            "effectiveClearingPrice": "1000000000000000000",
+            "previousReferencePrice": "1000000000000000000",
+            "nextReferencePrice": "1000000000000000000"
+          },
+          {
+            "epoch": "3",
+            "requestedMarketPrice": "2000000000000000000",
+            "reservePrice": "950000000000000000",
+            "effectiveClearingPrice": "2000000000000000000",
+            "previousReferencePrice": "1000000000000000000",
+            "nextReferencePrice": "1200000000000000000"
+          },
+          {
+            "epoch": "4",
+            "requestedMarketPrice": "2000000000000000000",
+            "reservePrice": "1140000000000000000",
+            "effectiveClearingPrice": "2000000000000000000",
+            "previousReferencePrice": "1200000000000000000",
+            "nextReferencePrice": "1360000000000000000"
+          },
+          {
+            "epoch": "5",
+            "requestedMarketPrice": "4000000000000000000",
+            "reservePrice": "1292000000000000000",
+            "effectiveClearingPrice": "4000000000000000000",
+            "previousReferencePrice": "1360000000000000000",
+            "nextReferencePrice": "1888000000000000000"
+          },
+          {
+            "epoch": "6",
+            "requestedMarketPrice": "4000000000000000000",
+            "reservePrice": "1793600000000000000",
+            "effectiveClearingPrice": "4000000000000000000",
+            "previousReferencePrice": "1888000000000000000",
+            "nextReferencePrice": "2310400000000000000"
+          },
+          {
+            "epoch": "7",
+            "requestedMarketPrice": "1000000000000000000",
+            "reservePrice": "2194880000000000000",
+            "effectiveClearingPrice": "2194880000000000000",
+            "previousReferencePrice": "2310400000000000000",
+            "nextReferencePrice": "2287296000000000000"
+          },
+          {
+            "epoch": "8",
+            "requestedMarketPrice": "1000000000000000000",
+            "reservePrice": "2172931200000000000",
+            "effectiveClearingPrice": "2172931200000000000",
+            "previousReferencePrice": "2287296000000000000",
+            "nextReferencePrice": "2264423040000000000"
+          },
+          {
+            "epoch": "9",
+            "requestedMarketPrice": "1000000000000000000",
+            "reservePrice": "2151201888000000000",
+            "effectiveClearingPrice": "2151201888000000000",
+            "previousReferencePrice": "2264423040000000000",
+            "nextReferencePrice": "2241778809600000000"
+          },
+          {
+            "epoch": "10",
+            "requestedMarketPrice": "1000000000000000000",
+            "reservePrice": "2129689869120000000",
+            "effectiveClearingPrice": "2129689869120000000",
+            "previousReferencePrice": "2241778809600000000",
+            "nextReferencePrice": "2219361021504000000"
+          }
+        ]
+      }
+    ],
+    "roundingRegressions": {
+      "solidityTermByTermEma": "100",
+      "referenceAfterTwoThousandEmptyEpochs": "1",
+      "minimumNonzeroPrice": "1",
+      "affordableGBXWeiFromOneRawUSDGAtOneDollar": "1000000000000"
+    },
+    "burnSweep": [
+      {
+        "days": "365",
+        "burnRateBps": "0",
+        "recurringMinted": "143193226271656901106056396",
+        "requestedBurn": "0",
+        "actualBurn": "0",
+        "currentSupply": "243193226271656901106056396"
+      },
+      {
+        "days": "365",
+        "burnRateBps": "5000",
+        "recurringMinted": "143193226271656901106056396",
+        "requestedBurn": "71596613135828450553028198",
+        "actualBurn": "71596613135828450553028198",
+        "currentSupply": "171596613135828450553028198"
+      },
+      {
+        "days": "365",
+        "burnRateBps": "10000",
+        "recurringMinted": "143193226271656901106056396",
+        "requestedBurn": "143193226271656901106056396",
+        "actualBurn": "143193226271656901106056396",
+        "currentSupply": "100000000000000000000000000"
+      },
+      {
+        "days": "365",
+        "burnRateBps": "12500",
+        "recurringMinted": "143193226271656901106056396",
+        "requestedBurn": "178991532839571126382570495",
+        "actualBurn": "178991532839571126382570495",
+        "currentSupply": "64201693432085774723485901"
+      },
+      {
+        "days": "365",
+        "burnRateBps": "15000",
+        "recurringMinted": "143193226271656901106056396",
+        "requestedBurn": "214789839407485351659084594",
+        "actualBurn": "214789839407485351659084594",
+        "currentSupply": "28403386864171549446971802"
+      },
+      {
+        "days": "1460",
+        "burnRateBps": "0",
+        "recurringMinted": "449999999999999884371340621",
+        "requestedBurn": "0",
+        "actualBurn": "0",
+        "currentSupply": "549999999999999884371340621"
+      },
+      {
+        "days": "1460",
+        "burnRateBps": "5000",
+        "recurringMinted": "449999999999999884371340621",
+        "requestedBurn": "224999999999999942185670310",
+        "actualBurn": "224999999999999942185670310",
+        "currentSupply": "324999999999999942185670311"
+      },
+      {
+        "days": "1460",
+        "burnRateBps": "10000",
+        "recurringMinted": "449999999999999884371340621",
+        "requestedBurn": "449999999999999884371340621",
+        "actualBurn": "449999999999999884371340621",
+        "currentSupply": "100000000000000000000000000"
+      },
+      {
+        "days": "1460",
+        "burnRateBps": "12500",
+        "recurringMinted": "449999999999999884371340621",
+        "requestedBurn": "562499999999999855464175776",
+        "actualBurn": "549999999999999884371340621",
+        "currentSupply": "0"
+      },
+      {
+        "days": "1460",
+        "burnRateBps": "15000",
+        "recurringMinted": "449999999999999884371340621",
+        "requestedBurn": "674999999999999826557010931",
+        "actualBurn": "549999999999999884371340621",
+        "currentSupply": "0"
+      },
+      {
+        "days": "2920",
+        "burnRateBps": "0",
+        "recurringMinted": "674999999999999696335359860",
+        "requestedBurn": "0",
+        "actualBurn": "0",
+        "currentSupply": "774999999999999696335359860"
+      },
+      {
+        "days": "2920",
+        "burnRateBps": "5000",
+        "recurringMinted": "674999999999999696335359860",
+        "requestedBurn": "337499999999999848167679930",
+        "actualBurn": "337499999999999848167679930",
+        "currentSupply": "437499999999999848167679930"
+      },
+      {
+        "days": "2920",
+        "burnRateBps": "10000",
+        "recurringMinted": "674999999999999696335359860",
+        "requestedBurn": "674999999999999696335359860",
+        "actualBurn": "674999999999999696335359860",
+        "currentSupply": "100000000000000000000000000"
+      },
+      {
+        "days": "2920",
+        "burnRateBps": "12500",
+        "recurringMinted": "674999999999999696335359860",
+        "requestedBurn": "843749999999999620419199825",
+        "actualBurn": "774999999999999696335359860",
+        "currentSupply": "0"
+      },
+      {
+        "days": "2920",
+        "burnRateBps": "15000",
+        "recurringMinted": "674999999999999696335359860",
+        "requestedBurn": "1012499999999999544503039790",
+        "actualBurn": "774999999999999696335359860",
+        "currentSupply": "0"
+      },
+      {
+        "days": "5840",
+        "burnRateBps": "0",
+        "recurringMinted": "843749999999999425085559366",
+        "requestedBurn": "0",
+        "actualBurn": "0",
+        "currentSupply": "943749999999999425085559366"
+      },
+      {
+        "days": "5840",
+        "burnRateBps": "5000",
+        "recurringMinted": "843749999999999425085559366",
+        "requestedBurn": "421874999999999712542779683",
+        "actualBurn": "421874999999999712542779683",
+        "currentSupply": "521874999999999712542779683"
+      },
+      {
+        "days": "5840",
+        "burnRateBps": "10000",
+        "recurringMinted": "843749999999999425085559366",
+        "requestedBurn": "843749999999999425085559366",
+        "actualBurn": "843749999999999425085559366",
+        "currentSupply": "100000000000000000000000000"
+      },
+      {
+        "days": "5840",
+        "burnRateBps": "12500",
+        "recurringMinted": "843749999999999425085559366",
+        "requestedBurn": "1054687499999999281356949207",
+        "actualBurn": "943749999999999425085559366",
+        "currentSupply": "0"
+      },
+      {
+        "days": "5840",
+        "burnRateBps": "15000",
+        "recurringMinted": "843749999999999425085559366",
+        "requestedBurn": "1265624999999999137628339049",
+        "actualBurn": "943749999999999425085559366",
+        "currentSupply": "0"
+      },
+      {
+        "days": "11680",
+        "burnRateBps": "0",
+        "recurringMinted": "896484374999999267065514559",
+        "requestedBurn": "0",
+        "actualBurn": "0",
+        "currentSupply": "996484374999999267065514559"
+      },
+      {
+        "days": "11680",
+        "burnRateBps": "5000",
+        "recurringMinted": "896484374999999267065514559",
+        "requestedBurn": "448242187499999633532757279",
+        "actualBurn": "448242187499999633532757279",
+        "currentSupply": "548242187499999633532757280"
+      },
+      {
+        "days": "11680",
+        "burnRateBps": "10000",
+        "recurringMinted": "896484374999999267065514559",
+        "requestedBurn": "896484374999999267065514559",
+        "actualBurn": "896484374999999267065514559",
+        "currentSupply": "100000000000000000000000000"
+      },
+      {
+        "days": "11680",
+        "burnRateBps": "12500",
+        "recurringMinted": "896484374999999267065514559",
+        "requestedBurn": "1120605468749999083831893198",
+        "actualBurn": "996484374999999267065514559",
+        "currentSupply": "0"
+      },
+      {
+        "days": "11680",
+        "burnRateBps": "15000",
+        "recurringMinted": "896484374999999267065514559",
+        "requestedBurn": "1344726562499998900598271838",
+        "actualBurn": "996484374999999267065514559",
+        "currentSupply": "0"
+      }
+    ]
+  },
+  "bootstrap": {
+    "raises": [
+      {
+        "communityRaiseUSDGRaw": "1000000000000",
+        "sponsorRequirementUSDGRaw": "250000000000",
+        "totalGenesisBackingUSDGRaw": "1250000000000",
+        "genesisMinerAllocation": "80000000000000000000000000",
+        "oneSidedLPAllocation": "20000000000000000000000000",
+        "initialGBXPrice": "12500000000000000",
+        "backingPerGBX": "12500000000000000",
+        "lpBackingRequirementUSDGRaw": "250000000000",
+        "initialOneSidedLPUSDGRaw": "0",
+        "fullyConvertedLadderUSDGRaw": "577357177632",
+        "participantContributionUSDGRaw": "10000000000",
+        "participantGBX": "800000000000000000000000",
+        "genesisRedemptionUSDGRaw": "10000000000"
+      },
+      {
+        "communityRaiseUSDGRaw": "10000000000000",
+        "sponsorRequirementUSDGRaw": "2500000000000",
+        "totalGenesisBackingUSDGRaw": "12500000000000",
+        "genesisMinerAllocation": "80000000000000000000000000",
+        "oneSidedLPAllocation": "20000000000000000000000000",
+        "initialGBXPrice": "125000000000000000",
+        "backingPerGBX": "125000000000000000",
+        "lpBackingRequirementUSDGRaw": "2500000000000",
+        "initialOneSidedLPUSDGRaw": "0",
+        "fullyConvertedLadderUSDGRaw": "5773571776356",
+        "participantContributionUSDGRaw": "100000000000",
+        "participantGBX": "800000000000000000000000",
+        "genesisRedemptionUSDGRaw": "100000000000"
+      },
+      {
+        "communityRaiseUSDGRaw": "80000000000000",
+        "sponsorRequirementUSDGRaw": "20000000000000",
+        "totalGenesisBackingUSDGRaw": "100000000000000",
+        "genesisMinerAllocation": "80000000000000000000000000",
+        "oneSidedLPAllocation": "20000000000000000000000000",
+        "initialGBXPrice": "1000000000000000000",
+        "backingPerGBX": "1000000000000000000",
+        "lpBackingRequirementUSDGRaw": "20000000000000",
+        "initialOneSidedLPUSDGRaw": "0",
+        "fullyConvertedLadderUSDGRaw": "46188574210867",
+        "participantContributionUSDGRaw": "800000000000",
+        "participantGBX": "800000000000000000000000",
+        "genesisRedemptionUSDGRaw": "800000000000"
+      },
+      {
+        "communityRaiseUSDGRaw": "160000000000000",
+        "sponsorRequirementUSDGRaw": "40000000000000",
+        "totalGenesisBackingUSDGRaw": "200000000000000",
+        "genesisMinerAllocation": "80000000000000000000000000",
+        "oneSidedLPAllocation": "20000000000000000000000000",
+        "initialGBXPrice": "2000000000000000000",
+        "backingPerGBX": "2000000000000000000",
+        "lpBackingRequirementUSDGRaw": "40000000000000",
+        "initialOneSidedLPUSDGRaw": "0",
+        "fullyConvertedLadderUSDGRaw": "92377148421738",
+        "participantContributionUSDGRaw": "1600000000000",
+        "participantGBX": "800000000000000000000000",
+        "genesisRedemptionUSDGRaw": "1600000000000"
+      }
+    ],
+    "ladderRanges": [
+      {
+        "allocation": "10000000000000000000000000",
+        "lower": "1000000000000000000",
+        "upper": "1500000000000000000"
+      },
+      {
+        "allocation": "6000000000000000000000000",
+        "lower": "1500000000000000000",
+        "upper": "3000000000000000000"
+      },
+      {
+        "allocation": "3000000000000000000000000",
+        "lower": "3000000000000000000",
+        "upper": "6000000000000000000"
+      },
+      {
+        "allocation": "1000000000000000000000000",
+        "lower": "6000000000000000000",
+        "upper": "12000000000000000000"
+      }
+    ],
+    "lpInventory": [
+      {
+        "priceMultipleWad": "1000000000000000000",
+        "gbxRemaining": "20000000000000000000000000",
+        "gbxSold": "0",
+        "usdGRaisedWad": "0",
+        "usdGRaisedRaw": "0",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "10000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "6000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "3000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "1250000000000000000",
+        "gbxRemaining": "14246820602372339905461929",
+        "gbxSold": "5753179397627660094538071",
+        "usdGRaisedWad": "6432250109923370100190895",
+        "usdGRaisedRaw": "6432250109923",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "4246820602372339905461929",
+            "usdGRaisedWad": "6432250109923370100190895",
+            "usdGRaisedRaw": "6432250109923"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "6000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "3000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "1500000000000000000",
+        "gbxRemaining": "10000000000000000000000000",
+        "gbxSold": "10000000000000000000000000",
+        "usdGRaisedWad": "12247448713915890436726967",
+        "usdGRaisedRaw": "12247448713915",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12247448713915890436726967",
+            "usdGRaisedRaw": "12247448713915"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "6000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "3000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "2000000000000000000",
+        "gbxRemaining": "7255492699524227768703168",
+        "gbxSold": "12744507300475772231296832",
+        "usdGRaisedWad": "17001074800083631095824148",
+        "usdGRaisedRaw": "17001074800082",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12247448713915890436726967",
+            "usdGRaisedRaw": "12247448713915"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "3255492699524227768703168",
+            "usdGRaisedWad": "4753626086167740659097181",
+            "usdGRaisedRaw": "4753626086167"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "3000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "3000000000000000000",
+        "gbxRemaining": "4000000000000000000000000",
+        "gbxSold": "16000000000000000000000000",
+        "usdGRaisedWad": "24975370775273745877067229",
+        "usdGRaisedRaw": "24975370775272",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12247448713915890436726967",
+            "usdGRaisedRaw": "12247448713915"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12727922061357855440340262",
+            "usdGRaisedRaw": "12727922061357"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "3000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "6000000000000000000",
+        "gbxRemaining": "1000000000000000000000000",
+        "gbxSold": "19000000000000000000000000",
+        "usdGRaisedWad": "37703292836631601332898137",
+        "usdGRaisedRaw": "37703292836629",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12247448713915890436726967",
+            "usdGRaisedRaw": "12247448713915"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12727922061357855440340262",
+            "usdGRaisedRaw": "12727922061357"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12727922061357855455830908",
+            "usdGRaisedRaw": "12727922061357"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "12000000000000000000",
+        "gbxRemaining": "0",
+        "gbxSold": "20000000000000000000000000",
+        "usdGRaisedWad": "46188574210870171634821392",
+        "usdGRaisedRaw": "46188574210867",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12247448713915890436726967",
+            "usdGRaisedRaw": "12247448713915"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12727922061357855440340262",
+            "usdGRaisedRaw": "12727922061357"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12727922061357855455830908",
+            "usdGRaisedRaw": "12727922061357"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "8485281374238570301923255",
+            "usdGRaisedRaw": "8485281374238"
+          }
+        ]
+      }
+    ],
+    "fullyConvertedUSDGRawAtOneDollarP0": "46188574210867",
+    "sixDecimalRegression": {
+      "oneUSDGRaw": "1000000",
+      "normalizedOneUSDG": "1000000000000000000",
+      "oneTargetPerUSDGRate": "1000000000000000000",
+      "targetRequiredForOneUSDG": "1000000000000000000"
+    }
+  },
+  "auctions": {
+    "bounds": {
+      "referenceRate": "1000000000000000000",
+      "startRate": "1250000000000000000",
+      "floorRate": "800000000000000000",
+      "startRateBps": "12500",
+      "floorRateBps": "8000"
+    },
+    "curve": [
+      {
+        "elapsedSeconds": "0",
+        "rate": "1250000000000000000"
+      },
+      {
+        "elapsedSeconds": "21600",
+        "rate": "1137500000000000000"
+      },
+      {
+        "elapsedSeconds": "43200",
+        "rate": "1025000000000000000"
+      },
+      {
+        "elapsedSeconds": "64800",
+        "rate": "912500000000000000"
+      },
+      {
+        "elapsedSeconds": "86400",
+        "rate": "800000000000000000"
+      }
+    ],
+    "driftAndAvailability": [
+      {
+        "id": "stable-market",
+        "marketStartRate": "1000000000000000000",
+        "dailyDriftBps": "0",
+        "makerAvailable": true,
+        "usdGLotRaw": "10000000000",
+        "fillSecond": "48000",
+        "fillRate": "1000000000000000000",
+        "requiredTarget": "10000000000000000000000",
+        "budgetRetainedUSDGRaw": "0"
+      },
+      {
+        "id": "target-appreciates",
+        "marketStartRate": "1000000000000000000",
+        "dailyDriftBps": "-2000",
+        "makerAvailable": true,
+        "usdGLotRaw": "10000000000",
+        "fillSecond": "86400",
+        "fillRate": "800000000000000000",
+        "requiredTarget": "8000000000000000000000",
+        "budgetRetainedUSDGRaw": "0"
+      },
+      {
+        "id": "target-depreciates",
+        "marketStartRate": "1000000000000000000",
+        "dailyDriftBps": "2000",
+        "makerAvailable": true,
+        "usdGLotRaw": "10000000000",
+        "fillSecond": "33231",
+        "fillRate": "1076921875000000000",
+        "requiredTarget": "10769218750000000000000",
+        "budgetRetainedUSDGRaw": "0"
+      },
+      {
+        "id": "missing-market-maker",
+        "marketStartRate": "1000000000000000000",
+        "dailyDriftBps": "0",
+        "makerAvailable": false,
+        "usdGLotRaw": "10000000000",
+        "fillSecond": null,
+        "fillRate": null,
+        "requiredTarget": null,
+        "budgetRetainedUSDGRaw": "10000000000"
+      },
+      {
+        "id": "trading-halt-at-crossing",
+        "marketStartRate": "1000000000000000000",
+        "dailyDriftBps": "0",
+        "makerAvailable": true,
+        "haltStartSecond": "36000",
+        "haltEndSecond": "86400",
+        "usdGLotRaw": "10000000000",
+        "fillSecond": null,
+        "fillRate": null,
+        "requiredTarget": null,
+        "budgetRetainedUSDGRaw": "10000000000"
+      }
+    ],
+    "lotSizesAtMidpoint": [
+      {
+        "usdGLotRaw": "1000000000",
+        "rate": "1025000000000000000",
+        "requiredTarget": "1025000000000000000000"
+      },
+      {
+        "usdGLotRaw": "10000000000",
+        "rate": "1025000000000000000",
+        "requiredTarget": "10250000000000000000000"
+      },
+      {
+        "usdGLotRaw": "100000000000",
+        "rate": "1025000000000000000",
+        "requiredTarget": "102500000000000000000000"
+      }
+    ],
+    "budgetAccumulation": [
+      {
+        "day": "1",
+        "allocatedUSDGRaw": "24000000000",
+        "makerAvailable": false,
+        "tradingHalted": false,
+        "filled": false,
+        "lotSpentUSDGRaw": "0",
+        "closingBudgetUSDGRaw": "24000000000"
+      },
+      {
+        "day": "2",
+        "allocatedUSDGRaw": "24000000000",
+        "makerAvailable": false,
+        "tradingHalted": false,
+        "filled": false,
+        "lotSpentUSDGRaw": "0",
+        "closingBudgetUSDGRaw": "48000000000"
+      },
+      {
+        "day": "3",
+        "allocatedUSDGRaw": "24000000000",
+        "makerAvailable": false,
+        "tradingHalted": false,
+        "filled": false,
+        "lotSpentUSDGRaw": "0",
+        "closingBudgetUSDGRaw": "72000000000"
+      },
+      {
+        "day": "4",
+        "allocatedUSDGRaw": "24000000000",
+        "makerAvailable": true,
+        "tradingHalted": false,
+        "filled": true,
+        "lotSpentUSDGRaw": "50000000000",
+        "closingBudgetUSDGRaw": "46000000000"
+      },
+      {
+        "day": "5",
+        "allocatedUSDGRaw": "24000000000",
+        "makerAvailable": true,
+        "tradingHalted": false,
+        "filled": true,
+        "lotSpentUSDGRaw": "50000000000",
+        "closingBudgetUSDGRaw": "20000000000"
+      },
+      {
+        "day": "6",
+        "allocatedUSDGRaw": "24000000000",
+        "makerAvailable": true,
+        "tradingHalted": true,
+        "filled": false,
+        "lotSpentUSDGRaw": "0",
+        "closingBudgetUSDGRaw": "44000000000"
+      },
+      {
+        "day": "7",
+        "allocatedUSDGRaw": "24000000000",
+        "makerAvailable": true,
+        "tradingHalted": false,
+        "filled": true,
+        "lotSpentUSDGRaw": "50000000000",
+        "closingBudgetUSDGRaw": "18000000000"
+      },
+      {
+        "day": "8",
+        "allocatedUSDGRaw": "24000000000",
+        "makerAvailable": true,
+        "tradingHalted": false,
+        "filled": false,
+        "lotSpentUSDGRaw": "0",
+        "closingBudgetUSDGRaw": "42000000000"
+      },
+      {
+        "day": "9",
+        "allocatedUSDGRaw": "24000000000",
+        "makerAvailable": true,
+        "tradingHalted": false,
+        "filled": true,
+        "lotSpentUSDGRaw": "50000000000",
+        "closingBudgetUSDGRaw": "16000000000"
+      },
+      {
+        "day": "10",
+        "allocatedUSDGRaw": "24000000000",
+        "makerAvailable": true,
+        "tradingHalted": false,
+        "filled": false,
+        "lotSpentUSDGRaw": "0",
+        "closingBudgetUSDGRaw": "40000000000"
+      }
+    ]
+  },
+  "managerRewards": {
+    "rewardYieldByStrategy": [
+      {
+        "id": "strategy-a",
+        "activeWeight": "1000000000000000000000000",
+        "acquired": "1000000000000000000000",
+        "managerReward": "20000000000000000000",
+        "vaultGrowth": "980000000000000000000",
+        "redirectedToVault": "0",
+        "rewardPerActiveGBX": "20000000000000"
+      },
+      {
+        "id": "strategy-b",
+        "activeWeight": "2000000000000000000000000",
+        "acquired": "5000000000000000000000",
+        "managerReward": "100000000000000000000",
+        "vaultGrowth": "4900000000000000000000",
+        "redirectedToVault": "0",
+        "rewardPerActiveGBX": "50000000000000"
+      },
+      {
+        "id": "strategy-without-live-weight",
+        "activeWeight": "0",
+        "acquired": "5000000000000000000000",
+        "managerReward": "0",
+        "vaultGrowth": "5000000000000000000000",
+        "redirectedToVault": "100000000000000000000",
+        "rewardPerActiveGBX": "0"
+      }
+    ],
+    "voteConcentration": {
+      "totalReward": "20000000000000000000",
+      "hhiBps": "5400",
+      "managers": [
+        {
+          "manager": "manager-1",
+          "weightBps": "7000",
+          "reward": "14000000000000000000"
+        },
+        {
+          "manager": "manager-2",
+          "weightBps": "2000",
+          "reward": "4000000000000000000"
+        },
+        {
+          "manager": "manager-3",
+          "weightBps": "1000",
+          "reward": "2000000000000000000"
+        }
+      ]
+    },
+    "frequentSwitching": [
+      {
+        "hour": "0",
+        "event": "signal-strategy-b",
+        "activeStrategy": "none",
+        "pendingStrategy": "strategy-b",
+        "reward": "0"
+      },
+      {
+        "hour": "12",
+        "event": "fill-strategy-b-before-activation",
+        "activeStrategy": "none",
+        "pendingStrategy": "strategy-b",
+        "reward": "0"
+      },
+      {
+        "hour": "24",
+        "event": "checkpoint-and-fill-strategy-b",
+        "activeStrategy": "strategy-b",
+        "pendingStrategy": "none",
+        "reward": "20000000000000000000"
+      },
+      {
+        "hour": "30",
+        "event": "switch-to-strategy-a",
+        "activeStrategy": "none",
+        "pendingStrategy": "strategy-a",
+        "reward": "0"
+      },
+      {
+        "hour": "36",
+        "event": "fill-strategy-a-during-delay",
+        "activeStrategy": "none",
+        "pendingStrategy": "strategy-a",
+        "reward": "0"
+      },
+      {
+        "hour": "54",
+        "event": "checkpoint-and-fill-strategy-a",
+        "activeStrategy": "strategy-a",
+        "pendingStrategy": "none",
+        "reward": "20000000000000000000"
+      }
+    ],
+    "activationDelay": [
+      {
+        "elapsedSeconds": "0",
+        "effectiveWeight": "0",
+        "pendingWeight": "100000000000000000000000"
+      },
+      {
+        "elapsedSeconds": "86399",
+        "effectiveWeight": "0",
+        "pendingWeight": "100000000000000000000000"
+      },
+      {
+        "elapsedSeconds": "86400",
+        "effectiveWeight": "100000000000000000000000",
+        "pendingWeight": "0"
+      }
+    ],
+    "noLockStakeChurn": {
+      "earlyExit": {
+        "stakedAtSecond": "0",
+        "unstakedAtSecond": "21600",
+        "activeWeightAtExit": "0",
+        "cancelledPendingWeight": "100000000000000000000000",
+        "rewardCaptured": "0"
+      },
+      "postActivationExit": {
+        "stakedAtSecond": "0",
+        "activatedAtSecond": "86400",
+        "filledAtSecond": "86400",
+        "unstakedAtSecond": "86400",
+        "activeWeightAtFill": "100000000000000000000000",
+        "accruedRewardAfterUnstake": "20000000000000000000"
+      }
+    },
+    "rewardLeakageVsVaultGrowth": [
+      {
+        "id": "one-hundred-fills-with-live-weight",
+        "fillCount": "100",
+        "acquired": "100000000000000000000000",
+        "managerReward": "2000000000000000000000",
+        "vaultGrowth": "98000000000000000000000",
+        "redirectedToVault": "0"
+      },
+      {
+        "id": "ten-fills-without-live-weight",
+        "fillCount": "10",
+        "acquired": "10000000000000000000000",
+        "managerReward": "0",
+        "vaultGrowth": "10000000000000000000000",
+        "redirectedToVault": "200000000000000000000"
+      }
+    ]
+  },
+  "redemptionAndBuyback": {
+    "marketRelativeToBacking": [
+      {
+        "id": "gbx-below-backing",
+        "marketPrice": "800000000000000000",
+        "backingPerGBXBefore": "1000000000000000000",
+        "usdGSpentRaw": "10000000000000",
+        "gbxBurned": "12500000000000000000000000",
+        "vaultValueAfterUSDGRaw": "90000000000000",
+        "supplyAfter": "87500000000000000000000000",
+        "backingPerGBXAfter": "1028571428571428571"
+      },
+      {
+        "id": "gbx-above-backing",
+        "marketPrice": "1200000000000000000",
+        "backingPerGBXBefore": "1000000000000000000",
+        "usdGSpentRaw": "10000000000000",
+        "gbxBurned": "8333333333333333333333333",
+        "vaultValueAfterUSDGRaw": "90000000000000",
+        "supplyAfter": "91666666666666666666666667",
+        "backingPerGBXAfter": "981818181818181818"
+      }
+    ],
+    "revenueSourceComparison": [
+      {
+        "id": "mining-revenue",
+        "startingSupply": "100000000000000000000000000",
+        "startingVaultValueUSDGRaw": "100000000000000",
+        "revenueUSDGRaw": "10000000000000",
+        "emission": "10000000000000000000000000",
+        "buybackSpendUSDGRaw": "1000000000000",
+        "marketPrice": "800000000000000000",
+        "gbxBurned": "1250000000000000000000000",
+        "supplyAfter": "108750000000000000000000000",
+        "vaultValueAfterUSDGRaw": "109000000000000",
+        "backingPerGBXAfter": "1002298850574712643"
+      },
+      {
+        "id": "lp-fee-revenue",
+        "startingSupply": "100000000000000000000000000",
+        "startingVaultValueUSDGRaw": "100000000000000",
+        "revenueUSDGRaw": "1000000000000",
+        "emission": "0",
+        "buybackSpendUSDGRaw": "1000000000000",
+        "marketPrice": "800000000000000000",
+        "gbxBurned": "1250000000000000000000000",
+        "supplyAfter": "98750000000000000000000000",
+        "vaultValueAfterUSDGRaw": "100000000000000",
+        "backingPerGBXAfter": "1012658227848101265"
+      }
+    ],
+    "simultaneousEmissionAndBurn": [
+      {
+        "burnRateBps": "0",
+        "startingSupply": "100000000000000000000000000",
+        "emission": "10000000000000000000000000",
+        "burn": "0",
+        "netSupplyChange": "10000000000000000000000000",
+        "supplyAfter": "110000000000000000000000000"
+      },
+      {
+        "burnRateBps": "5000",
+        "startingSupply": "100000000000000000000000000",
+        "emission": "10000000000000000000000000",
+        "burn": "5000000000000000000000000",
+        "netSupplyChange": "5000000000000000000000000",
+        "supplyAfter": "105000000000000000000000000"
+      },
+      {
+        "burnRateBps": "10000",
+        "startingSupply": "100000000000000000000000000",
+        "emission": "10000000000000000000000000",
+        "burn": "10000000000000000000000000",
+        "netSupplyChange": "0",
+        "supplyAfter": "100000000000000000000000000"
+      },
+      {
+        "burnRateBps": "15000",
+        "startingSupply": "100000000000000000000000000",
+        "emission": "10000000000000000000000000",
+        "burn": "15000000000000000000000000",
+        "netSupplyChange": "-5000000000000000000000000",
+        "supplyAfter": "95000000000000000000000000"
+      }
+    ],
+    "sequentialLargeRedemptions": [
+      {
+        "sequence": "1",
+        "shares": "20000000000000000000000000",
+        "supplyBefore": "100000000000000000000000000",
+        "output": {
+          "USDG": "20000000000000",
+          "ASSET_A": "40000000000000000000000",
+          "ASSET_B": "10000000000000000000000"
+        },
+        "supplyAfter": "80000000000000000000000000",
+        "balancesAfter": {
+          "USDG": "80000000000000",
+          "ASSET_A": "160000000000000000000000",
+          "ASSET_B": "40000000000000000000000"
+        }
+      },
+      {
+        "sequence": "2",
+        "shares": "30000000000000000000000000",
+        "supplyBefore": "80000000000000000000000000",
+        "output": {
+          "USDG": "30000000000000",
+          "ASSET_A": "60000000000000000000000",
+          "ASSET_B": "15000000000000000000000"
+        },
+        "supplyAfter": "50000000000000000000000000",
+        "balancesAfter": {
+          "USDG": "50000000000000",
+          "ASSET_A": "100000000000000000000000",
+          "ASSET_B": "25000000000000000000000"
+        }
+      },
+      {
+        "sequence": "3",
+        "shares": "25000000000000000000000000",
+        "supplyBefore": "50000000000000000000000000",
+        "output": {
+          "USDG": "25000000000000",
+          "ASSET_A": "50000000000000000000000",
+          "ASSET_B": "12500000000000000000000"
+        },
+        "supplyAfter": "25000000000000000000000000",
+        "balancesAfter": {
+          "USDG": "25000000000000",
+          "ASSET_A": "50000000000000000000000",
+          "ASSET_B": "12500000000000000000000"
+        }
+      }
+    ],
+    "lpInventorySoldOverTime": [
+      {
+        "priceMultipleWad": "1000000000000000000",
+        "gbxRemaining": "20000000000000000000000000",
+        "gbxSold": "0",
+        "usdGRaisedWad": "0",
+        "usdGRaisedRaw": "0",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "10000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "6000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "3000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "1250000000000000000",
+        "gbxRemaining": "14246820602372339905461929",
+        "gbxSold": "5753179397627660094538071",
+        "usdGRaisedWad": "6432250109923370100190895",
+        "usdGRaisedRaw": "6432250109923",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "4246820602372339905461929",
+            "usdGRaisedWad": "6432250109923370100190895",
+            "usdGRaisedRaw": "6432250109923"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "6000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "3000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "1500000000000000000",
+        "gbxRemaining": "10000000000000000000000000",
+        "gbxSold": "10000000000000000000000000",
+        "usdGRaisedWad": "12247448713915890436726967",
+        "usdGRaisedRaw": "12247448713915",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12247448713915890436726967",
+            "usdGRaisedRaw": "12247448713915"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "6000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "3000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "2000000000000000000",
+        "gbxRemaining": "7255492699524227768703168",
+        "gbxSold": "12744507300475772231296832",
+        "usdGRaisedWad": "17001074800083631095824148",
+        "usdGRaisedRaw": "17001074800082",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12247448713915890436726967",
+            "usdGRaisedRaw": "12247448713915"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "3255492699524227768703168",
+            "usdGRaisedWad": "4753626086167740659097181",
+            "usdGRaisedRaw": "4753626086167"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "3000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "3000000000000000000",
+        "gbxRemaining": "4000000000000000000000000",
+        "gbxSold": "16000000000000000000000000",
+        "usdGRaisedWad": "24975370775273745877067229",
+        "usdGRaisedRaw": "24975370775272",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12247448713915890436726967",
+            "usdGRaisedRaw": "12247448713915"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12727922061357855440340262",
+            "usdGRaisedRaw": "12727922061357"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "3000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "6000000000000000000",
+        "gbxRemaining": "1000000000000000000000000",
+        "gbxSold": "19000000000000000000000000",
+        "usdGRaisedWad": "37703292836631601332898137",
+        "usdGRaisedRaw": "37703292836629",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12247448713915890436726967",
+            "usdGRaisedRaw": "12247448713915"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12727922061357855440340262",
+            "usdGRaisedRaw": "12727922061357"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12727922061357855455830908",
+            "usdGRaisedRaw": "12727922061357"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "1000000000000000000000000",
+            "usdGRaisedWad": "0",
+            "usdGRaisedRaw": "0"
+          }
+        ]
+      },
+      {
+        "priceMultipleWad": "12000000000000000000",
+        "gbxRemaining": "0",
+        "gbxSold": "20000000000000000000000000",
+        "usdGRaisedWad": "46188574210870171634821392",
+        "usdGRaisedRaw": "46188574210867",
+        "positions": [
+          {
+            "gbxAllocation": "10000000000000000000000000",
+            "lowerPriceMultipleWad": "1000000000000000000",
+            "upperPriceMultipleWad": "1500000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12247448713915890436726967",
+            "usdGRaisedRaw": "12247448713915"
+          },
+          {
+            "gbxAllocation": "6000000000000000000000000",
+            "lowerPriceMultipleWad": "1500000000000000000",
+            "upperPriceMultipleWad": "3000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12727922061357855440340262",
+            "usdGRaisedRaw": "12727922061357"
+          },
+          {
+            "gbxAllocation": "3000000000000000000000000",
+            "lowerPriceMultipleWad": "3000000000000000000",
+            "upperPriceMultipleWad": "6000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "12727922061357855455830908",
+            "usdGRaisedRaw": "12727922061357"
+          },
+          {
+            "gbxAllocation": "1000000000000000000000000",
+            "lowerPriceMultipleWad": "6000000000000000000",
+            "upperPriceMultipleWad": "12000000000000000000",
+            "gbxRemaining": "0",
+            "usdGRaisedWad": "8485281374238570301923255",
+            "usdGRaisedRaw": "8485281374238"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "schemaVersion": "3",
+  "usdGDecimals": "6",
+  "targetDecimals": "18",
+  "emissionDaily100YearDigest": "0x04216c1934d94d62a09315a67885bd4738b4c218d440322ff90fa19dae65d990",
+  "emissionHorizons": [
+    {
+      "days": "365",
+      "recurringMinted": "143193226271656901106056396",
+      "totalCumulativeMinted": "243193226271656901106056396",
+      "nextScheduledEmission": "359215052833650539558316"
+    },
+    {
+      "days": "1460",
+      "recurringMinted": "449999999999999884371340621",
+      "totalCumulativeMinted": "549999999999999884371340621",
+      "nextScheduledEmission": "213590548322927697881931"
+    },
+    {
+      "days": "2920",
+      "recurringMinted": "674999999999999696335359860",
+      "totalCumulativeMinted": "774999999999999696335359860",
+      "nextScheduledEmission": "106795274161463787131657"
+    },
+    {
+      "days": "5840",
+      "recurringMinted": "843749999999999425085559366",
+      "totalCumulativeMinted": "943749999999999425085559366",
+      "nextScheduledEmission": "26698818540365915877745"
+    },
+    {
+      "days": "11680",
+      "recurringMinted": "896484374999999267065514559",
+      "totalCumulativeMinted": "996484374999999267065514559",
+      "nextScheduledEmission": "1668676158772865878307"
+    },
+    {
+      "days": "36500",
+      "recurringMinted": "899999973177909098898222630",
+      "totalCumulativeMinted": "999999973177909098898222630",
+      "nextScheduledEmission": "12730988760167793"
+    }
+  ],
+  "miningQuotes": [
+    {
+      "id": "fully-funded",
+      "scheduledEmission": "100000000000000000000",
+      "minimumMiningPrice": "1900000000000000000",
+      "affordableEmission": "131578947368421052631",
+      "actualEmission": "100000000000000000000",
+      "clearingPrice": "2500000000000000000",
+      "nextReferenceMiningPrice": "2100000000000000000",
+      "fullyFunded": true
+    },
+    {
+      "id": "underfunded",
+      "scheduledEmission": "100000000000000000000",
+      "minimumMiningPrice": "1900000000000000000",
+      "affordableEmission": "50000000000000000000",
+      "actualEmission": "50000000000000000000",
+      "clearingPrice": "1900000000000000000",
+      "nextReferenceMiningPrice": "1980000000000000000",
+      "fullyFunded": false
+    },
+    {
+      "id": "empty",
+      "scheduledEmission": "100000000000000000000",
+      "minimumMiningPrice": "1900000000000000000",
+      "affordableEmission": "0",
+      "actualEmission": "0",
+      "clearingPrice": "0",
+      "nextReferenceMiningPrice": "1900000000000000000",
+      "fullyFunded": false
+    }
+  ],
+  "genesisQuotes": [
+    {
+      "id": "one-dollar-clearing-price",
+      "communityUSDGRaw": "80000000000000",
+      "requiredSponsorUSDGRaw": "20000000000000",
+      "totalGenesisAssetsUSDGRaw": "100000000000000",
+      "totalGenesisSupplyGBXRaw": "100000000000000000000000000",
+      "genesisPriceWad": "1000000000000000000",
+      "backingPerGBXWad": "1000000000000000000",
+      "participantClaim": "8000000000000000000000000"
+    },
+    {
+      "id": "atomic-round-up",
+      "communityUSDGRaw": "5",
+      "requiredSponsorUSDGRaw": "2",
+      "totalGenesisAssetsUSDGRaw": "7",
+      "totalGenesisSupplyGBXRaw": "100000000000000000000000000",
+      "genesisPriceWad": "62500",
+      "backingPerGBXWad": "70000",
+      "participantClaim": "16000000000000000000000000"
+    }
+  ],
+  "auctionQuotes": [
+    {
+      "id": "start",
+      "rate": "5250000000000000",
+      "requiredTargetAmount": "52500000000000000000",
+      "vaultAmount": "41160000000000000000",
+      "managerAmount": "840000000000000000"
+    },
+    {
+      "id": "midpoint",
+      "rate": "4305000000000000",
+      "requiredTargetAmount": "43050000000000000000",
+      "vaultAmount": "41160000000000000000",
+      "managerAmount": "840000000000000000"
+    },
+    {
+      "id": "floor",
+      "rate": "3360000000000000",
+      "requiredTargetAmount": "33600000000000000000",
+      "vaultAmount": "42000000000000000000",
+      "managerAmount": "0"
+    },
+    {
+      "id": "expired-stays-at-floor",
+      "rate": "3360000000000000",
+      "requiredTargetAmount": "33600000000000000000",
+      "vaultAmount": "41160000000000000000",
+      "managerAmount": "840000000000000000"
+    }
+  ],
+  "rewardQuotes": [
+    {
+      "id": "production-scale",
+      "distributableReward": "840000000000000000",
+      "rewardPerWeightIncrement": "4200000000000000000000000",
+      "representedReward": "840000000000000000",
+      "nextRemainder": "0",
+      "userEarned": "210000000000000000"
+    },
+    {
+      "id": "dust-carry",
+      "distributableReward": "10",
+      "rewardPerWeightIncrement": "33",
+      "representedReward": "9",
+      "nextRemainder": "1",
+      "userEarned": "7"
+    }
+  ],
+  "redemptionQuotes": [
+    {
+      "id": "ten-percent-basket",
+      "percentageWad": "100000000000000000",
+      "assets": [
+        {
+          "asset": "USDG",
+          "amount": "500000000"
+        },
+        {
+          "asset": "NVDA",
+          "amount": "4200000000000000000"
+        },
+        {
+          "asset": "AAPL",
+          "amount": "0"
+        }
+      ]
+    }
+  ],
+  "supplyProjections": [
+    {
+      "id": "burn-exceeds-emission",
+      "currentSupply": "145000000000000000000000000",
+      "netSupplyChange": "-1000000000000000000000000",
+      "projectedSupply": "144000000000000000000000000"
+    }
+  ]
+}

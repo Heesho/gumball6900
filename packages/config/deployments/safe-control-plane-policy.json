@@ -1,0 +1,8 @@
+{
+  "approvedSingletons": [],
+  "kind": "gumball-6900-safe-control-plane-policy",
+  "protocol": "GUM BALL 6900",
+  "reason": "No Safe singleton address/runtime hash pair has been approved for Robinhood mainnet or testnet.",
+  "schemaVersion": 1,
+  "status": "unconfigured"
+}

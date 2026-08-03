@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / AUCTION_DURATION_SECONDS
+
+# Variable: AUCTION_DURATION_SECONDS
+
+> `const` **AUCTION_DURATION_SECONDS**: `86400n` = `86_400n`
