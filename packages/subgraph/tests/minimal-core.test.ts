@@ -1,132 +1,139 @@
 import { ethereum } from '@graphprotocol/graph-ts';
 import { assert, beforeEach, clearStore, describe, newMockEvent, test } from 'matchstick-as/assembly/index';
-import { GBXToken__Burned, GBXToken__Minted } from '../generated/GBXToken/GBXToken';
-import {
-  LiquidityCustodian__FeesCollected,
-  LiquidityCustodian__PositionRecorded,
-  LiquidityCustodian__PositionTransferred,
-} from '../generated/LiquidityCustodian/LiquidityCustodian';
-import { MiningClaims__Claimed } from '../generated/MiningClaims/MiningClaims';
-import { MiningPool__Contribution, MiningPool__EpochSettled } from '../generated/MiningPool/MiningPool';
-import { handleBurned, handleMinted } from '../src/gbx-token';
-import { handleFeesCollected, handlePositionRecorded, handlePositionTransferred } from '../src/liquidity-custodian';
-import { handleMiningClaimed } from '../src/mining-claims';
-import { handleMiningContribution, handleMiningEpochSettled } from '../src/mining-pool';
+import { Claimed, Contributed, EpochSettled } from '../generated/Fundraiser/Fundraiser';
+import { Burned, Minted } from '../generated/GBX/GBX';
+import { FeesProcessed } from '../generated/LiquidityPosition/LiquidityPosition';
+import { StrategyAdded, VoteCast, VoteReset } from '../generated/Voter/Voter';
+import { handleClaimed, handleContributed, handleEpochSettled } from '../src/fundraiser';
+import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
-import { CONTRACT, HASH, USER, USER_TWO, addressParam, bytesParam, configureEvent, uintParam } from './helpers';
+import { handleFeesProcessed } from '../src/liquidity-position';
+import { handleStrategyAdded, handleVoteCast, handleVoteReset } from '../src/voter';
+import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, configureEvent, uintParam } from './helpers';
 
 export {
   handleBurned,
-  handleFeesCollected,
-  handleMiningClaimed,
-  handleMiningContribution,
-  handleMiningEpochSettled,
+  handleClaimed,
+  handleContributed,
+  handleEpochSettled,
+  handleFeesProcessed,
   handleMinted,
-  handlePositionRecorded,
-  handlePositionTransferred,
+  handleStrategyAdded,
+  handleVoteCast,
+  handleVoteReset,
 };
 
-describe('minimal protocol mappings', () => {
+describe('core protocol mappings', () => {
   beforeEach(() => {
     clearStore();
   });
 
-  test('tracks cumulative mint and burn state without reopening mint capacity', () => {
-    const minted = changetype<GBXToken__Minted>(newMockEvent());
+  test('tracks cumulative lifetime minting and burning', () => {
+    const minted = changetype<Minted>(newMockEvent());
     configureEvent(minted, CONTRACT, 1);
     minted.parameters = new Array<ethereum.EventParam>();
-    minted.parameters.push(addressParam('receiver', USER));
+    minted.parameters.push(addressParam('account', USER));
     minted.parameters.push(uintParam('amount', 100));
-    minted.parameters.push(uintParam('cumulativeMintedAfter', 100));
     handleMinted(minted);
 
-    const burned = changetype<GBXToken__Burned>(newMockEvent());
+    const burned = changetype<Burned>(newMockEvent());
     configureEvent(burned, CONTRACT, 2);
     burned.parameters = new Array<ethereum.EventParam>();
-    burned.parameters.push(addressParam('operator', USER_TWO));
     burned.parameters.push(addressParam('account', USER));
     burned.parameters.push(uintParam('amount', 25));
-    burned.parameters.push(uintParam('cumulativeBurnedAfter', 25));
     handleBurned(burned);
 
-    assert.fieldEquals('ProtocolState', '4663', 'cumulativeMintedRaw', '100');
-    assert.fieldEquals('ProtocolState', '4663', 'cumulativeBurnedRaw', '25');
+    assert.fieldEquals('ProtocolState', '4663', 'lifetimeMintedRaw', '100');
+    assert.fieldEquals('ProtocolState', '4663', 'lifetimeBurnedRaw', '25');
     assert.fieldEquals('ProtocolState', '4663', 'totalSupplyRaw', '75');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'gbxBurnedRaw', '25');
     assert.fieldEquals('ProtocolEvent', eventId(burned), 'eventType', 'GBX_BURNED');
   });
 
-  test('tracks beneficiary mining contribution, settlement, and claim', () => {
-    const contribution = changetype<MiningPool__Contribution>(newMockEvent());
+  test('tracks Fundraiser contributions and claims by beneficiary and epoch', () => {
+    const contribution = changetype<Contributed>(newMockEvent());
     configureEvent(contribution, CONTRACT, 1);
     contribution.parameters = new Array<ethereum.EventParam>();
-    contribution.parameters.push(uintParam('epochId', 7));
     contribution.parameters.push(addressParam('payer', USER));
     contribution.parameters.push(addressParam('beneficiary', USER_TWO));
-    contribution.parameters.push(uintParam('requestedAmount', 50));
-    contribution.parameters.push(uintParam('receivedAmount', 50));
-    contribution.parameters.push(uintParam('epochTotalAfter', 50));
-    handleMiningContribution(contribution);
+    contribution.parameters.push(uintParam('epoch', 7));
+    contribution.parameters.push(uintParam('amount', 50));
+    handleContributed(contribution);
 
-    const settled = changetype<MiningPool__EpochSettled>(newMockEvent());
-    configureEvent(settled, CONTRACT, 2);
-    settled.parameters = new Array<ethereum.EventParam>();
-    settled.parameters.push(uintParam('epochId', 7));
-    settled.parameters.push(uintParam('totalContributed', 50));
-    settled.parameters.push(uintParam('teamFee', 1));
-    settled.parameters.push(uintParam('vaultRevenue', 49));
-    settled.parameters.push(uintParam('emission', 44));
-    handleMiningEpochSettled(settled);
-
-    const claim = changetype<MiningClaims__Claimed>(newMockEvent());
-    configureEvent(claim, CONTRACT, 3);
+    const claim = changetype<Claimed>(newMockEvent());
+    configureEvent(claim, CONTRACT, 2);
     claim.parameters = new Array<ethereum.EventParam>();
-    claim.parameters.push(uintParam('epochId', 7));
-    claim.parameters.push(addressParam('beneficiary', USER_TWO));
-    claim.parameters.push(addressParam('caller', USER));
-    claim.parameters.push(uintParam('amount', 44));
-    handleMiningClaimed(claim);
+    claim.parameters.push(addressParam('account', USER_TWO));
+    claim.parameters.push(uintParam('epoch', 7));
+    claim.parameters.push(uintParam('amount', 40));
+    handleClaimed(claim);
 
     const epochId = '4663-' + CONTRACT.toHexString() + '-epoch-7';
-    assert.fieldEquals('MiningEpoch', epochId, 'settled', 'true');
-    assert.fieldEquals('MiningEpoch', epochId, 'teamFeeUSDGRaw', '1');
-    assert.fieldEquals('MiningEpoch', epochId, 'vaultRevenueUSDGRaw', '49');
-    assert.fieldEquals('MiningEpoch', epochId, 'emissionGBXRaw', '44');
-    assert.fieldEquals('Account', '4663-' + USER_TWO.toHexString(), 'miningClaimedGBXRaw', '44');
+    assert.fieldEquals('FundraiserEpoch', epochId, 'totalContributionsRaw', '50');
+    assert.fieldEquals('FundraiserEpoch', epochId, 'totalClaimedGBXRaw', '40');
+    assert.fieldEquals('Account', '4663-' + USER_TWO.toHexString(), 'contributedUSDGRaw', '50');
+    assert.fieldEquals('Account', '4663-' + USER_TWO.toHexString(), 'claimedGBXRaw', '40');
   });
 
-  test('tracks the sole position, routed fees, and terminal transfer', () => {
-    const position = changetype<LiquidityCustodian__PositionRecorded>(newMockEvent());
-    configureEvent(position, CONTRACT, 1);
-    position.parameters = new Array<ethereum.EventParam>();
-    position.parameters.push(uintParam('positionId', 11));
-    position.parameters.push(addressParam('previousOwner', USER));
-    position.parameters.push(bytesParam('poolKeyHash', HASH));
-    handlePositionRecorded(position);
+  test('tracks sequential Fundraiser settlement and liquidity fee processing', () => {
+    const settlement = changetype<EpochSettled>(newMockEvent());
+    configureEvent(settlement, CONTRACT, 1);
+    settlement.parameters = new Array<ethereum.EventParam>();
+    settlement.parameters.push(uintParam('epoch', 7));
+    settlement.parameters.push(uintParam('scheduledEmission', 100));
+    settlement.parameters.push(uintParam('contributorEmission', 80));
+    settlement.parameters.push(uintParam('nextScheduledEmission', 90));
+    handleEpochSettled(settlement);
 
-    const fees = changetype<LiquidityCustodian__FeesCollected>(newMockEvent());
+    const fees = changetype<FeesProcessed>(newMockEvent());
     configureEvent(fees, CONTRACT, 2);
     fees.parameters = new Array<ethereum.EventParam>();
-    fees.parameters.push(uintParam('positionId', 11));
-    fees.parameters.push(addressParam('caller', USER_TWO));
-    fees.parameters.push(uintParam('gbxBurned', 2));
-    fees.parameters.push(uintParam('usdGToVault', 3));
-    handleFeesCollected(fees);
+    fees.parameters.push(uintParam('positionTokenId', 11));
+    fees.parameters.push(addressParam('caller', USER));
+    fees.parameters.push(uintParam('gbxBurned', 10));
+    fees.parameters.push(uintParam('usdgRouted', 20));
+    handleFeesProcessed(fees);
 
-    const transferred = changetype<LiquidityCustodian__PositionTransferred>(newMockEvent());
-    configureEvent(transferred, CONTRACT, 3);
-    transferred.parameters = new Array<ethereum.EventParam>();
-    transferred.parameters.push(uintParam('positionId', 11));
-    transferred.parameters.push(addressParam('recipient', USER_TWO));
-    handlePositionTransferred(transferred);
+    const fundraiserEpochId = '4663-' + CONTRACT.toHexString() + '-epoch-7';
+    assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'settled', 'true');
+    assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'scheduledEmissionRaw', '100');
+    assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'contributorEmissionRaw', '80');
+    assert.fieldEquals('ProtocolState', '4663', 'liquidityGBXBurnedRaw', '10');
+    assert.fieldEquals('ProtocolState', '4663', 'liquidityUSDGRoutedRaw', '20');
+    assert.fieldEquals('ProtocolEvent', eventId(fees), 'eventType', 'LIQUIDITY_FEES_PROCESSED');
+  });
 
-    const positionId = '4663-' + CONTRACT.toHexString() + '-position-11';
-    assert.fieldEquals('LiquidityPosition', positionId, 'poolKeyHash', HASH.toHexString());
-    assert.fieldEquals('LiquidityPosition', positionId, 'gbxFeesBurnedRaw', '2');
-    assert.fieldEquals('LiquidityPosition', positionId, 'usdgFeesToVaultRaw', '3');
-    assert.fieldEquals('LiquidityPosition', positionId, 'inCustody', 'false');
-    assert.fieldEquals('LiquidityPosition', positionId, 'transferredTo', USER_TWO.toHexString());
-    assert.fieldEquals('ProtocolState', '4663', 'liquidityFeesBurnedGBXRaw', '2');
-    assert.fieldEquals('ProtocolState', '4663', 'liquidityFeesToVaultUSDGRaw', '3');
+  test('tracks Strategy creation and unrestricted vote replacement events', () => {
+    const added = changetype<StrategyAdded>(newMockEvent());
+    configureEvent(added, CONTRACT, 1);
+    added.parameters = new Array<ethereum.EventParam>();
+    added.parameters.push(addressParam('strategy', STRATEGY));
+    added.parameters.push(addressParam('bribe', REWARDS));
+    added.parameters.push(addressParam('bribeRouter', USER_TWO));
+    added.parameters.push(addressParam('paymentToken', ASSET));
+    added.parameters.push(uintParam('kind', 0));
+    handleStrategyAdded(added);
+
+    const cast = changetype<VoteCast>(newMockEvent());
+    configureEvent(cast, CONTRACT, 2);
+    cast.parameters = new Array<ethereum.EventParam>();
+    cast.parameters.push(addressParam('account', USER));
+    cast.parameters.push(addressParam('strategy', STRATEGY));
+    cast.parameters.push(uintParam('weight', 100));
+    handleVoteCast(cast);
+
+    const reset = changetype<VoteReset>(newMockEvent());
+    configureEvent(reset, CONTRACT, 3);
+    reset.parameters = new Array<ethereum.EventParam>();
+    reset.parameters.push(addressParam('account', USER));
+    reset.parameters.push(addressParam('strategy', STRATEGY));
+    reset.parameters.push(uintParam('weight', 100));
+    handleVoteReset(reset);
+
+    const strategyId = '4663-' + STRATEGY.toHexString();
+    assert.fieldEquals('ProtocolState', '4663', 'strategyCount', '1');
+    assert.fieldEquals('Strategy', strategyId, 'paymentToken', ASSET.toHexString());
+    assert.fieldEquals('Strategy', strategyId, 'totalWeightRaw', '0');
+    assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'votingWeightRaw', '0');
   });
 });

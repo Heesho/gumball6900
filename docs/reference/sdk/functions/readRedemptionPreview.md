@@ -6,19 +6,20 @@
 
 # Function: readRedemptionPreview()
 
-> **readRedemptionPreview**(`client`, `contracts`, `shares`, `options?`): `Promise`\<\{ `amounts`: `bigint`[]; `assets`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `shares`: `bigint`; `supplyBefore`: `bigint`; \}\>
+> **readRedemptionPreview**(`client`, `contracts`, `gbxAmount`, `tokens`, `options?`): `Promise`\<\{ `amounts`: `bigint`[]; `blockNumber`: `bigint`; `gbxAmount`: `bigint`; `supplyBefore`: `bigint`; `tokens`: `` `0x${string}` ``[]; \}\>
 
-Computes the exact raw-basket preview from the same pre-burn balance and supply inputs used by the vault.
+Computes a registry-free Fund redemption preview for exactly the tokens selected by the caller.
 
 ## Parameters
 
-| Parameter   | Type                                                                                  |
-| ----------- | ------------------------------------------------------------------------------------- |
-| `client`    | \{ \}                                                                                 |
-| `contracts` | `Readonly`\<\{ `assetRegistry`: `Address`; `gbx`: `Address`; `vault`: `Address`; \}\> |
-| `shares`    | `bigint`                                                                              |
-| `options`   | [`ReadOptions`](../interfaces/ReadOptions.md)                                         |
+| Parameter   | Type                                                     |
+| ----------- | -------------------------------------------------------- |
+| `client`    | \{ \}                                                    |
+| `contracts` | `Readonly`\<\{ `fund`: `Address`; `gbx`: `Address`; \}\> |
+| `gbxAmount` | `bigint`                                                 |
+| `tokens`    | readonly `` `0x${string}` ``[]                           |
+| `options`   | [`ReadOptions`](../interfaces/ReadOptions.md)            |
 
 ## Returns
 
-`Promise`\<\{ `amounts`: `bigint`[]; `assets`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `shares`: `bigint`; `supplyBefore`: `bigint`; \}\>
+`Promise`\<\{ `amounts`: `bigint`[]; `blockNumber`: `bigint`; `gbxAmount`: `bigint`; `supplyBefore`: `bigint`; `tokens`: `` `0x${string}` ``[]; \}\>

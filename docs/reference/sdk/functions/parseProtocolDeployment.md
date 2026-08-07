@@ -22,53 +22,45 @@
 
 > **addresses**: `object` = `protocolAddressesSchema`
 
-#### addresses.allocationVoter
+#### addresses.bribeFactory
 
-> **allocationVoter**: `` `0x${string}` `` = `addressSchema`
+> **bribeFactory**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.assetRegistry
+#### addresses.fund
 
-> **assetRegistry**: `` `0x${string}` `` = `addressSchema`
+> **fund**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.buybackStrategy
+#### addresses.fundraiser
 
-> **buybackStrategy**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.emergencyGuardian
-
-> **emergencyGuardian**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.emissionController
-
-> **emissionController**: `` `0x${string}` `` = `addressSchema`
+> **fundraiser**: `` `0x${string}` `` = `addressSchema`
 
 #### addresses.gbx
 
 > **gbx**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.gumBallVault
+#### addresses.liquidityPosition
 
-> **gumBallVault**: `` `0x${string}` `` = `addressSchema`
+> **liquidityPosition**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.liquidityCustodian
+#### addresses.signalGBX
 
-> **liquidityCustodian**: `` `0x${string}` `` = `addressSchema`
+> **signalGBX**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.miningClaims
+#### addresses.strategyFactory
 
-> **miningClaims**: `` `0x${string}` `` = `addressSchema`
+> **strategyFactory**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.miningPool
+#### addresses.timelockController
 
-> **miningPool**: `` `0x${string}` `` = `addressSchema`
+> **timelockController**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.protocolTimelock
+#### addresses.voter
 
-> **protocolTimelock**: `` `0x${string}` `` = `addressSchema`
+> **voter**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.stakedGBX
+#### addresses.voterRouter
 
-> **stakedGBX**: `` `0x${string}` `` = `addressSchema`
+> **voterRouter**: `` `0x${string}` `` = `addressSchema`
 
 ### chainId
 

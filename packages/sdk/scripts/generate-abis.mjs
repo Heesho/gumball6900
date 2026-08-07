@@ -11,20 +11,19 @@ const outputPath = resolve(scriptDirectory, '../src/generated-abis.ts');
 const v4PeripheryOut = resolve(scriptDirectory, '../node_modules/@uniswap/v4-periphery/foundry-out');
 
 const contracts = [
-  ['acquisitionStrategyAbi', 'AcquisitionStrategy.sol/AcquisitionStrategy.json'],
-  ['allocationVoterAbi', 'AllocationVoter.sol/AllocationVoter.json'],
-  ['assetRegistryAbi', 'AssetRegistry.sol/AssetRegistry.json'],
-  ['buybackStrategyAbi', 'BuybackStrategy.sol/BuybackStrategy.json'],
-  ['emergencyGuardianAbi', 'EmergencyGuardian.sol/EmergencyGuardian.json'],
-  ['emissionControllerAbi', 'EmissionController.sol/EmissionController.json'],
-  ['gbxAbi', 'GBXToken.sol/GBXToken.json'],
-  ['gumBallVaultAbi', 'GumBallVault.sol/GumBallVault.json'],
-  ['liquidityCustodianAbi', 'LiquidityCustodian.sol/LiquidityCustodian.json'],
-  ['miningClaimsAbi', 'MiningClaims.sol/MiningClaims.json'],
-  ['miningPoolAbi', 'MiningPool.sol/MiningPool.json'],
-  ['protocolTimelockAbi', 'ProtocolTimelock.sol/ProtocolTimelock.json'],
-  ['stakedGbxAbi', 'StakedGBX.sol/StakedGBX.json'],
-  ['strategyRewardsAbi', 'StrategyRewards.sol/StrategyRewards.json'],
+  ['bribeAbi', 'Bribe.sol/Bribe.json'],
+  ['bribeFactoryAbi', 'BribeFactory.sol/BribeFactory.json'],
+  ['bribeRouterAbi', 'BribeRouter.sol/BribeRouter.json'],
+  ['fundAbi', 'Fund.sol/Fund.json'],
+  ['fundraiserAbi', 'Fundraiser.sol/Fundraiser.json'],
+  ['gbxAbi', 'GBX.sol/GBX.json'],
+  ['liquidityPositionAbi', 'LiquidityPosition.sol/LiquidityPosition.json'],
+  ['timelockControllerAbi', 'TimelockController.sol/TimelockController.json'],
+  ['signalGbxAbi', 'SignalGBX.sol/SignalGBX.json'],
+  ['strategyAbi', 'Strategy.sol/Strategy.json'],
+  ['strategyFactoryAbi', 'StrategyFactory.sol/StrategyFactory.json'],
+  ['voterAbi', 'Voter.sol/Voter.json'],
+  ['voterRouterAbi', 'VoterRouter.sol/VoterRouter.json'],
 ];
 
 const externalContracts = [['v4QuoterAbi', resolve(v4PeripheryOut, 'IV4Quoter.sol/IV4Quoter.json')]];

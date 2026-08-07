@@ -6,17 +6,19 @@
 
 # Function: readSignalView()
 
-> **readSignalView**(`client`, `contracts`, `user`, `options?`): `Promise`\<\{ `activeStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalIncreasesPaused`: `boolean`; `stakedBalance`: `bigint`; `usedWeight`: `bigint`; \}\>
+> **readSignalView**(`client`, `contracts`, `account`, `options?`): `Promise`\<\{ `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; `usedWeight`: `bigint`; \}\>
+
+Reads an account's current SignalGBX balance and unrestricted allocation.
 
 ## Parameters
 
-| Parameter   | Type                                                                      |
-| ----------- | ------------------------------------------------------------------------- |
-| `client`    | \{ \}                                                                     |
-| `contracts` | `Readonly`\<\{ `allocationVoter`: `Address`; `stakedGBX`: `Address`; \}\> |
-| `user`      | `` `0x${string}` ``                                                       |
-| `options`   | [`ReadOptions`](../interfaces/ReadOptions.md)                             |
+| Parameter   | Type                                                            |
+| ----------- | --------------------------------------------------------------- |
+| `client`    | \{ \}                                                           |
+| `contracts` | `Readonly`\<\{ `signalGBX`: `Address`; `voter`: `Address`; \}\> |
+| `account`   | `` `0x${string}` ``                                             |
+| `options`   | [`ReadOptions`](../interfaces/ReadOptions.md)                   |
 
 ## Returns
 
-`Promise`\<\{ `activeStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalIncreasesPaused`: `boolean`; `stakedBalance`: `bigint`; `usedWeight`: `bigint`; \}\>
+`Promise`\<\{ `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; `usedWeight`: `bigint`; \}\>

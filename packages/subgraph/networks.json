@@ -1,15 +1,12 @@
 {
   "robinhood": {
-    "GBXToken": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "EmissionController": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "MiningPool": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "MiningClaims": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "StakedGBX": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "AllocationVoter": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "GumBallVault": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "AssetRegistry": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "LiquidityCustodian": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "EmergencyGuardian": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "ProtocolTimelock": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 }
+    "GBX": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
+    "Fundraiser": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
+    "LiquidityPosition": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
+    "SignalGBX": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
+    "VoterRouter": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
+    "Voter": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
+    "Fund": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
+    "TimelockController": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 }
   }
 }

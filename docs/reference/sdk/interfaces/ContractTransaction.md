@@ -6,7 +6,7 @@
 
 # Interface: ContractTransaction
 
-Wallet-ready call with no native-currency transfer.
+Wallet-ready contract call with no native-currency transfer.
 
 ## Properties
 

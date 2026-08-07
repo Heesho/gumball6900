@@ -14,14 +14,14 @@ export interface AllNonEmptyEmissionResult {
   nextScheduledEmission: bigint;
 }
 
-export interface MiningEpochQuoteInput {
+export interface FundraiserEpochQuoteInput {
   scheduledEmission: bigint;
   cumulativeMinted: bigint;
   /** Observed raw USDG receipt. Its magnitude does not scale the emission. */
   totalContributedRaw: bigint;
 }
 
-export interface MiningEpochQuote {
+export interface FundraiserEpochQuote {
   scheduledEmission: bigint;
   availableEmission: bigint;
   actualEmission: bigint;
@@ -72,11 +72,11 @@ export function simulateAllNonEmptyEmissions(epochCount: number): AllNonEmptyEmi
 }
 
 /**
- * Mirrors EmissionController.settleMiningEpoch: every non-empty epoch receives
+ * Mirrors Fundraiser settlement: every non-empty epoch receives
  * the complete cap-bounded schedule, while an empty epoch receives zero and
  * permanently forfeits that day's schedule. Contribution size is intentionally irrelevant.
  */
-export function quoteMiningEpoch(input: MiningEpochQuoteInput): MiningEpochQuote {
+export function quoteFundraiserEpoch(input: FundraiserEpochQuoteInput): FundraiserEpochQuote {
   assertNonNegative(input.scheduledEmission, 'scheduledEmission');
   assertNonNegative(input.cumulativeMinted, 'cumulativeMinted');
   assertNonNegative(input.totalContributedRaw, 'totalContributedRaw');
@@ -92,7 +92,7 @@ export function quoteMiningEpoch(input: MiningEpochQuoteInput): MiningEpochQuote
   };
 }
 
-export function estimateMiningClaim(
+export function estimateFundraiserClaim(
   beneficiaryContribution: bigint,
   totalEpochUSDG: bigint,
   actualEmission: bigint,

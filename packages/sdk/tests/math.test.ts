@@ -12,7 +12,7 @@ import {
   MAX_AUCTION_EPOCH_PERIOD,
   MAX_AUCTION_PRICE_MULTIPLIER,
   MAX_CUMULATIVE_MINT,
-  MINING_EMISSION_ALLOCATION,
+  FUNDRAISER_DISTRIBUTION_ALLOCATION,
   MIN_AUCTION_EPOCH_PERIOD,
   MIN_AUCTION_PRICE_MULTIPLIER,
   WAD,
@@ -20,14 +20,14 @@ import {
   auctionPriceAt,
   currentTotalSupply,
   earnedStrategyReward,
-  estimateMiningClaim,
+  estimateFundraiserClaim,
   mulDiv,
   mulDivUp,
   netSupplyChange,
   nextAuctionInitPrice,
   previewRedemption,
   projectTotalSupply,
-  quoteMiningEpoch,
+  quoteFundraiserEpoch,
   redemptionPercentageWad,
   simulateAllNonEmptyEmissions,
   splitAcquiredAsset,
@@ -51,14 +51,14 @@ describe('integer helpers', () => {
   });
 });
 
-describe('emission schedule and mining quotes', () => {
+describe('Fundraiser distribution schedule and epoch quotes', () => {
   it('uses the fixed constants from the master specification', () => {
     expect(DAILY_DECAY_WAD).toBe(999_525_354_337_060_160n);
     expect(GENESIS_TOTAL_SUPPLY).toBe(token(20_000_000n));
-    expect(MINING_EMISSION_ALLOCATION).toBe(token(980_000_000n));
+    expect(FUNDRAISER_DISTRIBUTION_ALLOCATION).toBe(token(980_000_000n));
     expect(INITIAL_DAILY_SCHEDULED_EMISSION).toBe(465_152_749_681_042_811_702_004n);
     expect(INITIAL_DAILY_SCHEDULED_EMISSION).toBe(
-      mulDiv(MINING_EMISSION_ALLOCATION, HALF_LIFE_DECAY_COMPLEMENT_X54, HALF_LIFE_DERIVATION_PRECISION),
+      mulDiv(FUNDRAISER_DISTRIBUTION_ALLOCATION, HALF_LIFE_DECAY_COMPLEMENT_X54, HALF_LIFE_DERIVATION_PRECISION),
     );
   });
 
@@ -84,7 +84,7 @@ describe('emission schedule and mining quotes', () => {
     const result = simulateAllNonEmptyEmissions(36_500);
 
     expect(result.totalCumulativeMinted).toBeLessThanOrEqual(MAX_CUMULATIVE_MINT);
-    expect(result.recurringMinted).toBeLessThanOrEqual(MINING_EMISSION_ALLOCATION);
+    expect(result.recurringMinted).toBeLessThanOrEqual(FUNDRAISER_DISTRIBUTION_ALLOCATION);
   });
 
   it('quotes complete non-empty emissions without demand scaling and forfeits empty epochs', () => {
@@ -93,20 +93,20 @@ describe('emission schedule and mining quotes', () => {
       cumulativeMinted: GENESIS_TOTAL_SUPPLY,
     };
 
-    const large = quoteMiningEpoch({ ...common, totalContributedRaw: usdg(250n) });
-    const oneAtom = quoteMiningEpoch({ ...common, totalContributedRaw: 1n });
+    const large = quoteFundraiserEpoch({ ...common, totalContributedRaw: usdg(250n) });
+    const oneAtom = quoteFundraiserEpoch({ ...common, totalContributedRaw: 1n });
     expect(large.nonEmpty).toBe(true);
     expect(large.actualEmission).toBe(token(100n));
     expect(oneAtom.actualEmission).toBe(large.actualEmission);
 
-    const empty = quoteMiningEpoch({ ...common, totalContributedRaw: 0n });
+    const empty = quoteFundraiserEpoch({ ...common, totalContributedRaw: 0n });
     expect(empty.nonEmpty).toBe(false);
     expect(empty.actualEmission).toBe(0n);
     expect(empty.forfeitedEmission).toBe(token(100n));
   });
 
   it('uses pro-rata claim accounting', () => {
-    expect(estimateMiningClaim(token(25n), token(100n), token(80n))).toBe(token(20n));
+    expect(estimateFundraiserClaim(token(25n), token(100n), token(80n))).toBe(token(20n));
   });
 });
 

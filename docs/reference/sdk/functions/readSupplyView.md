@@ -6,7 +6,9 @@
 
 # Function: readSupplyView()
 
-> **readSupplyView**(`client`, `gbx`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `cumulativeBurned`: `bigint`; `cumulativeMinted`: `bigint`; `emissionController`: `` `0x${string}` ``; `remainingMintCapacity`: `bigint`; `totalSupply`: `bigint`; \}\>
+> **readSupplyView**(`client`, `gbx`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `lifetimeBurned`: `bigint`; `lifetimeMinted`: `bigint`; `minter`: `` `0x${string}` ``; `minterLocked`: `boolean`; `remainingMintableSupply`: `bigint`; `totalSupply`: `bigint`; \}\>
+
+Reads the complete GBX lifetime-supply state from one canonical block.
 
 ## Parameters
 
@@ -18,4 +20,4 @@
 
 ## Returns
 
-`Promise`\<\{ `blockNumber`: `bigint`; `cumulativeBurned`: `bigint`; `cumulativeMinted`: `bigint`; `emissionController`: `` `0x${string}` ``; `remainingMintCapacity`: `bigint`; `totalSupply`: `bigint`; \}\>
+`Promise`\<\{ `blockNumber`: `bigint`; `lifetimeBurned`: `bigint`; `lifetimeMinted`: `bigint`; `minter`: `` `0x${string}` ``; `minterLocked`: `boolean`; `remainingMintableSupply`: `bigint`; `totalSupply`: `bigint`; \}\>

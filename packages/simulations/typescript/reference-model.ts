@@ -4,7 +4,7 @@ import {
   DAILY_DECAY_WAD,
   GENESIS_TOTAL_SUPPLY,
   INITIAL_DAILY_SCHEDULED_EMISSION,
-  MINING_EMISSION_ALLOCATION,
+  FUNDRAISER_DISTRIBUTION_ALLOCATION,
   auctionPriceAt,
   currentTotalSupply,
   earnedStrategyReward,
@@ -12,7 +12,7 @@ import {
   previewRedemption,
   projectTotalSupply,
   nextAuctionInitPrice,
-  quoteMiningEpoch,
+  quoteFundraiserEpoch,
   redemptionPercentageWad,
   simulateAllNonEmptyEmissions,
   splitAcquiredAsset,
@@ -50,7 +50,7 @@ function emissionScheduleLifetime() {
   return {
     positiveEpochs: positiveEpochs.toString(),
     sequentialScheduledTotal: scheduledTotal.toString(),
-    nominalAllocationResidual: (MINING_EMISSION_ALLOCATION - scheduledTotal).toString(),
+    nominalAllocationResidual: (FUNDRAISER_DISTRIBUTION_ALLOCATION - scheduledTotal).toString(),
   };
 }
 
@@ -235,7 +235,7 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
     usdGDecimals: scenarios.usdGDecimals,
     targetDecimals: scenarios.targetDecimals,
     genesisSupply: GENESIS_TOTAL_SUPPLY.toString(),
-    miningEmissionAllocation: MINING_EMISSION_ALLOCATION.toString(),
+    miningEmissionAllocation: FUNDRAISER_DISTRIBUTION_ALLOCATION.toString(),
     initialDailyScheduledEmission: INITIAL_DAILY_SCHEDULED_EMISSION.toString(),
     emissionDaily100YearDigest: emissionDailyDigest(DAILY_DIFFERENTIAL_DAYS),
     emissionScheduleLifetime: emissionScheduleLifetime(),
@@ -249,7 +249,7 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
       };
     }),
     miningQuotes: scenarios.miningCases.map((scenario) => {
-      const quote = quoteMiningEpoch({
+      const quote = quoteFundraiserEpoch({
         scheduledEmission: BigInt(scenario.scheduledEmission),
         cumulativeMinted: BigInt(scenario.cumulativeMinted),
         totalContributedRaw: BigInt(scenario.totalContributedRaw),

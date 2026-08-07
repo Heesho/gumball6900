@@ -6,13 +6,15 @@
 
 # Function: buildCollectLiquidityFees()
 
-> **buildCollectLiquidityFees**(`liquidityCustodian`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildCollectLiquidityFees**(`liquidityPosition`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+
+Collects canonical v4 position fees, burns GBX, and routes USDG through VoterRouter.
 
 ## Parameters
 
-| Parameter            | Type                |
-| -------------------- | ------------------- |
-| `liquidityCustodian` | `` `0x${string}` `` |
+| Parameter           | Type                |
+| ------------------- | ------------------- |
+| `liquidityPosition` | `` `0x${string}` `` |
 
 ## Returns
 

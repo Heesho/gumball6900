@@ -8,6 +8,8 @@
 
 > **buildGBXBurn**(`gbx`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
+Burns GBX held by the caller.
+
 ## Parameters
 
 | Parameter | Type                |
