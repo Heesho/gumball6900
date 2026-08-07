@@ -1,6 +1,6 @@
 # GUM BALL 6900
 
-## The community-directed onchain index
+## The community-directed onchain index fund
 
 **Contribute stablecoins. Direct acquisitions. Build a shared treasury. Redeem onchain.**
 
