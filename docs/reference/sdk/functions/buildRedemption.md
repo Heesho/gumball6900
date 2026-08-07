@@ -6,15 +6,18 @@
 
 # Function: buildRedemption()
 
-> **buildRedemption**(`vault`, `shares`, `receiver`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildRedemption**(`fund`, `gbxAmount`, `receiver`, `tokens`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+
+Burns GBX and redeems a caller-selected, registry-free Fund basket.
 
 ## Parameters
 
-| Parameter  | Type                |
-| ---------- | ------------------- |
-| `vault`    | `` `0x${string}` `` |
-| `shares`   | `bigint`            |
-| `receiver` | `` `0x${string}` `` |
+| Parameter   | Type                           |
+| ----------- | ------------------------------ |
+| `fund`      | `` `0x${string}` ``            |
+| `gbxAmount` | `bigint`                       |
+| `receiver`  | `` `0x${string}` ``            |
+| `tokens`    | readonly `` `0x${string}` ``[] |
 
 ## Returns
 

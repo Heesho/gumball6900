@@ -6,13 +6,15 @@
 
 # Function: buildStake()
 
-> **buildStake**(`stakedGBX`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildStake**(`signalGBX`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+
+Stakes GBX one-for-one for non-transferable SignalGBX.
 
 ## Parameters
 
 | Parameter   | Type                |
 | ----------- | ------------------- |
-| `stakedGBX` | `` `0x${string}` `` |
+| `signalGBX` | `` `0x${string}` `` |
 | `amount`    | `bigint`            |
 
 ## Returns

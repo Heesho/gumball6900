@@ -5,775 +5,1092 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 34. Documented ABI entries: 581. Documented public ABI functions: 348.
+Documented source surfaces: 17. Documented ABI entries: 480. Documented public ABI functions: 249.
 
-## EmergencyGuardian
+## Bribe
 
-Source: [`src/access/EmergencyGuardian.sol`](../../packages/contracts/src/access/EmergencyGuardian.sol)
+Source: [`src/core/Bribe.sol`](../../packages/contracts/src/core/Bribe.sol)
 
-Artifact: `out/EmergencyGuardian.sol/EmergencyGuardian.json`
+Artifact: `out/Bribe.sol/Bribe.json`
 
-Public ABI: 11 functions, 5 events, 4 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address)`
-
-```solidity
-constructor(address operator, address targetInitializer);
-```
-
-Configures the fixed guardian operator and one-time target initializer.
-
-### `OPERATOR()`
-
-```solidity
-function OPERATOR() external view returns (address arg0);
-```
-
-Account allowed to invoke the stop-only guardian actions.
-
-### `TARGET_INITIALIZER()`
-
-```solidity
-function TARGET_INITIALIZER() external view returns (address arg0);
-```
-
-Deployment coordinator allowed to bind guardian targets once.
-
-### `allocationVoter()`
-
-```solidity
-function allocationVoter() external view returns (contract IAllocationVoter arg0);
-```
-
-Allocation voter whose signal increases the guardian can pause.
-
-### `assetRegistry()`
-
-```solidity
-function assetRegistry() external view returns (contract IAssetRegistry arg0);
-```
-
-Registry whose live strategies the guardian can disable.
-
-### `disableStrategy(address)`
-
-```solidity
-function disableStrategy(address strategy) external;
-```
-
-Terminally disables one live strategy in both registry and voter.
-
-### `initializeTargets(address,address,address)`
-
-```solidity
-function initializeTargets(contract IMiningPool miningPool_, contract IAllocationVoter allocationVoter_, contract IAssetRegistry assetRegistry_) external;
-```
-
-Binds the mining pool, allocation voter, and asset registry once.
-
-### `miningPool()`
-
-```solidity
-function miningPool() external view returns (contract IMiningPool arg0);
-```
-
-Mining pool whose contributions the guardian can pause.
-
-### `pauseMiningContributions()`
-
-```solidity
-function pauseMiningContributions() external;
-```
-
-Stops new mining contributions through the configured pool.
-
-### `pauseSignalIncreases()`
-
-```solidity
-function pauseSignalIncreases() external;
-```
-
-Stops allocation-signal increases through the configured voter.
-
-### `pauseStrategyFills(address)`
-
-```solidity
-function pauseStrategyFills(address strategy) external;
-```
-
-Stops fills on one currently live strategy.
-
-### `targetsInitialized()`
-
-```solidity
-function targetsInitialized() external view returns (bool arg0);
-```
-
-Whether the three emergency targets have been bound.
-
-### Events
-
-#### `EmergencyGuardian__MiningPaused(address)`
-
-```solidity
-event EmergencyGuardian__MiningPaused(address indexed miningPool);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EmergencyGuardian__SignalIncreasesPaused(address)`
-
-```solidity
-event EmergencyGuardian__SignalIncreasesPaused(address indexed voter);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EmergencyGuardian__StrategyDisabled(address)`
-
-```solidity
-event EmergencyGuardian__StrategyDisabled(address indexed strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EmergencyGuardian__StrategyFillsPaused(address)`
-
-```solidity
-event EmergencyGuardian__StrategyFillsPaused(address indexed strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EmergencyGuardian__TargetsInitialized(address,address,address)`
-
-```solidity
-event EmergencyGuardian__TargetsInitialized(address indexed miningPool, address indexed allocationVoter, address indexed assetRegistry);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-### Custom errors
-
-#### `EmergencyGuardian__AlreadyInitialized()`
-
-```solidity
-error EmergencyGuardian__AlreadyInitialized();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EmergencyGuardian__StrategyNotLive(address)`
-
-```solidity
-error EmergencyGuardian__StrategyNotLive(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EmergencyGuardian__Unauthorized(address)`
-
-```solidity
-error EmergencyGuardian__Unauthorized(address caller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EmergencyGuardian__ZeroAddress()`
-
-```solidity
-error EmergencyGuardian__ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-## IEmergencyAssetRegistry
-
-Source: [`src/access/EmergencyGuardian.sol`](../../packages/contracts/src/access/EmergencyGuardian.sol)
-
-Artifact: `out/EmergencyGuardian.sol/IEmergencyAssetRegistry.json`
-
-Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `disableStrategy(address)`
-
-```solidity
-function disableStrategy(address strategy) external;
-```
-
-Irreversibly disables one registered strategy.
-
-## IEmergencyStrategyPause
-
-Source: [`src/access/EmergencyGuardian.sol`](../../packages/contracts/src/access/EmergencyGuardian.sol)
-
-Artifact: `out/EmergencyGuardian.sol/IEmergencyStrategyPause.json`
-
-Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `pauseFills()`
-
-```solidity
-function pauseFills() external;
-```
-
-Stops new auction fills.
-
-## ITimelockedAssetRegistry
-
-Source: [`src/access/ProtocolTimelock.sol`](../../packages/contracts/src/access/ProtocolTimelock.sol)
-
-Artifact: `out/ProtocolTimelock.sol/ITimelockedAssetRegistry.json`
-
-Public ABI: 3 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `disableStrategy(address)`
-
-```solidity
-function disableStrategy(address strategy) external;
-```
-
-Irreversibly disables one registered strategy.
-
-### `registerAsset(address,address,address)`
-
-```solidity
-function registerAsset(address token, address strategy, address rewards) external;
-```
-
-Registers one target asset and its strategy-rewards graph.
-
-### `registerStandaloneStrategy(address)`
-
-```solidity
-function registerStandaloneStrategy(address strategy) external;
-```
-
-Registers a strategy that does not add an asset to the basket.
-
-## ITimelockedLiquidityCustodian
-
-Source: [`src/access/ProtocolTimelock.sol`](../../packages/contracts/src/access/ProtocolTimelock.sol)
-
-Artifact: `out/ProtocolTimelock.sol/ITimelockedLiquidityCustodian.json`
-
-Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `transferPosition(address)`
-
-```solidity
-function transferPosition(address recipient) external;
-```
-
-Transfers the recorded position NFT to a reviewed contract.
-
-## ITimelockedStrategy
-
-Source: [`src/access/ProtocolTimelock.sol`](../../packages/contracts/src/access/ProtocolTimelock.sol)
-
-Artifact: `out/ProtocolTimelock.sol/ITimelockedStrategy.json`
-
-Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `resumeFills()`
-
-```solidity
-function resumeFills() external;
-```
-
-Re-enables auction fills.
-
-## ProtocolTimelock
-
-Source: [`src/access/ProtocolTimelock.sol`](../../packages/contracts/src/access/ProtocolTimelock.sol)
-
-Artifact: `out/ProtocolTimelock.sol/ProtocolTimelock.json`
-
-Public ABI: 23 functions, 6 events, 4 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 19 functions, 5 events, 10 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address)`
 
 ```solidity
-constructor(address proposer);
+constructor(address voter_);
 ```
 
-Configures the sole operation proposer.
+Creates a reward stream controlled by `voter_`.
 
-### `DELAY()`
+**Parameters**
+
+- `voter_`: Voter exclusively authorized to maintain virtual balances.
+
+### `REWARD_DURATION()`
 
 ```solidity
-function DELAY() external view returns (uint256 arg0);
+function REWARD_DURATION() external view returns (uint256 arg0);
 ```
 
-Fixed delay applied to every typed operation.
+Duration of each reward stream.
 
-### `PROPOSER()`
+### `REWARD_PRECISION()`
 
 ```solidity
-function PROPOSER() external view returns (address arg0);
+function REWARD_PRECISION() external view returns (uint256 arg0);
 ```
 
-Account allowed to schedule typed operations.
+Fixed-point precision used for cumulative rewards per unit of voting weight.
 
-### `executeAssetRegistration(address,address,address,address,bytes32)`
+### `addRewardToken(address)`
 
 ```solidity
-function executeAssetRegistration(address registry, address token, address strategy, address rewards, bytes32 salt) external;
+function addRewardToken(address rewardToken) external;
 ```
 
-Executes a ready target asset and strategy-rewards registration.
+Registers an additional token that may be distributed by this Bribe.
 
-### `executeEmissionControllerReplacement(address,address,bytes32)`
+**Parameters**
+
+- `rewardToken`: Token to register.
+
+### `balanceOf(address)`
 
 ```solidity
-function executeEmissionControllerReplacement(contract IGBXToken token, address controller, bytes32 salt) external;
+function balanceOf(address account) external view returns (uint256 balance);
 ```
 
-Executes a ready GBX emission-controller replacement.
+Virtual voting weight assigned to each account.
 
-### `executeMiningResume(address,bytes32)`
+### `claimRewards(address)`
 
 ```solidity
-function executeMiningResume(contract IMiningPool miningPool, bytes32 salt) external;
+function claimRewards(address account) external;
 ```
 
-Executes a ready resumption of mining contributions.
+Claims every registered reward token earned by `account`.
+Anyone may trigger a claim, but rewards are always sent directly to `account`.
 
-### `executePositionTransfer(address,address,bytes32)`
+**Parameters**
+
+- `account`: Account whose accrued rewards are paid.
+
+### `deposit(uint256,address)`
 
 ```solidity
-function executePositionTransfer(address custodian, address recipient, bytes32 salt) external;
+function deposit(uint256 amount, address account) external;
 ```
 
-Executes a ready transfer of a custodian's recorded position NFT.
+Adds virtual voting weight for `account`.
 
-### `executeSignalResume(address,bytes32)`
+**Parameters**
+
+- `account`: Account whose virtual balance increases.
+- `amount`: Weight to add.
+
+### `earned(address,address)`
 
 ```solidity
-function executeSignalResume(contract IAllocationVoter voter, bytes32 salt) external;
+function earned(address account, address rewardToken) external view returns (uint256 amount);
 ```
 
-Executes a ready resumption of allocation-signal increases.
+Returns rewards accrued by `account` for `rewardToken`.
 
-### `executeStandaloneStrategyRegistration(address,address,bytes32)`
+**Parameters**
+
+- `account`: Account whose rewards are queried.
+- `rewardToken`: Reward token to query.
+
+**Returns**
+
+- `amount`: Accrued, unclaimed reward amount.
+
+### `isRewardToken(address)`
 
 ```solidity
-function executeStandaloneStrategyRegistration(address registry, address strategy, bytes32 salt) external;
+function isRewardToken(address token) external view returns (bool isReward);
 ```
 
-Executes a ready standalone strategy registration.
+Whether a token is registered as a reward for this Bribe.
 
-### `executeStrategyDisablement(address,address,address,bytes32)`
+### `lastTimeRewardApplicable(address)`
 
 ```solidity
-function executeStrategyDisablement(address registry, contract IAllocationVoter voter, address strategy, bytes32 salt) external;
+function lastTimeRewardApplicable(address rewardToken) external view returns (uint256 timestamp);
 ```
 
-Executes a ready terminal strategy disablement.
+Returns the last timestamp that contributes to the current reward period.
 
-### `executeStrategyResume(address,bytes32)`
+**Parameters**
+
+- `rewardToken`: Token whose stream is queried.
+
+**Returns**
+
+- `timestamp`: Current time capped at the stream's finishing time.
+
+### `left(address)`
 
 ```solidity
-function executeStrategyResume(address strategy, bytes32 salt) external;
+function left(address rewardToken) external view returns (uint256 amount);
 ```
 
-Executes a ready resumption of strategy fills.
+Returns rewards still scheduled for distribution.
 
-### `executeTeamAddressUpdate(address,address,bytes32)`
+**Parameters**
+
+- `rewardToken`: Token whose stream is queried.
+
+**Returns**
+
+- `amount`: Undistributed rewards remaining in the active stream.
+
+### `notifyRewardAmount(address,uint256)`
 
 ```solidity
-function executeTeamAddressUpdate(contract IMiningPool miningPool, address team, bytes32 salt) external;
+function notifyRewardAmount(address rewardToken, uint256 amount) external;
 ```
 
-Executes a ready mining team-fee receiver update.
+Adds `amount` to a seven-day reward stream for `rewardToken`.
+Existing undistributed rewards are rolled into the new stream. BribeRouter avoids calling this function until the amount can sustain a non-zero rate and exceeds the remaining stream.
 
-### `hashEmissionControllerReplacement(address,address,bytes32)`
+**Parameters**
+
+- `amount`: Amount pulled from the caller and added to the stream.
+- `rewardToken`: Registered token to stream.
+
+### `rewardData(address)`
 
 ```solidity
-function hashEmissionControllerReplacement(contract IGBXToken token, address controller, bytes32 salt) external view returns (bytes32 arg0);
+function rewardData(address token) external view returns (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerTokenStored);
 ```
 
-Derives the chain- and timelock-bound identifier for a controller replacement.
+Streaming state for each registered reward token.
 
-### `hashPositionTransfer(address,address,bytes32)`
+### `rewardPerToken(address)`
 
 ```solidity
-function hashPositionTransfer(address custodian, address recipient, bytes32 salt) external view returns (bytes32 arg0);
+function rewardPerToken(address rewardToken) external view returns (uint256 accumulatedReward);
 ```
 
-Derives the chain- and timelock-bound identifier for a position transfer.
+Returns cumulative rewards per unit of virtual voting weight.
 
-### `operationReadyAt(bytes32)`
+**Parameters**
+
+- `rewardToken`: Token whose cumulative index is queried.
+
+**Returns**
+
+- `accumulatedReward`: Cumulative reward per unit of weight, scaled by `REWARD_PRECISION`.
+
+### `rewardTokens()`
 
 ```solidity
-function operationReadyAt(bytes32 operationId) external view returns (uint64 readyAt);
+function rewardTokens() external view returns (address[] tokens);
 ```
 
-Returns the execution timestamp for a scheduled operation identifier.
+Returns all registered reward tokens.
 
-### `scheduleAssetRegistration(address,address,address,address,bytes32)`
+**Returns**
+
+- `tokens`: Registered reward tokens in insertion order.
+
+### `rewards(address,address)`
 
 ```solidity
-function scheduleAssetRegistration(address registry, address token, address strategy, address rewards, bytes32 salt) external returns (bytes32 operationId);
+function rewards(address account, address token) external view returns (uint256 amount);
 ```
 
-Schedules one target asset and strategy-rewards registration.
+Accrued, unclaimed reward balance for an account and token.
 
-### `scheduleEmissionControllerReplacement(address,address,bytes32)`
+### `totalSupply()`
 
 ```solidity
-function scheduleEmissionControllerReplacement(contract IGBXToken token, address controller, bytes32 salt) external returns (bytes32 operationId);
+function totalSupply() external view returns (uint256 arg0);
 ```
 
-Schedules a compatible GBX emission-controller replacement.
+Total virtual voting weight assigned to this Bribe.
 
-### `scheduleMiningResume(address,bytes32)`
+### `userRewardPerTokenPaid(address,address)`
 
 ```solidity
-function scheduleMiningResume(contract IMiningPool miningPool, bytes32 salt) external returns (bytes32 operationId);
+function userRewardPerTokenPaid(address account, address token) external view returns (uint256 paid);
 ```
 
-Schedules resumption of mining contributions.
+Cumulative reward-per-weight checkpoint already accounted to an account.
 
-### `schedulePositionTransfer(address,address,bytes32)`
+### `voter()`
 
 ```solidity
-function schedulePositionTransfer(address custodian, address recipient, bytes32 salt) external returns (bytes32 operationId);
+function voter() external view returns (address arg0);
 ```
 
-Schedules transfer of a custodian's recorded position NFT.
+Voter contract allowed to maintain virtual balances and register reward tokens.
 
-### `scheduleSignalResume(address,bytes32)`
+### `withdraw(uint256,address)`
 
 ```solidity
-function scheduleSignalResume(contract IAllocationVoter voter, bytes32 salt) external returns (bytes32 operationId);
+function withdraw(uint256 amount, address account) external;
 ```
 
-Schedules resumption of allocation-signal increases.
+Removes virtual voting weight for `account`.
 
-### `scheduleStandaloneStrategyRegistration(address,address,bytes32)`
+**Parameters**
 
-```solidity
-function scheduleStandaloneStrategyRegistration(address registry, address strategy, bytes32 salt) external returns (bytes32 operationId);
-```
-
-Schedules one standalone strategy registration.
-
-### `scheduleStrategyDisablement(address,address,address,bytes32)`
-
-```solidity
-function scheduleStrategyDisablement(address registry, contract IAllocationVoter voter, address strategy, bytes32 salt) external returns (bytes32 operationId);
-```
-
-Schedules terminal disablement of one strategy in registry and voter.
-
-### `scheduleStrategyResume(address,bytes32)`
-
-```solidity
-function scheduleStrategyResume(address strategy, bytes32 salt) external returns (bytes32 operationId);
-```
-
-Schedules resumption of fills for one strategy.
-
-### `scheduleTeamAddressUpdate(address,address,bytes32)`
-
-```solidity
-function scheduleTeamAddressUpdate(contract IMiningPool miningPool, address team, bytes32 salt) external returns (bytes32 operationId);
-```
-
-Schedules an update to the optional mining team-fee receiver.
+- `account`: Account whose virtual balance decreases.
+- `amount`: Weight to remove.
 
 ### Events
 
-#### `ProtocolTimelock__ControllerReplacementExecuted(bytes32,address,address)`
+#### `RewardAdded(address)`
 
 ```solidity
-event ProtocolTimelock__ControllerReplacementExecuted(bytes32 indexed operationId, address indexed token, address indexed controller);
+event RewardAdded(address indexed rewardToken);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `ProtocolTimelock__ControllerReplacementScheduled(bytes32,address,address,uint256)`
+#### `RewardNotified(address,uint256)`
 
 ```solidity
-event ProtocolTimelock__ControllerReplacementScheduled(bytes32 indexed operationId, address indexed token, address indexed controller, uint256 readyAt);
+event RewardNotified(address indexed rewardToken, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `ProtocolTimelock__OperationExecuted(bytes32,uint8)`
+#### `RewardPaid(address,address,uint256)`
 
 ```solidity
-event ProtocolTimelock__OperationExecuted(bytes32 indexed operationId, enum ProtocolTimelock.Action indexed action);
+event RewardPaid(address indexed account, address indexed rewardToken, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `ProtocolTimelock__OperationScheduled(bytes32,uint8,uint256)`
+#### `VotingWeightDeposited(address,uint256)`
 
 ```solidity
-event ProtocolTimelock__OperationScheduled(bytes32 indexed operationId, enum ProtocolTimelock.Action indexed action, uint256 readyAt);
+event VotingWeightDeposited(address indexed account, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `ProtocolTimelock__PositionTransferExecuted(bytes32,address,address)`
+#### `VotingWeightWithdrawn(address,uint256)`
 
 ```solidity
-event ProtocolTimelock__PositionTransferExecuted(bytes32 indexed operationId, address indexed custodian, address indexed recipient);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ProtocolTimelock__PositionTransferScheduled(bytes32,address,address,uint256)`
-
-```solidity
-event ProtocolTimelock__PositionTransferScheduled(bytes32 indexed operationId, address indexed custodian, address indexed recipient, uint256 readyAt);
+event VotingWeightWithdrawn(address indexed account, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
 
-#### `ProtocolTimelock__AlreadyScheduled(bytes32)`
+#### `InexactRewardTransfer(uint256,uint256)`
 
 ```solidity
-error ProtocolTimelock__AlreadyScheduled(bytes32 operationId);
+error InexactRewardTransfer(uint256 expected, uint256 received);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `ProtocolTimelock__InvalidTarget(address)`
+#### `NotRewardToken(address)`
 
 ```solidity
-error ProtocolTimelock__InvalidTarget(address target);
+error NotRewardToken(address token);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `ProtocolTimelock__NotReady(bytes32,uint256)`
+#### `NotVoter(address)`
 
 ```solidity
-error ProtocolTimelock__NotReady(bytes32 operationId, uint256 readyAt);
+error NotVoter(address caller);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `ProtocolTimelock__Unauthorized(address)`
+#### `ReentrancyGuardReentrantCall()`
 
 ```solidity
-error ProtocolTimelock__Unauthorized(address caller);
+error ReentrancyGuardReentrantCall();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## IAllocationVoter
-
-Source: [`src/interfaces/IAllocationVoter.sol`](../../packages/contracts/src/interfaces/IAllocationVoter.sol)
-
-Artifact: `out/IAllocationVoter.sol/IAllocationVoter.json`
-
-Public ABI: 10 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `consumeStrategyBudget(address,uint256)`
+#### `RewardAlreadyAdded(address)`
 
 ```solidity
-function consumeStrategyBudget(address strategy, uint256 amount) external;
+error RewardAlreadyAdded(address token);
 ```
 
-Consumes USDG budget assigned to a live strategy.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `disableStrategy(address)`
+#### `RewardBelowDuration(uint256)`
 
 ```solidity
-function disableStrategy(address strategy) external;
+error RewardBelowDuration(uint256 amount);
 ```
 
-Terminally removes a registry-disabled strategy from allocation.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `notifyRevenue(uint256)`
+#### `RewardBelowRemaining(uint256,uint256)`
 
 ```solidity
-function notifyRevenue(uint256 amount) external;
+error RewardBelowRemaining(uint256 amount, uint256 remaining);
 ```
 
-Accounts newly deposited USDG revenue for signal allocation.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `pauseSignalIncreases()`
+#### `SafeERC20FailedOperation(address)`
 
 ```solidity
-function pauseSignalIncreases() external;
+error SafeERC20FailedOperation(address token);
 ```
 
-Stops signal-weight increases while preserving reductions and exits.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `previewStrategyBudget(address)`
+#### `ZeroAddress()`
 
 ```solidity
-function previewStrategyBudget(address strategy) external view returns (uint256 arg0);
+error ZeroAddress();
 ```
 
-Previews the strategy's currently accrued USDG budget.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `resumeSignalIncreases()`
+#### `ZeroAmount()`
 
 ```solidity
-function resumeSignalIncreases() external;
+error ZeroAmount();
 ```
 
-Re-enables signal-weight increases.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `scaleBudgetsAfterRedemption(uint256,uint256)`
+## BribeFactory
+
+Source: [`src/core/BribeFactory.sol`](../../packages/contracts/src/core/BribeFactory.sol)
+
+Artifact: `out/BribeFactory.sol/BribeFactory.json`
+
+Public ABI: 6 functions, 3 events, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address)`
 
 ```solidity
-function scaleBudgetsAfterRedemption(uint256 shares, uint256 supplyBefore) external;
+constructor(address initialOwner);
 ```
 
-Scales all accounted budgets after an in-kind GBX redemption.
+Creates an unbound factory whose owner may set Voter exactly once.
 
-### `strategyWeight(address)`
+**Parameters**
+
+- `initialOwner`: Deployment-time owner responsible for binding Voter.
+
+### `createBribe()`
 
 ```solidity
-function strategyWeight(address strategy) external view returns (uint256 arg0);
+function createBribe() external returns (contract Bribe bribe);
 ```
 
-Returns the active signal weight assigned to a strategy.
+Deploys a Bribe controlled by the bound Voter.
 
-### `totalActiveWeight()`
+**Returns**
+
+- `bribe`: Newly deployed Bribe.
+
+### `owner()`
 
 ```solidity
-function totalActiveWeight() external view returns (uint256 arg0);
+function owner() external view returns (address arg0);
 ```
 
-Returns the aggregate active signal weight.
+Returns the address of the current owner.
 
-### `usedWeight(address)`
+### `renounceOwnership()`
 
 ```solidity
-function usedWeight(address user) external view returns (uint256 arg0);
+function renounceOwnership() external;
 ```
 
-Returns the user's total active signal weight.
+Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
 
-## IAssetRegistry
-
-Source: [`src/interfaces/IAssetRegistry.sol`](../../packages/contracts/src/interfaces/IAssetRegistry.sol)
-
-Artifact: `out/IAssetRegistry.sol/IAssetRegistry.json`
-
-Public ABI: 10 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `MAX_ASSETS()`
+### `setVoter(address)`
 
 ```solidity
-function MAX_ASSETS() external view returns (uint256 arg0);
+function setVoter(address voter_) external;
 ```
 
-Returns the maximum number of registered redeemable assets.
+Binds the only Voter allowed to deploy Bribes.
 
-### `assetAt(uint256)`
+**Parameters**
+
+- `voter_`: Voter address to bind permanently.
+
+### `transferOwnership(address)`
 
 ```solidity
-function assetAt(uint256 index) external view returns (address arg0);
+function transferOwnership(address newOwner) external;
 ```
 
-Returns the registered asset at an index.
+Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
 
-### `assetCount()`
+### `voter()`
 
 ```solidity
-function assetCount() external view returns (uint256 arg0);
+function voter() external view returns (address arg0);
 ```
 
-Returns the number of registered redeemable assets.
+Voter exclusively authorized to create Bribes.
 
-### `configFor(address)`
+### Events
+
+#### `BribeCreated(address,address)`
 
 ```solidity
-function configFor(address token) external view returns (struct IAssetRegistry.AssetConfig arg0);
+event BribeCreated(address indexed bribe, address indexed voter);
 ```
 
-Returns the immutable configuration for a registered asset.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `isLiveStrategy(address)`
+#### `OwnershipTransferred(address,address)`
 
 ```solidity
-function isLiveStrategy(address strategy) external view returns (bool arg0);
+event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 ```
 
-Returns whether a strategy is registered and not disabled.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `isRegisteredAsset(address)`
+#### `VoterSet(address)`
 
 ```solidity
-function isRegisteredAsset(address token) external view returns (bool arg0);
+event VoterSet(address indexed voter);
 ```
 
-Returns whether a token belongs to the redeemable basket.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `rewardsForStrategy(address)`
+### Custom errors
+
+#### `NotVoter(address)`
 
 ```solidity
-function rewardsForStrategy(address strategy) external view returns (address arg0);
+error NotVoter(address caller);
 ```
 
-Returns the rewards contract associated with a strategy, if any.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `strategyAt(uint256)`
+#### `OwnableInvalidOwner(address)`
 
 ```solidity
-function strategyAt(uint256 index) external view returns (address arg0);
+error OwnableInvalidOwner(address owner);
 ```
 
-Returns the registered strategy at an index.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `strategyCount()`
+#### `OwnableUnauthorizedAccount(address)`
 
 ```solidity
-function strategyCount() external view returns (uint256 arg0);
+error OwnableUnauthorizedAccount(address account);
 ```
 
-Returns the number of registered strategies.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `tokenForStrategy(address)`
+#### `VoterAlreadySet(address)`
 
 ```solidity
-function tokenForStrategy(address strategy) external view returns (address arg0);
+error VoterAlreadySet(address voter);
 ```
 
-Returns the redeemable token associated with a strategy, if any.
+_No additional NatSpec notice is present in the compiled artifact._
 
-## IClaimsSource
-
-Source: [`src/interfaces/IClaimsSource.sol`](../../packages/contracts/src/interfaces/IClaimsSource.sol)
-
-Artifact: `out/IClaimsSource.sol/IClaimsSource.json`
-
-Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `claimData(uint256,address)`
+#### `ZeroAddress()`
 
 ```solidity
-function claimData(uint256 epochId, address beneficiary) external view returns (uint256 entitlement, uint256 totalAllocation, bool settled);
+error ZeroAddress();
 ```
 
-Returns one beneficiary's settled epoch entitlement and total allocation.
+_No additional NatSpec notice is present in the compiled artifact._
 
-## IEmissionController
+## BribeRouter
 
-Source: [`src/interfaces/IEmissionController.sol`](../../packages/contracts/src/interfaces/IEmissionController.sol)
+Source: [`src/core/BribeRouter.sol`](../../packages/contracts/src/core/BribeRouter.sol)
 
-Artifact: `out/IEmissionController.sol/IEmissionController.json`
+Artifact: `out/BribeRouter.sol/BribeRouter.json`
 
-Public ABI: 8 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+Public ABI: 7 functions, 3 events, 6 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
-### `INITIAL_DAILY_SCHEDULED_EMISSION()`
+### `constructor(address,address,address,address)`
 
 ```solidity
-function INITIAL_DAILY_SCHEDULED_EMISSION() external view returns (uint256 arg0);
+constructor(address strategy_, contract Bribe bribe_, contract IERC20 rewardToken_, address fund_);
 ```
 
-Returns the canonical first daily scheduled emission.
+Creates the fixed route between one Strategy, one reward token, its Bribe, and Fund.
+
+**Parameters**
+
+- `bribe_`: Bribe that streams rewards to voters.
+- `fund_`: Treasury receiving rewards when no voter weight exists.
+- `rewardToken_`: Strategy payment token distributed as rewards.
+- `strategy_`: Strategy exclusively allowed to queue rewards.
+
+### `bribe()`
+
+```solidity
+function bribe() external view returns (contract Bribe arg0);
+```
+
+Bribe that streams the queued rewards.
+
+### `distribute()`
+
+```solidity
+function distribute() external returns (uint256 distributed);
+```
+
+Permissionlessly distributes queued rewards or returns them to Fund when there are no voters.
+
+**Returns**
+
+- `distributed`: Amount sent to Bribe. Returns zero when rewards are queued or returned to Fund.
+
+### `fund()`
+
+```solidity
+function fund() external view returns (address arg0);
+```
+
+Treasury that receives rewards when the Bribe has no voting weight.
+
+### `pendingRewards()`
+
+```solidity
+function pendingRewards() external view returns (uint256 amount);
+```
+
+Returns payment-token rewards currently waiting in the router.
+
+**Returns**
+
+- `amount`: Current queued reward balance.
+
+### `rewardToken()`
+
+```solidity
+function rewardToken() external view returns (contract IERC20 arg0);
+```
+
+Strategy payment token distributed as rewards.
+
+### `routeRewards(uint256)`
+
+```solidity
+function routeRewards(uint256 amount) external returns (uint256 distributed);
+```
+
+Pulls a newly earned bribe share from Strategy and attempts to start a reward stream.
+
+**Parameters**
+
+- `amount`: Amount of `rewardToken` to pull from Strategy.
+
+**Returns**
+
+- `distributed`: Amount sent immediately to Bribe, or zero when retained or returned to Fund.
+
+### `strategy()`
+
+```solidity
+function strategy() external view returns (address arg0);
+```
+
+Strategy exclusively authorized to queue newly earned rewards.
+
+### Events
+
+#### `RewardsDistributed(address,address,uint256)`
+
+```solidity
+event RewardsDistributed(address indexed bribe, address indexed rewardToken, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RewardsQueued(address,uint256)`
+
+```solidity
+event RewardsQueued(address indexed strategy, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RewardsReturnedToFund(address,address,uint256)`
+
+```solidity
+event RewardsReturnedToFund(address indexed fund, address indexed rewardToken, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `InexactTransfer(uint256,uint256)`
+
+```solidity
+error InexactTransfer(uint256 expected, uint256 received);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `NotStrategy(address)`
+
+```solidity
+error NotStrategy(address caller);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ReentrancyGuardReentrantCall()`
+
+```solidity
+error ReentrancyGuardReentrantCall();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SafeERC20FailedOperation(address)`
+
+```solidity
+error SafeERC20FailedOperation(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAddress()`
+
+```solidity
+error ZeroAddress();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAmount()`
+
+```solidity
+error ZeroAmount();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## Fund
+
+Source: [`src/core/Fund.sol`](../../packages/contracts/src/core/Fund.sol)
+
+Artifact: `out/Fund.sol/Fund.json`
+
+Public ABI: 10 functions, 5 events, 13 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address,address)`
+
+```solidity
+constructor(contract GBX gbx_, address initialOwner);
+```
+
+Creates a registry-free treasury for `gbx_` and assigns migration authority to `initialOwner`.
+
+**Parameters**
+
+- `gbx_`: GBX token backed by this Fund.
+- `initialOwner`: Timelock that may configure the one-way successor.
+
+### `burnGBX(uint256)`
+
+```solidity
+function burnGBX(uint256 amount) external;
+```
+
+Burns GBX already held by Fund, including GBX received during a buyback.
+
+**Parameters**
+
+- `amount`: Amount of GBX to burn.
+
+### `gbx()`
+
+```solidity
+function gbx() external view returns (contract GBX arg0);
+```
+
+GBX token burned by redemptions and buybacks.
+
+### `migrate(address[])`
+
+```solidity
+function migrate(address[] tokens) external;
+```
+
+Moves the complete Fund balance of each selected token to the configured successor.
+Anyone may execute migration in gas-bounded batches. GBX cannot be migrated and remains burnable here.
+
+**Parameters**
+
+- `tokens`: Unique, non-GBX token addresses whose complete balances should move.
+
+### `owner()`
+
+```solidity
+function owner() external view returns (address arg0);
+```
+
+Returns the address of the current owner.
+
+### `pendingGBX()`
+
+```solidity
+function pendingGBX() external view returns (uint256 amount);
+```
+
+Returns GBX currently held by Fund and available to burn.
+
+**Returns**
+
+- `amount`: GBX balance currently held by Fund.
+
+### `redeem(uint256,address,address[])`
+
+```solidity
+function redeem(uint256 gbxAmount, address receiver, address[] tokens) external;
+```
+
+Burns GBX and returns the caller-selected pro-rata share of Fund assets.
+Every payout uses the same total supply captured before GBX is burned. Tokens omitted by the caller remain in Fund for the remaining GBX supply, and a failure in any selected transfer reverts the entire operation.
+
+**Parameters**
+
+- `gbxAmount`: Amount of GBX to burn.
+- `receiver`: Address that receives the selected assets.
+- `tokens`: Unique, non-GBX token addresses to include in this redemption.
+
+### `renounceOwnership()`
+
+```solidity
+function renounceOwnership() external;
+```
+
+Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
+
+### `setSuccessor(address)`
+
+```solidity
+function setSuccessor(address newSuccessor) external;
+```
+
+Permanently enables one-way, token-by-token migration to `newSuccessor`.
+The successor must be a Fund-compatible contract backed by this exact GBX token.
+
+**Parameters**
+
+- `newSuccessor`: Fund-compatible destination to set permanently.
+
+### `successor()`
+
+```solidity
+function successor() external view returns (address arg0);
+```
+
+One-way migration destination. The zero address means migration is not enabled.
+
+### `transferOwnership(address)`
+
+```solidity
+function transferOwnership(address newOwner) external;
+```
+
+Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
+
+### Events
+
+#### `GBXBurned(address,uint256)`
+
+```solidity
+event GBXBurned(address indexed caller, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnershipTransferred(address,address)`
+
+```solidity
+event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Redeemed(address,address,uint256,uint256)`
+
+```solidity
+event Redeemed(address indexed account, address indexed receiver, uint256 gbxAmount, uint256 tokenCount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SuccessorSet(address)`
+
+```solidity
+event SuccessorSet(address indexed successor);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `TokenMigrated(address,address,address,uint256)`
+
+```solidity
+event TokenMigrated(address indexed caller, address indexed token, address indexed successor, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `DuplicateToken(address)`
+
+```solidity
+error DuplicateToken(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EmptyTokenList()`
+
+```solidity
+error EmptyTokenList();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ForbiddenToken(address)`
+
+```solidity
+error ForbiddenToken(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InexactTransfer(address,uint256,uint256)`
+
+```solidity
+error InexactTransfer(address token, uint256 expected, uint256 received);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidReceiver(address)`
+
+```solidity
+error InvalidReceiver(address receiver);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidSuccessor(address)`
+
+```solidity
+error InvalidSuccessor(address successor);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnableInvalidOwner(address)`
+
+```solidity
+error OwnableInvalidOwner(address owner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnableUnauthorizedAccount(address)`
+
+```solidity
+error OwnableUnauthorizedAccount(address account);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ReentrancyGuardReentrantCall()`
+
+```solidity
+error ReentrancyGuardReentrantCall();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SafeERC20FailedOperation(address)`
+
+```solidity
+error SafeERC20FailedOperation(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SuccessorAlreadySet(address)`
+
+```solidity
+error SuccessorAlreadySet(address successor);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SuccessorNotSet()`
+
+```solidity
+error SuccessorNotSet();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAmount()`
+
+```solidity
+error ZeroAmount();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## Fundraiser
+
+Source: [`src/core/Fundraiser.sol`](../../packages/contracts/src/core/Fundraiser.sol)
+
+Artifact: `out/Fundraiser.sol/Fundraiser.json`
+
+Public ABI: 23 functions, 3 events, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address,address,address)`
+
+```solidity
+constructor(contract GBX gbx_, contract IERC20 usdg_, address voterRouter_);
+```
+
+Creates the fixed contribution schedule and immutable revenue route.
+
+**Parameters**
+
+- `gbx_`: GBX token minted to contributors.
+- `usdg_`: USDG token accepted as contributions.
+- `voterRouter_`: Router that forwards every contribution to Voter.
+
+### `DAILY_DECAY()`
+
+```solidity
+function DAILY_DECAY() external view returns (uint256 arg0);
+```
+
+Daily fixed-point multiplier that halves scheduled emissions every 1,460 epochs.
+
+### `DISTRIBUTION_ALLOCATION()`
+
+```solidity
+function DISTRIBUTION_ALLOCATION() external view returns (uint256 arg0);
+```
+
+Maximum GBX nominally available to Fundraiser contributors.
+
+### `DISTRIBUTION_EPOCHS()`
+
+```solidity
+function DISTRIBUTION_EPOCHS() external view returns (uint256 arg0);
+```
+
+Number of daily epochs with a nonzero scheduled emission.
+
+### `EPOCH_DURATION()`
+
+```solidity
+function EPOCH_DURATION() external view returns (uint256 arg0);
+```
+
+Duration of every contribution epoch.
+
+### `INITIAL_DAILY_EMISSION()`
+
+```solidity
+function INITIAL_DAILY_EMISSION() external view returns (uint256 arg0);
+```
+
+First daily emission in the four-year half-life schedule.
+
+### `MIN_CONTRIBUTION()`
+
+```solidity
+function MIN_CONTRIBUTION() external view returns (uint256 arg0);
+```
+
+Smallest accepted raw USDG contribution.
+
+### `WAD()`
+
+```solidity
+function WAD() external view returns (uint256 arg0);
+```
+
+Fixed-point scale used by the daily decay calculation.
+
+### `accountContributions(uint256,address)`
+
+```solidity
+function accountContributions(uint256 epoch, address account) external view returns (uint256 amount);
+```
+
+USDG contribution credited to an account in an epoch.
+
+### `accountHasClaimed(uint256,address)`
+
+```solidity
+function accountHasClaimed(uint256 epoch, address account) external view returns (bool hasClaimed);
+```
+
+Whether an account's GBX reward has been claimed for an epoch.
+
+### `claim(address,uint256)`
+
+```solidity
+function claim(address account, uint256 epoch) external returns (uint256 reward);
+```
+
+Mints an account's proportional GBX reward for a completed epoch.
+Anyone may trigger the claim, but GBX is always minted directly to `account`.
+
+**Parameters**
+
+- `account`: Contributor that receives GBX.
+- `epoch`: Completed epoch to claim.
+
+**Returns**
+
+- `reward`: Amount of GBX minted to `account`.
+
+### `contribute(address,uint256)`
+
+```solidity
+function contribute(address beneficiary, uint256 amount) external;
+```
+
+Contributes USDG and credits `beneficiary` with a proportional claim on the current epoch's emission.
+USDG is transferred directly from the payer to VoterRouter, then routed to Voter in the same transaction.
+
+**Parameters**
+
+- `amount`: Amount of USDG to contribute.
+- `beneficiary`: Account credited with the contribution.
+
+### `currentEpoch()`
+
+```solidity
+function currentEpoch() external view returns (uint256 epoch);
+```
+
+Returns the active zero-indexed contribution epoch.
+
+**Returns**
+
+- `epoch`: Active epoch identifier.
 
 ### `currentScheduledEmission()`
 
@@ -781,63 +1098,266 @@ Returns the canonical first daily scheduled emission.
 function currentScheduledEmission() external view returns (uint256 arg0);
 ```
 
-Returns the scheduled emission for the next epoch.
+Scheduled emission for `nextEpochToSettle`.
+
+### `epochContributions(uint256)`
+
+```solidity
+function epochContributions(uint256 epoch) external view returns (uint256 amount);
+```
+
+Total USDG contributed during each epoch.
+
+### `epochEmission(uint256)`
+
+```solidity
+function epochEmission(uint256 epoch) external view returns (uint256 amount);
+```
+
+GBX allocated to contributors in a settled epoch, or zero when that epoch was empty.
+
+### `epochSettled(uint256)`
+
+```solidity
+function epochSettled(uint256 epoch) external view returns (bool settled);
+```
+
+Whether an ended epoch has been advanced through the sequential schedule.
 
 ### `gbx()`
 
 ```solidity
-function gbx() external view returns (contract IGBXToken arg0);
+function gbx() external view returns (contract GBX arg0);
 ```
 
-Returns the GBX token controlled by this scheduler.
+GBX minted to successful epoch claimants.
 
-### `miningPool()`
+### `nextEpochToSettle()`
 
 ```solidity
-function miningPool() external view returns (address arg0);
+function nextEpochToSettle() external view returns (uint256 arg0);
 ```
 
-Returns the mining pool authorized to settle epochs.
+First epoch that has not yet been settled.
 
-### `nextMiningEpochId()`
+### `pendingReward(uint256,address)`
 
 ```solidity
-function nextMiningEpochId() external view returns (uint256 arg0);
+function pendingReward(uint256 epoch, address account) external view returns (uint256 reward);
 ```
 
-Returns the next epoch identifier accepted for settlement.
+Returns an account's currently claimable GBX for a completed epoch.
 
-### `remainingMintCapacity()`
+**Parameters**
+
+- `account`: Contributor whose reward is queried.
+- `epoch`: Completed epoch to inspect.
+
+**Returns**
+
+- `reward`: Amount currently claimable, or zero when no claim is available.
+
+### `settleEpochs(uint256)`
 
 ```solidity
-function remainingMintCapacity() external view returns (uint256 arg0);
+function settleEpochs(uint256 maximumEpochs) external returns (uint256 settledCount);
 ```
 
-Returns GBX's remaining lifetime mint capacity.
+Advances as many ended epochs as the caller permits through the exact sequential decay schedule.
+Empty epochs consume their scheduled emission without minting it. Bounded batching keeps catch-up calls usable even after long periods of inactivity, while strict ordering preserves the original floor rounding.
 
-### `scheduledEmission(uint256)`
+**Parameters**
+
+- `maximumEpochs`: Maximum number of epochs to settle in this transaction.
+
+**Returns**
+
+- `settledCount`: Number of epochs actually settled.
+
+### `startedAt()`
 
 ```solidity
-function scheduledEmission(uint256 epochId) external view returns (uint256 arg0);
+function startedAt() external view returns (uint256 arg0);
 ```
 
-Returns the canonical scheduled emission at an epoch index.
+Timestamp at which epoch zero began.
 
-### `settleMiningEpoch(uint256,address,bool)`
+### `usdg()`
 
 ```solidity
-function settleMiningEpoch(uint256 epochId, address claimsReceiver, bool nonEmpty) external returns (uint256 emission);
+function usdg() external view returns (contract IERC20 arg0);
 ```
 
-Settles one sequential mining epoch and mints only when it is nonempty.
+Revenue token accepted from contributors.
 
-## IGBXToken
+### `voterRouter()`
 
-Source: [`src/interfaces/IGBXToken.sol`](../../packages/contracts/src/interfaces/IGBXToken.sol)
+```solidity
+function voterRouter() external view returns (address arg0);
+```
 
-Artifact: `out/IGBXToken.sol/IGBXToken.json`
+Router that forwards every contribution into Voter.
 
-Public ABI: 18 functions, 2 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+### Events
+
+#### `Claimed(address,uint256,uint256)`
+
+```solidity
+event Claimed(address indexed account, uint256 indexed epoch, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Contributed(address,address,uint256,uint256)`
+
+```solidity
+event Contributed(address indexed payer, address indexed beneficiary, uint256 indexed epoch, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EpochSettled(uint256,uint256,uint256,uint256)`
+
+```solidity
+event EpochSettled(uint256 indexed epoch, uint256 scheduledEmission, uint256 contributorEmission, uint256 nextScheduledEmission);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `AlreadyClaimed(uint256,address)`
+
+```solidity
+error AlreadyClaimed(uint256 epoch, address account);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `BelowMinimumContribution(uint256)`
+
+```solidity
+error BelowMinimumContribution(uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `DistributionComplete()`
+
+```solidity
+error DistributionComplete();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EpochNotEnded(uint256)`
+
+```solidity
+error EpochNotEnded(uint256 epoch);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EpochNotSettled(uint256)`
+
+```solidity
+error EpochNotSettled(uint256 epoch);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InexactTransfer(uint256,uint256)`
+
+```solidity
+error InexactTransfer(uint256 expected, uint256 received);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidSettlementLimit()`
+
+```solidity
+error InvalidSettlementLimit();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `NoContribution(uint256,address)`
+
+```solidity
+error NoContribution(uint256 epoch, address account);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ReentrancyGuardReentrantCall()`
+
+```solidity
+error ReentrancyGuardReentrantCall();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SafeERC20FailedOperation(address)`
+
+```solidity
+error SafeERC20FailedOperation(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAddress()`
+
+```solidity
+error ZeroAddress();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## GBX
+
+Source: [`src/core/GBX.sol`](../../packages/contracts/src/core/GBX.sol)
+
+Artifact: `out/GBX.sol/GBX.json`
+
+Public ABI: 34 functions, 8 events, 27 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address,address)`
+
+```solidity
+constructor(address genesisLiquidityRecipient, address initialMinter);
+```
+
+Creates the fixed genesis allocation and assigns deployment-time minting authority.
+
+**Parameters**
+
+- `genesisLiquidityRecipient`: Recipient of the 20 million GBX liquidity allocation.
+- `initialMinter`: Deployment coordinator that must permanently hand minting to Fundraiser.
+
+### `CLOCK_MODE()`
+
+```solidity
+function CLOCK_MODE() external view returns (string arg0);
+```
+
+Machine-readable description of the clock as specified in ERC-6372.
+
+### `DOMAIN_SEPARATOR()`
+
+```solidity
+function DOMAIN_SEPARATOR() external view returns (bytes32 arg0);
+```
+
+Returns the domain separator used in the encoding of the signature for {permit}, as defined by {EIP712}.
+
+### `FUNDRAISER_ALLOCATION()`
+
+```solidity
+function FUNDRAISER_ALLOCATION() external view returns (uint256 arg0);
+```
+
+Remaining lifetime mint capacity reserved for Fundraiser rewards.
 
 ### `GENESIS_LIQUIDITY_ALLOCATION()`
 
@@ -845,15 +1365,15 @@ Public ABI: 18 functions, 2 events, 0 custom errors, 0 constructors, 0 receive e
 function GENESIS_LIQUIDITY_ALLOCATION() external view returns (uint256 arg0);
 ```
 
-Returns the fixed genesis-liquidity allocation.
+GBX created once for the canonical single-sided Uniswap v4 position.
 
-### `MAX_CUMULATIVE_MINT()`
+### `MAX_LIFETIME_MINT()`
 
 ```solidity
-function MAX_CUMULATIVE_MINT() external view returns (uint256 arg0);
+function MAX_LIFETIME_MINT() external view returns (uint256 arg0);
 ```
 
-Returns the one-billion-token lifetime mint ceiling.
+Maximum number of GBX that may ever be minted.
 
 ### `allowance(address,address)`
 
@@ -869,7 +1389,7 @@ Returns the remaining number of tokens that `spender` will be allowed to spend o
 function approve(address spender, uint256 value) external returns (bool arg0);
 ```
 
-Sets a `value` amount of tokens as the allowance of `spender` over the caller's tokens. Returns a boolean value indicating whether the operation succeeded. IMPORTANT: Beware that changing an allowance with this method brings the risk that someone may use both the old and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards: https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729 Emits an {Approval} event.
+See {IERC20-approve}. NOTE: If `value` is the maximum `uint256`, the allowance is not updated on `transferFrom`. This is semantically equivalent to an infinite approval. Requirements: - `spender` cannot be the zero address.
 
 ### `balanceOf(address)`
 
@@ -885,79 +1405,209 @@ Returns the value of tokens owned by `account`.
 function burn(uint256 amount) external;
 ```
 
-Burns GBX owned by the caller.
+Permanently burns GBX held by the caller.
 
-### `burnFrom(address,uint256)`
+**Parameters**
 
-```solidity
-function burnFrom(address account, uint256 amount) external;
-```
+- `amount`: Amount of GBX to burn.
 
-Burns approved GBX from an account.
-
-### `canonicalMiningPool()`
+### `checkpoints(address,uint32)`
 
 ```solidity
-function canonicalMiningPool() external view returns (address arg0);
+function checkpoints(address account, uint32 pos) external view returns (struct Checkpoints.Checkpoint208 arg0);
 ```
 
-Returns the mining pool pinned by the initial controller binding.
+Get the `pos`-th checkpoint for `account`.
 
-### `cumulativeBurned()`
+### `clock()`
 
 ```solidity
-function cumulativeBurned() external view returns (uint256 arg0);
+function clock() external view returns (uint48 arg0);
 ```
 
-Returns all GBX burned over the token's lifetime.
+Clock used for flagging checkpoints. Can be overridden to implement timestamp based checkpoints (and voting), in which case {CLOCK_MODE} should be overridden as well to match.
 
-### `cumulativeMinted()`
+### `decimals()`
 
 ```solidity
-function cumulativeMinted() external view returns (uint256 arg0);
+function decimals() external view returns (uint8 arg0);
 ```
 
-Returns all GBX minted over the token's lifetime.
+Returns the number of decimals used to get its user representation. For example, if `decimals` equals `2`, a balance of `505` tokens should be displayed to a user as `5.05` (`505 / 10 ** 2`). Tokens usually opt for a value of 18, imitating the relationship between Ether and Wei. This is the default value returned by this function, unless it's overridden. NOTE: This information is only used for _display_ purposes: it in no way affects any of the arithmetic of the contract, including {IERC20-balanceOf} and {IERC20-transfer}.
 
-### `emissionController()`
+### `delegate(address)`
 
 ```solidity
-function emissionController() external view returns (address arg0);
+function delegate(address delegatee) external;
 ```
 
-Returns the currently authorized mining controller.
+Delegates votes from the sender to `delegatee`.
 
-### `initializeEmissionController(address)`
+### `delegateBySig(address,uint256,uint256,uint8,bytes32,bytes32)`
 
 ```solidity
-function initializeEmissionController(address controller) external;
+function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) external;
 ```
 
-Binds the initial emission controller once.
+Delegates votes from signer to `delegatee`.
 
-### `mintMiningEmission(address,uint256)`
+### `delegates(address)`
 
 ```solidity
-function mintMiningEmission(address receiver, uint256 amount) external;
+function delegates(address account) external view returns (address arg0);
 ```
 
-Mints a mining emission through the current controller.
+Returns the delegate that `account` has chosen.
 
-### `remainingMintCapacity()`
+### `eip712Domain()`
 
 ```solidity
-function remainingMintCapacity() external view returns (uint256 arg0);
+function eip712Domain() external view returns (bytes1 fields, string name, string version, uint256 chainId, address verifyingContract, bytes32 salt, uint256[] extensions);
 ```
 
-Returns the remaining lifetime mint capacity.
+returns the fields and values that describe the domain separator used by this contract for EIP-712 signature.
 
-### `replaceEmissionController(address)`
+### `getPastTotalSupply(uint256)`
 
 ```solidity
-function replaceEmissionController(address controller) external;
+function getPastTotalSupply(uint256 timepoint) external view returns (uint256 arg0);
 ```
 
-Replaces the emission controller through the protocol timelock.
+Returns the total supply of votes available at a specific moment in the past. If the `clock()` is configured to use block numbers, this will return the value at the end of the corresponding block. NOTE: This value is the sum of all available votes, which is not necessarily the sum of all delegated votes. Votes that have not been delegated are still part of total supply, even though they would not participate in a vote. Requirements: - `timepoint` must be in the past. If operating using block numbers, the block must be already mined.
+
+### `getPastVotes(address,uint256)`
+
+```solidity
+function getPastVotes(address account, uint256 timepoint) external view returns (uint256 arg0);
+```
+
+Returns the amount of votes that `account` had at a specific moment in the past. If the `clock()` is configured to use block numbers, this will return the value at the end of the corresponding block. Requirements: - `timepoint` must be in the past. If operating using block numbers, the block must be already mined.
+
+### `getVotes(address)`
+
+```solidity
+function getVotes(address account) external view returns (uint256 arg0);
+```
+
+Returns the current amount of votes that `account` has.
+
+### `lifetimeBurned()`
+
+```solidity
+function lifetimeBurned() external view returns (uint256 arg0);
+```
+
+Total GBX permanently burned.
+
+### `lifetimeMinted()`
+
+```solidity
+function lifetimeMinted() external view returns (uint256 arg0);
+```
+
+Total GBX minted over the lifetime of the contract, including tokens later burned.
+
+### `mint(address,uint256)`
+
+```solidity
+function mint(address account, uint256 amount) external;
+```
+
+Mints GBX to `account` without exceeding the lifetime ceiling.
+
+**Parameters**
+
+- `account`: Address that receives the newly minted GBX.
+- `amount`: Amount of GBX to mint.
+
+### `minter()`
+
+```solidity
+function minter() external view returns (address arg0);
+```
+
+Address currently authorized to mint GBX.
+
+### `minterLocked()`
+
+```solidity
+function minterLocked() external view returns (bool arg0);
+```
+
+Whether the one-time minter handover has been used.
+
+### `name()`
+
+```solidity
+function name() external view returns (string arg0);
+```
+
+Returns the name of the token.
+
+### `nonces(address)`
+
+```solidity
+function nonces(address owner) external view returns (uint256 nonce);
+```
+
+Returns the current ERC-2612 permit nonce for `owner`.
+
+**Parameters**
+
+- `owner`: Account whose nonce is queried.
+
+**Returns**
+
+- `nonce`: Current permit nonce.
+
+### `numCheckpoints(address)`
+
+```solidity
+function numCheckpoints(address account) external view returns (uint32 arg0);
+```
+
+Get number of checkpoints for `account`.
+
+### `permit(address,address,uint256,uint256,uint8,bytes32,bytes32)`
+
+```solidity
+function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
+```
+
+Sets `value` as the allowance of `spender` over `owner`'s tokens, given `owner`'s signed approval. IMPORTANT: The same issues {IERC20-approve} has related to transaction ordering also applies here. Emits an {Approval} event. Requirements: - `spender` cannot be the zero address. - `deadline` must be a timestamp in the future. - `v`, `r` and `s` must be a valid `secp256k1` signature from `owner` over the EIP712-formatted function arguments. - the signature must use `owner`'s current nonce (see {nonces}). For more information on the signature format, see the https://eips.ethereum.org/EIPS/eip-2612#specification[relevant EIP section]. CAUTION: See Security Considerations above.
+
+### `remainingMintableSupply()`
+
+```solidity
+function remainingMintableSupply() external view returns (uint256 amount);
+```
+
+Returns how much GBX can still be minted over the contract's lifetime.
+
+**Returns**
+
+- `amount`: Remaining lifetime mint capacity.
+
+### `setMinter(address)`
+
+```solidity
+function setMinter(address newMinter) external;
+```
+
+Permanently hands minting authority to `newMinter`.
+The current minter may perform this handover exactly once. This supports deployment-time wiring to the Fundraiser without leaving a mutable governance-controlled minter.
+
+**Parameters**
+
+- `newMinter`: Address that will permanently receive minting authority.
+
+### `symbol()`
+
+```solidity
+function symbol() external view returns (string arg0);
+```
+
+Returns the symbol of the token, usually a shorter version of the name.
 
 ### `totalSupply()`
 
@@ -973,7 +1623,7 @@ Returns the value of tokens in existence.
 function transfer(address to, uint256 value) external returns (bool arg0);
 ```
 
-Moves a `value` amount of tokens from the caller's account to `to`. Returns a boolean value indicating whether the operation succeeded. Emits a {Transfer} event.
+See {IERC20-transfer}. Requirements: - `to` cannot be the zero address. - the caller must have a balance of at least `value`.
 
 ### `transferFrom(address,address,uint256)`
 
@@ -981,7 +1631,7 @@ Moves a `value` amount of tokens from the caller's account to `to`. Returns a bo
 function transferFrom(address from, address to, uint256 value) external returns (bool arg0);
 ```
 
-Moves a `value` amount of tokens from `from` to `to` using the allowance mechanism. `value` is then deducted from the caller's allowance. Returns a boolean value indicating whether the operation succeeded. Emits a {Transfer} event.
+See {IERC20-transferFrom}. Skips emitting an {Approval} event indicating an allowance update. This is not required by the ERC. See {xref-ERC20-\_approve-address-address-uint256-bool-}[_approve]. NOTE: Does not update the allowance if the current allowance is the maximum `uint256`. Requirements: - `from` and `to` cannot be the zero address. - `from` must have a balance of at least `value`. - the caller must have allowance for `from`'s tokens of at least `value`.
 
 ### Events
 
@@ -989,6 +1639,54 @@ Moves a `value` amount of tokens from `from` to `to` using the allowance mechani
 
 ```solidity
 event Approval(address indexed owner, address indexed spender, uint256 value);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Burned(address,uint256)`
+
+```solidity
+event Burned(address indexed account, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `DelegateChanged(address,address,address)`
+
+```solidity
+event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `DelegateVotesChanged(address,uint256,uint256)`
+
+```solidity
+event DelegateVotesChanged(address indexed delegate, uint256 previousVotes, uint256 newVotes);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EIP712DomainChanged()`
+
+```solidity
+event EIP712DomainChanged();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Minted(address,uint256)`
+
+```solidity
+event Minted(address indexed account, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `MinterSet(address,address)`
+
+```solidity
+event MinterSet(address indexed previousMinter, address indexed newMinter);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1001,349 +1699,400 @@ event Transfer(address indexed from, address indexed to, uint256 value);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## IGumBallVault
-
-Source: [`src/interfaces/IGumBallVault.sol`](../../packages/contracts/src/interfaces/IGumBallVault.sol)
-
-Artifact: `out/IGumBallVault.sol/IGumBallVault.json`
-
-Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `redeem(uint256,address)`
-
-```solidity
-function redeem(uint256 shares, address receiver) external returns (uint256[] amounts);
-```
-
-Burns GBX and returns its raw fraction of each basket asset.
-
-### `releaseUSDG(address,uint256)`
-
-```solidity
-function releaseUSDG(address receiver, uint256 amount) external;
-```
-
-Releases allocated USDG for the calling live strategy.
-
-## IMiningClaims
-
-Source: [`src/interfaces/IMiningClaims.sol`](../../packages/contracts/src/interfaces/IMiningClaims.sol)
-
-Artifact: `out/IMiningClaims.sol/IMiningClaims.json`
-
-Public ABI: 3 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `claim(address,uint256)`
-
-```solidity
-function claim(address beneficiary, uint256 epochId) external returns (uint256 amount);
-```
-
-Pays one beneficiary's unclaimed settled epoch entitlement.
-
-### `initializeSource(address)`
-
-```solidity
-function initializeSource(address source) external;
-```
-
-Binds the claims data source once.
-
-### `previewClaim(address,uint256)`
-
-```solidity
-function previewClaim(address beneficiary, uint256 epochId) external view returns (uint256 amount);
-```
-
-Previews one beneficiary's currently claimable epoch entitlement.
-
-## IMiningPool
-
-Source: [`src/interfaces/IMiningPool.sol`](../../packages/contracts/src/interfaces/IMiningPool.sol)
-
-Artifact: `out/IMiningPool.sol/IMiningPool.json`
-
-Public ABI: 4 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `pauseContributions()`
-
-```solidity
-function pauseContributions() external;
-```
-
-Stops new contributions without blocking settlement or claims.
-
-### `resumeContributions()`
-
-```solidity
-function resumeContributions() external;
-```
-
-Re-enables new contributions.
-
-### `setTeamAddress(address)`
-
-```solidity
-function setTeamAddress(address team) external;
-```
-
-Updates the optional team-fee receiver.
-
-### `start()`
-
-```solidity
-function start() external;
-```
-
-Starts epoch zero after deployment invariants are satisfied.
-
-## IStrategyRewards
-
-Source: [`src/interfaces/IStrategyRewards.sol`](../../packages/contracts/src/interfaces/IStrategyRewards.sol)
-
-Artifact: `out/IStrategyRewards.sol/IStrategyRewards.json`
-
-Public ABI: 5 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `REWARD_TOKEN()`
-
-```solidity
-function REWARD_TOKEN() external view returns (address arg0);
-```
-
-Returns the token distributed as rewards.
-
-### `STRATEGY()`
-
-```solidity
-function STRATEGY() external view returns (address arg0);
-```
-
-Returns the strategy authorized to notify rewards.
-
-### `notifyReward(uint256)`
-
-```solidity
-function notifyReward(uint256 amount) external;
-```
-
-Accounts rewards already transferred into the rewards contract.
-
-### `setWeight(address,uint256)`
-
-```solidity
-function setWeight(address user, uint256 newWeight) external;
-```
-
-Replaces one user's reward weight.
-
-### `totalWeight()`
-
-```solidity
-function totalWeight() external view returns (uint256 arg0);
-```
-
-Returns the aggregate active reward weight.
-
-## EmissionMath
-
-Source: [`src/libraries/EmissionMath.sol`](../../packages/contracts/src/libraries/EmissionMath.sol)
-
-Artifact: `out/EmissionMath.sol/EmissionMath.json`
-
-Public ABI: 0 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-_This source-defined surface has no externally callable ABI functions._
-
-## GenesisLiquidityMath
-
-Source: [`src/libraries/GenesisLiquidityMath.sol`](../../packages/contracts/src/libraries/GenesisLiquidityMath.sol)
-
-Artifact: `out/GenesisLiquidityMath.sol/GenesisLiquidityMath.json`
-
-Public ABI: 0 functions, 0 events, 2 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-_This source-defined surface has no externally callable ABI functions._
-
 ### Custom errors
 
-#### `GenesisLiquidityMath__InvalidRange(uint160,uint160)`
+#### `CheckpointUnorderedInsertion()`
 
 ```solidity
-error GenesisLiquidityMath__InvalidRange(uint160 sqrtPriceAX96, uint160 sqrtPriceBX96);
+error CheckpointUnorderedInsertion();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `GenesisLiquidityMath__InvariantViolation(uint256,uint256)`
+#### `ECDSAInvalidSignature()`
 
 ```solidity
-error GenesisLiquidityMath__InvariantViolation(uint256 amountCap, uint256 principal);
+error ECDSAInvalidSignature();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## LiquidityCustodian
-
-Source: [`src/liquidity/LiquidityCustodian.sol`](../../packages/contracts/src/liquidity/LiquidityCustodian.sol)
-
-Artifact: `out/LiquidityCustodian.sol/LiquidityCustodian.json`
-
-Public ABI: 20 functions, 3 events, 16 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor((address,address,uint256,address,address,address,address,address),(address,address,uint24,int24,address))`
+#### `ECDSAInvalidSignatureLength(uint256)`
 
 ```solidity
-constructor(struct LiquidityCustodian.Dependencies dependencies, struct PoolKey canonicalPoolKey);
+error ECDSAInvalidSignatureLength(uint256 length);
 ```
 
-Configures the sole accepted v4 position and its fixed protocol dependencies.
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ECDSAInvalidSignatureS(bytes32)`
+
+```solidity
+error ECDSAInvalidSignatureS(bytes32 s);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20ExceededSafeSupply(uint256,uint256)`
+
+```solidity
+error ERC20ExceededSafeSupply(uint256 increasedSupply, uint256 cap);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InsufficientAllowance(address,uint256,uint256)`
+
+```solidity
+error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InsufficientBalance(address,uint256,uint256)`
+
+```solidity
+error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidApprover(address)`
+
+```solidity
+error ERC20InvalidApprover(address approver);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidReceiver(address)`
+
+```solidity
+error ERC20InvalidReceiver(address receiver);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidSender(address)`
+
+```solidity
+error ERC20InvalidSender(address sender);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidSpender(address)`
+
+```solidity
+error ERC20InvalidSpender(address spender);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC2612ExpiredSignature(uint256)`
+
+```solidity
+error ERC2612ExpiredSignature(uint256 deadline);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC2612InvalidSigner(address,address)`
+
+```solidity
+error ERC2612InvalidSigner(address signer, address owner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC5805FutureLookup(uint256,uint48)`
+
+```solidity
+error ERC5805FutureLookup(uint256 timepoint, uint48 clock);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC6372InconsistentClock()`
+
+```solidity
+error ERC6372InconsistentClock();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidAccountNonce(address,uint256)`
+
+```solidity
+error InvalidAccountNonce(address account, uint256 currentNonce);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidShortString()`
+
+```solidity
+error InvalidShortString();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `LifetimeMintCapExceeded(uint256,uint256)`
+
+```solidity
+error LifetimeMintCapExceeded(uint256 requested, uint256 remaining);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `MinterAlreadyLocked()`
+
+```solidity
+error MinterAlreadyLocked();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `MinterNotLocked()`
+
+```solidity
+error MinterNotLocked();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `NotMinter(address)`
+
+```solidity
+error NotMinter(address caller);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SafeCastOverflowedUintDowncast(uint8,uint256)`
+
+```solidity
+error SafeCastOverflowedUintDowncast(uint8 bits, uint256 value);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SameMinter()`
+
+```solidity
+error SameMinter();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `StringTooLong(string)`
+
+```solidity
+error StringTooLong(string str);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `VotesExpiredSignature(uint256)`
+
+```solidity
+error VotesExpiredSignature(uint256 expiry);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAddress()`
+
+```solidity
+error ZeroAddress();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAmount()`
+
+```solidity
+error ZeroAmount();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## LiquidityPosition
+
+Source: [`src/core/LiquidityPosition.sol`](../../packages/contracts/src/core/LiquidityPosition.sol)
+
+Artifact: `out/LiquidityPosition.sol/LiquidityPosition.json`
+
+Public ABI: 25 functions, 5 events, 23 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor((address,address,uint256,address,address,address,address),(address,address,uint24,int24,address),int24,int24)`
+
+```solidity
+constructor(struct LiquidityPosition.Dependencies dependencies, struct PoolKey canonicalPoolKey, int24 tickLower, int24 tickUpper);
+```
+
+Fixes the exact v4 pool, range, NFT, fee route, and timelocked migration authority.
 
 **Parameters**
 
-- `canonicalPoolKey`: Exact hookless GBX/USDG pool identity accepted for the one position.
-- `dependencies`: Fixed protocol contracts and assets.
-
-### `ALLOCATION_VOTER()`
-
-```solidity
-function ALLOCATION_VOTER() external view returns (contract IAllocationVoter arg0);
-```
-
-Allocation ledger notified only after the vault receives USDG.
-
-### `CURRENCY0()`
-
-```solidity
-function CURRENCY0() external view returns (address arg0);
-```
-
-Lower-address token in the canonical v4 pool.
-
-### `CURRENCY1()`
-
-```solidity
-function CURRENCY1() external view returns (address arg0);
-```
-
-Higher-address token in the canonical v4 pool.
-
-### `EXPECTED_POSITION_TOKEN_ID()`
-
-```solidity
-function EXPECTED_POSITION_TOKEN_ID() external view returns (uint256 arg0);
-```
-
-Precommitted PositionManager token ID for the genesis position.
-
-### `GBX()`
-
-```solidity
-function GBX() external view returns (contract IGBXToken arg0);
-```
-
-Canonical GBX token whose collected fees are burned.
-
-### `GUM_BALL_VAULT()`
-
-```solidity
-function GUM_BALL_VAULT() external view returns (address arg0);
-```
-
-Passive protocol vault receiving collected USDG.
-
-### `POOL_FEE()`
-
-```solidity
-function POOL_FEE() external view returns (uint24 arg0);
-```
-
-Fee tier of the canonical v4 pool.
-
-### `POOL_KEY_HASH()`
-
-```solidity
-function POOL_KEY_HASH() external view returns (bytes32 arg0);
-```
-
-Hash of the complete canonical hookless pool key.
-
-### `POSITION_DEPOSITOR()`
-
-```solidity
-function POSITION_DEPOSITOR() external view returns (address arg0);
-```
-
-Reviewed one-time account allowed to deliver the genesis position.
-
-### `POSITION_MANAGER()`
-
-```solidity
-function POSITION_MANAGER() external view returns (contract IPositionManager arg0);
-```
-
-Canonical Uniswap v4 position NFT contract.
-
-### `PROTOCOL_TIMELOCK()`
-
-```solidity
-function PROTOCOL_TIMELOCK() external view returns (address arg0);
-```
-
-Purpose-limited timelock authorized to transfer the exact recorded position.
-
-### `TICK_SPACING()`
-
-```solidity
-function TICK_SPACING() external view returns (int24 arg0);
-```
-
-Tick spacing of the canonical v4 pool.
-
-### `USDG()`
-
-```solidity
-function USDG() external view returns (contract IERC20 arg0);
-```
-
-Canonical USDG token whose collected fees are deposited into the vault.
+- `canonicalPoolKey`: Exact hookless GBX/USDG pool identity.
+- `dependencies`: Immutable protocol and PositionManager dependencies.
+- `tickLower`: Expected lower tick of the precommitted single-sided position.
+- `tickUpper`: Expected upper tick of the precommitted single-sided position.
 
 ### `collectFees()`
 
 ```solidity
-function collectFees() external returns (uint256 gbxBurned, uint256 usdGToVault);
+function collectFees() external returns (uint256 gbxBurned, uint256 usdgRouted);
 ```
 
-Collects fees without removing liquidity, burns GBX, and deposits USDG before voter notification.
+Collects fees without removing principal, burns all held GBX, and routes all held USDG to Voter.
+Processing complete balances also makes direct GBX or USDG transfers harmless. A failure in collection, burning, transfer, or routing reverts the entire operation atomically.
 
 **Returns**
 
-- `gbxBurned`: Collected GBX irreversibly burned by this call.
-- `usdGToVault`: Collected USDG actually received by GumBallVault and notified to AllocationVoter.
+- `gbxBurned`: GBX permanently burned in this call.
+- `usdgRouted`: USDG delivered to VoterRouter in this call.
+
+### `currency0()`
+
+```solidity
+function currency0() external view returns (address arg0);
+```
+
+Lower-address token of the canonical pool.
+
+### `currency1()`
+
+```solidity
+function currency1() external view returns (address arg0);
+```
+
+Higher-address token of the canonical pool.
+
+### `expectedPositionTokenId()`
+
+```solidity
+function expectedPositionTokenId() external view returns (uint256 arg0);
+```
+
+Precommitted token ID of the genesis position.
+
+### `expectedTickLower()`
+
+```solidity
+function expectedTickLower() external view returns (int24 arg0);
+```
+
+Expected lower tick of the genesis position.
+
+### `expectedTickUpper()`
+
+```solidity
+function expectedTickUpper() external view returns (int24 arg0);
+```
+
+Expected upper tick of the genesis position.
+
+### `gbx()`
+
+```solidity
+function gbx() external view returns (contract GBX arg0);
+```
+
+GBX token burned when collected as fees.
+
+### `migratePosition()`
+
+```solidity
+function migratePosition() external;
+```
+
+Moves the exact canonical position to the configured compatible successor.
+Execution is permissionless after the timelocked owner has committed to the successor.
 
 ### `onERC721Received(address,address,uint256,bytes)`
 
 ```solidity
-function onERC721Received(address arg0, address from, uint256 tokenId, bytes arg3) external returns (bytes4 arg0);
+function onERC721Received(address operator, address from, uint256 tokenId, bytes data) external returns (bytes4 selector);
 ```
 
-Records the first and only canonical PositionManager NFT received by safe transfer.
+Records and validates the first and only accepted PositionManager NFT.
+
+**Parameters**
+
+- `data`: Optional transfer data; ignored.
+- `from`: Previous position owner.
+- `operator`: Account that initiated the safe transfer.
+- `tokenId`: PositionManager token ID.
+
+**Returns**
+
+- `selector`: ERC-721 receiver acceptance selector.
+
+### `owner()`
+
+```solidity
+function owner() external view returns (address arg0);
+```
+
+Returns the address of the current owner.
+
+### `poolFee()`
+
+```solidity
+function poolFee() external view returns (uint24 arg0);
+```
+
+Fee tier of the canonical pool.
 
 ### `poolKey()`
 
 ```solidity
-function poolKey() external view returns (struct PoolKey arg0);
+function poolKey() external view returns (struct PoolKey key);
 ```
 
 Returns the immutable canonical hookless pool identity.
 
+**Returns**
+
+- `key`: Canonical GBX/USDG PoolKey.
+
+### `poolKeyHash()`
+
+```solidity
+function poolKeyHash() external view returns (bytes32 arg0);
+```
+
+Hash of the complete hookless GBX/USDG pool key.
+
+### `positionDepositor()`
+
+```solidity
+function positionDepositor() external view returns (address arg0);
+```
+
+One-time account expected to deliver the genesis position.
+
 ### `positionInCustody()`
 
 ```solidity
-function positionInCustody() external view returns (bool arg0);
+function positionInCustody() external view returns (bool inCustody);
 ```
 
-Returns whether the exact recorded position currently remains owned by this custodian.
+Returns whether this contract currently owns the exact recorded position.
+
+**Returns**
+
+- `inCustody`: Whether this contract currently owns the position NFT.
+
+### `positionManager()`
+
+```solidity
+function positionManager() external view returns (contract IPositionManager arg0);
+```
+
+Canonical Uniswap v4 PositionManager.
 
 ### `positionRecorded()`
 
@@ -1351,7 +2100,7 @@ Returns whether the exact recorded position currently remains owned by this cust
 function positionRecorded() external view returns (bool arg0);
 ```
 
-Whether the reviewed deployment transfer has recorded the canonical position.
+Whether the expected position has been received and validated.
 
 ### `positionTokenId()`
 
@@ -1359,156 +2108,228 @@ Whether the reviewed deployment transfer has recorded the canonical position.
 function positionTokenId() external view returns (uint256 arg0);
 ```
 
-The sole canonical PositionManager token ID accepted by this custodian.
+The canonical PositionManager NFT held by this contract.
 
-### `transferPosition(address)`
+### `renounceOwnership()`
 
 ```solidity
-function transferPosition(address recipient) external;
+function renounceOwnership() external;
 ```
 
-Transfers only the recorded canonical NFT to a deployed replacement contract through ProtocolTimelock.
+Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
+
+### `setSuccessor(address)`
+
+```solidity
+function setSuccessor(address newSuccessor) external;
+```
+
+Permanently binds one replacement contract with identical immutable position configuration.
 
 **Parameters**
 
-- `recipient`: Reviewed replacement custodian or migration contract receiving the canonical position.
+- `newSuccessor`: Compatible LiquidityPosition that expects this contract to deliver the same NFT.
+
+### `successor()`
+
+```solidity
+function successor() external view returns (address arg0);
+```
+
+One-way compatible migration target, or zero before governance binds one.
+
+### `tickSpacing()`
+
+```solidity
+function tickSpacing() external view returns (int24 arg0);
+```
+
+Tick spacing of the canonical pool.
+
+### `transferOwnership(address)`
+
+```solidity
+function transferOwnership(address newOwner) external;
+```
+
+Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (contract IERC20 arg0);
+```
+
+USDG token routed to Voter.
+
+### `voterRouter()`
+
+```solidity
+function voterRouter() external view returns (address arg0);
+```
+
+Router receiving all collected USDG.
 
 ### Events
 
-#### `LiquidityCustodian__FeesCollected(uint256,address,uint256,uint256)`
+#### `FeesProcessed(uint256,address,uint256,uint256)`
 
 ```solidity
-event LiquidityCustodian__FeesCollected(uint256 indexed positionId, address indexed caller, uint256 gbxBurned, uint256 usdGToVault);
+event FeesProcessed(uint256 indexed positionTokenId, address indexed caller, uint256 gbxBurned, uint256 usdgRouted);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__PositionRecorded(uint256,address,bytes32)`
+#### `OwnershipTransferred(address,address)`
 
 ```solidity
-event LiquidityCustodian__PositionRecorded(uint256 indexed positionId, address indexed previousOwner, bytes32 indexed poolKeyHash);
+event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__PositionTransferred(uint256,address)`
+#### `PositionMigrated(uint256,address,address)`
 
 ```solidity
-event LiquidityCustodian__PositionTransferred(uint256 indexed positionId, address indexed recipient);
+event PositionMigrated(uint256 indexed positionTokenId, address indexed caller, address indexed successor);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `PositionRecorded(uint256,address,bytes32)`
+
+```solidity
+event PositionRecorded(uint256 indexed positionTokenId, address indexed previousOwner, bytes32 indexed poolKeyHash);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SuccessorSet(address)`
+
+```solidity
+event SuccessorSet(address indexed successor);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
 
-#### `LiquidityCustodian__AddressHasNoCode(address)`
+#### `AddressHasNoCode(address)`
 
 ```solidity
-error LiquidityCustodian__AddressHasNoCode(address account);
+error AddressHasNoCode(address account);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__InexactUSDGTransfer(uint256,uint256,uint256)`
+#### `EmptyPosition(uint256)`
 
 ```solidity
-error LiquidityCustodian__InexactUSDGTransfer(uint256 expected, uint256 debit, uint256 receipt);
+error EmptyPosition(uint256 positionTokenId);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__InvalidPoolCurrencies(address,address)`
+#### `IncompatibleSuccessor(address)`
 
 ```solidity
-error LiquidityCustodian__InvalidPoolCurrencies(address currency0, address currency1);
+error IncompatibleSuccessor(address successor);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__InvalidPoolKey(bytes32,bytes32)`
+#### `InexactUSDGTransfer(uint256,uint256,uint256)`
 
 ```solidity
-error LiquidityCustodian__InvalidPoolKey(bytes32 expected, bytes32 actual);
+error InexactUSDGTransfer(uint256 expected, uint256 debited, uint256 received);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__NoPositionRecorded()`
+#### `InvalidPoolCurrencies(address,address)`
 
 ```solidity
-error LiquidityCustodian__NoPositionRecorded();
+error InvalidPoolCurrencies(address currency0, address currency1);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__NonzeroHook(address)`
+#### `InvalidPoolKey(bytes32,bytes32)`
 
 ```solidity
-error LiquidityCustodian__NonzeroHook(address hook);
+error InvalidPoolKey(bytes32 expected, bytes32 actual);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__NotProtocolTimelock(address)`
+#### `InvalidPositionTicks(int24,int24,int24,int24)`
 
 ```solidity
-error LiquidityCustodian__NotProtocolTimelock(address caller);
+error InvalidPositionTicks(int24 expectedLower, int24 expectedUpper, int24 actualLower, int24 actualUpper);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__PositionAlreadyRecorded(uint256)`
+#### `InvalidTickRange(int24,int24)`
 
 ```solidity
-error LiquidityCustodian__PositionAlreadyRecorded(uint256 positionId);
+error InvalidTickRange(int24 tickLower, int24 tickUpper);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__PositionNotInCustody(uint256)`
+#### `NoPositionRecorded()`
 
 ```solidity
-error LiquidityCustodian__PositionNotInCustody(uint256 positionId);
+error NoPositionRecorded();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__PositionNotOwned(uint256,address)`
+#### `NonzeroHook(address)`
 
 ```solidity
-error LiquidityCustodian__PositionNotOwned(uint256 positionId, address owner);
+error NonzeroHook(address hook);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__UnexpectedNFTSender(address)`
+#### `OwnableInvalidOwner(address)`
 
 ```solidity
-error LiquidityCustodian__UnexpectedNFTSender(address sender);
+error OwnableInvalidOwner(address owner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__UnexpectedPositionDepositor(address)`
+#### `OwnableUnauthorizedAccount(address)`
 
 ```solidity
-error LiquidityCustodian__UnexpectedPositionDepositor(address depositor);
+error OwnableUnauthorizedAccount(address account);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__UnexpectedPositionTokenId(uint256,uint256)`
+#### `PositionAlreadyRecorded(uint256)`
 
 ```solidity
-error LiquidityCustodian__UnexpectedPositionTokenId(uint256 expected, uint256 actual);
+error PositionAlreadyRecorded(uint256 positionTokenId);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LiquidityCustodian__ZeroAddress()`
+#### `PositionNotInCustody(uint256)`
 
 ```solidity
-error LiquidityCustodian__ZeroAddress();
+error PositionNotInCustody(uint256 positionTokenId);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `PositionNotOwned(uint256,address)`
+
+```solidity
+error PositionNotOwned(uint256 positionTokenId, address owner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1529,677 +2350,575 @@ error SafeERC20FailedOperation(address token);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## EmissionController
-
-Source: [`src/mining/EmissionController.sol`](../../packages/contracts/src/mining/EmissionController.sol)
-
-Artifact: `out/EmissionController.sol/EmissionController.json`
-
-Public ABI: 8 functions, 1 event, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,uint256,uint256)`
+#### `SuccessorAlreadySet(address)`
 
 ```solidity
-constructor(contract IGBXToken gbx_, address miningPool_, uint256 nextEpochId_, uint256 scheduledEmission_);
-```
-
-Configures a sequential scheduler at an explicit epoch and emission checkpoint.
-
-**Parameters**
-
-- `gbx_`: Canonical token whose currently authorized controller may mint.
-- `miningPool_`: Only caller allowed to settle an epoch.
-- `nextEpochId_`: Next epoch expected by this controller (zero for the initial controller).
-- `scheduledEmission_`: Scheduled amount for nextEpochId\_ (canonical initial amount for initial deployment).
-
-### `INITIAL_DAILY_SCHEDULED_EMISSION()`
-
-```solidity
-function INITIAL_DAILY_SCHEDULED_EMISSION() external view returns (uint256 arg0);
-```
-
-Canonical first scheduled daily emission for the 980M post-genesis allocation.
-
-### `currentScheduledEmission()`
-
-```solidity
-function currentScheduledEmission() external view returns (uint256 arg0);
-```
-
-Scheduled emission for the next epoch.
-
-### `gbx()`
-
-```solidity
-function gbx() external view returns (contract IGBXToken arg0);
-```
-
-Canonical GBX token whose current controller may mint.
-
-### `miningPool()`
-
-```solidity
-function miningPool() external view returns (address arg0);
-```
-
-Mining pool exclusively authorized to settle epochs.
-
-### `nextMiningEpochId()`
-
-```solidity
-function nextMiningEpochId() external view returns (uint256 arg0);
-```
-
-Next sequential epoch identifier accepted for settlement.
-
-### `remainingMintCapacity()`
-
-```solidity
-function remainingMintCapacity() external view returns (uint256 arg0);
-```
-
-Returns GBX's remaining lifetime mint capacity.
-
-### `scheduledEmission(uint256)`
-
-```solidity
-function scheduledEmission(uint256 epochId) external pure returns (uint256 arg0);
-```
-
-Returns the canonical floor-rounded scheduled emission for an epoch index.
-
-### `settleMiningEpoch(uint256,address,bool)`
-
-```solidity
-function settleMiningEpoch(uint256 epochId, address claimsReceiver, bool nonEmpty) external returns (uint256 emission);
-```
-
-Advances exactly one daily schedule step and mints the complete available amount iff nonempty.
-
-### Events
-
-#### `EmissionController__MiningEpochSettled(uint256,address,bool,uint256,uint256,uint256)`
-
-```solidity
-event EmissionController__MiningEpochSettled(uint256 indexed epochId, address indexed claimsReceiver, bool nonEmpty, uint256 emission, uint256 scheduledEmission, uint256 nextScheduledEmission);
+error SuccessorAlreadySet(address successor);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-### Custom errors
-
-#### `EmissionController__ControllerMismatch(address)`
+#### `SuccessorNotSet()`
 
 ```solidity
-error EmissionController__ControllerMismatch(address configuredController);
+error SuccessorNotSet();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `EmissionController__InvalidConfiguration()`
+#### `UnexpectedNFTSender(address)`
 
 ```solidity
-error EmissionController__InvalidConfiguration();
+error UnexpectedNFTSender(address sender);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `EmissionController__Unauthorized(address)`
+#### `UnexpectedPositionDepositor(address)`
 
 ```solidity
-error EmissionController__Unauthorized(address caller);
+error UnexpectedPositionDepositor(address depositor);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `EmissionController__UnexpectedEpoch(uint256,uint256)`
+#### `UnexpectedPositionTokenId(uint256,uint256)`
 
 ```solidity
-error EmissionController__UnexpectedEpoch(uint256 expected, uint256 provided);
+error UnexpectedPositionTokenId(uint256 expected, uint256 actual);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `EmissionController__ZeroReceiver()`
+#### `ZeroAddress()`
 
 ```solidity
-error EmissionController__ZeroReceiver();
+error ZeroAddress();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## MiningClaims
+## SignalGBX
 
-Source: [`src/mining/MiningClaims.sol`](../../packages/contracts/src/mining/MiningClaims.sol)
+Source: [`src/core/SignalGBX.sol`](../../packages/contracts/src/core/SignalGBX.sol)
 
-Artifact: `out/MiningClaims.sol/MiningClaims.json`
+Artifact: `out/SignalGBX.sol/SignalGBX.json`
 
-Public ABI: 7 functions, 2 events, 8 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 31 functions, 9 events, 29 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
 ```solidity
-constructor(contract IGBXToken gbx, address sourceInitializer);
+constructor(contract IERC20 gbx_, address initialOwner);
 ```
 
-Configures the GBX escrow token and one-time source initializer.
+Creates the non-transferable staking receipt and assigns deployment-time ownership.
 
-### `GBX()`
+**Parameters**
+
+- `gbx_`: GBX token deposited by stakers.
+- `initialOwner`: Deployment-time owner responsible for binding Voter.
+
+### `CLOCK_MODE()`
 
 ```solidity
-function GBX() external view returns (contract IGBXToken arg0);
+function CLOCK_MODE() external view returns (string arg0);
 ```
 
-GBX token escrowed for settled mining claims.
+Machine-readable description of the clock as specified in ERC-6372.
 
-### `SOURCE_INITIALIZER()`
+### `DOMAIN_SEPARATOR()`
 
 ```solidity
-function SOURCE_INITIALIZER() external view returns (address arg0);
+function DOMAIN_SEPARATOR() external view returns (bytes32 arg0);
 ```
 
-Deployment coordinator allowed to bind the claims source once.
+Returns the domain separator used in the encoding of the signature for {permit}, as defined by {EIP712}.
 
-### `claim(address,uint256)`
+### `allowance(address,address)`
 
 ```solidity
-function claim(address beneficiary, uint256 epochId) external returns (uint256 amount);
+function allowance(address owner, address spender) external view returns (uint256 arg0);
 ```
 
-Permissionlessly pays one beneficiary's unclaimed settled epoch entitlement.
+Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner` through {transferFrom}. This is zero by default. This value changes when {approve} or {transferFrom} are called.
 
-### `hasClaimed(uint256,address)`
+### `approve(address,uint256)`
 
 ```solidity
-function hasClaimed(uint256 epochId, address beneficiary) external view returns (bool claimed);
+function approve(address spender, uint256 value) external returns (bool arg0);
 ```
 
-Returns whether a beneficiary has claimed a settled epoch.
+See {IERC20-approve}. NOTE: If `value` is the maximum `uint256`, the allowance is not updated on `transferFrom`. This is semantically equivalent to an infinite approval. Requirements: - `spender` cannot be the zero address.
 
-### `initializeSource(address)`
+### `balanceOf(address)`
 
 ```solidity
-function initializeSource(address source_) external;
+function balanceOf(address account) external view returns (uint256 arg0);
 ```
 
-Binds the mining claims data source once.
+Returns the value of tokens owned by `account`.
 
-### `previewClaim(address,uint256)`
+### `checkpoints(address,uint32)`
 
 ```solidity
-function previewClaim(address beneficiary, uint256 epochId) external view returns (uint256 amount);
+function checkpoints(address account, uint32 pos) external view returns (struct Checkpoints.Checkpoint208 arg0);
 ```
 
-Returns one beneficiary's currently claimable epoch entitlement.
+Get the `pos`-th checkpoint for `account`.
 
-### `source()`
+### `clock()`
 
 ```solidity
-function source() external view returns (contract IClaimsSource arg0);
+function clock() external view returns (uint48 arg0);
 ```
 
-Bound source of beneficiary epoch entitlements.
+Clock used for flagging checkpoints. Can be overridden to implement timestamp based checkpoints (and voting), in which case {CLOCK_MODE} should be overridden as well to match.
+
+### `decimals()`
+
+```solidity
+function decimals() external view returns (uint8 arg0);
+```
+
+Returns the number of decimals used to get its user representation. For example, if `decimals` equals `2`, a balance of `505` tokens should be displayed to a user as `5.05` (`505 / 10 ** 2`). Tokens usually opt for a value of 18, imitating the relationship between Ether and Wei. This is the default value returned by this function, unless it's overridden. NOTE: This information is only used for _display_ purposes: it in no way affects any of the arithmetic of the contract, including {IERC20-balanceOf} and {IERC20-transfer}.
+
+### `delegate(address)`
+
+```solidity
+function delegate(address delegatee) external;
+```
+
+Delegates votes from the sender to `delegatee`.
+
+### `delegateBySig(address,uint256,uint256,uint8,bytes32,bytes32)`
+
+```solidity
+function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) external;
+```
+
+Delegates votes from signer to `delegatee`.
+
+### `delegates(address)`
+
+```solidity
+function delegates(address account) external view returns (address arg0);
+```
+
+Returns the delegate that `account` has chosen.
+
+### `eip712Domain()`
+
+```solidity
+function eip712Domain() external view returns (bytes1 fields, string name, string version, uint256 chainId, address verifyingContract, bytes32 salt, uint256[] extensions);
+```
+
+returns the fields and values that describe the domain separator used by this contract for EIP-712 signature.
+
+### `gbx()`
+
+```solidity
+function gbx() external view returns (contract IERC20 arg0);
+```
+
+Underlying GBX held one-for-one against the SignalGBX supply.
+
+### `getPastTotalSupply(uint256)`
+
+```solidity
+function getPastTotalSupply(uint256 timepoint) external view returns (uint256 arg0);
+```
+
+Returns the total supply of votes available at a specific moment in the past. If the `clock()` is configured to use block numbers, this will return the value at the end of the corresponding block. NOTE: This value is the sum of all available votes, which is not necessarily the sum of all delegated votes. Votes that have not been delegated are still part of total supply, even though they would not participate in a vote. Requirements: - `timepoint` must be in the past. If operating using block numbers, the block must be already mined.
+
+### `getPastVotes(address,uint256)`
+
+```solidity
+function getPastVotes(address account, uint256 timepoint) external view returns (uint256 arg0);
+```
+
+Returns the amount of votes that `account` had at a specific moment in the past. If the `clock()` is configured to use block numbers, this will return the value at the end of the corresponding block. Requirements: - `timepoint` must be in the past. If operating using block numbers, the block must be already mined.
+
+### `getVotes(address)`
+
+```solidity
+function getVotes(address account) external view returns (uint256 arg0);
+```
+
+Returns the current amount of votes that `account` has.
+
+### `name()`
+
+```solidity
+function name() external view returns (string arg0);
+```
+
+Returns the name of the token.
+
+### `nonces(address)`
+
+```solidity
+function nonces(address owner) external view returns (uint256 nonce);
+```
+
+Returns the current ERC-2612 permit nonce for `owner`.
+
+**Parameters**
+
+- `owner`: Account whose nonce is queried.
+
+**Returns**
+
+- `nonce`: Current permit nonce.
+
+### `numCheckpoints(address)`
+
+```solidity
+function numCheckpoints(address account) external view returns (uint32 arg0);
+```
+
+Get number of checkpoints for `account`.
+
+### `owner()`
+
+```solidity
+function owner() external view returns (address arg0);
+```
+
+Returns the address of the current owner.
+
+### `permit(address,address,uint256,uint256,uint8,bytes32,bytes32)`
+
+```solidity
+function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
+```
+
+Sets `value` as the allowance of `spender` over `owner`'s tokens, given `owner`'s signed approval. IMPORTANT: The same issues {IERC20-approve} has related to transaction ordering also applies here. Emits an {Approval} event. Requirements: - `spender` cannot be the zero address. - `deadline` must be a timestamp in the future. - `v`, `r` and `s` must be a valid `secp256k1` signature from `owner` over the EIP712-formatted function arguments. - the signature must use `owner`'s current nonce (see {nonces}). For more information on the signature format, see the https://eips.ethereum.org/EIPS/eip-2612#specification[relevant EIP section]. CAUTION: See Security Considerations above.
+
+### `renounceOwnership()`
+
+```solidity
+function renounceOwnership() external;
+```
+
+Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
+
+### `setVoter(address)`
+
+```solidity
+function setVoter(address voter_) external;
+```
+
+Binds the Voter dependency once during deployment.
+
+**Parameters**
+
+- `voter_`: Voter address to bind permanently.
+
+### `stake(uint256)`
+
+```solidity
+function stake(uint256 amount) external;
+```
+
+Stakes GBX and mints the same amount of non-transferable SignalGBX.
+
+**Parameters**
+
+- `amount`: Amount of GBX to stake.
+
+### `symbol()`
+
+```solidity
+function symbol() external view returns (string arg0);
+```
+
+Returns the symbol of the token, usually a shorter version of the name.
+
+### `totalSupply()`
+
+```solidity
+function totalSupply() external view returns (uint256 arg0);
+```
+
+Returns the value of tokens in existence.
+
+### `transfer(address,uint256)`
+
+```solidity
+function transfer(address to, uint256 value) external returns (bool arg0);
+```
+
+See {IERC20-transfer}. Requirements: - `to` cannot be the zero address. - the caller must have a balance of at least `value`.
+
+### `transferFrom(address,address,uint256)`
+
+```solidity
+function transferFrom(address from, address to, uint256 value) external returns (bool arg0);
+```
+
+See {IERC20-transferFrom}. Skips emitting an {Approval} event indicating an allowance update. This is not required by the ERC. See {xref-ERC20-\_approve-address-address-uint256-bool-}[_approve]. NOTE: Does not update the allowance if the current allowance is the maximum `uint256`. Requirements: - `from` and `to` cannot be the zero address. - `from` must have a balance of at least `value`. - the caller must have allowance for `from`'s tokens of at least `value`.
+
+### `transferOwnership(address)`
+
+```solidity
+function transferOwnership(address newOwner) external;
+```
+
+Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
+
+### `unstake(uint256)`
+
+```solidity
+function unstake(uint256 amount) external;
+```
+
+Burns SignalGBX and returns the underlying GBX immediately after all votes are cleared.
+
+**Parameters**
+
+- `amount`: Amount of SignalGBX to burn and GBX to withdraw.
+
+### `voter()`
+
+```solidity
+function voter() external view returns (address arg0);
+```
+
+Voter that tracks whether an account still has active allocations.
 
 ### Events
 
-#### `MiningClaims__Claimed(uint256,address,address,uint256)`
+#### `Approval(address,address,uint256)`
 
 ```solidity
-event MiningClaims__Claimed(uint256 indexed epochId, address indexed beneficiary, address indexed caller, uint256 amount);
+event Approval(address indexed owner, address indexed spender, uint256 value);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningClaims__SourceInitialized(address)`
+#### `DelegateChanged(address,address,address)`
 
 ```solidity
-event MiningClaims__SourceInitialized(address indexed source);
+event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `DelegateVotesChanged(address,uint256,uint256)`
+
+```solidity
+event DelegateVotesChanged(address indexed delegate, uint256 previousVotes, uint256 newVotes);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EIP712DomainChanged()`
+
+```solidity
+event EIP712DomainChanged();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnershipTransferred(address,address)`
+
+```solidity
+event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Staked(address,uint256)`
+
+```solidity
+event Staked(address indexed account, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Transfer(address,address,uint256)`
+
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Unstaked(address,uint256)`
+
+```solidity
+event Unstaked(address indexed account, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `VoterSet(address)`
+
+```solidity
+event VoterSet(address indexed voter);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
 
-#### `MiningClaims__AlreadyClaimed(uint256,address)`
+#### `ActiveVotes(address,uint256)`
 
 ```solidity
-error MiningClaims__AlreadyClaimed(uint256 epochId, address beneficiary);
+error ActiveVotes(address account, uint256 usedWeight);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningClaims__AlreadyInitialized()`
+#### `CheckpointUnorderedInsertion()`
 
 ```solidity
-error MiningClaims__AlreadyInitialized();
+error CheckpointUnorderedInsertion();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningClaims__NoClaim(uint256,address)`
+#### `ECDSAInvalidSignature()`
 
 ```solidity
-error MiningClaims__NoClaim(uint256 epochId, address beneficiary);
+error ECDSAInvalidSignature();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningClaims__NotSettled(uint256)`
+#### `ECDSAInvalidSignatureLength(uint256)`
 
 ```solidity
-error MiningClaims__NotSettled(uint256 epochId);
+error ECDSAInvalidSignatureLength(uint256 length);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningClaims__Unauthorized(address)`
+#### `ECDSAInvalidSignatureS(bytes32)`
 
 ```solidity
-error MiningClaims__Unauthorized(address caller);
+error ECDSAInvalidSignatureS(bytes32 s);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningClaims__ZeroAddress()`
+#### `ERC20ExceededSafeSupply(uint256,uint256)`
 
 ```solidity
-error MiningClaims__ZeroAddress();
+error ERC20ExceededSafeSupply(uint256 increasedSupply, uint256 cap);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `ReentrancyGuardReentrantCall()`
+#### `ERC20InsufficientAllowance(address,uint256,uint256)`
 
 ```solidity
-error ReentrancyGuardReentrantCall();
+error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `SafeERC20FailedOperation(address)`
+#### `ERC20InsufficientBalance(address,uint256,uint256)`
 
 ```solidity
-error SafeERC20FailedOperation(address token);
+error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## ILiquidityCustodianStatus
-
-Source: [`src/mining/MiningPool.sol`](../../packages/contracts/src/mining/MiningPool.sol)
-
-Artifact: `out/MiningPool.sol/ILiquidityCustodianStatus.json`
-
-Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `positionInCustody()`
+#### `ERC20InvalidApprover(address)`
 
 ```solidity
-function positionInCustody() external view returns (bool arg0);
-```
-
-Returns whether the canonical position remains held by its custodian.
-
-## MiningPool
-
-Source: [`src/mining/MiningPool.sol`](../../packages/contracts/src/mining/MiningPool.sol)
-
-Artifact: `out/MiningPool.sol/MiningPool.json`
-
-Public ABI: 25 functions, 5 events, 16 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,address,address,address,address,address,address,address,address)`
-
-```solidity
-constructor(address usdG, address gumBallVault, contract IAllocationVoter allocationVoter, contract IGBXToken gbx, contract IMiningClaims miningClaims, address liquidityCustodian, address emergencyGuardian, address protocolTimelock, address startInitializer, address team);
-```
-
-Configures the fixed mining, custody, access-control, and revenue dependencies.
-
-### `ALLOCATION_VOTER()`
-
-```solidity
-function ALLOCATION_VOTER() external view returns (contract IAllocationVoter arg0);
-```
-
-Allocation ledger notified of deposited vault revenue.
-
-### `BPS_DENOMINATOR()`
-
-```solidity
-function BPS_DENOMINATOR() external view returns (uint256 arg0);
-```
-
-Basis-point denominator used for the team fee.
-
-### `EMERGENCY_GUARDIAN()`
-
-```solidity
-function EMERGENCY_GUARDIAN() external view returns (address arg0);
-```
-
-Stop-only guardian allowed to pause contributions.
-
-### `EPOCH_DURATION()`
-
-```solidity
-function EPOCH_DURATION() external view returns (uint256 arg0);
-```
-
-Fixed duration of each mining epoch.
-
-### `GBX()`
-
-```solidity
-function GBX() external view returns (contract IGBXToken arg0);
-```
-
-Lifetime-capped token emitted for nonempty epochs.
-
-### `GUM_BALL_VAULT()`
-
-```solidity
-function GUM_BALL_VAULT() external view returns (address arg0);
-```
-
-Passive vault receiving net contribution revenue.
-
-### `LIQUIDITY_CUSTODIAN()`
-
-```solidity
-function LIQUIDITY_CUSTODIAN() external view returns (contract ILiquidityCustodianStatus arg0);
-```
-
-Custodian whose canonical position must exist before mining starts.
-
-### `MINING_CLAIMS()`
-
-```solidity
-function MINING_CLAIMS() external view returns (contract IMiningClaims arg0);
-```
-
-Escrow receiving minted epoch emissions for beneficiary claims.
-
-### `PROTOCOL_TIMELOCK()`
-
-```solidity
-function PROTOCOL_TIMELOCK() external view returns (address arg0);
-```
-
-Timelock allowed to resume contributions and update the team receiver.
-
-### `START_INITIALIZER()`
-
-```solidity
-function START_INITIALIZER() external view returns (address arg0);
-```
-
-Deployment coordinator allowed to start epoch zero once.
-
-### `TEAM_FEE_BPS()`
-
-```solidity
-function TEAM_FEE_BPS() external view returns (uint256 arg0);
-```
-
-Optional team fee in basis points.
-
-### `USDG()`
-
-```solidity
-function USDG() external view returns (contract IERC20 arg0);
-```
-
-Contribution and revenue token.
-
-### `claimData(uint256,address)`
-
-```solidity
-function claimData(uint256 epochId, address beneficiary) external view returns (uint256 entitlement, uint256 totalAllocation, bool settled);
-```
-
-Returns a beneficiary's settled pro-rata emission entitlement for an epoch.
-
-### `contribute(address,uint256)`
-
-```solidity
-function contribute(address beneficiary, uint256 requestedAmount) external returns (uint256 receivedAmount);
-```
-
-Attributes a nonzero USDG contribution to a beneficiary in the active epoch.
-
-### `contributionOf(uint256,address)`
-
-```solidity
-function contributionOf(uint256 epochId, address beneficiary) external view returns (uint256 amount);
-```
-
-Returns a beneficiary's attributed USDG contribution in an epoch.
-
-### `contributionsPaused()`
-
-```solidity
-function contributionsPaused() external view returns (bool arg0);
-```
-
-Whether new contributions are paused.
-
-### `currentEpochId()`
-
-```solidity
-function currentEpochId() external view returns (uint256 arg0);
-```
-
-Identifier of the active contribution epoch.
-
-### `epochs(uint256)`
-
-```solidity
-function epochs(uint256 epochId) external view returns (uint64 startTime, uint64 endTime, uint64 settledAt, uint256 totalContributed, uint256 teamFee, uint256 vaultRevenue, uint256 emission, bool settled);
-```
-
-Returns stored accounting and settlement data for an epoch.
-
-### `pauseContributions()`
-
-```solidity
-function pauseContributions() external;
-```
-
-Stops new contributions without blocking settlement or claims.
-
-### `resumeContributions()`
-
-```solidity
-function resumeContributions() external;
-```
-
-Re-enables new contributions through the protocol timelock.
-
-### `setTeamAddress(address)`
-
-```solidity
-function setTeamAddress(address team) external;
-```
-
-Updates the optional team-fee receiver through the protocol timelock.
-
-### `settleCurrentEpoch()`
-
-```solidity
-function settleCurrentEpoch() external returns (uint256 emission);
-```
-
-Permissionlessly settles one ended epoch; empty epochs advance without minting or carry.
-
-### `start()`
-
-```solidity
-function start() external;
-```
-
-Starts epoch zero only after the canonical NFT is held and the controller is bound.
-
-### `started()`
-
-```solidity
-function started() external view returns (bool arg0);
-```
-
-Whether epoch zero has been started.
-
-### `teamAddress()`
-
-```solidity
-function teamAddress() external view returns (address arg0);
-```
-
-Optional receiver of the fixed team fee.
-
-### Events
-
-#### `MiningPool__Contribution(uint256,address,address,uint256,uint256,uint256)`
-
-```solidity
-event MiningPool__Contribution(uint256 indexed epochId, address indexed payer, address indexed beneficiary, uint256 requestedAmount, uint256 receivedAmount, uint256 epochTotalAfter);
+error ERC20InvalidApprover(address approver);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningPool__ContributionsPauseSet(bool)`
+#### `ERC20InvalidReceiver(address)`
 
 ```solidity
-event MiningPool__ContributionsPauseSet(bool paused);
+error ERC20InvalidReceiver(address receiver);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningPool__EpochSettled(uint256,uint256,uint256,uint256,uint256)`
+#### `ERC20InvalidSender(address)`
 
 ```solidity
-event MiningPool__EpochSettled(uint256 indexed epochId, uint256 totalContributed, uint256 teamFee, uint256 vaultRevenue, uint256 emission);
+error ERC20InvalidSender(address sender);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningPool__MiningStarted(uint256,uint256,uint256)`
+#### `ERC20InvalidSpender(address)`
 
 ```solidity
-event MiningPool__MiningStarted(uint256 indexed epochId, uint256 startTime, uint256 endTime);
+error ERC20InvalidSpender(address spender);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningPool__TeamAddressSet(address,address)`
+#### `ERC2612ExpiredSignature(uint256)`
 
 ```solidity
-event MiningPool__TeamAddressSet(address indexed previousTeam, address indexed newTeam);
+error ERC2612ExpiredSignature(uint256 deadline);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-### Custom errors
-
-#### `MiningPool__AlreadyStarted()`
+#### `ERC2612InvalidSigner(address,address)`
 
 ```solidity
-error MiningPool__AlreadyStarted();
+error ERC2612InvalidSigner(address signer, address owner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningPool__ContributionPeriodEnded(uint256,uint256)`
+#### `ERC5805FutureLookup(uint256,uint48)`
 
 ```solidity
-error MiningPool__ContributionPeriodEnded(uint256 epochId, uint256 endTime);
+error ERC5805FutureLookup(uint256 timepoint, uint48 clock);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningPool__ContributionsPaused()`
+#### `ERC6372InconsistentClock()`
 
 ```solidity
-error MiningPool__ContributionsPaused();
+error ERC6372InconsistentClock();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningPool__EmissionsExhausted()`
+#### `InvalidAccountNonce(address,uint256)`
 
 ```solidity
-error MiningPool__EmissionsExhausted();
+error InvalidAccountNonce(address account, uint256 currentNonce);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningPool__EpochNotEnded(uint256,uint256)`
+#### `InvalidShortString()`
 
 ```solidity
-error MiningPool__EpochNotEnded(uint256 epochId, uint256 endTime);
+error InvalidShortString();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningPool__InexactTransfer(address,uint256,uint256,uint256)`
+#### `OwnableInvalidOwner(address)`
 
 ```solidity
-error MiningPool__InexactTransfer(address token, uint256 expected, uint256 debit, uint256 receipt);
+error OwnableInvalidOwner(address owner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningPool__InvalidConfiguration()`
+#### `OwnableUnauthorizedAccount(address)`
 
 ```solidity
-error MiningPool__InvalidConfiguration();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `MiningPool__MiningNotStarted()`
-
-```solidity
-error MiningPool__MiningNotStarted();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `MiningPool__ObservedReceiptMismatch(uint256,uint256)`
-
-```solidity
-error MiningPool__ObservedReceiptMismatch(uint256 expected, uint256 observed);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `MiningPool__PositionNotInCustody()`
-
-```solidity
-error MiningPool__PositionNotInCustody();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `MiningPool__Unauthorized(address)`
-
-```solidity
-error MiningPool__Unauthorized(address caller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `MiningPool__ZeroAddress()`
-
-```solidity
-error MiningPool__ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `MiningPool__ZeroAmount()`
-
-```solidity
-error MiningPool__ZeroAmount();
+error OwnableUnauthorizedAccount(address account);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2228,177 +2947,365 @@ error SafeERC20FailedOperation(address token);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## StrategyRewards
-
-Source: [`src/rewards/StrategyRewards.sol`](../../packages/contracts/src/rewards/StrategyRewards.sol)
-
-Artifact: `out/StrategyRewards.sol/StrategyRewards.json`
-
-Public ABI: 16 functions, 3 events, 10 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,address)`
+#### `StringTooLong(string)`
 
 ```solidity
-constructor(address rewardToken, address allocationVoter, address strategyInitializer);
+error StringTooLong(string str);
 ```
 
-Configures the reward token, allocation voter, and one-time strategy initializer.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `ALLOCATION_VOTER()`
+#### `TransferDisabled()`
 
 ```solidity
-function ALLOCATION_VOTER() external view returns (address arg0);
+error TransferDisabled();
 ```
 
-Allocation voter exclusively authorized to update user weights.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `REWARD_PRECISION()`
+#### `VoterAlreadySet(address)`
 
 ```solidity
-function REWARD_PRECISION() external view returns (uint256 arg0);
+error VoterAlreadySet(address voter);
 ```
 
-Fixed-point precision used by the reward-per-weight index.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `REWARD_TOKEN()`
+#### `VotesExpiredSignature(uint256)`
 
 ```solidity
-function REWARD_TOKEN() external view returns (address arg0);
+error VotesExpiredSignature(uint256 expiry);
 ```
 
-Token distributed by this rewards index.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `STRATEGY()`
+#### `ZeroAddress()`
 
 ```solidity
-function STRATEGY() external view returns (address arg0);
+error ZeroAddress();
 ```
 
-Strategy exclusively authorized to notify funded rewards.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `STRATEGY_INITIALIZER()`
+#### `ZeroAmount()`
 
 ```solidity
-function STRATEGY_INITIALIZER() external view returns (address arg0);
+error ZeroAmount();
 ```
 
-Deployment coordinator allowed to bind the strategy once.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `accountedRewards()`
+## Strategy
+
+Source: [`src/core/Strategy.sol`](../../packages/contracts/src/core/Strategy.sol)
+
+Artifact: `out/Strategy.sol/Strategy.json`
+
+Public ABI: 22 functions, 1 event, 13 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address,address,address,address,uint8,(uint256,uint256,uint256,uint256))`
 
 ```solidity
-function accountedRewards() external view returns (uint256 arg0);
+constructor(address voter_, contract IERC20 revenueToken_, contract IERC20 paymentToken_, address fund_, enum Strategy.Kind kind_, struct Strategy.Config config);
 ```
 
-Total funded rewards not yet paid to beneficiaries.
+Creates one immutable acquisition or buyback Strategy.
 
-### `accrued(address)`
+**Parameters**
+
+- `config`: Immutable auction configuration.
+- `fund_`: Treasury receiving acquisition payments or buyback GBX.
+- `kind_`: Whether this Strategy acquires an asset or performs GBX buybacks.
+- `paymentToken_`: Asset buyers pay to fill this Strategy.
+- `revenueToken_`: USDG token sold by this Strategy.
+- `voter_`: Voter that provides the reward share and paired BribeRouter.
+
+### `ABSOLUTE_MAXIMUM_PRICE()`
 
 ```solidity
-function accrued(address user) external view returns (uint256 amount);
+function ABSOLUTE_MAXIMUM_PRICE() external view returns (uint256 arg0);
 ```
 
-Returns a user's checkpointed unpaid rewards.
+Absolute upper bound for a starting or minimum price.
 
-### `claim(address)`
+### `ABSOLUTE_MINIMUM_PRICE()`
 
 ```solidity
-function claim(address beneficiary) external returns (uint256 amount);
+function ABSOLUTE_MINIMUM_PRICE() external view returns (uint256 arg0);
 ```
 
-Permissionlessly pays a beneficiary to that same beneficiary address.
+Absolute lower bound for a configured minimum price.
 
-### `earned(address)`
+### `BPS_SCALE()`
 
 ```solidity
-function earned(address user) external view returns (uint256 arg0);
+function BPS_SCALE() external view returns (uint256 arg0);
 ```
 
-Returns a user's checkpointed plus newly indexed unpaid rewards.
+Basis-point denominator used for the acquisition payment split.
 
-### `initializeStrategy(address)`
+### `MAX_EPOCH_DURATION()`
 
 ```solidity
-function initializeStrategy(address strategy) external;
+function MAX_EPOCH_DURATION() external view returns (uint256 arg0);
 ```
 
-Binds the sole strategy allowed to notify rewards.
+Longest permitted price-decay period.
 
-### `notifyReward(uint256)`
+### `MAX_PRICE_MULTIPLIER()`
 
 ```solidity
-function notifyReward(uint256 amount) external;
+function MAX_PRICE_MULTIPLIER() external view returns (uint256 arg0);
 ```
 
-Accounts a nonzero reward amount already held by this contract.
+Largest multiplier permitted for the next starting price.
 
-### `rewardPerWeightPaid(address)`
+### `MIN_EPOCH_DURATION()`
 
 ```solidity
-function rewardPerWeightPaid(address user) external view returns (uint256 index);
+function MIN_EPOCH_DURATION() external view returns (uint256 arg0);
 ```
 
-Returns the reward index last checkpointed for a user.
+Shortest permitted price-decay period.
 
-### `rewardPerWeightStored()`
+### `MIN_PRICE_MULTIPLIER()`
 
 ```solidity
-function rewardPerWeightStored() external view returns (uint256 arg0);
+function MIN_PRICE_MULTIPLIER() external view returns (uint256 arg0);
 ```
 
-Cumulative reward per unit of supporter weight.
+Smallest multiplier permitted for the next starting price.
 
-### `setWeight(address,uint256)`
+### `PRICE_SCALE()`
 
 ```solidity
-function setWeight(address user, uint256 newWeight) external;
+function PRICE_SCALE() external view returns (uint256 arg0);
 ```
 
-Checkpoints and replaces one user's active reward weight.
+Fixed-point precision for the next-price multiplier.
 
-### `totalWeight()`
+### `availableRevenue()`
 
 ```solidity
-function totalWeight() external view returns (uint256 arg0);
+function availableRevenue() external view returns (uint256 amount);
 ```
 
-Aggregate supporter weight last synchronized while the strategy was live.
+Returns USDG currently available for purchase.
 
-### `weightOf(address)`
+**Returns**
+
+- `amount`: USDG currently held by this Strategy.
+
+### `buy(address,uint256,uint256,uint256)`
 
 ```solidity
-function weightOf(address user) external view returns (uint256 weight);
+function buy(address revenueReceiver, uint256 expectedEpochId, uint256 deadline, uint256 maximumPayment) external returns (uint256 paymentAmount);
 ```
 
-Returns one user's last synchronized reward weight, including a terminal disabled-strategy snapshot.
+Purchases the Strategy's complete USDG balance at the current declining price.
+
+**Parameters**
+
+- `deadline`: Latest timestamp at which this transaction may execute.
+- `expectedEpochId`: Expected epoch, protecting the buyer from another fill changing the price first.
+- `maximumPayment`: Maximum payment accepted by the buyer.
+- `revenueReceiver`: Address that receives the accumulated USDG.
+
+**Returns**
+
+- `paymentAmount`: Actual payment required at execution time.
+
+### `currentPrice()`
+
+```solidity
+function currentPrice() external view returns (uint256 price);
+```
+
+Returns the current linearly declining price.
+
+**Returns**
+
+- `price`: Payment required to fill the active auction epoch.
+
+### `epochDuration()`
+
+```solidity
+function epochDuration() external view returns (uint256 arg0);
+```
+
+Number of seconds over which price declines to zero.
+
+### `epochId()`
+
+```solidity
+function epochId() external view returns (uint256 arg0);
+```
+
+Current auction epoch identifier.
+
+### `epochStartedAt()`
+
+```solidity
+function epochStartedAt() external view returns (uint256 arg0);
+```
+
+Timestamp at which the active epoch began.
+
+### `fund()`
+
+```solidity
+function fund() external view returns (address arg0);
+```
+
+Treasury that receives acquisition proceeds or buyback GBX.
+
+### `initialPrice()`
+
+```solidity
+function initialPrice() external view returns (uint256 arg0);
+```
+
+Price at the beginning of the active epoch.
+
+### `kind()`
+
+```solidity
+function kind() external view returns (enum Strategy.Kind arg0);
+```
+
+Whether this Strategy performs an acquisition or GBX buyback.
+
+### `minimumPrice()`
+
+```solidity
+function minimumPrice() external view returns (uint256 arg0);
+```
+
+Floor applied to the next epoch's starting price.
+
+### `paymentToken()`
+
+```solidity
+function paymentToken() external view returns (contract IERC20 arg0);
+```
+
+Asset required from a buyer.
+
+### `priceMultiplier()`
+
+```solidity
+function priceMultiplier() external view returns (uint256 arg0);
+```
+
+Fixed-point multiplier applied to a completed epoch's payment.
+
+### `revenueToken()`
+
+```solidity
+function revenueToken() external view returns (contract IERC20 arg0);
+```
+
+USDG sold by this Strategy.
+
+### `voter()`
+
+```solidity
+function voter() external view returns (address arg0);
+```
+
+Voter that supplies the current bribe share and paired BribeRouter.
 
 ### Events
 
-#### `StrategyRewards__Claimed(address,address,uint256)`
+#### `Purchased(address,address,uint256,uint256,uint256)`
 
 ```solidity
-event StrategyRewards__Claimed(address indexed beneficiary, address indexed caller, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StrategyRewards__RewardNotified(uint256,uint256)`
-
-```solidity
-event StrategyRewards__RewardNotified(uint256 amount, uint256 rewardPerWeightAfter);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StrategyRewards__WeightSet(address,uint256,uint256)`
-
-```solidity
-event StrategyRewards__WeightSet(address indexed user, uint256 previousWeight, uint256 newWeight);
+event Purchased(address indexed buyer, address indexed revenueReceiver, uint256 indexed epochId, uint256 revenueAmount, uint256 paymentAmount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
+
+#### `DeadlinePassed(uint256)`
+
+```solidity
+error DeadlinePassed(uint256 deadline);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EmptyRevenue()`
+
+```solidity
+error EmptyRevenue();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EpochDurationOutOfRange(uint256)`
+
+```solidity
+error EpochDurationOutOfRange(uint256 duration);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EpochIdMismatch(uint256,uint256)`
+
+```solidity
+error EpochIdMismatch(uint256 expected, uint256 actual);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InexactPayment(uint256,uint256)`
+
+```solidity
+error InexactPayment(uint256 expected, uint256 received);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InitialPriceOutOfRange(uint256)`
+
+```solidity
+error InitialPriceOutOfRange(uint256 price);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidBuybackToken(address)`
+
+```solidity
+error InvalidBuybackToken(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `MaximumPaymentExceeded(uint256,uint256)`
+
+```solidity
+error MaximumPaymentExceeded(uint256 payment, uint256 maximum);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `MinimumPriceOutOfRange(uint256)`
+
+```solidity
+error MinimumPriceOutOfRange(uint256 price);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `PriceMultiplierOutOfRange(uint256)`
+
+```solidity
+error PriceMultiplierOutOfRange(uint256 multiplier);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
 
 #### `ReentrancyGuardReentrantCall()`
 
@@ -2416,109 +3323,208 @@ error SafeERC20FailedOperation(address token);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `StrategyRewards__AlreadyInitialized()`
+#### `ZeroAddress()`
 
 ```solidity
-error StrategyRewards__AlreadyInitialized();
+error ZeroAddress();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `StrategyRewards__InexactTransfer(uint256,uint256,uint256)`
+## StrategyFactory
+
+Source: [`src/core/StrategyFactory.sol`](../../packages/contracts/src/core/StrategyFactory.sol)
+
+Artifact: `out/StrategyFactory.sol/StrategyFactory.json`
+
+Public ABI: 6 functions, 3 events, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address)`
 
 ```solidity
-error StrategyRewards__InexactTransfer(uint256 expected, uint256 debit, uint256 receipt);
+constructor(address initialOwner);
+```
+
+Creates an unbound factory whose owner may set Voter exactly once.
+
+**Parameters**
+
+- `initialOwner`: Deployment-time owner responsible for binding Voter.
+
+### `createStrategy(address,address,address,address,uint8,(uint256,uint256,uint256,uint256))`
+
+```solidity
+function createStrategy(contract IERC20 revenueToken, contract IERC20 paymentToken, address fund, contract Bribe bribe, enum Strategy.Kind kind, struct Strategy.Config config) external returns (contract Strategy strategy, contract BribeRouter bribeRouter);
+```
+
+Deploys a Strategy and the BribeRouter paired with it.
+
+**Parameters**
+
+- `bribe`: Bribe that streams the Strategy's voter share.
+- `config`: Immutable auction configuration.
+- `fund`: Treasury receiving acquisition proceeds or GBX buybacks.
+- `kind`: Whether the Strategy acquires an asset or performs GBX buybacks.
+- `paymentToken`: Asset buyers pay to fill the Strategy.
+- `revenueToken`: USDG token sold by the Strategy.
+
+**Returns**
+
+- `bribeRouter`: Newly deployed BribeRouter paired with `strategy`.
+- `strategy`: Newly deployed Strategy.
+
+### `owner()`
+
+```solidity
+function owner() external view returns (address arg0);
+```
+
+Returns the address of the current owner.
+
+### `renounceOwnership()`
+
+```solidity
+function renounceOwnership() external;
+```
+
+Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
+
+### `setVoter(address)`
+
+```solidity
+function setVoter(address voter_) external;
+```
+
+Binds the only Voter allowed to create Strategies.
+
+**Parameters**
+
+- `voter_`: Voter address to bind permanently.
+
+### `transferOwnership(address)`
+
+```solidity
+function transferOwnership(address newOwner) external;
+```
+
+Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
+
+### `voter()`
+
+```solidity
+function voter() external view returns (address arg0);
+```
+
+Voter exclusively authorized to create Strategy graphs.
+
+### Events
+
+#### `OwnershipTransferred(address,address)`
+
+```solidity
+event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `StrategyRewards__InsufficientFunding(uint256,uint256)`
+#### `StrategyCreated(address,address,address,uint8)`
 
 ```solidity
-error StrategyRewards__InsufficientFunding(uint256 required, uint256 balance);
+event StrategyCreated(address indexed strategy, address indexed bribeRouter, address indexed paymentToken, enum Strategy.Kind kind);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `StrategyRewards__NoReward(address)`
+#### `VoterSet(address)`
 
 ```solidity
-error StrategyRewards__NoReward(address beneficiary);
+event VoterSet(address indexed voter);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `StrategyRewards__Unauthorized(address)`
+### Custom errors
+
+#### `NotVoter(address)`
 
 ```solidity
-error StrategyRewards__Unauthorized(address caller);
+error NotVoter(address caller);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `StrategyRewards__ZeroAddress()`
+#### `OwnableInvalidOwner(address)`
 
 ```solidity
-error StrategyRewards__ZeroAddress();
+error OwnableInvalidOwner(address owner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `StrategyRewards__ZeroAmount()`
+#### `OwnableUnauthorizedAccount(address)`
 
 ```solidity
-error StrategyRewards__ZeroAmount();
+error OwnableUnauthorizedAccount(address account);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `StrategyRewards__ZeroWeight()`
+#### `VoterAlreadySet(address)`
 
 ```solidity
-error StrategyRewards__ZeroWeight();
+error VoterAlreadySet(address voter);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## AllocationVoter
-
-Source: [`src/signal/AllocationVoter.sol`](../../packages/contracts/src/signal/AllocationVoter.sol)
-
-Artifact: `out/AllocationVoter.sol/AllocationVoter.json`
-
-Public ABI: 35 functions, 9 events, 14 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,address,address,address)`
+#### `ZeroAddress()`
 
 ```solidity
-constructor(address usdG, contract IAssetRegistry assetRegistry, address protocolTimelock, address emergencyGuardian, address dependencyInitializer);
+error ZeroAddress();
 ```
 
-Configures the registry, access-control roles, token, and one-time dependency initializer.
+_No additional NatSpec notice is present in the compiled artifact._
 
-### `ASSET_REGISTRY()`
+## Voter
+
+Source: [`src/core/Voter.sol`](../../packages/contracts/src/core/Voter.sol)
+
+Artifact: `out/Voter.sol/Voter.json`
+
+Public ABI: 42 functions, 10 events, 16 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address,address,address,address,address,address)`
 
 ```solidity
-function ASSET_REGISTRY() external view returns (contract IAssetRegistry arg0);
+constructor(contract IERC20 signalGBX_, contract IERC20 usdg_, address fund_, contract BribeFactory bribeFactory_, contract StrategyFactory strategyFactory_, address initialOwner);
 ```
 
-Registry defining the bounded live strategy set.
+Creates the allocation system with immutable token, Fund, and factory dependencies.
 
-### `DEPENDENCY_INITIALIZER()`
+**Parameters**
+
+- `bribeFactory_`: Factory used to deploy one Bribe per Strategy.
+- `fund_`: Treasury receiving unallocated or disabled-Strategy revenue.
+- `initialOwner`: Typed timelock authorized to administer the system.
+- `signalGBX_`: Non-transferable staking receipt used as voting power.
+- `strategyFactory_`: Factory used to deploy Strategies and BribeRouters.
+- `usdg_`: Revenue token allocated among Strategies.
+
+### `BPS_SCALE()`
 
 ```solidity
-function DEPENDENCY_INITIALIZER() external view returns (address arg0);
+function BPS_SCALE() external view returns (uint256 arg0);
 ```
 
-Deployment coordinator allowed to bind circular dependencies once.
+Basis-point denominator for acquisition reward shares.
 
-### `EMERGENCY_GUARDIAN()`
+### `DEFAULT_BRIBE_BPS()`
 
 ```solidity
-function EMERGENCY_GUARDIAN() external view returns (address arg0);
+function DEFAULT_BRIBE_BPS() external view returns (uint256 arg0);
 ```
 
-Stop-only guardian allowed to pause increases and disable strategies.
+Initial 10% share of acquisition payments streamed to voters.
 
 ### `INDEX_PRECISION()`
 
@@ -2526,119 +3532,206 @@ Stop-only guardian allowed to pause increases and disable strategies.
 function INDEX_PRECISION() external view returns (uint256 arg0);
 ```
 
-Fixed-point precision used by the global revenue index.
+Fixed-point precision for indexed USDG revenue.
 
-### `MAX_USER_STRATEGIES()`
-
-```solidity
-function MAX_USER_STRATEGIES() external view returns (uint256 arg0);
-```
-
-Maximum simultaneous strategy signals maintained by one user.
-
-### `PROTOCOL_TIMELOCK()`
+### `MAX_BRIBE_BPS()`
 
 ```solidity
-function PROTOCOL_TIMELOCK() external view returns (address arg0);
+function MAX_BRIBE_BPS() external view returns (uint256 arg0);
 ```
 
-Timelock allowed to resume signals and terminally disable strategies.
+Maximum 50% share governance may stream to voters.
 
-### `USDG()`
+### `accountStrategies(address)`
 
 ```solidity
-function USDG() external view returns (contract IERC20 arg0);
+function accountStrategies(address account) external view returns (address[] strategyList);
 ```
 
-Vault revenue token used only for physical-backing checks.
+Returns the Strategies currently selected by `account`.
 
-### `accountedVaultUSDG()`
+**Parameters**
+
+- `account`: Voting account to inspect.
+
+**Returns**
+
+- `strategyList`: Strategies currently selected by `account`.
+
+### `accountUsedWeight(address)`
 
 ```solidity
-function accountedVaultUSDG() external view returns (uint256 arg0);
+function accountUsedWeight(address account) external view returns (uint256 weight);
 ```
 
-Total vault USDG currently represented by budgets and idle backing.
+Total voting weight currently allocated by an account.
 
-### `activeStrategies(address)`
+### `accountVotes(address,address)`
 
 ```solidity
-function activeStrategies(address user) external view returns (address[] arg0);
+function accountVotes(address account, address strategy) external view returns (uint256 votes);
 ```
 
-Returns the strategies currently carrying nonzero signal entries for a user.
+Voting weight an account assigned to a Strategy.
 
-### `checkpointStrategyBudget(address)`
+### `addBribeReward(address,address)`
 
 ```solidity
-function checkpointStrategyBudget(address strategy) external returns (uint256 budget);
+function addBribeReward(address strategy, address rewardToken) external;
 ```
 
-Checkpoints and returns one strategy's current USDG budget.
+Registers an additional reward token on a Strategy's Bribe.
 
-### `consumeStrategyBudget(address,uint256)`
+**Parameters**
+
+- `rewardToken`: Token to register.
+- `strategy`: Strategy whose Bribe should accept the token.
+
+### `addStrategy(address,uint8,(uint256,uint256,uint256,uint256))`
 
 ```solidity
-function consumeStrategyBudget(address strategy, uint256 amount) external;
+function addStrategy(contract IERC20 paymentToken, enum Strategy.Kind kind, struct Strategy.Config config) external returns (address strategyAddress, address bribeAddress, address bribeRouterAddress);
 ```
 
-Debits already accrued USDG budget for the calling vault and strategy.
+Creates a Strategy, its Bribe, and its BribeRouter as one Voter-controlled graph.
 
-### `dependenciesInitialized()`
+**Parameters**
+
+- `config`: Immutable auction configuration.
+- `kind`: Whether the Strategy acquires an asset or performs GBX buybacks.
+- `paymentToken`: Asset buyers pay to fill the Strategy.
+
+**Returns**
+
+- `bribeAddress`: Bribe paired with the Strategy.
+- `bribeRouterAddress`: BribeRouter paired with the Strategy and Bribe.
+- `strategyAddress`: Newly deployed Strategy.
+
+### `bribeBps()`
 
 ```solidity
-function dependenciesInitialized() external view returns (bool arg0);
+function bribeBps() external view returns (uint256 arg0);
 ```
 
-Whether all circular dependencies have been bound.
+Share of acquisition payments streamed to voters, expressed in basis points.
 
-### `disableStrategy(address)`
+### `bribeFactory()`
 
 ```solidity
-function disableStrategy(address strategy) external;
+function bribeFactory() external view returns (contract BribeFactory arg0);
 ```
 
-Removes a registry-disabled strategy from future revenue and strands its budget as idle backing.
+Factory used to create one Bribe per Strategy.
 
-### `globalRevenueIndex()`
+### `bribeFor(address)`
 
 ```solidity
-function globalRevenueIndex() external view returns (uint256 arg0);
+function bribeFor(address strategy) external view returns (address bribe);
 ```
 
-Cumulative USDG revenue index per unit of active weight.
+Bribe associated with each Strategy.
 
-### `idleUSDG()`
+### `bribeRouterFor(address)`
 
 ```solidity
-function idleUSDG() external view returns (uint256 arg0);
+function bribeRouterFor(address strategy) external view returns (address router);
 ```
 
-Accounted vault USDG not assigned to active strategy weight.
+BribeRouter associated with each Strategy.
 
-### `initializeDependencies(address,address,address,address)`
+### `claimRewards(address[])`
 
 ```solidity
-function initializeDependencies(address vault_, address stakedGBX_, address miningPool_, address liquidityCustodian_) external;
+function claimRewards(address[] requestedStrategies) external;
 ```
 
-Binds the vault, staked token, mining pool, and liquidity custodian once.
+Claims rewards from the Bribes associated with `strategies` for the caller.
 
-### `liquidityCustodian()`
+**Parameters**
+
+- `requestedStrategies`: Strategies whose Bribes should pay the caller.
+
+### `claimableRevenue(address)`
 
 ```solidity
-function liquidityCustodian() external view returns (address arg0);
+function claimableRevenue(address strategy) external view returns (uint256 amount);
 ```
 
-Liquidity custodian authorized to notify deposited fee revenue.
+Indexed USDG available to distribute to each Strategy.
 
-### `miningPool()`
+### `distribute(address)`
 
 ```solidity
-function miningPool() external view returns (address arg0);
+function distribute(address strategy) external returns (uint256 amount);
 ```
 
-Mining pool authorized to notify deposited revenue.
+Transfers a Strategy's indexed USDG allocation to that Strategy.
+
+**Parameters**
+
+- `strategy`: Strategy whose indexed revenue should be transferred.
+
+**Returns**
+
+- `amount`: Amount of USDG distributed.
+
+### `distributeAll()`
+
+```solidity
+function distributeAll() external;
+```
+
+Distributes currently claimable revenue to every Strategy.
+
+### `distributeRange(uint256,uint256)`
+
+```solidity
+function distributeRange(uint256 start, uint256 end) external;
+```
+
+Distributes revenue to a bounded half-open range of Strategies: `[start, end)`.
+
+**Parameters**
+
+- `end`: Exclusive index, capped at the current Strategy count.
+- `start`: Inclusive index in the Strategy list.
+
+### `fund()`
+
+```solidity
+function fund() external view returns (address arg0);
+```
+
+Treasury that receives zero-weight and disabled-Strategy revenue.
+
+### `isStrategy(address)`
+
+```solidity
+function isStrategy(address strategy) external view returns (bool isValid);
+```
+
+Whether an address is a Voter-created Strategy.
+
+### `isStrategyAlive(address)`
+
+```solidity
+function isStrategyAlive(address strategy) external view returns (bool isAlive);
+```
+
+Whether a Strategy remains eligible for future USDG.
+
+### `killStrategy(address)`
+
+```solidity
+function killStrategy(address strategy) external;
+```
+
+Stops a Strategy from receiving future USDG; its already indexed revenue is returned to Fund.
+Existing voter weights remain until their owners replace or reset them. Their dead-Strategy revenue share is routed to Fund whenever that Strategy's index is updated.
+
+**Parameters**
+
+- `strategy`: Strategy to disable permanently.
 
 ### `notifyRevenue(uint256)`
 
@@ -2646,95 +3739,127 @@ Mining pool authorized to notify deposited revenue.
 function notifyRevenue(uint256 amount) external;
 ```
 
-Accounts newly deposited vault USDG across active strategy weight.
+Pulls USDG from VoterRouter and adds it to the global revenue index.
 
-### `pauseSignalIncreases()`
+**Parameters**
 
-```solidity
-function pauseSignalIncreases() external;
-```
+- `amount`: Amount of USDG to pull and index.
 
-Stops signal increases while preserving reductions, resets, and unstaking exits.
-
-### `previewStrategyBudget(address)`
+### `owner()`
 
 ```solidity
-function previewStrategyBudget(address strategy) external view returns (uint256 budget);
+function owner() external view returns (address arg0);
 ```
 
-Previews one strategy's checkpointed and newly indexed USDG budget.
+Returns the address of the current owner.
 
-### `resetSignals()`
+### `paymentTokenFor(address)`
 
 ```solidity
-function resetSignals() external;
+function paymentTokenFor(address strategy) external view returns (address paymentToken);
 ```
 
-Clears the caller's complete strategy allocation immediately.
+Payment token required by each Strategy.
 
-### `resumeSignalIncreases()`
+### `pendingRevenue(address)`
 
 ```solidity
-function resumeSignalIncreases() external;
+function pendingRevenue(address strategy) external view returns (uint256 amount);
 ```
 
-Re-enables signal increases through the protocol timelock.
+Returns revenue accrued since `strategy` was last updated.
 
-### `scaleBudgetsAfterRedemption(uint256,uint256)`
+**Parameters**
+
+- `strategy`: Strategy whose uncheckpointed revenue is queried.
+
+**Returns**
+
+- `amount`: Revenue accrued since the Strategy's last index update.
+
+### `renounceOwnership()`
 
 ```solidity
-function scaleBudgetsAfterRedemption(uint256 shares, uint256 supplyBefore) external;
+function renounceOwnership() external;
 ```
 
-Scales all accounted USDG after an in-kind redemption reduces vault balances.
+Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
 
-### `signal(address[],uint256[])`
+### `reset()`
 
 ```solidity
-function signal(address[] strategies, uint256[] weights) external;
+function reset() external;
 ```
 
-Replaces the caller's complete absolute strategy-weight allocation immediately.
+Clears every allocation immediately, allowing SignalGBX to be unstaked in the same transaction.
 
-### `signalIncreasesPaused()`
+### `revenueIndex()`
 
 ```solidity
-function signalIncreasesPaused() external view returns (bool arg0);
+function revenueIndex() external view returns (uint256 arg0);
 ```
 
-Whether signal-weight increases are paused.
+Cumulative USDG revenue per unit of voting weight.
 
-### `stakedGBX()`
+### `setBribeBps(uint256)`
 
 ```solidity
-function stakedGBX() external view returns (address arg0);
+function setBribeBps(uint256 newBribeBps) external;
 ```
 
-Non-transferable staked GBX token that bounds user signals.
+Sets the acquisition payment share streamed to voters.
 
-### `strategyBudget(address)`
+**Parameters**
+
+- `newBribeBps`: New share in basis points, capped by `MAX_BRIBE_BPS`.
+
+### `setVoterRouter(address)`
 
 ```solidity
-function strategyBudget(address strategy) external view returns (uint256 budget);
+function setVoterRouter(address voterRouter_) external;
 ```
 
-Returns a strategy's checkpointed unconsumed USDG budget.
+Binds the sole VoterRouter revenue source once during deployment.
 
-### `strategyDisabled(address)`
+**Parameters**
+
+- `voterRouter_`: VoterRouter address to bind permanently.
+
+### `signalGBX()`
 
 ```solidity
-function strategyDisabled(address strategy) external view returns (bool disabled);
+function signalGBX() external view returns (contract IERC20 arg0);
 ```
 
-Returns whether a strategy has been terminally disabled in this ledger.
+Non-transferable staking receipt used as current voting power.
 
-### `strategyIndex(address)`
+### `strategies()`
 
 ```solidity
-function strategyIndex(address strategy) external view returns (uint256 index);
+function strategies() external view returns (address[] strategyList);
 ```
 
-Returns the global revenue index last checkpointed for a strategy.
+Returns all protocol Strategies in creation order.
+
+**Returns**
+
+- `strategyList`: Strategy addresses in creation order.
+
+### `strategyFactory()`
+
+```solidity
+function strategyFactory() external view returns (contract StrategyFactory arg0);
+```
+
+Factory used to create Strategies and their BribeRouters.
+
+### `strategyRevenueIndex(address)`
+
+```solidity
+function strategyRevenueIndex(address strategy) external view returns (uint256 index);
+```
+
+Global revenue index last accounted for each Strategy.
 
 ### `strategyWeight(address)`
 
@@ -2742,216 +3867,194 @@ Returns the global revenue index last checkpointed for a strategy.
 function strategyWeight(address strategy) external view returns (uint256 weight);
 ```
 
-Returns the active aggregate signal weight assigned to a strategy.
+Total SignalGBX weight allocated to each Strategy.
 
-### `totalActiveWeight()`
-
-```solidity
-function totalActiveWeight() external view returns (uint256 arg0);
-```
-
-Aggregate active signal weight across all live strategies.
-
-### `usedWeight(address)`
+### `totalWeight()`
 
 ```solidity
-function usedWeight(address user) external view returns (uint256 weight);
+function totalWeight() external view returns (uint256 arg0);
 ```
 
-Returns one user's aggregate active signal weight.
+Total SignalGBX weight currently allocated across all Strategies.
 
-### `userWeight(address,address)`
+### `transferOwnership(address)`
 
 ```solidity
-function userWeight(address user, address strategy) external view returns (uint256 weight);
+function transferOwnership(address newOwner) external;
 ```
 
-Returns one user's signal weight assigned to a strategy.
+Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
 
-### `vault()`
+### `updateStrategy(address)`
 
 ```solidity
-function vault() external view returns (address arg0);
+function updateStrategy(address strategy) external;
 ```
 
-Passive vault that physically custodies allocated USDG.
+Updates one Strategy's stored revenue without transferring it.
+
+**Parameters**
+
+- `strategy`: Strategy whose index checkpoint should advance.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (contract IERC20 arg0);
+```
+
+Revenue token distributed among Strategies.
+
+### `vote(address[],uint256[])`
+
+```solidity
+function vote(address[] requestedStrategies, uint256[] relativeWeights) external;
+```
+
+Replaces the caller's complete allocation using relative weights.
+Relative inputs are normalized against the caller's current SignalGBX balance. There is no epoch gate.
+
+**Parameters**
+
+- `relativeWeights`: Relative allocation assigned to each corresponding Strategy.
+- `requestedStrategies`: Strategies to receive the caller's voting weight.
+
+### `voterRouter()`
+
+```solidity
+function voterRouter() external view returns (address arg0);
+```
+
+Sole router authorized to notify USDG revenue.
 
 ### Events
 
-#### `AllocationVoter__DependenciesInitialized(address,address,address,address)`
+#### `BribeBpsSet(uint256,uint256)`
 
 ```solidity
-event AllocationVoter__DependenciesInitialized(address indexed vault, address indexed stakedGBX, address indexed miningPool, address liquidityCustodian);
+event BribeBpsSet(uint256 previousBps, uint256 newBps);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__RevenueNotified(address,uint256,uint256)`
+#### `BribeRewardAdded(address,address,address)`
 
 ```solidity
-event AllocationVoter__RevenueNotified(address indexed source, uint256 amount, uint256 indexDelta);
+event BribeRewardAdded(address indexed strategy, address indexed bribe, address indexed rewardToken);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__SignalIncreasesPauseSet(bool)`
+#### `OwnershipTransferred(address,address)`
 
 ```solidity
-event AllocationVoter__SignalIncreasesPauseSet(bool paused);
+event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__SignalsReset(address)`
+#### `RevenueDistributed(address,address,uint256)`
 
 ```solidity
-event AllocationVoter__SignalsReset(address indexed user);
+event RevenueDistributed(address indexed caller, address indexed strategy, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__SignalsSet(address,uint256)`
+#### `RevenueNotified(address,uint256)`
 
 ```solidity
-event AllocationVoter__SignalsSet(address indexed user, uint256 totalWeight);
+event RevenueNotified(address indexed voterRouter, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__StrategyBudgetConsumed(address,uint256,uint256)`
+#### `StrategyAdded(address,address,address,address,uint8)`
 
 ```solidity
-event AllocationVoter__StrategyBudgetConsumed(address indexed strategy, uint256 amount, uint256 remaining);
+event StrategyAdded(address indexed strategy, address indexed bribe, address indexed bribeRouter, address paymentToken, enum Strategy.Kind kind);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__StrategyBudgetScaled(address,uint256)`
+#### `StrategyKilled(address)`
 
 ```solidity
-event AllocationVoter__StrategyBudgetScaled(address indexed strategy, uint256 budgetAfter);
+event StrategyKilled(address indexed strategy);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__StrategyDisabled(address,uint256)`
+#### `VoteCast(address,address,uint256)`
 
 ```solidity
-event AllocationVoter__StrategyDisabled(address indexed strategy, uint256 strandedBudget);
+event VoteCast(address indexed account, address indexed strategy, uint256 weight);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__StrategyWeightSet(address,uint256,uint256)`
+#### `VoteReset(address,address,uint256)`
 
 ```solidity
-event AllocationVoter__StrategyWeightSet(address indexed strategy, uint256 previousWeight, uint256 newWeight);
+event VoteReset(address indexed account, address indexed strategy, uint256 weight);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `VoterRouterSet(address)`
+
+```solidity
+event VoterRouterSet(address indexed voterRouter);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
 
-#### `AllocationVoter__AlreadyInitialized()`
+#### `BribeBpsAboveMaximum(uint256)`
 
 ```solidity
-error AllocationVoter__AlreadyInitialized();
+error BribeBpsAboveMaximum(uint256 requested);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__DuplicateStrategy(address)`
+#### `DuplicateStrategy(address)`
 
 ```solidity
-error AllocationVoter__DuplicateStrategy(address strategy);
+error DuplicateStrategy(address strategy);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__InsolventNotification(uint256,uint256)`
+#### `InexactRevenueTransfer(uint256,uint256)`
 
 ```solidity
-error AllocationVoter__InsolventNotification(uint256 accountedAfter, uint256 physicalBalance);
+error InexactRevenueTransfer(uint256 expected, uint256 received);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__InvalidArrayLength()`
+#### `LengthMismatch()`
 
 ```solidity
-error AllocationVoter__InvalidArrayLength();
+error LengthMismatch();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__NotInitialized()`
+#### `OwnableInvalidOwner(address)`
 
 ```solidity
-error AllocationVoter__NotInitialized();
+error OwnableInvalidOwner(address owner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `AllocationVoter__SignalIncreasePaused(address)`
+#### `OwnableUnauthorizedAccount(address)`
 
 ```solidity
-error AllocationVoter__SignalIncreasePaused(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AllocationVoter__StrategyBudgetTooLow(address,uint256,uint256)`
-
-```solidity
-error AllocationVoter__StrategyBudgetTooLow(address strategy, uint256 requested, uint256 available);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AllocationVoter__StrategyStillLive(address)`
-
-```solidity
-error AllocationVoter__StrategyStillLive(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AllocationVoter__Unauthorized(address)`
-
-```solidity
-error AllocationVoter__Unauthorized(address caller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AllocationVoter__UnregisteredStrategy(address)`
-
-```solidity
-error AllocationVoter__UnregisteredStrategy(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AllocationVoter__WeightExceedsStake(uint256,uint256)`
-
-```solidity
-error AllocationVoter__WeightExceedsStake(uint256 requested, uint256 balance);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AllocationVoter__ZeroAddress()`
-
-```solidity
-error AllocationVoter__ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AllocationVoter__ZeroAmount()`
-
-```solidity
-error AllocationVoter__ZeroAmount();
+error OwnableUnauthorizedAccount(address account);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2964,2043 +4067,155 @@ error ReentrancyGuardReentrantCall();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## StakedGBX
+#### `SafeERC20FailedOperation(address)`
 
-Source: [`src/signal/StakedGBX.sol`](../../packages/contracts/src/signal/StakedGBX.sol)
+```solidity
+error SafeERC20FailedOperation(address token);
+```
 
-Artifact: `out/StakedGBX.sol/StakedGBX.json`
+_No additional NatSpec notice is present in the compiled artifact._
 
-Public ABI: 13 functions, 4 events, 13 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+#### `StrategyAlreadyDead(address)`
+
+```solidity
+error StrategyAlreadyDead(address strategy);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `StrategyNotFound(address)`
+
+```solidity
+error StrategyNotFound(address strategy);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `UnauthorizedRevenueSource(address)`
+
+```solidity
+error UnauthorizedRevenueSource(address caller);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `VoterRouterAlreadySet(address)`
+
+```solidity
+error VoterRouterAlreadySet(address voterRouter);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAddress()`
+
+```solidity
+error ZeroAddress();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAmount()`
+
+```solidity
+error ZeroAmount();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroTotalWeight()`
+
+```solidity
+error ZeroTotalWeight();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroVoteWeight(address)`
+
+```solidity
+error ZeroVoteWeight(address strategy);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## VoterRouter
+
+Source: [`src/core/VoterRouter.sol`](../../packages/contracts/src/core/VoterRouter.sol)
+
+Artifact: `out/VoterRouter.sol/VoterRouter.json`
+
+Public ABI: 4 functions, 1 event, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
 ```solidity
-constructor(contract IGBXToken gbx, contract IAllocationVoter allocationVoter);
+constructor(contract IERC20 usdg_, address voter_);
 ```
 
-Configures the underlying GBX token and allocation voter.
-
-### `ALLOCATION_VOTER()`
-
-```solidity
-function ALLOCATION_VOTER() external view returns (contract IAllocationVoter arg0);
-```
-
-Signal ledger that must report zero used weight before unstaking.
-
-### `GBX()`
-
-```solidity
-function GBX() external view returns (contract IGBXToken arg0);
-```
-
-Canonical GBX token held one-for-one behind sGBX.
-
-### `allowance(address,address)`
-
-```solidity
-function allowance(address owner, address spender) external view returns (uint256 arg0);
-```
-
-Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner` through {transferFrom}. This is zero by default. This value changes when {approve} or {transferFrom} are called.
-
-### `approve(address,uint256)`
-
-```solidity
-function approve(address spender, uint256 value) external returns (bool arg0);
-```
-
-See {IERC20-approve}. NOTE: If `value` is the maximum `uint256`, the allowance is not updated on `transferFrom`. This is semantically equivalent to an infinite approval. Requirements: - `spender` cannot be the zero address.
-
-### `balanceOf(address)`
-
-```solidity
-function balanceOf(address account) external view returns (uint256 arg0);
-```
-
-Returns the value of tokens owned by `account`.
-
-### `decimals()`
-
-```solidity
-function decimals() external view returns (uint8 arg0);
-```
-
-Returns the number of decimals used to get its user representation. For example, if `decimals` equals `2`, a balance of `505` tokens should be displayed to a user as `5.05` (`505 / 10 ** 2`). Tokens usually opt for a value of 18, imitating the relationship between Ether and Wei. This is the default value returned by this function, unless it's overridden. NOTE: This information is only used for _display_ purposes: it in no way affects any of the arithmetic of the contract, including {IERC20-balanceOf} and {IERC20-transfer}.
-
-### `name()`
-
-```solidity
-function name() external view returns (string arg0);
-```
-
-Returns the name of the token.
-
-### `stake(uint256)`
-
-```solidity
-function stake(uint256 amount) external;
-```
-
-Deposits GBX and mints equal non-transferable signal weight.
-
-### `symbol()`
-
-```solidity
-function symbol() external view returns (string arg0);
-```
-
-Returns the symbol of the token, usually a shorter version of the name.
-
-### `totalSupply()`
-
-```solidity
-function totalSupply() external view returns (uint256 arg0);
-```
-
-Returns the value of tokens in existence.
-
-### `transfer(address,uint256)`
-
-```solidity
-function transfer(address to, uint256 value) external returns (bool arg0);
-```
-
-See {IERC20-transfer}. Requirements: - `to` cannot be the zero address. - the caller must have a balance of at least `value`.
-
-### `transferFrom(address,address,uint256)`
-
-```solidity
-function transferFrom(address from, address to, uint256 value) external returns (bool arg0);
-```
-
-See {IERC20-transferFrom}. Skips emitting an {Approval} event indicating an allowance update. This is not required by the ERC. See {xref-ERC20-\_approve-address-address-uint256-bool-}[_approve]. NOTE: Does not update the allowance if the current allowance is the maximum `uint256`. Requirements: - `from` and `to` cannot be the zero address. - `from` must have a balance of at least `value`. - the caller must have allowance for `from`'s tokens of at least `value`.
-
-### `unstake(uint256)`
-
-```solidity
-function unstake(uint256 amount) external;
-```
-
-Burns signal weight and returns equal GBX after all signals are reset.
-
-### Events
-
-#### `Approval(address,address,uint256)`
-
-```solidity
-event Approval(address indexed owner, address indexed spender, uint256 value);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StakedGBX__Staked(address,uint256)`
-
-```solidity
-event StakedGBX__Staked(address indexed user, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StakedGBX__Unstaked(address,uint256)`
-
-```solidity
-event StakedGBX__Unstaked(address indexed user, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `Transfer(address,address,uint256)`
-
-```solidity
-event Transfer(address indexed from, address indexed to, uint256 value);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-### Custom errors
-
-#### `ERC20InsufficientAllowance(address,uint256,uint256)`
-
-```solidity
-error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20InsufficientBalance(address,uint256,uint256)`
-
-```solidity
-error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20InvalidApprover(address)`
-
-```solidity
-error ERC20InvalidApprover(address approver);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20InvalidReceiver(address)`
-
-```solidity
-error ERC20InvalidReceiver(address receiver);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20InvalidSender(address)`
-
-```solidity
-error ERC20InvalidSender(address sender);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20InvalidSpender(address)`
-
-```solidity
-error ERC20InvalidSpender(address spender);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ReentrancyGuardReentrantCall()`
-
-```solidity
-error ReentrancyGuardReentrantCall();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SafeERC20FailedOperation(address)`
-
-```solidity
-error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StakedGBX__InexactTransfer(uint256,uint256,uint256)`
-
-```solidity
-error StakedGBX__InexactTransfer(uint256 expected, uint256 debit, uint256 receipt);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StakedGBX__NonTransferable()`
-
-```solidity
-error StakedGBX__NonTransferable();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StakedGBX__SignalsNotReset(uint256)`
-
-```solidity
-error StakedGBX__SignalsNotReset(uint256 usedWeight);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StakedGBX__ZeroAddress()`
-
-```solidity
-error StakedGBX__ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StakedGBX__ZeroAmount()`
-
-```solidity
-error StakedGBX__ZeroAmount();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-## AcquisitionStrategy
-
-Source: [`src/strategies/AcquisitionStrategy.sol`](../../packages/contracts/src/strategies/AcquisitionStrategy.sol)
-
-Artifact: `out/AcquisitionStrategy.sol/AcquisitionStrategy.json`
-
-Public ABI: 29 functions, 2 events, 18 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,address,address,address,address,address,uint256,uint256,uint256,uint256,uint256)`
-
-```solidity
-constructor(address usdG, address targetToken, contract IGumBallVault gumBallVault, contract IAssetRegistry assetRegistry, contract IStrategyRewards strategyRewards, address emergencyGuardian, address protocolTimelock, uint256 usdGLot, uint256 initPrice_, uint256 epochPeriod_, uint256 priceMultiplier_, uint256 minInitPrice_);
-```
-
-Configures one fixed-lot acquisition strategy for later registry-authorized activation.
-
-### `ABS_MAX_INIT_PRICE()`
-
-```solidity
-function ABS_MAX_INIT_PRICE() external view returns (uint256 arg0);
-```
-
-Absolute maximum permitted initial price.
-
-### `ABS_MIN_INIT_PRICE()`
-
-```solidity
-function ABS_MIN_INIT_PRICE() external view returns (uint256 arg0);
-```
-
-Absolute minimum permitted price floor.
-
-### `ASSET_REGISTRY()`
-
-```solidity
-function ASSET_REGISTRY() external view returns (contract IAssetRegistry arg0);
-```
-
-Registry that must keep this strategy live for fills.
-
-### `BPS_DENOMINATOR()`
-
-```solidity
-function BPS_DENOMINATOR() external view returns (uint256 arg0);
-```
-
-Basis-point denominator used for the supporter reward split.
-
-### `EMERGENCY_GUARDIAN()`
-
-```solidity
-function EMERGENCY_GUARDIAN() external view returns (address arg0);
-```
-
-Stop-only guardian allowed to pause fills.
-
-### `GUM_BALL_VAULT()`
-
-```solidity
-function GUM_BALL_VAULT() external view returns (contract IGumBallVault arg0);
-```
-
-Passive vault receiving acquired tokens and releasing USDG lots.
-
-### `MAX_EPOCH_PERIOD()`
-
-```solidity
-function MAX_EPOCH_PERIOD() external view returns (uint256 arg0);
-```
-
-Largest permitted auction duration.
-
-### `MAX_PRICE_MULTIPLIER()`
-
-```solidity
-function MAX_PRICE_MULTIPLIER() external view returns (uint256 arg0);
-```
-
-Largest permitted next-price multiplier.
-
-### `MIN_EPOCH_PERIOD()`
-
-```solidity
-function MIN_EPOCH_PERIOD() external view returns (uint256 arg0);
-```
-
-Smallest permitted auction duration.
-
-### `MIN_PRICE_MULTIPLIER()`
-
-```solidity
-function MIN_PRICE_MULTIPLIER() external view returns (uint256 arg0);
-```
-
-Smallest permitted next-price multiplier.
-
-### `PRECISION()`
-
-```solidity
-function PRECISION() external view returns (uint256 arg0);
-```
-
-Fixed-point denominator used for the next-price multiplier.
-
-### `PROTOCOL_TIMELOCK()`
-
-```solidity
-function PROTOCOL_TIMELOCK() external view returns (address arg0);
-```
-
-Timelock allowed to resume fills.
-
-### `REWARD_BPS()`
-
-```solidity
-function REWARD_BPS() external view returns (uint256 arg0);
-```
-
-Active-supporter share of each observed target-token payment.
-
-### `STRATEGY_REWARDS()`
-
-```solidity
-function STRATEGY_REWARDS() external view returns (contract IStrategyRewards arg0);
-```
-
-Reward index receiving the supporter share when it has weight.
-
-### `TARGET_TOKEN()`
-
-```solidity
-function TARGET_TOKEN() external view returns (address arg0);
-```
-
-Standard ERC20 acquired by this strategy.
-
-### `USDG()`
-
-```solidity
-function USDG() external view returns (contract IERC20 arg0);
-```
-
-Token released from the vault as each fixed acquisition lot.
-
-### `USDG_LOT()`
-
-```solidity
-function USDG_LOT() external view returns (uint256 arg0);
-```
-
-Fixed USDG amount released for every successful fill.
-
-### `activateAuction()`
-
-```solidity
-function activateAuction() external;
-```
-
-Starts the first auction exactly once, atomically with typed asset registration.
-
-### `epochId()`
-
-```solidity
-function epochId() external view returns (uint256 arg0);
-```
-
-Identifier of the active auction epoch.
-
-### `epochPeriod()`
-
-```solidity
-function epochPeriod() external view returns (uint256 arg0);
-```
-
-Fixed duration of each auction epoch.
-
-### `fill(uint256,uint256,uint256)`
-
-```solidity
-function fill(uint256 expectedEpochId, uint256 deadline, uint256 maxTargetAmount) external returns (uint256 paymentAmount, uint256 observedPayment);
-```
-
-Pays the exact target-token quote first, splits it, then releases the fixed USDG lot.
-
-### `fillsPaused()`
-
-```solidity
-function fillsPaused() external view returns (bool arg0);
-```
-
-Whether new fills are paused.
-
-### `getPrice()`
-
-```solidity
-function getPrice() external view returns (uint256 arg0);
-```
-
-Exact give.fun order: branch only after E; arithmetic itself yields zero at E.
-
-### `initPrice()`
-
-```solidity
-function initPrice() external view returns (uint256 arg0);
-```
-
-Starting price of the active auction epoch.
-
-### `minInitPrice()`
-
-```solidity
-function minInitPrice() external view returns (uint256 arg0);
-```
-
-Configured lower bound for each next initial price.
-
-### `pauseFills()`
-
-```solidity
-function pauseFills() external;
-```
-
-Stops new fills through the emergency guardian.
-
-### `priceMultiplier()`
-
-```solidity
-function priceMultiplier() external view returns (uint256 arg0);
-```
-
-Fixed multiplier applied to a filled epoch's quoted payment.
-
-### `resumeFills()`
-
-```solidity
-function resumeFills() external;
-```
-
-Re-enables fills through the protocol timelock.
-
-### `startTime()`
-
-```solidity
-function startTime() external view returns (uint256 arg0);
-```
-
-Timestamp at which the active auction epoch began.
-
-### Events
-
-#### `AcquisitionStrategy__Filled(uint256,address,uint256,uint256,uint256,uint256,uint256)`
-
-```solidity
-event AcquisitionStrategy__Filled(uint256 indexed epochId, address indexed filler, uint256 quotedPayment, uint256 observedPayment, uint256 vaultAmount, uint256 rewardAmount, uint256 usdGLot);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AcquisitionStrategy__FillsPauseSet(bool)`
-
-```solidity
-event AcquisitionStrategy__FillsPauseSet(bool paused);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-### Custom errors
-
-#### `AcquisitionStrategy__FillsPaused()`
-
-```solidity
-error AcquisitionStrategy__FillsPaused();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AcquisitionStrategy__InexactTransfer(address,uint256,uint256,uint256)`
-
-```solidity
-error AcquisitionStrategy__InexactTransfer(address token, uint256 expected, uint256 debit, uint256 receipt);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AcquisitionStrategy__InvalidConfiguration()`
-
-```solidity
-error AcquisitionStrategy__InvalidConfiguration();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AcquisitionStrategy__StrategyNotLive()`
-
-```solidity
-error AcquisitionStrategy__StrategyNotLive();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AcquisitionStrategy__Unauthorized(address)`
-
-```solidity
-error AcquisitionStrategy__Unauthorized(address caller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AcquisitionStrategy__ZeroAddress()`
-
-```solidity
-error AcquisitionStrategy__ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AcquisitionStrategy__ZeroAmount()`
-
-```solidity
-error AcquisitionStrategy__ZeroAmount();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__AlreadyActivated()`
-
-```solidity
-error AuctionEngine__AlreadyActivated();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__DeadlinePassed()`
-
-```solidity
-error AuctionEngine__DeadlinePassed();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__EpochIdMismatch()`
-
-```solidity
-error AuctionEngine__EpochIdMismatch();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__EpochPeriodOutOfRange()`
-
-```solidity
-error AuctionEngine__EpochPeriodOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__InitPriceOutOfRange()`
-
-```solidity
-error AuctionEngine__InitPriceOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__MaxPaymentAmountExceeded()`
-
-```solidity
-error AuctionEngine__MaxPaymentAmountExceeded();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__MinInitPriceOutOfRange()`
-
-```solidity
-error AuctionEngine__MinInitPriceOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__NotActivated()`
-
-```solidity
-error AuctionEngine__NotActivated();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__PriceMultiplierOutOfRange()`
-
-```solidity
-error AuctionEngine__PriceMultiplierOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ReentrancyGuardReentrantCall()`
-
-```solidity
-error ReentrancyGuardReentrantCall();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SafeERC20FailedOperation(address)`
-
-```solidity
-error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-## AuctionEngine
-
-Source: [`src/strategies/AuctionEngine.sol`](../../packages/contracts/src/strategies/AuctionEngine.sol)
-
-Artifact: `out/AuctionEngine.sol/AuctionEngine.json`
-
-Public ABI: 14 functions, 0 events, 9 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `ABS_MAX_INIT_PRICE()`
-
-```solidity
-function ABS_MAX_INIT_PRICE() external view returns (uint256 arg0);
-```
-
-Absolute maximum permitted initial price.
-
-### `ABS_MIN_INIT_PRICE()`
-
-```solidity
-function ABS_MIN_INIT_PRICE() external view returns (uint256 arg0);
-```
-
-Absolute minimum permitted price floor.
-
-### `MAX_EPOCH_PERIOD()`
-
-```solidity
-function MAX_EPOCH_PERIOD() external view returns (uint256 arg0);
-```
-
-Largest permitted auction duration.
-
-### `MAX_PRICE_MULTIPLIER()`
-
-```solidity
-function MAX_PRICE_MULTIPLIER() external view returns (uint256 arg0);
-```
-
-Largest permitted next-price multiplier.
-
-### `MIN_EPOCH_PERIOD()`
-
-```solidity
-function MIN_EPOCH_PERIOD() external view returns (uint256 arg0);
-```
-
-Smallest permitted auction duration.
-
-### `MIN_PRICE_MULTIPLIER()`
-
-```solidity
-function MIN_PRICE_MULTIPLIER() external view returns (uint256 arg0);
-```
-
-Smallest permitted next-price multiplier.
-
-### `PRECISION()`
-
-```solidity
-function PRECISION() external view returns (uint256 arg0);
-```
-
-Fixed-point denominator used for the next-price multiplier.
-
-### `epochId()`
-
-```solidity
-function epochId() external view returns (uint256 arg0);
-```
-
-Identifier of the active auction epoch.
-
-### `epochPeriod()`
-
-```solidity
-function epochPeriod() external view returns (uint256 arg0);
-```
-
-Fixed duration of each auction epoch.
-
-### `getPrice()`
-
-```solidity
-function getPrice() external view returns (uint256 arg0);
-```
-
-Exact give.fun order: branch only after E; arithmetic itself yields zero at E.
-
-### `initPrice()`
-
-```solidity
-function initPrice() external view returns (uint256 arg0);
-```
-
-Starting price of the active auction epoch.
-
-### `minInitPrice()`
-
-```solidity
-function minInitPrice() external view returns (uint256 arg0);
-```
-
-Configured lower bound for each next initial price.
-
-### `priceMultiplier()`
-
-```solidity
-function priceMultiplier() external view returns (uint256 arg0);
-```
-
-Fixed multiplier applied to a filled epoch's quoted payment.
-
-### `startTime()`
-
-```solidity
-function startTime() external view returns (uint256 arg0);
-```
-
-Timestamp at which the active auction epoch began.
-
-### Custom errors
-
-#### `AuctionEngine__AlreadyActivated()`
-
-```solidity
-error AuctionEngine__AlreadyActivated();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__DeadlinePassed()`
-
-```solidity
-error AuctionEngine__DeadlinePassed();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__EpochIdMismatch()`
-
-```solidity
-error AuctionEngine__EpochIdMismatch();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__EpochPeriodOutOfRange()`
-
-```solidity
-error AuctionEngine__EpochPeriodOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__InitPriceOutOfRange()`
-
-```solidity
-error AuctionEngine__InitPriceOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__MaxPaymentAmountExceeded()`
-
-```solidity
-error AuctionEngine__MaxPaymentAmountExceeded();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__MinInitPriceOutOfRange()`
-
-```solidity
-error AuctionEngine__MinInitPriceOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__NotActivated()`
-
-```solidity
-error AuctionEngine__NotActivated();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__PriceMultiplierOutOfRange()`
-
-```solidity
-error AuctionEngine__PriceMultiplierOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-## BuybackStrategy
-
-Source: [`src/strategies/BuybackStrategy.sol`](../../packages/contracts/src/strategies/BuybackStrategy.sol)
-
-Artifact: `out/BuybackStrategy.sol/BuybackStrategy.json`
-
-Public ABI: 26 functions, 2 events, 18 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,address,address,address,address,uint256,uint256,uint256,uint256,uint256)`
-
-```solidity
-constructor(contract IGBXToken gbx, address usdG, contract IGumBallVault gumBallVault, contract IAssetRegistry assetRegistry, address emergencyGuardian, address protocolTimelock, uint256 usdGLot, uint256 initPrice_, uint256 epochPeriod_, uint256 priceMultiplier_, uint256 minInitPrice_);
-```
-
-Configures one fixed-lot buyback strategy for later registry-authorized activation.
-
-### `ABS_MAX_INIT_PRICE()`
-
-```solidity
-function ABS_MAX_INIT_PRICE() external view returns (uint256 arg0);
-```
-
-Absolute maximum permitted initial price.
-
-### `ABS_MIN_INIT_PRICE()`
-
-```solidity
-function ABS_MIN_INIT_PRICE() external view returns (uint256 arg0);
-```
-
-Absolute minimum permitted price floor.
-
-### `ASSET_REGISTRY()`
-
-```solidity
-function ASSET_REGISTRY() external view returns (contract IAssetRegistry arg0);
-```
-
-Registry that must keep this strategy live for fills.
-
-### `EMERGENCY_GUARDIAN()`
-
-```solidity
-function EMERGENCY_GUARDIAN() external view returns (address arg0);
-```
-
-Stop-only guardian allowed to pause fills.
-
-### `GBX()`
-
-```solidity
-function GBX() external view returns (contract IGBXToken arg0);
-```
-
-Canonical token collected and burned by successful fills.
-
-### `GUM_BALL_VAULT()`
-
-```solidity
-function GUM_BALL_VAULT() external view returns (contract IGumBallVault arg0);
-```
-
-Passive vault releasing allocated USDG lots.
-
-### `MAX_EPOCH_PERIOD()`
-
-```solidity
-function MAX_EPOCH_PERIOD() external view returns (uint256 arg0);
-```
-
-Largest permitted auction duration.
-
-### `MAX_PRICE_MULTIPLIER()`
-
-```solidity
-function MAX_PRICE_MULTIPLIER() external view returns (uint256 arg0);
-```
-
-Largest permitted next-price multiplier.
-
-### `MIN_EPOCH_PERIOD()`
-
-```solidity
-function MIN_EPOCH_PERIOD() external view returns (uint256 arg0);
-```
-
-Smallest permitted auction duration.
-
-### `MIN_PRICE_MULTIPLIER()`
-
-```solidity
-function MIN_PRICE_MULTIPLIER() external view returns (uint256 arg0);
-```
-
-Smallest permitted next-price multiplier.
-
-### `PRECISION()`
-
-```solidity
-function PRECISION() external view returns (uint256 arg0);
-```
-
-Fixed-point denominator used for the next-price multiplier.
-
-### `PROTOCOL_TIMELOCK()`
-
-```solidity
-function PROTOCOL_TIMELOCK() external view returns (address arg0);
-```
-
-Timelock allowed to resume fills.
-
-### `USDG()`
-
-```solidity
-function USDG() external view returns (contract IERC20 arg0);
-```
-
-Token released from the vault as each fixed buyback lot.
-
-### `USDG_LOT()`
-
-```solidity
-function USDG_LOT() external view returns (uint256 arg0);
-```
-
-Fixed USDG amount released for every successful fill.
-
-### `activateAuction()`
-
-```solidity
-function activateAuction() external;
-```
-
-Starts the first auction exactly once, atomically with typed standalone registration.
-
-### `epochId()`
-
-```solidity
-function epochId() external view returns (uint256 arg0);
-```
-
-Identifier of the active auction epoch.
-
-### `epochPeriod()`
-
-```solidity
-function epochPeriod() external view returns (uint256 arg0);
-```
-
-Fixed duration of each auction epoch.
-
-### `fill(uint256,uint256,uint256)`
-
-```solidity
-function fill(uint256 expectedEpochId, uint256 deadline, uint256 maxGBXAmount) external returns (uint256 paymentAmount, uint256 gbxBurned);
-```
-
-Collects and burns GBX, releases one USDG lot, and advances the auction.
-
-### `fillsPaused()`
-
-```solidity
-function fillsPaused() external view returns (bool arg0);
-```
-
-Whether new fills are paused.
-
-### `getPrice()`
-
-```solidity
-function getPrice() external view returns (uint256 arg0);
-```
-
-Exact give.fun order: branch only after E; arithmetic itself yields zero at E.
-
-### `initPrice()`
-
-```solidity
-function initPrice() external view returns (uint256 arg0);
-```
-
-Starting price of the active auction epoch.
-
-### `minInitPrice()`
-
-```solidity
-function minInitPrice() external view returns (uint256 arg0);
-```
-
-Configured lower bound for each next initial price.
-
-### `pauseFills()`
-
-```solidity
-function pauseFills() external;
-```
-
-Stops new fills through the emergency guardian.
-
-### `priceMultiplier()`
-
-```solidity
-function priceMultiplier() external view returns (uint256 arg0);
-```
-
-Fixed multiplier applied to a filled epoch's quoted payment.
-
-### `resumeFills()`
-
-```solidity
-function resumeFills() external;
-```
-
-Re-enables fills through the protocol timelock.
-
-### `startTime()`
-
-```solidity
-function startTime() external view returns (uint256 arg0);
-```
-
-Timestamp at which the active auction epoch began.
-
-### Events
-
-#### `BuybackStrategy__Filled(uint256,address,uint256,uint256,uint256)`
-
-```solidity
-event BuybackStrategy__Filled(uint256 indexed epochId, address indexed filler, uint256 quotedPayment, uint256 gbxBurned, uint256 usdGLot);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BuybackStrategy__FillsPauseSet(bool)`
-
-```solidity
-event BuybackStrategy__FillsPauseSet(bool paused);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-### Custom errors
-
-#### `AuctionEngine__AlreadyActivated()`
-
-```solidity
-error AuctionEngine__AlreadyActivated();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__DeadlinePassed()`
-
-```solidity
-error AuctionEngine__DeadlinePassed();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__EpochIdMismatch()`
-
-```solidity
-error AuctionEngine__EpochIdMismatch();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__EpochPeriodOutOfRange()`
-
-```solidity
-error AuctionEngine__EpochPeriodOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__InitPriceOutOfRange()`
-
-```solidity
-error AuctionEngine__InitPriceOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__MaxPaymentAmountExceeded()`
-
-```solidity
-error AuctionEngine__MaxPaymentAmountExceeded();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__MinInitPriceOutOfRange()`
-
-```solidity
-error AuctionEngine__MinInitPriceOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__NotActivated()`
-
-```solidity
-error AuctionEngine__NotActivated();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AuctionEngine__PriceMultiplierOutOfRange()`
-
-```solidity
-error AuctionEngine__PriceMultiplierOutOfRange();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BuybackStrategy__FillsPaused()`
-
-```solidity
-error BuybackStrategy__FillsPaused();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BuybackStrategy__InexactTransfer(address,uint256,uint256,uint256)`
-
-```solidity
-error BuybackStrategy__InexactTransfer(address token, uint256 expected, uint256 debit, uint256 receipt);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BuybackStrategy__InvalidConfiguration()`
-
-```solidity
-error BuybackStrategy__InvalidConfiguration();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BuybackStrategy__StrategyNotLive()`
-
-```solidity
-error BuybackStrategy__StrategyNotLive();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BuybackStrategy__Unauthorized(address)`
-
-```solidity
-error BuybackStrategy__Unauthorized(address caller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BuybackStrategy__ZeroAddress()`
-
-```solidity
-error BuybackStrategy__ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BuybackStrategy__ZeroAmount()`
-
-```solidity
-error BuybackStrategy__ZeroAmount();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ReentrancyGuardReentrantCall()`
-
-```solidity
-error ReentrancyGuardReentrantCall();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SafeERC20FailedOperation(address)`
-
-```solidity
-error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-## GBXToken
-
-Source: [`src/token/GBXToken.sol`](../../packages/contracts/src/token/GBXToken.sol)
-
-Artifact: `out/GBXToken.sol/GBXToken.json`
-
-Public ABI: 23 functions, 6 events, 12 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,address)`
-
-```solidity
-constructor(address genesisRecipient, address controllerInitializer, address protocolTimelock);
-```
-
-Configures access control and mints the fixed 20M genesis allocation.
+Creates a fixed USDG route into `voter_`.
 
 **Parameters**
 
-- `controllerInitializer`: Deployment coordinator allowed only to bind the first controller.
-- `genesisRecipient`: Receiver of the one-time 20M genesis-liquidity allocation.
-- `protocolTimelock`: Purpose-limited timelock allowed to replace the controller after seven-day scheduling.
+- `usdg_`: USDG token forwarded by the router.
+- `voter_`: Voter that receives and indexes routed USDG.
 
-### `CONTROLLER_INITIALIZER()`
-
-```solidity
-function CONTROLLER_INITIALIZER() external view returns (address arg0);
-```
-
-Deployment coordinator allowed only to bind the first emission controller.
-
-### `GENESIS_LIQUIDITY_ALLOCATION()`
+### `pendingRevenue()`
 
 ```solidity
-function GENESIS_LIQUIDITY_ALLOCATION() external view returns (uint256 arg0);
+function pendingRevenue() external view returns (uint256 amount);
 ```
 
-Fixed one-time allocation minted for genesis liquidity.
+Returns USDG waiting to be routed.
 
-### `MAX_CUMULATIVE_MINT()`
+**Returns**
+
+- `amount`: Current USDG balance of the router.
+
+### `route()`
 
 ```solidity
-function MAX_CUMULATIVE_MINT() external view returns (uint256 arg0);
+function route() external returns (uint256 amount);
 ```
 
-Irreversible one-billion-token lifetime mint ceiling.
+Routes the complete USDG balance to Voter.
 
-### `PROTOCOL_TIMELOCK()`
+**Returns**
+
+- `amount`: Amount delivered to Voter in this call.
+
+### `usdg()`
 
 ```solidity
-function PROTOCOL_TIMELOCK() external view returns (address arg0);
+function usdg() external view returns (contract IERC20 arg0);
 ```
 
-Purpose-limited timelock allowed to replace the emission controller.
+USDG revenue token forwarded by this router.
 
-### `allowance(address,address)`
+### `voter()`
 
 ```solidity
-function allowance(address owner, address spender) external view returns (uint256 arg0);
+function voter() external view returns (address arg0);
 ```
 
-Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner` through {transferFrom}. This is zero by default. This value changes when {approve} or {transferFrom} are called.
-
-### `approve(address,uint256)`
-
-```solidity
-function approve(address spender, uint256 value) external returns (bool arg0);
-```
-
-See {IERC20-approve}. NOTE: If `value` is the maximum `uint256`, the allowance is not updated on `transferFrom`. This is semantically equivalent to an infinite approval. Requirements: - `spender` cannot be the zero address.
-
-### `balanceOf(address)`
-
-```solidity
-function balanceOf(address account) external view returns (uint256 arg0);
-```
-
-Returns the value of tokens owned by `account`.
-
-### `burn(uint256)`
-
-```solidity
-function burn(uint256 amount) external;
-```
-
-Burns a nonzero amount of the caller's GBX.
-
-### `burnFrom(address,uint256)`
-
-```solidity
-function burnFrom(address account, uint256 amount) external;
-```
-
-Burns a nonzero approved amount of GBX from an account.
-
-### `canonicalMiningPool()`
-
-```solidity
-function canonicalMiningPool() external view returns (address arg0);
-```
-
-Mining pool permanently anchored by the initial controller binding.
-
-### `cumulativeBurned()`
-
-```solidity
-function cumulativeBurned() external view returns (uint256 arg0);
-```
-
-Total GBX burned over the token's lifetime.
-
-### `cumulativeMinted()`
-
-```solidity
-function cumulativeMinted() external view returns (uint256 arg0);
-```
-
-Total GBX minted over the token's lifetime, including burned units.
-
-### `decimals()`
-
-```solidity
-function decimals() external view returns (uint8 arg0);
-```
-
-Returns the number of decimals used to get its user representation. For example, if `decimals` equals `2`, a balance of `505` tokens should be displayed to a user as `5.05` (`505 / 10 ** 2`). Tokens usually opt for a value of 18, imitating the relationship between Ether and Wei. This is the default value returned by this function, unless it's overridden. NOTE: This information is only used for _display_ purposes: it in no way affects any of the arithmetic of the contract, including {IERC20-balanceOf} and {IERC20-transfer}.
-
-### `emissionController()`
-
-```solidity
-function emissionController() external view returns (address arg0);
-```
-
-Currently authorized mining emission controller.
-
-### `initializeEmissionController(address)`
-
-```solidity
-function initializeEmissionController(address controller) external;
-```
-
-Binds the first deployed mining controller without granting the initializer mint authority.
-
-### `mintMiningEmission(address,uint256)`
-
-```solidity
-function mintMiningEmission(address receiver, uint256 amount) external;
-```
-
-Mints a nonzero mining settlement through the currently authorized controller only.
-
-### `name()`
-
-```solidity
-function name() external view returns (string arg0);
-```
-
-Returns the name of the token.
-
-### `remainingMintCapacity()`
-
-```solidity
-function remainingMintCapacity() external view returns (uint256 arg0);
-```
-
-Returns capacity remaining below the lifetime mint ceiling.
-
-### `replaceEmissionController(address)`
-
-```solidity
-function replaceEmissionController(address controller) external;
-```
-
-Atomically revokes the previous controller and authorizes a compatible replacement.
-ProtocolTimelock exposes only a named replacement operation with a fixed seven-day delay.
-
-### `symbol()`
-
-```solidity
-function symbol() external view returns (string arg0);
-```
-
-Returns the symbol of the token, usually a shorter version of the name.
-
-### `totalSupply()`
-
-```solidity
-function totalSupply() external view returns (uint256 arg0);
-```
-
-Returns the value of tokens in existence.
-
-### `transfer(address,uint256)`
-
-```solidity
-function transfer(address to, uint256 value) external returns (bool arg0);
-```
-
-See {IERC20-transfer}. Requirements: - `to` cannot be the zero address. - the caller must have a balance of at least `value`.
-
-### `transferFrom(address,address,uint256)`
-
-```solidity
-function transferFrom(address from, address to, uint256 value) external returns (bool arg0);
-```
-
-See {IERC20-transferFrom}. Skips emitting an {Approval} event indicating an allowance update. This is not required by the ERC. See {xref-ERC20-\_approve-address-address-uint256-bool-}[_approve]. NOTE: Does not update the allowance if the current allowance is the maximum `uint256`. Requirements: - `from` and `to` cannot be the zero address. - `from` must have a balance of at least `value`. - the caller must have allowance for `from`'s tokens of at least `value`.
+Voter that receives and indexes routed USDG.
 
 ### Events
 
-#### `Approval(address,address,uint256)`
+#### `RevenueRouted(address,uint256)`
 
 ```solidity
-event Approval(address indexed owner, address indexed spender, uint256 value);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GBXToken__Burned(address,address,uint256,uint256)`
-
-```solidity
-event GBXToken__Burned(address indexed operator, address indexed account, uint256 amount, uint256 cumulativeBurnedAfter);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GBXToken__EmissionControllerInitialized(address)`
-
-```solidity
-event GBXToken__EmissionControllerInitialized(address indexed controller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GBXToken__EmissionControllerReplaced(address,address)`
-
-```solidity
-event GBXToken__EmissionControllerReplaced(address indexed previousController, address indexed newController);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GBXToken__Minted(address,uint256,uint256)`
-
-```solidity
-event GBXToken__Minted(address indexed receiver, uint256 amount, uint256 cumulativeMintedAfter);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `Transfer(address,address,uint256)`
-
-```solidity
-event Transfer(address indexed from, address indexed to, uint256 value);
+event RevenueRouted(address indexed caller, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
 
-#### `ERC20InsufficientAllowance(address,uint256,uint256)`
+#### `NoRevenue()`
 
 ```solidity
-error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20InsufficientBalance(address,uint256,uint256)`
-
-```solidity
-error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20InvalidApprover(address)`
-
-```solidity
-error ERC20InvalidApprover(address approver);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20InvalidReceiver(address)`
-
-```solidity
-error ERC20InvalidReceiver(address receiver);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20InvalidSender(address)`
-
-```solidity
-error ERC20InvalidSender(address sender);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20InvalidSpender(address)`
-
-```solidity
-error ERC20InvalidSpender(address spender);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GBXToken__AlreadyInitialized()`
-
-```solidity
-error GBXToken__AlreadyInitialized();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GBXToken__CumulativeMintCapExceeded(uint256,uint256)`
-
-```solidity
-error GBXToken__CumulativeMintCapExceeded(uint256 requested, uint256 remaining);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GBXToken__IncompatibleController(address)`
-
-```solidity
-error GBXToken__IncompatibleController(address controller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GBXToken__Unauthorized(address)`
-
-```solidity
-error GBXToken__Unauthorized(address caller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GBXToken__ZeroAddress()`
-
-```solidity
-error GBXToken__ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GBXToken__ZeroAmount()`
-
-```solidity
-error GBXToken__ZeroAmount();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-## AssetRegistry
-
-Source: [`src/vault/AssetRegistry.sol`](../../packages/contracts/src/vault/AssetRegistry.sol)
-
-Artifact: `out/AssetRegistry.sol/AssetRegistry.json`
-
-Public ABI: 17 functions, 3 events, 8 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,address)`
-
-```solidity
-constructor(address usdG, address protocolTimelock, address emergencyGuardian);
-```
-
-Configures access control and registers USDG as basket asset zero.
-
-### `EMERGENCY_GUARDIAN()`
-
-```solidity
-function EMERGENCY_GUARDIAN() external view returns (address arg0);
-```
-
-Stop-only guardian allowed to disable live strategies.
-
-### `MAX_ASSETS()`
-
-```solidity
-function MAX_ASSETS() external view returns (uint256 arg0);
-```
-
-Maximum number of redeemable basket assets, including USDG.
-
-### `MAX_STRATEGIES()`
-
-```solidity
-function MAX_STRATEGIES() external view returns (uint256 arg0);
-```
-
-Maximum number of allocation strategies.
-
-### `PROTOCOL_TIMELOCK()`
-
-```solidity
-function PROTOCOL_TIMELOCK() external view returns (address arg0);
-```
-
-Timelock allowed to register and disable strategies.
-
-### `USDG()`
-
-```solidity
-function USDG() external view returns (address arg0);
-```
-
-Canonical USDG asset registered at basket index zero.
-
-### `assetAt(uint256)`
-
-```solidity
-function assetAt(uint256 index) external view returns (address arg0);
-```
-
-Returns the redeemable basket asset at an index.
-
-### `assetCount()`
-
-```solidity
-function assetCount() external view returns (uint256 arg0);
-```
-
-Returns the number of registered redeemable basket assets.
-
-### `configFor(address)`
-
-```solidity
-function configFor(address token) external view returns (struct IAssetRegistry.AssetConfig arg0);
-```
-
-Returns the immutable registration graph and liveness for a basket asset.
-
-### `disableStrategy(address)`
-
-```solidity
-function disableStrategy(address strategy) external;
-```
-
-Irreversibly stops a strategy from receiving signals or releasing new USDG.
-
-### `isLiveStrategy(address)`
-
-```solidity
-function isLiveStrategy(address strategy) external view returns (bool arg0);
-```
-
-Returns whether a strategy is registered and not terminally disabled.
-
-### `isRegisteredAsset(address)`
-
-```solidity
-function isRegisteredAsset(address token) external view returns (bool arg0);
-```
-
-Returns whether a token belongs to the redeemable basket.
-
-### `registerAsset(address,address,address)`
-
-```solidity
-function registerAsset(address token, address strategy, address rewards) external;
-```
-
-Registers one immutable target/strategy/rewards association through the typed timelock.
-
-### `registerStandaloneStrategy(address)`
-
-```solidity
-function registerStandaloneStrategy(address strategy) external;
-```
-
-Registers the single buyback strategy without adding GBX to the redeemable asset basket.
-
-### `rewardsForStrategy(address)`
-
-```solidity
-function rewardsForStrategy(address strategy) external view returns (address rewards);
-```
-
-Returns the supporter rewards contract associated with a strategy, if any.
-
-### `strategyAt(uint256)`
-
-```solidity
-function strategyAt(uint256 index) external view returns (address arg0);
-```
-
-Returns the registered allocation strategy at an index.
-
-### `strategyCount()`
-
-```solidity
-function strategyCount() external view returns (uint256 arg0);
-```
-
-Returns the number of registered allocation strategies.
-
-### `tokenForStrategy(address)`
-
-```solidity
-function tokenForStrategy(address strategy) external view returns (address token);
-```
-
-Returns the redeemable target token associated with a strategy, if any.
-
-### Events
-
-#### `AssetRegistry__AssetRegistered(address,address,address,uint256)`
-
-```solidity
-event AssetRegistry__AssetRegistered(address indexed token, address indexed strategy, address indexed rewards, uint256 assetIndex);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AssetRegistry__StandaloneStrategyRegistered(address,uint256)`
-
-```solidity
-event AssetRegistry__StandaloneStrategyRegistered(address indexed strategy, uint256 strategyIndex);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AssetRegistry__StrategyDisabled(address)`
-
-```solidity
-event AssetRegistry__StrategyDisabled(address indexed strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-### Custom errors
-
-#### `AssetRegistry__AlreadyRegistered(address)`
-
-```solidity
-error AssetRegistry__AlreadyRegistered(address account);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AssetRegistry__AssetLimitReached()`
-
-```solidity
-error AssetRegistry__AssetLimitReached();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AssetRegistry__InvalidStrategyGraph(address)`
-
-```solidity
-error AssetRegistry__InvalidStrategyGraph(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AssetRegistry__StrategyLimitReached()`
-
-```solidity
-error AssetRegistry__StrategyLimitReached();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AssetRegistry__Unauthorized(address)`
-
-```solidity
-error AssetRegistry__Unauthorized(address caller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AssetRegistry__UnknownAsset(address)`
-
-```solidity
-error AssetRegistry__UnknownAsset(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AssetRegistry__UnknownStrategy(address)`
-
-```solidity
-error AssetRegistry__UnknownStrategy(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `AssetRegistry__ZeroAddress()`
-
-```solidity
-error AssetRegistry__ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-## IAcquisitionRegistrationIdentity
-
-Source: [`src/vault/AssetRegistry.sol`](../../packages/contracts/src/vault/AssetRegistry.sol)
-
-Artifact: `out/AssetRegistry.sol/IAcquisitionRegistrationIdentity.json`
-
-Public ABI: 4 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `ASSET_REGISTRY()`
-
-```solidity
-function ASSET_REGISTRY() external view returns (contract IAssetRegistry arg0);
-```
-
-Returns the registry against which the strategy checks liveness.
-
-### `STRATEGY_REWARDS()`
-
-```solidity
-function STRATEGY_REWARDS() external view returns (address arg0);
-```
-
-Returns the fixed rewards index associated with the strategy.
-
-### `TARGET_TOKEN()`
-
-```solidity
-function TARGET_TOKEN() external view returns (address arg0);
-```
-
-Returns the fixed token acquired by the strategy.
-
-### `activateAuction()`
-
-```solidity
-function activateAuction() external;
-```
-
-Starts the first auction epoch during registration.
-
-## IBuybackRegistrationIdentity
-
-Source: [`src/vault/AssetRegistry.sol`](../../packages/contracts/src/vault/AssetRegistry.sol)
-
-Artifact: `out/AssetRegistry.sol/IBuybackRegistrationIdentity.json`
-
-Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `ASSET_REGISTRY()`
-
-```solidity
-function ASSET_REGISTRY() external view returns (contract IAssetRegistry arg0);
-```
-
-Returns the registry against which the strategy checks liveness.
-
-### `activateAuction()`
-
-```solidity
-function activateAuction() external;
-```
-
-Starts the first auction epoch during registration.
-
-## GumBallVault
-
-Source: [`src/vault/GumBallVault.sol`](../../packages/contracts/src/vault/GumBallVault.sol)
-
-Artifact: `out/GumBallVault.sol/GumBallVault.json`
-
-Public ABI: 6 functions, 2 events, 7 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,address,address)`
-
-```solidity
-constructor(contract IGBXToken gbx, address usdG, contract IAssetRegistry assetRegistry, contract IAllocationVoter allocationVoter);
-```
-
-Configures the share token, basket registry, USDG, and allocation ledger.
-
-### `ALLOCATION_VOTER()`
-
-```solidity
-function ALLOCATION_VOTER() external view returns (contract IAllocationVoter arg0);
-```
-
-Virtual USDG allocation ledger debited by releases and scaled by redemptions.
-
-### `ASSET_REGISTRY()`
-
-```solidity
-function ASSET_REGISTRY() external view returns (contract IAssetRegistry arg0);
-```
-
-Bounded registry defining the raw redemption basket.
-
-### `GBX()`
-
-```solidity
-function GBX() external view returns (contract IGBXToken arg0);
-```
-
-Redeemable share token burned during in-kind exits.
-
-### `USDG()`
-
-```solidity
-function USDG() external view returns (contract IERC20 arg0);
-```
-
-Canonical USDG basket asset and strategy funding token.
-
-### `redeem(uint256,address)`
-
-```solidity
-function redeem(uint256 shares, address receiver) external returns (uint256[] amounts);
-```
-
-Burns shares and atomically transfers their raw fraction of every registered balance.
-
-### `releaseUSDG(address,uint256)`
-
-```solidity
-function releaseUSDG(address receiver, uint256 amount) external;
-```
-
-Releases a live caller strategy's already allocated fixed USDG lot.
-
-### Events
-
-#### `GumBallVault__Redeemed(address,address,uint256,uint256,uint256[])`
-
-```solidity
-event GumBallVault__Redeemed(address indexed owner, address indexed receiver, uint256 shares, uint256 supplyBefore, uint256[] amounts);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GumBallVault__USDGReleased(address,address,uint256)`
-
-```solidity
-event GumBallVault__USDGReleased(address indexed strategy, address indexed receiver, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-### Custom errors
-
-#### `GumBallVault__InexactTransfer(address,uint256,uint256,uint256)`
-
-```solidity
-error GumBallVault__InexactTransfer(address token, uint256 expected, uint256 debit, uint256 receipt);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GumBallVault__InsufficientShares(uint256,uint256)`
-
-```solidity
-error GumBallVault__InsufficientShares(uint256 requested, uint256 balance);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GumBallVault__StrategyNotLive(address)`
-
-```solidity
-error GumBallVault__StrategyNotLive(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GumBallVault__ZeroAddress()`
-
-```solidity
-error GumBallVault__ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `GumBallVault__ZeroAmount()`
-
-```solidity
-error GumBallVault__ZeroAmount();
+error NoRevenue();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -5013,6 +4228,14 @@ error ReentrancyGuardReentrantCall();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `RevenueRetained(uint256)`
+
+```solidity
+error RevenueRetained(uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `SafeERC20FailedOperation(address)`
 
 ```solidity
@@ -5020,3 +4243,304 @@ error SafeERC20FailedOperation(address token);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAddress()`
+
+```solidity
+error ZeroAddress();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## IBribe
+
+Source: [`src/core/interfaces/IBribe.sol`](../../packages/contracts/src/core/interfaces/IBribe.sol)
+
+Artifact: `out/IBribe.sol/IBribe.json`
+
+Public ABI: 3 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `left(address)`
+
+```solidity
+function left(address rewardToken) external view returns (uint256 amount);
+```
+
+Returns rewards remaining in a token's active stream.
+
+**Parameters**
+
+- `rewardToken`: Token whose active stream is queried.
+
+**Returns**
+
+- `amount`: Undistributed amount remaining in the stream.
+
+### `notifyRewardAmount(address,uint256)`
+
+```solidity
+function notifyRewardAmount(address rewardToken, uint256 amount) external;
+```
+
+Starts or extends a reward stream.
+
+**Parameters**
+
+- `amount`: Amount pulled from the caller and added to the stream.
+- `rewardToken`: Token to stream.
+
+### `totalSupply()`
+
+```solidity
+function totalSupply() external view returns (uint256 weight);
+```
+
+Returns total virtual voting weight.
+
+**Returns**
+
+- `weight`: Total weight assigned to the Bribe.
+
+## ICoreVoter
+
+Source: [`src/core/interfaces/ICoreVoter.sol`](../../packages/contracts/src/core/interfaces/ICoreVoter.sol)
+
+Artifact: `out/ICoreVoter.sol/ICoreVoter.json`
+
+Public ABI: 4 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `accountUsedWeight(address)`
+
+```solidity
+function accountUsedWeight(address account) external view returns (uint256 usedWeight);
+```
+
+Returns voting weight currently allocated by an account.
+
+**Parameters**
+
+- `account`: Account whose allocation is queried.
+
+**Returns**
+
+- `usedWeight`: Voting weight currently assigned by `account`.
+
+### `bribeBps()`
+
+```solidity
+function bribeBps() external view returns (uint256 shareBps);
+```
+
+Returns the acquisition payment share streamed to voters.
+
+**Returns**
+
+- `shareBps`: Reward share expressed in basis points.
+
+### `bribeRouterFor(address)`
+
+```solidity
+function bribeRouterFor(address strategy) external view returns (address router);
+```
+
+Returns the reward router paired with a Strategy.
+
+**Parameters**
+
+- `strategy`: Strategy whose router is queried.
+
+**Returns**
+
+- `router`: BribeRouter paired with `strategy`.
+
+### `notifyRevenue(uint256)`
+
+```solidity
+function notifyRevenue(uint256 amount) external;
+```
+
+Pulls and indexes newly routed USDG revenue.
+
+**Parameters**
+
+- `amount`: Amount of USDG to pull from the caller.
+
+## IFund
+
+Source: [`src/core/interfaces/IFund.sol`](../../packages/contracts/src/core/interfaces/IFund.sol)
+
+Artifact: `out/IFund.sol/IFund.json`
+
+Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `burnGBX(uint256)`
+
+```solidity
+function burnGBX(uint256 amount) external;
+```
+
+Burns GBX already held by the Fund.
+
+**Parameters**
+
+- `amount`: Amount of GBX to burn.
+
+### `gbx()`
+
+```solidity
+function gbx() external view returns (address token);
+```
+
+Returns the GBX token backed by the Fund.
+
+**Returns**
+
+- `token`: GBX token address.
+
+## ILiquidityPosition
+
+Source: [`src/core/interfaces/ILiquidityPosition.sol`](../../packages/contracts/src/core/interfaces/ILiquidityPosition.sol)
+
+Artifact: `out/ILiquidityPosition.sol/ILiquidityPosition.json`
+
+Public ABI: 10 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `expectedPositionTokenId()`
+
+```solidity
+function expectedPositionTokenId() external view returns (uint256 tokenId);
+```
+
+Returns the precommitted PositionManager token ID.
+
+**Returns**
+
+- `tokenId`: Expected position token ID.
+
+### `expectedTickLower()`
+
+```solidity
+function expectedTickLower() external view returns (int24 tickLower);
+```
+
+Returns the committed lower position tick.
+
+**Returns**
+
+- `tickLower`: Committed lower tick.
+
+### `expectedTickUpper()`
+
+```solidity
+function expectedTickUpper() external view returns (int24 tickUpper);
+```
+
+Returns the committed upper position tick.
+
+**Returns**
+
+- `tickUpper`: Committed upper tick.
+
+### `gbx()`
+
+```solidity
+function gbx() external view returns (address token);
+```
+
+Returns the canonical GBX token.
+
+**Returns**
+
+- `token`: Canonical GBX address.
+
+### `poolKeyHash()`
+
+```solidity
+function poolKeyHash() external view returns (bytes32 keyHash);
+```
+
+Returns the hash of the complete canonical v4 PoolKey.
+
+**Returns**
+
+- `keyHash`: Canonical PoolKey hash.
+
+### `positionDepositor()`
+
+```solidity
+function positionDepositor() external view returns (address depositor);
+```
+
+Returns the account expected to deliver the position NFT.
+
+**Returns**
+
+- `depositor`: Expected NFT depositor.
+
+### `positionManager()`
+
+```solidity
+function positionManager() external view returns (address manager);
+```
+
+Returns the canonical Uniswap v4 PositionManager.
+
+**Returns**
+
+- `manager`: Canonical PositionManager address.
+
+### `positionRecorded()`
+
+```solidity
+function positionRecorded() external view returns (bool recorded);
+```
+
+Returns whether this contract has already accepted its expected NFT.
+
+**Returns**
+
+- `recorded`: Whether the expected position was recorded.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (address token);
+```
+
+Returns the canonical USDG token.
+
+**Returns**
+
+- `token`: Canonical USDG address.
+
+### `voterRouter()`
+
+```solidity
+function voterRouter() external view returns (address router);
+```
+
+Returns the immutable USDG fee router.
+
+**Returns**
+
+- `router`: VoterRouter address.
+
+## IVoterRouter
+
+Source: [`src/core/interfaces/IVoterRouter.sol`](../../packages/contracts/src/core/interfaces/IVoterRouter.sol)
+
+Artifact: `out/IVoterRouter.sol/IVoterRouter.json`
+
+Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `route()`
+
+```solidity
+function route() external returns (uint256 amount);
+```
+
+Routes the complete pending USDG balance to Voter.
+
+**Returns**
+
+- `amount`: Amount of USDG delivered to Voter.

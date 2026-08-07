@@ -1,51 +1,30 @@
 import { expect } from 'chai';
-import { ethers, network } from 'hardhat';
+import { ethers } from 'hardhat';
 
-describe('Minimal GBX supply integrity', function () {
-  it('counts genesis, advances mining, and never reopens capacity after a burn', async function () {
+describe('GBX lifetime supply integrity', function () {
+  it('never reopens lifetime mint capacity after a burn', async function () {
     const [deployer, holder] = await ethers.getSigners();
     if (deployer === undefined || holder === undefined) throw new Error('Hardhat signers unavailable');
 
-    const timelock = await ethers.deployContract('ProtocolTimelock', [deployer.address]);
-    await timelock.waitForDeployment();
-    const token = await ethers.deployContract('GBXToken', [
-      deployer.address,
-      deployer.address,
-      await timelock.getAddress(),
-    ]);
+    const token = await ethers.deployContract('GBX', [deployer.address, deployer.address]);
     await token.waitForDeployment();
-    const claims = await ethers.deployContract('MiningClaims', [await token.getAddress(), deployer.address]);
-    await claims.waitForDeployment();
-    const controller = await ethers.deployContract('EmissionController', [
-      await token.getAddress(),
-      await claims.getAddress(),
-      0n,
-      465_152_749_681_042_811_702_004n,
-    ]);
-    await controller.waitForDeployment();
-    await token.getFunction('initializeEmissionController')(await controller.getAddress());
 
-    const genesis = ethers.parseEther('20000000');
-    const capacityBefore = await token.getFunction('remainingMintCapacity')();
-    expect(await token.getFunction('cumulativeMinted')()).to.equal(genesis);
-    expect(await token.getFunction('totalSupply')()).to.equal(genesis);
+    const amount = ethers.parseEther('100');
+    const lifetimeCap = BigInt(await token.getFunction('MAX_LIFETIME_MINT')());
+    const genesisAllocation = BigInt(await token.getFunction('GENESIS_LIQUIDITY_ALLOCATION')());
 
-    const miningPoolAddress = await claims.getAddress();
-    await network.provider.send('hardhat_setBalance', [miningPoolAddress, '0x56BC75E2D63100000']);
-    const miningPoolSigner = await ethers.getImpersonatedSigner(miningPoolAddress);
-    const scheduled = await controller.getFunction('currentScheduledEmission')();
-    await controller.connect(miningPoolSigner).getFunction('settleMiningEpoch')(0n, holder.address, true);
-    await network.provider.send('hardhat_stopImpersonatingAccount', [miningPoolAddress]);
-
-    expect(await token.getFunction('balanceOf')(holder.address)).to.equal(scheduled);
-    expect(await token.getFunction('remainingMintCapacity')()).to.equal(capacityBefore - scheduled);
-
-    await token.connect(holder).getFunction('burn')(scheduled);
-    expect(await token.getFunction('cumulativeBurned')()).to.equal(scheduled);
-    expect(await token.getFunction('remainingMintCapacity')()).to.equal(capacityBefore - scheduled);
-    expect(await token.getFunction('totalSupply')()).to.equal(genesis);
-    expect(await token.getFunction('totalSupply')()).to.equal(
-      (await token.getFunction('cumulativeMinted')()) - (await token.getFunction('cumulativeBurned')()),
+    await expect(token.getFunction('mint')(holder.address, amount)).to.be.revertedWithCustomError(
+      token,
+      'MinterNotLocked',
     );
+    await token.getFunction('setMinter')(holder.address);
+    await token.connect(holder).getFunction('mint')(holder.address, amount);
+    expect(await token.getFunction('lifetimeMinted')()).to.equal(genesisAllocation + amount);
+    expect(await token.getFunction('remainingMintableSupply')()).to.equal(lifetimeCap - genesisAllocation - amount);
+
+    await token.connect(holder).getFunction('burn')(amount);
+    expect(await token.getFunction('lifetimeBurned')()).to.equal(amount);
+    expect(await token.getFunction('totalSupply')()).to.equal(genesisAllocation);
+    expect(await token.getFunction('remainingMintableSupply')()).to.equal(lifetimeCap - genesisAllocation - amount);
   });
 });

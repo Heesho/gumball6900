@@ -9,10 +9,6 @@ export function addressId(address: Address): string {
   return CHAIN_ID_TEXT + '-' + address.toHexString();
 }
 
-export function epochId(pool: Address, epoch: BigInt): string {
-  return addressId(pool) + '-epoch-' + epoch.toString();
-}
-
-export function positionId(custodian: Address, position: BigInt): string {
-  return addressId(custodian) + '-position-' + position.toString();
+export function epochId(fundraiser: Address, epoch: BigInt): string {
+  return addressId(fundraiser) + '-epoch-' + epoch.toString();
 }

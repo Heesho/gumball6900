@@ -4,21 +4,19 @@ import { addressSchema, bytes32Schema } from './validation.js';
 
 export { addressSchema } from './validation.js';
 
-/** Fixed contracts in one minimal GBX deployment. Acquisition/reward pairs remain registry-discovered. */
+/** Fixed contracts in one core deployment. Strategies, Bribes, and BribeRouters are discovered through Voter. */
 export const protocolAddressesSchema = z
   .object({
-    allocationVoter: addressSchema,
-    assetRegistry: addressSchema,
-    buybackStrategy: addressSchema,
-    emergencyGuardian: addressSchema,
-    emissionController: addressSchema,
+    bribeFactory: addressSchema,
+    fund: addressSchema,
+    fundraiser: addressSchema,
     gbx: addressSchema,
-    gumBallVault: addressSchema,
-    liquidityCustodian: addressSchema,
-    miningClaims: addressSchema,
-    miningPool: addressSchema,
-    protocolTimelock: addressSchema,
-    stakedGBX: addressSchema,
+    liquidityPosition: addressSchema,
+    signalGBX: addressSchema,
+    strategyFactory: addressSchema,
+    timelockController: addressSchema,
+    voter: addressSchema,
+    voterRouter: addressSchema,
   })
   .strict()
   .superRefine((addresses, context) => {

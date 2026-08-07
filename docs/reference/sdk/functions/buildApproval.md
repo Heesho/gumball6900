@@ -8,7 +8,7 @@
 
 > **buildApproval**(`token`, `spender`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Encodes the allowance required before staking, redemption, mining, or auction payment.
+Encodes an ERC-20 allowance for staking, contribution, payment, or redemption.
 
 ## Parameters
 

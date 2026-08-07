@@ -26,18 +26,20 @@ function pinnedClient(values: Readonly<Record<string, unknown>>): PublicClient {
 describe('minimal SDK reads and deployment metadata', () => {
   it('pins and revalidates cumulative supply reads', async () => {
     const client = pinnedClient({
-      cumulativeBurned: 5n,
-      cumulativeMinted: 20n,
-      emissionController: address(2),
-      remainingMintCapacity: 980n,
+      lifetimeBurned: 5n,
+      lifetimeMinted: 20n,
+      minter: address(2),
+      minterLocked: true,
+      remainingMintableSupply: 980n,
       totalSupply: 15n,
     });
     await expect(readSupplyView(client, address(1))).resolves.toEqual({
       blockNumber: 100n,
-      cumulativeBurned: 5n,
-      cumulativeMinted: 20n,
-      emissionController: address(2),
-      remainingMintCapacity: 980n,
+      lifetimeBurned: 5n,
+      lifetimeMinted: 20n,
+      minter: address(2),
+      minterLocked: true,
+      remainingMintableSupply: 980n,
       totalSupply: 15n,
     });
     expect(client.getBlock).toHaveBeenCalledTimes(2);
@@ -45,53 +47,45 @@ describe('minimal SDK reads and deployment metadata', () => {
 
   it('previews each raw vault balance against the pre-burn supply', async () => {
     const gbx = address(1);
-    const registry = address(2);
     const vault = address(3);
     const usdG = address(4);
     const target = address(5);
     const client = pinnedClient({
-      assetCount: 2n,
-      assetAt: usdG,
       [`${gbx.toLowerCase()}:totalSupply`]: 100n,
       [`${usdG.toLowerCase()}:balanceOf`]: 1_000n,
       [`${target.toLowerCase()}:balanceOf`]: 500n,
     });
     (client.readContract as ReturnType<typeof vi.fn>)
       .mockResolvedValueOnce(100n)
-      .mockResolvedValueOnce(2n)
-      .mockResolvedValueOnce(usdG)
-      .mockResolvedValueOnce(target)
       .mockResolvedValueOnce(1_000n)
       .mockResolvedValueOnce(500n);
 
-    await expect(readRedemptionPreview(client, { assetRegistry: registry, gbx, vault }, 25n)).resolves.toMatchObject({
+    await expect(readRedemptionPreview(client, { fund: vault, gbx }, 25n, [usdG, target])).resolves.toMatchObject({
       amounts: [250n, 125n],
-      assets: [usdG, target],
-      shares: 25n,
+      gbxAmount: 25n,
       supplyBefore: 100n,
+      tokens: [usdG, target],
     });
   });
 
   it('accepts only the fixed minimal deployment graph', () => {
     const keys = [
-      'allocationVoter',
-      'assetRegistry',
-      'buybackStrategy',
-      'emergencyGuardian',
-      'emissionController',
+      'bribeFactory',
+      'fund',
+      'fundraiser',
       'gbx',
-      'gumBallVault',
-      'liquidityCustodian',
-      'miningClaims',
-      'miningPool',
-      'protocolTimelock',
-      'stakedGBX',
+      'liquidityPosition',
+      'signalGBX',
+      'strategyFactory',
+      'timelockController',
+      'voter',
+      'voterRouter',
     ] as const;
     const deployment = Object.fromEntries(keys.map((key, index) => [key, address(index + 1)]));
     expect(protocolAddressesSchema.parse(deployment)).toEqual(
       Object.fromEntries(Object.entries(deployment).map(([key, value]) => [key, getAddress(value)])),
     );
-    expect(() => protocolAddressesSchema.parse({ ...deployment, gumBallRouter: address(99) })).toThrow();
+    expect(() => protocolAddressesSchema.parse({ ...deployment, legacyVault: address(99) })).toThrow();
   });
 
   it('builds the hookless GBX/USDG PoolKey only from explicit reviewed fee and spacing inputs', () => {

@@ -1,21 +1,9 @@
 import { getAddress, type Abi, type Address, type Hex, type PublicClient } from 'viem';
 import { z } from 'zod';
 
-import {
-  acquisitionStrategyAbi,
-  allocationVoterAbi,
-  assetRegistryAbi,
-  buybackStrategyAbi,
-  emissionControllerAbi,
-  gbxAbi,
-  liquidityCustodianAbi,
-  miningClaimsAbi,
-  miningPoolAbi,
-  stakedGbxAbi,
-  strategyRewardsAbi,
-} from './abis.js';
+import { bribeAbi, fundraiserAbi, gbxAbi, liquidityPositionAbi, signalGbxAbi, strategyAbi, voterAbi } from './abis.js';
 import { pinBlockSnapshot, revalidateBlockSnapshot, type BlockSnapshot } from './block-snapshot.js';
-import { addressSchema, bytes32Schema, positiveBigIntSchema, unsignedBigIntSchema } from './validation.js';
+import { addressSchema, unsignedBigIntSchema } from './validation.js';
 
 export interface ReadOptions {
   /** Pins every RPC call in the composed view to this block; defaults to a freshly read latest block. */
@@ -41,14 +29,16 @@ async function read(
 
 export const supplyViewSchema = z.object({
   blockNumber: unsignedBigIntSchema,
-  cumulativeBurned: unsignedBigIntSchema,
-  cumulativeMinted: unsignedBigIntSchema,
-  emissionController: addressSchema,
-  remainingMintCapacity: unsignedBigIntSchema,
+  lifetimeBurned: unsignedBigIntSchema,
+  lifetimeMinted: unsignedBigIntSchema,
+  minter: addressSchema,
+  minterLocked: z.boolean(),
+  remainingMintableSupply: unsignedBigIntSchema,
   totalSupply: unsignedBigIntSchema,
 });
 export type SupplyView = z.infer<typeof supplyViewSchema>;
 
+/** Reads the complete GBX lifetime-supply state from one canonical block. */
 export async function readSupplyView(
   client: PublicClient,
   gbx: Address,
@@ -56,287 +46,314 @@ export async function readSupplyView(
 ): Promise<SupplyView> {
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [cumulativeBurned, cumulativeMinted, emissionController, remainingMintCapacity, totalSupply] =
+  const [lifetimeBurned, lifetimeMinted, minter, minterLocked, remainingMintableSupply, totalSupply] =
     await Promise.all([
-      read(client, blockNumber, gbx, gbxAbi, 'cumulativeBurned'),
-      read(client, blockNumber, gbx, gbxAbi, 'cumulativeMinted'),
-      read(client, blockNumber, gbx, gbxAbi, 'emissionController'),
-      read(client, blockNumber, gbx, gbxAbi, 'remainingMintCapacity'),
+      read(client, blockNumber, gbx, gbxAbi, 'lifetimeBurned'),
+      read(client, blockNumber, gbx, gbxAbi, 'lifetimeMinted'),
+      read(client, blockNumber, gbx, gbxAbi, 'minter'),
+      read(client, blockNumber, gbx, gbxAbi, 'minterLocked'),
+      read(client, blockNumber, gbx, gbxAbi, 'remainingMintableSupply'),
       read(client, blockNumber, gbx, gbxAbi, 'totalSupply'),
     ]);
   const result = supplyViewSchema.parse({
     blockNumber,
-    cumulativeBurned,
-    cumulativeMinted,
-    emissionController,
-    remainingMintCapacity,
+    lifetimeBurned,
+    lifetimeMinted,
+    minter,
+    minterLocked,
+    remainingMintableSupply,
     totalSupply,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
 
-const epochSchema = z.tuple([
-  unsignedBigIntSchema,
-  unsignedBigIntSchema,
-  unsignedBigIntSchema,
-  unsignedBigIntSchema,
-  unsignedBigIntSchema,
-  unsignedBigIntSchema,
-  unsignedBigIntSchema,
-  z.boolean(),
-]);
-
-export const miningEpochViewSchema = z.object({
+export const fundraiserEpochViewSchema = z.object({
+  accountContribution: unsignedBigIntSchema,
+  accountHasClaimed: z.boolean(),
   blockNumber: unsignedBigIntSchema,
-  beneficiaryContribution: unsignedBigIntSchema,
-  beneficiaryHasClaimed: z.boolean(),
-  beneficiaryPreviewClaim: unsignedBigIntSchema,
-  contributionsPaused: z.boolean(),
-  currentEpochId: unsignedBigIntSchema,
+  currentEpoch: unsignedBigIntSchema,
   emission: unsignedBigIntSchema,
-  endTime: unsignedBigIntSchema,
-  epochId: unsignedBigIntSchema,
-  settled: z.boolean(),
-  settledAt: unsignedBigIntSchema,
-  startTime: unsignedBigIntSchema,
-  started: z.boolean(),
-  teamFee: unsignedBigIntSchema,
-  totalContributed: unsignedBigIntSchema,
-  vaultRevenue: unsignedBigIntSchema,
+  epoch: unsignedBigIntSchema,
+  epochSettled: z.boolean(),
+  nextEpochToSettle: unsignedBigIntSchema,
+  nextScheduledEmission: unsignedBigIntSchema,
+  pendingReward: unsignedBigIntSchema,
+  totalContributions: unsignedBigIntSchema,
 });
-export type MiningEpochView = z.infer<typeof miningEpochViewSchema>;
+export type FundraiserEpochView = z.infer<typeof fundraiserEpochViewSchema>;
 
-export async function readMiningEpochView(
+/** Reads one account's contribution and claim state for a Fundraiser epoch. */
+export async function readFundraiserEpochView(
   client: PublicClient,
-  contracts: Readonly<{ miningPool: Address; miningClaims: Address }>,
-  epochId: bigint,
-  beneficiary: Address,
+  fundraiser: Address,
+  epoch: bigint,
+  account: Address,
   options: ReadOptions = {},
-): Promise<MiningEpochView> {
-  unsignedBigIntSchema.parse(epochId);
-  const user = getAddress(beneficiary);
+): Promise<FundraiserEpochView> {
+  unsignedBigIntSchema.parse(epoch);
+  const contributor = getAddress(account);
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [epochRaw, currentEpochId, contributionsPaused, started, contribution, preview, hasClaimed] = await Promise.all(
-    [
-      read(client, blockNumber, contracts.miningPool, miningPoolAbi, 'epochs', [epochId]),
-      read(client, blockNumber, contracts.miningPool, miningPoolAbi, 'currentEpochId'),
-      read(client, blockNumber, contracts.miningPool, miningPoolAbi, 'contributionsPaused'),
-      read(client, blockNumber, contracts.miningPool, miningPoolAbi, 'started'),
-      read(client, blockNumber, contracts.miningPool, miningPoolAbi, 'contributionOf', [epochId, user]),
-      read(client, blockNumber, contracts.miningClaims, miningClaimsAbi, 'previewClaim', [user, epochId]),
-      read(client, blockNumber, contracts.miningClaims, miningClaimsAbi, 'hasClaimed', [epochId, user]),
-    ],
-  );
-  const [startTime, endTime, settledAt, totalContributed, teamFee, vaultRevenue, emission, settled] =
-    epochSchema.parse(epochRaw);
-  const result = miningEpochViewSchema.parse({
-    beneficiaryContribution: contribution,
-    beneficiaryHasClaimed: hasClaimed,
-    beneficiaryPreviewClaim: preview,
-    blockNumber,
-    contributionsPaused,
-    currentEpochId,
+  const [
+    currentEpoch,
     emission,
-    endTime,
-    epochId,
-    settled,
-    settledAt,
-    startTime,
-    started,
-    teamFee,
-    totalContributed,
-    vaultRevenue,
+    epochSettled,
+    nextEpochToSettle,
+    nextScheduledEmission,
+    totalContributions,
+    accountContribution,
+    accountHasClaimed,
+    pendingReward,
+  ] = await Promise.all([
+    read(client, blockNumber, fundraiser, fundraiserAbi, 'currentEpoch'),
+    read(client, blockNumber, fundraiser, fundraiserAbi, 'epochEmission', [epoch]),
+    read(client, blockNumber, fundraiser, fundraiserAbi, 'epochSettled', [epoch]),
+    read(client, blockNumber, fundraiser, fundraiserAbi, 'nextEpochToSettle'),
+    read(client, blockNumber, fundraiser, fundraiserAbi, 'currentScheduledEmission'),
+    read(client, blockNumber, fundraiser, fundraiserAbi, 'epochContributions', [epoch]),
+    read(client, blockNumber, fundraiser, fundraiserAbi, 'accountContributions', [epoch, contributor]),
+    read(client, blockNumber, fundraiser, fundraiserAbi, 'accountHasClaimed', [epoch, contributor]),
+    read(client, blockNumber, fundraiser, fundraiserAbi, 'pendingReward', [epoch, contributor]),
+  ]);
+  const result = fundraiserEpochViewSchema.parse({
+    accountContribution,
+    accountHasClaimed,
+    blockNumber,
+    currentEpoch,
+    emission,
+    epoch,
+    epochSettled,
+    nextEpochToSettle,
+    nextScheduledEmission,
+    pendingReward,
+    totalContributions,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
 
-export const emissionScheduleViewSchema = z.object({
+export const liquidityPositionViewSchema = z.object({
   blockNumber: unsignedBigIntSchema,
-  currentScheduledEmission: unsignedBigIntSchema,
-  nextMiningEpochId: unsignedBigIntSchema,
-  remainingMintCapacity: unsignedBigIntSchema,
+  expectedPositionTokenId: unsignedBigIntSchema,
+  expectedTickLower: z.number().int(),
+  expectedTickUpper: z.number().int(),
+  poolKeyHash: z.string().regex(/^0x[\da-f]{64}$/iu),
+  positionInCustody: z.boolean(),
+  positionRecorded: z.boolean(),
+  positionTokenId: unsignedBigIntSchema,
+  successor: addressSchema,
 });
-export type EmissionScheduleView = z.infer<typeof emissionScheduleViewSchema>;
+export type LiquidityPositionView = z.infer<typeof liquidityPositionViewSchema>;
 
-export async function readEmissionScheduleView(
+/** Reads custody, range, and migration state for the canonical Uniswap v4 position. */
+export async function readLiquidityPositionView(
   client: PublicClient,
-  controller: Address,
+  liquidityPosition: Address,
   options: ReadOptions = {},
-): Promise<EmissionScheduleView> {
+): Promise<LiquidityPositionView> {
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [currentScheduledEmission, nextMiningEpochId, remainingMintCapacity] = await Promise.all([
-    read(client, blockNumber, controller, emissionControllerAbi, 'currentScheduledEmission'),
-    read(client, blockNumber, controller, emissionControllerAbi, 'nextMiningEpochId'),
-    read(client, blockNumber, controller, emissionControllerAbi, 'remainingMintCapacity'),
+  const [
+    expectedPositionTokenId,
+    expectedTickLower,
+    expectedTickUpper,
+    poolKeyHash,
+    positionInCustody,
+    positionRecorded,
+    positionTokenId,
+    successor,
+  ] = await Promise.all([
+    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'expectedPositionTokenId'),
+    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'expectedTickLower'),
+    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'expectedTickUpper'),
+    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'poolKeyHash'),
+    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'positionInCustody'),
+    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'positionRecorded'),
+    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'positionTokenId'),
+    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'successor'),
   ]);
-  const result = emissionScheduleViewSchema.parse({
+  const result = liquidityPositionViewSchema.parse({
     blockNumber,
-    currentScheduledEmission,
-    nextMiningEpochId,
-    remainingMintCapacity,
+    expectedPositionTokenId,
+    expectedTickLower,
+    expectedTickUpper,
+    poolKeyHash,
+    positionInCustody,
+    positionRecorded,
+    positionTokenId,
+    successor,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
 
 export const signalViewSchema = z.object({
-  activeStrategies: z.array(addressSchema).max(16),
+  accountStrategies: z.array(addressSchema),
   blockNumber: unsignedBigIntSchema,
-  signalIncreasesPaused: z.boolean(),
-  stakedBalance: unsignedBigIntSchema,
+  signalBalance: unsignedBigIntSchema,
   usedWeight: unsignedBigIntSchema,
 });
 export type SignalView = z.infer<typeof signalViewSchema>;
 
+/** Reads an account's current SignalGBX balance and unrestricted allocation. */
 export async function readSignalView(
   client: PublicClient,
-  contracts: Readonly<{ stakedGBX: Address; allocationVoter: Address }>,
-  user: Address,
+  contracts: Readonly<{ signalGBX: Address; voter: Address }>,
+  account: Address,
   options: ReadOptions = {},
 ): Promise<SignalView> {
-  const account = getAddress(user);
+  const voterAccount = getAddress(account);
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [stakedBalance, usedWeight, activeStrategies, signalIncreasesPaused] = await Promise.all([
-    read(client, blockNumber, contracts.stakedGBX, stakedGbxAbi, 'balanceOf', [account]),
-    read(client, blockNumber, contracts.allocationVoter, allocationVoterAbi, 'usedWeight', [account]),
-    read(client, blockNumber, contracts.allocationVoter, allocationVoterAbi, 'activeStrategies', [account]),
-    read(client, blockNumber, contracts.allocationVoter, allocationVoterAbi, 'signalIncreasesPaused'),
+  const [signalBalance, usedWeight, accountStrategies] = await Promise.all([
+    read(client, blockNumber, contracts.signalGBX, signalGbxAbi, 'balanceOf', [voterAccount]),
+    read(client, blockNumber, contracts.voter, voterAbi, 'accountUsedWeight', [voterAccount]),
+    read(client, blockNumber, contracts.voter, voterAbi, 'accountStrategies', [voterAccount]),
   ]);
-  const result = signalViewSchema.parse({
-    activeStrategies,
-    blockNumber,
-    signalIncreasesPaused,
-    stakedBalance,
-    usedWeight,
-  });
+  const result = signalViewSchema.parse({ accountStrategies, blockNumber, signalBalance, usedWeight });
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
 
-const auctionViewBaseSchema = z.object({
+export const voterViewSchema = z.object({
   blockNumber: unsignedBigIntSchema,
-  epochId: unsignedBigIntSchema,
-  epochPeriod: unsignedBigIntSchema,
-  fillsPaused: z.boolean(),
-  initPrice: unsignedBigIntSchema,
-  kind: z.enum(['acquisition', 'buyback']),
-  minInitPrice: unsignedBigIntSchema,
-  priceMultiplier: unsignedBigIntSchema,
-  rewards: addressSchema.nullable(),
-  strategy: addressSchema,
-  targetToken: addressSchema,
-  usdGLot: unsignedBigIntSchema,
+  bribeBps: unsignedBigIntSchema,
+  revenueIndex: unsignedBigIntSchema,
+  strategies: z.array(addressSchema),
+  totalWeight: unsignedBigIntSchema,
 });
+export type VoterView = z.infer<typeof voterViewSchema>;
 
-export const auctionViewSchema = z.discriminatedUnion('status', [
-  auctionViewBaseSchema.extend({
-    price: z.null(),
-    startTime: z.literal(0n),
-    status: z.literal('inactive'),
-  }),
-  auctionViewBaseSchema.extend({
-    price: unsignedBigIntSchema,
-    startTime: positiveBigIntSchema,
-    status: z.literal('active'),
-  }),
-]);
-export type AuctionView = z.infer<typeof auctionViewSchema>;
+/** Reads Voter's global allocation and revenue state. */
+export async function readVoterView(
+  client: PublicClient,
+  voter: Address,
+  options: ReadOptions = {},
+): Promise<VoterView> {
+  const pinned = await snapshot(client, options);
+  const { blockNumber } = pinned;
+  const [bribeBps, revenueIndex, strategies, totalWeight] = await Promise.all([
+    read(client, blockNumber, voter, voterAbi, 'bribeBps'),
+    read(client, blockNumber, voter, voterAbi, 'revenueIndex'),
+    read(client, blockNumber, voter, voterAbi, 'strategies'),
+    read(client, blockNumber, voter, voterAbi, 'totalWeight'),
+  ]);
+  const result = voterViewSchema.parse({ blockNumber, bribeBps, revenueIndex, strategies, totalWeight });
+  await revalidateBlockSnapshot(client, pinned);
+  return result;
+}
 
-export async function readAuctionView(
+export const strategyViewSchema = z.object({
+  availableRevenue: unsignedBigIntSchema,
+  blockNumber: unsignedBigIntSchema,
+  currentPrice: unsignedBigIntSchema,
+  epochDuration: unsignedBigIntSchema,
+  epochId: unsignedBigIntSchema,
+  epochStartedAt: unsignedBigIntSchema,
+  fund: addressSchema,
+  initialPrice: unsignedBigIntSchema,
+  kind: z.union([z.literal(0), z.literal(1)]),
+  minimumPrice: unsignedBigIntSchema,
+  paymentToken: addressSchema,
+  priceMultiplier: unsignedBigIntSchema,
+  revenueToken: addressSchema,
+  strategy: addressSchema,
+});
+export type StrategyView = z.infer<typeof strategyViewSchema>;
+
+/** Reads the active state and immutable configuration of one Strategy. */
+export async function readStrategyView(
   client: PublicClient,
   strategyAddress: Address,
-  kind: 'acquisition' | 'buyback',
   options: ReadOptions = {},
-): Promise<AuctionView> {
+): Promise<StrategyView> {
   const strategy = getAddress(strategyAddress);
-  const abi = kind === 'acquisition' ? acquisitionStrategyAbi : buybackStrategyAbi;
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [epochId, epochPeriod, fillsPaused, initPrice, minInitPrice, priceMultiplier, startTimeRaw, usdGLot] =
-    await Promise.all([
-      read(client, blockNumber, strategy, abi, 'epochId'),
-      read(client, blockNumber, strategy, abi, 'epochPeriod'),
-      read(client, blockNumber, strategy, abi, 'fillsPaused'),
-      read(client, blockNumber, strategy, abi, 'initPrice'),
-      read(client, blockNumber, strategy, abi, 'minInitPrice'),
-      read(client, blockNumber, strategy, abi, 'priceMultiplier'),
-      read(client, blockNumber, strategy, abi, 'startTime'),
-      read(client, blockNumber, strategy, abi, 'USDG_LOT'),
-    ]);
-  const startTime = unsignedBigIntSchema.parse(startTimeRaw);
-  const [targetToken, rewards] =
-    kind === 'acquisition'
-      ? await Promise.all([
-          read(client, blockNumber, strategy, acquisitionStrategyAbi, 'TARGET_TOKEN'),
-          read(client, blockNumber, strategy, acquisitionStrategyAbi, 'STRATEGY_REWARDS'),
-        ])
-      : [await read(client, blockNumber, strategy, buybackStrategyAbi, 'GBX'), null];
-  const status = startTime === 0n ? 'inactive' : 'active';
-  const price = status === 'inactive' ? null : await read(client, blockNumber, strategy, abi, 'getPrice');
-  const result = auctionViewSchema.parse({
-    blockNumber,
+  const [
+    availableRevenue,
+    currentPrice,
+    epochDuration,
     epochId,
-    epochPeriod,
-    fillsPaused,
-    initPrice,
+    epochStartedAt,
+    fund,
+    initialPrice,
     kind,
-    minInitPrice,
-    price,
+    minimumPrice,
+    paymentToken,
     priceMultiplier,
-    rewards,
-    startTime,
-    status,
+    revenueToken,
+  ] = await Promise.all([
+    read(client, blockNumber, strategy, strategyAbi, 'availableRevenue'),
+    read(client, blockNumber, strategy, strategyAbi, 'currentPrice'),
+    read(client, blockNumber, strategy, strategyAbi, 'epochDuration'),
+    read(client, blockNumber, strategy, strategyAbi, 'epochId'),
+    read(client, blockNumber, strategy, strategyAbi, 'epochStartedAt'),
+    read(client, blockNumber, strategy, strategyAbi, 'fund'),
+    read(client, blockNumber, strategy, strategyAbi, 'initialPrice'),
+    read(client, blockNumber, strategy, strategyAbi, 'kind'),
+    read(client, blockNumber, strategy, strategyAbi, 'minimumPrice'),
+    read(client, blockNumber, strategy, strategyAbi, 'paymentToken'),
+    read(client, blockNumber, strategy, strategyAbi, 'priceMultiplier'),
+    read(client, blockNumber, strategy, strategyAbi, 'revenueToken'),
+  ]);
+  const result = strategyViewSchema.parse({
+    availableRevenue,
+    blockNumber,
+    currentPrice,
+    epochDuration,
+    epochId,
+    epochStartedAt,
+    fund,
+    initialPrice,
+    kind,
+    minimumPrice,
+    paymentToken,
+    priceMultiplier,
+    revenueToken,
     strategy,
-    targetToken,
-    usdGLot,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
 
-export const strategyRewardViewSchema = z.object({
-  accountedRewards: unsignedBigIntSchema,
+export const bribeRewardViewSchema = z.object({
+  account: addressSchema,
   blockNumber: unsignedBigIntSchema,
-  earned: unsignedBigIntSchema,
-  rewardPerWeightStored: unsignedBigIntSchema,
-  rewardToken: addressSchema,
-  strategy: addressSchema,
+  earned: z.array(unsignedBigIntSchema),
+  rewardTokens: z.array(addressSchema),
   totalWeight: unsignedBigIntSchema,
   userWeight: unsignedBigIntSchema,
 });
-export type StrategyRewardView = z.infer<typeof strategyRewardViewSchema>;
+export type BribeRewardView = z.infer<typeof bribeRewardViewSchema>;
 
-export async function readStrategyRewardView(
+/** Reads all rewards currently accrued by one account in a Bribe. */
+export async function readBribeRewardView(
   client: PublicClient,
-  rewards: Address,
-  user: Address,
+  bribe: Address,
+  account: Address,
   options: ReadOptions = {},
-): Promise<StrategyRewardView> {
-  const account = getAddress(user);
+): Promise<BribeRewardView> {
+  const rewardAccount = getAddress(account);
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [accountedRewards, earned, rewardPerWeightStored, rewardToken, strategy, totalWeight, userWeight] =
-    await Promise.all([
-      read(client, blockNumber, rewards, strategyRewardsAbi, 'accountedRewards'),
-      read(client, blockNumber, rewards, strategyRewardsAbi, 'earned', [account]),
-      read(client, blockNumber, rewards, strategyRewardsAbi, 'rewardPerWeightStored'),
-      read(client, blockNumber, rewards, strategyRewardsAbi, 'REWARD_TOKEN'),
-      read(client, blockNumber, rewards, strategyRewardsAbi, 'STRATEGY'),
-      read(client, blockNumber, rewards, strategyRewardsAbi, 'totalWeight'),
-      read(client, blockNumber, rewards, strategyRewardsAbi, 'weightOf', [account]),
-    ]);
-  const result = strategyRewardViewSchema.parse({
-    accountedRewards,
+  const [rewardTokensRaw, totalWeight, userWeight] = await Promise.all([
+    read(client, blockNumber, bribe, bribeAbi, 'rewardTokens'),
+    read(client, blockNumber, bribe, bribeAbi, 'totalSupply'),
+    read(client, blockNumber, bribe, bribeAbi, 'balanceOf', [rewardAccount]),
+  ]);
+  const rewardTokens = z.array(addressSchema).parse(rewardTokensRaw);
+  const earned = await Promise.all(
+    rewardTokens.map((rewardToken) =>
+      read(client, blockNumber, bribe, bribeAbi, 'earned', [rewardAccount, rewardToken]),
+    ),
+  );
+  const result = bribeRewardViewSchema.parse({
+    account: rewardAccount,
     blockNumber,
     earned,
-    rewardPerWeightStored,
-    rewardToken,
-    strategy,
+    rewardTokens,
     totalWeight,
     userWeight,
   });
@@ -344,150 +361,45 @@ export async function readStrategyRewardView(
   return result;
 }
 
-const assetConfigSchema = z.object({
-  live: z.boolean(),
-  rewards: addressSchema,
-  strategy: addressSchema,
-  token: addressSchema,
-});
-export const registryViewSchema = z.object({
-  assets: z.array(assetConfigSchema).max(16),
-  blockNumber: unsignedBigIntSchema,
-  strategies: z.array(addressSchema).max(16),
-});
-export type RegistryView = z.infer<typeof registryViewSchema>;
-
-export async function readRegistryView(
-  client: PublicClient,
-  registry: Address,
-  options: ReadOptions = {},
-): Promise<RegistryView> {
-  const pinned = await snapshot(client, options);
-  const { blockNumber } = pinned;
-  const [assetCountRaw, strategyCountRaw] = await Promise.all([
-    read(client, blockNumber, registry, assetRegistryAbi, 'assetCount'),
-    read(client, blockNumber, registry, assetRegistryAbi, 'strategyCount'),
-  ]);
-  const assetCount = unsignedBigIntSchema.max(16n).parse(assetCountRaw);
-  const strategyCount = unsignedBigIntSchema.max(16n).parse(strategyCountRaw);
-  const tokens = await Promise.all(
-    Array.from({ length: Number(assetCount) }, (_, index) =>
-      read(client, blockNumber, registry, assetRegistryAbi, 'assetAt', [BigInt(index)]),
-    ),
-  );
-  const [assets, strategies] = await Promise.all([
-    Promise.all(
-      tokens.map((token) =>
-        read(client, blockNumber, registry, assetRegistryAbi, 'configFor', [addressSchema.parse(token)]),
-      ),
-    ),
-    Promise.all(
-      Array.from({ length: Number(strategyCount) }, (_, index) =>
-        read(client, blockNumber, registry, assetRegistryAbi, 'strategyAt', [BigInt(index)]),
-      ),
-    ),
-  ]);
-  const result = registryViewSchema.parse({ assets, blockNumber, strategies });
-  await revalidateBlockSnapshot(client, pinned);
-  return result;
-}
-
-const poolKeySchema = z.object({
-  currency0: addressSchema,
-  currency1: addressSchema,
-  fee: z.number().int().min(0).max(16_777_215),
-  hooks: addressSchema,
-  tickSpacing: z.number().int().min(-8_388_608).max(8_388_607),
-});
-export const liquidityCustodyViewSchema = z.object({
-  blockNumber: unsignedBigIntSchema,
-  expectedPositionTokenId: unsignedBigIntSchema,
-  poolKey: poolKeySchema,
-  poolKeyHash: bytes32Schema,
-  positionInCustody: z.boolean(),
-  positionRecorded: z.boolean(),
-  positionTokenId: unsignedBigIntSchema,
-});
-export type LiquidityCustodyView = z.infer<typeof liquidityCustodyViewSchema>;
-
-export async function readLiquidityCustodyView(
-  client: PublicClient,
-  custodian: Address,
-  options: ReadOptions = {},
-): Promise<LiquidityCustodyView> {
-  const pinned = await snapshot(client, options);
-  const { blockNumber } = pinned;
-  const [expectedPositionTokenId, poolKey, poolKeyHash, positionInCustody, positionRecorded, positionTokenId] =
-    await Promise.all([
-      read(client, blockNumber, custodian, liquidityCustodianAbi, 'EXPECTED_POSITION_TOKEN_ID'),
-      read(client, blockNumber, custodian, liquidityCustodianAbi, 'poolKey'),
-      read(client, blockNumber, custodian, liquidityCustodianAbi, 'POOL_KEY_HASH'),
-      read(client, blockNumber, custodian, liquidityCustodianAbi, 'positionInCustody'),
-      read(client, blockNumber, custodian, liquidityCustodianAbi, 'positionRecorded'),
-      read(client, blockNumber, custodian, liquidityCustodianAbi, 'positionTokenId'),
-    ]);
-  const result = liquidityCustodyViewSchema.parse({
-    blockNumber,
-    expectedPositionTokenId,
-    poolKey,
-    poolKeyHash,
-    positionInCustody,
-    positionRecorded,
-    positionTokenId,
-  });
-  await revalidateBlockSnapshot(client, pinned);
-  return result;
-}
-
 export const redemptionPreviewSchema = z.object({
-  amounts: z.array(unsignedBigIntSchema).max(16),
-  assets: z.array(addressSchema).max(16),
+  amounts: z.array(unsignedBigIntSchema),
   blockNumber: unsignedBigIntSchema,
-  shares: unsignedBigIntSchema.positive(),
+  gbxAmount: unsignedBigIntSchema.positive(),
   supplyBefore: unsignedBigIntSchema.positive(),
+  tokens: z.array(addressSchema),
 });
 export type RedemptionPreview = z.infer<typeof redemptionPreviewSchema>;
 
-/** Computes the exact raw-basket preview from the same pre-burn balance and supply inputs used by the vault. */
+/** Computes a registry-free Fund redemption preview for exactly the tokens selected by the caller. */
 export async function readRedemptionPreview(
   client: PublicClient,
-  contracts: Readonly<{ assetRegistry: Address; gbx: Address; vault: Address }>,
-  shares: bigint,
+  contracts: Readonly<{ fund: Address; gbx: Address }>,
+  gbxAmount: bigint,
+  tokens: readonly Address[],
   options: ReadOptions = {},
 ): Promise<RedemptionPreview> {
-  positiveBigIntSchema.parse(shares);
+  unsignedBigIntSchema.positive().parse(gbxAmount);
+  const selectedTokens = z.array(addressSchema).nonempty().parse(tokens);
+  if (new Set(selectedTokens).size !== selectedTokens.length) throw new RangeError('tokens cannot contain duplicates');
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [supplyRaw, countRaw] = await Promise.all([
-    read(client, blockNumber, contracts.gbx, gbxAbi, 'totalSupply'),
-    read(client, blockNumber, contracts.assetRegistry, assetRegistryAbi, 'assetCount'),
-  ]);
-  const supplyBefore = unsignedBigIntSchema.positive().parse(supplyRaw);
-  if (shares > supplyBefore) throw new RangeError('shares exceed total supply');
-  const count = unsignedBigIntSchema.max(16n).parse(countRaw);
-  const assets = z
-    .array(addressSchema)
-    .max(16)
-    .parse(
-      await Promise.all(
-        Array.from({ length: Number(count) }, (_, index) =>
-          read(client, blockNumber, contracts.assetRegistry, assetRegistryAbi, 'assetAt', [BigInt(index)]),
-        ),
-      ),
-    );
+  const supplyBefore = unsignedBigIntSchema
+    .positive()
+    .parse(await read(client, blockNumber, contracts.gbx, gbxAbi, 'totalSupply'));
+  if (gbxAmount > supplyBefore) throw new RangeError('gbxAmount exceeds total supply');
   const balances = z
     .array(unsignedBigIntSchema)
     .parse(
       await Promise.all(
-        assets.map((asset) => read(client, blockNumber, asset, gbxAbi, 'balanceOf', [getAddress(contracts.vault)])),
+        selectedTokens.map((token) => read(client, blockNumber, token, gbxAbi, 'balanceOf', [contracts.fund])),
       ),
     );
   const result = redemptionPreviewSchema.parse({
-    amounts: balances.map((balance) => (balance * shares) / supplyBefore),
-    assets,
+    amounts: balances.map((balance) => (balance * gbxAmount) / supplyBefore),
     blockNumber,
-    shares,
+    gbxAmount,
     supplyBefore,
+    tokens: selectedTokens,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;

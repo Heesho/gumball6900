@@ -1,22 +1,26 @@
 type ProtocolState @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
-  gbxToken: Bytes
-  emissionController: Bytes
-  miningPool: Bytes
-  cumulativeMintedRaw: BigInt!
-  cumulativeBurnedRaw: BigInt!
+  minter: Bytes
+  signalVoter: Bytes
+  voterRouter: Bytes
+  fundSuccessor: Bytes
+  liquidityPositionSuccessor: Bytes
+  lifetimeMintedRaw: BigInt!
+  lifetimeBurnedRaw: BigInt!
   totalSupplyRaw: BigInt!
-  miningContributedUSDGRaw: BigInt!
-  miningEmittedGBXRaw: BigInt!
-  vaultRevenueUSDGRaw: BigInt!
-  redeemedGBXRaw: BigInt!
-  strategySpentUSDGRaw: BigInt!
-  buybackBurnedGBXRaw: BigInt!
-  liquidityFeesBurnedGBXRaw: BigInt!
-  liquidityFeesToVaultUSDGRaw: BigInt!
+  fundraiserContributionsRaw: BigInt!
+  fundraiserClaimsRaw: BigInt!
+  liquidityGBXBurnedRaw: BigInt!
+  liquidityUSDGRoutedRaw: BigInt!
+  routedRevenueRaw: BigInt!
+  notifiedRevenueRaw: BigInt!
+  distributedRevenueRaw: BigInt!
   stakedGBXRaw: BigInt!
-  assetCount: Int!
+  fundBurnedGBXRaw: BigInt!
+  redeemedGBXRaw: BigInt!
+  bribeBps: BigInt!
+  timelockDelay: BigInt!
   strategyCount: Int!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
@@ -27,42 +31,24 @@ type Account @entity(immutable: false) {
   address: Bytes!
   gbxMintedRaw: BigInt!
   gbxBurnedRaw: BigInt!
-  miningContributedUSDGRaw: BigInt!
-  miningClaimedGBXRaw: BigInt!
+  contributedUSDGRaw: BigInt!
+  claimedGBXRaw: BigInt!
   stakedGBXRaw: BigInt!
-  signalWeightRaw: BigInt!
+  votingWeightRaw: BigInt!
   redeemedGBXRaw: BigInt!
-  buybackSoldGBXRaw: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
 }
 
-type MiningEpoch @entity(immutable: false) {
+type FundraiserEpoch @entity(immutable: false) {
   id: ID!
-  pool: Bytes!
-  epochId: BigInt!
-  startTime: BigInt
-  endTime: BigInt
-  totalContributedUSDGRaw: BigInt!
-  teamFeeUSDGRaw: BigInt!
-  vaultRevenueUSDGRaw: BigInt!
-  emissionGBXRaw: BigInt!
-  scheduledEmissionGBXRaw: BigInt
-  nextScheduledEmissionGBXRaw: BigInt
-  nonEmpty: Boolean
+  fundraiser: Bytes!
+  epoch: BigInt!
+  totalContributionsRaw: BigInt!
+  totalClaimedGBXRaw: BigInt!
   settled: Boolean!
-  lastBlockNumber: BigInt!
-  lastTimestamp: BigInt!
-}
-
-type VaultAsset @entity(immutable: false) {
-  id: ID!
-  token: Bytes!
-  strategy: Bytes
-  rewards: Bytes
-  assetIndex: BigInt!
-  live: Boolean!
-  registeredBlockNumber: BigInt!
+  scheduledEmissionRaw: BigInt!
+  contributorEmissionRaw: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
 }
@@ -70,43 +56,20 @@ type VaultAsset @entity(immutable: false) {
 type Strategy @entity(immutable: false) {
   id: ID!
   address: Bytes!
-  kind: String!
-  targetToken: Bytes
-  rewards: Bytes
-  strategyIndex: BigInt
+  bribe: Bytes!
+  bribeRouter: Bytes!
+  paymentToken: Bytes!
+  kind: Int!
   live: Boolean!
-  fillsPaused: Boolean!
   totalWeightRaw: BigInt!
-  budgetUSDGRaw: BigInt!
-  totalUSDGSpentRaw: BigInt!
-  totalQuotedPaymentRaw: BigInt!
-  totalObservedPaymentRaw: BigInt!
-  totalVaultReceivedRaw: BigInt!
-  totalRewardsNotifiedRaw: BigInt!
-  totalRewardsClaimedRaw: BigInt!
-  fillCount: Int!
-  lastBlockNumber: BigInt!
-  lastTimestamp: BigInt!
-}
-
-type LiquidityPosition @entity(immutable: false) {
-  id: ID!
-  custodian: Bytes!
-  positionId: BigInt!
-  poolKeyHash: Bytes!
-  previousOwner: Bytes!
-  inCustody: Boolean!
-  transferredTo: Bytes
-  gbxFeesBurnedRaw: BigInt!
-  usdgFeesToVaultRaw: BigInt!
+  distributedRevenueRaw: BigInt!
+  createdBlockNumber: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
 }
 
 """
-Immutable positional record for each protocol-specific event indexed by the
-manifest after its data source exists. `addresses`, `values`, `bytesValues`,
-and `flag` follow event ABI order; `eventType` supplies the semantic label.
+Immutable positional record for each core protocol event handled by this subgraph.
 """
 type ProtocolEvent @entity(immutable: true) {
   id: ID!
@@ -115,7 +78,6 @@ type ProtocolEvent @entity(immutable: true) {
   addresses: [Bytes!]!
   values: [BigInt!]!
   bytesValues: [Bytes!]!
-  flag: Boolean
   blockNumber: BigInt!
   timestamp: BigInt!
   transactionHash: Bytes!

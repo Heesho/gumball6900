@@ -1,29 +1,28 @@
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Minimal rebuild' };
+export const metadata: Metadata = { title: 'Core starting point' };
 
 const contracts = [
-  'GBXToken',
-  'EmissionController',
-  'MiningPool',
-  'MiningClaims',
-  'StakedGBX',
-  'AllocationVoter',
-  'AcquisitionStrategy',
-  'StrategyRewards',
-  'BuybackStrategy',
-  'GumBallVault',
-  'AssetRegistry',
-  'LiquidityCustodian',
-  'ProtocolTimelock',
-  'EmergencyGuardian',
+  'GBX',
+  'Fundraiser',
+  'LiquidityPosition',
+  'SignalGBX',
+  'VoterRouter',
+  'Voter',
+  'StrategyFactory',
+  'Strategy',
+  'BribeFactory',
+  'BribeRouter',
+  'Bribe',
+  'Fund',
+  'TimelockController',
 ] as const;
 
 const deploymentInputs = [
-  'USDG, Uniswap v4 PositionManager, and Permit2 addresses',
-  'Initial sqrt price, fee tier, tick spacing, and one-sided tick range',
-  'Protocol proposer, guardian operator, and optional team recipient',
-  'Acquisition target, fixed USDG lots, and auction start/minimum prices',
+  'USDG, Uniswap v4, genesis price, and single-sided range inputs',
+  'Project multisig and OpenZeppelin timelock delay',
+  'Initial Strategy payment tokens and bounded auction parameters',
+  'Independent security review and tested migration procedure',
 ] as const;
 
 export default function HomePage() {
@@ -37,19 +36,18 @@ export default function HomePage() {
           The deliberately minimal GBX protocol.
         </h1>
         <p className="mt-6 max-w-3xl text-sm leading-7 text-[#a5b3b2] sm:text-base">
-          One 20M constructor mint creates a hookless, single-sided GBX/USDG position. Daily mining, liquid signals,
-          fixed-lot auctions, real buyback burns, and unpausable raw-basket redemption remain; the public bootstrap,
-          oracles, factories, generic execution, and broad upgrade machinery do not.
+          USDG contributions flow through Voter into voter-selected Strategies. Acquisitions grow Fund and reward
+          voters, buybacks burn GBX, and holders can redeem a caller-selected pro-rata basket without an asset registry.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Metric label="Lifetime mint ceiling" value="1,000,000,000 GBX" />
-          <Metric label="Genesis allocation" value="20,000,000 GBX" />
-          <Metric label="Mining allocation" value="980,000,000 GBX" />
+          <Metric label="Default acquisition split" value="90% Fund · 10% voters" />
+          <Metric label="Staking withdrawal lock" value="None" />
         </div>
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
-        <Panel eyebrow="Architecture" title="Fourteen direct contracts">
+        <Panel eyebrow="Architecture" title="Twelve core contracts plus standard timelock">
           <div className="grid gap-2 sm:grid-cols-2">
             {contracts.map((contract, index) => (
               <div
@@ -63,13 +61,14 @@ export default function HomePage() {
           </div>
         </Panel>
 
-        <Panel eyebrow="Immutable economics" title="Solidity-equivalent daily decay">
+        <Panel eyebrow="Core economics" title="Simple, explicit value flows">
           <dl className="space-y-5">
-            <Definition label="Initial daily emission" value="465,152.749681042811702004 GBX" />
-            <Definition label="Daily decay factor" value="0.999525354337060160" />
-            <Definition label="Epoch duration" value="1 day" />
-            <Definition label="Non-empty epoch" value="Complete scheduled emission" />
-            <Definition label="Empty epoch" value="Zero mint; schedule still advances" />
+            <Definition label="Contribution revenue" value="Fundraiser → VoterRouter → Voter" />
+            <Definition label="v4 fees" value="GBX burned · USDG → VoterRouter" />
+            <Definition label="Acquisition payment" value="90% Fund · 10% BribeRouter" />
+            <Definition label="Buyback payment" value="100% GBX burned" />
+            <Definition label="Voting" value="Replaceable at any time" />
+            <Definition label="Redemption" value="Selected raw balances ÷ pre-burn GBX supply" />
           </dl>
         </Panel>
       </section>
@@ -78,24 +77,20 @@ export default function HomePage() {
         <Panel eyebrow="Public guarantees" title="What contract code keeps narrow">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
             <li>Burns never reopen lifetime mint capacity.</li>
-            <li>Redemption always uses pre-burn supply and every registered raw vault balance.</li>
-            <li>AllocationVoter is a ledger and never holds USDG.</li>
-            <li>Buyback burns observed GBX before the vault releases its fixed USDG lot.</li>
-            <li>The guardian can stop new exposure but cannot block exits, claims, settlement, or fee collection.</li>
+            <li>Redemption always uses pre-burn supply and caller-selected Fund balances.</li>
+            <li>Fund has no asset registry or protocol-wide token loop.</li>
+            <li>Buyback burns its complete observed GBX payment atomically.</li>
+            <li>SignalGBX withdrawals have no time lock after allocations are reset.</li>
+            <li>Genesis supply is fixed at 20M for v4 liquidity and 980M for the Fundraiser schedule.</li>
           </ul>
         </Panel>
 
         <Panel eyebrow="Disclosed trust" title="Delayed mutable surfaces">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
-            <li>A seven-day typed operation can replace the mining controller; the token cap still applies.</li>
-            <li>A seven-day typed operation can transfer only the recorded canonical liquidity NFT.</li>
-            <li>
-              Typed strategy registration admits code that can direct its current signaled USDG budget to an arbitrary
-              recipient; wiring checks are not code attestation.
-            </li>
-            <li>
-              No proxy, generic target/calldata executor, arbitrary vault call, or principal-withdrawal method exists.
-            </li>
+            <li>OpenZeppelin TimelockController owns Voter, Fund, and LiquidityPosition.</li>
+            <li>The project multisig proposes or cancels operations; anyone may execute after the delay.</li>
+            <li>The voter reward share is governable but cannot exceed 50%.</li>
+            <li>Fund migration is one-way, same-GBX, token-selected, and moves complete balances only.</li>
           </ul>
         </Panel>
       </section>
@@ -116,9 +111,8 @@ export default function HomePage() {
           ))}
         </ul>
         <p className="mt-5 text-xs leading-5 text-[#778786]">
-          Distribution is also blocked by unresolved transitive licensing provenance disclosed in NOTICE. This page
-          exposes no wallet connection and submits no transaction. Each auction remains inactive after deployment and
-          begins at its full configured initial price only when its separate typed seven-day registration executes.
+          This page exposes no wallet connection and submits no transaction. No production deployment addresses or
+          release claims are implied by the local implementation.
         </p>
       </Panel>
     </div>

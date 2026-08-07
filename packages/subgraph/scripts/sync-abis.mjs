@@ -10,20 +10,14 @@ const skipBuild = process.argv.includes('--skip-build');
 const check = process.argv.includes('--check');
 
 const contracts = [
-  'AcquisitionStrategy',
-  'AllocationVoter',
-  'AssetRegistry',
-  'BuybackStrategy',
-  'EmergencyGuardian',
-  'EmissionController',
-  'GBXToken',
-  'GumBallVault',
-  'LiquidityCustodian',
-  'MiningClaims',
-  'MiningPool',
-  'ProtocolTimelock',
-  'StakedGBX',
-  'StrategyRewards',
+  'Fund',
+  'Fundraiser',
+  'GBX',
+  'LiquidityPosition',
+  'SignalGBX',
+  'TimelockController',
+  'Voter',
+  'VoterRouter',
 ];
 
 if (!skipBuild) {

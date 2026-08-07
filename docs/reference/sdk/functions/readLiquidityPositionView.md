@@ -1,0 +1,23 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / readLiquidityPositionView
+
+# Function: readLiquidityPositionView()
+
+> **readLiquidityPositionView**(`client`, `liquidityPosition`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `expectedPositionTokenId`: `bigint`; `expectedTickLower`: `number`; `expectedTickUpper`: `number`; `poolKeyHash`: `string`; `positionInCustody`: `boolean`; `positionRecorded`: `boolean`; `positionTokenId`: `bigint`; `successor`: `` `0x${string}` ``; \}\>
+
+Reads custody, range, and migration state for the canonical Uniswap v4 position.
+
+## Parameters
+
+| Parameter           | Type                                          |
+| ------------------- | --------------------------------------------- |
+| `client`            | \{ \}                                         |
+| `liquidityPosition` | `` `0x${string}` ``                           |
+| `options`           | [`ReadOptions`](../interfaces/ReadOptions.md) |
+
+## Returns
+
+`Promise`\<\{ `blockNumber`: `bigint`; `expectedPositionTokenId`: `bigint`; `expectedTickLower`: `number`; `expectedTickUpper`: `number`; `poolKeyHash`: `string`; `positionInCustody`: `boolean`; `positionRecorded`: `boolean`; `positionTokenId`: `bigint`; `successor`: `` `0x${string}` ``; \}\>

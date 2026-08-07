@@ -1,20 +1,18 @@
-import { encodeFunctionData, getAddress, type Address, type Hex } from 'viem';
+import { encodeFunctionData, getAddress, zeroAddress, type Address, type Hex } from 'viem';
 
 import {
-  acquisitionStrategyAbi,
-  allocationVoterAbi,
-  buybackStrategyAbi,
+  fundAbi,
+  fundraiserAbi,
   gbxAbi,
-  gumBallVaultAbi,
-  liquidityCustodianAbi,
-  miningClaimsAbi,
-  miningPoolAbi,
-  stakedGbxAbi,
-  strategyRewardsAbi,
+  liquidityPositionAbi,
+  signalGbxAbi,
+  strategyAbi,
+  voterAbi,
+  voterRouterAbi,
 } from './abis.js';
 import { assertUint, positiveBigIntSchema, unsignedBigIntSchema } from './validation.js';
 
-/** Wallet-ready call with no native-currency transfer. */
+/** Wallet-ready contract call with no native-currency transfer. */
 export interface ContractTransaction {
   readonly to: Address;
   readonly data: Hex;
@@ -39,7 +37,15 @@ function positiveUint256(value: bigint, name: string): void {
   assertUint(value, 256, name);
 }
 
-/** Encodes the allowance required before staking, redemption, mining, or auction payment. */
+function uniqueAddresses(values: readonly Address[], name: string): Address[] {
+  const normalized = values.map((value) => getAddress(value));
+  if (normalized.some((value) => value === zeroAddress))
+    throw new RangeError(`${name} cannot contain the zero address`);
+  if (new Set(normalized).size !== normalized.length) throw new RangeError(`${name} cannot contain duplicates`);
+  return normalized;
+}
+
+/** Encodes an ERC-20 allowance for staking, contribution, payment, or redemption. */
 export function buildApproval(token: Address, spender: Address, amount: bigint): ContractTransaction {
   uint256(amount, 'amount');
   return transaction(
@@ -48,136 +54,166 @@ export function buildApproval(token: Address, spender: Address, amount: bigint):
   );
 }
 
+/** Burns GBX held by the caller. */
 export function buildGBXBurn(gbx: Address, amount: bigint): ContractTransaction {
   positiveUint256(amount, 'amount');
   return transaction(gbx, encodeFunctionData({ abi: gbxAbi, functionName: 'burn', args: [amount] }));
 }
 
-export function buildMiningContribution(
-  miningPool: Address,
-  beneficiary: Address,
-  requestedAmount: bigint,
-): ContractTransaction {
-  positiveUint256(requestedAmount, 'requestedAmount');
+/** Contributes USDG to the active Fundraiser epoch for a beneficiary. */
+export function buildContribution(fundraiser: Address, beneficiary: Address, amount: bigint): ContractTransaction {
+  positiveUint256(amount, 'amount');
   return transaction(
-    miningPool,
-    encodeFunctionData({
-      abi: miningPoolAbi,
-      functionName: 'contribute',
-      args: [getAddress(beneficiary), requestedAmount],
-    }),
+    fundraiser,
+    encodeFunctionData({ abi: fundraiserAbi, functionName: 'contribute', args: [getAddress(beneficiary), amount] }),
   );
 }
 
-export function buildSettleCurrentMiningEpoch(miningPool: Address): ContractTransaction {
-  return transaction(miningPool, encodeFunctionData({ abi: miningPoolAbi, functionName: 'settleCurrentEpoch' }));
-}
-
-export function buildMiningClaim(miningClaims: Address, beneficiary: Address, epochId: bigint): ContractTransaction {
-  uint256(epochId, 'epochId');
+/** Claims one beneficiary's completed Fundraiser epoch. */
+export function buildFundraiserClaim(fundraiser: Address, account: Address, epoch: bigint): ContractTransaction {
+  uint256(epoch, 'epoch');
   return transaction(
-    miningClaims,
-    encodeFunctionData({ abi: miningClaimsAbi, functionName: 'claim', args: [getAddress(beneficiary), epochId] }),
+    fundraiser,
+    encodeFunctionData({ abi: fundraiserAbi, functionName: 'claim', args: [getAddress(account), epoch] }),
   );
 }
 
-export function buildStake(stakedGBX: Address, amount: bigint): ContractTransaction {
-  positiveUint256(amount, 'amount');
-  return transaction(stakedGBX, encodeFunctionData({ abi: stakedGbxAbi, functionName: 'stake', args: [amount] }));
+/** Advances a bounded number of ended Fundraiser epochs through the sequential decay schedule. */
+export function buildSettleFundraiserEpochs(fundraiser: Address, maximumEpochs: bigint): ContractTransaction {
+  positiveUint256(maximumEpochs, 'maximumEpochs');
+  return transaction(
+    fundraiser,
+    encodeFunctionData({ abi: fundraiserAbi, functionName: 'settleEpochs', args: [maximumEpochs] }),
+  );
 }
 
-export function buildUnstake(stakedGBX: Address, amount: bigint): ContractTransaction {
-  positiveUint256(amount, 'amount');
-  return transaction(stakedGBX, encodeFunctionData({ abi: stakedGbxAbi, functionName: 'unstake', args: [amount] }));
+/** Collects canonical v4 position fees, burns GBX, and routes USDG through VoterRouter. */
+export function buildCollectLiquidityFees(liquidityPosition: Address): ContractTransaction {
+  return transaction(liquidityPosition, encodeFunctionData({ abi: liquidityPositionAbi, functionName: 'collectFees' }));
 }
 
-/** Replaces the caller's complete immediate absolute strategy allocation. */
-export function buildSignal(
-  allocationVoter: Address,
+/** Executes the canonical position's migration after governance binds a compatible successor. */
+export function buildMigrateLiquidityPosition(liquidityPosition: Address): ContractTransaction {
+  return transaction(
+    liquidityPosition,
+    encodeFunctionData({ abi: liquidityPositionAbi, functionName: 'migratePosition' }),
+  );
+}
+
+/** Stakes GBX one-for-one for non-transferable SignalGBX. */
+export function buildStake(signalGBX: Address, amount: bigint): ContractTransaction {
+  positiveUint256(amount, 'amount');
+  return transaction(signalGBX, encodeFunctionData({ abi: signalGbxAbi, functionName: 'stake', args: [amount] }));
+}
+
+/** Burns SignalGBX and immediately withdraws the underlying GBX after votes are reset. */
+export function buildUnstake(signalGBX: Address, amount: bigint): ContractTransaction {
+  positiveUint256(amount, 'amount');
+  return transaction(signalGBX, encodeFunctionData({ abi: signalGbxAbi, functionName: 'unstake', args: [amount] }));
+}
+
+/** Replaces the caller's complete unrestricted Strategy allocation. */
+export function buildVote(
+  voter: Address,
   strategies: readonly Address[],
-  weights: readonly bigint[],
+  relativeWeights: readonly bigint[],
 ): ContractTransaction {
-  if (strategies.length === 0 || strategies.length > 16 || strategies.length !== weights.length) {
-    throw new RangeError('strategies and weights must have matching lengths between 1 and 16');
+  if (strategies.length === 0 || strategies.length !== relativeWeights.length) {
+    throw new RangeError('strategies and relativeWeights must have the same non-zero length');
   }
-  const normalizedStrategies = strategies.map((strategy) => getAddress(strategy));
-  if (new Set(normalizedStrategies).size !== normalizedStrategies.length) throw new RangeError('duplicate strategy');
-  for (const weight of weights) positiveUint256(weight, 'weight');
-  uint256(
-    weights.reduce((total, weight) => total + weight, 0n),
-    'totalWeight',
-  );
+  const normalizedStrategies = uniqueAddresses(strategies, 'strategies');
+  for (const weight of relativeWeights) positiveUint256(weight, 'relativeWeight');
   return transaction(
-    allocationVoter,
+    voter,
     encodeFunctionData({
-      abi: allocationVoterAbi,
-      functionName: 'signal',
-      args: [normalizedStrategies, [...weights]],
+      abi: voterAbi,
+      functionName: 'vote',
+      args: [normalizedStrategies, [...relativeWeights]],
     }),
   );
 }
 
-export function buildResetSignals(allocationVoter: Address): ContractTransaction {
-  return transaction(allocationVoter, encodeFunctionData({ abi: allocationVoterAbi, functionName: 'resetSignals' }));
+/** Clears every Strategy allocation for the caller. */
+export function buildResetVotes(voter: Address): ContractTransaction {
+  return transaction(voter, encodeFunctionData({ abi: voterAbi, functionName: 'reset' }));
 }
 
-export function buildRedemption(vault: Address, shares: bigint, receiver: Address): ContractTransaction {
-  positiveUint256(shares, 'shares');
+/** Claims the caller's rewards from the selected Strategies' Bribes. */
+export function buildClaimRewards(voter: Address, strategies: readonly Address[]): ContractTransaction {
+  if (strategies.length === 0) throw new RangeError('strategies cannot be empty');
   return transaction(
-    vault,
-    encodeFunctionData({ abi: gumBallVaultAbi, functionName: 'redeem', args: [shares, getAddress(receiver)] }),
+    voter,
+    encodeFunctionData({
+      abi: voterAbi,
+      functionName: 'claimRewards',
+      args: [uniqueAddresses(strategies, 'strategies')],
+    }),
   );
 }
 
-export interface AuctionFillParameters {
+/** Routes all USDG currently held by VoterRouter into Voter. */
+export function buildRouteRevenue(voterRouter: Address): ContractTransaction {
+  return transaction(voterRouter, encodeFunctionData({ abi: voterRouterAbi, functionName: 'route' }));
+}
+
+/** Sends one Strategy its currently indexed USDG allocation. */
+export function buildDistributeRevenue(voter: Address, strategy: Address): ContractTransaction {
+  return transaction(
+    voter,
+    encodeFunctionData({ abi: voterAbi, functionName: 'distribute', args: [getAddress(strategy)] }),
+  );
+}
+
+/** Parameters required to fill a Strategy at a caller-defined price and time bound. */
+export interface StrategyBuyParameters {
   readonly strategy: Address;
+  readonly revenueReceiver: Address;
   readonly expectedEpochId: bigint;
   readonly deadline: bigint;
-  /** Raw target-token amount for acquisition, or raw GBX amount for buyback. Zero is valid at an expired auction price. */
-  readonly maxPaymentAmount: bigint;
+  readonly maximumPayment: bigint;
 }
 
-function validateAuctionFill(parameters: AuctionFillParameters): void {
+/** Purchases a Strategy's complete USDG balance. */
+export function buildStrategyBuy(parameters: StrategyBuyParameters): ContractTransaction {
   uint256(parameters.expectedEpochId, 'expectedEpochId');
   uint256(parameters.deadline, 'deadline');
-  uint256(parameters.maxPaymentAmount, 'maxPaymentAmount');
-}
-
-export function buildAcquisitionFill(parameters: AuctionFillParameters): ContractTransaction {
-  validateAuctionFill(parameters);
+  uint256(parameters.maximumPayment, 'maximumPayment');
   return transaction(
     parameters.strategy,
     encodeFunctionData({
-      abi: acquisitionStrategyAbi,
-      functionName: 'fill',
-      args: [parameters.expectedEpochId, parameters.deadline, parameters.maxPaymentAmount],
+      abi: strategyAbi,
+      functionName: 'buy',
+      args: [
+        getAddress(parameters.revenueReceiver),
+        parameters.expectedEpochId,
+        parameters.deadline,
+        parameters.maximumPayment,
+      ],
     }),
   );
 }
 
-export function buildBuybackFill(parameters: AuctionFillParameters): ContractTransaction {
-  validateAuctionFill(parameters);
+/** Burns GBX and redeems a caller-selected, registry-free Fund basket. */
+export function buildRedemption(
+  fund: Address,
+  gbxAmount: bigint,
+  receiver: Address,
+  tokens: readonly Address[],
+): ContractTransaction {
+  positiveUint256(gbxAmount, 'gbxAmount');
+  if (tokens.length === 0) throw new RangeError('tokens cannot be empty');
   return transaction(
-    parameters.strategy,
+    fund,
     encodeFunctionData({
-      abi: buybackStrategyAbi,
-      functionName: 'fill',
-      args: [parameters.expectedEpochId, parameters.deadline, parameters.maxPaymentAmount],
+      abi: fundAbi,
+      functionName: 'redeem',
+      args: [gbxAmount, getAddress(receiver), uniqueAddresses(tokens, 'tokens')],
     }),
   );
 }
 
-/** Claims one acquisition strategy's target-token reward directly to the beneficiary. */
-export function buildStrategyRewardClaim(rewards: Address, beneficiary: Address): ContractTransaction {
-  return transaction(
-    rewards,
-    encodeFunctionData({ abi: strategyRewardsAbi, functionName: 'claim', args: [getAddress(beneficiary)] }),
-  );
-}
-
-export function buildCollectLiquidityFees(liquidityCustodian: Address): ContractTransaction {
-  return transaction(
-    liquidityCustodian,
-    encodeFunctionData({ abi: liquidityCustodianAbi, functionName: 'collectFees' }),
-  );
+/** Burns GBX that has accumulated inside Fund. */
+export function buildFundBurn(fund: Address, amount: bigint): ContractTransaction {
+  positiveUint256(amount, 'amount');
+  return transaction(fund, encodeFunctionData({ abi: fundAbi, functionName: 'burnGBX', args: [amount] }));
 }

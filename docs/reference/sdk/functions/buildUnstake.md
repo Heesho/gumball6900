@@ -6,13 +6,15 @@
 
 # Function: buildUnstake()
 
-> **buildUnstake**(`stakedGBX`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildUnstake**(`signalGBX`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+
+Burns SignalGBX and immediately withdraws the underlying GBX after votes are reset.
 
 ## Parameters
 
 | Parameter   | Type                |
 | ----------- | ------------------- |
-| `stakedGBX` | `` `0x${string}` `` |
+| `signalGBX` | `` `0x${string}` `` |
 | `amount`    | `bigint`            |
 
 ## Returns

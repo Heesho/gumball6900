@@ -1,9 +1,0 @@
-[**GUM BALL 6900 TypeScript SDK**](../README.md)
-
----
-
-[GUM BALL 6900 TypeScript SDK](../README.md) / MINING_EMISSION_ALLOCATION
-
-# Variable: MINING_EMISSION_ALLOCATION
-
-> `const` **MINING_EMISSION_ALLOCATION**: `bigint`
