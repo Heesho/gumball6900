@@ -2,10 +2,11 @@
 
 ## The community-directed onchain index fund
 
-**Contribute stablecoins. Direct acquisitions. Build a shared treasury. Redeem onchain.**
+**Mine GBX. Signal acquisitions. Build a shared treasury. Redeem onchain.**
 
-GumBall6900 is an experimental index protocol designed for Robinhood Chain. It turns USDG contributions and
-protocol revenue into a growing basket of onchain assets chosen by GBX holders.
+GumBall6900 is an experimental index protocol designed for Robinhood Chain. At launch, anyone will be able to mine GBX
+by contributing USDG through the Fundraiser. Those contributions and other protocol revenue build a growing basket of
+onchain assets chosen by GBX holders.
 
 Think of it as a community-built onchain index: approved acquisition Strategies compete for signal-directed capital,
 the assets they acquire accumulate in a shared Fund, and GBX can be burned to redeem a proportional share of selected
@@ -17,12 +18,13 @@ Fund holdings. There is no synthetic price peg, NAV oracle, or offchain redempti
 ## The idea
 
 Traditional indices are assembled by a committee. Onchain treasuries are often controlled by a small group of
-signers. GumBall6900 explores a different model: let token holders continuously direct new capital toward the assets
-they believe should become part of the treasury, then make the resulting holdings redeemable onchain.
+signers. GumBall6900 explores a different model: fair-launch the coin through public Fundraiser mining, let holders
+continuously direct new capital toward the assets they believe should become part of the treasury, then make the
+resulting holdings redeemable onchain.
 
 The result is a simple flywheel:
 
-1. **Contribute** — users contribute USDG through the Fundraiser and earn GBX from a fixed distribution schedule.
+1. **Mine** — users contribute USDG through the Fundraiser and mine GBX from a fixed public distribution schedule.
 2. **Signal** — GBX can be staked one-for-one into SignalGBX and allocated among approved Strategies without a time lock
    or signal cooldown.
 3. **Acquire** — USDG follows current signals. Each acquisition Strategy runs a reverse Dutch auction in which a buyer
@@ -37,7 +39,7 @@ The result is a simple flywheel:
 USDG contribution
        |
        v
-  Fundraiser ---> GBX contributor distribution
+  Fundraiser ---> GBX public mining
        |
        v
   ResonanceRouter ---> Resonance <--- SignalGBX allocations
@@ -57,7 +59,7 @@ USDG contribution
 
 | Participant       | Incentive                                                                                    |
 | ----------------- | -------------------------------------------------------------------------------------------- |
-| USDG contributors | Earn GBX from the fixed distribution while supplying capital to the protocol.                |
+| GBX miners        | Contribute USDG to mine GBX from the fixed public distribution curve.                        |
 | GBX holders       | Direct new acquisitions, earn Strategy signal rewards, and retain in-kind redemption rights. |
 | Asset communities | Compete for allocation and Fund inclusion after a Strategy is admitted.                      |
 | Auction buyers    | Receive a Strategy's accumulated USDG when the declining price reaches their target.         |
@@ -92,15 +94,22 @@ The active contracts are direct, non-upgradeable deployments adapted from the si
 Liquid Signal Governance. The protocol avoids a conventional DAO, generic vault calls, an asset registry, and onchain
 NAV or price oracles.
 
-## GBX economics
+## GBX fair launch and mining
+
+GBX is designed for a fair launch. There is no reserved allocation for the team, founders, investors, advisors, a
+private sale, or a presale. Everyone participates on the same Fundraiser terms: contribute USDG and mine GBX from the
+fixed curve. Here, "mining" means earning GBX through Fundraiser contributions, not proof-of-work.
 
 GBX has a cumulative lifetime mint limit of **1 billion tokens**. Burning GBX never restores mint capacity.
 
-| Allocation                       | GBX               |    Share |
-| -------------------------------- | ----------------- | -------: |
-| Genesis Uniswap v4 liquidity     | 20,000,000        |       2% |
-| Fundraiser contributor emissions | 980,000,000       |      98% |
-| **Lifetime maximum**             | **1,000,000,000** | **100%** |
+| Allocation                   | GBX               |    Share |
+| ---------------------------- | ----------------- | -------: |
+| Genesis Uniswap v4 liquidity | 20,000,000        |       2% |
+| Public Fundraiser mining     | 980,000,000       |      98% |
+| **Lifetime maximum**         | **1,000,000,000** | **100%** |
+
+The 20 million genesis allocation is committed to the canonical liquidity position rather than assigned to a person
+or team. The remaining 980 million lifetime mint capacity is permanently assigned to Fundraiser mining.
 
 The Fundraiser uses a fixed daily distribution curve:
 
