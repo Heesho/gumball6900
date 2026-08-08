@@ -1,0 +1,338 @@
+# GumBall6900
+
+## A signal-directed onchain fund
+
+Whitepaper v0.1 - August 2026
+
+> **Development status:** GumBall6900 is an experimental, pre-audit protocol design. It is not deployed and is not
+> authorized for user funds. This paper describes the intended governance-minimized final system. The current
+> development contracts still have a broader administrative surface and must be reconciled with this specification
+> before deployment.
+
+## Abstract
+
+GumBall6900 is a proposed onchain fund in which holders continuously direct new capital toward eligible assets. Anyone
+can mine GBX by contributing USDG through a fixed public Fundraiser schedule. A holder may stake GBX one-for-one into
+non-transferable SignalGBX, ticker `sGBX`, and signal the active Strategies for assets they want the protocol to
+accumulate.
+
+Incoming USDG follows current signals. A normal Strategy uses a bounded reverse Dutch auction to exchange that USDG
+for its target asset without requiring the core protocol to maintain a price oracle. After an acquisition, 90% of the
+received asset enters a shared Fund and 10% is streamed to eligible signalers of that Strategy. GBX holders may burn
+GBX to redeem a proportional, in-kind share of caller-selected Fund assets.
+
+The result is not a token that tracks a predetermined index. It is a mechanism for forming a basket over time. Signals
+direct future flow rather than forcing the Fund to sell existing holdings. The intended final contracts are deployed
+once, are not upgradeable, and expose only four management actions: add a Strategy, remove a Strategy, change the
+management fee, and add Bribe rewards.
+
+## 1. The problem
+
+Traditional funds make a basket easier to own, but investors normally receive a finished methodology. Membership,
+weighting, and rebalancing decisions are made upstream. Onchain index products often preserve the same structure: the
+basket moves onchain, while formation of the basket remains a separate process.
+
+GumBall6900 starts from a different question:
+
+> What if holders continuously directed where the fund's next dollar went?
+
+This changes the unit of coordination. Holders do not periodically vote on a complete target portfolio. They signal
+among eligible acquisition paths, and every new unit of protocol revenue follows the signal distribution that exists
+when it is routed.
+
+The Fund therefore records past acquisitions, while signals express present preferences. A changed signal affects
+future capital. It does not automatically sell assets already held.
+
+## 2. Design goals
+
+The target system is designed around six goals:
+
+1. **Fair public distribution.** GBX is mined through the Fundraiser without a team, founder, investor, presale, or
+   advisor allocation. The separate 20 million GBX genesis tranche is committed to canonical liquidity.
+2. **Continuous holder direction.** `sGBX` allocations may be replaced or reset at any time. There is no voting season,
+   allocation epoch, signal cooldown, or withdrawal lock after allocations are reset.
+3. **Real assets, not a synthetic index number.** The Fund holds raw tokens and redemption transfers selected tokens in
+   kind. The core does not need a protocol-wide net asset value oracle.
+4. **Market-based acquisition.** Reverse Dutch auctions let external buyers decide when an acquisition price is
+   acceptable.
+5. **Governance minimization.** Signals govern capital direction. Management maintains only four explicitly authorized
+   edges, and the deployed core cannot be upgraded.
+6. **Inspectability.** Each contract has a narrow responsibility so money flow and failure boundaries remain legible.
+
+### 2.1 Non-goals
+
+GumBall6900 does not promise a stable GBX price, a fixed portfolio composition, automatic rebalancing, guaranteed
+auction execution, guaranteed signal rewards, or protection from the risks of assets received by the Fund.
+
+## 3. System overview
+
+The economic loop has five steps:
+
+1. **Mine.** A contributor sends USDG to the Fundraiser and earns GBX from the public emission schedule.
+2. **Signal.** A holder stakes GBX into `sGBX` and allocates signal weight among active Strategies.
+3. **Route.** Resonance distributes newly received USDG according to current signal weights.
+4. **Acquire.** A Strategy exchanges accumulated USDG for its target asset through a bounded reverse Dutch auction.
+5. **Redeem.** A holder burns GBX for a proportional share of selected assets already held by the Fund.
+
+Revenue follows the normal path:
+
+`Fundraiser -> Resonance -> Strategy`
+
+The routing layer does not decide which asset deserves capital. It reads the live `sGBX` distribution and applies it.
+
+## 4. Protocol components
+
+The conceptual system can be understood through six pieces:
+
+- **USDG:** the stable asset contributed and routed toward acquisitions.
+- **GBX:** the transferable protocol token, subject to a one billion lifetime mint ceiling.
+- **SignalGBX (`sGBX`):** non-transferable staked GBX that measures an account's live signal weight.
+- **Strategy:** an eligible destination for USDG, normally an asset acquisition or GBX buyback.
+- **Resonance:** the allocation engine that distributes newly received USDG according to current signals.
+- **Fund:** the permissionless raw-token treasury that holds acquired assets and supports in-kind redemption.
+
+Additional narrow contracts handle fundraising, the canonical liquidity position, Strategy and Bribe creation, revenue
+routing, auctions, and signal rewards. These implementation boundaries matter for engineers, but a holder can reason
+about the protocol through the six pieces above.
+
+## 5. GBX mining and supply
+
+GBX has a cumulative lifetime mint ceiling of:
+
+`1,000,000,000 GBX`
+
+The intended distribution is:
+
+- **20,000,000 GBX (2%):** genesis liquidity only.
+- **980,000,000 GBX (98%):** public Fundraiser mining capacity.
+- **0 GBX:** team, founder, investor, presale, or advisor allocation.
+
+In this paper, _mining_ means contributing USDG through the public Fundraiser and receiving the GBX emitted for that
+contribution period. It does not mean proof-of-work.
+
+The Fundraiser follows a fixed daily declining schedule. The initial scheduled daily emission is
+`465,152.749681042811702004 GBX`, multiplied each day by a decay factor of `0.999525354337060160`. This corresponds to a
+1,460-day, or four-year, half-life. Contributions within a day share that day's emission proportionally. An empty day
+forfeits its scheduled emission; it does not carry forward.
+
+Burning GBX never reopens mint capacity. Cumulative minting can never exceed one billion GBX even if previously minted
+tokens have been burned.
+
+## 6. Signaling with sGBX
+
+A holder may stake GBX one-for-one to receive non-transferable `sGBX`. The holder then allocates that signal weight
+among active Strategies.
+
+If the active Strategies target NVDA, AAPL, SPCX, or another eligible onchain asset, a holder can signal the Strategy
+for the asset they personally want to accumulate. When that Strategy completes acquisitions, the signal-reward share
+is streamed in the acquired asset across eligible signal balances.
+
+The simple version is:
+
+- want to accumulate the NVIDIA-linked asset: signal NVDA;
+- want to accumulate the Apple-linked asset: signal AAPL;
+- want to accumulate a SpaceX-linked asset: signal SPCX; and
+- want something else: signal its Strategy once an eligible onchain asset and active Strategy exist.
+
+Signaling is continuous. A holder may replace or reset allocations at any time. After resetting allocations, the holder
+may withdraw the underlying GBX without a time lock.
+
+Signaling alone does not guarantee a reward. The selected Strategy must receive capital and complete an acquisition,
+and the holder's reward depends on eligible signal weight during distribution.
+
+## 7. Capital allocation
+
+Let `S_i` be the active signal weight assigned to Strategy `i`, and let `S_total` be the total active signal weight
+across Strategies. When Resonance distributes revenue `R`, Strategy `i` receives:
+
+`allocation_i = floor(R x S_i / S_total)`
+
+Rounding and no-signal behavior are implementation details that must preserve value and avoid discretionary routing.
+Conceptually, the formula means that a Strategy holding 30% of active signal weight receives about 30% of the next
+distribution.
+
+Signals apply when new revenue is distributed. If preferences change after an acquisition, existing Fund holdings do
+not automatically rebalance. This makes the basket path-dependent: its composition reflects the full history of
+contributions, signals, and completed acquisitions.
+
+## 8. Acquisitions
+
+A normal Strategy accumulates USDG and runs a bounded reverse Dutch auction for its target asset.
+
+The auction begins with an expensive asking amount of target asset. That ask falls over time within configured bounds.
+A market participant fills when the amount requested in exchange for the Strategy's USDG becomes acceptable. The swap
+is atomic: the buyer receives USDG and the target asset enters protocol flow in the same transaction.
+
+This design avoids requiring the core protocol to maintain a price feed for every possible asset. It does not remove
+market risk. Poor liquidity, unusual token behavior, thin participation, or badly chosen auction bounds can still lead
+to delayed or unfavorable execution.
+
+## 9. Fund formation and signal rewards
+
+After a normal acquisition, the target asset follows a fixed split:
+
+- **90% enters the Fund.** This becomes shared raw-token backing available through proportional in-kind redemption.
+- **10% funds signal rewards.** The Strategy's Bribe streams the asset across eligible signal balances.
+
+The 90/10 split is fixed before deployment and cannot be changed by the deployed core. If no eligible signalers exist,
+the signal-reward share returns to the Fund.
+
+This structure combines a common benefit with a personal incentive. Most of each acquisition strengthens the shared
+basket, while the smaller share lets a holder earn the asset they chose to signal.
+
+## 10. Fund behavior and redemption
+
+The Fund is a permissionless raw-token treasury, not a curated asset registry. Official protocol membership is
+represented by active Strategies, not by a list inside the Fund. Any ERC-20 sent to the Fund may become part of GBX
+backing.
+
+A holder redeems by supplying:
+
+- an amount of GBX to burn;
+- a receiver; and
+- a caller-selected list of unique, non-GBX token addresses.
+
+For each selected token `j`, the transfer is:
+
+`payout_j = floor(FundBalance_j x GBXBurned / GBXSupplyBeforeBurn)`
+
+Example: if a holder burns 1,000 GBX while supply is 100,000 GBX, the holder is redeeming 1%. If the Fund holds 50,000
+units of Asset X and 8,000 units of Asset Y, selecting both returns 500 X and 80 Y, subject to integer flooring.
+
+The supply and token balances are snapshotted before the burn. The burn and every selected transfer are atomic. If one
+selected token transfer fails, the full redemption reverts, including the burn.
+
+A holder may omit an unwanted or broken token. The omitted claim is permanently forfeited and remains for the GBX
+supply that continues after redemption. This selective design avoids making every Fund asset a mandatory dependency
+of every redemption.
+
+## 11. Liquidity fees and buybacks
+
+The canonical market position is a precommitted, hookless GBX/USDG Uniswap v4 position funded with the 20 million GBX
+genesis allocation.
+
+Fee processing removes zero principal:
+
+- collected GBX fees are burned permanently; and
+- collected USDG fees return to the signal-directed revenue flow.
+
+A buyback Strategy uses USDG to buy GBX and burns all received GBX atomically. Buybacks pay no signal reward. They are a
+separate route for protocol-directed capital and must not leave purchased GBX sitting as treasury inventory.
+
+## 12. Governance-minimized final design
+
+GumBall6900 separates economic direction from maintenance.
+
+`sGBX` holders direct capital continuously by signaling active Strategies. The intended final management authority has
+exactly four callable actions:
+
+1. add a Strategy;
+2. remove a Strategy;
+3. change the management fee; and
+4. add Bribe rewards.
+
+There is no general call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, pause function,
+signal-reward split setter, or general parameter setter. The system is deployed as direct contracts and the core rules
+cannot be rewritten after deployment.
+
+The exact management-fee meaning, basis, and bounds remain to be specified in the final contracts. Strategy removal,
+Bribe reward registration, manager authorization, and key lifecycle must also be fully specified without creating a
+fifth management action.
+
+Immutability reduces governance power, but it also makes mistakes permanent. That tradeoff is part of the design, not a
+claim that immutable code is automatically safe.
+
+## 13. Core invariants
+
+The final implementation should make the following properties explicit and testable:
+
+1. cumulative GBX minting never exceeds one billion;
+2. burning GBX never restores mint capacity;
+3. Fundraiser emissions follow the fixed sequential daily schedule;
+4. all contribution revenue enters the signal-directed routing path;
+5. `sGBX` allocations can be replaced or reset without an epoch restriction;
+6. redemption uses pre-burn supply and balance snapshots;
+7. a redemption burn and all selected transfers are atomic;
+8. a normal acquisition sends 90% to the Fund and 10% to signal rewards;
+9. a buyback burns all received GBX atomically and pays no signal reward;
+10. liquidity-fee collection removes no principal, burns GBX fees, and routes USDG fees; and
+11. the deployed core has no upgrade or arbitrary asset-withdrawal path.
+
+## 14. Risks and trust assumptions
+
+GumBall6900 remains exposed to meaningful risks:
+
+- **Smart-contract risk.** A coding error can break routing, auctions, rewards, burns, or redemption. Immutability can
+  make the consequences permanent.
+- **Manager-key risk.** A compromised manager can misuse the four authorized actions even though it cannot upgrade the
+  core or withdraw Fund assets.
+- **Signal concentration.** Large `sGBX` holders may direct a disproportionate share of future capital.
+- **Market execution.** Auctions depend on buyers, liquidity, pricing bounds, and target-token behavior.
+- **Asset quality.** The Fund can receive unwanted, malicious, frozen, rebasing, fee-on-transfer, or otherwise broken
+  tokens.
+- **Selective-redemption risk.** Selecting a broken token can revert the call; omitting a token permanently forfeits
+  that claim.
+- **Stable-asset and chain risk.** USDG, the execution chain, bridges, sequencers, and external market infrastructure
+  introduce dependencies outside the core contracts.
+- **Economic risk.** Demand for GBX, signal participation, auction fills, and the value of Fund assets are not
+  guaranteed.
+- **Legal and regulatory risk.** Tokenized assets may have issuer, custody, transfer, eligibility, and jurisdictional
+  restrictions that differ from direct ownership of an underlying asset.
+
+## 15. Implementation status
+
+This whitepaper specifies a target final design, not a deployed system.
+
+The current repository is a pre-audit engineering starting point. Its contracts, generated interfaces, indexing layer,
+deployment scripts, and technical documentation still describe a broader administrative surface. Those differences
+must be removed and the entire repository reconciled before deployment.
+
+At minimum, production would require:
+
+- final contract interfaces matching the four-action management surface;
+- precise management-fee economics and bounds;
+- complete unit, integration, invariant, and economic-model tests;
+- reviewed asset and chain configuration;
+- reproducible deployment rehearsals;
+- independent security review; and
+- explicit resolution of every open trust, licensing, and operational question.
+
+A passing local build is engineering evidence only. It is not an audit, authorization, or launch claim.
+
+## 16. Conclusion
+
+GumBall6900 is an attempt to turn fund formation into a continuous onchain process.
+
+GBX represents a transferable claim that can be redeemed against selected assets already held by the Fund. `sGBX`
+expresses where newly arriving capital should go. Strategies turn that signal into acquisitions, and the resulting
+history becomes the basket.
+
+The distinction is simple:
+
+- **GBX relates to what the Fund already owns.**
+- **sGBX directs what the Fund may acquire next.**
+- **The fixed core defines the rules both must follow.**
+
+The protocol does not promise that holders will select the best assets, that auctions will always clear, or that GBX
+will retain value. Its proposition is narrower: public mining, continuous signals, market-executed acquisitions,
+in-kind redemption, and a governance-minimized core can make capital allocation more open and inspectable.
+
+## Glossary
+
+- **Bribe:** the Strategy-specific reward contract that streams acquired assets across eligible signal balances.
+- **Fund:** the raw-token treasury that holds acquired assets and supports selective in-kind redemption.
+- **Fundraiser:** the public USDG contribution mechanism through which GBX is mined.
+- **GBX:** the transferable protocol token with a one billion lifetime mint ceiling.
+- **Management fee:** the only adjustable fee in the target design; its final definition and bounds are not yet fixed.
+- **Resonance:** the allocation engine that distributes incoming USDG according to live `sGBX` signals.
+- **SignalGBX (`sGBX`):** non-transferable staked GBX used as live signal weight.
+- **Strategy:** an active, eligible acquisition or buyback path.
+- **USDG:** the stable asset contributed and routed through the protocol.
+
+## Document basis
+
+This paper summarizes the intended target design recorded in the GumBall6900 repository as of 8 August 2026. The
+technical source of truth remains the final reviewed contracts and their matching specifications. If this paper and the
+deployed bytecode ever disagree, the bytecode controls system behavior.
+
+Educational protocol overview only. Nothing in this document is investment, legal, or tax advice.
