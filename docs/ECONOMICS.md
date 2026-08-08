@@ -12,23 +12,23 @@ never restore mint capacity.
 Each daily Fundraiser epoch assigns its fixed sequentially decayed GBX emission pro rata to USDG contributions. The
 first emission is `465152.749681042811702004 GBX`; multiplying by `0.999525354337060160` with a floor after every day
 produces a four-year/1,460-day half-life. An empty day advances the schedule and permanently forfeits its emission.
-Every contributed USDG is routed into Voter in the same transaction.
+Every contributed USDG is routed into Resonance in the same transaction.
 
 ## Liquidity fees
 
 The canonical v4 position begins single-sided with the 20 million GBX genesis allocation. Anyone may collect fees
 without removing position liquidity. Collected or directly transferred GBX is burned; USDG is routed through
-VoterRouter and allocated by current votes.
+ResonanceRouter and allocated by current signals.
 
 ## Revenue allocation
 
-Voter distributes USDG by current SignalGBX allocation. When no voting weight exists, new revenue goes to Fund.
+Resonance distributes USDG by current SignalGBX allocation. When no signal weight exists, new revenue goes to Fund.
 Strategies with weight accrue indexed revenue and may be distributed individually or in bounded ranges.
 
 ## Strategy settlement
 
 A Strategy sells its entire USDG balance at a linearly declining price. Acquisition payments begin at 90% to Fund and
-10% through BribeRouter; governance may set the Bribe share between 0% and 50%. A buyback accepts GBX and burns the
+10% through BribeRouter; governance may set the signal-reward share between 0% and 50%. A buyback accepts GBX and burns the
 entire payment without a Bribe split.
 
 ## Redemption

@@ -22,8 +22,8 @@ const contracts = [
   ['signalGbxAbi', 'SignalGBX.sol/SignalGBX.json'],
   ['strategyAbi', 'Strategy.sol/Strategy.json'],
   ['strategyFactoryAbi', 'StrategyFactory.sol/StrategyFactory.json'],
-  ['voterAbi', 'Voter.sol/Voter.json'],
-  ['voterRouterAbi', 'VoterRouter.sol/VoterRouter.json'],
+  ['resonanceAbi', 'Resonance.sol/Resonance.json'],
+  ['resonanceRouterAbi', 'ResonanceRouter.sol/ResonanceRouter.json'],
 ];
 
 const externalContracts = [['v4QuoterAbi', resolve(v4PeripheryOut, 'IV4Quoter.sol/IV4Quoter.json')]];

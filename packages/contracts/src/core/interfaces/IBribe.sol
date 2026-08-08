@@ -10,7 +10,7 @@ interface IBribe {
     /// @param amount Amount pulled from the caller and added to the stream.
     function notifyRewardAmount(address rewardToken, uint256 amount) external;
 
-    /// @notice Returns total virtual voting weight.
+    /// @notice Returns total virtual signal weight.
     /// @return weight Total weight assigned to the Bribe.
     function totalSupply() external view returns (uint256 weight);
     /// @notice Returns rewards remaining in a token's active stream.

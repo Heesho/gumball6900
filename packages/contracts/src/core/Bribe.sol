@@ -8,9 +8,9 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 /// @title Bribe
 /// @author GUM BALL 6900
-/// @notice Streams Strategy payment rewards to the SignalGBX holders voting for that Strategy.
-/// @dev Adapted from the Liquid Signal Governance Bribe contract. Balances are virtual: only Voter can add or remove
-///      voting weight, while reward tokens remain in this contract until claimed.
+/// @notice Streams Strategy payment rewards to the SignalGBX holders who signal for that Strategy.
+/// @dev Adapted from the Liquid Signal Governance Bribe contract. Balances are virtual: only Resonance can add or remove
+///      signal weight, while reward tokens remain in this contract until claimed.
 contract Bribe is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -23,15 +23,15 @@ contract Bribe is ReentrancyGuard {
 
     /// @notice Duration of each reward stream.
     uint256 public constant REWARD_DURATION = 7 days;
-    /// @notice Fixed-point precision used for cumulative rewards per unit of voting weight.
+    /// @notice Fixed-point precision used for cumulative rewards per unit of signal weight.
     uint256 public constant REWARD_PRECISION = 1e18;
 
-    /// @notice Voter contract allowed to maintain virtual balances and register reward tokens.
-    address public immutable voter;
+    /// @notice Resonance contract allowed to maintain virtual balances and register reward tokens.
+    address public immutable resonance;
 
-    /// @notice Total virtual voting weight assigned to this Bribe.
+    /// @notice Total virtual signal weight assigned to this Bribe.
     uint256 public totalSupply;
-    /// @notice Virtual voting weight assigned to each account.
+    /// @notice Virtual signal weight assigned to each account.
     mapping(address account => uint256 balance) public balanceOf;
 
     address[] private _rewardTokens;
@@ -44,7 +44,7 @@ contract Bribe is ReentrancyGuard {
     /// @notice Accrued, unclaimed reward balance for an account and token.
     mapping(address account => mapping(address token => uint256 amount)) public rewards;
 
-    /// @notice Emitted when Voter registers a supported reward token.
+    /// @notice Emitted when Resonance registers a supported reward token.
     /// @param rewardToken Newly registered reward token.
     event RewardAdded(address indexed rewardToken);
     /// @notice Emitted when a new amount starts or extends a reward stream.
@@ -56,27 +56,27 @@ contract Bribe is ReentrancyGuard {
     /// @param rewardToken Token paid.
     /// @param amount Amount paid.
     event RewardPaid(address indexed account, address indexed rewardToken, uint256 amount);
-    /// @notice Emitted when Voter adds virtual voting weight.
+    /// @notice Emitted when Resonance adds virtual signal weight.
     /// @param account Account whose virtual balance increased.
     /// @param amount Weight added.
-    event VotingWeightDeposited(address indexed account, uint256 amount);
-    /// @notice Emitted when Voter removes virtual voting weight.
+    event SignalWeightDeposited(address indexed account, uint256 amount);
+    /// @notice Emitted when Resonance removes virtual signal weight.
     /// @param account Account whose virtual balance decreased.
     /// @param amount Weight removed.
-    event VotingWeightWithdrawn(address indexed account, uint256 amount);
+    event SignalWeightWithdrawn(address indexed account, uint256 amount);
 
     error InexactRewardTransfer(uint256 expected, uint256 received);
     error NotRewardToken(address token);
-    error NotVoter(address caller);
+    error NotResonance(address caller);
     error RewardAlreadyAdded(address token);
     error RewardBelowDuration(uint256 amount);
     error RewardBelowRemaining(uint256 amount, uint256 remaining);
     error ZeroAddress();
     error ZeroAmount();
 
-    /// @dev Restricts virtual-balance and reward-token administration to Voter.
-    modifier onlyVoter() {
-        if (msg.sender != voter) revert NotVoter(msg.sender);
+    /// @dev Restricts virtual-balance and reward-token administration to Resonance.
+    modifier onlyResonance() {
+        if (msg.sender != resonance) revert NotResonance(msg.sender);
         _;
     }
 
@@ -99,11 +99,11 @@ contract Bribe is ReentrancyGuard {
         _;
     }
 
-    /// @notice Creates a reward stream controlled by `voter_`.
-    /// @param voter_ Voter exclusively authorized to maintain virtual balances.
-    constructor(address voter_) {
-        if (voter_ == address(0) || voter_.code.length == 0) revert ZeroAddress();
-        voter = voter_;
+    /// @notice Creates a reward stream controlled by `resonance_`.
+    /// @param resonance_ Resonance exclusively authorized to maintain virtual balances.
+    constructor(address resonance_) {
+        if (resonance_ == address(0) || resonance_.code.length == 0) revert ZeroAddress();
+        resonance = resonance_;
     }
 
     /// @notice Claims every registered reward token earned by `account`.
@@ -157,35 +157,35 @@ contract Bribe is ReentrancyGuard {
         emit RewardNotified(rewardToken, amount);
     }
 
-    /// @notice Adds virtual voting weight for `account`.
+    /// @notice Adds virtual signal weight for `account`.
     /// @param amount Weight to add.
     /// @param account Account whose virtual balance increases.
-    function deposit(uint256 amount, address account) external onlyVoter updateReward(account) {
+    function deposit(uint256 amount, address account) external onlyResonance updateReward(account) {
         if (amount == 0) revert ZeroAmount();
         if (account == address(0)) revert ZeroAddress();
 
         totalSupply += amount;
         balanceOf[account] += amount;
 
-        emit VotingWeightDeposited(account, amount);
+        emit SignalWeightDeposited(account, amount);
     }
 
-    /// @notice Removes virtual voting weight for `account`.
+    /// @notice Removes virtual signal weight for `account`.
     /// @param amount Weight to remove.
     /// @param account Account whose virtual balance decreases.
-    function withdraw(uint256 amount, address account) external onlyVoter updateReward(account) {
+    function withdraw(uint256 amount, address account) external onlyResonance updateReward(account) {
         if (amount == 0) revert ZeroAmount();
         if (account == address(0)) revert ZeroAddress();
 
         totalSupply -= amount;
         balanceOf[account] -= amount;
 
-        emit VotingWeightWithdrawn(account, amount);
+        emit SignalWeightWithdrawn(account, amount);
     }
 
     /// @notice Registers an additional token that may be distributed by this Bribe.
     /// @param rewardToken Token to register.
-    function addRewardToken(address rewardToken) external onlyVoter {
+    function addRewardToken(address rewardToken) external onlyResonance {
         if (rewardToken == address(0) || rewardToken.code.length == 0) revert ZeroAddress();
         if (isRewardToken[rewardToken]) revert RewardAlreadyAdded(rewardToken);
 
@@ -217,7 +217,7 @@ contract Bribe is ReentrancyGuard {
         return Math.min(block.timestamp, rewardData[rewardToken].periodFinish);
     }
 
-    /// @notice Returns cumulative rewards per unit of virtual voting weight.
+    /// @notice Returns cumulative rewards per unit of virtual signal weight.
     /// @param rewardToken Token whose cumulative index is queried.
     /// @return accumulatedReward Cumulative reward per unit of weight, scaled by `REWARD_PRECISION`.
     function rewardPerToken(address rewardToken) public view returns (uint256 accumulatedReward) {

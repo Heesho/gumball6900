@@ -4,7 +4,7 @@ import { addressSchema, bytes32Schema } from './validation.js';
 
 export { addressSchema } from './validation.js';
 
-/** Fixed contracts in one core deployment. Strategies, Bribes, and BribeRouters are discovered through Voter. */
+/** Fixed contracts in one core deployment. Strategies, Bribes, and BribeRouters are discovered through Resonance. */
 export const protocolAddressesSchema = z
   .object({
     bribeFactory: addressSchema,
@@ -15,8 +15,8 @@ export const protocolAddressesSchema = z
     signalGBX: addressSchema,
     strategyFactory: addressSchema,
     timelockController: addressSchema,
-    voter: addressSchema,
-    voterRouter: addressSchema,
+    resonance: addressSchema,
+    resonanceRouter: addressSchema,
   })
   .strict()
   .superRefine((addresses, context) => {

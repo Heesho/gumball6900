@@ -1,7 +1,15 @@
 import { getAddress, type Abi, type Address, type Hex, type PublicClient } from 'viem';
 import { z } from 'zod';
 
-import { bribeAbi, fundraiserAbi, gbxAbi, liquidityPositionAbi, signalGbxAbi, strategyAbi, voterAbi } from './abis.js';
+import {
+  bribeAbi,
+  fundraiserAbi,
+  gbxAbi,
+  liquidityPositionAbi,
+  signalGbxAbi,
+  strategyAbi,
+  resonanceAbi,
+} from './abis.js';
 import { pinBlockSnapshot, revalidateBlockSnapshot, type BlockSnapshot } from './block-snapshot.js';
 import { addressSchema, unsignedBigIntSchema } from './validation.js';
 
@@ -189,57 +197,57 @@ export async function readLiquidityPositionView(
 }
 
 export const signalViewSchema = z.object({
+  accountSignalWeight: unsignedBigIntSchema,
   accountStrategies: z.array(addressSchema),
   blockNumber: unsignedBigIntSchema,
   signalBalance: unsignedBigIntSchema,
-  usedWeight: unsignedBigIntSchema,
 });
 export type SignalView = z.infer<typeof signalViewSchema>;
 
 /** Reads an account's current SignalGBX balance and unrestricted allocation. */
 export async function readSignalView(
   client: PublicClient,
-  contracts: Readonly<{ signalGBX: Address; voter: Address }>,
+  contracts: Readonly<{ signalGBX: Address; resonance: Address }>,
   account: Address,
   options: ReadOptions = {},
 ): Promise<SignalView> {
-  const voterAccount = getAddress(account);
+  const signalerAccount = getAddress(account);
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [signalBalance, usedWeight, accountStrategies] = await Promise.all([
-    read(client, blockNumber, contracts.signalGBX, signalGbxAbi, 'balanceOf', [voterAccount]),
-    read(client, blockNumber, contracts.voter, voterAbi, 'accountUsedWeight', [voterAccount]),
-    read(client, blockNumber, contracts.voter, voterAbi, 'accountStrategies', [voterAccount]),
+  const [signalBalance, accountSignalWeight, accountStrategies] = await Promise.all([
+    read(client, blockNumber, contracts.signalGBX, signalGbxAbi, 'balanceOf', [signalerAccount]),
+    read(client, blockNumber, contracts.resonance, resonanceAbi, 'accountSignalWeight', [signalerAccount]),
+    read(client, blockNumber, contracts.resonance, resonanceAbi, 'accountStrategies', [signalerAccount]),
   ]);
-  const result = signalViewSchema.parse({ accountStrategies, blockNumber, signalBalance, usedWeight });
+  const result = signalViewSchema.parse({ accountSignalWeight, accountStrategies, blockNumber, signalBalance });
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
 
-export const voterViewSchema = z.object({
+export const resonanceViewSchema = z.object({
   blockNumber: unsignedBigIntSchema,
   bribeBps: unsignedBigIntSchema,
   revenueIndex: unsignedBigIntSchema,
   strategies: z.array(addressSchema),
-  totalWeight: unsignedBigIntSchema,
+  totalSignalWeight: unsignedBigIntSchema,
 });
-export type VoterView = z.infer<typeof voterViewSchema>;
+export type ResonanceView = z.infer<typeof resonanceViewSchema>;
 
-/** Reads Voter's global allocation and revenue state. */
-export async function readVoterView(
+/** Reads Resonance's global allocation and revenue state. */
+export async function readResonanceView(
   client: PublicClient,
-  voter: Address,
+  resonance: Address,
   options: ReadOptions = {},
-): Promise<VoterView> {
+): Promise<ResonanceView> {
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [bribeBps, revenueIndex, strategies, totalWeight] = await Promise.all([
-    read(client, blockNumber, voter, voterAbi, 'bribeBps'),
-    read(client, blockNumber, voter, voterAbi, 'revenueIndex'),
-    read(client, blockNumber, voter, voterAbi, 'strategies'),
-    read(client, blockNumber, voter, voterAbi, 'totalWeight'),
+  const [bribeBps, revenueIndex, strategies, totalSignalWeight] = await Promise.all([
+    read(client, blockNumber, resonance, resonanceAbi, 'bribeBps'),
+    read(client, blockNumber, resonance, resonanceAbi, 'revenueIndex'),
+    read(client, blockNumber, resonance, resonanceAbi, 'strategies'),
+    read(client, blockNumber, resonance, resonanceAbi, 'totalSignalWeight'),
   ]);
-  const result = voterViewSchema.parse({ blockNumber, bribeBps, revenueIndex, strategies, totalWeight });
+  const result = resonanceViewSchema.parse({ blockNumber, bribeBps, revenueIndex, strategies, totalSignalWeight });
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
@@ -319,12 +327,12 @@ export async function readStrategyView(
 }
 
 export const bribeRewardViewSchema = z.object({
+  accountSignalWeight: unsignedBigIntSchema,
   account: addressSchema,
   blockNumber: unsignedBigIntSchema,
   earned: z.array(unsignedBigIntSchema),
   rewardTokens: z.array(addressSchema),
-  totalWeight: unsignedBigIntSchema,
-  userWeight: unsignedBigIntSchema,
+  totalSignalWeight: unsignedBigIntSchema,
 });
 export type BribeRewardView = z.infer<typeof bribeRewardViewSchema>;
 
@@ -338,7 +346,7 @@ export async function readBribeRewardView(
   const rewardAccount = getAddress(account);
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [rewardTokensRaw, totalWeight, userWeight] = await Promise.all([
+  const [rewardTokensRaw, totalSignalWeight, accountSignalWeight] = await Promise.all([
     read(client, blockNumber, bribe, bribeAbi, 'rewardTokens'),
     read(client, blockNumber, bribe, bribeAbi, 'totalSupply'),
     read(client, blockNumber, bribe, bribeAbi, 'balanceOf', [rewardAccount]),
@@ -354,8 +362,8 @@ export async function readBribeRewardView(
     blockNumber,
     earned,
     rewardTokens,
-    totalWeight,
-    userWeight,
+    totalSignalWeight,
+    accountSignalWeight,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;

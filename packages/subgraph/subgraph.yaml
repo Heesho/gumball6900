@@ -107,14 +107,14 @@ dataSources:
           handler: handleStaked
         - event: Unstaked(indexed address,uint256)
           handler: handleUnstaked
-        - event: VoterSet(indexed address)
-          handler: handleSignalVoterSet
+        - event: ResonanceSet(indexed address)
+          handler: handleSignalResonanceSet
       file: ./src/signal-gbx.ts
   - kind: ethereum/contract
-    name: VoterRouter
+    name: ResonanceRouter
     network: robinhood
     source:
-      abi: VoterRouter
+      abi: ResonanceRouter
       address: "0x0000000000000000000000000000000000000000"
       startBlock: 0
     mapping:
@@ -125,17 +125,17 @@ dataSources:
         - ProtocolState
         - ProtocolEvent
       abis:
-        - name: VoterRouter
-          file: ./abis/VoterRouter.json
+        - name: ResonanceRouter
+          file: ./abis/ResonanceRouter.json
       eventHandlers:
         - event: RevenueRouted(indexed address,uint256)
           handler: handleRevenueRouted
-      file: ./src/voter-router.ts
+      file: ./src/resonance-router.ts
   - kind: ethereum/contract
-    name: Voter
+    name: Resonance
     network: robinhood
     source:
-      abi: Voter
+      abi: Resonance
       address: "0x0000000000000000000000000000000000000000"
       startBlock: 0
     mapping:
@@ -148,8 +148,8 @@ dataSources:
         - Strategy
         - ProtocolEvent
       abis:
-        - name: Voter
-          file: ./abis/Voter.json
+        - name: Resonance
+          file: ./abis/Resonance.json
       eventHandlers:
         - event: BribeBpsSet(uint256,uint256)
           handler: handleBribeBpsSet
@@ -164,13 +164,13 @@ dataSources:
           handler: handleStrategyAdded
         - event: StrategyKilled(indexed address)
           handler: handleStrategyKilled
-        - event: VoteCast(indexed address,indexed address,uint256)
-          handler: handleVoteCast
-        - event: VoteReset(indexed address,indexed address,uint256)
-          handler: handleVoteReset
-        - event: VoterRouterSet(indexed address)
-          handler: handleVoterRouterSet
-      file: ./src/voter.ts
+        - event: SignalAllocated(indexed address,indexed address,uint256)
+          handler: handleSignalAllocated
+        - event: SignalReset(indexed address,indexed address,uint256)
+          handler: handleSignalReset
+        - event: ResonanceRouterSet(indexed address)
+          handler: handleResonanceRouterSet
+      file: ./src/resonance.ts
   - kind: ethereum/contract
     name: Fund
     network: robinhood

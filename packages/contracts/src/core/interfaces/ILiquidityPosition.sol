@@ -21,8 +21,8 @@ interface ILiquidityPosition {
     /// @return token Canonical USDG address.
     function usdg() external view returns (address token);
     /// @notice Returns the immutable USDG fee router.
-    /// @return router VoterRouter address.
-    function voterRouter() external view returns (address router);
+    /// @return router ResonanceRouter address.
+    function resonanceRouter() external view returns (address router);
     /// @notice Returns the hash of the complete canonical v4 PoolKey.
     /// @return keyHash Canonical PoolKey hash.
     function poolKeyHash() external view returns (bytes32 keyHash);

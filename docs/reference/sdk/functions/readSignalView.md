@@ -6,19 +6,19 @@
 
 # Function: readSignalView()
 
-> **readSignalView**(`client`, `contracts`, `account`, `options?`): `Promise`\<\{ `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; `usedWeight`: `bigint`; \}\>
+> **readSignalView**(`client`, `contracts`, `account`, `options?`): `Promise`\<\{ `accountSignalWeight`: `bigint`; `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; \}\>
 
 Reads an account's current SignalGBX balance and unrestricted allocation.
 
 ## Parameters
 
-| Parameter   | Type                                                            |
-| ----------- | --------------------------------------------------------------- |
-| `client`    | \{ \}                                                           |
-| `contracts` | `Readonly`\<\{ `signalGBX`: `Address`; `voter`: `Address`; \}\> |
-| `account`   | `` `0x${string}` ``                                             |
-| `options`   | [`ReadOptions`](../interfaces/ReadOptions.md)                   |
+| Parameter   | Type                                                                |
+| ----------- | ------------------------------------------------------------------- |
+| `client`    | \{ \}                                                               |
+| `contracts` | `Readonly`\<\{ `resonance`: `Address`; `signalGBX`: `Address`; \}\> |
+| `account`   | `` `0x${string}` ``                                                 |
+| `options`   | [`ReadOptions`](../interfaces/ReadOptions.md)                       |
 
 ## Returns
 
-`Promise`\<\{ `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; `usedWeight`: `bigint`; \}\>
+`Promise`\<\{ `accountSignalWeight`: `bigint`; `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; \}\>

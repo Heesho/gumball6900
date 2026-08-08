@@ -3,7 +3,7 @@
 The active Solidity graph is intentionally small and non-upgradeable.
 
 ```text
-Fundraiser -> VoterRouter -> Voter -> Strategy
+Fundraiser -> ResonanceRouter -> Resonance -> Strategy
                                   |      |
 SignalGBX ------------------------+      +-> acquisition token -> Fund + BribeRouter -> Bribe
                                          +-> buyback GBX -> Fund -> burn
@@ -11,11 +11,11 @@ SignalGBX ------------------------+      +-> acquisition token -> Fund + BribeRo
 GBX holder -> Fund.redeem(selected tokens) -> in-kind assets
 
 Uniswap v4 position -> LiquidityPosition -> GBX fees burned
-                                        -> USDG fees -> VoterRouter -> Voter
+                                        -> USDG fees -> ResonanceRouter -> Resonance
 ```
 
-Fundraiser accounts for contribution epochs and routes every USDG contribution immediately. Voter maintains an
-indexed USDG allocation using unrestricted SignalGBX votes. StrategyFactory and BribeFactory are bound to Voter, so
+Fundraiser accounts for contribution epochs and routes every USDG contribution immediately. Resonance maintains an
+indexed USDG allocation using unrestricted SignalGBX signals. StrategyFactory and BribeFactory are bound to Resonance, so
 each admitted Strategy is created with a dedicated Bribe and BribeRouter.
 
 Fund is a raw-balance treasury with no asset registry. Redemption and migration both operate on unique token arrays

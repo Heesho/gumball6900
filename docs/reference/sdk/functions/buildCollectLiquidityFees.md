@@ -8,7 +8,7 @@
 
 > **buildCollectLiquidityFees**(`liquidityPosition`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Collects canonical v4 position fees, burns GBX, and routes USDG through VoterRouter.
+Collects canonical v4 position fees, burns GBX, and routes USDG through ResonanceRouter.
 
 ## Parameters
 

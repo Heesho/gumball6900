@@ -7,7 +7,7 @@
 GUM BALL 6900 is an experimental index protocol designed for Robinhood Chain. It turns USDG contributions and
 protocol revenue into a growing basket of onchain assets chosen by GBX holders.
 
-Think of it as a community-built onchain index: approved acquisition Strategies compete for voter-directed capital,
+Think of it as a community-built onchain index: approved acquisition Strategies compete for signal-directed capital,
 the assets they acquire accumulate in a shared Fund, and GBX can be burned to redeem a proportional share of selected
 Fund holdings. There is no synthetic price peg, NAV oracle, or offchain redemption desk in the core protocol.
 
@@ -23,11 +23,11 @@ they believe should become part of the treasury, then make the resulting holding
 The result is a simple flywheel:
 
 1. **Contribute** — users contribute USDG through the Fundraiser and earn GBX from a fixed distribution schedule.
-2. **Vote** — GBX can be staked one-for-one into SignalGBX and allocated among approved Strategies without a time lock
-   or voting cooldown.
-3. **Acquire** — USDG follows current votes. Each acquisition Strategy runs a reverse Dutch auction in which a buyer
+2. **Signal** — GBX can be staked one-for-one into SignalGBX and allocated among approved Strategies without a time lock
+   or signal cooldown.
+3. **Acquire** — USDG follows current signals. Each acquisition Strategy runs a reverse Dutch auction in which a buyer
    receives the accumulated USDG and pays with the asset that Strategy is acquiring.
-4. **Build the Fund** — 90% of each acquisition payment enters the Fund. The initial 10% voter-reward share is streamed
+4. **Build the Fund** — 90% of each acquisition payment enters the Fund. The initial 10% signal-reward share is streamed
    through that Strategy's Bribe and can be changed by timelocked governance, up to a 50% maximum.
 5. **Redeem** — a holder can burn GBX for a proportional share of any caller-selected Fund assets.
 6. **Reduce supply** — GBX received through buybacks and GBX fees collected from the canonical liquidity position are
@@ -40,14 +40,14 @@ USDG contribution
   Fundraiser ---> GBX contributor distribution
        |
        v
-  VoterRouter ---> Voter <--- SignalGBX allocations
+  ResonanceRouter ---> Resonance <--- SignalGBX allocations
                       |
                       v
                   Strategies
                       |
           target asset payment
                 /            \
-          90% Fund       10% voter rewards
+          90% Fund       10% signal rewards
               |
               v
      selective GBX redemption
@@ -55,19 +55,19 @@ USDG contribution
 
 ## One loop, four participants
 
-| Participant       | Incentive                                                                                   |
-| ----------------- | ------------------------------------------------------------------------------------------- |
-| USDG contributors | Earn GBX from the fixed distribution while supplying capital to the protocol.               |
-| GBX holders       | Direct new acquisitions, earn Strategy voter rewards, and retain in-kind redemption rights. |
-| Asset communities | Compete for allocation and Fund inclusion after a Strategy is admitted.                     |
-| Auction buyers    | Receive a Strategy's accumulated USDG when the declining price reaches their target.        |
+| Participant       | Incentive                                                                                    |
+| ----------------- | -------------------------------------------------------------------------------------------- |
+| USDG contributors | Earn GBX from the fixed distribution while supplying capital to the protocol.                |
+| GBX holders       | Direct new acquisitions, earn Strategy signal rewards, and retain in-kind redemption rights. |
+| Asset communities | Compete for allocation and Fund inclusion after a Strategy is admitted.                      |
+| Auction buyers    | Receive a Strategy's accumulated USDG when the declining price reaches their target.         |
 
 ## Why it is different
 
 ### Holder-directed index formation
 
-GBX holders decide how new USDG revenue is allocated among active Strategies. Voting is deliberately liquid: an
-account can replace or reset its allocations at any time and withdraw its staked GBX after clearing its votes.
+GBX holders decide how new USDG revenue is allocated among active Strategies. Signaling is deliberately liquid: an
+account can replace or reset its allocations at any time and withdraw its staked GBX after clearing its signals.
 
 ### Assets instead of price exposure
 
@@ -120,7 +120,7 @@ The position stays inside `LiquidityPosition`; there is no arbitrary NFT withdra
 without removing principal:
 
 - collected GBX is burned; and
-- collected USDG enters `VoterRouter -> Voter -> Strategies`.
+- collected USDG enters `ResonanceRouter -> Resonance -> Strategies`.
 
 Timelocked governance can bind one fully compatible successor exactly once. After that commitment, anyone can migrate
 the exact position NFT.
@@ -142,31 +142,31 @@ same-GBX successor, followed by permissionless migration of complete caller-sele
 
 ## Protocol map
 
-| Contract            | Role                                                                                             |
-| ------------------- | ------------------------------------------------------------------------------------------------ |
-| `GBX`               | Transferable protocol token, burns, vote checkpoints, and the one-billion lifetime mint ceiling. |
-| `Fundraiser`        | USDG contributions and the fixed 980-million-GBX contributor distribution.                       |
-| `SignalGBX`         | Non-transferable, one-for-one staked GBX used for current Strategy allocations.                  |
-| `VoterRouter`       | Permissionlessly moves accumulated USDG into Voter.                                              |
-| `Voter`             | Tracks allocations, distributes USDG, and controls Strategy and Bribe creation.                  |
-| `StrategyFactory`   | Voter-only factory for Strategies and their dedicated BribeRouters.                              |
-| `Strategy`          | Reverse Dutch acquisition auction or GBX buyback.                                                |
-| `BribeFactory`      | Voter-only factory for one Bribe per Strategy.                                                   |
-| `BribeRouter`       | Routes the voter share of acquisition payments to the Strategy's Bribe.                          |
-| `Bribe`             | Streams payment-token rewards across the Strategy's voting balances.                             |
-| `Fund`              | Registry-free asset backing, selective redemption, GBX burning, and constrained migration.       |
-| `LiquidityPosition` | Custody, fee processing, and constrained migration for the canonical Uniswap v4 position.        |
+| Contract            | Role                                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------------------- |
+| `GBX`               | Transferable protocol token, burns, signal checkpoints, and the one-billion lifetime mint ceiling. |
+| `Fundraiser`        | USDG contributions and the fixed 980-million-GBX contributor distribution.                         |
+| `SignalGBX`         | Non-transferable, one-for-one staked GBX used for current Strategy allocations.                    |
+| `ResonanceRouter`   | Permissionlessly moves accumulated USDG into Resonance.                                            |
+| `Resonance`         | Tracks allocations, distributes USDG, and controls Strategy and Bribe creation.                    |
+| `StrategyFactory`   | Resonance-only factory for Strategies and their dedicated BribeRouters.                            |
+| `Strategy`          | Reverse Dutch acquisition auction or GBX buyback.                                                  |
+| `BribeFactory`      | Resonance-only factory for one Bribe per Strategy.                                                 |
+| `BribeRouter`       | Routes the signal-reward share of acquisition payments to the Strategy's Bribe.                    |
+| `Bribe`             | Streams payment-token rewards across the Strategy's signal balances.                               |
+| `Fund`              | Registry-free asset backing, selective redemption, GBX burning, and constrained migration.         |
+| `LiquidityPosition` | Custody, fee processing, and constrained migration for the canonical Uniswap v4 position.          |
 
 The Solidity source of truth is [`packages/contracts/src/core`](packages/contracts/src/core). Foundry and Hardhat
 compile the same source tree.
 
 ## Governance surface
 
-`Voter`, `Fund`, and `LiquidityPosition` are intended to be owned by OpenZeppelin `TimelockController`, with a project
+`Resonance`, `Fund`, and `LiquidityPosition` are intended to be owned by OpenZeppelin `TimelockController`, with a project
 multisig proposing and cancelling operations. The initial administrative surface is limited to:
 
 - creating and permanently disabling Strategies;
-- setting the acquisition voter-reward share between 0% and 50%;
+- setting the acquisition signal-reward share between 0% and 50%;
 - registering additional Bribe reward tokens; and
 - committing the one-time Fund and LiquidityPosition successors.
 

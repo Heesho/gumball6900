@@ -1,4 +1,4 @@
-import { Staked, Unstaked, VoterSet } from '../generated/SignalGBX/SignalGBX';
+import { Staked, Unstaked, ResonanceSet } from '../generated/SignalGBX/SignalGBX';
 import { getAccount, getProtocol, recordEvent } from './entities';
 
 export function handleStaked(event: Staked): void {
@@ -31,12 +31,12 @@ export function handleUnstaked(event: Unstaked): void {
   record.save();
 }
 
-export function handleSignalVoterSet(event: VoterSet): void {
+export function handleSignalResonanceSet(event: ResonanceSet): void {
   const protocol = getProtocol(event);
-  protocol.signalVoter = event.params.voter;
+  protocol.resonance = event.params.resonance;
   protocol.save();
 
-  const record = recordEvent(event, 'SIGNAL_GBX_VOTER_SET');
-  record.addresses = [event.params.voter];
+  const record = recordEvent(event, 'SIGNAL_GBX_RESONANCE_SET');
+  record.addresses = [event.params.resonance];
   record.save();
 }

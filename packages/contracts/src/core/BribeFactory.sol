@@ -7,47 +7,47 @@ import { Bribe } from "./Bribe.sol";
 
 /// @title BribeFactory
 /// @author GUM BALL 6900
-/// @notice Deploys the Bribe associated with each Voter-created Strategy.
-/// @dev Adapted from Liquid Signal Governance. The factory is bound to one Voter and is not publicly permissionless.
+/// @notice Deploys the Bribe associated with each Resonance-created Strategy.
+/// @dev Adapted from Liquid Signal Governance. The factory is bound to one Resonance and is not publicly permissionless.
 contract BribeFactory is Ownable {
-    /// @notice Voter exclusively authorized to create Bribes.
-    address public voter;
+    /// @notice Resonance exclusively authorized to create Bribes.
+    address public resonance;
 
-    /// @notice Emitted when Voter deploys a Bribe.
+    /// @notice Emitted when Resonance deploys a Bribe.
     /// @param bribe Address of the new Bribe.
-    /// @param voter Voter authorized to maintain the Bribe's virtual balances.
-    event BribeCreated(address indexed bribe, address indexed voter);
-    /// @notice Emitted when the factory is permanently bound to Voter.
-    /// @param voter Bound Voter address.
-    event VoterSet(address indexed voter);
+    /// @param resonance Resonance authorized to maintain the Bribe's virtual balances.
+    event BribeCreated(address indexed bribe, address indexed resonance);
+    /// @notice Emitted when the factory is permanently bound to Resonance.
+    /// @param resonance Bound Resonance address.
+    event ResonanceSet(address indexed resonance);
 
-    error NotVoter(address caller);
-    error VoterAlreadySet(address voter);
+    error NotResonance(address caller);
+    error ResonanceAlreadySet(address resonance);
     error ZeroAddress();
 
-    /// @notice Creates an unbound factory whose owner may set Voter exactly once.
-    /// @param initialOwner Deployment-time owner responsible for binding Voter.
+    /// @notice Creates an unbound factory whose owner may set Resonance exactly once.
+    /// @param initialOwner Deployment-time owner responsible for binding Resonance.
     constructor(address initialOwner) Ownable(initialOwner) { }
 
-    /// @notice Binds the only Voter allowed to deploy Bribes.
-    /// @param voter_ Voter address to bind permanently.
-    function setVoter(address voter_) external onlyOwner {
-        if (voter != address(0)) revert VoterAlreadySet(voter);
-        if (voter_ == address(0) || voter_.code.length == 0) revert ZeroAddress();
+    /// @notice Binds the only Resonance allowed to deploy Bribes.
+    /// @param resonance_ Resonance address to bind permanently.
+    function setResonance(address resonance_) external onlyOwner {
+        if (resonance != address(0)) revert ResonanceAlreadySet(resonance);
+        if (resonance_ == address(0) || resonance_.code.length == 0) revert ZeroAddress();
 
-        voter = voter_;
+        resonance = resonance_;
 
-        emit VoterSet(voter_);
+        emit ResonanceSet(resonance_);
     }
 
-    /// @notice Deploys a Bribe controlled by the bound Voter.
+    /// @notice Deploys a Bribe controlled by the bound Resonance.
     /// @return bribe Newly deployed Bribe.
     function createBribe() external returns (Bribe bribe) {
-        address configuredVoter = voter;
-        if (msg.sender != configuredVoter) revert NotVoter(msg.sender);
+        address configuredResonance = resonance;
+        if (msg.sender != configuredResonance) revert NotResonance(msg.sender);
 
-        bribe = new Bribe(configuredVoter);
+        bribe = new Bribe(configuredResonance);
 
-        emit BribeCreated(address(bribe), configuredVoter);
+        emit BribeCreated(address(bribe), configuredResonance);
     }
 }

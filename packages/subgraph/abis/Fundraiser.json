@@ -13,7 +13,7 @@
         "internalType": "contract IERC20"
       },
       {
-        "name": "voterRouter_",
+        "name": "resonanceRouter_",
         "type": "address",
         "internalType": "address"
       }
@@ -336,6 +336,19 @@
   },
   {
     "type": "function",
+    "name": "resonanceRouter",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "settleEpochs",
     "inputs": [
       {
@@ -375,19 +388,6 @@
         "name": "",
         "type": "address",
         "internalType": "contract IERC20"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "voterRouter",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
       }
     ],
     "stateMutability": "view"

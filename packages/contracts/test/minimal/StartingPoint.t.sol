@@ -14,8 +14,8 @@ import { GBX } from "../../src/core/GBX.sol";
 import { SignalGBX } from "../../src/core/SignalGBX.sol";
 import { Strategy } from "../../src/core/Strategy.sol";
 import { StrategyFactory } from "../../src/core/StrategyFactory.sol";
-import { Voter } from "../../src/core/Voter.sol";
-import { VoterRouter } from "../../src/core/VoterRouter.sol";
+import { Resonance } from "../../src/core/Resonance.sol";
+import { ResonanceRouter } from "../../src/core/ResonanceRouter.sol";
 
 contract CoreTestToken is ERC20 {
     uint8 private immutable _tokenDecimals;
@@ -74,8 +74,8 @@ contract StartingPointTest is Test {
     Fund private fund;
     Fundraiser private fundraiser;
     SignalGBX private signalGBX;
-    Voter private voter;
-    VoterRouter private voterRouter;
+    Resonance private resonance;
+    ResonanceRouter private resonanceRouter;
     BribeFactory private bribeFactory;
     StrategyFactory private strategyFactory;
     Strategy private acquisitionStrategy;
@@ -93,7 +93,7 @@ contract StartingPointTest is Test {
         signalGBX = new SignalGBX(IERC20(address(gbx)), address(this));
         bribeFactory = new BribeFactory(address(this));
         strategyFactory = new StrategyFactory(address(this));
-        voter = new Voter(
+        resonance = new Resonance(
             IERC20(address(signalGBX)),
             IERC20(address(usdg)),
             address(fund),
@@ -102,20 +102,20 @@ contract StartingPointTest is Test {
             address(this)
         );
 
-        bribeFactory.setVoter(address(voter));
-        strategyFactory.setVoter(address(voter));
-        signalGBX.setVoter(address(voter));
+        bribeFactory.setResonance(address(resonance));
+        strategyFactory.setResonance(address(resonance));
+        signalGBX.setResonance(address(resonance));
 
-        voterRouter = new VoterRouter(IERC20(address(usdg)), address(voter));
-        voter.setVoterRouter(address(voterRouter));
+        resonanceRouter = new ResonanceRouter(IERC20(address(usdg)), address(resonance));
+        resonance.setResonanceRouter(address(resonanceRouter));
 
         (address acquisition,,) =
-            voter.addStrategy(IERC20(address(target)), Strategy.Kind.Acquisition, _strategyConfig());
-        (address buyback,,) = voter.addStrategy(IERC20(address(gbx)), Strategy.Kind.Buyback, _strategyConfig());
+            resonance.addStrategy(IERC20(address(target)), Strategy.Kind.Acquisition, _strategyConfig());
+        (address buyback,,) = resonance.addStrategy(IERC20(address(gbx)), Strategy.Kind.Buyback, _strategyConfig());
         acquisitionStrategy = Strategy(acquisition);
         buybackStrategy = Strategy(buyback);
 
-        fundraiser = new Fundraiser(gbx, IERC20(address(usdg)), address(voterRouter));
+        fundraiser = new Fundraiser(gbx, IERC20(address(usdg)), address(resonanceRouter));
         gbx.setMinter(address(fundraiser));
         vm.startPrank(address(fundraiser));
         gbx.mint(ALICE, 200 ether);
@@ -123,8 +123,8 @@ contract StartingPointTest is Test {
         vm.stopPrank();
     }
 
-    function test_ContributionsRouteAllUSDGThroughVoterAndClaimsStayProRata() external {
-        _stakeAndVote();
+    function test_ContributionsRouteAllUSDGThroughResonanceAndClaimsStayProRata() external {
+        _stakeAndSignal();
         usdg.mint(ALICE, 60_000_000);
         usdg.mint(BOB, 40_000_000);
 
@@ -138,8 +138,8 @@ contract StartingPointTest is Test {
         fundraiser.contribute(BOB, 40_000_000);
         vm.stopPrank();
 
-        assertEq(usdg.balanceOf(address(voter)), 100_000_000);
-        assertEq(usdg.balanceOf(address(voterRouter)), 0);
+        assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
         assertEq(usdg.balanceOf(address(fundraiser)), 0);
         assertEq(usdg.balanceOf(address(fund)), 0);
         assertEq(fundraiser.epochContributions(0), 100_000_000);
@@ -171,10 +171,10 @@ contract StartingPointTest is Test {
         assertEq(fundraiser.nextEpochToSettle(), 31);
     }
 
-    function test_AcquisitionUsesDefaultNinetyTenSplitAndStreamsBribeToVoter() external {
-        _stakeAndVote();
+    function test_AcquisitionUsesDefaultNinetyTenSplitAndStreamsSignalRewards() external {
+        _stakeAndSignal();
         _contributeRevenue(100_000_000);
-        voter.distribute(address(acquisitionStrategy));
+        resonance.distribute(address(acquisitionStrategy));
 
         target.mint(CAROL, STRATEGY_PRICE);
         vm.startPrank(CAROL);
@@ -182,7 +182,7 @@ contract StartingPointTest is Test {
         acquisitionStrategy.buy(CAROL, 0, block.timestamp, STRATEGY_PRICE);
         vm.stopPrank();
 
-        Bribe bribe = Bribe(voter.bribeFor(address(acquisitionStrategy)));
+        Bribe bribe = Bribe(resonance.bribeFor(address(acquisitionStrategy)));
         assertEq(target.balanceOf(address(fund)), 9 ether);
         assertEq(target.balanceOf(address(bribe)), 1 ether);
         assertEq(usdg.balanceOf(CAROL), 50_000_000);
@@ -192,12 +192,12 @@ contract StartingPointTest is Test {
         vm.warp(block.timestamp + bribe.REWARD_DURATION());
         address[] memory selected = _singleAddress(address(acquisitionStrategy));
         vm.prank(ALICE);
-        voter.claimRewards(selected);
+        resonance.claimRewards(selected);
 
         assertApproxEqAbs(target.balanceOf(ALICE), 1 ether, bribe.REWARD_DURATION());
     }
 
-    function test_AcquisitionReturnsBribeShareToFundWhenStrategyHasNoVoters() external {
+    function test_AcquisitionReturnsBribeShareToFundWhenStrategyHasNoSignals() external {
         usdg.mint(address(acquisitionStrategy), 50_000_000);
         target.mint(CAROL, STRATEGY_PRICE);
 
@@ -207,22 +207,22 @@ contract StartingPointTest is Test {
         vm.stopPrank();
 
         assertEq(target.balanceOf(address(fund)), STRATEGY_PRICE);
-        assertEq(target.balanceOf(voter.bribeFor(address(acquisitionStrategy))), 0);
-        assertEq(target.balanceOf(voter.bribeRouterFor(address(acquisitionStrategy))), 0);
+        assertEq(target.balanceOf(resonance.bribeFor(address(acquisitionStrategy))), 0);
+        assertEq(target.balanceOf(resonance.bribeRouterFor(address(acquisitionStrategy))), 0);
     }
 
-    function test_RevenueWithoutVotesBecomesFundBacking() external {
+    function test_RevenueWithoutSignalsBecomesFundBacking() external {
         _contributeRevenue(100_000_000);
 
         assertEq(usdg.balanceOf(address(fund)), 100_000_000);
-        assertEq(usdg.balanceOf(address(voter)), 0);
-        assertEq(usdg.balanceOf(address(voterRouter)), 0);
+        assertEq(usdg.balanceOf(address(resonance)), 0);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
     }
 
     function test_BuybackBurnsAllGBXPaymentWithoutBribeSplit() external {
-        _stakeAndVote();
+        _stakeAndSignal();
         _contributeRevenue(100_000_000);
-        voter.distribute(address(buybackStrategy));
+        resonance.distribute(address(buybackStrategy));
 
         uint256 supplyBefore = gbx.totalSupply();
         vm.startPrank(BOB);
@@ -233,24 +233,24 @@ contract StartingPointTest is Test {
         assertEq(gbx.totalSupply(), supplyBefore - STRATEGY_PRICE);
         assertEq(gbx.lifetimeBurned(), gbx.GENESIS_LIQUIDITY_ALLOCATION() + STRATEGY_PRICE);
         assertEq(gbx.balanceOf(address(fund)), 0);
-        assertEq(gbx.balanceOf(voter.bribeFor(address(buybackStrategy))), 0);
+        assertEq(gbx.balanceOf(resonance.bribeFor(address(buybackStrategy))), 0);
         assertEq(usdg.balanceOf(BOB), 50_000_000);
     }
 
-    function test_VotesCanBeReplacedResetAndUnstakedWithoutTimeLock() external {
+    function test_SignalsCanBeReplacedResetAndUnstakedWithoutTimeLock() external {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
         signalGBX.stake(100 ether);
 
-        voter.vote(_singleAddress(address(acquisitionStrategy)), _singleUint(1));
-        vm.expectRevert(abi.encodeWithSelector(SignalGBX.ActiveVotes.selector, ALICE, 100 ether));
+        resonance.signal(_singleAddress(address(acquisitionStrategy)), _singleUint(1));
+        vm.expectRevert(abi.encodeWithSelector(SignalGBX.ActiveSignals.selector, ALICE, 100 ether));
         signalGBX.unstake(100 ether);
 
-        voter.vote(_singleAddress(address(buybackStrategy)), _singleUint(1));
-        assertEq(voter.accountVotes(ALICE, address(acquisitionStrategy)), 0);
-        assertEq(voter.accountVotes(ALICE, address(buybackStrategy)), 100 ether);
+        resonance.signal(_singleAddress(address(buybackStrategy)), _singleUint(1));
+        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 0);
+        assertEq(resonance.accountSignals(ALICE, address(buybackStrategy)), 100 ether);
 
-        voter.reset();
+        resonance.reset();
         signalGBX.unstake(100 ether);
         vm.stopPrank();
 
@@ -362,12 +362,12 @@ contract StartingPointTest is Test {
         assertEq(gbx.totalSupply(), supplyBefore - 10 ether);
     }
 
-    function test_FactoriesAreVoterOnlyAndBribeGovernanceIsBounded() external {
-        vm.expectRevert(abi.encodeWithSelector(BribeFactory.NotVoter.selector, address(this)));
+    function test_FactoriesAreResonanceOnlyAndBribeGovernanceIsBounded() external {
+        vm.expectRevert(abi.encodeWithSelector(BribeFactory.NotResonance.selector, address(this)));
         bribeFactory.createBribe();
 
-        Bribe acquisitionBribe = Bribe(voter.bribeFor(address(acquisitionStrategy)));
-        vm.expectRevert(abi.encodeWithSelector(StrategyFactory.NotVoter.selector, address(this)));
+        Bribe acquisitionBribe = Bribe(resonance.bribeFor(address(acquisitionStrategy)));
+        vm.expectRevert(abi.encodeWithSelector(StrategyFactory.NotResonance.selector, address(this)));
         strategyFactory.createStrategy(
             IERC20(address(usdg)),
             IERC20(address(target)),
@@ -377,11 +377,11 @@ contract StartingPointTest is Test {
             _strategyConfig()
         );
 
-        assertEq(voter.bribeBps(), 1_000);
-        vm.expectRevert(abi.encodeWithSelector(Voter.BribeBpsAboveMaximum.selector, 5_001));
-        voter.setBribeBps(5_001);
-        voter.setBribeBps(2_500);
-        assertEq(voter.bribeBps(), 2_500);
+        assertEq(resonance.bribeBps(), 1_000);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.BribeBpsAboveMaximum.selector, 5_001));
+        resonance.setBribeBps(5_001);
+        resonance.setBribeBps(2_500);
+        assertEq(resonance.bribeBps(), 2_500);
     }
 
     function test_CoreAdministrationExecutesThroughOpenZeppelinTimelock() external {
@@ -393,18 +393,18 @@ contract StartingPointTest is Test {
         uint256[] memory values = new uint256[](4);
         bytes[] memory payloads = new bytes[](4);
 
-        targets[0] = address(voter);
-        payloads[0] = abi.encodeCall(Voter.setBribeBps, (2_000));
+        targets[0] = address(resonance);
+        payloads[0] = abi.encodeCall(Resonance.setBribeBps, (2_000));
         targets[1] = address(fund);
         payloads[1] = abi.encodeCall(Fund.setSuccessor, (address(successor)));
-        targets[2] = address(voter);
+        targets[2] = address(resonance);
         payloads[2] = abi.encodeCall(
-            Voter.addStrategy, (IERC20(address(secondAsset)), Strategy.Kind.Acquisition, _strategyConfig())
+            Resonance.addStrategy, (IERC20(address(secondAsset)), Strategy.Kind.Acquisition, _strategyConfig())
         );
-        targets[3] = address(voter);
-        payloads[3] = abi.encodeCall(Voter.killStrategy, (address(buybackStrategy)));
+        targets[3] = address(resonance);
+        payloads[3] = abi.encodeCall(Resonance.killStrategy, (address(buybackStrategy)));
 
-        voter.transferOwnership(address(timelock));
+        resonance.transferOwnership(address(timelock));
         fund.transferOwnership(address(timelock));
 
         timelock.scheduleBatch(targets, values, payloads, bytes32(0), salt, timelock.getMinDelay());
@@ -413,13 +413,13 @@ contract StartingPointTest is Test {
         vm.prank(CAROL);
         timelock.executeBatch(targets, values, payloads, bytes32(0), salt);
 
-        address[] memory strategies = voter.strategies();
+        address[] memory strategies = resonance.strategies();
         address newStrategy = strategies[strategies.length - 1];
 
-        assertEq(voter.bribeBps(), 2_000);
+        assertEq(resonance.bribeBps(), 2_000);
         assertEq(fund.successor(), address(successor));
-        assertTrue(voter.isStrategy(newStrategy));
-        assertFalse(voter.isStrategyAlive(address(buybackStrategy)));
+        assertTrue(resonance.isStrategy(newStrategy));
+        assertFalse(resonance.isStrategyAlive(address(buybackStrategy)));
     }
 
     function test_GBXLifetimeCapDoesNotReopenAfterBurns() external {
@@ -433,17 +433,17 @@ contract StartingPointTest is Test {
         assertEq(gbx.lifetimeBurned(), gbx.GENESIS_LIQUIDITY_ALLOCATION() + 50 ether);
     }
 
-    function _stakeAndVote() private {
+    function _stakeAndSignal() private {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
         signalGBX.stake(100 ether);
-        voter.vote(_singleAddress(address(acquisitionStrategy)), _singleUint(1));
+        resonance.signal(_singleAddress(address(acquisitionStrategy)), _singleUint(1));
         vm.stopPrank();
 
         vm.startPrank(BOB);
         gbx.approve(address(signalGBX), 100 ether);
         signalGBX.stake(100 ether);
-        voter.vote(_singleAddress(address(buybackStrategy)), _singleUint(1));
+        resonance.signal(_singleAddress(address(buybackStrategy)), _singleUint(1));
         vm.stopPrank();
     }
 

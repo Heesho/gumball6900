@@ -6,7 +6,7 @@ export const bribeAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'voter_',
+        name: 'resonance_',
         type: 'address',
         internalType: 'address',
       },
@@ -203,6 +203,19 @@ export const bribeAbi = [
   },
   {
     type: 'function',
+    name: 'resonance',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'rewardData',
     inputs: [
       {
@@ -330,19 +343,6 @@ export const bribeAbi = [
   },
   {
     type: 'function',
-    name: 'voter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'withdraw',
     inputs: [
       {
@@ -418,7 +418,7 @@ export const bribeAbi = [
   },
   {
     type: 'event',
-    name: 'VotingWeightDeposited',
+    name: 'SignalWeightDeposited',
     inputs: [
       {
         name: 'account',
@@ -437,7 +437,7 @@ export const bribeAbi = [
   },
   {
     type: 'event',
-    name: 'VotingWeightWithdrawn',
+    name: 'SignalWeightWithdrawn',
     inputs: [
       {
         name: 'account',
@@ -472,10 +472,10 @@ export const bribeAbi = [
   },
   {
     type: 'error',
-    name: 'NotRewardToken',
+    name: 'NotResonance',
     inputs: [
       {
-        name: 'token',
+        name: 'caller',
         type: 'address',
         internalType: 'address',
       },
@@ -483,10 +483,10 @@ export const bribeAbi = [
   },
   {
     type: 'error',
-    name: 'NotVoter',
+    name: 'NotRewardToken',
     inputs: [
       {
-        name: 'caller',
+        name: 'token',
         type: 'address',
         internalType: 'address',
       },
@@ -604,10 +604,23 @@ export const bribeFactoryAbi = [
   },
   {
     type: 'function',
-    name: 'setVoter',
+    name: 'resonance',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'setResonance',
     inputs: [
       {
-        name: 'voter_',
+        name: 'resonance_',
         type: 'address',
         internalType: 'address',
       },
@@ -629,19 +642,6 @@ export const bribeFactoryAbi = [
     stateMutability: 'nonpayable',
   },
   {
-    type: 'function',
-    name: 'voter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
     type: 'event',
     name: 'BribeCreated',
     inputs: [
@@ -652,7 +652,7 @@ export const bribeFactoryAbi = [
         internalType: 'address',
       },
       {
-        name: 'voter',
+        name: 'resonance',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -681,10 +681,10 @@ export const bribeFactoryAbi = [
   },
   {
     type: 'event',
-    name: 'VoterSet',
+    name: 'ResonanceSet',
     inputs: [
       {
-        name: 'voter',
+        name: 'resonance',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -694,7 +694,7 @@ export const bribeFactoryAbi = [
   },
   {
     type: 'error',
-    name: 'NotVoter',
+    name: 'NotResonance',
     inputs: [
       {
         name: 'caller',
@@ -727,10 +727,10 @@ export const bribeFactoryAbi = [
   },
   {
     type: 'error',
-    name: 'VoterAlreadySet',
+    name: 'ResonanceAlreadySet',
     inputs: [
       {
-        name: 'voter',
+        name: 'resonance',
         type: 'address',
         internalType: 'address',
       },
@@ -1398,7 +1398,7 @@ export const fundraiserAbi = [
         internalType: 'contract IERC20',
       },
       {
-        name: 'voterRouter_',
+        name: 'resonanceRouter_',
         type: 'address',
         internalType: 'address',
       },
@@ -1721,6 +1721,19 @@ export const fundraiserAbi = [
   },
   {
     type: 'function',
+    name: 'resonanceRouter',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'settleEpochs',
     inputs: [
       {
@@ -1760,19 +1773,6 @@ export const fundraiserAbi = [
         name: '',
         type: 'address',
         internalType: 'contract IERC20',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'voterRouter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -3137,7 +3137,7 @@ export const liquidityPositionAbi = [
             internalType: 'contract IERC20',
           },
           {
-            name: 'voterRouter',
+            name: 'resonanceRouter',
             type: 'address',
             internalType: 'address',
           },
@@ -3483,6 +3483,19 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'function',
+    name: 'resonanceRouter',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'setSuccessor',
     inputs: [
       {
@@ -3542,19 +3555,6 @@ export const liquidityPositionAbi = [
         name: '',
         type: 'address',
         internalType: 'contract IERC20',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'voterRouter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -5426,10 +5426,23 @@ export const signalGbxAbi = [
   },
   {
     type: 'function',
-    name: 'setVoter',
+    name: 'resonance',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'setResonance',
     inputs: [
       {
-        name: 'voter_',
+        name: 'resonance_',
         type: 'address',
         internalType: 'address',
       },
@@ -5556,19 +5569,6 @@ export const signalGbxAbi = [
     stateMutability: 'nonpayable',
   },
   {
-    type: 'function',
-    name: 'voter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
     type: 'event',
     name: 'Approval',
     inputs: [
@@ -5670,6 +5670,19 @@ export const signalGbxAbi = [
   },
   {
     type: 'event',
+    name: 'ResonanceSet',
+    inputs: [
+      {
+        name: 'resonance',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'Staked',
     inputs: [
       {
@@ -5732,21 +5745,8 @@ export const signalGbxAbi = [
     anonymous: false,
   },
   {
-    type: 'event',
-    name: 'VoterSet',
-    inputs: [
-      {
-        name: 'voter',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
     type: 'error',
-    name: 'ActiveVotes',
+    name: 'ActiveSignals',
     inputs: [
       {
         name: 'account',
@@ -5754,7 +5754,7 @@ export const signalGbxAbi = [
         internalType: 'address',
       },
       {
-        name: 'usedWeight',
+        name: 'signalWeight',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -5992,6 +5992,17 @@ export const signalGbxAbi = [
   },
   {
     type: 'error',
+    name: 'ResonanceAlreadySet',
+    inputs: [
+      {
+        name: 'resonance',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'SafeCastOverflowedUintDowncast',
     inputs: [
       {
@@ -6035,17 +6046,6 @@ export const signalGbxAbi = [
   },
   {
     type: 'error',
-    name: 'VoterAlreadySet',
-    inputs: [
-      {
-        name: 'voter',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'VotesExpiredSignature',
     inputs: [
       {
@@ -6071,7 +6071,7 @@ export const strategyAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'voter_',
+        name: 'resonance_',
         type: 'address',
         internalType: 'address',
       },
@@ -6408,6 +6408,19 @@ export const strategyAbi = [
   },
   {
     type: 'function',
+    name: 'resonance',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'revenueToken',
     inputs: [],
     outputs: [
@@ -6415,19 +6428,6 @@ export const strategyAbi = [
         name: '',
         type: 'address',
         internalType: 'contract IERC20',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'voter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -6715,10 +6715,23 @@ export const strategyFactoryAbi = [
   },
   {
     type: 'function',
-    name: 'setVoter',
+    name: 'resonance',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'setResonance',
     inputs: [
       {
-        name: 'voter_',
+        name: 'resonance_',
         type: 'address',
         internalType: 'address',
       },
@@ -6740,19 +6753,6 @@ export const strategyFactoryAbi = [
     stateMutability: 'nonpayable',
   },
   {
-    type: 'function',
-    name: 'voter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
     type: 'event',
     name: 'OwnershipTransferred',
     inputs: [
@@ -6764,6 +6764,19 @@ export const strategyFactoryAbi = [
       },
       {
         name: 'newOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'ResonanceSet',
+    inputs: [
+      {
+        name: 'resonance',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -6803,21 +6816,8 @@ export const strategyFactoryAbi = [
     anonymous: false,
   },
   {
-    type: 'event',
-    name: 'VoterSet',
-    inputs: [
-      {
-        name: 'voter',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
     type: 'error',
-    name: 'NotVoter',
+    name: 'NotResonance',
     inputs: [
       {
         name: 'caller',
@@ -6850,10 +6850,10 @@ export const strategyFactoryAbi = [
   },
   {
     type: 'error',
-    name: 'VoterAlreadySet',
+    name: 'ResonanceAlreadySet',
     inputs: [
       {
-        name: 'voter',
+        name: 'resonance',
         type: 'address',
         internalType: 'address',
       },
@@ -6865,7 +6865,7 @@ export const strategyFactoryAbi = [
     inputs: [],
   },
 ] as const;
-export const voterAbi = [
+export const resonanceAbi = [
   {
     type: 'constructor',
     inputs: [
@@ -6956,7 +6956,7 @@ export const voterAbi = [
   },
   {
     type: 'function',
-    name: 'accountStrategies',
+    name: 'accountSignalWeight',
     inputs: [
       {
         name: 'account',
@@ -6966,26 +6966,7 @@ export const voterAbi = [
     ],
     outputs: [
       {
-        name: 'strategyList',
-        type: 'address[]',
-        internalType: 'address[]',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'accountUsedWeight',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'weight',
+        name: 'signalWeight',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -6994,7 +6975,7 @@ export const voterAbi = [
   },
   {
     type: 'function',
-    name: 'accountVotes',
+    name: 'accountSignals',
     inputs: [
       {
         name: 'account',
@@ -7009,9 +6990,28 @@ export const voterAbi = [
     ],
     outputs: [
       {
-        name: 'votes',
+        name: 'signals',
         type: 'uint256',
         internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'accountStrategies',
+    inputs: [
+      {
+        name: 'account',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'strategyList',
+        type: 'address[]',
+        internalType: 'address[]',
       },
     ],
     stateMutability: 'view',
@@ -7379,6 +7379,19 @@ export const voterAbi = [
   },
   {
     type: 'function',
+    name: 'resonanceRouter',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'revenueIndex',
     inputs: [],
     outputs: [
@@ -7405,12 +7418,30 @@ export const voterAbi = [
   },
   {
     type: 'function',
-    name: 'setVoterRouter',
+    name: 'setResonanceRouter',
     inputs: [
       {
-        name: 'voterRouter_',
+        name: 'resonanceRouter_',
         type: 'address',
         internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'signal',
+    inputs: [
+      {
+        name: 'requestedStrategies',
+        type: 'address[]',
+        internalType: 'address[]',
+      },
+      {
+        name: 'relativeWeights',
+        type: 'uint256[]',
+        internalType: 'uint256[]',
       },
     ],
     outputs: [],
@@ -7476,7 +7507,7 @@ export const voterAbi = [
   },
   {
     type: 'function',
-    name: 'strategyWeight',
+    name: 'strategySignalWeight',
     inputs: [
       {
         name: 'strategy',
@@ -7486,7 +7517,7 @@ export const voterAbi = [
     ],
     outputs: [
       {
-        name: 'weight',
+        name: 'signalWeight',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -7495,7 +7526,7 @@ export const voterAbi = [
   },
   {
     type: 'function',
-    name: 'totalWeight',
+    name: 'totalSignalWeight',
     inputs: [],
     outputs: [
       {
@@ -7541,37 +7572,6 @@ export const voterAbi = [
         name: '',
         type: 'address',
         internalType: 'contract IERC20',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'vote',
-    inputs: [
-      {
-        name: 'requestedStrategies',
-        type: 'address[]',
-        internalType: 'address[]',
-      },
-      {
-        name: 'relativeWeights',
-        type: 'uint256[]',
-        internalType: 'uint256[]',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'voterRouter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -7641,6 +7641,19 @@ export const voterAbi = [
   },
   {
     type: 'event',
+    name: 'ResonanceRouterSet',
+    inputs: [
+      {
+        name: 'resonanceRouter',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'RevenueDistributed',
     inputs: [
       {
@@ -7669,13 +7682,63 @@ export const voterAbi = [
     name: 'RevenueNotified',
     inputs: [
       {
-        name: 'voterRouter',
+        name: 'resonanceRouter',
         type: 'address',
         indexed: true,
         internalType: 'address',
       },
       {
         name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'SignalAllocated',
+    inputs: [
+      {
+        name: 'account',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'strategy',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'signalWeight',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'SignalReset',
+    inputs: [
+      {
+        name: 'account',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'strategy',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'signalWeight',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -7726,69 +7789,6 @@ export const voterAbi = [
     inputs: [
       {
         name: 'strategy',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'VoteCast',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'strategy',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'weight',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'VoteReset',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'strategy',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'weight',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'VoterRouterSet',
-    inputs: [
-      {
-        name: 'voterRouter',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -7868,6 +7868,17 @@ export const voterAbi = [
   },
   {
     type: 'error',
+    name: 'ResonanceRouterAlreadySet',
+    inputs: [
+      {
+        name: 'resonanceRouter',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'SafeERC20FailedOperation',
     inputs: [
       {
@@ -7912,17 +7923,6 @@ export const voterAbi = [
   },
   {
     type: 'error',
-    name: 'VoterRouterAlreadySet',
-    inputs: [
-      {
-        name: 'voterRouter',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'ZeroAddress',
     inputs: [],
   },
@@ -7933,12 +7933,7 @@ export const voterAbi = [
   },
   {
     type: 'error',
-    name: 'ZeroTotalWeight',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ZeroVoteWeight',
+    name: 'ZeroSignalWeight',
     inputs: [
       {
         name: 'strategy',
@@ -7947,8 +7942,13 @@ export const voterAbi = [
       },
     ],
   },
+  {
+    type: 'error',
+    name: 'ZeroTotalRelativeWeight',
+    inputs: [],
+  },
 ] as const;
-export const voterRouterAbi = [
+export const resonanceRouterAbi = [
   {
     type: 'constructor',
     inputs: [
@@ -7958,7 +7958,7 @@ export const voterRouterAbi = [
         internalType: 'contract IERC20',
       },
       {
-        name: 'voter_',
+        name: 'resonance_',
         type: 'address',
         internalType: 'address',
       },
@@ -7974,6 +7974,19 @@ export const voterRouterAbi = [
         name: 'amount',
         type: 'uint256',
         internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'resonance',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -8000,19 +8013,6 @@ export const voterRouterAbi = [
         name: '',
         type: 'address',
         internalType: 'contract IERC20',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'voter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
       },
     ],
     stateMutability: 'view',

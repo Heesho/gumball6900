@@ -3,9 +3,9 @@
 Typed ABIs, transaction builders, canonical-block readers, validation, and independent Uniswap pool-key helpers for the
 GUM BALL 6900 development core.
 
-The generated ABI set covers `GBX`, `Fundraiser`, `LiquidityPosition`, `SignalGBX`, `VoterRouter`, `Voter`,
+The generated ABI set covers `GBX`, `Fundraiser`, `LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`,
 `StrategyFactory`, `Strategy`, `BribeFactory`, `BribeRouter`, `Bribe`, `Fund`, and OpenZeppelin `TimelockController`. Strategies, Bribes, and
-BribeRouters are discovered through Voter rather than stored as fixed deployment addresses.
+BribeRouters are discovered through Resonance rather than stored as fixed deployment addresses.
 
 ```ts
 import {
@@ -13,18 +13,18 @@ import {
   buildCollectLiquidityFees,
   buildRedemption,
   buildStrategyBuy,
-  buildVote,
+  buildSignal,
   buildSettleFundraiserEpochs,
   readRedemptionPreview,
   readSupplyView,
-  readVoterView,
+  readResonanceView,
 } from '@gumball-6900/sdk';
 
 const supply = await readSupplyView(publicClient, gbx);
-const voter = await readVoterView(publicClient, voterAddress);
+const resonance = await readResonanceView(publicClient, resonanceAddress);
 const preview = await readRedemptionPreview(publicClient, { fund, gbx }, amount, selectedTokens);
 
-const vote = buildVote(voterAddress, strategyAddresses, relativeWeights);
+const signal = buildSignal(resonanceAddress, strategyAddresses, relativeWeights);
 const contribution = buildContribution(fundraiser, beneficiary, usdGAmount);
 const settlement = buildSettleFundraiserEpochs(fundraiser, 30n);
 const feeCollection = buildCollectLiquidityFees(liquidityPosition);

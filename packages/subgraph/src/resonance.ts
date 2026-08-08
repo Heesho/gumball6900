@@ -6,10 +6,10 @@ import {
   RevenueNotified,
   StrategyAdded,
   StrategyKilled,
-  VoteCast,
-  VoteReset,
-  VoterRouterSet,
-} from '../generated/Voter/Voter';
+  SignalAllocated,
+  SignalReset,
+  ResonanceRouterSet,
+} from '../generated/Resonance/Resonance';
 import { getAccount, getProtocol, getStrategy, recordEvent } from './entities';
 
 export function handleBribeBpsSet(event: BribeBpsSet): void {
@@ -17,13 +17,13 @@ export function handleBribeBpsSet(event: BribeBpsSet): void {
   protocol.bribeBps = event.params.newBps;
   protocol.save();
 
-  const record = recordEvent(event, 'VOTER_BRIBE_BPS_SET');
+  const record = recordEvent(event, 'RESONANCE_BRIBE_BPS_SET');
   record.values = [event.params.previousBps, event.params.newBps];
   record.save();
 }
 
 export function handleBribeRewardAdded(event: BribeRewardAdded): void {
-  const record = recordEvent(event, 'VOTER_BRIBE_REWARD_ADDED');
+  const record = recordEvent(event, 'RESONANCE_BRIBE_REWARD_ADDED');
   record.addresses = [event.params.strategy, event.params.bribe, event.params.rewardToken];
   record.save();
 }
@@ -37,7 +37,7 @@ export function handleRevenueDistributed(event: RevenueDistributed): void {
   strategy.distributedRevenueRaw = strategy.distributedRevenueRaw.plus(event.params.amount);
   strategy.save();
 
-  const record = recordEvent(event, 'VOTER_REVENUE_DISTRIBUTED');
+  const record = recordEvent(event, 'RESONANCE_REVENUE_DISTRIBUTED');
   record.addresses = [event.params.caller, event.params.strategy];
   record.values = [event.params.amount];
   record.save();
@@ -48,8 +48,8 @@ export function handleRevenueNotified(event: RevenueNotified): void {
   protocol.notifiedRevenueRaw = protocol.notifiedRevenueRaw.plus(event.params.amount);
   protocol.save();
 
-  const record = recordEvent(event, 'VOTER_REVENUE_NOTIFIED');
-  record.addresses = [event.params.voterRouter];
+  const record = recordEvent(event, 'RESONANCE_REVENUE_NOTIFIED');
+  record.addresses = [event.params.resonanceRouter];
   record.values = [event.params.amount];
   record.save();
 }
@@ -67,7 +67,7 @@ export function handleStrategyAdded(event: StrategyAdded): void {
   strategy.live = true;
   strategy.save();
 
-  const record = recordEvent(event, 'VOTER_STRATEGY_ADDED');
+  const record = recordEvent(event, 'RESONANCE_STRATEGY_ADDED');
   record.addresses = [event.params.strategy, event.params.bribe, event.params.bribeRouter, event.params.paymentToken];
   record.values = [BigInt.fromI32(event.params.kind)];
   record.save();
@@ -78,47 +78,47 @@ export function handleStrategyKilled(event: StrategyKilled): void {
   strategy.live = false;
   strategy.save();
 
-  const record = recordEvent(event, 'VOTER_STRATEGY_KILLED');
+  const record = recordEvent(event, 'RESONANCE_STRATEGY_KILLED');
   record.addresses = [event.params.strategy];
   record.save();
 }
 
-export function handleVoteCast(event: VoteCast): void {
+export function handleSignalAllocated(event: SignalAllocated): void {
   const account = getAccount(event.params.account, event);
-  account.votingWeightRaw = account.votingWeightRaw.plus(event.params.weight);
+  account.signalWeightRaw = account.signalWeightRaw.plus(event.params.signalWeight);
   account.save();
 
   const strategy = getStrategy(event.params.strategy, event);
-  strategy.totalWeightRaw = strategy.totalWeightRaw.plus(event.params.weight);
+  strategy.totalSignalWeightRaw = strategy.totalSignalWeightRaw.plus(event.params.signalWeight);
   strategy.save();
 
-  const record = recordEvent(event, 'VOTER_VOTE_CAST');
+  const record = recordEvent(event, 'RESONANCE_SIGNAL_ALLOCATED');
   record.addresses = [event.params.account, event.params.strategy];
-  record.values = [event.params.weight];
+  record.values = [event.params.signalWeight];
   record.save();
 }
 
-export function handleVoteReset(event: VoteReset): void {
+export function handleSignalReset(event: SignalReset): void {
   const account = getAccount(event.params.account, event);
-  account.votingWeightRaw = account.votingWeightRaw.minus(event.params.weight);
+  account.signalWeightRaw = account.signalWeightRaw.minus(event.params.signalWeight);
   account.save();
 
   const strategy = getStrategy(event.params.strategy, event);
-  strategy.totalWeightRaw = strategy.totalWeightRaw.minus(event.params.weight);
+  strategy.totalSignalWeightRaw = strategy.totalSignalWeightRaw.minus(event.params.signalWeight);
   strategy.save();
 
-  const record = recordEvent(event, 'VOTER_VOTE_RESET');
+  const record = recordEvent(event, 'RESONANCE_SIGNAL_RESET');
   record.addresses = [event.params.account, event.params.strategy];
-  record.values = [event.params.weight];
+  record.values = [event.params.signalWeight];
   record.save();
 }
 
-export function handleVoterRouterSet(event: VoterRouterSet): void {
+export function handleResonanceRouterSet(event: ResonanceRouterSet): void {
   const protocol = getProtocol(event);
-  protocol.voterRouter = event.params.voterRouter;
+  protocol.resonanceRouter = event.params.resonanceRouter;
   protocol.save();
 
-  const record = recordEvent(event, 'VOTER_ROUTER_SET');
-  record.addresses = [event.params.voterRouter];
+  const record = recordEvent(event, 'RESONANCE_ROUTER_SET');
+  record.addresses = [event.params.resonanceRouter];
   record.save();
 }

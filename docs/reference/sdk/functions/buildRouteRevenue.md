@@ -6,15 +6,15 @@
 
 # Function: buildRouteRevenue()
 
-> **buildRouteRevenue**(`voterRouter`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildRouteRevenue**(`resonanceRouter`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Routes all USDG currently held by VoterRouter into Voter.
+Routes all USDG currently held by ResonanceRouter into Resonance.
 
 ## Parameters
 
-| Parameter     | Type                |
-| ------------- | ------------------- |
-| `voterRouter` | `` `0x${string}` `` |
+| Parameter         | Type                |
+| ----------------- | ------------------- |
+| `resonanceRouter` | `` `0x${string}` `` |
 
 ## Returns
 

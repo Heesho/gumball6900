@@ -12,7 +12,7 @@ lifetime allocation: 20 million GBX in a single-sided Uniswap v4 position and 98
 contributors using the already modeled four-year-half-life schedule.
 
 Automatically reinvesting the v4 fees would depend on reliable third-party executors. The simpler intended fee policy
-is to burn GBX and route USDG into voter-directed Strategies.
+is to burn GBX and route USDG into signal-directed Strategies.
 
 ## Decision
 
@@ -27,7 +27,7 @@ is to burn GBX and route USDG into voter-directed Strategies.
 - LiquidityPosition holds one precommitted nonempty PositionManager NFT for the exact hookless GBX/USDG pool and tick
   range. It accepts no arbitrary NFT.
 - Permissionless collection requests zero liquidity removal, burns the contract's complete GBX balance, and routes its
-  complete USDG balance through VoterRouter.
+  complete USDG balance through ResonanceRouter.
 - LiquidityPosition exposes no arbitrary NFT withdrawal. Timelocked governance can bind one configuration-identical
   successor, after which anyone can migrate the exact position.
 

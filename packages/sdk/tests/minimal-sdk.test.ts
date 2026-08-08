@@ -78,8 +78,8 @@ describe('minimal SDK reads and deployment metadata', () => {
       'signalGBX',
       'strategyFactory',
       'timelockController',
-      'voter',
-      'voterRouter',
+      'resonance',
+      'resonanceRouter',
     ] as const;
     const deployment = Object.fromEntries(keys.map((key, index) => [key, address(index + 1)]));
     expect(protocolAddressesSchema.parse(deployment)).toEqual(
