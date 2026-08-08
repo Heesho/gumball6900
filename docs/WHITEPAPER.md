@@ -81,9 +81,11 @@ The economic loop has five steps:
 
 Revenue follows the normal path:
 
-`Fundraiser -> Resonance -> Strategy`
+`Fundraiser -> ResonanceRouter -> Resonance -> Strategy`
 
-The routing layer does not decide which asset deserves capital. It reads the live `sGBX` distribution and applies it.
+All contribution revenue enters through a single router. There is no second path into the Fund and no discretionary
+wallet in between. The routing layer does not decide which asset deserves capital: it reads the live `sGBX`
+distribution and applies it.
 
 ## 4. Protocol components
 
@@ -119,6 +121,17 @@ The Fundraiser follows a fixed daily declining schedule. The initial scheduled d
 `465,152.749681042811702004 GBX`, multiplied each day by a decay factor of `0.999525354337060160`. This corresponds to a
 1,460-day, or four-year, half-life. Contributions within a day share that day's emission proportionally. An empty day
 forfeits its scheduled emission; it does not carry forward.
+
+The two constants are not independent, and the relationship between them is the point. The opening emission is derived
+from the decay factor so that the schedule pays out its own allocation and no more:
+
+`E_0 = A x (1 - d)`, so `sum over t of E_0 x d^t = E_0 / (1 - d) = A`
+
+where `A` is the 980,000,000 GBX mining allocation and `d` is the daily decay factor. Summing the entire infinite
+schedule returns the allocation exactly, so the mining cap is a property of the arithmetic rather than a separate
+check. Each four-year period closes half the remaining distance to it: about 50% of the allocation is emitted by year
+four, 75% by year eight, and 93.75% by year sixteen. The daily emission never reaches zero, and the total never exceeds
+980,000,000 GBX.
 
 Burning GBX never reopens mint capacity. Cumulative minting can never exceed one billion GBX even if previously minted
 tokens have been burned.
@@ -208,15 +221,30 @@ contributions, signals, and completed acquisitions.
 
 ## 8. Acquisitions
 
-A normal Strategy accumulates USDG and runs a bounded reverse Dutch auction for its target asset.
+A normal Strategy accumulates USDG and runs a reverse Dutch auction for its target asset.
 
-The auction begins with an expensive asking amount of target asset. That ask falls over time within configured bounds.
-A market participant fills when the amount requested in exchange for the Strategy's USDG becomes acceptable. The swap
-is atomic: the buyer receives USDG and the target asset enters protocol flow in the same transaction.
+The direction matters, so state it plainly: the Strategy is the seller of USDG. It offers its accumulated USDG balance
+and asks a filler to hand over a quantity of the target asset in exchange. The auction opens by demanding a large
+quantity — a good deal for the protocol and a bad one for the filler — and that demand decays linearly to zero as the
+epoch elapses:
+
+`payment(t) = init - floor(init x t / period)`
+
+There is no floor price. If nobody fills, the requirement reaches zero at the end of the epoch. The moment a filler
+chooses to act is itself the price discovery. The swap is atomic: the filler receives the USDG and the target asset
+enters protocol flow in the same transaction.
+
+After a fill at payment `p`, the next epoch opens at `p` multiplied by a bounded price multiplier, floored at a
+configured minimum. That ratchet is what removes the oracle. The protocol never reads a price; it proposes one,
+observes whether the market takes it, and adjusts. A fill that arrives early says the opening ask was too generous and
+the next epoch opens higher; a fill that arrives late, or not at all, says the opposite.
+
+Auction parameters are bounded by construction: the epoch period between one hour and one year, and the price
+multiplier between 1.1x and 3x. Those bounds constrain how fast the ratchet can move, not where it settles.
 
 This design avoids requiring the core protocol to maintain a price feed for every possible asset. It does not remove
-market risk. Poor liquidity, unusual token behavior, thin participation, or badly chosen auction bounds can still lead
-to delayed or unfavorable execution.
+market risk. Poor liquidity, unusual token behavior, thin participation, or badly chosen epoch and multiplier
+parameters can still lead to delayed or unfavorable execution.
 
 ## 9. Fund formation and signal rewards
 
@@ -230,6 +258,27 @@ the signal-reward share returns to the Fund.
 
 This structure combines a common benefit with a personal incentive. Most of each acquisition strengthens the shared
 basket, while the smaller share lets a holder earn the asset they chose to signal.
+
+Rewards are streamed rather than airdropped. They accrue against signal weight held over the distribution period
+using a reward-per-weight accumulator, so signaling immediately before a fill does not retroactively earn the whole
+reward.
+
+### 9.1 Following one contribution
+
+The following trace is illustrative and assumes every step completes. None of them is guaranteed.
+
+1. **Mine.** A contributor sends 1,000 USDG on a day scheduled to emit 100,000 GBX where 50,000 USDG is contributed in
+   total. They receive 2,000 GBX, a 2% share of the day. A quieter day would have produced more GBX for the same
+   1,000 USDG.
+2. **Signal.** They stake the 2,000 GBX into 2,000 `sGBX` and allocate all of it to the NVDA Strategy.
+3. **Route.** The 1,000 USDG reaches `ResonanceRouter`, then Resonance, which reads live weights. If the NVDA Strategy
+   holds 30% of active signal weight, that Strategy receives about 300 USDG. Capital follows the aggregate
+   distribution, not the preference of the specific contributor who supplied it.
+4. **Acquire.** The Strategy offers its accumulated USDG and the required NVDA payment decays until a filler acts.
+5. **Split.** 90% of the received asset enters the Fund; 10% streams to eligible NVDA signalers, including this
+   holder.
+6. **Redeem.** Later, the holder burns GBX and names the Fund assets they want, receiving a proportional share of
+   exactly those assets, in kind.
 
 ## 10. Fund behavior and redemption
 

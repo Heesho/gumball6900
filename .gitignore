@@ -14,6 +14,9 @@ out/
 artifacts/
 typechain-types/
 generated/
+docs/whitepaper/build/
+.claude/launch.json
+.claude/worktrees/
 packages/subgraph/build/
 packages/subgraph/build-dry-run/
 packages/subgraph/tests/.bin/
