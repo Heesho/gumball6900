@@ -105,7 +105,8 @@ def test_fixture_invariants_and_burns_do_not_reopen_capacity() -> None:
             )
 
     rewards = suite["managerRewards"]["rewardYieldByStrategy"]
-    assert as_int(rewards[0]["managerReward"]) * 50 == as_int(rewards[0]["acquired"])
+    # Launch share is 10%, so the acquisition is ten times the reward.
+    assert as_int(rewards[0]["managerReward"]) * 10 == as_int(rewards[0]["acquired"])
     assert rewards[2]["managerReward"] == "0"
     assert rewards[2]["vaultGrowth"] == rewards[2]["acquired"]
 

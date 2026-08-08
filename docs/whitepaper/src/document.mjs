@@ -146,7 +146,7 @@ export const pages = [
               <div class="kpi__label">Team or investor allocation</div>
             </div>
             <div>
-              <div class="kpi__value">Four</div>
+              <div class="kpi__value">Five</div>
               <div class="kpi__label">Management actions</div>
             </div>
           </div>
@@ -227,7 +227,7 @@ export const pages = [
         <div class="stack-3">
           <p class="eyebrow" style="color:${palette.blueBright};">Fixed by construction</p>
           <p class="note" style="color:${palette.onDeepMuted}; max-width:150mm;">
-            These values are set before deployment. In the intended final design none of them has a setter.
+            Set before deployment. Only the signal-reward share can be changed afterwards, and only within its cap.
           </p>
           <div class="stack-1" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:5mm 8mm;">
             ${[
@@ -235,7 +235,7 @@ export const pages = [
               ['20,000,000 GBX', 'Genesis liquidity, committed'],
               ['0 GBX', 'Team, investor and presale allocation'],
               [`${constants.halfLifeDays.toLocaleString()} days`, 'Emission half-life'],
-              [`${facts.fundPercent} / ${facts.signalRewardPercent}`, 'Fund and signal-reward split'],
+              [`${facts.signalRewardPercent}%`, 'Signal-reward share at launch, capped at 50%'],
               ['None', 'Withdrawal lock, cooldown or epoch'],
             ]
               .map(
@@ -302,7 +302,7 @@ export const pages = [
           index: context.figure('map'),
           svg: fig.systemMap({ width: widths.full }),
           caption:
-            'Contribution revenue has exactly one entrance and follows live signal weight to a Strategy. Acquisitions split 90/10 between shared backing and the signalers who directed them. Redemption and burning are the only exits, and burned capacity never reopens.',
+            'Contribution revenue has exactly one entrance and follows live signal weight to a Strategy. Acquisitions divide between shared backing and the signalers who directed them, 90/10 at launch. Redemption and burning are the only exits, and burned capacity never reopens.',
         })}
       </div>
     `,
@@ -404,7 +404,7 @@ export const pages = [
                 ],
                 [
                   'Governance minimization',
-                  'Signals govern capital. Management holds four explicitly authorized actions, and the deployed core cannot be upgraded.',
+                  'Signals govern capital. Management holds five explicitly authorized actions, each bounded, and the deployed core cannot be upgraded.',
                 ],
                 [
                   'Inspectability',
@@ -440,7 +440,11 @@ export const pages = [
               <ul class="checklist capital">
                 <li><span class="muted">That every contributed USDG enters the signal-directed path.</span></li>
                 <li><span class="muted">That miners compete for a schedule, not a team-set price.</span></li>
-                <li><span class="muted">That a completed acquisition splits 90/10 and cannot be re-split.</span></li>
+                <li>
+                  <span class="muted"
+                    >That the Fund keeps the majority of every acquisition, whatever the reward share is set to.</span
+                  >
+                </li>
                 <li><span class="muted">That burning never reopens mint capacity.</span></li>
                 <li><span class="muted">That redemption cannot be paused.</span></li>
               </ul>
@@ -692,7 +696,11 @@ export const pages = [
                 >
               </li>
               <li><span class="muted">Miners compete for a fixed schedule, not a team-selected sale price.</span></li>
-              <li><span class="muted">A completed acquisition splits 90/10 and cannot be re-split.</span></li>
+              <li>
+                <span class="muted"
+                  >The Fund keeps the majority of every acquisition, whatever the share is set to.</span
+                >
+              </li>
             </ul>
           </div>
           <div class="ledger__side">
@@ -797,7 +805,7 @@ export const pages = [
             ${note({
               label: 'Order matters',
               kind: 'asset',
-              body: 'Capital is split by signal <em>before</em> anything is acquired, and by the fixed 90/10 rule <em>after</em>. No party sits between the two splits with a choice to make.',
+              body: 'Capital is split by signal <em>before</em> anything is acquired, and by the reward share <em>after</em>. No party sits between the two splits with a choice to make.',
             })}
           </div>
         </div>
@@ -874,7 +882,7 @@ export const pages = [
   {
     id: 'formation',
     runner: '10 · Fund formation and rewards',
-    section: { number: 10, title: 'Fund formation and signal rewards', note: 'The 90/10 split' },
+    section: { number: 10, title: 'Fund formation and signal rewards', note: 'How each acquisition divides' },
     render: () => html`
       <div class="frame">
         ${sectionHead({
@@ -891,9 +899,11 @@ export const pages = [
               Strategy's Bribe, which streams that same asset across eligible signal balances.
             </p>
             <p>
-              The split is fixed before deployment and the deployed core has no setter for it. If a Strategy has no
-              eligible signalers at the moment of distribution, the reward share does not accumulate anywhere or wait
-              for a claimant — it returns to the Fund.
+              Ten percent is the launch value, not a constant. The share is adjustable through timelocked governance and
+              bounded: it may never exceed 50%, so a majority of every acquisition always reaches the Fund. Raising it
+              moves value from shared backing toward the holders who directed that specific acquisition; lowering it
+              does the reverse. If a Strategy has no eligible signalers at the moment of distribution, the reward share
+              does not accumulate anywhere or wait for a claimant — it returns to the Fund.
             </p>
             <p>
               The structure pairs a common benefit with a personal one. Most of what a signal directs becomes backing
@@ -1131,7 +1141,7 @@ export const pages = [
     id: 'governance',
     runner: '15 · Governance-minimized design',
     group: 'What must hold, and what can fail',
-    section: { number: 15, title: 'Governance-minimized final design', note: 'Four doors, no upgrade' },
+    section: { number: 15, title: 'Governance-minimized final design', note: 'Five doors, no upgrade' },
     render: (context) => html`
       <div class="frame">
         ${sectionHead({
@@ -1144,26 +1154,26 @@ export const pages = [
           index: context.figure('governance'),
           svg: fig.governancePerimeter({ width: widths.full }),
           caption:
-            'The four authorized actions are the entire management surface of the intended final system. Everything on the right has no entry point, not a restricted one.',
+            'The five authorized actions are the entire management surface of the intended final system. Everything on the right has no entry point, not a restricted one.',
         })}
         <div class="spread stack-2">
           <div class="col-main">
             <p>
               sGBX holders direct capital continuously by signaling active Strategies. Management maintains the edges of
-              the system — which Strategies exist, what the management fee is, and what additional Bribe rewards are
-              registered — and can do nothing else.
+              the system — which Strategies exist, what the management fee is, how each acquisition divides between the
+              Fund and its signalers, and what additional Bribe rewards are registered — and can do nothing else.
             </p>
             <p class="small muted">
               Open work: the exact meaning, basis and bounds of the management fee remain to be specified in the final
               contracts. Strategy removal semantics, Bribe reward registration, manager authorization and key lifecycle
-              must be fully specified without introducing a fifth management action.
+              must be fully specified without introducing a sixth management action.
             </p>
           </div>
           <div class="col-side">
             ${note({
               label: 'Minimized, not absent',
               kind: 'asset',
-              body: 'A compromised manager key can still add or remove Strategies and change the fee. It cannot upgrade the core, withdraw Fund assets, pause redemption, or alter the acquisition split.',
+              body: 'A compromised manager key can still add or remove Strategies, change the fee, and push the signal-reward share to its 50% cap. It cannot upgrade the core, withdraw Fund assets, pause redemption, or touch what the Fund already holds.',
             })}
           </div>
         </div>
@@ -1198,8 +1208,8 @@ export const pages = [
               <li>Redemption uses pre-burn supply and balance snapshots.</li>
               <li>A redemption burn and all selected transfers are atomic.</li>
               <li>
-                A normal acquisition sends 90% to the Fund and 10% to signal rewards, and returns the reward share to
-                the Fund when no eligible signalers exist.
+                A normal acquisition divides the acquired asset at the current signal-reward share, which starts at 10%
+                and can never exceed 50%, and returns that share to the Fund when no eligible signalers exist.
               </li>
               <li>A buyback burns all received GBX atomically and pays no signal reward.</li>
               <li>Liquidity-fee collection removes no principal, burns collected GBX, and routes collected USDG.</li>
@@ -1247,7 +1257,7 @@ export const pages = [
               [
                 'Manager key',
                 'A compromised key adds or removes Strategies, or changes the management fee.',
-                'Four authorized actions only. No upgrade, withdrawal, pause or split-setter to reach.',
+                'Five bounded actions only. No upgrade, no withdrawal, no pause, and no way to reach the Fund&rsquo;s existing holdings.',
               ],
               [
                 'Signal concentration',
@@ -1316,7 +1326,7 @@ export const pages = [
             </p>
             <h3 class="stack-2">Minimum requirements before production</h3>
             <ol class="numbered stack-1">
-              <li>Final contract interfaces matching the four-action management surface.</li>
+              <li>Final contract interfaces matching the five-action management surface.</li>
               <li>Precise management-fee economics, basis and bounds.</li>
               <li>Complete unit, integration, invariant and economic-model tests.</li>
               <li>Reviewed asset and chain configuration.</li>
@@ -1327,9 +1337,9 @@ export const pages = [
           </div>
           <div class="col-side">
             ${note({
-              label: 'Known reconciliation items',
+              label: 'Bounds still to pin down',
               kind: 'asset',
-              body: 'The reference model in <code>packages/simulations</code> currently encodes a different signal-reward share than the 10% specified here. That disagreement is unresolved and blocks production until it is settled in one direction.',
+              body: 'The management fee has no stated definition, basis or bound yet. Until it does, it is the one management action whose reach cannot be checked against a number — unlike the signal-reward share, which is capped at 50%.',
             })}
             ${note({
               label: 'What a green build means',

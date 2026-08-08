@@ -18,6 +18,12 @@ TARGET_UNIT = WAD
 # Strategy rates are human-normalized target tokens per USDG, scaled by WAD.
 UNIT_TARGET_PER_USDG_RATE = WAD
 
+# Launch value of the signal-reward share. Settable through timelocked governance, capped
+# at MAX_MANAGER_REWARD_BPS. Declared here rather than imported so this model stays an
+# independent implementation that can disagree with the TypeScript one and be caught.
+MANAGER_REWARD_BPS = 1_000
+MAX_MANAGER_REWARD_BPS = 5_000
+
 MAX_CUMULATIVE_MINT = 1_000_000_000 * WAD
 GENESIS_LP_GBX = 20_000_000 * WAD
 GENESIS_SUPPLY = GENESIS_LP_GBX
@@ -156,7 +162,7 @@ def next_auction_init_price(payment_amount: int, price_multiplier: int, min_init
 
 
 def acquisition_destinations(acquired: int, has_active_weight: bool) -> Dict[str, Any]:
-    nominal_manager_reward = mul_div(acquired, 200, BPS)
+    nominal_manager_reward = mul_div(acquired, MANAGER_REWARD_BPS, BPS)
     manager_reward = nominal_manager_reward if has_active_weight else 0
     return {
         "acquired": acquired,
@@ -374,7 +380,8 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
             "initialDailyScheduledEmission": INITIAL_DAILY_EMISSION,
             "dailyDecayWad": DAILY_DECAY_WAD,
             "auctionDurationSeconds": DAY,
-            "managerRewardBps": 200,
+            "managerRewardBps": MANAGER_REWARD_BPS,
+            "maxManagerRewardBps": MAX_MANAGER_REWARD_BPS,
             "noOnchainNavOracle": True,
         },
         "emissions": {

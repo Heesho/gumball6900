@@ -12,6 +12,7 @@ import {
   MAX_AUCTION_EPOCH_PERIOD,
   MAX_AUCTION_PRICE_MULTIPLIER,
   MAX_CUMULATIVE_MINT,
+  MAX_MANAGER_REWARD_BPS,
   FUNDRAISER_DISTRIBUTION_ALLOCATION,
   MIN_AUCTION_EPOCH_PERIOD,
   MIN_AUCTION_PRICE_MULTIPLIER,
@@ -165,15 +166,22 @@ describe('auctions and manager rewards', () => {
     );
   });
 
-  it('sends 98% to the vault and 2% to active managers', () => {
+  it('sends 90% to the vault and 10% to active managers at the launch share', () => {
     const live = splitAcquiredAsset(token(42n), true);
-    expect(live.vaultAmount).toBe(41_160_000_000_000_000_000n);
-    expect(live.managerAmount).toBe(840_000_000_000_000_000n);
+    expect(live.vaultAmount).toBe(37_800_000_000_000_000_000n);
+    expect(live.managerAmount).toBe(4_200_000_000_000_000_000n);
     expect(live.vaultAmount + live.managerAmount).toBe(live.actualTargetReceived);
 
     const zeroWeight = splitAcquiredAsset(token(42n), false);
     expect(zeroWeight.vaultAmount).toBe(token(42n));
     expect(zeroWeight.managerAmount).toBe(0n);
+  });
+
+  it('honours a governed share other than the launch value', () => {
+    const raised = splitAcquiredAsset(token(42n), true, MAX_MANAGER_REWARD_BPS);
+    expect(raised.managerAmount).toBe(token(21n));
+    expect(raised.vaultAmount).toBe(token(21n));
+    expect(raised.vaultAmount + raised.managerAmount).toBe(raised.actualTargetReceived);
   });
 
   it('leaves independently floored reward residue in the contract', () => {

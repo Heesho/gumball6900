@@ -26,7 +26,10 @@ MIN_AUCTION_PRICE_MULTIPLIER = 1_100_000_000_000_000_000
 MAX_AUCTION_PRICE_MULTIPLIER = 3 * WAD
 ABS_MIN_AUCTION_INIT_PRICE = 1_000_000
 ABS_MAX_AUCTION_INIT_PRICE = 2**192 - 1
-MANAGER_REWARD_BPS = 200
+# Launch value of the signal-reward share, not a fixed constant: it is settable through
+# timelocked governance and may never exceed MAX_MANAGER_REWARD_BPS.
+MANAGER_REWARD_BPS = 1_000
+MAX_MANAGER_REWARD_BPS = 5_000
 
 
 def derive_initial_daily_scheduled_emission(allocation: int = MINING_EMISSION_ALLOCATION) -> int:

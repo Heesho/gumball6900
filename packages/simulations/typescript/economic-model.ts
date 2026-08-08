@@ -14,6 +14,12 @@ const USDG_NORMALIZATION_SCALE = WAD / USDG_UNIT;
 // Strategy rates are human-normalized target tokens per USDG, scaled by WAD.
 const UNIT_TARGET_PER_USDG_RATE = WAD;
 
+// Launch value of the signal-reward share. Settable through timelocked governance, capped
+// at MAX_MANAGER_REWARD_BPS. Declared here rather than imported so this model stays an
+// independent implementation that can disagree with the SDK and be caught doing so.
+const MANAGER_REWARD_BPS = 1_000n;
+const MAX_MANAGER_REWARD_BPS = 5_000n;
+
 const MAX_CUMULATIVE_MINT = 1_000_000_000n * WAD;
 const GENESIS_LP_GBX = 20_000_000n * WAD;
 const GENESIS_SUPPLY = GENESIS_LP_GBX;
@@ -173,7 +179,7 @@ function nextAuctionInitPrice(paymentAmount: bigint, priceMultiplier: bigint, mi
 }
 
 function acquisitionDestinations(acquired: bigint, hasActiveWeight: boolean) {
-  const nominalManagerReward = mulDiv(acquired, 200n, BPS);
+  const nominalManagerReward = mulDiv(acquired, MANAGER_REWARD_BPS, BPS);
   return {
     acquired,
     managerReward: hasActiveWeight ? nominalManagerReward : 0n,
@@ -342,7 +348,8 @@ function computeEconomicSuiteRaw() {
       initialDailyScheduledEmission: INITIAL_DAILY_EMISSION,
       dailyDecayWad: DAILY_DECAY_WAD,
       auctionDurationSeconds: DAY,
-      managerRewardBps: 200n,
+      managerRewardBps: MANAGER_REWARD_BPS,
+      maxManagerRewardBps: MAX_MANAGER_REWARD_BPS,
       noOnchainNavOracle: true,
     },
     emissions: {

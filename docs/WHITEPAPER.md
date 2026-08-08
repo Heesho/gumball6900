@@ -23,8 +23,8 @@ GBX to redeem a proportional, in-kind share of caller-selected Fund assets.
 
 The result is not a token that tracks a predetermined index. It is a mechanism for forming a basket over time. Signals
 direct future flow rather than forcing the Fund to sell existing holdings. The intended final contracts are deployed
-once, are not upgradeable, and expose only four management actions: add a Strategy, remove a Strategy, change the
-management fee, and add Bribe rewards.
+once, are not upgradeable, and expose only five management actions: add a Strategy, remove a Strategy, change the
+management fee, change the signal-reward share within a fixed bound, and add Bribe rewards.
 
 The fixed Fundraiser emission also creates a recurring market for new GBX. If GBX has a usable market price and enough
 liquidity, miners can compare the value of each day's emission with the USDG currently competing for it. Profitable
@@ -60,8 +60,8 @@ The target system is designed around six goals:
    kind. The core does not need a protocol-wide net asset value oracle.
 4. **Market-based acquisition.** Reverse Dutch auctions let external buyers decide when an acquisition price is
    acceptable.
-5. **Governance minimization.** Signals govern capital direction. Management maintains only four explicitly authorized
-   edges, and the deployed core cannot be upgraded.
+5. **Governance minimization.** Signals govern capital direction. Management maintains only five explicitly authorized
+   edges, each bounded, and the deployed core cannot be upgraded.
 6. **Inspectability.** Each contract has a narrow responsibility so money flow and failure boundaries remain legible.
 
 ### 2.1 Non-goals
@@ -177,7 +177,8 @@ The contract-level guarantee is narrower and stronger:
 
 1. every USDG contribution enters the signal-directed acquisition path rather than a discretionary team wallet;
 2. miners compete for a fixed scheduled GBX emission rather than a team-selected sale price; and
-3. when a normal acquisition succeeds, 90% of the acquired target asset enters the Fund and 10% funds signal rewards.
+3. when a normal acquisition succeeds, the acquired target asset splits between the Fund and signal rewards at the
+   current share, and the Fund always receives the majority.
 
 GBX price and liquidity create the incentive to contribute. The fixed routing and acquisition rules determine what
 happens after a contribution. Fund growth still depends on contributions occurring and acquisitions clearing.
@@ -248,13 +249,15 @@ parameters can still lead to delayed or unfavorable execution.
 
 ## 9. Fund formation and signal rewards
 
-After a normal acquisition, the target asset follows a fixed split:
+After a normal acquisition, the target asset splits in two:
 
 - **90% enters the Fund.** This becomes shared raw-token backing available through proportional in-kind redemption.
 - **10% funds signal rewards.** The Strategy's Bribe streams the asset across eligible signal balances.
 
-The 90/10 split is fixed before deployment and cannot be changed by the deployed core. If no eligible signalers exist,
-the signal-reward share returns to the Fund.
+The 10% signal-reward share is the launch value, not a constant. It is adjustable through timelocked governance and is
+bounded: it may never exceed 50%, so a majority of every acquisition always reaches the Fund. Raising it moves value
+from shared backing toward the holders who directed that specific acquisition; lowering it does the reverse. If no
+eligible signalers exist, the signal-reward share returns to the Fund regardless of its setting.
 
 This structure combines a common benefit with a personal incentive. Most of each acquisition strengthens the shared
 basket, while the smaller share lets a holder earn the asset they chose to signal.
@@ -324,20 +327,25 @@ separate route for protocol-directed capital and must not leave purchased GBX si
 GumBall6900 separates economic direction from maintenance.
 
 `sGBX` holders direct capital continuously by signaling active Strategies. The intended final management authority has
-exactly four callable actions:
+exactly five callable actions:
 
 1. add a Strategy;
 2. remove a Strategy;
-3. change the management fee; and
-4. add Bribe rewards.
+3. change the management fee;
+4. change the signal-reward share, within its 0-50% bound; and
+5. add Bribe rewards.
 
 There is no general call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, pause function,
-signal-reward split setter, or general parameter setter. The system is deployed as direct contracts and the core rules
-cannot be rewritten after deployment.
+or general parameter setter. The system is deployed as direct contracts and the core rules cannot be rewritten after
+deployment.
+
+Note what the fifth action can and cannot do. It moves the split between shared backing and directed rewards, and its
+bound guarantees the Fund keeps a majority of every acquisition. It cannot redirect either share to a third party, and
+it cannot reach the Fund's existing holdings.
 
 The exact management-fee meaning, basis, and bounds remain to be specified in the final contracts. Strategy removal,
 Bribe reward registration, manager authorization, and key lifecycle must also be fully specified without creating a
-fifth management action.
+sixth management action.
 
 Immutability reduces governance power, but it also makes mistakes permanent. That tradeoff is part of the design, not a
 claim that immutable code is automatically safe.
@@ -353,7 +361,8 @@ The final implementation should make the following properties explicit and testa
 5. `sGBX` allocations can be replaced or reset without an epoch restriction;
 6. redemption uses pre-burn supply and balance snapshots;
 7. a redemption burn and all selected transfers are atomic;
-8. a normal acquisition sends 90% to the Fund and 10% to signal rewards;
+8. a normal acquisition splits the acquired asset at the current signal-reward share, which starts at 10% and can
+   never exceed 50%, and returns that share to the Fund when no eligible signalers exist;
 9. a buyback burns all received GBX atomically and pays no signal reward;
 10. liquidity-fee collection removes no principal, burns GBX fees, and routes USDG fees; and
 11. the deployed core has no upgrade or arbitrary asset-withdrawal path.
@@ -364,7 +373,8 @@ GumBall6900 remains exposed to meaningful risks:
 
 - **Smart-contract risk.** A coding error can break routing, auctions, rewards, burns, or redemption. Immutability can
   make the consequences permanent.
-- **Manager-key risk.** A compromised manager can misuse the four authorized actions even though it cannot upgrade the
+- **Manager-key risk.** A compromised manager can misuse the five authorized actions, including pushing the
+  signal-reward share to its 50% cap, even though it cannot upgrade the
   core or withdraw Fund assets.
 - **Signal concentration.** Large `sGBX` holders may direct a disproportionate share of future capital.
 - **Market execution.** Auctions depend on buyers, liquidity, pricing bounds, and target-token behavior.
@@ -389,7 +399,7 @@ must be removed and the entire repository reconciled before deployment.
 
 At minimum, production would require:
 
-- final contract interfaces matching the four-action management surface;
+- final contract interfaces matching the five-action management surface;
 - precise management-fee economics and bounds;
 - complete unit, integration, invariant, and economic-model tests;
 - reviewed asset and chain configuration;
