@@ -19,6 +19,9 @@ Fund holdings. There is no synthetic price peg, NAV oracle, or offchain redempti
 > [ADR 0016](docs/adr/0016-governance-minimized-final-surface.md). The current Solidity still has a broader
 > administrative surface and must be reduced, tested, and reconciled with these docs before any deployment.
 
+Read the accessible protocol paper in [`docs/WHITEPAPER.md`](docs/WHITEPAPER.md), or open the designed
+[`GumBall6900 whitepaper`](output/pdf/GumBall6900-the-index-fund-that-chooses-itself.pdf).
+
 ## The idea
 
 Traditional indices are assembled by a committee. Onchain treasuries are often controlled by a small group of
