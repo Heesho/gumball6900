@@ -1,10 +1,10 @@
-# GUM BALL 6900
+# GumBall6900
 
 ## The community-directed onchain index fund
 
 **Contribute stablecoins. Direct acquisitions. Build a shared treasury. Redeem onchain.**
 
-GUM BALL 6900 is an experimental index protocol designed for Robinhood Chain. It turns USDG contributions and
+GumBall6900 is an experimental index protocol designed for Robinhood Chain. It turns USDG contributions and
 protocol revenue into a growing basket of onchain assets chosen by GBX holders.
 
 Think of it as a community-built onchain index: approved acquisition Strategies compete for signal-directed capital,
@@ -17,7 +17,7 @@ Fund holdings. There is no synthetic price peg, NAV oracle, or offchain redempti
 ## The idea
 
 Traditional indices are assembled by a committee. Onchain treasuries are often controlled by a small group of
-signers. GUM BALL 6900 explores a different model: let token holders continuously direct new capital toward the assets
+signers. GumBall6900 explores a different model: let token holders continuously direct new capital toward the assets
 they believe should become part of the treasury, then make the resulting holdings redeemable onchain.
 
 The result is a simple flywheel:
