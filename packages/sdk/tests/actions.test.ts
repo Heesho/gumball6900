@@ -9,16 +9,16 @@ import {
   buildFundraiserClaim,
   buildMigrateLiquidityPosition,
   buildRedemption,
-  buildResetVotes,
+  buildResetSignals,
   buildSettleFundraiserEpochs,
   buildStrategyBuy,
-  buildVote,
+  buildSignal,
   fundAbi,
   fundraiserAbi,
   gbxAbi,
   liquidityPositionAbi,
   strategyAbi,
-  voterAbi,
+  resonanceAbi,
 } from '../src/index.js';
 
 const A = '0x0000000000000000000000000000000000000001';
@@ -37,16 +37,16 @@ describe('minimal typed transaction builders', () => {
     });
   });
 
-  it('encodes unrestricted relative voting and rejects duplicates', () => {
-    expect(() => buildVote(A, [B, B], [1n, 1n])).toThrow('duplicates');
-    const transaction = buildVote(A, [B, C], [3n, 7n]);
-    const decoded = decodeFunctionData({ abi: voterAbi, data: transaction.data });
-    expect(decoded.functionName).toBe('vote');
+  it('encodes unrestricted relative signal and rejects duplicates', () => {
+    expect(() => buildSignal(A, [B, B], [1n, 1n])).toThrow('duplicates');
+    const transaction = buildSignal(A, [B, C], [3n, 7n]);
+    const decoded = decodeFunctionData({ abi: resonanceAbi, data: transaction.data });
+    expect(decoded.functionName).toBe('signal');
     expect(decoded.args).toEqual([
       [getAddress(B), getAddress(C)],
       [3n, 7n],
     ]);
-    expect(decodeFunctionData({ abi: voterAbi, data: buildResetVotes(A).data }).functionName).toBe('reset');
+    expect(decodeFunctionData({ abi: resonanceAbi, data: buildResetSignals(A).data }).functionName).toBe('reset');
   });
 
   it('encodes caller-selected Fund redemption and accumulated GBX burning', () => {

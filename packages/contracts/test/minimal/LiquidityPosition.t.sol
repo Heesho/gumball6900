@@ -24,18 +24,18 @@ contract LiquidityUSDGMock is ERC20 {
     }
 }
 
-contract LiquidityVoterRouterMock {
+contract LiquidityResonanceRouterMock {
     IERC20 public immutable usdg;
-    address public immutable voter;
+    address public immutable resonance;
 
-    constructor(IERC20 usdg_, address voter_) {
+    constructor(IERC20 usdg_, address resonance_) {
         usdg = usdg_;
-        voter = voter_;
+        resonance = resonance_;
     }
 
     function route() external returns (uint256 amount) {
         amount = usdg.balanceOf(address(this));
-        usdg.transfer(voter, amount);
+        usdg.transfer(resonance, amount);
     }
 }
 
@@ -107,12 +107,12 @@ contract LiquidityPositionManagerMock is ERC721 {
 
 contract LiquidityPositionTest is Test {
     uint256 private constant POSITION_TOKEN_ID = 7;
-    address private constant VOTER = address(0xB07E);
+    address private constant RESONANCE = address(0xB07E);
     address private constant KEEPER = address(0xBEEF);
 
     GBX private gbx;
     LiquidityUSDGMock private usdg;
-    LiquidityVoterRouterMock private voterRouter;
+    LiquidityResonanceRouterMock private resonanceRouter;
     LiquidityPositionManagerMock private positionManager;
     LiquidityPosition private liquidityPosition;
     PoolKey private canonicalPoolKey;
@@ -122,7 +122,7 @@ contract LiquidityPositionTest is Test {
     function setUp() external {
         gbx = new GBX(address(this), address(this));
         usdg = new LiquidityUSDGMock();
-        voterRouter = new LiquidityVoterRouterMock(IERC20(address(usdg)), VOTER);
+        resonanceRouter = new LiquidityResonanceRouterMock(IERC20(address(usdg)), RESONANCE);
         positionManager = new LiquidityPositionManagerMock(gbx, usdg);
 
         address token0 = address(gbx) < address(usdg) ? address(gbx) : address(usdg);
@@ -165,7 +165,7 @@ contract LiquidityPositionTest is Test {
         assertEq(gbxBurned, 5 ether);
         assertEq(usdgRouted, 7_000_000);
         assertEq(gbx.totalSupply(), supplyBefore - 5 ether);
-        assertEq(usdg.balanceOf(VOTER), 7_000_000);
+        assertEq(usdg.balanceOf(RESONANCE), 7_000_000);
         assertEq(positionManager.lastLiquidityRemoved(), 0);
         assertEq(positionManager.ownerOf(POSITION_TOKEN_ID), address(liquidityPosition));
         assertTrue(liquidityPosition.positionInCustody());
@@ -198,7 +198,7 @@ contract LiquidityPositionTest is Test {
                 expectedPositionTokenId: anotherTokenId,
                 gbx: gbx,
                 usdg: IERC20(address(usdg)),
-                voterRouter: address(voterRouter),
+                resonanceRouter: address(resonanceRouter),
                 initialOwner: address(this)
             }),
             canonicalPoolKey,
@@ -222,7 +222,7 @@ contract LiquidityPositionTest is Test {
                 expectedPositionTokenId: POSITION_TOKEN_ID,
                 gbx: gbx,
                 usdg: IERC20(address(usdg)),
-                voterRouter: address(voterRouter),
+                resonanceRouter: address(resonanceRouter),
                 initialOwner: owner
             }),
             canonicalPoolKey,

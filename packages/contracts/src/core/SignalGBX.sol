@@ -10,20 +10,20 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import { ICoreVoter } from "./interfaces/ICoreVoter.sol";
+import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
 
 /// @title SignalGBX
 /// @author GUM BALL 6900
-/// @notice Non-transferable voting receipt minted one-for-one when a holder stakes GBX.
-/// @dev Adapted from Liquid Signal Governance. There is no time lock: a holder can reset votes and immediately unstake.
+/// @notice Non-transferable signal receipt minted one-for-one when a holder stakes GBX.
+/// @dev Adapted from Liquid Signal Governance. There is no time lock: a holder can reset signals and immediately unstake.
 contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     /// @notice Underlying GBX held one-for-one against the SignalGBX supply.
     IERC20 public immutable gbx;
 
-    /// @notice Voter that tracks whether an account still has active allocations.
-    address public voter;
+    /// @notice Resonance that tracks whether an account still has active allocations.
+    address public resonance;
 
     /// @notice Emitted when an account deposits GBX and receives SignalGBX.
     /// @param account Account that staked.
@@ -33,19 +33,19 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
     /// @param account Account that unstaked.
     /// @param amount Amount of SignalGBX burned and GBX returned.
     event Unstaked(address indexed account, uint256 amount);
-    /// @notice Emitted when the staking receipt is permanently bound to Voter.
-    /// @param voter Bound Voter address.
-    event VoterSet(address indexed voter);
+    /// @notice Emitted when the staking receipt is permanently bound to Resonance.
+    /// @param resonance Bound Resonance address.
+    event ResonanceSet(address indexed resonance);
 
-    error ActiveVotes(address account, uint256 usedWeight);
+    error ActiveSignals(address account, uint256 signalWeight);
     error TransferDisabled();
-    error VoterAlreadySet(address voter);
+    error ResonanceAlreadySet(address resonance);
     error ZeroAddress();
     error ZeroAmount();
 
     /// @notice Creates the non-transferable staking receipt and assigns deployment-time ownership.
     /// @param gbx_ GBX token deposited by stakers.
-    /// @param initialOwner Deployment-time owner responsible for binding Voter.
+    /// @param initialOwner Deployment-time owner responsible for binding Resonance.
     constructor(IERC20 gbx_, address initialOwner)
         ERC20("Signal GUM BALL 6900", "sGBX")
         ERC20Permit("Signal GUM BALL 6900")
@@ -69,15 +69,15 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
         emit Staked(msg.sender, amount);
     }
 
-    /// @notice Burns SignalGBX and returns the underlying GBX immediately after all votes are cleared.
+    /// @notice Burns SignalGBX and returns the underlying GBX immediately after all signals are cleared.
     /// @param amount Amount of SignalGBX to burn and GBX to withdraw.
     function unstake(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
 
-        address configuredVoter = voter;
-        if (configuredVoter != address(0)) {
-            uint256 usedWeight = ICoreVoter(configuredVoter).accountUsedWeight(msg.sender);
-            if (usedWeight != 0) revert ActiveVotes(msg.sender, usedWeight);
+        address configuredResonance = resonance;
+        if (configuredResonance != address(0)) {
+            uint256 signalWeight = ICoreResonance(configuredResonance).accountSignalWeight(msg.sender);
+            if (signalWeight != 0) revert ActiveSignals(msg.sender, signalWeight);
         }
 
         _burn(msg.sender, amount);
@@ -86,15 +86,15 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
         emit Unstaked(msg.sender, amount);
     }
 
-    /// @notice Binds the Voter dependency once during deployment.
-    /// @param voter_ Voter address to bind permanently.
-    function setVoter(address voter_) external onlyOwner {
-        if (voter != address(0)) revert VoterAlreadySet(voter);
-        if (voter_ == address(0) || voter_.code.length == 0) revert ZeroAddress();
+    /// @notice Binds the Resonance dependency once during deployment.
+    /// @param resonance_ Resonance address to bind permanently.
+    function setResonance(address resonance_) external onlyOwner {
+        if (resonance != address(0)) revert ResonanceAlreadySet(resonance);
+        if (resonance_ == address(0) || resonance_.code.length == 0) revert ZeroAddress();
 
-        voter = voter_;
+        resonance = resonance_;
 
-        emit VoterSet(voter_);
+        emit ResonanceSet(resonance_);
     }
 
     /// @notice Returns the current ERC-2612 permit nonce for `owner`.
@@ -104,8 +104,8 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
         return super.nonces(owner);
     }
 
-    /// @notice Applies receipt and voting-checkpoint accounting for a mint or burn.
-    /// @dev Only mint and burn updates are allowed. Direct SignalGBX transfers would bypass Voter accounting.
+    /// @notice Applies receipt and signal-checkpoint accounting for a mint or burn.
+    /// @dev Only mint and burn updates are allowed. Direct SignalGBX transfers would bypass Resonance accounting.
     /// @param from Address tokens move from, or zero during minting.
     /// @param to Address tokens move to, or zero during burning.
     /// @param value Amount moved.

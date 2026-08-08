@@ -18,14 +18,14 @@ Public ABI: 19 functions, 5 events, 10 custom errors, 1 constructor, 0 receive e
 ### `constructor(address)`
 
 ```solidity
-constructor(address voter_);
+constructor(address resonance_);
 ```
 
-Creates a reward stream controlled by `voter_`.
+Creates a reward stream controlled by `resonance_`.
 
 **Parameters**
 
-- `voter_`: Voter exclusively authorized to maintain virtual balances.
+- `resonance_`: Resonance exclusively authorized to maintain virtual balances.
 
 ### `REWARD_DURATION()`
 
@@ -41,7 +41,7 @@ Duration of each reward stream.
 function REWARD_PRECISION() external view returns (uint256 arg0);
 ```
 
-Fixed-point precision used for cumulative rewards per unit of voting weight.
+Fixed-point precision used for cumulative rewards per unit of signal weight.
 
 ### `addRewardToken(address)`
 
@@ -61,7 +61,7 @@ Registers an additional token that may be distributed by this Bribe.
 function balanceOf(address account) external view returns (uint256 balance);
 ```
 
-Virtual voting weight assigned to each account.
+Virtual signal weight assigned to each account.
 
 ### `claimRewards(address)`
 
@@ -82,7 +82,7 @@ Anyone may trigger a claim, but rewards are always sent directly to `account`.
 function deposit(uint256 amount, address account) external;
 ```
 
-Adds virtual voting weight for `account`.
+Adds virtual signal weight for `account`.
 
 **Parameters**
 
@@ -160,6 +160,14 @@ Existing undistributed rewards are rolled into the new stream. BribeRouter avoid
 - `amount`: Amount pulled from the caller and added to the stream.
 - `rewardToken`: Registered token to stream.
 
+### `resonance()`
+
+```solidity
+function resonance() external view returns (address arg0);
+```
+
+Resonance contract allowed to maintain virtual balances and register reward tokens.
+
 ### `rewardData(address)`
 
 ```solidity
@@ -174,7 +182,7 @@ Streaming state for each registered reward token.
 function rewardPerToken(address rewardToken) external view returns (uint256 accumulatedReward);
 ```
 
-Returns cumulative rewards per unit of virtual voting weight.
+Returns cumulative rewards per unit of virtual signal weight.
 
 **Parameters**
 
@@ -210,7 +218,7 @@ Accrued, unclaimed reward balance for an account and token.
 function totalSupply() external view returns (uint256 arg0);
 ```
 
-Total virtual voting weight assigned to this Bribe.
+Total virtual signal weight assigned to this Bribe.
 
 ### `userRewardPerTokenPaid(address,address)`
 
@@ -220,21 +228,13 @@ function userRewardPerTokenPaid(address account, address token) external view re
 
 Cumulative reward-per-weight checkpoint already accounted to an account.
 
-### `voter()`
-
-```solidity
-function voter() external view returns (address arg0);
-```
-
-Voter contract allowed to maintain virtual balances and register reward tokens.
-
 ### `withdraw(uint256,address)`
 
 ```solidity
 function withdraw(uint256 amount, address account) external;
 ```
 
-Removes virtual voting weight for `account`.
+Removes virtual signal weight for `account`.
 
 **Parameters**
 
@@ -267,18 +267,18 @@ event RewardPaid(address indexed account, address indexed rewardToken, uint256 a
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `VotingWeightDeposited(address,uint256)`
+#### `SignalWeightDeposited(address,uint256)`
 
 ```solidity
-event VotingWeightDeposited(address indexed account, uint256 amount);
+event SignalWeightDeposited(address indexed account, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `VotingWeightWithdrawn(address,uint256)`
+#### `SignalWeightWithdrawn(address,uint256)`
 
 ```solidity
-event VotingWeightWithdrawn(address indexed account, uint256 amount);
+event SignalWeightWithdrawn(address indexed account, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -293,18 +293,18 @@ error InexactRewardTransfer(uint256 expected, uint256 received);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `NotRewardToken(address)`
+#### `NotResonance(address)`
 
 ```solidity
-error NotRewardToken(address token);
+error NotResonance(address caller);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `NotVoter(address)`
+#### `NotRewardToken(address)`
 
 ```solidity
-error NotVoter(address caller);
+error NotRewardToken(address token);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -379,11 +379,11 @@ Public ABI: 6 functions, 3 events, 5 custom errors, 1 constructor, 0 receive ent
 constructor(address initialOwner);
 ```
 
-Creates an unbound factory whose owner may set Voter exactly once.
+Creates an unbound factory whose owner may set Resonance exactly once.
 
 **Parameters**
 
-- `initialOwner`: Deployment-time owner responsible for binding Voter.
+- `initialOwner`: Deployment-time owner responsible for binding Resonance.
 
 ### `createBribe()`
 
@@ -391,7 +391,7 @@ Creates an unbound factory whose owner may set Voter exactly once.
 function createBribe() external returns (contract Bribe bribe);
 ```
 
-Deploys a Bribe controlled by the bound Voter.
+Deploys a Bribe controlled by the bound Resonance.
 
 **Returns**
 
@@ -413,17 +413,25 @@ function renounceOwnership() external;
 
 Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
 
-### `setVoter(address)`
+### `resonance()`
 
 ```solidity
-function setVoter(address voter_) external;
+function resonance() external view returns (address arg0);
 ```
 
-Binds the only Voter allowed to deploy Bribes.
+Resonance exclusively authorized to create Bribes.
+
+### `setResonance(address)`
+
+```solidity
+function setResonance(address resonance_) external;
+```
+
+Binds the only Resonance allowed to deploy Bribes.
 
 **Parameters**
 
-- `voter_`: Voter address to bind permanently.
+- `resonance_`: Resonance address to bind permanently.
 
 ### `transferOwnership(address)`
 
@@ -433,20 +441,12 @@ function transferOwnership(address newOwner) external;
 
 Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
 
-### `voter()`
-
-```solidity
-function voter() external view returns (address arg0);
-```
-
-Voter exclusively authorized to create Bribes.
-
 ### Events
 
 #### `BribeCreated(address,address)`
 
 ```solidity
-event BribeCreated(address indexed bribe, address indexed voter);
+event BribeCreated(address indexed bribe, address indexed resonance);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -459,20 +459,20 @@ event OwnershipTransferred(address indexed previousOwner, address indexed newOwn
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `VoterSet(address)`
+#### `ResonanceSet(address)`
 
 ```solidity
-event VoterSet(address indexed voter);
+event ResonanceSet(address indexed resonance);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
 
-#### `NotVoter(address)`
+#### `NotResonance(address)`
 
 ```solidity
-error NotVoter(address caller);
+error NotResonance(address caller);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -493,10 +493,10 @@ error OwnableUnauthorizedAccount(address account);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `VoterAlreadySet(address)`
+#### `ResonanceAlreadySet(address)`
 
 ```solidity
-error VoterAlreadySet(address voter);
+error ResonanceAlreadySet(address resonance);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -527,8 +527,8 @@ Creates the fixed route between one Strategy, one reward token, its Bribe, and F
 
 **Parameters**
 
-- `bribe_`: Bribe that streams rewards to voters.
-- `fund_`: Treasury receiving rewards when no voter weight exists.
+- `bribe_`: Bribe that streams rewards to signalers.
+- `fund_`: Treasury receiving rewards when no signal weight exists.
 - `rewardToken_`: Strategy payment token distributed as rewards.
 - `strategy_`: Strategy exclusively allowed to queue rewards.
 
@@ -546,7 +546,7 @@ Bribe that streams the queued rewards.
 function distribute() external returns (uint256 distributed);
 ```
 
-Permissionlessly distributes queued rewards or returns them to Fund when there are no voters.
+Permissionlessly distributes queued rewards or returns them to Fund when there are no signalers.
 
 **Returns**
 
@@ -558,7 +558,7 @@ Permissionlessly distributes queued rewards or returns them to Fund when there a
 function fund() external view returns (address arg0);
 ```
 
-Treasury that receives rewards when the Bribe has no voting weight.
+Treasury that receives rewards when the Bribe has no signal weight.
 
 ### `pendingRewards()`
 
@@ -965,7 +965,7 @@ Public ABI: 23 functions, 3 events, 11 custom errors, 1 constructor, 0 receive e
 ### `constructor(address,address,address)`
 
 ```solidity
-constructor(contract GBX gbx_, contract IERC20 usdg_, address voterRouter_);
+constructor(contract GBX gbx_, contract IERC20 usdg_, address resonanceRouter_);
 ```
 
 Creates the fixed contribution schedule and immutable revenue route.
@@ -973,8 +973,8 @@ Creates the fixed contribution schedule and immutable revenue route.
 **Parameters**
 
 - `gbx_`: GBX token minted to contributors.
+- `resonanceRouter_`: Router that forwards every contribution to Resonance.
 - `usdg_`: USDG token accepted as contributions.
-- `voterRouter_`: Router that forwards every contribution to Voter.
 
 ### `DAILY_DECAY()`
 
@@ -1073,7 +1073,7 @@ function contribute(address beneficiary, uint256 amount) external;
 ```
 
 Contributes USDG and credits `beneficiary` with a proportional claim on the current epoch's emission.
-USDG is transferred directly from the payer to VoterRouter, then routed to Voter in the same transaction.
+USDG is transferred directly from the payer to ResonanceRouter, then routed to Resonance in the same transaction.
 
 **Parameters**
 
@@ -1157,6 +1157,14 @@ Returns an account's currently claimable GBX for a completed epoch.
 
 - `reward`: Amount currently claimable, or zero when no claim is available.
 
+### `resonanceRouter()`
+
+```solidity
+function resonanceRouter() external view returns (address arg0);
+```
+
+Router that forwards every contribution into Resonance.
+
 ### `settleEpochs(uint256)`
 
 ```solidity
@@ -1189,14 +1197,6 @@ function usdg() external view returns (contract IERC20 arg0);
 ```
 
 Revenue token accepted from contributors.
-
-### `voterRouter()`
-
-```solidity
-function voterRouter() external view returns (address arg0);
-```
-
-Router that forwards every contribution into Voter.
 
 ### Events
 
@@ -1946,13 +1946,13 @@ Fixes the exact v4 pool, range, NFT, fee route, and timelocked migration authori
 function collectFees() external returns (uint256 gbxBurned, uint256 usdgRouted);
 ```
 
-Collects fees without removing principal, burns all held GBX, and routes all held USDG to Voter.
+Collects fees without removing principal, burns all held GBX, and routes all held USDG to Resonance.
 Processing complete balances also makes direct GBX or USDG transfers harmless. A failure in collection, burning, transfer, or routing reverts the entire operation atomically.
 
 **Returns**
 
 - `gbxBurned`: GBX permanently burned in this call.
-- `usdgRouted`: USDG delivered to VoterRouter in this call.
+- `usdgRouted`: USDG delivered to ResonanceRouter in this call.
 
 ### `currency0()`
 
@@ -2118,6 +2118,14 @@ function renounceOwnership() external;
 
 Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
 
+### `resonanceRouter()`
+
+```solidity
+function resonanceRouter() external view returns (address arg0);
+```
+
+Router receiving all collected USDG.
+
 ### `setSuccessor(address)`
 
 ```solidity
@@ -2160,15 +2168,7 @@ Transfers ownership of the contract to a new account (`newOwner`). Can only be c
 function usdg() external view returns (contract IERC20 arg0);
 ```
 
-USDG token routed to Voter.
-
-### `voterRouter()`
-
-```solidity
-function voterRouter() external view returns (address arg0);
-```
-
-Router receiving all collected USDG.
+USDG token routed to Resonance.
 
 ### Events
 
@@ -2398,6 +2398,773 @@ error ZeroAddress();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+## Resonance
+
+Source: [`src/core/Resonance.sol`](../../packages/contracts/src/core/Resonance.sol)
+
+Artifact: `out/Resonance.sol/Resonance.json`
+
+Public ABI: 42 functions, 10 events, 16 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address,address,address,address,address,address)`
+
+```solidity
+constructor(contract IERC20 signalGBX_, contract IERC20 usdg_, address fund_, contract BribeFactory bribeFactory_, contract StrategyFactory strategyFactory_, address initialOwner);
+```
+
+Creates the allocation system with immutable token, Fund, and factory dependencies.
+
+**Parameters**
+
+- `bribeFactory_`: Factory used to deploy one Bribe per Strategy.
+- `fund_`: Treasury receiving unallocated or disabled-Strategy revenue.
+- `initialOwner`: Typed timelock authorized to administer the system.
+- `signalGBX_`: Non-transferable staking receipt used as signal power.
+- `strategyFactory_`: Factory used to deploy Strategies and BribeRouters.
+- `usdg_`: Revenue token allocated among Strategies.
+
+### `BPS_SCALE()`
+
+```solidity
+function BPS_SCALE() external view returns (uint256 arg0);
+```
+
+Basis-point denominator for acquisition reward shares.
+
+### `DEFAULT_BRIBE_BPS()`
+
+```solidity
+function DEFAULT_BRIBE_BPS() external view returns (uint256 arg0);
+```
+
+Initial 10% share of acquisition payments streamed to signalers.
+
+### `INDEX_PRECISION()`
+
+```solidity
+function INDEX_PRECISION() external view returns (uint256 arg0);
+```
+
+Fixed-point precision for indexed USDG revenue.
+
+### `MAX_BRIBE_BPS()`
+
+```solidity
+function MAX_BRIBE_BPS() external view returns (uint256 arg0);
+```
+
+Maximum 50% share governance may stream to signalers.
+
+### `accountSignalWeight(address)`
+
+```solidity
+function accountSignalWeight(address account) external view returns (uint256 signalWeight);
+```
+
+Total signal weight currently allocated by an account.
+
+### `accountSignals(address,address)`
+
+```solidity
+function accountSignals(address account, address strategy) external view returns (uint256 signals);
+```
+
+Signal weight an account assigned to a Strategy.
+
+### `accountStrategies(address)`
+
+```solidity
+function accountStrategies(address account) external view returns (address[] strategyList);
+```
+
+Returns the Strategies currently selected by `account`.
+
+**Parameters**
+
+- `account`: Signal account to inspect.
+
+**Returns**
+
+- `strategyList`: Strategies currently selected by `account`.
+
+### `addBribeReward(address,address)`
+
+```solidity
+function addBribeReward(address strategy, address rewardToken) external;
+```
+
+Registers an additional reward token on a Strategy's Bribe.
+
+**Parameters**
+
+- `rewardToken`: Token to register.
+- `strategy`: Strategy whose Bribe should accept the token.
+
+### `addStrategy(address,uint8,(uint256,uint256,uint256,uint256))`
+
+```solidity
+function addStrategy(contract IERC20 paymentToken, enum Strategy.Kind kind, struct Strategy.Config config) external returns (address strategyAddress, address bribeAddress, address bribeRouterAddress);
+```
+
+Creates a Strategy, its Bribe, and its BribeRouter as one Resonance-controlled graph.
+
+**Parameters**
+
+- `config`: Immutable auction configuration.
+- `kind`: Whether the Strategy acquires an asset or performs GBX buybacks.
+- `paymentToken`: Asset buyers pay to fill the Strategy.
+
+**Returns**
+
+- `bribeAddress`: Bribe paired with the Strategy.
+- `bribeRouterAddress`: BribeRouter paired with the Strategy and Bribe.
+- `strategyAddress`: Newly deployed Strategy.
+
+### `bribeBps()`
+
+```solidity
+function bribeBps() external view returns (uint256 arg0);
+```
+
+Share of acquisition payments streamed to signalers, expressed in basis points.
+
+### `bribeFactory()`
+
+```solidity
+function bribeFactory() external view returns (contract BribeFactory arg0);
+```
+
+Factory used to create one Bribe per Strategy.
+
+### `bribeFor(address)`
+
+```solidity
+function bribeFor(address strategy) external view returns (address bribe);
+```
+
+Bribe associated with each Strategy.
+
+### `bribeRouterFor(address)`
+
+```solidity
+function bribeRouterFor(address strategy) external view returns (address router);
+```
+
+BribeRouter associated with each Strategy.
+
+### `claimRewards(address[])`
+
+```solidity
+function claimRewards(address[] requestedStrategies) external;
+```
+
+Claims rewards from the Bribes associated with `strategies` for the caller.
+
+**Parameters**
+
+- `requestedStrategies`: Strategies whose Bribes should pay the caller.
+
+### `claimableRevenue(address)`
+
+```solidity
+function claimableRevenue(address strategy) external view returns (uint256 amount);
+```
+
+Indexed USDG available to distribute to each Strategy.
+
+### `distribute(address)`
+
+```solidity
+function distribute(address strategy) external returns (uint256 amount);
+```
+
+Transfers a Strategy's indexed USDG allocation to that Strategy.
+
+**Parameters**
+
+- `strategy`: Strategy whose indexed revenue should be transferred.
+
+**Returns**
+
+- `amount`: Amount of USDG distributed.
+
+### `distributeAll()`
+
+```solidity
+function distributeAll() external;
+```
+
+Distributes currently claimable revenue to every Strategy.
+
+### `distributeRange(uint256,uint256)`
+
+```solidity
+function distributeRange(uint256 start, uint256 end) external;
+```
+
+Distributes revenue to a bounded half-open range of Strategies: `[start, end)`.
+
+**Parameters**
+
+- `end`: Exclusive index, capped at the current Strategy count.
+- `start`: Inclusive index in the Strategy list.
+
+### `fund()`
+
+```solidity
+function fund() external view returns (address arg0);
+```
+
+Treasury that receives zero-weight and disabled-Strategy revenue.
+
+### `isStrategy(address)`
+
+```solidity
+function isStrategy(address strategy) external view returns (bool isValid);
+```
+
+Whether an address is a Resonance-created Strategy.
+
+### `isStrategyAlive(address)`
+
+```solidity
+function isStrategyAlive(address strategy) external view returns (bool isAlive);
+```
+
+Whether a Strategy remains eligible for future USDG.
+
+### `killStrategy(address)`
+
+```solidity
+function killStrategy(address strategy) external;
+```
+
+Stops a Strategy from receiving future USDG; its already indexed revenue is returned to Fund.
+Existing signal weights remain until their owners replace or reset them. Their dead-Strategy revenue share is routed to Fund whenever that Strategy's index is updated.
+
+**Parameters**
+
+- `strategy`: Strategy to disable permanently.
+
+### `notifyRevenue(uint256)`
+
+```solidity
+function notifyRevenue(uint256 amount) external;
+```
+
+Pulls USDG from ResonanceRouter and adds it to the global revenue index.
+
+**Parameters**
+
+- `amount`: Amount of USDG to pull and index.
+
+### `owner()`
+
+```solidity
+function owner() external view returns (address arg0);
+```
+
+Returns the address of the current owner.
+
+### `paymentTokenFor(address)`
+
+```solidity
+function paymentTokenFor(address strategy) external view returns (address paymentToken);
+```
+
+Payment token required by each Strategy.
+
+### `pendingRevenue(address)`
+
+```solidity
+function pendingRevenue(address strategy) external view returns (uint256 amount);
+```
+
+Returns revenue accrued since `strategy` was last updated.
+
+**Parameters**
+
+- `strategy`: Strategy whose uncheckpointed revenue is queried.
+
+**Returns**
+
+- `amount`: Revenue accrued since the Strategy's last index update.
+
+### `renounceOwnership()`
+
+```solidity
+function renounceOwnership() external;
+```
+
+Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
+
+### `reset()`
+
+```solidity
+function reset() external;
+```
+
+Clears every allocation immediately, allowing SignalGBX to be unstaked in the same transaction.
+
+### `resonanceRouter()`
+
+```solidity
+function resonanceRouter() external view returns (address arg0);
+```
+
+Sole router authorized to notify USDG revenue.
+
+### `revenueIndex()`
+
+```solidity
+function revenueIndex() external view returns (uint256 arg0);
+```
+
+Cumulative USDG revenue per unit of signal weight.
+
+### `setBribeBps(uint256)`
+
+```solidity
+function setBribeBps(uint256 newBribeBps) external;
+```
+
+Sets the acquisition payment share streamed to signalers.
+
+**Parameters**
+
+- `newBribeBps`: New share in basis points, capped by `MAX_BRIBE_BPS`.
+
+### `setResonanceRouter(address)`
+
+```solidity
+function setResonanceRouter(address resonanceRouter_) external;
+```
+
+Binds the sole ResonanceRouter revenue source once during deployment.
+
+**Parameters**
+
+- `resonanceRouter_`: ResonanceRouter address to bind permanently.
+
+### `signal(address[],uint256[])`
+
+```solidity
+function signal(address[] requestedStrategies, uint256[] relativeWeights) external;
+```
+
+Replaces the caller's complete allocation using relative weights.
+Relative inputs are normalized against the caller's current SignalGBX balance. There is no epoch gate.
+
+**Parameters**
+
+- `relativeWeights`: Relative allocation assigned to each corresponding Strategy.
+- `requestedStrategies`: Strategies to receive the caller's signal weight.
+
+### `signalGBX()`
+
+```solidity
+function signalGBX() external view returns (contract IERC20 arg0);
+```
+
+Non-transferable staking receipt used as current signal power.
+
+### `strategies()`
+
+```solidity
+function strategies() external view returns (address[] strategyList);
+```
+
+Returns all protocol Strategies in creation order.
+
+**Returns**
+
+- `strategyList`: Strategy addresses in creation order.
+
+### `strategyFactory()`
+
+```solidity
+function strategyFactory() external view returns (contract StrategyFactory arg0);
+```
+
+Factory used to create Strategies and their BribeRouters.
+
+### `strategyRevenueIndex(address)`
+
+```solidity
+function strategyRevenueIndex(address strategy) external view returns (uint256 index);
+```
+
+Global revenue index last accounted for each Strategy.
+
+### `strategySignalWeight(address)`
+
+```solidity
+function strategySignalWeight(address strategy) external view returns (uint256 signalWeight);
+```
+
+Total SignalGBX weight allocated to each Strategy.
+
+### `totalSignalWeight()`
+
+```solidity
+function totalSignalWeight() external view returns (uint256 arg0);
+```
+
+Total SignalGBX weight currently allocated across all Strategies.
+
+### `transferOwnership(address)`
+
+```solidity
+function transferOwnership(address newOwner) external;
+```
+
+Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
+
+### `updateStrategy(address)`
+
+```solidity
+function updateStrategy(address strategy) external;
+```
+
+Updates one Strategy's stored revenue without transferring it.
+
+**Parameters**
+
+- `strategy`: Strategy whose index checkpoint should advance.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (contract IERC20 arg0);
+```
+
+Revenue token distributed among Strategies.
+
+### Events
+
+#### `BribeBpsSet(uint256,uint256)`
+
+```solidity
+event BribeBpsSet(uint256 previousBps, uint256 newBps);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `BribeRewardAdded(address,address,address)`
+
+```solidity
+event BribeRewardAdded(address indexed strategy, address indexed bribe, address indexed rewardToken);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnershipTransferred(address,address)`
+
+```solidity
+event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ResonanceRouterSet(address)`
+
+```solidity
+event ResonanceRouterSet(address indexed resonanceRouter);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RevenueDistributed(address,address,uint256)`
+
+```solidity
+event RevenueDistributed(address indexed caller, address indexed strategy, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RevenueNotified(address,uint256)`
+
+```solidity
+event RevenueNotified(address indexed resonanceRouter, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SignalAllocated(address,address,uint256)`
+
+```solidity
+event SignalAllocated(address indexed account, address indexed strategy, uint256 signalWeight);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SignalReset(address,address,uint256)`
+
+```solidity
+event SignalReset(address indexed account, address indexed strategy, uint256 signalWeight);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `StrategyAdded(address,address,address,address,uint8)`
+
+```solidity
+event StrategyAdded(address indexed strategy, address indexed bribe, address indexed bribeRouter, address paymentToken, enum Strategy.Kind kind);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `StrategyKilled(address)`
+
+```solidity
+event StrategyKilled(address indexed strategy);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `BribeBpsAboveMaximum(uint256)`
+
+```solidity
+error BribeBpsAboveMaximum(uint256 requested);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `DuplicateStrategy(address)`
+
+```solidity
+error DuplicateStrategy(address strategy);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InexactRevenueTransfer(uint256,uint256)`
+
+```solidity
+error InexactRevenueTransfer(uint256 expected, uint256 received);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `LengthMismatch()`
+
+```solidity
+error LengthMismatch();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnableInvalidOwner(address)`
+
+```solidity
+error OwnableInvalidOwner(address owner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnableUnauthorizedAccount(address)`
+
+```solidity
+error OwnableUnauthorizedAccount(address account);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ReentrancyGuardReentrantCall()`
+
+```solidity
+error ReentrancyGuardReentrantCall();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ResonanceRouterAlreadySet(address)`
+
+```solidity
+error ResonanceRouterAlreadySet(address resonanceRouter);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SafeERC20FailedOperation(address)`
+
+```solidity
+error SafeERC20FailedOperation(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `StrategyAlreadyDead(address)`
+
+```solidity
+error StrategyAlreadyDead(address strategy);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `StrategyNotFound(address)`
+
+```solidity
+error StrategyNotFound(address strategy);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `UnauthorizedRevenueSource(address)`
+
+```solidity
+error UnauthorizedRevenueSource(address caller);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAddress()`
+
+```solidity
+error ZeroAddress();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAmount()`
+
+```solidity
+error ZeroAmount();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroSignalWeight(address)`
+
+```solidity
+error ZeroSignalWeight(address strategy);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroTotalRelativeWeight()`
+
+```solidity
+error ZeroTotalRelativeWeight();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## ResonanceRouter
+
+Source: [`src/core/ResonanceRouter.sol`](../../packages/contracts/src/core/ResonanceRouter.sol)
+
+Artifact: `out/ResonanceRouter.sol/ResonanceRouter.json`
+
+Public ABI: 4 functions, 1 event, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address,address)`
+
+```solidity
+constructor(contract IERC20 usdg_, address resonance_);
+```
+
+Creates a fixed USDG route into `resonance_`.
+
+**Parameters**
+
+- `resonance_`: Resonance that receives and indexes routed USDG.
+- `usdg_`: USDG token forwarded by the router.
+
+### `pendingRevenue()`
+
+```solidity
+function pendingRevenue() external view returns (uint256 amount);
+```
+
+Returns USDG waiting to be routed.
+
+**Returns**
+
+- `amount`: Current USDG balance of the router.
+
+### `resonance()`
+
+```solidity
+function resonance() external view returns (address arg0);
+```
+
+Resonance that receives and indexes routed USDG.
+
+### `route()`
+
+```solidity
+function route() external returns (uint256 amount);
+```
+
+Routes the complete USDG balance to Resonance.
+
+**Returns**
+
+- `amount`: Amount delivered to Resonance in this call.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (contract IERC20 arg0);
+```
+
+USDG revenue token forwarded by this router.
+
+### Events
+
+#### `RevenueRouted(address,uint256)`
+
+```solidity
+event RevenueRouted(address indexed caller, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `NoRevenue()`
+
+```solidity
+error NoRevenue();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ReentrancyGuardReentrantCall()`
+
+```solidity
+error ReentrancyGuardReentrantCall();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RevenueRetained(uint256)`
+
+```solidity
+error RevenueRetained(uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SafeERC20FailedOperation(address)`
+
+```solidity
+error SafeERC20FailedOperation(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAddress()`
+
+```solidity
+error ZeroAddress();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 ## SignalGBX
 
 Source: [`src/core/SignalGBX.sol`](../../packages/contracts/src/core/SignalGBX.sol)
@@ -2417,7 +3184,7 @@ Creates the non-transferable staking receipt and assigns deployment-time ownersh
 **Parameters**
 
 - `gbx_`: GBX token deposited by stakers.
-- `initialOwner`: Deployment-time owner responsible for binding Voter.
+- `initialOwner`: Deployment-time owner responsible for binding Resonance.
 
 ### `CLOCK_MODE()`
 
@@ -2603,17 +3370,25 @@ function renounceOwnership() external;
 
 Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
 
-### `setVoter(address)`
+### `resonance()`
 
 ```solidity
-function setVoter(address voter_) external;
+function resonance() external view returns (address arg0);
 ```
 
-Binds the Voter dependency once during deployment.
+Resonance that tracks whether an account still has active allocations.
+
+### `setResonance(address)`
+
+```solidity
+function setResonance(address resonance_) external;
+```
+
+Binds the Resonance dependency once during deployment.
 
 **Parameters**
 
-- `voter_`: Voter address to bind permanently.
+- `resonance_`: Resonance address to bind permanently.
 
 ### `stake(uint256)`
 
@@ -2673,19 +3448,11 @@ Transfers ownership of the contract to a new account (`newOwner`). Can only be c
 function unstake(uint256 amount) external;
 ```
 
-Burns SignalGBX and returns the underlying GBX immediately after all votes are cleared.
+Burns SignalGBX and returns the underlying GBX immediately after all signals are cleared.
 
 **Parameters**
 
 - `amount`: Amount of SignalGBX to burn and GBX to withdraw.
-
-### `voter()`
-
-```solidity
-function voter() external view returns (address arg0);
-```
-
-Voter that tracks whether an account still has active allocations.
 
 ### Events
 
@@ -2729,6 +3496,14 @@ event OwnershipTransferred(address indexed previousOwner, address indexed newOwn
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `ResonanceSet(address)`
+
+```solidity
+event ResonanceSet(address indexed resonance);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `Staked(address,uint256)`
 
 ```solidity
@@ -2753,20 +3528,12 @@ event Unstaked(address indexed account, uint256 amount);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `VoterSet(address)`
-
-```solidity
-event VoterSet(address indexed voter);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 ### Custom errors
 
-#### `ActiveVotes(address,uint256)`
+#### `ActiveSignals(address,uint256)`
 
 ```solidity
-error ActiveVotes(address account, uint256 usedWeight);
+error ActiveSignals(address account, uint256 signalWeight);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2931,6 +3698,14 @@ error ReentrancyGuardReentrantCall();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `ResonanceAlreadySet(address)`
+
+```solidity
+error ResonanceAlreadySet(address resonance);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `SafeCastOverflowedUintDowncast(uint8,uint256)`
 
 ```solidity
@@ -2959,14 +3734,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error TransferDisabled();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `VoterAlreadySet(address)`
-
-```solidity
-error VoterAlreadySet(address voter);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3006,7 +3773,7 @@ Public ABI: 22 functions, 1 event, 13 custom errors, 1 constructor, 0 receive en
 ### `constructor(address,address,address,address,uint8,(uint256,uint256,uint256,uint256))`
 
 ```solidity
-constructor(address voter_, contract IERC20 revenueToken_, contract IERC20 paymentToken_, address fund_, enum Strategy.Kind kind_, struct Strategy.Config config);
+constructor(address resonance_, contract IERC20 revenueToken_, contract IERC20 paymentToken_, address fund_, enum Strategy.Kind kind_, struct Strategy.Config config);
 ```
 
 Creates one immutable acquisition or buyback Strategy.
@@ -3017,8 +3784,8 @@ Creates one immutable acquisition or buyback Strategy.
 - `fund_`: Treasury receiving acquisition payments or buyback GBX.
 - `kind_`: Whether this Strategy acquires an asset or performs GBX buybacks.
 - `paymentToken_`: Asset buyers pay to fill this Strategy.
+- `resonance_`: Resonance that provides the reward share and paired BribeRouter.
 - `revenueToken_`: USDG token sold by this Strategy.
-- `voter_`: Voter that provides the reward share and paired BribeRouter.
 
 ### `ABSOLUTE_MAXIMUM_PRICE()`
 
@@ -3199,6 +3966,14 @@ function priceMultiplier() external view returns (uint256 arg0);
 
 Fixed-point multiplier applied to a completed epoch's payment.
 
+### `resonance()`
+
+```solidity
+function resonance() external view returns (address arg0);
+```
+
+Resonance that supplies the current bribe share and paired BribeRouter.
+
 ### `revenueToken()`
 
 ```solidity
@@ -3206,14 +3981,6 @@ function revenueToken() external view returns (contract IERC20 arg0);
 ```
 
 USDG sold by this Strategy.
-
-### `voter()`
-
-```solidity
-function voter() external view returns (address arg0);
-```
-
-Voter that supplies the current bribe share and paired BribeRouter.
 
 ### Events
 
@@ -3345,11 +4112,11 @@ Public ABI: 6 functions, 3 events, 5 custom errors, 1 constructor, 0 receive ent
 constructor(address initialOwner);
 ```
 
-Creates an unbound factory whose owner may set Voter exactly once.
+Creates an unbound factory whose owner may set Resonance exactly once.
 
 **Parameters**
 
-- `initialOwner`: Deployment-time owner responsible for binding Voter.
+- `initialOwner`: Deployment-time owner responsible for binding Resonance.
 
 ### `createStrategy(address,address,address,address,uint8,(uint256,uint256,uint256,uint256))`
 
@@ -3361,7 +4128,7 @@ Deploys a Strategy and the BribeRouter paired with it.
 
 **Parameters**
 
-- `bribe`: Bribe that streams the Strategy's voter share.
+- `bribe`: Bribe that streams the Strategy's signal-reward share.
 - `config`: Immutable auction configuration.
 - `fund`: Treasury receiving acquisition proceeds or GBX buybacks.
 - `kind`: Whether the Strategy acquires an asset or performs GBX buybacks.
@@ -3389,17 +4156,25 @@ function renounceOwnership() external;
 
 Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
 
-### `setVoter(address)`
+### `resonance()`
 
 ```solidity
-function setVoter(address voter_) external;
+function resonance() external view returns (address arg0);
 ```
 
-Binds the only Voter allowed to create Strategies.
+Resonance exclusively authorized to create Strategy graphs.
+
+### `setResonance(address)`
+
+```solidity
+function setResonance(address resonance_) external;
+```
+
+Binds the only Resonance allowed to create Strategies.
 
 **Parameters**
 
-- `voter_`: Voter address to bind permanently.
+- `resonance_`: Resonance address to bind permanently.
 
 ### `transferOwnership(address)`
 
@@ -3409,20 +4184,20 @@ function transferOwnership(address newOwner) external;
 
 Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
 
-### `voter()`
-
-```solidity
-function voter() external view returns (address arg0);
-```
-
-Voter exclusively authorized to create Strategy graphs.
-
 ### Events
 
 #### `OwnershipTransferred(address,address)`
 
 ```solidity
 event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ResonanceSet(address)`
+
+```solidity
+event ResonanceSet(address indexed resonance);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3435,20 +4210,12 @@ event StrategyCreated(address indexed strategy, address indexed bribeRouter, add
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `VoterSet(address)`
-
-```solidity
-event VoterSet(address indexed voter);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 ### Custom errors
 
-#### `NotVoter(address)`
+#### `NotResonance(address)`
 
 ```solidity
-error NotVoter(address caller);
+error NotResonance(address caller);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3469,777 +4236,10 @@ error OwnableUnauthorizedAccount(address account);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `VoterAlreadySet(address)`
+#### `ResonanceAlreadySet(address)`
 
 ```solidity
-error VoterAlreadySet(address voter);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ZeroAddress()`
-
-```solidity
-error ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-## Voter
-
-Source: [`src/core/Voter.sol`](../../packages/contracts/src/core/Voter.sol)
-
-Artifact: `out/Voter.sol/Voter.json`
-
-Public ABI: 42 functions, 10 events, 16 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,address,address,address,address)`
-
-```solidity
-constructor(contract IERC20 signalGBX_, contract IERC20 usdg_, address fund_, contract BribeFactory bribeFactory_, contract StrategyFactory strategyFactory_, address initialOwner);
-```
-
-Creates the allocation system with immutable token, Fund, and factory dependencies.
-
-**Parameters**
-
-- `bribeFactory_`: Factory used to deploy one Bribe per Strategy.
-- `fund_`: Treasury receiving unallocated or disabled-Strategy revenue.
-- `initialOwner`: Typed timelock authorized to administer the system.
-- `signalGBX_`: Non-transferable staking receipt used as voting power.
-- `strategyFactory_`: Factory used to deploy Strategies and BribeRouters.
-- `usdg_`: Revenue token allocated among Strategies.
-
-### `BPS_SCALE()`
-
-```solidity
-function BPS_SCALE() external view returns (uint256 arg0);
-```
-
-Basis-point denominator for acquisition reward shares.
-
-### `DEFAULT_BRIBE_BPS()`
-
-```solidity
-function DEFAULT_BRIBE_BPS() external view returns (uint256 arg0);
-```
-
-Initial 10% share of acquisition payments streamed to voters.
-
-### `INDEX_PRECISION()`
-
-```solidity
-function INDEX_PRECISION() external view returns (uint256 arg0);
-```
-
-Fixed-point precision for indexed USDG revenue.
-
-### `MAX_BRIBE_BPS()`
-
-```solidity
-function MAX_BRIBE_BPS() external view returns (uint256 arg0);
-```
-
-Maximum 50% share governance may stream to voters.
-
-### `accountStrategies(address)`
-
-```solidity
-function accountStrategies(address account) external view returns (address[] strategyList);
-```
-
-Returns the Strategies currently selected by `account`.
-
-**Parameters**
-
-- `account`: Voting account to inspect.
-
-**Returns**
-
-- `strategyList`: Strategies currently selected by `account`.
-
-### `accountUsedWeight(address)`
-
-```solidity
-function accountUsedWeight(address account) external view returns (uint256 weight);
-```
-
-Total voting weight currently allocated by an account.
-
-### `accountVotes(address,address)`
-
-```solidity
-function accountVotes(address account, address strategy) external view returns (uint256 votes);
-```
-
-Voting weight an account assigned to a Strategy.
-
-### `addBribeReward(address,address)`
-
-```solidity
-function addBribeReward(address strategy, address rewardToken) external;
-```
-
-Registers an additional reward token on a Strategy's Bribe.
-
-**Parameters**
-
-- `rewardToken`: Token to register.
-- `strategy`: Strategy whose Bribe should accept the token.
-
-### `addStrategy(address,uint8,(uint256,uint256,uint256,uint256))`
-
-```solidity
-function addStrategy(contract IERC20 paymentToken, enum Strategy.Kind kind, struct Strategy.Config config) external returns (address strategyAddress, address bribeAddress, address bribeRouterAddress);
-```
-
-Creates a Strategy, its Bribe, and its BribeRouter as one Voter-controlled graph.
-
-**Parameters**
-
-- `config`: Immutable auction configuration.
-- `kind`: Whether the Strategy acquires an asset or performs GBX buybacks.
-- `paymentToken`: Asset buyers pay to fill the Strategy.
-
-**Returns**
-
-- `bribeAddress`: Bribe paired with the Strategy.
-- `bribeRouterAddress`: BribeRouter paired with the Strategy and Bribe.
-- `strategyAddress`: Newly deployed Strategy.
-
-### `bribeBps()`
-
-```solidity
-function bribeBps() external view returns (uint256 arg0);
-```
-
-Share of acquisition payments streamed to voters, expressed in basis points.
-
-### `bribeFactory()`
-
-```solidity
-function bribeFactory() external view returns (contract BribeFactory arg0);
-```
-
-Factory used to create one Bribe per Strategy.
-
-### `bribeFor(address)`
-
-```solidity
-function bribeFor(address strategy) external view returns (address bribe);
-```
-
-Bribe associated with each Strategy.
-
-### `bribeRouterFor(address)`
-
-```solidity
-function bribeRouterFor(address strategy) external view returns (address router);
-```
-
-BribeRouter associated with each Strategy.
-
-### `claimRewards(address[])`
-
-```solidity
-function claimRewards(address[] requestedStrategies) external;
-```
-
-Claims rewards from the Bribes associated with `strategies` for the caller.
-
-**Parameters**
-
-- `requestedStrategies`: Strategies whose Bribes should pay the caller.
-
-### `claimableRevenue(address)`
-
-```solidity
-function claimableRevenue(address strategy) external view returns (uint256 amount);
-```
-
-Indexed USDG available to distribute to each Strategy.
-
-### `distribute(address)`
-
-```solidity
-function distribute(address strategy) external returns (uint256 amount);
-```
-
-Transfers a Strategy's indexed USDG allocation to that Strategy.
-
-**Parameters**
-
-- `strategy`: Strategy whose indexed revenue should be transferred.
-
-**Returns**
-
-- `amount`: Amount of USDG distributed.
-
-### `distributeAll()`
-
-```solidity
-function distributeAll() external;
-```
-
-Distributes currently claimable revenue to every Strategy.
-
-### `distributeRange(uint256,uint256)`
-
-```solidity
-function distributeRange(uint256 start, uint256 end) external;
-```
-
-Distributes revenue to a bounded half-open range of Strategies: `[start, end)`.
-
-**Parameters**
-
-- `end`: Exclusive index, capped at the current Strategy count.
-- `start`: Inclusive index in the Strategy list.
-
-### `fund()`
-
-```solidity
-function fund() external view returns (address arg0);
-```
-
-Treasury that receives zero-weight and disabled-Strategy revenue.
-
-### `isStrategy(address)`
-
-```solidity
-function isStrategy(address strategy) external view returns (bool isValid);
-```
-
-Whether an address is a Voter-created Strategy.
-
-### `isStrategyAlive(address)`
-
-```solidity
-function isStrategyAlive(address strategy) external view returns (bool isAlive);
-```
-
-Whether a Strategy remains eligible for future USDG.
-
-### `killStrategy(address)`
-
-```solidity
-function killStrategy(address strategy) external;
-```
-
-Stops a Strategy from receiving future USDG; its already indexed revenue is returned to Fund.
-Existing voter weights remain until their owners replace or reset them. Their dead-Strategy revenue share is routed to Fund whenever that Strategy's index is updated.
-
-**Parameters**
-
-- `strategy`: Strategy to disable permanently.
-
-### `notifyRevenue(uint256)`
-
-```solidity
-function notifyRevenue(uint256 amount) external;
-```
-
-Pulls USDG from VoterRouter and adds it to the global revenue index.
-
-**Parameters**
-
-- `amount`: Amount of USDG to pull and index.
-
-### `owner()`
-
-```solidity
-function owner() external view returns (address arg0);
-```
-
-Returns the address of the current owner.
-
-### `paymentTokenFor(address)`
-
-```solidity
-function paymentTokenFor(address strategy) external view returns (address paymentToken);
-```
-
-Payment token required by each Strategy.
-
-### `pendingRevenue(address)`
-
-```solidity
-function pendingRevenue(address strategy) external view returns (uint256 amount);
-```
-
-Returns revenue accrued since `strategy` was last updated.
-
-**Parameters**
-
-- `strategy`: Strategy whose uncheckpointed revenue is queried.
-
-**Returns**
-
-- `amount`: Revenue accrued since the Strategy's last index update.
-
-### `renounceOwnership()`
-
-```solidity
-function renounceOwnership() external;
-```
-
-Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
-
-### `reset()`
-
-```solidity
-function reset() external;
-```
-
-Clears every allocation immediately, allowing SignalGBX to be unstaked in the same transaction.
-
-### `revenueIndex()`
-
-```solidity
-function revenueIndex() external view returns (uint256 arg0);
-```
-
-Cumulative USDG revenue per unit of voting weight.
-
-### `setBribeBps(uint256)`
-
-```solidity
-function setBribeBps(uint256 newBribeBps) external;
-```
-
-Sets the acquisition payment share streamed to voters.
-
-**Parameters**
-
-- `newBribeBps`: New share in basis points, capped by `MAX_BRIBE_BPS`.
-
-### `setVoterRouter(address)`
-
-```solidity
-function setVoterRouter(address voterRouter_) external;
-```
-
-Binds the sole VoterRouter revenue source once during deployment.
-
-**Parameters**
-
-- `voterRouter_`: VoterRouter address to bind permanently.
-
-### `signalGBX()`
-
-```solidity
-function signalGBX() external view returns (contract IERC20 arg0);
-```
-
-Non-transferable staking receipt used as current voting power.
-
-### `strategies()`
-
-```solidity
-function strategies() external view returns (address[] strategyList);
-```
-
-Returns all protocol Strategies in creation order.
-
-**Returns**
-
-- `strategyList`: Strategy addresses in creation order.
-
-### `strategyFactory()`
-
-```solidity
-function strategyFactory() external view returns (contract StrategyFactory arg0);
-```
-
-Factory used to create Strategies and their BribeRouters.
-
-### `strategyRevenueIndex(address)`
-
-```solidity
-function strategyRevenueIndex(address strategy) external view returns (uint256 index);
-```
-
-Global revenue index last accounted for each Strategy.
-
-### `strategyWeight(address)`
-
-```solidity
-function strategyWeight(address strategy) external view returns (uint256 weight);
-```
-
-Total SignalGBX weight allocated to each Strategy.
-
-### `totalWeight()`
-
-```solidity
-function totalWeight() external view returns (uint256 arg0);
-```
-
-Total SignalGBX weight currently allocated across all Strategies.
-
-### `transferOwnership(address)`
-
-```solidity
-function transferOwnership(address newOwner) external;
-```
-
-Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
-
-### `updateStrategy(address)`
-
-```solidity
-function updateStrategy(address strategy) external;
-```
-
-Updates one Strategy's stored revenue without transferring it.
-
-**Parameters**
-
-- `strategy`: Strategy whose index checkpoint should advance.
-
-### `usdg()`
-
-```solidity
-function usdg() external view returns (contract IERC20 arg0);
-```
-
-Revenue token distributed among Strategies.
-
-### `vote(address[],uint256[])`
-
-```solidity
-function vote(address[] requestedStrategies, uint256[] relativeWeights) external;
-```
-
-Replaces the caller's complete allocation using relative weights.
-Relative inputs are normalized against the caller's current SignalGBX balance. There is no epoch gate.
-
-**Parameters**
-
-- `relativeWeights`: Relative allocation assigned to each corresponding Strategy.
-- `requestedStrategies`: Strategies to receive the caller's voting weight.
-
-### `voterRouter()`
-
-```solidity
-function voterRouter() external view returns (address arg0);
-```
-
-Sole router authorized to notify USDG revenue.
-
-### Events
-
-#### `BribeBpsSet(uint256,uint256)`
-
-```solidity
-event BribeBpsSet(uint256 previousBps, uint256 newBps);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BribeRewardAdded(address,address,address)`
-
-```solidity
-event BribeRewardAdded(address indexed strategy, address indexed bribe, address indexed rewardToken);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `OwnershipTransferred(address,address)`
-
-```solidity
-event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RevenueDistributed(address,address,uint256)`
-
-```solidity
-event RevenueDistributed(address indexed caller, address indexed strategy, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RevenueNotified(address,uint256)`
-
-```solidity
-event RevenueNotified(address indexed voterRouter, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StrategyAdded(address,address,address,address,uint8)`
-
-```solidity
-event StrategyAdded(address indexed strategy, address indexed bribe, address indexed bribeRouter, address paymentToken, enum Strategy.Kind kind);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StrategyKilled(address)`
-
-```solidity
-event StrategyKilled(address indexed strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `VoteCast(address,address,uint256)`
-
-```solidity
-event VoteCast(address indexed account, address indexed strategy, uint256 weight);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `VoteReset(address,address,uint256)`
-
-```solidity
-event VoteReset(address indexed account, address indexed strategy, uint256 weight);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `VoterRouterSet(address)`
-
-```solidity
-event VoterRouterSet(address indexed voterRouter);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-### Custom errors
-
-#### `BribeBpsAboveMaximum(uint256)`
-
-```solidity
-error BribeBpsAboveMaximum(uint256 requested);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `DuplicateStrategy(address)`
-
-```solidity
-error DuplicateStrategy(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InexactRevenueTransfer(uint256,uint256)`
-
-```solidity
-error InexactRevenueTransfer(uint256 expected, uint256 received);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `LengthMismatch()`
-
-```solidity
-error LengthMismatch();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `OwnableInvalidOwner(address)`
-
-```solidity
-error OwnableInvalidOwner(address owner);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `OwnableUnauthorizedAccount(address)`
-
-```solidity
-error OwnableUnauthorizedAccount(address account);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ReentrancyGuardReentrantCall()`
-
-```solidity
-error ReentrancyGuardReentrantCall();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SafeERC20FailedOperation(address)`
-
-```solidity
-error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StrategyAlreadyDead(address)`
-
-```solidity
-error StrategyAlreadyDead(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `StrategyNotFound(address)`
-
-```solidity
-error StrategyNotFound(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `UnauthorizedRevenueSource(address)`
-
-```solidity
-error UnauthorizedRevenueSource(address caller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `VoterRouterAlreadySet(address)`
-
-```solidity
-error VoterRouterAlreadySet(address voterRouter);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ZeroAddress()`
-
-```solidity
-error ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ZeroAmount()`
-
-```solidity
-error ZeroAmount();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ZeroTotalWeight()`
-
-```solidity
-error ZeroTotalWeight();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ZeroVoteWeight(address)`
-
-```solidity
-error ZeroVoteWeight(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-## VoterRouter
-
-Source: [`src/core/VoterRouter.sol`](../../packages/contracts/src/core/VoterRouter.sol)
-
-Artifact: `out/VoterRouter.sol/VoterRouter.json`
-
-Public ABI: 4 functions, 1 event, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address)`
-
-```solidity
-constructor(contract IERC20 usdg_, address voter_);
-```
-
-Creates a fixed USDG route into `voter_`.
-
-**Parameters**
-
-- `usdg_`: USDG token forwarded by the router.
-- `voter_`: Voter that receives and indexes routed USDG.
-
-### `pendingRevenue()`
-
-```solidity
-function pendingRevenue() external view returns (uint256 amount);
-```
-
-Returns USDG waiting to be routed.
-
-**Returns**
-
-- `amount`: Current USDG balance of the router.
-
-### `route()`
-
-```solidity
-function route() external returns (uint256 amount);
-```
-
-Routes the complete USDG balance to Voter.
-
-**Returns**
-
-- `amount`: Amount delivered to Voter in this call.
-
-### `usdg()`
-
-```solidity
-function usdg() external view returns (contract IERC20 arg0);
-```
-
-USDG revenue token forwarded by this router.
-
-### `voter()`
-
-```solidity
-function voter() external view returns (address arg0);
-```
-
-Voter that receives and indexes routed USDG.
-
-### Events
-
-#### `RevenueRouted(address,uint256)`
-
-```solidity
-event RevenueRouted(address indexed caller, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-### Custom errors
-
-#### `NoRevenue()`
-
-```solidity
-error NoRevenue();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ReentrancyGuardReentrantCall()`
-
-```solidity
-error ReentrancyGuardReentrantCall();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RevenueRetained(uint256)`
-
-```solidity
-error RevenueRetained(uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SafeERC20FailedOperation(address)`
-
-```solidity
-error SafeERC20FailedOperation(address token);
+error ResonanceAlreadySet(address resonance);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -4295,27 +4295,27 @@ Starts or extends a reward stream.
 function totalSupply() external view returns (uint256 weight);
 ```
 
-Returns total virtual voting weight.
+Returns total virtual signal weight.
 
 **Returns**
 
 - `weight`: Total weight assigned to the Bribe.
 
-## ICoreVoter
+## ICoreResonance
 
-Source: [`src/core/interfaces/ICoreVoter.sol`](../../packages/contracts/src/core/interfaces/ICoreVoter.sol)
+Source: [`src/core/interfaces/ICoreResonance.sol`](../../packages/contracts/src/core/interfaces/ICoreResonance.sol)
 
-Artifact: `out/ICoreVoter.sol/ICoreVoter.json`
+Artifact: `out/ICoreResonance.sol/ICoreResonance.json`
 
 Public ABI: 4 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
-### `accountUsedWeight(address)`
+### `accountSignalWeight(address)`
 
 ```solidity
-function accountUsedWeight(address account) external view returns (uint256 usedWeight);
+function accountSignalWeight(address account) external view returns (uint256 signalWeight);
 ```
 
-Returns voting weight currently allocated by an account.
+Returns signal weight currently allocated by an account.
 
 **Parameters**
 
@@ -4323,7 +4323,7 @@ Returns voting weight currently allocated by an account.
 
 **Returns**
 
-- `usedWeight`: Voting weight currently assigned by `account`.
+- `signalWeight`: Signal weight currently assigned by `account`.
 
 ### `bribeBps()`
 
@@ -4331,7 +4331,7 @@ Returns voting weight currently allocated by an account.
 function bribeBps() external view returns (uint256 shareBps);
 ```
 
-Returns the acquisition payment share streamed to voters.
+Returns the acquisition payment share streamed to signalers.
 
 **Returns**
 
@@ -4501,6 +4501,18 @@ Returns whether this contract has already accepted its expected NFT.
 
 - `recorded`: Whether the expected position was recorded.
 
+### `resonanceRouter()`
+
+```solidity
+function resonanceRouter() external view returns (address router);
+```
+
+Returns the immutable USDG fee router.
+
+**Returns**
+
+- `router`: ResonanceRouter address.
+
 ### `usdg()`
 
 ```solidity
@@ -4513,23 +4525,11 @@ Returns the canonical USDG token.
 
 - `token`: Canonical USDG address.
 
-### `voterRouter()`
+## IResonanceRouter
 
-```solidity
-function voterRouter() external view returns (address router);
-```
+Source: [`src/core/interfaces/IResonanceRouter.sol`](../../packages/contracts/src/core/interfaces/IResonanceRouter.sol)
 
-Returns the immutable USDG fee router.
-
-**Returns**
-
-- `router`: VoterRouter address.
-
-## IVoterRouter
-
-Source: [`src/core/interfaces/IVoterRouter.sol`](../../packages/contracts/src/core/interfaces/IVoterRouter.sol)
-
-Artifact: `out/IVoterRouter.sol/IVoterRouter.json`
+Artifact: `out/IResonanceRouter.sol/IResonanceRouter.json`
 
 Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
@@ -4539,8 +4539,8 @@ Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive ent
 function route() external returns (uint256 amount);
 ```
 
-Routes the complete pending USDG balance to Voter.
+Routes the complete pending USDG balance to Resonance.
 
 **Returns**
 
-- `amount`: Amount of USDG delivered to Voter.
+- `amount`: Amount of USDG delivered to Resonance.

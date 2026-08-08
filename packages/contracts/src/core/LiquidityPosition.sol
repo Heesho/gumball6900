@@ -17,13 +17,13 @@ import { PositionInfo } from "@uniswap/v4-periphery/src/libraries/PositionInfoLi
 
 import { GBX } from "./GBX.sol";
 import { ILiquidityPosition } from "./interfaces/ILiquidityPosition.sol";
-import { IVoterRouter } from "./interfaces/IVoterRouter.sol";
+import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
 
 /// @title LiquidityPosition
 /// @author GUM BALL 6900
 /// @notice Holds the canonical GBX/USDG Uniswap v4 position and permissionlessly processes its trading fees.
 /// @dev The genesis position starts outside the active price as a GBX-only position. Fee collection never removes
-///      principal: collected GBX is burned and collected USDG is routed through VoterRouter. The owner can only bind
+///      principal: collected GBX is burned and collected USDG is routed through ResonanceRouter. The owner can only bind
 ///      one fully compatible successor, after which anyone may execute the exact NFT migration.
 contract LiquidityPosition is IERC721Receiver, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
@@ -34,7 +34,7 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard, Ownable {
         uint256 expectedPositionTokenId;
         GBX gbx;
         IERC20 usdg;
-        address voterRouter;
+        address resonanceRouter;
         address initialOwner;
     }
 
@@ -46,10 +46,10 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard, Ownable {
     uint256 public immutable expectedPositionTokenId;
     /// @notice GBX token burned when collected as fees.
     GBX public immutable gbx;
-    /// @notice USDG token routed to Voter.
+    /// @notice USDG token routed to Resonance.
     IERC20 public immutable usdg;
     /// @notice Router receiving all collected USDG.
-    address public immutable voterRouter;
+    address public immutable resonanceRouter;
 
     /// @notice Lower-address token of the canonical pool.
     address public immutable currency0;
@@ -77,7 +77,7 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard, Ownable {
     /// @param positionTokenId Canonical position NFT.
     /// @param caller Account that triggered collection.
     /// @param gbxBurned GBX permanently burned.
-    /// @param usdgRouted USDG delivered through VoterRouter.
+    /// @param usdgRouted USDG delivered through ResonanceRouter.
     event FeesProcessed(uint256 indexed positionTokenId, address indexed caller, uint256 gbxBurned, uint256 usdgRouted);
     /// @notice Emitted after the canonical NFT moves to its committed successor.
     /// @param positionTokenId Canonical position NFT.
@@ -124,13 +124,13 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard, Ownable {
         if (
             address(dependencies.positionManager) == address(0) || dependencies.positionDepositor == address(0)
                 || address(dependencies.gbx) == address(0) || address(dependencies.usdg) == address(0)
-                || dependencies.voterRouter == address(0) || dependencies.initialOwner == address(0)
+                || dependencies.resonanceRouter == address(0) || dependencies.initialOwner == address(0)
         ) revert ZeroAddress();
 
         _requireCode(address(dependencies.positionManager));
         _requireCode(address(dependencies.gbx));
         _requireCode(address(dependencies.usdg));
-        _requireCode(dependencies.voterRouter);
+        _requireCode(dependencies.resonanceRouter);
         _requireCode(dependencies.initialOwner);
 
         address poolCurrency0 = Currency.unwrap(canonicalPoolKey.currency0);
@@ -152,7 +152,7 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard, Ownable {
         expectedPositionTokenId = dependencies.expectedPositionTokenId;
         gbx = dependencies.gbx;
         usdg = dependencies.usdg;
-        voterRouter = dependencies.voterRouter;
+        resonanceRouter = dependencies.resonanceRouter;
         currency0 = poolCurrency0;
         currency1 = poolCurrency1;
         poolFee = canonicalPoolKey.fee;
@@ -224,11 +224,11 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard, Ownable {
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    /// @notice Collects fees without removing principal, burns all held GBX, and routes all held USDG to Voter.
+    /// @notice Collects fees without removing principal, burns all held GBX, and routes all held USDG to Resonance.
     /// @dev Processing complete balances also makes direct GBX or USDG transfers harmless. A failure in collection,
     ///      burning, transfer, or routing reverts the entire operation atomically.
     /// @return gbxBurned GBX permanently burned in this call.
-    /// @return usdgRouted USDG delivered to VoterRouter in this call.
+    /// @return usdgRouted USDG delivered to ResonanceRouter in this call.
     function collectFees() external nonReentrant returns (uint256 gbxBurned, uint256 usdgRouted) {
         _requirePositionInCustody();
 
@@ -247,14 +247,14 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard, Ownable {
         usdgRouted = usdg.balanceOf(address(this));
         if (usdgRouted != 0) {
             uint256 positionBalanceBefore = usdgRouted;
-            uint256 routerBalanceBefore = usdg.balanceOf(voterRouter);
-            usdg.safeTransfer(voterRouter, usdgRouted);
+            uint256 routerBalanceBefore = usdg.balanceOf(resonanceRouter);
+            usdg.safeTransfer(resonanceRouter, usdgRouted);
             uint256 positionDebit = positionBalanceBefore - usdg.balanceOf(address(this));
-            uint256 routerReceipt = usdg.balanceOf(voterRouter) - routerBalanceBefore;
+            uint256 routerReceipt = usdg.balanceOf(resonanceRouter) - routerBalanceBefore;
             if (positionDebit != usdgRouted || routerReceipt != usdgRouted) {
                 revert InexactUSDGTransfer(usdgRouted, positionDebit, routerReceipt);
             }
-            IVoterRouter(voterRouter).route();
+            IResonanceRouter(resonanceRouter).route();
         }
 
         emit FeesProcessed(positionTokenId, msg.sender, gbxBurned, usdgRouted);
@@ -272,7 +272,7 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard, Ownable {
         if (
             candidate.positionManager() != address(positionManager) || candidate.positionDepositor() != address(this)
                 || candidate.expectedPositionTokenId() != expectedPositionTokenId || candidate.gbx() != address(gbx)
-                || candidate.usdg() != address(usdg) || candidate.voterRouter() != voterRouter
+                || candidate.usdg() != address(usdg) || candidate.resonanceRouter() != resonanceRouter
                 || candidate.poolKeyHash() != poolKeyHash || candidate.expectedTickLower() != expectedTickLower
                 || candidate.expectedTickUpper() != expectedTickUpper || candidate.positionRecorded()
         ) revert IncompatibleSuccessor(newSuccessor);

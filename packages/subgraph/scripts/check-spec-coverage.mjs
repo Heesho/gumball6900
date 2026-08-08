@@ -40,16 +40,16 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleRevenueDistributed',
   'handleRevenueNotified',
   'handleRevenueRouted',
-  'handleSignalVoterSet',
+  'handleSignalResonanceSet',
   'handleStaked',
   'handleStrategyAdded',
   'handleStrategyKilled',
   'handleSuccessorSet',
   'handleTokenMigrated',
   'handleUnstaked',
-  'handleVoteCast',
-  'handleVoteReset',
-  'handleVoterRouterSet',
+  'handleSignalAllocated',
+  'handleSignalReset',
+  'handleResonanceRouterSet',
 ]);
 
 function matches(text, expression, captureIndex = 1) {

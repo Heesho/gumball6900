@@ -1,4 +1,4 @@
-import { RevenueRouted } from '../generated/VoterRouter/VoterRouter';
+import { RevenueRouted } from '../generated/ResonanceRouter/ResonanceRouter';
 import { getProtocol, recordEvent } from './entities';
 
 export function handleRevenueRouted(event: RevenueRouted): void {
@@ -6,7 +6,7 @@ export function handleRevenueRouted(event: RevenueRouted): void {
   protocol.routedRevenueRaw = protocol.routedRevenueRaw.plus(event.params.amount);
   protocol.save();
 
-  const record = recordEvent(event, 'VOTER_REVENUE_ROUTED');
+  const record = recordEvent(event, 'RESONANCE_REVENUE_ROUTED');
   record.addresses = [event.params.caller];
   record.values = [event.params.amount];
   record.save();

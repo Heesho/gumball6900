@@ -41,7 +41,7 @@ export function getAccount(address: Address, event: ethereum.Event): Account {
     account.contributedUSDGRaw = ZERO;
     account.claimedGBXRaw = ZERO;
     account.stakedGBXRaw = ZERO;
-    account.votingWeightRaw = ZERO;
+    account.signalWeightRaw = ZERO;
     account.redeemedGBXRaw = ZERO;
   }
   account.lastBlockNumber = event.block.number;
@@ -78,7 +78,7 @@ export function getStrategy(address: Address, event: ethereum.Event): Strategy {
     strategy.paymentToken = Address.zero();
     strategy.kind = 0;
     strategy.live = true;
-    strategy.totalWeightRaw = ZERO;
+    strategy.totalSignalWeightRaw = ZERO;
     strategy.distributedRevenueRaw = ZERO;
     strategy.createdBlockNumber = event.block.number;
   }

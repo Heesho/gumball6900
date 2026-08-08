@@ -6,7 +6,7 @@
 
 # Function: buildClaimRewards()
 
-> **buildClaimRewards**(`voter`, `strategies`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildClaimRewards**(`resonance`, `strategies`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
 Claims the caller's rewards from the selected Strategies' Bribes.
 
@@ -14,7 +14,7 @@ Claims the caller's rewards from the selected Strategies' Bribes.
 
 | Parameter    | Type                           |
 | ------------ | ------------------------------ |
-| `voter`      | `` `0x${string}` ``            |
+| `resonance`  | `` `0x${string}` ``            |
 | `strategies` | readonly `` `0x${string}` ``[] |
 
 ## Returns

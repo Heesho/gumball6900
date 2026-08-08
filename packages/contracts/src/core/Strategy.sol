@@ -7,7 +7,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { BribeRouter } from "./BribeRouter.sol";
-import { ICoreVoter } from "./interfaces/ICoreVoter.sol";
+import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
 import { IFund } from "./interfaces/IFund.sol";
 
 /// @title Strategy
@@ -47,8 +47,8 @@ contract Strategy is ReentrancyGuard {
     /// @notice Basis-point denominator used for the acquisition payment split.
     uint256 public constant BPS_SCALE = 10_000;
 
-    /// @notice Voter that supplies the current bribe share and paired BribeRouter.
-    address public immutable voter;
+    /// @notice Resonance that supplies the current bribe share and paired BribeRouter.
+    address public immutable resonance;
     /// @notice USDG sold by this Strategy.
     IERC20 public immutable revenueToken;
     /// @notice Asset required from a buyer.
@@ -98,14 +98,14 @@ contract Strategy is ReentrancyGuard {
     error ZeroAddress();
 
     /// @notice Creates one immutable acquisition or buyback Strategy.
-    /// @param voter_ Voter that provides the reward share and paired BribeRouter.
+    /// @param resonance_ Resonance that provides the reward share and paired BribeRouter.
     /// @param revenueToken_ USDG token sold by this Strategy.
     /// @param paymentToken_ Asset buyers pay to fill this Strategy.
     /// @param fund_ Treasury receiving acquisition payments or buyback GBX.
     /// @param kind_ Whether this Strategy acquires an asset or performs GBX buybacks.
     /// @param config Immutable auction configuration.
     constructor(
-        address voter_,
+        address resonance_,
         IERC20 revenueToken_,
         IERC20 paymentToken_,
         address fund_,
@@ -113,8 +113,8 @@ contract Strategy is ReentrancyGuard {
         Config memory config
     ) {
         if (
-            voter_ == address(0) || address(revenueToken_) == address(0) || address(paymentToken_) == address(0)
-                || fund_ == address(0) || voter_.code.length == 0 || address(revenueToken_).code.length == 0
+            resonance_ == address(0) || address(revenueToken_) == address(0) || address(paymentToken_) == address(0)
+                || fund_ == address(0) || resonance_.code.length == 0 || address(revenueToken_).code.length == 0
                 || address(paymentToken_).code.length == 0 || fund_.code.length == 0
         ) revert ZeroAddress();
         if (config.initialPrice < config.minimumPrice || config.initialPrice > ABSOLUTE_MAXIMUM_PRICE) {
@@ -133,7 +133,7 @@ contract Strategy is ReentrancyGuard {
             revert InvalidBuybackToken(address(paymentToken_));
         }
 
-        voter = voter_;
+        resonance = resonance_;
         revenueToken = revenueToken_;
         paymentToken = paymentToken_;
         fund = fund_;
@@ -205,17 +205,17 @@ contract Strategy is ReentrancyGuard {
         return initialPrice - Math.mulDiv(initialPrice, elapsed, epochDuration);
     }
 
-    /// @notice Settles an acquisition payment between Fund and voters.
-    /// @dev Splits the payment using Voter's current governance-bounded share.
+    /// @notice Settles an acquisition payment between Fund and signalers.
+    /// @dev Splits the payment using Resonance's current governance-bounded share.
     /// @param paymentAmount Total payment collected from the buyer.
     function _settleAcquisition(uint256 paymentAmount) private {
-        uint256 bribeAmount = Math.mulDiv(paymentAmount, ICoreVoter(voter).bribeBps(), BPS_SCALE);
+        uint256 bribeAmount = Math.mulDiv(paymentAmount, ICoreResonance(resonance).bribeBps(), BPS_SCALE);
         uint256 fundAmount = paymentAmount - bribeAmount;
 
         if (fundAmount != 0) paymentToken.safeTransfer(fund, fundAmount);
         if (bribeAmount == 0) return;
 
-        address router = ICoreVoter(voter).bribeRouterFor(address(this));
+        address router = ICoreResonance(resonance).bribeRouterFor(address(this));
         if (router == address(0)) revert ZeroAddress();
 
         paymentToken.forceApprove(router, bribeAmount);

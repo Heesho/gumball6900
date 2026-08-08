@@ -2,8 +2,8 @@ type ProtocolState @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
   minter: Bytes
-  signalVoter: Bytes
-  voterRouter: Bytes
+  resonance: Bytes
+  resonanceRouter: Bytes
   fundSuccessor: Bytes
   liquidityPositionSuccessor: Bytes
   lifetimeMintedRaw: BigInt!
@@ -34,7 +34,7 @@ type Account @entity(immutable: false) {
   contributedUSDGRaw: BigInt!
   claimedGBXRaw: BigInt!
   stakedGBXRaw: BigInt!
-  votingWeightRaw: BigInt!
+  signalWeightRaw: BigInt!
   redeemedGBXRaw: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
@@ -61,7 +61,7 @@ type Strategy @entity(immutable: false) {
   paymentToken: Bytes!
   kind: Int!
   live: Boolean!
-  totalWeightRaw: BigInt!
+  totalSignalWeightRaw: BigInt!
   distributedRevenueRaw: BigInt!
   createdBlockNumber: BigInt!
   lastBlockNumber: BigInt!

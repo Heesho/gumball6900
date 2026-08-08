@@ -11,12 +11,12 @@ import { Strategy } from "./Strategy.sol";
 /// @title StrategyFactory
 /// @author GUM BALL 6900
 /// @notice Deploys each Strategy together with its dedicated BribeRouter.
-/// @dev Adapted from Liquid Signal Governance. Only the bound Voter can create protocol Strategies.
+/// @dev Adapted from Liquid Signal Governance. Only the bound Resonance can create protocol Strategies.
 contract StrategyFactory is Ownable {
-    /// @notice Voter exclusively authorized to create Strategy graphs.
-    address public voter;
+    /// @notice Resonance exclusively authorized to create Strategy graphs.
+    address public resonance;
 
-    /// @notice Emitted when Voter deploys a complete Strategy route.
+    /// @notice Emitted when Resonance deploys a complete Strategy route.
     /// @param strategy Newly deployed Strategy.
     /// @param bribeRouter Router paired with the Strategy.
     /// @param paymentToken Asset accepted by the Strategy.
@@ -24,34 +24,34 @@ contract StrategyFactory is Ownable {
     event StrategyCreated(
         address indexed strategy, address indexed bribeRouter, address indexed paymentToken, Strategy.Kind kind
     );
-    /// @notice Emitted when the factory is permanently bound to Voter.
-    /// @param voter Bound Voter address.
-    event VoterSet(address indexed voter);
+    /// @notice Emitted when the factory is permanently bound to Resonance.
+    /// @param resonance Bound Resonance address.
+    event ResonanceSet(address indexed resonance);
 
-    error NotVoter(address caller);
-    error VoterAlreadySet(address voter);
+    error NotResonance(address caller);
+    error ResonanceAlreadySet(address resonance);
     error ZeroAddress();
 
-    /// @notice Creates an unbound factory whose owner may set Voter exactly once.
-    /// @param initialOwner Deployment-time owner responsible for binding Voter.
+    /// @notice Creates an unbound factory whose owner may set Resonance exactly once.
+    /// @param initialOwner Deployment-time owner responsible for binding Resonance.
     constructor(address initialOwner) Ownable(initialOwner) { }
 
-    /// @notice Binds the only Voter allowed to create Strategies.
-    /// @param voter_ Voter address to bind permanently.
-    function setVoter(address voter_) external onlyOwner {
-        if (voter != address(0)) revert VoterAlreadySet(voter);
-        if (voter_ == address(0) || voter_.code.length == 0) revert ZeroAddress();
+    /// @notice Binds the only Resonance allowed to create Strategies.
+    /// @param resonance_ Resonance address to bind permanently.
+    function setResonance(address resonance_) external onlyOwner {
+        if (resonance != address(0)) revert ResonanceAlreadySet(resonance);
+        if (resonance_ == address(0) || resonance_.code.length == 0) revert ZeroAddress();
 
-        voter = voter_;
+        resonance = resonance_;
 
-        emit VoterSet(voter_);
+        emit ResonanceSet(resonance_);
     }
 
     /// @notice Deploys a Strategy and the BribeRouter paired with it.
     /// @param revenueToken USDG token sold by the Strategy.
     /// @param paymentToken Asset buyers pay to fill the Strategy.
     /// @param fund Treasury receiving acquisition proceeds or GBX buybacks.
-    /// @param bribe Bribe that streams the Strategy's voter share.
+    /// @param bribe Bribe that streams the Strategy's signal-reward share.
     /// @param kind Whether the Strategy acquires an asset or performs GBX buybacks.
     /// @param config Immutable auction configuration.
     /// @return strategy Newly deployed Strategy.
@@ -64,10 +64,10 @@ contract StrategyFactory is Ownable {
         Strategy.Kind kind,
         Strategy.Config calldata config
     ) external returns (Strategy strategy, BribeRouter bribeRouter) {
-        address configuredVoter = voter;
-        if (msg.sender != configuredVoter) revert NotVoter(msg.sender);
+        address configuredResonance = resonance;
+        if (msg.sender != configuredResonance) revert NotResonance(msg.sender);
 
-        strategy = new Strategy(configuredVoter, revenueToken, paymentToken, fund, kind, config);
+        strategy = new Strategy(configuredResonance, revenueToken, paymentToken, fund, kind, config);
         bribeRouter = new BribeRouter(address(strategy), bribe, paymentToken, fund);
 
         emit StrategyCreated(address(strategy), address(bribeRouter), address(paymentToken), kind);

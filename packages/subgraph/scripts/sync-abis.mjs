@@ -16,8 +16,8 @@ const contracts = [
   'LiquidityPosition',
   'SignalGBX',
   'TimelockController',
-  'Voter',
-  'VoterRouter',
+  'Resonance',
+  'ResonanceRouter',
 ];
 
 if (!skipBuild) {

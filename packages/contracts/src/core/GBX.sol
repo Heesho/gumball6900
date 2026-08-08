@@ -124,7 +124,7 @@ contract GBX is ERC20, ERC20Permit, ERC20Votes {
         return super.nonces(owner);
     }
 
-    /// @notice Applies token and voting-checkpoint accounting for a balance update.
+    /// @notice Applies token and signal-checkpoint accounting for a balance update.
     /// @dev Resolves ERC20 and ERC20Votes accounting for every mint, burn, or transfer.
     /// @param from Address tokens move from, or zero during minting.
     /// @param to Address tokens move to, or zero during burning.

@@ -2,10 +2,10 @@
 
 ## Primary risks
 
-- A compromised multisig can schedule any owner call exposed by Voter, Fund, or LiquidityPosition through the
+- A compromised multisig can schedule any owner call exposed by Resonance, Fund, or LiquidityPosition through the
   standard timelock.
-- Unrestricted voting permits rapid allocation movement and wallet-splitting; it deliberately provides no epoch-level
-  stability or anti-revote guarantee.
+- Unrestricted signaling permits rapid allocation movement and wallet-splitting; it deliberately provides no
+  epoch-level stability or anti-churn guarantee.
 - A malformed caller-selected token can revert that redemption or migration batch, but cannot block batches that omit
   it.
 - Omitted redemption assets are forfeited to the remaining GBX supply.
@@ -22,5 +22,5 @@
 ## Explicitly absent protections
 
 The starting point has no pause guardian, proxy upgrade path, price oracle, NAV calculation, curated Fund asset list,
-or per-user voting cooldown. These omissions are deliberate simplifications and must be reconsidered through testing
+or per-user signal cooldown. These omissions are deliberate simplifications and must be reconsidered through testing
 and audit before production use.

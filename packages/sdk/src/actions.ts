@@ -7,8 +7,8 @@ import {
   liquidityPositionAbi,
   signalGbxAbi,
   strategyAbi,
-  voterAbi,
-  voterRouterAbi,
+  resonanceAbi,
+  resonanceRouterAbi,
 } from './abis.js';
 import { assertUint, positiveBigIntSchema, unsignedBigIntSchema } from './validation.js';
 
@@ -87,7 +87,7 @@ export function buildSettleFundraiserEpochs(fundraiser: Address, maximumEpochs: 
   );
 }
 
-/** Collects canonical v4 position fees, burns GBX, and routes USDG through VoterRouter. */
+/** Collects canonical v4 position fees, burns GBX, and routes USDG through ResonanceRouter. */
 export function buildCollectLiquidityFees(liquidityPosition: Address): ContractTransaction {
   return transaction(liquidityPosition, encodeFunctionData({ abi: liquidityPositionAbi, functionName: 'collectFees' }));
 }
@@ -106,15 +106,15 @@ export function buildStake(signalGBX: Address, amount: bigint): ContractTransact
   return transaction(signalGBX, encodeFunctionData({ abi: signalGbxAbi, functionName: 'stake', args: [amount] }));
 }
 
-/** Burns SignalGBX and immediately withdraws the underlying GBX after votes are reset. */
+/** Burns SignalGBX and immediately withdraws the underlying GBX after signals are reset. */
 export function buildUnstake(signalGBX: Address, amount: bigint): ContractTransaction {
   positiveUint256(amount, 'amount');
   return transaction(signalGBX, encodeFunctionData({ abi: signalGbxAbi, functionName: 'unstake', args: [amount] }));
 }
 
 /** Replaces the caller's complete unrestricted Strategy allocation. */
-export function buildVote(
-  voter: Address,
+export function buildSignal(
+  resonance: Address,
   strategies: readonly Address[],
   relativeWeights: readonly bigint[],
 ): ContractTransaction {
@@ -124,43 +124,43 @@ export function buildVote(
   const normalizedStrategies = uniqueAddresses(strategies, 'strategies');
   for (const weight of relativeWeights) positiveUint256(weight, 'relativeWeight');
   return transaction(
-    voter,
+    resonance,
     encodeFunctionData({
-      abi: voterAbi,
-      functionName: 'vote',
+      abi: resonanceAbi,
+      functionName: 'signal',
       args: [normalizedStrategies, [...relativeWeights]],
     }),
   );
 }
 
 /** Clears every Strategy allocation for the caller. */
-export function buildResetVotes(voter: Address): ContractTransaction {
-  return transaction(voter, encodeFunctionData({ abi: voterAbi, functionName: 'reset' }));
+export function buildResetSignals(resonance: Address): ContractTransaction {
+  return transaction(resonance, encodeFunctionData({ abi: resonanceAbi, functionName: 'reset' }));
 }
 
 /** Claims the caller's rewards from the selected Strategies' Bribes. */
-export function buildClaimRewards(voter: Address, strategies: readonly Address[]): ContractTransaction {
+export function buildClaimRewards(resonance: Address, strategies: readonly Address[]): ContractTransaction {
   if (strategies.length === 0) throw new RangeError('strategies cannot be empty');
   return transaction(
-    voter,
+    resonance,
     encodeFunctionData({
-      abi: voterAbi,
+      abi: resonanceAbi,
       functionName: 'claimRewards',
       args: [uniqueAddresses(strategies, 'strategies')],
     }),
   );
 }
 
-/** Routes all USDG currently held by VoterRouter into Voter. */
-export function buildRouteRevenue(voterRouter: Address): ContractTransaction {
-  return transaction(voterRouter, encodeFunctionData({ abi: voterRouterAbi, functionName: 'route' }));
+/** Routes all USDG currently held by ResonanceRouter into Resonance. */
+export function buildRouteRevenue(resonanceRouter: Address): ContractTransaction {
+  return transaction(resonanceRouter, encodeFunctionData({ abi: resonanceRouterAbi, functionName: 'route' }));
 }
 
 /** Sends one Strategy its currently indexed USDG allocation. */
-export function buildDistributeRevenue(voter: Address, strategy: Address): ContractTransaction {
+export function buildDistributeRevenue(resonance: Address, strategy: Address): ContractTransaction {
   return transaction(
-    voter,
-    encodeFunctionData({ abi: voterAbi, functionName: 'distribute', args: [getAddress(strategy)] }),
+    resonance,
+    encodeFunctionData({ abi: resonanceAbi, functionName: 'distribute', args: [getAddress(strategy)] }),
   );
 }
 

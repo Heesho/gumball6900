@@ -4,8 +4,8 @@
     "Fundraiser": { "address": "0x0000000000000000000000000000000000000002", "startBlock": 1 },
     "LiquidityPosition": { "address": "0x0000000000000000000000000000000000000008", "startBlock": 1 },
     "SignalGBX": { "address": "0x0000000000000000000000000000000000000003", "startBlock": 1 },
-    "VoterRouter": { "address": "0x0000000000000000000000000000000000000004", "startBlock": 1 },
-    "Voter": { "address": "0x0000000000000000000000000000000000000005", "startBlock": 1 },
+    "ResonanceRouter": { "address": "0x0000000000000000000000000000000000000004", "startBlock": 1 },
+    "Resonance": { "address": "0x0000000000000000000000000000000000000005", "startBlock": 1 },
     "Fund": { "address": "0x0000000000000000000000000000000000000006", "startBlock": 1 },
     "TimelockController": { "address": "0x0000000000000000000000000000000000000007", "startBlock": 1 }
   }

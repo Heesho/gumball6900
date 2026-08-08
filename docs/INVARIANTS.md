@@ -8,9 +8,9 @@
   epoch allocates zero and carries nothing forward.
 - Fundraiser routes the exact contributed USDG amount or reverts the contribution atomically.
 - SignalGBX supply is backed one-for-one by GBX held in SignalGBX.
-- SignalGBX cannot be transferred; an account cannot unstake while it has active Voter weight.
-- A Voter allocation may be replaced or reset at any time and never exceeds the account's current SignalGBX balance.
-- Only Voter can deploy through StrategyFactory or BribeFactory and maintain Bribe virtual balances.
+- SignalGBX cannot be transferred; an account cannot unstake while it has active signal weight.
+- A signal allocation may be replaced or reset at any time and never exceeds the account's current SignalGBX balance.
+- Only Resonance can deploy through StrategyFactory or BribeFactory and maintain Bribe virtual balances.
 - Acquisition Bribe share never exceeds 50%; buybacks burn 100% of their GBX payment.
 - Fund redemption uses one pre-burn supply snapshot for every selected token and is atomic with the GBX burn.
 - Redemption and migration reject GBX, zero addresses, and duplicate token entries.

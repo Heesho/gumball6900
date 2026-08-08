@@ -42,6 +42,14 @@
 
 > **liquidityPosition**: `` `0x${string}` `` = `addressSchema`
 
+#### addresses.resonance
+
+> **resonance**: `` `0x${string}` `` = `addressSchema`
+
+#### addresses.resonanceRouter
+
+> **resonanceRouter**: `` `0x${string}` `` = `addressSchema`
+
 #### addresses.signalGBX
 
 > **signalGBX**: `` `0x${string}` `` = `addressSchema`
@@ -53,14 +61,6 @@
 #### addresses.timelockController
 
 > **timelockController**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.voter
-
-> **voter**: `` `0x${string}` `` = `addressSchema`
-
-#### addresses.voterRouter
-
-> **voterRouter**: `` `0x${string}` `` = `addressSchema`
 
 ### chainId
 

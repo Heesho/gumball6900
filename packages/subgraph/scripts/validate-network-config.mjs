@@ -10,8 +10,8 @@ const requiredDataSources = [
   'Fundraiser',
   'LiquidityPosition',
   'SignalGBX',
-  'VoterRouter',
-  'Voter',
+  'ResonanceRouter',
+  'Resonance',
   'Fund',
   'TimelockController',
 ];

@@ -13,24 +13,24 @@ import { BribeRouter } from "./BribeRouter.sol";
 import { Strategy } from "./Strategy.sol";
 import { StrategyFactory } from "./StrategyFactory.sol";
 
-/// @title Voter
+/// @title Resonance
 /// @author GUM BALL 6900
 /// @notice Lets SignalGBX holders direct USDG revenue to Strategies and receive the associated payment-token rewards.
-/// @dev Adapted from Liquid Signal Governance. Voting is intentionally unrestricted: allocations can be replaced or
+/// @dev Adapted from Liquid Signal Governance. Signaling is intentionally unrestricted: allocations can be replaced or
 ///      cleared at any time, and clearing them immediately unlocks the holder's staked GBX.
-contract Voter is ReentrancyGuard, Ownable {
+contract Resonance is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     /// @notice Fixed-point precision for indexed USDG revenue.
     uint256 public constant INDEX_PRECISION = 1e18;
     /// @notice Basis-point denominator for acquisition reward shares.
     uint256 public constant BPS_SCALE = 10_000;
-    /// @notice Initial 10% share of acquisition payments streamed to voters.
+    /// @notice Initial 10% share of acquisition payments streamed to signalers.
     uint256 public constant DEFAULT_BRIBE_BPS = 1_000;
-    /// @notice Maximum 50% share governance may stream to voters.
+    /// @notice Maximum 50% share governance may stream to signalers.
     uint256 public constant MAX_BRIBE_BPS = 5_000;
 
-    /// @notice Non-transferable staking receipt used as current voting power.
+    /// @notice Non-transferable staking receipt used as current signal power.
     IERC20 public immutable signalGBX;
     /// @notice Revenue token distributed among Strategies.
     IERC20 public immutable usdg;
@@ -42,12 +42,12 @@ contract Voter is ReentrancyGuard, Ownable {
     StrategyFactory public immutable strategyFactory;
 
     /// @notice Sole router authorized to notify USDG revenue.
-    address public voterRouter;
-    /// @notice Share of acquisition payments streamed to voters, expressed in basis points.
+    address public resonanceRouter;
+    /// @notice Share of acquisition payments streamed to signalers, expressed in basis points.
     uint256 public bribeBps = DEFAULT_BRIBE_BPS;
     /// @notice Total SignalGBX weight currently allocated across all Strategies.
-    uint256 public totalWeight;
-    /// @notice Cumulative USDG revenue per unit of voting weight.
+    uint256 public totalSignalWeight;
+    /// @notice Cumulative USDG revenue per unit of signal weight.
     uint256 public revenueIndex;
 
     address[] private _strategies;
@@ -58,8 +58,8 @@ contract Voter is ReentrancyGuard, Ownable {
     /// @notice Payment token required by each Strategy.
     mapping(address strategy => address paymentToken) public paymentTokenFor;
     /// @notice Total SignalGBX weight allocated to each Strategy.
-    mapping(address strategy => uint256 weight) public strategyWeight;
-    /// @notice Whether an address is a Voter-created Strategy.
+    mapping(address strategy => uint256 signalWeight) public strategySignalWeight;
+    /// @notice Whether an address is a Resonance-created Strategy.
     mapping(address strategy => bool isValid) public isStrategy;
     /// @notice Whether a Strategy remains eligible for future USDG.
     mapping(address strategy => bool isAlive) public isStrategyAlive;
@@ -68,13 +68,13 @@ contract Voter is ReentrancyGuard, Ownable {
     /// @notice Indexed USDG available to distribute to each Strategy.
     mapping(address strategy => uint256 amount) public claimableRevenue;
 
-    /// @notice Voting weight an account assigned to a Strategy.
-    mapping(address account => mapping(address strategy => uint256 votes)) public accountVotes;
+    /// @notice Signal weight an account assigned to a Strategy.
+    mapping(address account => mapping(address strategy => uint256 signals)) public accountSignals;
     mapping(address account => address[] strategies) private _accountStrategies;
-    /// @notice Total voting weight currently allocated by an account.
-    mapping(address account => uint256 weight) public accountUsedWeight;
+    /// @notice Total signal weight currently allocated by an account.
+    mapping(address account => uint256 signalWeight) public accountSignalWeight;
 
-    /// @notice Emitted when governance updates the acquisition voter-reward share.
+    /// @notice Emitted when governance updates the acquisition signal-reward share.
     /// @param previousBps Previous share in basis points.
     /// @param newBps New share in basis points.
     event BribeBpsSet(uint256 previousBps, uint256 newBps);
@@ -88,10 +88,10 @@ contract Voter is ReentrancyGuard, Ownable {
     /// @param strategy Strategy that received USDG.
     /// @param amount Amount distributed.
     event RevenueDistributed(address indexed caller, address indexed strategy, uint256 amount);
-    /// @notice Emitted when VoterRouter supplies newly routed USDG.
-    /// @param voterRouter Authorized router that supplied USDG.
+    /// @notice Emitted when ResonanceRouter supplies newly routed USDG.
+    /// @param resonanceRouter Authorized router that supplied USDG.
     /// @param amount Amount received and indexed.
-    event RevenueNotified(address indexed voterRouter, uint256 amount);
+    event RevenueNotified(address indexed resonanceRouter, uint256 amount);
     /// @notice Emitted when governance creates a complete Strategy reward graph.
     /// @param strategy Newly deployed Strategy.
     /// @param bribe Bribe paired with the Strategy.
@@ -108,19 +108,19 @@ contract Voter is ReentrancyGuard, Ownable {
     /// @notice Emitted when governance permanently stops future revenue for a Strategy.
     /// @param strategy Strategy that was killed.
     event StrategyKilled(address indexed strategy);
-    /// @notice Emitted when an account assigns voting weight to a Strategy.
-    /// @param account Voting account.
+    /// @notice Emitted when an account assigns signal weight to a Strategy.
+    /// @param account Signal account.
     /// @param strategy Strategy receiving the weight.
-    /// @param weight SignalGBX weight assigned.
-    event VoteCast(address indexed account, address indexed strategy, uint256 weight);
-    /// @notice Emitted when an account removes voting weight from a Strategy.
-    /// @param account Voting account.
+    /// @param signalWeight SignalGBX weight assigned.
+    event SignalAllocated(address indexed account, address indexed strategy, uint256 signalWeight);
+    /// @notice Emitted when an account removes signal weight from a Strategy.
+    /// @param account Signal account.
     /// @param strategy Strategy losing the weight.
-    /// @param weight SignalGBX weight removed.
-    event VoteReset(address indexed account, address indexed strategy, uint256 weight);
+    /// @param signalWeight SignalGBX weight removed.
+    event SignalReset(address indexed account, address indexed strategy, uint256 signalWeight);
     /// @notice Emitted when the sole USDG revenue router is bound.
-    /// @param voterRouter Bound VoterRouter address.
-    event VoterRouterSet(address indexed voterRouter);
+    /// @param resonanceRouter Bound ResonanceRouter address.
+    event ResonanceRouterSet(address indexed resonanceRouter);
 
     error BribeBpsAboveMaximum(uint256 requested);
     error DuplicateStrategy(address strategy);
@@ -128,15 +128,15 @@ contract Voter is ReentrancyGuard, Ownable {
     error LengthMismatch();
     error StrategyAlreadyDead(address strategy);
     error StrategyNotFound(address strategy);
-    error VoterRouterAlreadySet(address voterRouter);
+    error ResonanceRouterAlreadySet(address resonanceRouter);
     error UnauthorizedRevenueSource(address caller);
     error ZeroAddress();
     error ZeroAmount();
-    error ZeroTotalWeight();
-    error ZeroVoteWeight(address strategy);
+    error ZeroTotalRelativeWeight();
+    error ZeroSignalWeight(address strategy);
 
     /// @notice Creates the allocation system with immutable token, Fund, and factory dependencies.
-    /// @param signalGBX_ Non-transferable staking receipt used as voting power.
+    /// @param signalGBX_ Non-transferable staking receipt used as signal power.
     /// @param usdg_ Revenue token allocated among Strategies.
     /// @param fund_ Treasury receiving unallocated or disabled-Strategy revenue.
     /// @param bribeFactory_ Factory used to deploy one Bribe per Strategy.
@@ -166,12 +166,12 @@ contract Voter is ReentrancyGuard, Ownable {
 
     /// @notice Replaces the caller's complete allocation using relative weights.
     /// @dev Relative inputs are normalized against the caller's current SignalGBX balance. There is no epoch gate.
-    /// @param requestedStrategies Strategies to receive the caller's voting weight.
+    /// @param requestedStrategies Strategies to receive the caller's signal weight.
     /// @param relativeWeights Relative allocation assigned to each corresponding Strategy.
-    function vote(address[] calldata requestedStrategies, uint256[] calldata relativeWeights) external {
+    function signal(address[] calldata requestedStrategies, uint256[] calldata relativeWeights) external {
         if (requestedStrategies.length != relativeWeights.length) revert LengthMismatch();
         _reset(msg.sender);
-        _vote(msg.sender, requestedStrategies, relativeWeights);
+        _signal(msg.sender, requestedStrategies, relativeWeights);
     }
 
     /// @notice Clears every allocation immediately, allowing SignalGBX to be unstaked in the same transaction.
@@ -190,10 +190,10 @@ contract Voter is ReentrancyGuard, Ownable {
         }
     }
 
-    /// @notice Pulls USDG from VoterRouter and adds it to the global revenue index.
+    /// @notice Pulls USDG from ResonanceRouter and adds it to the global revenue index.
     /// @param amount Amount of USDG to pull and index.
     function notifyRevenue(uint256 amount) external nonReentrant {
-        if (msg.sender != voterRouter) revert UnauthorizedRevenueSource(msg.sender);
+        if (msg.sender != resonanceRouter) revert UnauthorizedRevenueSource(msg.sender);
         if (amount == 0) revert ZeroAmount();
 
         uint256 balanceBefore = usdg.balanceOf(address(this));
@@ -203,13 +203,13 @@ contract Voter is ReentrancyGuard, Ownable {
 
         emit RevenueNotified(msg.sender, amount);
 
-        // With no allocations there is no future voter claim: revenue becomes Fund backing immediately.
-        if (totalWeight == 0) {
+        // With no allocations there is no future signaler claim: revenue becomes Fund backing immediately.
+        if (totalSignalWeight == 0) {
             usdg.safeTransfer(fund, amount);
             return;
         }
 
-        uint256 indexDelta = Math.mulDiv(amount, INDEX_PRECISION, totalWeight);
+        uint256 indexDelta = Math.mulDiv(amount, INDEX_PRECISION, totalSignalWeight);
         if (indexDelta != 0) revenueIndex += indexDelta;
     }
 
@@ -225,18 +225,18 @@ contract Voter is ReentrancyGuard, Ownable {
         _updateStrategy(strategy);
     }
 
-    /// @notice Binds the sole VoterRouter revenue source once during deployment.
-    /// @param voterRouter_ VoterRouter address to bind permanently.
-    function setVoterRouter(address voterRouter_) external onlyOwner {
-        if (voterRouter != address(0)) revert VoterRouterAlreadySet(voterRouter);
-        if (voterRouter_ == address(0) || voterRouter_.code.length == 0) revert ZeroAddress();
+    /// @notice Binds the sole ResonanceRouter revenue source once during deployment.
+    /// @param resonanceRouter_ ResonanceRouter address to bind permanently.
+    function setResonanceRouter(address resonanceRouter_) external onlyOwner {
+        if (resonanceRouter != address(0)) revert ResonanceRouterAlreadySet(resonanceRouter);
+        if (resonanceRouter_ == address(0) || resonanceRouter_.code.length == 0) revert ZeroAddress();
 
-        voterRouter = voterRouter_;
+        resonanceRouter = resonanceRouter_;
 
-        emit VoterRouterSet(voterRouter_);
+        emit ResonanceRouterSet(resonanceRouter_);
     }
 
-    /// @notice Sets the acquisition payment share streamed to voters.
+    /// @notice Sets the acquisition payment share streamed to signalers.
     /// @param newBribeBps New share in basis points, capped by `MAX_BRIBE_BPS`.
     function setBribeBps(uint256 newBribeBps) external onlyOwner {
         if (newBribeBps > MAX_BRIBE_BPS) revert BribeBpsAboveMaximum(newBribeBps);
@@ -247,7 +247,7 @@ contract Voter is ReentrancyGuard, Ownable {
         emit BribeBpsSet(previousBps, newBribeBps);
     }
 
-    /// @notice Creates a Strategy, its Bribe, and its BribeRouter as one Voter-controlled graph.
+    /// @notice Creates a Strategy, its Bribe, and its BribeRouter as one Resonance-controlled graph.
     /// @param paymentToken Asset buyers pay to fill the Strategy.
     /// @param kind Whether the Strategy acquires an asset or performs GBX buybacks.
     /// @param config Immutable auction configuration.
@@ -285,7 +285,7 @@ contract Voter is ReentrancyGuard, Ownable {
     }
 
     /// @notice Stops a Strategy from receiving future USDG; its already indexed revenue is returned to Fund.
-    /// @dev Existing voter weights remain until their owners replace or reset them. Their dead-Strategy revenue share
+    /// @dev Existing signal weights remain until their owners replace or reset them. Their dead-Strategy revenue share
     ///      is routed to Fund whenever that Strategy's index is updated.
     /// @param strategy Strategy to disable permanently.
     function killStrategy(address strategy) external onlyOwner nonReentrant {
@@ -325,7 +325,7 @@ contract Voter is ReentrancyGuard, Ownable {
     }
 
     /// @notice Returns the Strategies currently selected by `account`.
-    /// @param account Voting account to inspect.
+    /// @param account Signal account to inspect.
     /// @return strategyList Strategies currently selected by `account`.
     function accountStrategies(address account) external view returns (address[] memory strategyList) {
         return _accountStrategies[account];
@@ -335,7 +335,7 @@ contract Voter is ReentrancyGuard, Ownable {
     /// @param strategy Strategy whose uncheckpointed revenue is queried.
     /// @return amount Revenue accrued since the Strategy's last index update.
     function pendingRevenue(address strategy) external view returns (uint256 amount) {
-        uint256 weight = strategyWeight[strategy];
+        uint256 weight = strategySignalWeight[strategy];
         if (weight == 0) return 0;
         return Math.mulDiv(weight, revenueIndex - strategyRevenueIndex[strategy], INDEX_PRECISION);
     }
@@ -370,7 +370,7 @@ contract Voter is ReentrancyGuard, Ownable {
 
     /// @notice Removes all allocations recorded for an account.
     /// @dev Checkpoints every affected Strategy and Bribe before changing weight.
-    /// @param account Voting account to reset.
+    /// @param account Signal account to reset.
     function _reset(address account) private {
         address[] storage selectedStrategies = _accountStrategies[account];
         uint256 strategyCount = selectedStrategies.length;
@@ -378,29 +378,29 @@ contract Voter is ReentrancyGuard, Ownable {
 
         for (uint256 i; i < strategyCount; ++i) {
             address strategy = selectedStrategies[i];
-            uint256 votes = accountVotes[account][strategy];
-            if (votes == 0) continue;
+            uint256 signals = accountSignals[account][strategy];
+            if (signals == 0) continue;
 
             _updateStrategy(strategy);
-            strategyWeight[strategy] -= votes;
-            accountVotes[account][strategy] = 0;
-            Bribe(bribeFor[strategy]).withdraw(votes, account);
-            removedWeight += votes;
+            strategySignalWeight[strategy] -= signals;
+            accountSignals[account][strategy] = 0;
+            Bribe(bribeFor[strategy]).withdraw(signals, account);
+            removedWeight += signals;
 
-            emit VoteReset(account, strategy, votes);
+            emit SignalReset(account, strategy, signals);
         }
 
-        totalWeight -= removedWeight;
-        accountUsedWeight[account] = 0;
+        totalSignalWeight -= removedWeight;
+        accountSignalWeight[account] = 0;
         delete _accountStrategies[account];
     }
 
     /// @notice Applies a complete normalized allocation for an account.
     /// @dev Normalizes relative weights against the account's current SignalGBX balance.
-    /// @param account Voting account whose allocation is being written.
+    /// @param account Signal account whose allocation is being written.
     /// @param requestedStrategies Strategies eligible to receive weight.
     /// @param relativeWeights Relative allocation for each corresponding Strategy.
-    function _vote(address account, address[] calldata requestedStrategies, uint256[] calldata relativeWeights)
+    function _signal(address account, address[] calldata requestedStrategies, uint256[] calldata relativeWeights)
         private
     {
         uint256 strategyCount = requestedStrategies.length;
@@ -410,31 +410,31 @@ contract Voter is ReentrancyGuard, Ownable {
             address strategy = requestedStrategies[i];
             if (isStrategy[strategy] && isStrategyAlive[strategy]) relativeWeightTotal += relativeWeights[i];
         }
-        if (relativeWeightTotal == 0) revert ZeroTotalWeight();
+        if (relativeWeightTotal == 0) revert ZeroTotalRelativeWeight();
 
-        uint256 votingPower = signalGBX.balanceOf(account);
-        uint256 usedWeight;
+        uint256 signalPower = signalGBX.balanceOf(account);
+        uint256 allocatedSignalWeight;
 
         for (uint256 i; i < strategyCount; ++i) {
             address strategy = requestedStrategies[i];
             if (!isStrategy[strategy] || !isStrategyAlive[strategy]) continue;
-            if (accountVotes[account][strategy] != 0) revert DuplicateStrategy(strategy);
+            if (accountSignals[account][strategy] != 0) revert DuplicateStrategy(strategy);
 
-            uint256 allocatedWeight = Math.mulDiv(relativeWeights[i], votingPower, relativeWeightTotal);
-            if (allocatedWeight == 0) revert ZeroVoteWeight(strategy);
+            uint256 allocatedWeight = Math.mulDiv(relativeWeights[i], signalPower, relativeWeightTotal);
+            if (allocatedWeight == 0) revert ZeroSignalWeight(strategy);
 
             _updateStrategy(strategy);
             _accountStrategies[account].push(strategy);
-            strategyWeight[strategy] += allocatedWeight;
-            accountVotes[account][strategy] = allocatedWeight;
+            strategySignalWeight[strategy] += allocatedWeight;
+            accountSignals[account][strategy] = allocatedWeight;
             Bribe(bribeFor[strategy]).deposit(allocatedWeight, account);
-            usedWeight += allocatedWeight;
+            allocatedSignalWeight += allocatedWeight;
 
-            emit VoteCast(account, strategy, allocatedWeight);
+            emit SignalAllocated(account, strategy, allocatedWeight);
         }
 
-        totalWeight += usedWeight;
-        accountUsedWeight[account] = usedWeight;
+        totalSignalWeight += allocatedSignalWeight;
+        accountSignalWeight[account] = allocatedSignalWeight;
     }
 
     /// @notice Advances one Strategy to the current global revenue index.
@@ -445,7 +445,7 @@ contract Voter is ReentrancyGuard, Ownable {
         uint256 previousIndex = strategyRevenueIndex[strategy];
         strategyRevenueIndex[strategy] = currentIndex;
 
-        uint256 weight = strategyWeight[strategy];
+        uint256 weight = strategySignalWeight[strategy];
         if (weight == 0 || currentIndex == previousIndex) return;
 
         uint256 amount = Math.mulDiv(weight, currentIndex - previousIndex, INDEX_PRECISION);

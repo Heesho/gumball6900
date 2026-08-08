@@ -10,8 +10,8 @@ import { Bribe } from "./Bribe.sol";
 /// @title BribeRouter
 /// @author GUM BALL 6900
 /// @notice Routes one Strategy's payment-token rewards into its Bribe contract.
-/// @dev Adapted from Liquid Signal Governance. If the Strategy has no voters, queued rewards go to Fund instead of
-///      becoming claimable by voters who arrive after the purchase.
+/// @dev Adapted from Liquid Signal Governance. If the Strategy has no signalers, queued rewards go to Fund instead of
+///      becoming claimable by signalers who arrive after the purchase.
 contract BribeRouter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -21,7 +21,7 @@ contract BribeRouter is ReentrancyGuard {
     Bribe public immutable bribe;
     /// @notice Strategy payment token distributed as rewards.
     IERC20 public immutable rewardToken;
-    /// @notice Treasury that receives rewards when the Bribe has no voting weight.
+    /// @notice Treasury that receives rewards when the Bribe has no signal weight.
     address public immutable fund;
 
     /// @notice Emitted when queued rewards begin streaming through Bribe.
@@ -29,11 +29,11 @@ contract BribeRouter is ReentrancyGuard {
     /// @param rewardToken Token being streamed.
     /// @param amount Amount sent to Bribe.
     event RewardsDistributed(address indexed bribe, address indexed rewardToken, uint256 amount);
-    /// @notice Emitted when Strategy sends a newly earned voter reward share.
+    /// @notice Emitted when Strategy sends a newly earned signal-reward share.
     /// @param strategy Strategy that supplied the rewards.
     /// @param amount Amount queued in the router.
     event RewardsQueued(address indexed strategy, uint256 amount);
-    /// @notice Emitted when rewards are returned to Fund because no voter weight exists.
+    /// @notice Emitted when rewards are returned to Fund because no signal weight exists.
     /// @param fund Fund that received the rewards.
     /// @param rewardToken Token returned.
     /// @param amount Amount returned.
@@ -46,9 +46,9 @@ contract BribeRouter is ReentrancyGuard {
 
     /// @notice Creates the fixed route between one Strategy, one reward token, its Bribe, and Fund.
     /// @param strategy_ Strategy exclusively allowed to queue rewards.
-    /// @param bribe_ Bribe that streams rewards to voters.
+    /// @param bribe_ Bribe that streams rewards to signalers.
     /// @param rewardToken_ Strategy payment token distributed as rewards.
-    /// @param fund_ Treasury receiving rewards when no voter weight exists.
+    /// @param fund_ Treasury receiving rewards when no signal weight exists.
     constructor(address strategy_, Bribe bribe_, IERC20 rewardToken_, address fund_) {
         if (
             strategy_ == address(0) || address(bribe_) == address(0) || address(rewardToken_) == address(0)
@@ -78,7 +78,7 @@ contract BribeRouter is ReentrancyGuard {
         distributed = _distribute();
     }
 
-    /// @notice Permissionlessly distributes queued rewards or returns them to Fund when there are no voters.
+    /// @notice Permissionlessly distributes queued rewards or returns them to Fund when there are no signalers.
     /// @return distributed Amount sent to Bribe. Returns zero when rewards are queued or returned to Fund.
     function distribute() external nonReentrant returns (uint256 distributed) {
         distributed = _distribute();

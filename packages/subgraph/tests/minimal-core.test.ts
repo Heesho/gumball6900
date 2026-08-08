@@ -3,12 +3,12 @@ import { assert, beforeEach, clearStore, describe, newMockEvent, test } from 'ma
 import { Claimed, Contributed, EpochSettled } from '../generated/Fundraiser/Fundraiser';
 import { Burned, Minted } from '../generated/GBX/GBX';
 import { FeesProcessed } from '../generated/LiquidityPosition/LiquidityPosition';
-import { StrategyAdded, VoteCast, VoteReset } from '../generated/Voter/Voter';
+import { StrategyAdded, SignalAllocated, SignalReset } from '../generated/Resonance/Resonance';
 import { handleClaimed, handleContributed, handleEpochSettled } from '../src/fundraiser';
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
 import { handleFeesProcessed } from '../src/liquidity-position';
-import { handleStrategyAdded, handleVoteCast, handleVoteReset } from '../src/voter';
+import { handleStrategyAdded, handleSignalAllocated, handleSignalReset } from '../src/resonance';
 import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, configureEvent, uintParam } from './helpers';
 
 export {
@@ -19,8 +19,8 @@ export {
   handleFeesProcessed,
   handleMinted,
   handleStrategyAdded,
-  handleVoteCast,
-  handleVoteReset,
+  handleSignalAllocated,
+  handleSignalReset,
 };
 
 describe('core protocol mappings', () => {
@@ -103,7 +103,7 @@ describe('core protocol mappings', () => {
     assert.fieldEquals('ProtocolEvent', eventId(fees), 'eventType', 'LIQUIDITY_FEES_PROCESSED');
   });
 
-  test('tracks Strategy creation and unrestricted vote replacement events', () => {
+  test('tracks Strategy creation and unrestricted signal replacement events', () => {
     const added = changetype<StrategyAdded>(newMockEvent());
     configureEvent(added, CONTRACT, 1);
     added.parameters = new Array<ethereum.EventParam>();
@@ -114,26 +114,26 @@ describe('core protocol mappings', () => {
     added.parameters.push(uintParam('kind', 0));
     handleStrategyAdded(added);
 
-    const cast = changetype<VoteCast>(newMockEvent());
+    const cast = changetype<SignalAllocated>(newMockEvent());
     configureEvent(cast, CONTRACT, 2);
     cast.parameters = new Array<ethereum.EventParam>();
     cast.parameters.push(addressParam('account', USER));
     cast.parameters.push(addressParam('strategy', STRATEGY));
-    cast.parameters.push(uintParam('weight', 100));
-    handleVoteCast(cast);
+    cast.parameters.push(uintParam('signalWeight', 100));
+    handleSignalAllocated(cast);
 
-    const reset = changetype<VoteReset>(newMockEvent());
+    const reset = changetype<SignalReset>(newMockEvent());
     configureEvent(reset, CONTRACT, 3);
     reset.parameters = new Array<ethereum.EventParam>();
     reset.parameters.push(addressParam('account', USER));
     reset.parameters.push(addressParam('strategy', STRATEGY));
-    reset.parameters.push(uintParam('weight', 100));
-    handleVoteReset(reset);
+    reset.parameters.push(uintParam('signalWeight', 100));
+    handleSignalReset(reset);
 
     const strategyId = '4663-' + STRATEGY.toHexString();
     assert.fieldEquals('ProtocolState', '4663', 'strategyCount', '1');
     assert.fieldEquals('Strategy', strategyId, 'paymentToken', ASSET.toHexString());
-    assert.fieldEquals('Strategy', strategyId, 'totalWeightRaw', '0');
-    assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'votingWeightRaw', '0');
+    assert.fieldEquals('Strategy', strategyId, 'totalSignalWeightRaw', '0');
+    assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'signalWeightRaw', '0');
   });
 });

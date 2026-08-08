@@ -474,10 +474,23 @@
   },
   {
     "type": "function",
-    "name": "setVoter",
+    "name": "resonance",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "setResonance",
     "inputs": [
       {
-        "name": "voter_",
+        "name": "resonance_",
         "type": "address",
         "internalType": "address"
       }
@@ -604,19 +617,6 @@
     "stateMutability": "nonpayable"
   },
   {
-    "type": "function",
-    "name": "voter",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
     "type": "event",
     "name": "Approval",
     "inputs": [
@@ -718,6 +718,19 @@
   },
   {
     "type": "event",
+    "name": "ResonanceSet",
+    "inputs": [
+      {
+        "name": "resonance",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "Staked",
     "inputs": [
       {
@@ -780,21 +793,8 @@
     "anonymous": false
   },
   {
-    "type": "event",
-    "name": "VoterSet",
-    "inputs": [
-      {
-        "name": "voter",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
-  },
-  {
     "type": "error",
-    "name": "ActiveVotes",
+    "name": "ActiveSignals",
     "inputs": [
       {
         "name": "account",
@@ -802,7 +802,7 @@
         "internalType": "address"
       },
       {
-        "name": "usedWeight",
+        "name": "signalWeight",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -1040,6 +1040,17 @@
   },
   {
     "type": "error",
+    "name": "ResonanceAlreadySet",
+    "inputs": [
+      {
+        "name": "resonance",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "SafeCastOverflowedUintDowncast",
     "inputs": [
       {
@@ -1080,17 +1091,6 @@
     "type": "error",
     "name": "TransferDisabled",
     "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "VoterAlreadySet",
-    "inputs": [
-      {
-        "name": "voter",
-        "type": "address",
-        "internalType": "address"
-      }
-    ]
   },
   {
     "type": "error",

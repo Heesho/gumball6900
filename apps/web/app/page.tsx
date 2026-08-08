@@ -7,8 +7,8 @@ const contracts = [
   'Fundraiser',
   'LiquidityPosition',
   'SignalGBX',
-  'VoterRouter',
-  'Voter',
+  'ResonanceRouter',
+  'Resonance',
   'StrategyFactory',
   'Strategy',
   'BribeFactory',
@@ -36,12 +36,13 @@ export default function HomePage() {
           The deliberately minimal GBX protocol.
         </h1>
         <p className="mt-6 max-w-3xl text-sm leading-7 text-[#a5b3b2] sm:text-base">
-          USDG contributions flow through Voter into voter-selected Strategies. Acquisitions grow Fund and reward
-          voters, buybacks burn GBX, and holders can redeem a caller-selected pro-rata basket without an asset registry.
+          USDG contributions flow through Resonance into signal-selected Strategies. Acquisitions grow Fund and reward
+          signalers, buybacks burn GBX, and holders can redeem a caller-selected pro-rata basket without an asset
+          registry.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Metric label="Lifetime mint ceiling" value="1,000,000,000 GBX" />
-          <Metric label="Default acquisition split" value="90% Fund · 10% voters" />
+          <Metric label="Default acquisition split" value="90% Fund · 10% signalers" />
           <Metric label="Staking withdrawal lock" value="None" />
         </div>
       </section>
@@ -63,11 +64,11 @@ export default function HomePage() {
 
         <Panel eyebrow="Core economics" title="Simple, explicit value flows">
           <dl className="space-y-5">
-            <Definition label="Contribution revenue" value="Fundraiser → VoterRouter → Voter" />
-            <Definition label="v4 fees" value="GBX burned · USDG → VoterRouter" />
+            <Definition label="Contribution revenue" value="Fundraiser → ResonanceRouter → Resonance" />
+            <Definition label="v4 fees" value="GBX burned · USDG → ResonanceRouter" />
             <Definition label="Acquisition payment" value="90% Fund · 10% BribeRouter" />
             <Definition label="Buyback payment" value="100% GBX burned" />
-            <Definition label="Voting" value="Replaceable at any time" />
+            <Definition label="Signal" value="Replaceable at any time" />
             <Definition label="Redemption" value="Selected raw balances ÷ pre-burn GBX supply" />
           </dl>
         </Panel>
@@ -87,9 +88,9 @@ export default function HomePage() {
 
         <Panel eyebrow="Disclosed trust" title="Delayed mutable surfaces">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
-            <li>OpenZeppelin TimelockController owns Voter, Fund, and LiquidityPosition.</li>
+            <li>OpenZeppelin TimelockController owns Resonance, Fund, and LiquidityPosition.</li>
             <li>The project multisig proposes or cancels operations; anyone may execute after the delay.</li>
-            <li>The voter reward share is governable but cannot exceed 50%.</li>
+            <li>The signal-reward share is governable but cannot exceed 50%.</li>
             <li>Fund migration is one-way, same-GBX, token-selected, and moves complete balances only.</li>
           </ul>
         </Panel>

@@ -6,35 +6,35 @@
 ## Core graph
 
 ```text
-Fundraiser -> VoterRouter -> Voter -> Strategies
+Fundraiser -> ResonanceRouter -> Resonance -> Strategies
                                       |       |
                                       |       +-> buyback GBX -> Fund -> burn
                                       +-> acquisition payment -> 90% Fund
-                                                               -> 10% BribeRouter -> Bribe -> voters
+                                                               -> 10% BribeRouter -> Bribe -> signalers
 
 Uniswap v4 position -> LiquidityPosition -> GBX fees burned
-                                        -> USDG fees -> VoterRouter -> Voter
+                                        -> USDG fees -> ResonanceRouter -> Resonance
 ```
 
-GBX holders stake one-for-one into SignalGBX and allocate their complete voting balance among active Strategies.
-Voting is unrestricted: an account may replace or reset its allocations at any time and can unstake immediately after
+GBX holders stake one-for-one into SignalGBX and allocate their complete signal balance among active Strategies.
+Signaling is unrestricted: an account may replace or reset its allocations at any time and can unstake immediately after
 resetting.
 
 ## Contract responsibilities
 
 | Contract            | Responsibility and important boundaries                                                                                                                                                                    |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GBX`               | Transferable token with permits and vote checkpoints. It creates 20M genesis-liquidity GBX, disables later minting until the one-time Fundraiser handover, and enforces the one-billion lifetime cap.      |
+| `GBX`               | Transferable token with permits and signal checkpoints. It creates 20M genesis-liquidity GBX, disables later minting until the one-time Fundraiser handover, and enforces the one-billion lifetime cap.    |
 | `Fundraiser`        | Preserves the exact daily four-year-half-life schedule for the 980M contributor allocation, routes all contributed USDG immediately, settles sequentially, and mints pro-rata claims.                      |
 | `LiquidityPosition` | Validates and holds one precommitted hookless GBX/USDG v4 NFT, burns GBX fees, routes USDG fees, removes no principal during collection, and supports one compatible successor.                            |
-| `SignalGBX`         | Holds staked GBX and mints non-transferable voting weight one-for-one. Withdrawal has no time lock but requires the account to clear its active Voter weight first.                                        |
-| `VoterRouter`       | Holds no intended long-term balance. Anyone can route its complete USDG balance into Voter, which also makes unsolicited USDG recoverable into the intended revenue flow.                                  |
-| `Voter`             | Normalizes relative votes, maintains the global revenue index, physically distributes USDG, creates Strategy/Bribe graphs, and maintains each Bribe's virtual balances. Zero-vote USDG goes to Fund.       |
-| `StrategyFactory`   | Can be bound once to Voter. Only that Voter may deploy a Strategy and its dedicated BribeRouter.                                                                                                           |
-| `Strategy`          | Sells its complete USDG balance through a bounded linearly declining price. Acquisition payments are split between Fund and voter rewards; buyback payments are GBX and are burned atomically.             |
-| `BribeFactory`      | Can be bound once to Voter. Only that Voter may deploy Bribes.                                                                                                                                             |
-| `BribeRouter`       | Receives the Strategy's voter share and starts a reward stream when possible. If no voting weight exists, the queued balance goes to Fund.                                                                 |
-| `Bribe`             | Streams registered reward tokens for seven days across virtual balances maintained only by Voter. Reward streaming is not a staking or withdrawal lock.                                                    |
+| `SignalGBX`         | Holds staked GBX and mints non-transferable signal weight one-for-one. Withdrawal has no time lock but requires the account to clear its active signal weight first.                                       |
+| `ResonanceRouter`   | Holds no intended long-term balance. Anyone can route its complete USDG balance into Resonance, which also makes unsolicited USDG recoverable into the intended revenue flow.                              |
+| `Resonance`         | Normalizes relative signals, maintains the global revenue index, physically distributes USDG, creates Strategy/Bribe graphs, and maintains each Bribe's virtual balances. Zero-signal USDG goes to Fund.   |
+| `StrategyFactory`   | Can be bound once to Resonance. Only that Resonance may deploy a Strategy and its dedicated BribeRouter.                                                                                                   |
+| `Strategy`          | Sells its complete USDG balance through a bounded linearly declining price. Acquisition payments are split between Fund and signal rewards; buyback payments are GBX and are burned atomically.            |
+| `BribeFactory`      | Can be bound once to Resonance. Only that Resonance may deploy Bribes.                                                                                                                                     |
+| `BribeRouter`       | Receives the Strategy's signal-reward share and starts a reward stream when possible. If no signal weight exists, the queued balance goes to Fund.                                                         |
+| `Bribe`             | Streams registered reward tokens for seven days across virtual balances maintained only by Resonance. Reward streaming is not a staking or withdrawal lock.                                                |
 | `Fund`              | Holds arbitrary ERC-20 balances without registration, burns held GBX, supports caller-selected pro-rata redemption, and can bind one same-GBX successor for permissionless full-balance migration batches. |
 
 ## Supply and daily distribution
@@ -55,15 +55,15 @@ tick range, and a nonzero-liquidity position. The deployment process remains res
 million amount was converted into the reviewed position and handling any deterministic rounding residual.
 
 Anyone may collect fees. The PositionManager call requests zero liquidity removal, all GBX held afterward is burned,
-and all USDG is sent through VoterRouter. Direct GBX or USDG transfers to LiquidityPosition are processed the same way.
+and all USDG is sent through ResonanceRouter. Direct GBX or USDG transfers to LiquidityPosition are processed the same way.
 
 ## Revenue and acquisition rules
 
-- A contribution is not complete unless its exact USDG amount reaches VoterRouter and is routed to Voter atomically.
-- With active votes, Voter indexes USDG pro rata across Strategy weight. Without votes, it sends the USDG to Fund.
+- A contribution is not complete unless its exact USDG amount reaches ResonanceRouter and is routed to Resonance atomically.
+- With active signals, Resonance indexes USDG pro rata across Strategy weight. Without signals, it sends the USDG to Fund.
 - The default acquisition payment split is 9,000 basis points to Fund and 1,000 basis points to BribeRouter.
 - Timelocked governance may set the bribe share from 0 to 5,000 basis points.
-- If the relevant Bribe has no voting weight, BribeRouter returns its queued payment-token balance to Fund.
+- If the relevant Bribe has no signal weight, BribeRouter returns its queued payment-token balance to Fund.
 - A buyback accepts only the Fund's GBX token and burns the full payment without a bribe split.
 
 ## Fund redemption
@@ -88,14 +88,14 @@ than once in the same transaction. Omitted assets remain in Fund for the post-re
 
 ## Migration and governance
 
-Fund, Voter, and LiquidityPosition ownership are intended for OpenZeppelin `TimelockController`, with the project
+Fund, Resonance, and LiquidityPosition ownership are intended for OpenZeppelin `TimelockController`, with the project
 multisig holding proposer and canceller roles. The controller may set one Fund successor exactly once. The successor must expose the same GBX
 address. Once set, anyone can migrate the old Fund's complete balance of caller-selected non-GBX tokens; there is no
 arbitrary receiver or partial administrative transfer. GBX in the old Fund remains there to be burned, and redemption
 remains available for omitted assets.
 
 LiquidityPosition follows the same one-way pattern. Governance may bind one successor that exposes the same
-PositionManager, NFT ID, GBX, USDG, VoterRouter, pool key, and ticks and expects the old custodian as depositor. Anyone
+PositionManager, NFT ID, GBX, USDG, ResonanceRouter, pool key, and ticks and expects the old custodian as depositor. Anyone
 may then migrate the exact NFT; there is no arbitrary position withdrawal.
 
 The contracts expose the following owner operations through the standard timelock:

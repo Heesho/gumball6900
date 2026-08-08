@@ -7,13 +7,13 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { GBX } from "./GBX.sol";
-import { IVoterRouter } from "./interfaces/IVoterRouter.sol";
+import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
 
 /// @title Fundraiser
 /// @author GUM BALL 6900
 /// @notice Accepts USDG contributions and distributes each epoch's GBX emission pro rata to contributors.
-/// @dev Adapted from the give.fun Fundraiser contract. GUM BALL 6900 sends every contribution to VoterRouter instead
-///      of splitting it among recipients, so all contributed USDG follows voter allocations.
+/// @dev Adapted from the give.fun Fundraiser contract. GUM BALL 6900 sends every contribution to ResonanceRouter instead
+///      of splitting it among recipients, so all contributed USDG follows current SignalGBX allocations.
 contract Fundraiser is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -36,8 +36,8 @@ contract Fundraiser is ReentrancyGuard {
     GBX public immutable gbx;
     /// @notice Revenue token accepted from contributors.
     IERC20 public immutable usdg;
-    /// @notice Router that forwards every contribution into Voter.
-    address public immutable voterRouter;
+    /// @notice Router that forwards every contribution into Resonance.
+    address public immutable resonanceRouter;
     /// @notice Timestamp at which epoch zero began.
     uint256 public immutable startedAt;
     /// @notice First epoch that has not yet been settled.
@@ -89,20 +89,20 @@ contract Fundraiser is ReentrancyGuard {
     /// @notice Creates the fixed contribution schedule and immutable revenue route.
     /// @param gbx_ GBX token minted to contributors.
     /// @param usdg_ USDG token accepted as contributions.
-    /// @param voterRouter_ Router that forwards every contribution to Voter.
-    constructor(GBX gbx_, IERC20 usdg_, address voterRouter_) {
+    /// @param resonanceRouter_ Router that forwards every contribution to Resonance.
+    constructor(GBX gbx_, IERC20 usdg_, address resonanceRouter_) {
         if (
-            address(gbx_) == address(0) || address(usdg_) == address(0) || voterRouter_ == address(0)
-                || address(gbx_).code.length == 0 || address(usdg_).code.length == 0 || voterRouter_.code.length == 0
+            address(gbx_) == address(0) || address(usdg_) == address(0) || resonanceRouter_ == address(0)
+                || address(gbx_).code.length == 0 || address(usdg_).code.length == 0 || resonanceRouter_.code.length == 0
         ) revert ZeroAddress();
         gbx = gbx_;
         usdg = usdg_;
-        voterRouter = voterRouter_;
+        resonanceRouter = resonanceRouter_;
         startedAt = block.timestamp;
     }
 
     /// @notice Contributes USDG and credits `beneficiary` with a proportional claim on the current epoch's emission.
-    /// @dev USDG is transferred directly from the payer to VoterRouter, then routed to Voter in the same transaction.
+    /// @dev USDG is transferred directly from the payer to ResonanceRouter, then routed to Resonance in the same transaction.
     /// @param beneficiary Account credited with the contribution.
     /// @param amount Amount of USDG to contribute.
     function contribute(address beneficiary, uint256 amount) external nonReentrant {
@@ -113,10 +113,10 @@ contract Fundraiser is ReentrancyGuard {
         if (epoch >= DISTRIBUTION_EPOCHS) revert DistributionComplete();
 
         uint256 payerBalanceBefore = usdg.balanceOf(msg.sender);
-        uint256 routerBalanceBefore = usdg.balanceOf(voterRouter);
-        usdg.safeTransferFrom(msg.sender, voterRouter, amount);
+        uint256 routerBalanceBefore = usdg.balanceOf(resonanceRouter);
+        usdg.safeTransferFrom(msg.sender, resonanceRouter, amount);
         uint256 payerDebit = payerBalanceBefore - usdg.balanceOf(msg.sender);
-        uint256 routerCredit = usdg.balanceOf(voterRouter) - routerBalanceBefore;
+        uint256 routerCredit = usdg.balanceOf(resonanceRouter) - routerBalanceBefore;
         if (payerDebit != amount) revert InexactTransfer(amount, payerDebit);
         if (routerCredit != amount) revert InexactTransfer(amount, routerCredit);
 
@@ -124,7 +124,7 @@ contract Fundraiser is ReentrancyGuard {
         accountContributions[epoch][beneficiary] += amount;
 
         // Route after accounting. A routing failure reverts both the accounting and token transfer atomically.
-        IVoterRouter(voterRouter).route();
+        IResonanceRouter(resonanceRouter).route();
 
         emit Contributed(msg.sender, beneficiary, epoch, amount);
     }

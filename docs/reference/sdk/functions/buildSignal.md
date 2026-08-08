@@ -2,11 +2,11 @@
 
 ---
 
-[GUM BALL 6900 TypeScript SDK](../README.md) / buildVote
+[GUM BALL 6900 TypeScript SDK](../README.md) / buildSignal
 
-# Function: buildVote()
+# Function: buildSignal()
 
-> **buildVote**(`voter`, `strategies`, `relativeWeights`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildSignal**(`resonance`, `strategies`, `relativeWeights`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
 Replaces the caller's complete unrestricted Strategy allocation.
 
@@ -14,7 +14,7 @@ Replaces the caller's complete unrestricted Strategy allocation.
 
 | Parameter         | Type                           |
 | ----------------- | ------------------------------ |
-| `voter`           | `` `0x${string}` ``            |
+| `resonance`       | `` `0x${string}` ``            |
 | `strategies`      | readonly `` `0x${string}` ``[] |
 | `relativeWeights` | readonly `bigint`[]            |
 
