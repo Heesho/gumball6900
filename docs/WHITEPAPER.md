@@ -26,6 +26,11 @@ direct future flow rather than forcing the Fund to sell existing holdings. The i
 once, are not upgradeable, and expose only four management actions: add a Strategy, remove a Strategy, change the
 management fee, and add Bribe rewards.
 
+The fixed Fundraiser emission also creates a recurring market for new GBX. If GBX has a usable market price and enough
+liquidity, miners can compare the value of each day's emission with the USDG currently competing for it. Profitable
+mining attracts more USDG until competition compresses the opportunity. Every contributed USDG is then committed to
+the signal-directed acquisition path.
+
 ## 1. The problem
 
 Traditional funds make a basket easier to own, but investors normally receive a finished methodology. Membership,
@@ -117,6 +122,52 @@ forfeits its scheduled emission; it does not carry forward.
 
 Burning GBX never reopens mint capacity. Cumulative minting can never exceed one billion GBX even if previously minted
 tokens have been burned.
+
+### 5.1 The mining market
+
+The Fundraiser does not sell GBX at a fixed price. It distributes a fixed scheduled emission for the day across that
+day's contributors in proportion to their USDG contributions.
+
+Let:
+
+- `E_t` be the GBX emitted on day `t`;
+- `c_i` be miner `i`'s USDG contribution; and
+- `C_t` be all USDG contributed that day.
+
+Ignoring integer flooring, miner `i` receives:
+
+`GBX_i = E_t x c_i / C_t`
+
+If GBX trades at `P_t` USDG per GBX, the gross market value of that day's emission is:
+
+`gross emission value_t = P_t x E_t`
+
+Before gas, slippage, timing, contract, and market risk, mining is attractive while total daily contributions are below
+the value miners expect to realize from the emission. Competition therefore creates a rough break-even benchmark:
+
+`C_t ~= P_t x E_t`
+
+This relationship is self-adjusting. A higher GBX price or larger daily emission can support more USDG contributions.
+If contributions are low relative to the emission's market value, the implied GBX cost is lower and new miners have an
+incentive to enter. As more USDG competes for the same emission, each USDG earns less GBX and the margin compresses.
+
+For example, suppose a day emits 100,000 GBX and GBX trades at 0.50 USDG. The gross emission value is 50,000 USDG. If
+only 20,000 USDG has been contributed, the average gross acquisition cost is about 0.20 USDG per GBX before expenses and
+risk. That gap can attract more miners. Near 50,000 USDG of total contributions, the simple spot-price margin is mostly
+competed away.
+
+This is why a liquid GBX market can continuously pull USDG into the protocol. It is not an unconditional guarantee that
+miners will participate. A quoted GBX price must be realizable with enough liquidity, miners must be able and willing to
+act, and expected value must exceed costs and risks.
+
+The contract-level guarantee is narrower and stronger:
+
+1. every USDG contribution enters the signal-directed acquisition path rather than a discretionary team wallet;
+2. miners compete for a fixed scheduled GBX emission rather than a team-selected sale price; and
+3. when a normal acquisition succeeds, 90% of the acquired target asset enters the Fund and 10% funds signal rewards.
+
+GBX price and liquidity create the incentive to contribute. The fixed routing and acquisition rules determine what
+happens after a contribution. Fund growth still depends on contributions occurring and acquisitions clearing.
 
 ## 6. Signaling with sGBX
 
