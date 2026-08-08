@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test';
 
 test('minimal rebuild status renders without accessibility violations', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'The deliberately minimal GBX protocol.' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'The governance-minimized GBX protocol.' })).toBeVisible();
   await expect(page.getByText('No deployment configured', { exact: true })).toBeVisible();
   await expect(page.getByText('1,000,000,000 GBX', { exact: true })).toBeVisible();
   await expect(

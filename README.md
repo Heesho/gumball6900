@@ -14,6 +14,10 @@ Fund holdings. There is no synthetic price peg, NAV oracle, or offchain redempti
 
 > **Development status:** this repository is a pre-audit engineering starting point. The protocol is not deployed and
 > is not authorized for user funds.
+>
+> **Target-design note:** the public explanation below describes the governance-minimized final surface proposed in
+> [ADR 0016](docs/adr/0016-governance-minimized-final-surface.md). The current Solidity still has a broader
+> administrative surface and must be reduced, tested, and reconciled with these docs before any deployment.
 
 ## The idea
 
@@ -29,8 +33,8 @@ The result is a simple flywheel:
    time lock or signal cooldown.
 3. **Acquire** — USDG follows current signals. Each acquisition Strategy runs a reverse Dutch auction in which a buyer
    receives the accumulated USDG and pays with the asset that Strategy is acquiring.
-4. **Build the Fund** — 90% of each acquisition payment enters the Fund. The initial 10% signal-reward share is streamed
-   through that Strategy's Bribe and can be changed by timelocked governance, up to a 50% maximum.
+4. **Build the Fund** — 90% of each acquisition payment enters the Fund. The remaining 10% is streamed through that
+   Strategy's Bribe to eligible signalers.
 5. **Redeem** — a holder can burn GBX for a proportional share of any caller-selected Fund assets.
 6. **Reduce supply** — GBX received through buybacks and GBX fees collected from the canonical liquidity position are
    burned permanently.
@@ -80,7 +84,7 @@ onchain asset and an active GumBall6900 Strategy.
 
 The initial split sends 90% of each completed acquisition to the shared Fund and 10% to eligible signalers through the
 Strategy's Bribe. Signaling alone does not guarantee a reward or a particular amount: the Strategy must successfully
-complete acquisitions, and the reward depends on the holder's signal weight and the configured reward share.
+complete acquisitions, and the reward depends on the holder's signal weight.
 
 ### Assets instead of price exposure
 
@@ -96,8 +100,8 @@ asset.
 ### Permissionless execution
 
 Revenue routing, Strategy distribution, Fundraiser settlement, liquidity-fee collection, reward claims, and committed
-migrations can all be executed permissionlessly. Administrative decisions remain delayed through OpenZeppelin's
-`TimelockController`.
+Fund burns can all be executed permissionlessly. Holders govern capital direction through continuous signals; the
+target final design leaves management only the four explicit actions listed below.
 
 ### A deliberately small core
 
@@ -142,8 +146,7 @@ without removing principal:
 - collected GBX is burned; and
 - collected USDG returns to the signal-directed acquisition flow.
 
-Timelocked governance can bind one fully compatible successor exactly once. After that commitment, anyone can migrate
-the exact position NFT.
+In the target final design, the deployed position cannot be withdrawn, migrated, or upgraded.
 
 ## Fund backing and redemption
 
@@ -157,8 +160,8 @@ Every selected balance is snapshotted before the GBX burn, and the burn plus all
 token fails, the entire redemption reverts. Assets omitted by the redeemer stay in the Fund for the remaining GBX
 supply.
 
-The Fund has no general administrative withdrawal. Its only migration path is a one-time, timelocked commitment to a
-same-GBX successor, followed by permissionless migration of complete caller-selected token balances.
+In the target final design, the Fund has no administrative withdrawal, recovery path, migration path, or upgrade path.
+Assets leave only through the protocol's fixed redemption and acquisition mechanics.
 
 ## Protocol map
 
@@ -174,23 +177,25 @@ same-GBX successor, followed by permissionless migration of complete caller-sele
 | `BribeFactory`      | Resonance-only factory for one Bribe per Strategy.                                                  |
 | `BribeRouter`       | Routes the signal-reward share of acquisition payments to the Strategy's Bribe.                     |
 | `Bribe`             | Streams payment-token rewards across the Strategy's signal balances.                                |
-| `Fund`              | Registry-free asset backing, selective redemption, GBX burning, and constrained migration.          |
-| `LiquidityPosition` | Custody, fee processing, and constrained migration for the canonical Uniswap v4 position.           |
+| `Fund`              | Registry-free asset backing, selective redemption, and GBX burning.                                 |
+| `LiquidityPosition` | Fixed custody and fee processing for the canonical Uniswap v4 position.                             |
 
 The Solidity source of truth is [`packages/contracts/src/core`](packages/contracts/src/core). Foundry and Hardhat
 compile the same source tree.
 
-## Governance surface
+## Governance-minimized final surface
 
-`Resonance`, `Fund`, and `LiquidityPosition` are intended to be owned by OpenZeppelin `TimelockController`, with a project
-multisig proposing and cancelling operations. The initial administrative surface is limited to:
+The intended final system is deployed once as direct, non-upgradeable contracts. `sGBX` signals govern where protocol
+capital flows. A designated manager has exactly four actions:
 
-- creating and permanently disabling Strategies;
-- setting the acquisition signal-reward share between 0% and 50%;
-- registering additional Bribe reward tokens; and
-- committing the one-time Fund and LiquidityPosition successors.
+- add a Strategy;
+- remove a Strategy;
+- change the management fee; and
+- add Bribe rewards.
 
-The timelock cannot arbitrarily withdraw Fund assets or the Uniswap v4 position.
+There is no general call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, signal-reward
+split setter, or other mutable protocol parameter. The current development contracts do not yet enforce this exact
+surface, so implementation remains blocked from production until the discrepancy is removed and tested.
 
 ## Repository
 
@@ -201,7 +206,7 @@ packages/subgraph     Protocol indexing and Matchstick tests
 packages/simulations  Independent TypeScript and Python economic models
 packages/config       Chain metadata and provisional deployment evidence
 apps/web              Protocol interface
-docs                  Architecture, economics, governance, and threat model
+docs                  Architecture, economics, access control, and threat model
 ```
 
 ### Local development
@@ -222,7 +227,7 @@ Start with:
 - [`docs/STARTING_CONTRACTS.md`](docs/STARTING_CONTRACTS.md) for contract behavior;
 - [`docs/ECONOMICS.md`](docs/ECONOMICS.md) for the value flows;
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for system boundaries;
-- [`docs/ACCESS_CONTROL.md`](docs/ACCESS_CONTROL.md) for governance;
+- [`docs/ACCESS_CONTROL.md`](docs/ACCESS_CONTROL.md) for the current development access-control surface;
 - [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) for known risks; and
 - [`AGENTS.md`](AGENTS.md) for repository execution rules.
 
@@ -238,4 +243,5 @@ are recorded in [`NOTICE`](NOTICE).
 
 This codebase is under active development. Local tests are engineering evidence only; they are not an audit or a
 production-readiness claim. Before any deployment, the project still requires finalized network parameters, deployment
-rehearsals, independent security review, and resolution of the repository's licensing and provenance questions.
+rehearsals, independent security review, implementation of the governance-minimized final surface, and resolution of
+the repository's licensing and provenance questions.

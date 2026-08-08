@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Core starting point' };
+export const metadata: Metadata = { title: 'Governance-minimized final design' };
 
 const contracts = [
   'GBX',
@@ -15,14 +15,13 @@ const contracts = [
   'BribeRouter',
   'Bribe',
   'Fund',
-  'TimelockController',
 ] as const;
 
 const deploymentInputs = [
   'USDG, Uniswap v4, genesis price, and single-sided range inputs',
-  'Project multisig and OpenZeppelin timelock delay',
+  'Fixed management authority and management-fee definition',
   'Initial Strategy payment tokens and bounded auction parameters',
-  'Independent security review and tested migration procedure',
+  'Independent security review of the immutable final bytecode',
 ] as const;
 
 export default function HomePage() {
@@ -30,10 +29,10 @@ export default function HomePage() {
     <div className="space-y-6">
       <section className="hero-grid rounded-[1.6rem] border border-[#75f7e7]/20 bg-[linear-gradient(145deg,rgba(20,41,41,.96),rgba(15,22,24,.92))] p-6 sm:p-10">
         <p className="inline-flex rounded-full border border-[#f4c56a]/25 bg-[#f4c56a]/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#f6d58f]">
-          Local implementation evidence · not deployed
+          Target final design · contracts pending update · not deployed
         </p>
         <h1 className="mt-7 max-w-4xl text-[2.5rem] font-semibold leading-[0.98] tracking-[-0.06em] text-white sm:text-[4rem]">
-          The deliberately minimal GBX protocol.
+          The governance-minimized GBX protocol.
         </h1>
         <p className="mt-6 max-w-3xl text-sm leading-7 text-[#a5b3b2] sm:text-base">
           Point sGBX at the active Strategy for an asset you want to accumulate. Completed acquisitions grow Fund and
@@ -48,7 +47,7 @@ export default function HomePage() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
-        <Panel eyebrow="Architecture" title="Twelve core contracts plus standard timelock">
+        <Panel eyebrow="Architecture" title="Twelve direct, non-upgradeable contracts">
           <div className="grid gap-2 sm:grid-cols-2">
             {contracts.map((contract, index) => (
               <div
@@ -66,7 +65,7 @@ export default function HomePage() {
           <dl className="space-y-5">
             <Definition label="Contribution revenue" value="Fundraiser → Resonance → Strategies" />
             <Definition label="v4 fees" value="GBX burned · USDG follows current signals" />
-            <Definition label="Acquisition payment" value="90% Fund · 10% BribeRouter" />
+            <Definition label="Acquisition payment" value="90% Fund · 10% signal rewards" />
             <Definition label="Buyback payment" value="100% GBX burned" />
             <Definition label="Signal" value="Replaceable at any time" />
             <Definition label="Signal reward" value="Pro-rata stream of the acquired asset" />
@@ -76,7 +75,7 @@ export default function HomePage() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <Panel eyebrow="Public guarantees" title="What contract code keeps narrow">
+        <Panel eyebrow="Target guarantees" title="What the final contract code must keep narrow">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
             <li>Burns never reopen lifetime mint capacity.</li>
             <li>Redemption always uses pre-burn supply and caller-selected Fund balances.</li>
@@ -84,23 +83,28 @@ export default function HomePage() {
             <li>Buyback burns its complete observed GBX payment atomically.</li>
             <li>SignalGBX (sGBX) withdrawals have no time lock after allocations are reset.</li>
             <li>Genesis supply is fixed at 20M for v4 liquidity and 980M for the Fundraiser schedule.</li>
+            <li>The deployed core has no proxy, upgrade path, treasury recovery, or successor migration.</li>
           </ul>
         </Panel>
 
-        <Panel eyebrow="Disclosed trust" title="Delayed mutable surfaces">
+        <Panel eyebrow="Management" title="Exactly four management actions">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
-            <li>OpenZeppelin TimelockController owns Resonance, Fund, and LiquidityPosition.</li>
-            <li>The project multisig proposes or cancels operations; anyone may execute after the delay.</li>
-            <li>The signal-reward share is governable but cannot exceed 50%.</li>
-            <li>Fund migration is one-way, same-GBX, token-selected, and moves complete balances only.</li>
+            <li>Add a Strategy.</li>
+            <li>Remove a Strategy.</li>
+            <li>Change the management fee.</li>
+            <li>Add Bribe rewards.</li>
           </ul>
+          <p className="mt-5 text-xs leading-5 text-[#778786]">
+            Everything else is fixed in code or directed continuously through sGBX signals.
+          </p>
         </Panel>
       </section>
 
       <Panel eyebrow="Deployment boundary" title="No production parameters are guessed">
         <p className="max-w-4xl text-sm leading-6 text-[#a8b5b4]">
-          The local rehearsal uses deterministic mocks. A real deployment remains blocked until every external address
-          and market parameter below is reviewed and supplied explicitly.
+          The local rehearsal uses deterministic mocks. The current contracts still expose a broader administrative
+          surface than this target and must be reduced before every external address and market parameter below is
+          reviewed for deployment.
         </p>
         <ul className="mt-5 grid gap-3 sm:grid-cols-2">
           {deploymentInputs.map((input) => (
@@ -113,8 +117,8 @@ export default function HomePage() {
           ))}
         </ul>
         <p className="mt-5 text-xs leading-5 text-[#778786]">
-          This page exposes no wallet connection and submits no transaction. No production deployment addresses or
-          release claims are implied by the local implementation.
+          This page exposes no wallet connection and submits no transaction. It describes the intended final design, not
+          a claim that the current development contracts already enforce it.
         </p>
       </Panel>
     </div>
