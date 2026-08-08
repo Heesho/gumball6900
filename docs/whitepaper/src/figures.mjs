@@ -1162,7 +1162,7 @@ export function routingFlow({ width = widths.full } = {}) {
   );
 
   parts.push(label('Split 1 — by live signal weight', { x: revenueX, y: 14, fill: palette.blue }));
-  parts.push(label('Split 2 — fixed for every acquisition', { x: width, y: 14, fill: palette.pink, anchor: 'end' }));
+  parts.push(label('Split 2 — same for every acquisition', { x: width, y: 14, fill: palette.pink, anchor: 'end' }));
   parts.push(
     line({
       x1: strategyX + strategyW + 16,
@@ -1718,15 +1718,21 @@ export function governancePerimeter({ width = widths.full } = {}) {
     }),
   );
 
-  // The four authorized edges, drawn as the only openings in the perimeter.
-  const doors = ['Add a Strategy', 'Remove a Strategy', 'Change the management fee', 'Add Bribe rewards'];
+  // The authorized edges, drawn as the only openings in the perimeter.
+  const doors = [
+    'Add a Strategy',
+    'Remove a Strategy',
+    'Change the management fee',
+    'Change the reward share',
+    'Add Bribe rewards',
+  ];
   doors.forEach((door, index) => {
     const y = 48 + index * 34;
     parts.push(rect({ x: coreX - 6, y: y - 9, width: 12, height: 18, r: 2, fill: palette.pinkBright }));
     parts.push(text(door, { x: coreX - 14, y: y + 3, size: 7.2, weight: 600, fill: palette.ink, anchor: 'end' }));
     parts.push(text(String(index + 1), { x: 4, y: y + 3, size: 7.2, weight: 600, fill: palette.pink }));
   });
-  parts.push(label('Four authorized actions', { x: 4, y: 22, fill: palette.pink }));
+  parts.push(label('Five authorized actions', { x: 4, y: 22, fill: palette.pink }));
 
   // What has no door at all.
   const sealed = [
@@ -1734,7 +1740,6 @@ export function governancePerimeter({ width = widths.full } = {}) {
     'Successor migration',
     'Arbitrary withdrawal',
     'Pause switch',
-    'Reward-split setter',
     'General parameter setter',
   ];
   parts.push(label('No entry point exists', { x: width - 4, y: 22, fill: palette.inkFaint, anchor: 'end' }));
@@ -1797,7 +1802,7 @@ export function workedExample() {
     {
       kind: 'asset',
       title: 'The acquisition splits',
-      detail: 'On a rule fixed before deployment that the deployed core cannot change.',
+      detail: 'At the current signal-reward share, which starts at 10% and is capped at 50%.',
       result: '90% joins the Fund; 10% streams to eligible NVDA signalers, including you.',
     },
     {

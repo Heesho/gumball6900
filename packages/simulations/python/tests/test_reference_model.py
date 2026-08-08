@@ -93,7 +93,8 @@ def test_auction_and_reward_rounding() -> None:
     assert next_auction_init_price(0, 2 * WAD, ABS_MIN_AUCTION_INIT_PRICE) == ABS_MIN_AUCTION_INIT_PRICE
     assert next_auction_init_price(ABS_MAX_AUCTION_INIT_PRICE, 3 * WAD, 1) == ABS_MAX_AUCTION_INIT_PRICE
     split = split_acquired_asset(tokens(42), True)
-    assert split["manager_amount"] == 840_000_000_000_000_000
+    # The signal-reward share launches at 10%, so 42 tokens split 37.8 / 4.2.
+    assert split["manager_amount"] == 4_200_000_000_000_000_000
     assert split["vault_amount"] + split["manager_amount"] == tokens(42)
 
     update = update_reward_index(10, 3, 10)

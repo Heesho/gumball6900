@@ -17,7 +17,8 @@
     "initialDailyScheduledEmission": "465152749681042811702004",
     "dailyDecayWad": "999525354337060160",
     "auctionDurationSeconds": "86400",
-    "managerRewardBps": "200",
+    "managerRewardBps": "1000",
+    "maxManagerRewardBps": "5000",
     "noOnchainNavOracle": true
   },
   "emissions": {
@@ -629,19 +630,19 @@
         "id": "strategy-a",
         "activeWeight": "1000000000000000000000000",
         "acquired": "1000000000000000000000",
-        "managerReward": "20000000000000000000",
-        "vaultGrowth": "980000000000000000000",
+        "managerReward": "100000000000000000000",
+        "vaultGrowth": "900000000000000000000",
         "redirectedToVault": "0",
-        "rewardPerActiveGBX": "20000000000000"
+        "rewardPerActiveGBX": "100000000000000"
       },
       {
         "id": "strategy-b",
         "activeWeight": "2000000000000000000000000",
         "acquired": "5000000000000000000000",
-        "managerReward": "100000000000000000000",
-        "vaultGrowth": "4900000000000000000000",
+        "managerReward": "500000000000000000000",
+        "vaultGrowth": "4500000000000000000000",
         "redirectedToVault": "0",
-        "rewardPerActiveGBX": "50000000000000"
+        "rewardPerActiveGBX": "250000000000000"
       },
       {
         "id": "strategy-without-live-weight",
@@ -649,7 +650,7 @@
         "acquired": "5000000000000000000000",
         "managerReward": "0",
         "vaultGrowth": "5000000000000000000000",
-        "redirectedToVault": "100000000000000000000",
+        "redirectedToVault": "500000000000000000000",
         "rewardPerActiveGBX": "0"
       }
     ],
@@ -697,8 +698,8 @@
         "id": "one-hundred-fills-with-live-weight",
         "fillCount": "100",
         "acquired": "100000000000000000000000",
-        "managerReward": "2000000000000000000000",
-        "vaultGrowth": "98000000000000000000000",
+        "managerReward": "10000000000000000000000",
+        "vaultGrowth": "90000000000000000000000",
         "redirectedToVault": "0"
       },
       {
@@ -707,7 +708,7 @@
         "acquired": "10000000000000000000000",
         "managerReward": "0",
         "vaultGrowth": "10000000000000000000000",
-        "redirectedToVault": "200000000000000000000"
+        "redirectedToVault": "1000000000000000000000"
       }
     ]
   },

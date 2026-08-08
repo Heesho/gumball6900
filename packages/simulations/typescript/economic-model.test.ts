@@ -143,7 +143,8 @@ describe('minimal-protocol economic suite', () => {
     const yields = list(rewards.rewardYieldByStrategy).map(record);
     const active = yields[0]!;
     const inactive = yields[2]!;
-    expect(integer(active.managerReward) * 50n).toBe(integer(active.acquired));
+    // The signal-reward share launches at 10%, so the acquisition is ten times the reward.
+    expect(integer(active.managerReward) * 10n).toBe(integer(active.acquired));
     expect(integer(active.managerReward) + integer(active.vaultGrowth)).toBe(integer(active.acquired));
     expect(inactive.managerReward).toBe('0');
     expect(inactive.vaultGrowth).toBe(inactive.acquired);
