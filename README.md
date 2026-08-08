@@ -71,6 +71,17 @@ USDG contribution
 GBX holders decide how new USDG revenue is allocated among active Strategies. Signaling is deliberately liquid: an
 account can replace or reset its allocations at any time and withdraw its staked GBX after clearing its signals.
 
+### Signal what you want to accumulate
+
+Signaling is also a personal accumulation choice. If an active Strategy acquires an onchain representation of NVIDIA
+shares (`NVDA`), an `sGBX` holder can signal that Strategy and earn a pro-rata stream of the acquired asset when its
+auctions settle. The same idea applies to Apple (`AAPL`), a SpaceX-linked asset, or anything else with an eligible
+onchain asset and an active GumBall6900 Strategy.
+
+The initial split sends 90% of each completed acquisition to the shared Fund and 10% to eligible signalers through the
+Strategy's Bribe. Signaling alone does not guarantee a reward or a particular amount: the Strategy must successfully
+complete acquisitions, and the reward depends on the holder's signal weight and the configured reward share.
+
 ### Assets instead of price exposure
 
 Acquisition Strategies deliver tokens to the Fund rather than tracking their prices synthetically. GBX holders can
