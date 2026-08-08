@@ -6,7 +6,7 @@ const contracts = [
   'GBX',
   'Fundraiser',
   'LiquidityPosition',
-  'SignalGBX',
+  'SignalGBX (sGBX)',
   'ResonanceRouter',
   'Resonance',
   'StrategyFactory',
@@ -81,7 +81,7 @@ export default function HomePage() {
             <li>Redemption always uses pre-burn supply and caller-selected Fund balances.</li>
             <li>Fund has no asset registry or protocol-wide token loop.</li>
             <li>Buyback burns its complete observed GBX payment atomically.</li>
-            <li>SignalGBX withdrawals have no time lock after allocations are reset.</li>
+            <li>SignalGBX (sGBX) withdrawals have no time lock after allocations are reset.</li>
             <li>Genesis supply is fixed at 20M for v4 liquidity and 980M for the Fundraiser schedule.</li>
           </ul>
         </Panel>

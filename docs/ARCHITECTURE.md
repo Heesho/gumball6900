@@ -15,7 +15,7 @@ Uniswap v4 position -> LiquidityPosition -> GBX fees burned
 ```
 
 Fundraiser accounts for contribution epochs and routes every USDG contribution immediately. Resonance maintains an
-indexed USDG allocation using unrestricted SignalGBX signals. StrategyFactory and BribeFactory are bound to Resonance, so
+indexed USDG allocation using unrestricted SignalGBX (`sGBX`) signals. StrategyFactory and BribeFactory are bound to Resonance, so
 each admitted Strategy is created with a dedicated Bribe and BribeRouter.
 
 Fund is a raw-balance treasury with no asset registry. Redemption and migration both operate on unique token arrays

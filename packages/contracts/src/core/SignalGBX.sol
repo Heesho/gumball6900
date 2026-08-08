@@ -14,7 +14,7 @@ import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
 
 /// @title SignalGBX
 /// @author GUM BALL 6900
-/// @notice Non-transferable signal receipt minted one-for-one when a holder stakes GBX.
+/// @notice Non-transferable signal receipt with ticker sGBX, minted one-for-one when a holder stakes GBX.
 /// @dev Adapted from Liquid Signal Governance. There is no time lock: a holder can reset signals and immediately unstake.
 contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;

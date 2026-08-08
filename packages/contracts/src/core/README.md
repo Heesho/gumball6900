@@ -20,7 +20,7 @@ liquidity fees: GBX -> burn; USDG -> ResonanceRouter -> Resonance
 | `GBX`               | Creates 20M genesis-liquidity GBX, reserves the remaining 980M capacity for Fundraiser, and enforces the lifetime cap. |
 | `Fundraiser`        | Fixed daily four-year-half-life contribution schedule, proportional GBX claims, and immediate USDG routing.            |
 | `LiquidityPosition` | Holds one canonical GBX/USDG v4 NFT, burns GBX fees, routes USDG fees, and supports one compatible successor.          |
-| `SignalGBX`         | Non-transferable, one-for-one staked GBX used as signal weight. There is no time lock.                                 |
+| `SignalGBX`         | Non-transferable, one-for-one staked GBX with ticker `sGBX`, used as signal weight. There is no time lock.             |
 | `ResonanceRouter`   | Permissionlessly forwards all accumulated USDG to Resonance.                                                           |
 | `Resonance`         | Unrestricted SignalGBX allocation, indexed USDG distribution, Strategy creation, and Bribe accounting.                 |
 | `StrategyFactory`   | Resonance-only deployment of a Strategy and its BribeRouter.                                                           |

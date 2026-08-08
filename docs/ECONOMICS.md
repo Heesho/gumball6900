@@ -22,7 +22,7 @@ ResonanceRouter and allocated by current signals.
 
 ## Revenue allocation
 
-Resonance distributes USDG by current SignalGBX allocation. When no signal weight exists, new revenue goes to Fund.
+Resonance distributes USDG by current SignalGBX (`sGBX`) allocation. When no signal weight exists, new revenue goes to Fund.
 Strategies with weight accrue indexed revenue and may be distributed individually or in bounded ranges.
 
 ## Strategy settlement
