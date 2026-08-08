@@ -18,7 +18,8 @@ Uniswap v4 position -> LiquidityPosition -> GBX fees burned
 
 GBX holders stake one-for-one into SignalGBX (`sGBX`) and allocate their complete signal balance among active Strategies.
 Signaling is unrestricted: an account may replace or reset its allocations at any time and can unstake immediately after
-resetting.
+resetting. This also lets a holder target the asset they want to accumulate: when a signaled acquisition Strategy
+successfully settles, its configured signal-reward share is streamed in the acquired asset across eligible signalers.
 
 ## Contract responsibilities
 

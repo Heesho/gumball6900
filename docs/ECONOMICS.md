@@ -25,6 +25,13 @@ ResonanceRouter and allocated by current signals.
 Resonance distributes USDG by current SignalGBX (`sGBX`) allocation. When no signal weight exists, new revenue goes to Fund.
 Strategies with weight accrue indexed revenue and may be distributed individually or in bounded ranges.
 
+## Signal-directed asset accumulation
+
+An `sGBX` holder can allocate signal to the active acquisition Strategy for an asset they want to accumulate. When that
+Strategy completes an acquisition, its payment token is the acquired asset: the Fund receives the Fund share, while
+BribeRouter streams the configured signal-reward share pro rata across eligible signalers. The Strategy must exist and
+successfully settle an acquisition before any such reward is earned.
+
 ## Strategy settlement
 
 A Strategy sells its entire USDG balance at a linearly declining price. Acquisition payments begin at 90% to Fund and

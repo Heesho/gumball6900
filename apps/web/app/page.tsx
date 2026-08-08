@@ -36,9 +36,9 @@ export default function HomePage() {
           The deliberately minimal GBX protocol.
         </h1>
         <p className="mt-6 max-w-3xl text-sm leading-7 text-[#a5b3b2] sm:text-base">
-          USDG contributions flow through Resonance into signal-selected Strategies. Acquisitions grow Fund and reward
-          signalers, buybacks burn GBX, and holders can redeem a caller-selected pro-rata basket without an asset
-          registry.
+          Point sGBX at the active Strategy for an asset you want to accumulate. Completed acquisitions grow Fund and
+          stream signal rewards in that acquired asset; buybacks burn GBX, and holders can redeem a caller-selected
+          pro-rata basket without an asset registry.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Metric label="Lifetime mint ceiling" value="1,000,000,000 GBX" />
@@ -69,6 +69,7 @@ export default function HomePage() {
             <Definition label="Acquisition payment" value="90% Fund · 10% BribeRouter" />
             <Definition label="Buyback payment" value="100% GBX burned" />
             <Definition label="Signal" value="Replaceable at any time" />
+            <Definition label="Signal reward" value="Pro-rata stream of the acquired asset" />
             <Definition label="Redemption" value="Selected raw balances ÷ pre-burn GBX supply" />
           </dl>
         </Panel>

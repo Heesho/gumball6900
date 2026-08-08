@@ -11,6 +11,8 @@ describe('core starting-point status page', () => {
     expect(screen.getByText('1,000,000,000 GBX')).toBeTruthy();
     expect(screen.getByText('90% Fund · 10% signalers')).toBeTruthy();
     expect(screen.getByText('None')).toBeTruthy();
+    expect(screen.getByText(/Point sGBX at the active Strategy for an asset you want to accumulate/i)).toBeTruthy();
+    expect(screen.getByText('Pro-rata stream of the acquired asset')).toBeTruthy();
     expect(screen.getByText('Local implementation evidence · not deployed')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /connect wallet/i })).toBeNull();
   });
