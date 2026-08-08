@@ -64,8 +64,8 @@ export default function HomePage() {
 
         <Panel eyebrow="Core economics" title="Simple, explicit value flows">
           <dl className="space-y-5">
-            <Definition label="Contribution revenue" value="Fundraiser → ResonanceRouter → Resonance" />
-            <Definition label="v4 fees" value="GBX burned · USDG → ResonanceRouter" />
+            <Definition label="Contribution revenue" value="Fundraiser → Resonance → Strategies" />
+            <Definition label="v4 fees" value="GBX burned · USDG follows current signals" />
             <Definition label="Acquisition payment" value="90% Fund · 10% BribeRouter" />
             <Definition label="Buyback payment" value="100% GBX burned" />
             <Definition label="Signal" value="Replaceable at any time" />

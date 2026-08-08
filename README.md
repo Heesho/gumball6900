@@ -42,17 +42,17 @@ USDG contribution
   Fundraiser ---> GBX public mining
        |
        v
-  ResonanceRouter ---> Resonance <--- sGBX allocations
-                      |
-                      v
-                  Strategies
-                      |
-          target asset payment
-                /            \
-          90% Fund       10% signal rewards
-              |
-              v
-     selective GBX redemption
+  Resonance <--- sGBX allocations
+       |
+       v
+   Strategies
+       |
+ target asset payment
+   /            \
+90% Fund    10% signal rewards
+    |
+    v
+selective GBX redemption
 ```
 
 ## One loop, four participants
@@ -140,7 +140,7 @@ The position stays inside `LiquidityPosition`; there is no arbitrary NFT withdra
 without removing principal:
 
 - collected GBX is burned; and
-- collected USDG enters `ResonanceRouter -> Resonance -> Strategies`.
+- collected USDG returns to the signal-directed acquisition flow.
 
 Timelocked governance can bind one fully compatible successor exactly once. After that commitment, anyone can migrate
 the exact position NFT.
