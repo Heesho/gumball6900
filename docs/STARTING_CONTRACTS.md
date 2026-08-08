@@ -16,7 +16,7 @@ Uniswap v4 position -> LiquidityPosition -> GBX fees burned
                                         -> USDG fees -> ResonanceRouter -> Resonance
 ```
 
-GBX holders stake one-for-one into SignalGBX and allocate their complete signal balance among active Strategies.
+GBX holders stake one-for-one into SignalGBX (`sGBX`) and allocate their complete signal balance among active Strategies.
 Signaling is unrestricted: an account may replace or reset its allocations at any time and can unstake immediately after
 resetting.
 
@@ -27,7 +27,7 @@ resetting.
 | `GBX`               | Transferable token with permits and signal checkpoints. It creates 20M genesis-liquidity GBX, disables later minting until the one-time Fundraiser handover, and enforces the one-billion lifetime cap.    |
 | `Fundraiser`        | Preserves the exact daily four-year-half-life schedule for the 980M contributor allocation, routes all contributed USDG immediately, settles sequentially, and mints pro-rata claims.                      |
 | `LiquidityPosition` | Validates and holds one precommitted hookless GBX/USDG v4 NFT, burns GBX fees, routes USDG fees, removes no principal during collection, and supports one compatible successor.                            |
-| `SignalGBX`         | Holds staked GBX and mints non-transferable signal weight one-for-one. Withdrawal has no time lock but requires the account to clear its active signal weight first.                                       |
+| `SignalGBX`         | Holds staked GBX and mints non-transferable `sGBX` signal weight one-for-one. Withdrawal has no time lock but requires the account to clear its active signal weight first.                                |
 | `ResonanceRouter`   | Holds no intended long-term balance. Anyone can route its complete USDG balance into Resonance, which also makes unsolicited USDG recoverable into the intended revenue flow.                              |
 | `Resonance`         | Normalizes relative signals, maintains the global revenue index, physically distributes USDG, creates Strategy/Bribe graphs, and maintains each Bribe's virtual balances. Zero-signal USDG goes to Fund.   |
 | `StrategyFactory`   | Can be bound once to Resonance. Only that Resonance may deploy a Strategy and its dedicated BribeRouter.                                                                                                   |

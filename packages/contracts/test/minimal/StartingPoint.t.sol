@@ -123,6 +123,10 @@ contract StartingPointTest is Test {
         vm.stopPrank();
     }
 
+    function test_SignalGBXUsesSgbxTicker() external view {
+        assertEq(signalGBX.symbol(), "sGBX");
+    }
+
     function test_ContributionsRouteAllUSDGThroughResonanceAndClaimsStayProRata() external {
         _stakeAndSignal();
         usdg.mint(ALICE, 60_000_000);

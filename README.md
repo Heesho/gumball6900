@@ -25,8 +25,8 @@ resulting holdings redeemable onchain.
 The result is a simple flywheel:
 
 1. **Mine** — users contribute USDG through the Fundraiser and mine GBX from a fixed public distribution schedule.
-2. **Signal** — GBX can be staked one-for-one into SignalGBX and allocated among approved Strategies without a time lock
-   or signal cooldown.
+2. **Signal** — GBX can be staked one-for-one into SignalGBX (`sGBX`) and allocated among approved Strategies without a
+   time lock or signal cooldown.
 3. **Acquire** — USDG follows current signals. Each acquisition Strategy runs a reverse Dutch auction in which a buyer
    receives the accumulated USDG and pays with the asset that Strategy is acquiring.
 4. **Build the Fund** — 90% of each acquisition payment enters the Fund. The initial 10% signal-reward share is streamed
@@ -42,7 +42,7 @@ USDG contribution
   Fundraiser ---> GBX public mining
        |
        v
-  ResonanceRouter ---> Resonance <--- SignalGBX allocations
+  ResonanceRouter ---> Resonance <--- sGBX allocations
                       |
                       v
                   Strategies
@@ -151,20 +151,20 @@ same-GBX successor, followed by permissionless migration of complete caller-sele
 
 ## Protocol map
 
-| Contract            | Role                                                                                               |
-| ------------------- | -------------------------------------------------------------------------------------------------- |
-| `GBX`               | Transferable protocol token, burns, signal checkpoints, and the one-billion lifetime mint ceiling. |
-| `Fundraiser`        | USDG contributions and the fixed 980-million-GBX contributor distribution.                         |
-| `SignalGBX`         | Non-transferable, one-for-one staked GBX used for current Strategy allocations.                    |
-| `ResonanceRouter`   | Permissionlessly moves accumulated USDG into Resonance.                                            |
-| `Resonance`         | Tracks allocations, distributes USDG, and controls Strategy and Bribe creation.                    |
-| `StrategyFactory`   | Resonance-only factory for Strategies and their dedicated BribeRouters.                            |
-| `Strategy`          | Reverse Dutch acquisition auction or GBX buyback.                                                  |
-| `BribeFactory`      | Resonance-only factory for one Bribe per Strategy.                                                 |
-| `BribeRouter`       | Routes the signal-reward share of acquisition payments to the Strategy's Bribe.                    |
-| `Bribe`             | Streams payment-token rewards across the Strategy's signal balances.                               |
-| `Fund`              | Registry-free asset backing, selective redemption, GBX burning, and constrained migration.         |
-| `LiquidityPosition` | Custody, fee processing, and constrained migration for the canonical Uniswap v4 position.          |
+| Contract            | Role                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `GBX`               | Transferable protocol token, burns, signal checkpoints, and the one-billion lifetime mint ceiling.  |
+| `Fundraiser`        | USDG contributions and the fixed 980-million-GBX contributor distribution.                          |
+| `SignalGBX`         | Non-transferable, one-for-one staked GBX with ticker `sGBX`, used for current Strategy allocations. |
+| `ResonanceRouter`   | Permissionlessly moves accumulated USDG into Resonance.                                             |
+| `Resonance`         | Tracks allocations, distributes USDG, and controls Strategy and Bribe creation.                     |
+| `StrategyFactory`   | Resonance-only factory for Strategies and their dedicated BribeRouters.                             |
+| `Strategy`          | Reverse Dutch acquisition auction or GBX buyback.                                                   |
+| `BribeFactory`      | Resonance-only factory for one Bribe per Strategy.                                                  |
+| `BribeRouter`       | Routes the signal-reward share of acquisition payments to the Strategy's Bribe.                     |
+| `Bribe`             | Streams payment-token rewards across the Strategy's signal balances.                                |
+| `Fund`              | Registry-free asset backing, selective redemption, GBX burning, and constrained migration.          |
+| `LiquidityPosition` | Custody, fee processing, and constrained migration for the canonical Uniswap v4 position.           |
 
 The Solidity source of truth is [`packages/contracts/src/core`](packages/contracts/src/core). Foundry and Hardhat
 compile the same source tree.
