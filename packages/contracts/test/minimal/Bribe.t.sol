@@ -106,6 +106,18 @@ contract BribeTest is Test {
         assertFalse(bribe.isRewardToken(CAROL));
     }
 
+    function test_RewardTokenCountIsPermanentlyCappedAtEight() external {
+        for (uint256 i = 1; i < bribe.MAX_REWARD_TOKENS(); ++i) {
+            MockERC20 extra = new MockERC20("Extra Reward", "XTRA", 18);
+            bribe.addRewardToken(address(extra));
+        }
+        assertEq(bribe.rewardTokens().length, 8);
+
+        MockERC20 ninth = new MockERC20("Ninth Reward", "NINTH", 18);
+        vm.expectRevert(abi.encodeWithSelector(Bribe.RewardTokenLimitReached.selector, uint256(8)));
+        bribe.addRewardToken(address(ninth));
+    }
+
     /*//////////////////////////////////////////////////////////////
                             NOTIFY VALIDATION
     //////////////////////////////////////////////////////////////*/

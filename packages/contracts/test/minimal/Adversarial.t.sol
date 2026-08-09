@@ -112,7 +112,7 @@ contract AdversarialTest is ProtocolFixture {
 
         // The whale exits immediately: there is no cooldown, no epoch gate, and no penalty.
         vm.startPrank(WHALE);
-        resonance.reset();
+        resonance.removeSignal(address(buybackStrategy), 900 ether);
         signalGBX.unstake(900 ether);
         vm.stopPrank();
 
@@ -148,26 +148,27 @@ contract AdversarialTest is ProtocolFixture {
                         LIVENESS AND EXIT SAFETY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice A revenue token that can freeze Fund permanently traps signalers of a retired Strategy.
-    /// @dev `_reset` checkpoints each selected Strategy first, and a dead Strategy's checkpoint pushes its share to
-    ///      Fund. If that transfer reverts, `reset` reverts, `accountSignalWeight` stays nonzero, and `unstake`
-    ///      stays blocked. The staked GBX is then unreachable until the transfer can succeed again. Freezable
-    ///      revenue tokens are realistic, so this is a live dependency on Fund never being blocked.
-    function test_AFrozenFundPermanentlyBlocksExitFromARetiredStrategy() external {
+    /// @notice A revenue token that can freeze Fund blocks only the signal assigned to the retired Strategy.
+    /// @dev `removeSignal` checkpoints that Strategy first, and a dead Strategy's checkpoint pushes its share to Fund.
+    ///      A reverting transfer still blocks that one removal, but unallocated SignalGBX remains withdrawable.
+    function test_AFrozenFundBlocksOnlyTheRetiredStrategySignal() external {
         RevertingToken freezableUSDG = new RevertingToken(6);
-        (Resonance hostileResonance, ResonanceRouter hostileRouter, address hostileStrategy) =
-            _deployWith(freezableUSDG);
+        (Resonance hostileResonance, ResonanceRouter hostileRouter, SignalGBX hostileSignalGBX, address hostileStrategy)
+        = _deployWith(freezableUSDG);
 
-        _stake(ALICE, 100 ether);
-        vm.prank(ALICE);
-        hostileResonance.signal(_addresses(hostileStrategy), _uints(1));
+        _mintGBX(ALICE, 100 ether);
+        vm.startPrank(ALICE);
+        gbx.approve(address(hostileSignalGBX), 100 ether);
+        hostileSignalGBX.stake(100 ether);
+        hostileResonance.addSignal(hostileStrategy, 75 ether);
+        vm.stopPrank();
 
         freezableUSDG.mint(address(hostileRouter), 100_000_000);
         hostileRouter.route();
 
         // Retiring the Strategy flushes what it had already accrued, but leaves its weight in the denominator.
         hostileResonance.killStrategy(hostileStrategy);
-        assertEq(hostileResonance.strategySignalWeight(hostileStrategy), 100 ether);
+        assertEq(hostileResonance.strategySignalWeight(hostileStrategy), 75 ether);
 
         // Fresh revenue therefore still advances the index against the dead Strategy's share.
         freezableUSDG.mint(address(hostileRouter), 100_000_000);
@@ -178,8 +179,13 @@ contract AdversarialTest is ProtocolFixture {
         // Checkpointing the dead Strategy now has to push its share to a Fund that cannot receive it.
         vm.prank(ALICE);
         vm.expectRevert("BLOCKED");
-        hostileResonance.reset();
-        assertEq(hostileResonance.accountSignalWeight(ALICE), 100 ether, "the allocation cannot be cleared");
+        hostileResonance.removeSignal(hostileStrategy, 75 ether);
+        assertEq(hostileResonance.accountSignalWeight(ALICE), 75 ether, "the affected allocation cannot be cleared");
+
+        // The remaining 25 sGBX is independent of the poisoned Strategy and remains withdrawable.
+        vm.prank(ALICE);
+        hostileSignalGBX.unstake(25 ether);
+        assertEq(gbx.balanceOf(ALICE), 25 ether, "unallocated GBX remains live");
 
         // The same failure bricks the permissionless distribution path for every Strategy in the registry.
         vm.expectRevert("BLOCKED");
@@ -191,8 +197,8 @@ contract AdversarialTest is ProtocolFixture {
         // Exit reopens only when the transfer can succeed again, so the lock lasts exactly as long as the freeze.
         freezableUSDG.setBlocked(address(fund), false);
         vm.startPrank(ALICE);
-        hostileResonance.reset();
-        signalGBX.unstake(100 ether);
+        hostileResonance.removeSignal(hostileStrategy, 75 ether);
+        hostileSignalGBX.unstake(75 ether);
         vm.stopPrank();
 
         assertEq(hostileResonance.accountSignalWeight(ALICE), 0);
@@ -213,12 +219,86 @@ contract AdversarialTest is ProtocolFixture {
         vm.warp(block.timestamp + 4 days);
         vm.startPrank(ALICE);
         resonance.claimRewards(_addresses(address(acquisitionStrategy)));
-        resonance.reset();
+        resonance.removeSignal(address(acquisitionStrategy), 100 ether);
         signalGBX.unstake(100 ether);
         vm.stopPrank();
 
         assertApproxEqRel(target.balanceOf(ALICE), 1 ether, 1e12, "the full stream still pays out");
         assertEq(gbx.balanceOf(ALICE), 100 ether, "and the stake still exits");
+    }
+
+    /// @notice Removing entries in hostile orders cannot leave a stale swap-and-pop index behind.
+    function test_AdversarialRemovalOrdersCannotCorruptAccountStrategies() external {
+        (address third,,) =
+            resonance.addStrategy(IERC20(address(secondAsset)), Strategy.Kind.Acquisition, defaultConfig());
+        _stake(ALICE, 300 ether);
+
+        vm.startPrank(ALICE);
+        resonance.addSignal(address(acquisitionStrategy), 100 ether);
+        resonance.addSignal(address(buybackStrategy), 100 ether);
+        resonance.addSignal(third, 100 ether);
+
+        // Remove the middle entry, then the entry moved into its slot.
+        resonance.removeSignal(address(buybackStrategy), 100 ether);
+        address[] memory afterMiddle = resonance.accountStrategies(ALICE);
+        assertEq(afterMiddle.length, 2);
+        assertEq(afterMiddle[0], address(acquisitionStrategy));
+        assertEq(afterMiddle[1], third);
+
+        resonance.removeSignal(third, 100 ether);
+        resonance.addSignal(address(buybackStrategy), 100 ether);
+        resonance.removeSignal(address(acquisitionStrategy), 100 ether);
+        resonance.removeSignal(address(buybackStrategy), 100 ether);
+        vm.stopPrank();
+
+        assertEq(resonance.accountStrategies(ALICE).length, 0);
+        assertEq(resonance.accountSignalWeight(ALICE), 0);
+        assertEq(resonance.totalSignalWeight(), 0);
+    }
+
+    /// @notice An attacker cannot front-run or pay gas to remove another account's signal.
+    function test_AnAttackerCannotRemoveAnotherAccountsSignal() external {
+        _stake(ALICE, 100 ether);
+        _signalOne(ALICE, address(acquisitionStrategy));
+
+        vm.prank(ATTACKER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Resonance.InsufficientSignal.selector, address(acquisitionStrategy), uint256(0), uint256(100 ether)
+            )
+        );
+        resonance.removeSignal(address(acquisitionStrategy), 100 ether);
+
+        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 100 ether);
+        assertEq(acquisitionBribe.balanceOf(ALICE), 100 ether);
+    }
+
+    /// @notice Signal bounds and Strategy lifecycle checks fail closed without changing any accounting.
+    function test_HostileSignalInputsCannotCreateOrDestroyWeight() external {
+        _stake(ALICE, 100 ether);
+
+        vm.startPrank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.InsufficientUnallocatedSignal.selector, 100 ether, 101 ether));
+        resonance.addSignal(address(acquisitionStrategy), 101 ether);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Resonance.InsufficientSignal.selector, address(acquisitionStrategy), uint256(0), uint256(1)
+            )
+        );
+        resonance.removeSignal(address(acquisitionStrategy), 1);
+
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, ATTACKER));
+        resonance.addSignal(ATTACKER, 1);
+        vm.stopPrank();
+
+        resonance.killStrategy(address(acquisitionStrategy));
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(acquisitionStrategy)));
+        resonance.addSignal(address(acquisitionStrategy), 1);
+
+        assertEq(resonance.accountSignalWeight(ALICE), 0);
+        assertEq(resonance.totalSignalWeight(), 0);
     }
 
     /// @notice A Strategy priced in the non-transferable receipt is permanently unfillable.
@@ -310,6 +390,84 @@ contract AdversarialTest is ProtocolFixture {
         assertEq(usdg.balanceOf(ATTACKER), 50_000_000, "exactly one epoch settled");
     }
 
+    /// @notice A registered hostile reward token is never called during signal addition or removal.
+    function test_AHostileRewardTokenCannotReenterSignalChanges() external {
+        ReentrantToken hostile = new ReentrantToken(18);
+        resonance.addBribeReward(address(acquisitionStrategy), address(hostile));
+        hostile.arm(address(resonance), abi.encodeCall(Resonance.addSignal, (address(acquisitionStrategy), uint256(1))));
+
+        _stake(ALICE, 100 ether);
+        vm.startPrank(ALICE);
+        resonance.addSignal(address(acquisitionStrategy), 100 ether);
+        resonance.removeSignal(address(acquisitionStrategy), 100 ether);
+        vm.stopPrank();
+
+        assertEq(hostile.callCount(), 0, "signal accounting never transfers a reward token");
+        assertEq(resonance.accountSignalWeight(ALICE), 0);
+    }
+
+    /// @notice A hostile revenue token cannot reenter the one signal-removal path that transfers a token.
+    function test_AHostileRevenueTokenCannotReenterRemoveSignal() external {
+        ReentrantToken hostileUSDG = new ReentrantToken(6);
+        (Resonance hostileResonance, ResonanceRouter hostileRouter, SignalGBX hostileSignalGBX, address hostileStrategy)
+        = _deployWith(hostileUSDG);
+
+        _mintGBX(ALICE, 100 ether);
+        vm.startPrank(ALICE);
+        gbx.approve(address(hostileSignalGBX), 100 ether);
+        hostileSignalGBX.stake(100 ether);
+        hostileResonance.addSignal(hostileStrategy, 100 ether);
+        vm.stopPrank();
+
+        hostileUSDG.mint(address(hostileRouter), 100_000_000);
+        hostileRouter.route();
+        hostileResonance.killStrategy(hostileStrategy);
+        hostileUSDG.mint(address(hostileRouter), 100_000_000);
+        hostileRouter.route();
+
+        hostileUSDG.arm(
+            address(hostileResonance), abi.encodeCall(Resonance.removeSignal, (hostileStrategy, uint256(1)))
+        );
+        vm.prank(ALICE);
+        hostileResonance.removeSignal(hostileStrategy, 100 ether);
+
+        assertEq(hostileUSDG.callCount(), 1);
+        assertFalse(hostileUSDG.lastCallSucceeded());
+        assertEq(_selectorOf(hostileUSDG.lastReturnData()), ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
+        assertEq(hostileResonance.accountSignalWeight(ALICE), 0);
+    }
+
+    /// @notice The caller-selected batch removal surface has the same reentrancy boundary as scalar removal.
+    function test_AHostileRevenueTokenCannotReenterRemoveSignalMany() external {
+        ReentrantToken hostileUSDG = new ReentrantToken(6);
+        (Resonance hostileResonance, ResonanceRouter hostileRouter, SignalGBX hostileSignalGBX, address hostileStrategy)
+        = _deployWith(hostileUSDG);
+
+        _mintGBX(ALICE, 100 ether);
+        vm.startPrank(ALICE);
+        gbx.approve(address(hostileSignalGBX), 100 ether);
+        hostileSignalGBX.stake(100 ether);
+        hostileResonance.addSignal(hostileStrategy, 100 ether);
+        vm.stopPrank();
+
+        hostileUSDG.mint(address(hostileRouter), 100_000_000);
+        hostileRouter.route();
+        hostileResonance.killStrategy(hostileStrategy);
+        hostileUSDG.mint(address(hostileRouter), 100_000_000);
+        hostileRouter.route();
+
+        address[] memory strategies = _addresses(hostileStrategy);
+        uint256[] memory amounts = _uints(100 ether);
+        hostileUSDG.arm(address(hostileResonance), abi.encodeCall(Resonance.removeSignalMany, (strategies, _uints(1))));
+        vm.prank(ALICE);
+        hostileResonance.removeSignalMany(strategies, amounts);
+
+        assertEq(hostileUSDG.callCount(), 1);
+        assertFalse(hostileUSDG.lastCallSucceeded());
+        assertEq(_selectorOf(hostileUSDG.lastReturnData()), ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
+        assertEq(hostileResonance.accountSignalWeight(ALICE), 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           DONATION STRANDING
     //////////////////////////////////////////////////////////////*/
@@ -372,17 +530,45 @@ contract AdversarialTest is ProtocolFixture {
         assertGe(target.balanceOf(address(fund)), paid / 2, "Fund always keeps at least half");
     }
 
+    /// @notice Even a malicious owner cannot grow an append-only Bribe beyond its immutable loop bound.
+    function test_TheOwnerCannotExceedTheRewardTokenCap() external {
+        for (uint256 i = 1; i < acquisitionBribe.MAX_REWARD_TOKENS(); ++i) {
+            MockERC20 extra = new MockERC20("Extra Reward", "XTRA", 18);
+            resonance.addBribeReward(address(acquisitionStrategy), address(extra));
+        }
+        assertEq(acquisitionBribe.rewardTokens().length, acquisitionBribe.MAX_REWARD_TOKENS());
+
+        MockERC20 ninth = new MockERC20("Ninth Reward", "NINTH", 18);
+        vm.expectRevert(
+            abi.encodeWithSelector(Bribe.RewardTokenLimitReached.selector, acquisitionBribe.MAX_REWARD_TOKENS())
+        );
+        resonance.addBribeReward(address(acquisitionStrategy), address(ninth));
+        assertFalse(acquisitionBribe.isRewardToken(address(ninth)));
+    }
+
     function _deployWith(MockERC20 revenueToken)
         private
-        returns (Resonance deployed, ResonanceRouter deployedRouter, address strategyAddress)
+        returns (
+            Resonance deployed,
+            ResonanceRouter deployedRouter,
+            SignalGBX deployedSignalGBX,
+            address strategyAddress
+        )
     {
         BribeFactory factory = new BribeFactory(address(this));
         StrategyFactory strategies = new StrategyFactory(address(this));
+        deployedSignalGBX = new SignalGBX(IERC20(address(gbx)), address(this));
         deployed = new Resonance(
-            IERC20(address(signalGBX)), IERC20(address(revenueToken)), address(fund), factory, strategies, address(this)
+            IERC20(address(deployedSignalGBX)),
+            IERC20(address(revenueToken)),
+            address(fund),
+            factory,
+            strategies,
+            address(this)
         );
         factory.setResonance(address(deployed));
         strategies.setResonance(address(deployed));
+        deployedSignalGBX.setResonance(address(deployed));
 
         deployedRouter = new ResonanceRouter(IERC20(address(revenueToken)), address(deployed));
         deployed.setResonanceRouter(address(deployedRouter));

@@ -15,7 +15,8 @@ import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
 /// @title SignalGBX
 /// @author GUM BALL 6900
 /// @notice Non-transferable signal receipt with ticker sGBX, minted one-for-one when a holder stakes GBX.
-/// @dev Adapted from Liquid Signal Governance. There is no time lock: a holder can reset signals and immediately unstake.
+/// @dev Adapted from Liquid Signal Governance. There is no time lock: a holder may immediately unstake any balance not
+///      currently allocated to Strategies.
 contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
@@ -69,7 +70,8 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
         emit Staked(msg.sender, amount);
     }
 
-    /// @notice Burns SignalGBX and returns the underlying GBX immediately after all signals are cleared.
+    /// @notice Burns unallocated SignalGBX and immediately returns the same amount of underlying GBX.
+    /// @dev Active signals reserve only their absolute allocated amount; they do not block withdrawal of the remainder.
     /// @param amount Amount of SignalGBX to burn and GBX to withdraw.
     function unstake(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
@@ -77,7 +79,10 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
         address configuredResonance = resonance;
         if (configuredResonance != address(0)) {
             uint256 signalWeight = ICoreResonance(configuredResonance).accountSignalWeight(msg.sender);
-            if (signalWeight != 0) revert ActiveSignals(msg.sender, signalWeight);
+            uint256 balance = balanceOf(msg.sender);
+            if (signalWeight != 0 && (signalWeight > balance || amount > balance - signalWeight)) {
+                revert ActiveSignals(msg.sender, signalWeight);
+            }
         }
 
         _burn(msg.sender, amount);

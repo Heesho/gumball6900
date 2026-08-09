@@ -241,20 +241,21 @@ contract StartingPointTest is Test {
         assertEq(usdg.balanceOf(BOB), 50_000_000);
     }
 
-    function test_SignalsCanBeReplacedResetAndUnstakedWithoutTimeLock() external {
+    function test_SignalsCanBeAdjustedAndUnstakedWithoutTimeLock() external {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
         signalGBX.stake(100 ether);
 
-        resonance.signal(_singleAddress(address(acquisitionStrategy)), _singleUint(1));
-        vm.expectRevert(abi.encodeWithSelector(SignalGBX.ActiveSignals.selector, ALICE, 100 ether));
+        resonance.addSignal(address(acquisitionStrategy), 60 ether);
+        vm.expectRevert(abi.encodeWithSelector(SignalGBX.ActiveSignals.selector, ALICE, 60 ether));
         signalGBX.unstake(100 ether);
 
-        resonance.signal(_singleAddress(address(buybackStrategy)), _singleUint(1));
+        resonance.addSignal(address(buybackStrategy), 40 ether);
+        resonance.removeSignal(address(acquisitionStrategy), 60 ether);
         assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 0);
-        assertEq(resonance.accountSignals(ALICE, address(buybackStrategy)), 100 ether);
+        assertEq(resonance.accountSignals(ALICE, address(buybackStrategy)), 40 ether);
 
-        resonance.reset();
+        resonance.removeSignal(address(buybackStrategy), 40 ether);
         signalGBX.unstake(100 ether);
         vm.stopPrank();
 
@@ -435,13 +436,13 @@ contract StartingPointTest is Test {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
         signalGBX.stake(100 ether);
-        resonance.signal(_singleAddress(address(acquisitionStrategy)), _singleUint(1));
+        resonance.addSignal(address(acquisitionStrategy), 100 ether);
         vm.stopPrank();
 
         vm.startPrank(BOB);
         gbx.approve(address(signalGBX), 100 ether);
         signalGBX.stake(100 ether);
-        resonance.signal(_singleAddress(address(buybackStrategy)), _singleUint(1));
+        resonance.addSignal(address(buybackStrategy), 100 ether);
         vm.stopPrank();
     }
 

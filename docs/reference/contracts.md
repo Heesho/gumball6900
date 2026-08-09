@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 16. Documented ABI entries: 447. Documented public ABI functions: 230.
+Documented source surfaces: 16. Documented ABI entries: 451. Documented public ABI functions: 233.
 
 ## Bribe
 
@@ -13,7 +13,7 @@ Source: [`src/core/Bribe.sol`](../../packages/contracts/src/core/Bribe.sol)
 
 Artifact: `out/Bribe.sol/Bribe.json`
 
-Public ABI: 19 functions, 5 events, 10 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 20 functions, 5 events, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address)`
 
@@ -26,6 +26,14 @@ Creates a reward stream controlled by `resonance_`.
 **Parameters**
 
 - `resonance_`: Resonance exclusively authorized to maintain virtual balances.
+
+### `MAX_REWARD_TOKENS()`
+
+```solidity
+function MAX_REWARD_TOKENS() external view returns (uint256 arg0);
+```
+
+Immutable upper bound on append-only reward tokens and every loop that processes them.
 
 ### `REWARD_DURATION()`
 
@@ -337,6 +345,14 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error RewardBelowRemaining(uint256 amount, uint256 remaining);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RewardTokenLimitReached(uint256)`
+
+```solidity
+error RewardTokenLimitReached(uint256 maximum);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2215,7 +2231,7 @@ Source: [`src/core/Resonance.sol`](../../packages/contracts/src/core/Resonance.s
 
 Artifact: `out/Resonance.sol/Resonance.json`
 
-Public ABI: 42 functions, 10 events, 16 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 44 functions, 10 events, 16 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address,address,address)`
 
@@ -2310,6 +2326,34 @@ Registers an additional reward token on a Strategy's Bribe.
 
 - `rewardToken`: Token to register.
 - `strategy`: Strategy whose Bribe should accept the token.
+
+### `addSignal(address,uint256)`
+
+```solidity
+function addSignal(address strategy, uint256 amount) external;
+```
+
+Adds an absolute SignalGBX amount to the caller's existing signal for one Strategy.
+`amount` is a delta, not a target: repeated calls increase rather than replace the existing allocation.
+
+**Parameters**
+
+- `amount`: Absolute SignalGBX amount to add to the existing signal.
+- `strategy`: Strategy whose signal should increase.
+
+### `addSignalMany(address[],uint256[])`
+
+```solidity
+function addSignalMany(address[] requestedStrategies, uint256[] amounts) external;
+```
+
+Adds absolute SignalGBX amounts to the caller's existing signals for several Strategies.
+Every amount is a delta, not a target. The caller controls the batch size, so no unbounded batch is forced.
+
+**Parameters**
+
+- `amounts`: Absolute SignalGBX amounts to add to the corresponding existing signals.
+- `requestedStrategies`: Strategies whose signals should increase.
 
 ### `addStrategy(address,uint8,(uint256,uint256,uint256,uint256))`
 
@@ -2451,7 +2495,7 @@ function killStrategy(address strategy) external;
 ```
 
 Stops a Strategy from receiving future USDG; its already indexed revenue is returned to Fund.
-Existing signal weights remain until their owners replace or reset them. Their dead-Strategy revenue share is routed to Fund whenever that Strategy's index is updated.
+Existing signal weights remain until their owners remove them incrementally. Their dead-Strategy revenue share is routed to Fund whenever that Strategy's index is updated.
 
 **Parameters**
 
@@ -2501,6 +2545,34 @@ Returns revenue accrued since `strategy` was last updated.
 
 - `amount`: Revenue accrued since the Strategy's last index update.
 
+### `removeSignal(address,uint256)`
+
+```solidity
+function removeSignal(address strategy, uint256 amount) external;
+```
+
+Removes an absolute SignalGBX amount from the caller's existing signal for one Strategy.
+`amount` is a delta, not a target. Removal remains available after a Strategy is killed.
+
+**Parameters**
+
+- `amount`: Absolute SignalGBX amount to remove from the existing signal.
+- `strategy`: Strategy whose signal should decrease.
+
+### `removeSignalMany(address[],uint256[])`
+
+```solidity
+function removeSignalMany(address[] requestedStrategies, uint256[] amounts) external;
+```
+
+Removes absolute SignalGBX amounts from the caller's existing signals for several Strategies.
+Every amount is a delta, not a target. The caller controls the batch size, so no unbounded batch is forced.
+
+**Parameters**
+
+- `amounts`: Absolute SignalGBX amounts to remove from the corresponding existing signals.
+- `requestedStrategies`: Strategies whose signals should decrease.
+
 ### `renounceOwnership()`
 
 ```solidity
@@ -2508,14 +2580,6 @@ function renounceOwnership() external;
 ```
 
 Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
-
-### `reset()`
-
-```solidity
-function reset() external;
-```
-
-Clears every allocation immediately, allowing SignalGBX to be unstaked in the same transaction.
 
 ### `resonanceRouter()`
 
@@ -2556,20 +2620,6 @@ Binds the sole ResonanceRouter revenue source once during deployment.
 **Parameters**
 
 - `resonanceRouter_`: ResonanceRouter address to bind permanently.
-
-### `signal(address[],uint256[])`
-
-```solidity
-function signal(address[] requestedStrategies, uint256[] relativeWeights) external;
-```
-
-Replaces the caller's complete allocation using relative weights.
-Relative inputs are normalized against the caller's current SignalGBX balance. There is no epoch gate.
-
-**Parameters**
-
-- `relativeWeights`: Relative allocation assigned to each corresponding Strategy.
-- `requestedStrategies`: Strategies to receive the caller's signal weight.
 
 ### `signalGBX()`
 
@@ -2701,18 +2751,18 @@ event RevenueNotified(address indexed resonanceRouter, uint256 amount);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `SignalAllocated(address,address,uint256)`
+#### `SignalAdded(address,address,uint256)`
 
 ```solidity
-event SignalAllocated(address indexed account, address indexed strategy, uint256 signalWeight);
+event SignalAdded(address indexed account, address indexed strategy, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `SignalReset(address,address,uint256)`
+#### `SignalRemoved(address,address,uint256)`
 
 ```solidity
-event SignalReset(address indexed account, address indexed strategy, uint256 signalWeight);
+event SignalRemoved(address indexed account, address indexed strategy, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2755,6 +2805,22 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error InexactRevenueTransfer(uint256 expected, uint256 received);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InsufficientSignal(address,uint256,uint256)`
+
+```solidity
+error InsufficientSignal(address strategy, uint256 available, uint256 requested);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InsufficientUnallocatedSignal(uint256,uint256)`
+
+```solidity
+error InsufficientUnallocatedSignal(uint256 available, uint256 requested);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2843,22 +2909,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error ZeroAmount();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ZeroSignalWeight(address)`
-
-```solidity
-error ZeroSignalWeight(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ZeroTotalRelativeWeight()`
-
-```solidity
-error ZeroTotalRelativeWeight();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3259,7 +3309,8 @@ Transfers ownership of the contract to a new account (`newOwner`). Can only be c
 function unstake(uint256 amount) external;
 ```
 
-Burns SignalGBX and returns the underlying GBX immediately after all signals are cleared.
+Burns unallocated SignalGBX and immediately returns the same amount of underlying GBX.
+Active signals reserve only their absolute allocated amount; they do not block withdrawal of the remainder.
 
 **Parameters**
 

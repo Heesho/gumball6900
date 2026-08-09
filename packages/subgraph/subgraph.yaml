@@ -160,10 +160,10 @@ dataSources:
           handler: handleStrategyAdded
         - event: StrategyKilled(indexed address)
           handler: handleStrategyKilled
-        - event: SignalAllocated(indexed address,indexed address,uint256)
-          handler: handleSignalAllocated
-        - event: SignalReset(indexed address,indexed address,uint256)
-          handler: handleSignalReset
+        - event: SignalAdded(indexed address,indexed address,uint256)
+          handler: handleSignalAdded
+        - event: SignalRemoved(indexed address,indexed address,uint256)
+          handler: handleSignalRemoved
         - event: ResonanceRouterSet(indexed address)
           handler: handleResonanceRouterSet
       file: ./src/resonance.ts

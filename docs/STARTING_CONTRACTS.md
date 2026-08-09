@@ -16,9 +16,10 @@ Uniswap v4 position -> LiquidityPosition -> caller adds 0.20% liquidity
                                         -> caller takes the accrued fees
 ```
 
-GBX holders stake one-for-one into SignalGBX (`sGBX`) and allocate their complete signal balance among active Strategies.
-Signaling is unrestricted: an account may replace or reset its allocations at any time and can unstake immediately after
-resetting. This also lets a holder target the asset they want to accumulate: when a signaled acquisition Strategy
+GBX holders stake one-for-one into SignalGBX (`sGBX`) and allocate absolute amounts among active Strategies. Signaling
+is unrestricted: `addSignal` and `removeSignal` apply deltas to one Strategy, with caller-bounded batch variants, and
+any unallocated balance can be unstaked immediately. This also lets a holder target the asset they want to accumulate:
+when a signaled acquisition Strategy
 successfully settles, its configured signal-reward share is streamed in the acquired asset across eligible signalers.
 
 ## Contract responsibilities
@@ -28,14 +29,14 @@ successfully settles, its configured signal-reward share is streamed in the acqu
 | `GBX`               | Transferable token with permits and signal checkpoints. It creates 20M genesis-liquidity GBX, disables later minting until the one-time Fundraiser handover, and enforces the one-billion lifetime cap.                       |
 | `Fundraiser`        | Preserves the exact daily four-year-half-life schedule for the 980M contributor allocation, routes all contributed USDG immediately, settles sequentially, and mints pro-rata claims.                                         |
 | `LiquidityPosition` | Ownerless. Validates and permanently holds one precommitted hookless GBX/USDG v4 NFT and auto-compounds it: anyone may add 0.20% liquidity to claim the accrued fees. Principal is never removed and the NFT can never leave. |
-| `SignalGBX`         | Holds staked GBX and mints non-transferable `sGBX` signal weight one-for-one. Withdrawal has no time lock but requires the account to clear its active signal weight first.                                                   |
+| `SignalGBX`         | Holds staked GBX and mints non-transferable `sGBX` one-for-one. Withdrawal has no time lock and may consume any balance not currently allocated to a Strategy.                                                                |
 | `ResonanceRouter`   | Holds no intended long-term balance. Anyone can route its complete USDG balance into Resonance, which also makes unsolicited USDG recoverable into the intended revenue flow.                                                 |
-| `Resonance`         | Normalizes relative signals, maintains the global revenue index, physically distributes USDG, creates Strategy/Bribe graphs, and maintains each Bribe's virtual balances. Zero-signal USDG goes to Fund.                      |
+| `Resonance`         | Maintains absolute per-Strategy signals, the global revenue index, USDG distribution, Strategy/Bribe graphs, and each Bribe's virtual balances. Zero-signal USDG goes to Fund.                                                |
 | `StrategyFactory`   | Can be bound once to Resonance. Only that Resonance may deploy a Strategy and its dedicated BribeRouter.                                                                                                                      |
 | `Strategy`          | Sells its complete USDG balance through a bounded linearly declining price. Acquisition payments are split between Fund and signal rewards; buyback payments are GBX and are burned atomically.                               |
 | `BribeFactory`      | Can be bound once to Resonance. Only that Resonance may deploy Bribes.                                                                                                                                                        |
 | `BribeRouter`       | Receives the Strategy's signal-reward share and starts a reward stream when possible. If no signal weight exists, the queued balance goes to Fund.                                                                            |
-| `Bribe`             | Streams registered reward tokens for seven days across virtual balances maintained only by Resonance. Reward streaming is not a staking or withdrawal lock.                                                                   |
+| `Bribe`             | Streams up to eight registered reward tokens for seven days across virtual balances maintained only by Resonance. Reward streaming is not a staking or withdrawal lock.                                                       |
 | `Fund`              | Ownerless. Holds arbitrary ERC-20 balances without registration, burns held GBX, and supports caller-selected pro-rata redemption. Redemption is the only way an asset can ever leave.                                        |
 
 ## Supply and daily distribution
@@ -67,6 +68,7 @@ enforces on the increase; unspent funding is returned in the same call.
 
 - A contribution is not complete unless its exact USDG amount reaches ResonanceRouter and is routed to Resonance atomically.
 - With active signals, Resonance indexes USDG pro rata across Strategy weight. Without signals, it sends the USDG to Fund.
+- Idle `sGBX` earns nothing and dilutes nothing. `totalSignalWeight` therefore may be lower than staked supply.
 - The default acquisition payment split is 9,000 basis points to Fund and 1,000 basis points to BribeRouter.
 - Timelocked governance may set the bribe share from 0 to 5,000 basis points.
 - If the relevant Bribe has no signal weight, BribeRouter returns its queued payment-token balance to Fund.
@@ -104,7 +106,7 @@ project multisig holding proposer and canceller roles. It exposes exactly four o
 - setting the acquisition bribe share, bounded at 50%;
 - creating a Strategy/Bribe/BribeRouter graph;
 - killing a Strategy, permanently; and
-- registering an additional Bribe reward token.
+- registering an additional Bribe reward token, subject to the immutable eight-token cap.
 
 The controller is deployed without an external default administrator. Timelock role or delay changes therefore must
 be scheduled through the controller itself.

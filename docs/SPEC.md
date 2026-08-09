@@ -6,16 +6,19 @@ The executable specification is the Solidity under `packages/contracts/src/core`
 The required behavior is:
 
 1. USDG contributions route through Fundraiser, ResonanceRouter, and Resonance.
-2. SignalGBX signaling is unrestricted and has no time-based withdrawal lock.
+2. SignalGBX signaling uses incremental absolute per-Strategy amounts. It has no time-based withdrawal lock, and any
+   unallocated balance can be unstaked immediately.
 3. Resonance creates and funds acquisition or buyback Strategies through bound factories.
 4. Acquisition payments grow Fund and reward signalers; buyback payments burn GBX.
-5. Fund supports registry-free selective in-kind redemption and one-way batched migration.
+5. Fund supports registry-free selective in-kind redemption and has no migration or administrative withdrawal path.
 6. GBX creates 20 million genesis-liquidity tokens and permanently reserves the remaining 980 million capacity for
    Fundraiser's fixed daily four-year-half-life schedule.
 7. LiquidityPosition holds one precommitted single-sided GBX/USDG v4 position permanently and auto-compounds it:
    anyone may claim its accrued fees by growing it 0.20%. Principal is never removed.
 8. Resonance administration passes through OpenZeppelin `TimelockController`. Fund and LiquidityPosition are
    ownerless.
+9. Each Bribe's append-only reward-token list is permanently capped at eight, bounding signal removal, reward claims,
+   and Strategy settlement.
 
 Detailed mechanics are in [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md), with risks in
 [THREAT_MODEL.md](THREAT_MODEL.md).

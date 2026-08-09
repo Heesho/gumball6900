@@ -15,6 +15,19 @@ export const bribeAbi = [
   },
   {
     type: 'function',
+    name: 'MAX_REWARD_TOKENS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'REWARD_DURATION',
     inputs: [],
     outputs: [
@@ -530,6 +543,17 @@ export const bribeAbi = [
       },
       {
         name: 'remaining',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'RewardTokenLimitReached',
+    inputs: [
+      {
+        name: 'maximum',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -6753,6 +6777,42 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'addSignal',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'addSignalMany',
+    inputs: [
+      {
+        name: 'requestedStrategies',
+        type: 'address[]',
+        internalType: 'address[]',
+      },
+      {
+        name: 'amounts',
+        type: 'uint256[]',
+        internalType: 'uint256[]',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'addStrategy',
     inputs: [
       {
@@ -7082,14 +7142,43 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
-    name: 'renounceOwnership',
-    inputs: [],
+    name: 'removeSignal',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
     outputs: [],
     stateMutability: 'nonpayable',
   },
   {
     type: 'function',
-    name: 'reset',
+    name: 'removeSignalMany',
+    inputs: [
+      {
+        name: 'requestedStrategies',
+        type: 'address[]',
+        internalType: 'address[]',
+      },
+      {
+        name: 'amounts',
+        type: 'uint256[]',
+        internalType: 'uint256[]',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'renounceOwnership',
     inputs: [],
     outputs: [],
     stateMutability: 'nonpayable',
@@ -7141,24 +7230,6 @@ export const resonanceAbi = [
         name: 'resonanceRouter_',
         type: 'address',
         internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'signal',
-    inputs: [
-      {
-        name: 'requestedStrategies',
-        type: 'address[]',
-        internalType: 'address[]',
-      },
-      {
-        name: 'relativeWeights',
-        type: 'uint256[]',
-        internalType: 'uint256[]',
       },
     ],
     outputs: [],
@@ -7415,7 +7486,7 @@ export const resonanceAbi = [
   },
   {
     type: 'event',
-    name: 'SignalAllocated',
+    name: 'SignalAdded',
     inputs: [
       {
         name: 'account',
@@ -7430,7 +7501,7 @@ export const resonanceAbi = [
         internalType: 'address',
       },
       {
-        name: 'signalWeight',
+        name: 'amount',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -7440,7 +7511,7 @@ export const resonanceAbi = [
   },
   {
     type: 'event',
-    name: 'SignalReset',
+    name: 'SignalRemoved',
     inputs: [
       {
         name: 'account',
@@ -7455,7 +7526,7 @@ export const resonanceAbi = [
         internalType: 'address',
       },
       {
-        name: 'signalWeight',
+        name: 'amount',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -7546,6 +7617,43 @@ export const resonanceAbi = [
       },
       {
         name: 'received',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'InsufficientSignal',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'available',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'requested',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'InsufficientUnallocatedSignal',
+    inputs: [
+      {
+        name: 'available',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'requested',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -7646,22 +7754,6 @@ export const resonanceAbi = [
   {
     type: 'error',
     name: 'ZeroAmount',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ZeroSignalWeight',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ZeroTotalRelativeWeight',
     inputs: [],
   },
 ] as const;

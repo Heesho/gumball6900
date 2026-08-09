@@ -25,6 +25,8 @@ contract Bribe is ReentrancyGuard {
     uint256 public constant REWARD_DURATION = 7 days;
     /// @notice Fixed-point precision used for cumulative rewards per unit of signal weight.
     uint256 public constant REWARD_PRECISION = 1e18;
+    /// @notice Immutable upper bound on append-only reward tokens and every loop that processes them.
+    uint256 public constant MAX_REWARD_TOKENS = 8;
 
     /// @notice Resonance contract allowed to maintain virtual balances and register reward tokens.
     address public immutable resonance;
@@ -68,6 +70,7 @@ contract Bribe is ReentrancyGuard {
     error InexactRewardTransfer(uint256 expected, uint256 received);
     error NotRewardToken(address token);
     error NotResonance(address caller);
+    error RewardTokenLimitReached(uint256 maximum);
     error RewardAlreadyAdded(address token);
     error RewardBelowDuration(uint256 amount);
     error RewardBelowRemaining(uint256 amount, uint256 remaining);
@@ -188,6 +191,7 @@ contract Bribe is ReentrancyGuard {
     function addRewardToken(address rewardToken) external onlyResonance {
         if (rewardToken == address(0) || rewardToken.code.length == 0) revert ZeroAddress();
         if (isRewardToken[rewardToken]) revert RewardAlreadyAdded(rewardToken);
+        if (_rewardTokens.length == MAX_REWARD_TOKENS) revert RewardTokenLimitReached(MAX_REWARD_TOKENS);
 
         isRewardToken[rewardToken] = true;
         _rewardTokens.push(rewardToken);

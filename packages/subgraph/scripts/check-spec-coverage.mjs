@@ -43,8 +43,8 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleStrategyAdded',
   'handleStrategyKilled',
   'handleUnstaked',
-  'handleSignalAllocated',
-  'handleSignalReset',
+  'handleSignalAdded',
+  'handleSignalRemoved',
   'handleResonanceRouterSet',
 ]);
 

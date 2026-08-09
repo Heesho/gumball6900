@@ -40,7 +40,11 @@ test('the static runner verifies the pinned toolchain before analysis and after 
 });
 
 test('Medusa targets the same campaign with cheatcodes and FFI disabled', async () => {
-  const config = JSON.parse(await readFile(path.join(auditDirectory, 'medusa.json'), 'utf8'));
+  const [configSource, runner] = await Promise.all([
+    readFile(path.join(auditDirectory, 'medusa.json'), 'utf8'),
+    readFile(path.join(auditDirectory, 'run-nightly.sh'), 'utf8'),
+  ]);
+  const config = JSON.parse(configSource);
 
   assert.deepEqual(config.fuzzing.targetContracts, [campaignName]);
   assert.equal(config.fuzzing.testLimit, 100_000);
@@ -48,4 +52,5 @@ test('Medusa targets the same campaign with cheatcodes and FFI disabled', async 
   assert.deepEqual(config.fuzzing.testing.propertyTesting.testPrefixes, ['echidna_']);
   assert.equal(config.fuzzing.chainConfig.cheatCodes.cheatCodesEnabled, false);
   assert.equal(config.fuzzing.chainConfig.cheatCodes.enableFFI, false);
+  assert.match(runner, /--compilation-target "\$CONTRACTS_DIR\/audit\/harness\/ProtocolStateMachineCampaign\.sol"/);
 });

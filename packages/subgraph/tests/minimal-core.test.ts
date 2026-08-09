@@ -3,12 +3,12 @@ import { assert, beforeEach, clearStore, describe, newMockEvent, test } from 'ma
 import { Claimed, Contributed, EpochSettled } from '../generated/Fundraiser/Fundraiser';
 import { Burned, Minted } from '../generated/GBX/GBX';
 import { Compounded } from '../generated/LiquidityPosition/LiquidityPosition';
-import { StrategyAdded, SignalAllocated, SignalReset } from '../generated/Resonance/Resonance';
+import { SignalAdded, SignalRemoved, StrategyAdded } from '../generated/Resonance/Resonance';
 import { handleClaimed, handleContributed, handleEpochSettled } from '../src/fundraiser';
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
 import { handleCompounded } from '../src/liquidity-position';
-import { handleStrategyAdded, handleSignalAllocated, handleSignalReset } from '../src/resonance';
+import { handleSignalAdded, handleSignalRemoved, handleStrategyAdded } from '../src/resonance';
 import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, configureEvent, uintParam } from './helpers';
 
 export {
@@ -19,8 +19,8 @@ export {
   handleCompounded,
   handleMinted,
   handleStrategyAdded,
-  handleSignalAllocated,
-  handleSignalReset,
+  handleSignalAdded,
+  handleSignalRemoved,
 };
 
 describe('core protocol mappings', () => {
@@ -75,7 +75,7 @@ describe('core protocol mappings', () => {
     assert.fieldEquals('Account', '4663-' + USER_TWO.toHexString(), 'claimedGBXRaw', '40');
   });
 
-  test('tracks sequential Fundraiser settlement and liquidity fee processing', () => {
+  test('tracks sequential Fundraiser settlement and liquidity compounding', () => {
     const settlement = changetype<EpochSettled>(newMockEvent());
     configureEvent(settlement, CONTRACT, 1);
     settlement.parameters = new Array<ethereum.EventParam>();
@@ -104,7 +104,7 @@ describe('core protocol mappings', () => {
     assert.fieldEquals('ProtocolEvent', eventId(compounded), 'eventType', 'LIQUIDITY_COMPOUNDED');
   });
 
-  test('tracks Strategy creation and unrestricted signal replacement events', () => {
+  test('tracks Strategy creation and incremental absolute signal events', () => {
     const added = changetype<StrategyAdded>(newMockEvent());
     configureEvent(added, CONTRACT, 1);
     added.parameters = new Array<ethereum.EventParam>();
@@ -115,21 +115,21 @@ describe('core protocol mappings', () => {
     added.parameters.push(uintParam('kind', 0));
     handleStrategyAdded(added);
 
-    const cast = changetype<SignalAllocated>(newMockEvent());
+    const cast = changetype<SignalAdded>(newMockEvent());
     configureEvent(cast, CONTRACT, 2);
     cast.parameters = new Array<ethereum.EventParam>();
     cast.parameters.push(addressParam('account', USER));
     cast.parameters.push(addressParam('strategy', STRATEGY));
-    cast.parameters.push(uintParam('signalWeight', 100));
-    handleSignalAllocated(cast);
+    cast.parameters.push(uintParam('amount', 100));
+    handleSignalAdded(cast);
 
-    const reset = changetype<SignalReset>(newMockEvent());
-    configureEvent(reset, CONTRACT, 3);
-    reset.parameters = new Array<ethereum.EventParam>();
-    reset.parameters.push(addressParam('account', USER));
-    reset.parameters.push(addressParam('strategy', STRATEGY));
-    reset.parameters.push(uintParam('signalWeight', 100));
-    handleSignalReset(reset);
+    const removed = changetype<SignalRemoved>(newMockEvent());
+    configureEvent(removed, CONTRACT, 3);
+    removed.parameters = new Array<ethereum.EventParam>();
+    removed.parameters.push(addressParam('account', USER));
+    removed.parameters.push(addressParam('strategy', STRATEGY));
+    removed.parameters.push(uintParam('amount', 100));
+    handleSignalRemoved(removed);
 
     const strategyId = '4663-' + STRATEGY.toHexString();
     assert.fieldEquals('ProtocolState', '4663', 'strategyCount', '1');

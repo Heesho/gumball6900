@@ -392,7 +392,7 @@ export const pages = [
                 ],
                 [
                   'Continuous direction',
-                  'sGBX allocations may be replaced or reset at any time. No voting season, no allocation epoch, no signal cooldown, no withdrawal lock once allocations are cleared.',
+                  'Absolute per-Strategy sGBX amounts may be increased or decreased at any time. No voting season, allocation epoch or signal cooldown; unallocated sGBX is immediately withdrawable.',
                 ],
                 [
                   'Real assets',
@@ -404,7 +404,7 @@ export const pages = [
                 ],
                 [
                   'Governance minimization',
-                  'Signals govern capital. Management holds five explicitly authorized actions, each bounded, and the deployed core cannot be upgraded.',
+                  'Signals govern capital. Resonance holds four explicitly authorized actions, each bounded, and the deployed core cannot be upgraded.',
                 ],
                 [
                   'Inspectability',
@@ -489,12 +489,12 @@ export const pages = [
             ${note({
               label: 'One entrance',
               kind: 'capital',
-              body: 'Contribution revenue and collected USDG fees both enter through the same router. There is no second path into the Fund and no discretionary wallet in between.',
+              body: 'Fundraiser contributions are the only USDG revenue entering this router. Liquidity-position fees belong entirely to the permissionless compounding incentive.',
             })}
           </div>
         </div>
         <p class="statement stack-2">
-          No proposal season. No signaling epoch. No withdrawal lock once allocations are reset.
+          No proposal season. No signaling epoch. No withdrawal lock on unallocated sGBX.
           <em>Every distribution re-reads the signal that exists at that moment.</em>
         </p>
       </div>
@@ -737,7 +737,7 @@ export const pages = [
           index: context.figure('signal'),
           svg: fig.signalAllocation({ width: widths.full }),
           caption:
-            'Weight can be split across any number of active Strategies and rewritten at will — no epoch, no cooldown, no withdrawal lock once allocations are cleared. Changing the allocation redirects the next distribution; it never sells what the Fund already holds. The split shown is an example, not a default.',
+            'Absolute amounts can be added to or removed from active Strategies independently — no epoch, cooldown or forced whole-account reset. Unallocated sGBX is immediately withdrawable. Changing an allocation redirects the next distribution; it never sells what the Fund already holds.',
         })}
         <div class="spread stack-2">
           <div class="col-main">
@@ -749,8 +749,9 @@ export const pages = [
               signaler asked for.
             </p>
             <p>
-              Signaling is continuous and reversible. A holder may replace or reset allocations at any time, and may
-              withdraw the underlying GBX once allocations are cleared, with no time lock.
+              Signaling is continuous and reversible. Each operation adds or removes an absolute per-Strategy amount;
+              the amount is a delta, not a target. A holder may leave some sGBX idle and withdraw that unallocated
+              balance immediately. Idle sGBX earns nothing and dilutes nothing.
             </p>
           </div>
           <div class="col-side">
@@ -1008,24 +1009,23 @@ export const pages = [
     render: (context) => html`
       <div class="frame">
         ${sectionHead({
-          eyebrow: 'Two loops that only shrink supply',
+          eyebrow: 'One market loop, one supply-reduction loop',
           number: '12',
           title: 'Liquidity fees and buybacks',
-          deck: 'The canonical market position and the buyback Strategy both terminate in a burn. Neither creates a treasury.',
+          deck: 'The canonical market position auto-compounds; the buyback Strategy terminates in an atomic burn.',
         })}
         ${figureBlock({
           index: context.figure('burns'),
           svg: fig.burnLoops({ width: widths.full }),
           caption:
-            'Both loops end in an irreversible step. Nothing in either path leaves an accumulated balance under anyone&rsquo;s control.',
+            'The position grows by a fixed rule and pays its caller accrued fees; buybacks destroy every GBX payment.',
         })}
         <div class="spread stack-2">
           <div class="col-main">
             <p>
               The canonical market position is a precommitted, hookless GBX/USDG Uniswap v4 position funded with the 20
-              million GBX genesis allocation. Fee collection is permissionless and removes zero principal: collected GBX
-              is burned, and collected USDG rejoins the signal-directed revenue flow through the same router every
-              contribution uses.
+              million GBX genesis allocation. Compounding is permissionless and removes zero principal: a caller grows
+              liquidity by the fixed 0.20% and receives every accrued fee. Position fees are not protocol revenue.
             </p>
             <p>
               A buyback Strategy is an ordinary Strategy whose target asset is GBX itself. It spends routed USDG, buys
@@ -1072,8 +1072,8 @@ export const pages = [
           <div class="col-main">
             <p>
               This is the most important behavioural consequence in the design, and the one most likely to be misread. A
-              holder who moves their entire signal to a new Strategy has changed the destination of future capital and
-              nothing else. The assets bought under the old signal remain in the Fund until someone redeems them out.
+              holder who moves signal to a new Strategy has changed the destination of future capital and nothing else.
+              The assets bought under the old signal remain in the Fund until someone redeems them out.
             </p>
             <p>
               Composition therefore reflects the full history of contributions, signals and completed acquisitions. Two
@@ -1141,7 +1141,7 @@ export const pages = [
     id: 'governance',
     runner: '15 · Governance-minimized design',
     group: 'What must hold, and what can fail',
-    section: { number: 15, title: 'Governance-minimized final design', note: 'Five doors, no upgrade' },
+    section: { number: 15, title: 'Governance-minimized final design', note: 'Four doors, no upgrade' },
     render: (context) => html`
       <div class="frame">
         ${sectionHead({
@@ -1154,26 +1154,26 @@ export const pages = [
           index: context.figure('governance'),
           svg: fig.governancePerimeter({ width: widths.full }),
           caption:
-            'The five authorized actions are the entire management surface of the intended final system. Everything on the right has no entry point, not a restricted one.',
+            'The four authorized actions are the entire management surface. Everything on the right has no entry point, not a restricted one.',
         })}
         <div class="spread stack-2">
           <div class="col-main">
             <p>
               sGBX holders direct capital continuously by signaling active Strategies. Management maintains the edges of
-              the system — which Strategies exist, what the management fee is, how each acquisition divides between the
-              Fund and its signalers, and what additional Bribe rewards are registered — and can do nothing else.
+              the system — which Strategies exist, how each acquisition divides between the Fund and its signalers, and
+              which additional Bribe rewards are registered — and can do nothing else. Each Bribe is permanently capped
+              at eight reward tokens.
             </p>
             <p class="small muted">
-              Open work: the exact meaning, basis and bounds of the management fee remain to be specified in the final
-              contracts. Strategy removal semantics, Bribe reward registration, manager authorization and key lifecycle
-              must be fully specified without introducing a sixth management action.
+              Open work: whether multi-token Bribe rewards should exist at all remains unresolved. The eight-token cap
+              bounds the current path without deciding that product question.
             </p>
           </div>
           <div class="col-side">
             ${note({
               label: 'Minimized, not absent',
               kind: 'asset',
-              body: 'A compromised manager key can still add or remove Strategies, change the fee, and push the signal-reward share to its 50% cap. It cannot upgrade the core, withdraw Fund assets, pause redemption, or touch what the Fund already holds.',
+              body: 'A compromised manager key can still add or kill Strategies, push the signal-reward share to its 50% cap, and register rewards up to the eight-token limit. It cannot upgrade the core, withdraw Fund assets, pause redemption, or touch what the Fund already holds.',
             })}
           </div>
         </div>
@@ -1203,7 +1203,7 @@ export const pages = [
               </li>
               <li>All contribution revenue enters the signal-directed routing path.</li>
               <li>
-                sGBX allocations can be replaced or reset without an epoch restriction, cooldown or withdrawal lock.
+                Absolute per-Strategy sGBX signals change by incremental deltas; unallocated sGBX is withdrawable.
               </li>
               <li>Redemption uses pre-burn supply and balance snapshots.</li>
               <li>A redemption burn and all selected transfers are atomic.</li>
@@ -1212,7 +1212,8 @@ export const pages = [
                 and can never exceed 50%, and returns that share to the Fund when no eligible signalers exist.
               </li>
               <li>A buyback burns all received GBX atomically and pays no signal reward.</li>
-              <li>Liquidity-fee collection removes no principal, burns collected GBX, and routes collected USDG.</li>
+              <li>Each Bribe has at most eight append-only reward tokens.</li>
+              <li>Liquidity compounding adds 0.20% and removes no principal.</li>
               <li>The deployed core has no upgrade path and no arbitrary asset-withdrawal path.</li>
             </ol>
           </div>
@@ -1256,8 +1257,8 @@ export const pages = [
               ],
               [
                 'Manager key',
-                'A compromised key adds or removes Strategies, or changes the management fee.',
-                'Five bounded actions only. No upgrade, no withdrawal, no pause, and no way to reach the Fund&rsquo;s existing holdings.',
+                'A compromised key adds or kills Strategies, changes the reward share, or registers Bribe rewards.',
+                'Four bounded actions only. No upgrade, withdrawal, pause, or way to reach the Fund&rsquo;s existing holdings.',
               ],
               [
                 'Signal concentration',
@@ -1326,8 +1327,8 @@ export const pages = [
             </p>
             <h3 class="stack-2">Minimum requirements before production</h3>
             <ol class="numbered stack-1">
-              <li>Final contract interfaces matching the five-action management surface.</li>
-              <li>Precise management-fee economics, basis and bounds.</li>
+              <li>Final contract interfaces matching the four-action Resonance management surface.</li>
+              <li>An owner decision on whether multi-token Bribe rewards should exist.</li>
               <li>Complete unit, integration, invariant and economic-model tests.</li>
               <li>Reviewed asset and chain configuration.</li>
               <li>Reproducible deployment rehearsals.</li>
@@ -1337,9 +1338,9 @@ export const pages = [
           </div>
           <div class="col-side">
             ${note({
-              label: 'Bounds still to pin down',
+              label: 'Question still to decide',
               kind: 'asset',
-              body: 'The management fee has no stated definition, basis or bound yet. Until it does, it is the one management action whose reach cannot be checked against a number — unlike the signal-reward share, which is capped at 50%.',
+              body: 'Bribe reward registration is bounded at eight tokens, but the stronger question remains: should additional reward tokens exist at all?',
             })}
             ${note({
               label: 'What a green build means',
@@ -1442,10 +1443,7 @@ export const pages = [
                 'In-kind redemption',
                 'Receiving the underlying tokens themselves rather than a cash or synthetic equivalent.',
               ],
-              [
-                'Management fee',
-                'The only adjustable fee in the target design. Its definition, basis and bounds are not yet fixed.',
-              ],
+              ['Bribe reward cap', 'At most eight append-only reward tokens may be registered for one Strategy.'],
               [
                 'Mining',
                 'Contributing USDG through the public Fundraiser and receiving that period&rsquo;s scheduled GBX. Not proof-of-work.',

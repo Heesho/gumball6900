@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { Bribe } from "../../../src/core/Bribe.sol";
@@ -138,13 +139,14 @@ abstract contract ProtocolFixture is Test {
         vm.stopPrank();
     }
 
-    /// @notice Allocates the account's entire signal power to one Strategy.
+    /// @notice Allocates the account's entire currently unallocated signal power to one Strategy.
     function _signalOne(address account, address strategy) internal {
+        uint256 amount = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
         vm.prank(account);
-        resonance.signal(_addresses(strategy), _uints(1));
+        resonance.addSignal(strategy, amount);
     }
 
-    /// @notice Allocates the account's signal power between two Strategies using relative weights.
+    /// @notice Allocates the account's currently unallocated signal power between two Strategies.
     function _signalTwo(address account, address first, address second, uint256 firstWeight, uint256 secondWeight)
         internal
     {
@@ -152,12 +154,26 @@ abstract contract ProtocolFixture is Test {
         strategies[0] = first;
         strategies[1] = second;
 
-        uint256[] memory weights = new uint256[](2);
-        weights[0] = firstWeight;
-        weights[1] = secondWeight;
+        uint256 available = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
+        uint256 totalRelativeWeight = firstWeight + secondWeight;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = Math.mulDiv(available, firstWeight, totalRelativeWeight);
+        amounts[1] = Math.mulDiv(available, secondWeight, totalRelativeWeight);
 
         vm.prank(account);
-        resonance.signal(strategies, weights);
+        resonance.addSignalMany(strategies, amounts);
+    }
+
+    /// @notice Removes every signal currently recorded for `account` through the bounded caller-selected batch API.
+    function _removeAllSignals(address account) internal {
+        address[] memory selected = resonance.accountStrategies(account);
+        uint256[] memory amounts = new uint256[](selected.length);
+        for (uint256 i; i < selected.length; ++i) {
+            amounts[i] = resonance.accountSignals(account, selected[i]);
+        }
+
+        vm.prank(account);
+        resonance.removeSignalMany(selected, amounts);
     }
 
     /// @notice Contributes USDG through the Fundraiser, minting the USDG first.

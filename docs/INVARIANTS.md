@@ -8,8 +8,13 @@
   epoch allocates zero and carries nothing forward.
 - Fundraiser routes the exact contributed USDG amount or reverts the contribution atomically.
 - SignalGBX supply is backed one-for-one by GBX held in SignalGBX.
-- SignalGBX cannot be transferred; an account cannot unstake while it has active signal weight.
-- A signal allocation may be replaced or reset at any time and never exceeds the account's current SignalGBX balance.
+- SignalGBX cannot be transferred; an account may unstake exactly the portion not currently allocated to Strategies.
+- Signals are absolute per-Strategy amounts changed by deltas. Their account sum equals `accountSignalWeight`, which
+  never exceeds the account's current SignalGBX balance.
+- Account signal weights and Strategy signal weights each sum exactly to `totalSignalWeight`.
+- Each Bribe account balance mirrors its Strategy signal, and each Bribe supply mirrors its Strategy's total weight.
+- A zero signal is removed from `accountStrategies` without leaving a duplicate or stale swap-and-pop index.
+- A Bribe has at most eight registered reward tokens.
 - Only Resonance can deploy through StrategyFactory or BribeFactory and maintain Bribe virtual balances.
 - Acquisition Bribe share never exceeds 50%; buybacks burn 100% of their GBX payment.
 - Fund redemption uses one pre-burn supply snapshot for every selected token and is atomic with the GBX burn.

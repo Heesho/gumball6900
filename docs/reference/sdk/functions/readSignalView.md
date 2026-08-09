@@ -6,9 +6,9 @@
 
 # Function: readSignalView()
 
-> **readSignalView**(`client`, `contracts`, `account`, `options?`): `Promise`\<\{ `accountSignalWeight`: `bigint`; `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; \}\>
+> **readSignalView**(`client`, `contracts`, `account`, `options?`): `Promise`\<\{ `accountSignalWeight`: `bigint`; `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; `unallocatedSignalBalance`: `bigint`; \}\>
 
-Reads an account's current SignalGBX balance and unrestricted allocation.
+Reads an account's SignalGBX balance, absolute allocation, and immediately withdrawable remainder.
 
 ## Parameters
 
@@ -21,4 +21,4 @@ Reads an account's current SignalGBX balance and unrestricted allocation.
 
 ## Returns
 
-`Promise`\<\{ `accountSignalWeight`: `bigint`; `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; \}\>
+`Promise`\<\{ `accountSignalWeight`: `bigint`; `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; `unallocatedSignalBalance`: `bigint`; \}\>

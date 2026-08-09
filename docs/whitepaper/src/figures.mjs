@@ -250,7 +250,7 @@ export function systemMap({ width = widths.full } = {}) {
       w: boxW,
       h: boxH,
       title: 'LiquidityPosition',
-      sub: 'GBX fees burned · USDG routed',
+      sub: 'Fixed 0.20% auto-compounding',
       accent: flow.capital,
     },
 
@@ -370,11 +370,6 @@ export function systemMap({ width = widths.full } = {}) {
     elbow({ x1: cx('fundraiser'), y1: bottom('fundraiser'), x2: cx('router') - 20, y2: 166, axis: 'y', bend: 0.58 }),
     'capital',
   );
-  connect(
-    elbow({ x1: cx('liquidity'), y1: bottom('liquidity'), x2: cx('router') + 20, y2: 166, axis: 'y', bend: 0.58 }),
-    'capital',
-  );
-
   connect(`M${cx('router')},${bottom('router')} L${cx('router')},230`, 'capital', { strokeWidth: 1.7 });
 
   // Signal is a read, not a transfer.
@@ -951,7 +946,7 @@ export function miningMarketChart({ width = widths.full } = {}) {
 /* ------------------------------------------------------------- signalling ---- */
 
 export function signalAllocation({ width = widths.full } = {}) {
-  const height = 196;
+  const height = 220;
   const parts = [];
   const leftX = 4;
   const rightX = width - 172;
@@ -964,19 +959,20 @@ export function signalAllocation({ width = widths.full } = {}) {
       width: 150,
       height: 42,
       title: 'Your sGBX',
-      subtitle: 'Stake GBX one-for-one',
+      subtitle: '1,000,000 staked one-for-one',
       accent: palette.pink,
     }),
   );
 
   const targets = [
-    { title: 'Strategy — NVDA', sub: 'NVIDIA-linked asset', weight: 0.5 },
-    { title: 'Strategy — AAPL', sub: 'Apple-linked asset', weight: 0.3 },
-    { title: 'Strategy — SPCX', sub: 'SpaceX-linked asset', weight: 0.2 },
+    { title: 'Strategy — NVDA', sub: 'NVIDIA-linked asset', weight: 0.5, amount: 500_000 },
+    { title: 'Strategy — AAPL', sub: 'Apple-linked asset', weight: 0.25, amount: 250_000 },
+    { title: 'Strategy — SPCX', sub: 'SpaceX-linked asset', weight: 0.15, amount: 150_000 },
+    { title: 'Unallocated sGBX', sub: 'Idle and withdrawable', weight: 0.1, amount: 100_000 },
   ];
 
   targets.forEach((target, index) => {
-    const y = 34 + index * 62;
+    const y = 30 + index * 48;
     parts.push(
       path(
         ribbon({
@@ -997,7 +993,7 @@ export function signalAllocation({ width = widths.full } = {}) {
       node({ x: rightX, y, width: 168, height: 34, title: target.title, subtitle: target.sub, accent: palette.pink }),
     );
     parts.push(
-      text(`${Math.round(target.weight * 100)}%`, {
+      text(`${compact(target.amount)}`, {
         x: rightX - 12,
         y: y + 20,
         size: 9.4,
@@ -1008,7 +1004,7 @@ export function signalAllocation({ width = widths.full } = {}) {
     );
   });
 
-  parts.push(label('Allocate weight across active Strategies', { x: leftX, y: 16, fill: palette.inkMuted }));
+  parts.push(label('Add absolute amounts; leave any remainder idle', { x: leftX, y: 16, fill: palette.inkMuted }));
 
   return figure({ width, height, children: parts.join(''), title: 'Allocating sGBX weight across Strategies' });
 }
@@ -1551,12 +1547,12 @@ export function burnLoops({ width = widths.full } = {}) {
 
   loop(
     0,
-    'Liquidity fees',
-    'Collect without removing principal',
+    'Liquidity compounding',
+    'Grow without removing principal',
     [
-      { text: 'Collect fees from the canonical position' },
-      { text: 'USDG fees rejoin signal-directed flow' },
-      { text: 'GBX fees are burned', terminal: true },
+      { text: 'Caller adds the fixed 0.20% liquidity' },
+      { text: 'v4 nets fees against the increase' },
+      { text: 'Caller receives every accrued fee', terminal: true },
     ],
     palette.blue,
   );
@@ -1719,20 +1715,14 @@ export function governancePerimeter({ width = widths.full } = {}) {
   );
 
   // The authorized edges, drawn as the only openings in the perimeter.
-  const doors = [
-    'Add a Strategy',
-    'Remove a Strategy',
-    'Change the management fee',
-    'Change the reward share',
-    'Add Bribe rewards',
-  ];
+  const doors = ['Add a Strategy', 'Kill a Strategy', 'Change the reward share', 'Add Bribe rewards (max 8)'];
   doors.forEach((door, index) => {
     const y = 48 + index * 34;
     parts.push(rect({ x: coreX - 6, y: y - 9, width: 12, height: 18, r: 2, fill: palette.pinkBright }));
     parts.push(text(door, { x: coreX - 14, y: y + 3, size: 7.2, weight: 600, fill: palette.ink, anchor: 'end' }));
     parts.push(text(String(index + 1), { x: 4, y: y + 3, size: 7.2, weight: 600, fill: palette.pink }));
   });
-  parts.push(label('Five authorized actions', { x: 4, y: 22, fill: palette.pink }));
+  parts.push(label('Four authorized actions', { x: 4, y: 22, fill: palette.pink }));
 
   // What has no door at all.
   const sealed = [

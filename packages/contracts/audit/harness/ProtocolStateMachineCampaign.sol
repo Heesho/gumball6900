@@ -165,29 +165,72 @@ contract ProtocolStateMachineCampaign {
 
     function unstake(uint8 actorSeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
-        uint256 requested = _clamp(amount, 1, signalGBX.balanceOf(address(actor)));
+        address account = address(actor);
+        uint256 available = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
+        uint256 requested = _clamp(amount, 1, available);
 
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.unstake, (requested)));
     }
 
-    function signal(uint8 actorSeed, uint8 countSeed) external {
+    function addSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
+        address account = address(actor);
+        uint256 available = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
+        address[] memory alive = _aliveStrategies();
+        if (alive.length == 0) revert("NO_LIVE_STRATEGY");
+
+        address strategy = alive[uint256(strategySeed) % alive.length];
+        uint256 requested = _clamp(amount, 1, available);
+        actor.run(address(resonance), abi.encodeCall(Resonance.addSignal, (strategy, requested)));
+    }
+
+    function removeSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
+        CampaignActor actor = _actor(actorSeed);
+        address account = address(actor);
+        address[] memory selected = resonance.accountStrategies(account);
+        if (selected.length == 0) revert("NO_ACCOUNT_STRATEGY");
+
+        address strategy = selected[uint256(strategySeed) % selected.length];
+        uint256 requested = _clamp(amount, 1, resonance.accountSignals(account, strategy));
+        actor.run(address(resonance), abi.encodeCall(Resonance.removeSignal, (strategy, requested)));
+    }
+
+    function addSignalMany(uint8 actorSeed, uint8 countSeed) external {
+        CampaignActor actor = _actor(actorSeed);
+        address account = address(actor);
+        uint256 available = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
         address[] memory alive = _aliveStrategies();
         if (alive.length == 0) revert("NO_LIVE_STRATEGY");
 
         uint256 count = (uint256(countSeed) % alive.length) + 1;
+        if (available < count) revert("INSUFFICIENT_FREE_SIGNAL");
         address[] memory selected = new address[](count);
-        uint256[] memory weights = new uint256[](count);
+        uint256[] memory amounts = new uint256[](count);
+        uint256 share = available / count;
         for (uint256 i; i < count; ++i) {
             selected[i] = alive[i];
-            weights[i] = 1;
+            amounts[i] = share;
         }
+        amounts[0] += available - (share * count);
 
-        actor.run(address(resonance), abi.encodeCall(Resonance.signal, (selected, weights)));
+        actor.run(address(resonance), abi.encodeCall(Resonance.addSignalMany, (selected, amounts)));
     }
 
-    function reset(uint8 actorSeed) external {
-        _actor(actorSeed).run(address(resonance), abi.encodeCall(Resonance.reset, ()));
+    function removeSignalMany(uint8 actorSeed, uint8 countSeed) external {
+        CampaignActor actor = _actor(actorSeed);
+        address account = address(actor);
+        address[] memory current = resonance.accountStrategies(account);
+        if (current.length == 0) revert("NO_ACCOUNT_STRATEGY");
+
+        uint256 count = (uint256(countSeed) % current.length) + 1;
+        address[] memory selected = new address[](count);
+        uint256[] memory amounts = new uint256[](count);
+        for (uint256 i; i < count; ++i) {
+            selected[i] = current[i];
+            amounts[i] = resonance.accountSignals(account, current[i]);
+        }
+
+        actor.run(address(resonance), abi.encodeCall(Resonance.removeSignalMany, (selected, amounts)));
     }
 
     function contribute(uint8 actorSeed, uint64 amount) external {
@@ -330,6 +373,36 @@ contract ProtocolStateMachineCampaign {
         for (uint256 i; i < ACTOR_COUNT; ++i) {
             address actor = address(actors[i]);
             if (resonance.accountSignalWeight(actor) > signalGBX.balanceOf(actor)) return false;
+        }
+        return true;
+    }
+
+    /// @notice Every account's exit remains decomposable into a bounded number of positive per-Strategy removals.
+    function echidna_everyAccountExitRemainsBounded() public view returns (bool holds) {
+        for (uint256 i; i < ACTOR_COUNT; ++i) {
+            address actor = address(actors[i]);
+            address[] memory selected = resonance.accountStrategies(actor);
+            if (selected.length > strategies.length) return false;
+
+            uint256 summed;
+            for (uint256 j; j < selected.length; ++j) {
+                uint256 signal = resonance.accountSignals(actor, selected[j]);
+                if (signal == 0) return false;
+                summed += signal;
+                for (uint256 k = j + 1; k < selected.length; ++k) {
+                    if (selected[j] == selected[k]) return false;
+                }
+            }
+            if (summed != resonance.accountSignalWeight(actor)) return false;
+        }
+        return true;
+    }
+
+    /// @notice Append-only reward-token loops can never grow beyond the immutable cap protecting exit and settlement.
+    function echidna_rewardTokenLoopsStayBounded() public view returns (bool holds) {
+        for (uint256 i; i < strategies.length; ++i) {
+            Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
+            if (bribe.rewardTokens().length > bribe.MAX_REWARD_TOKENS()) return false;
         }
         return true;
     }

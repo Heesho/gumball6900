@@ -140,6 +140,49 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         }
     }
 
+    /// @notice From every reached state, each actor can remove every signal in bounded calls and recover all staked GBX.
+    function invariant_EveryActorCanFullyRemoveSignalsAndUnstake() external {
+        uint256 snapshot = vm.snapshotState();
+
+        for (uint256 i; i < handler.actorCount(); ++i) {
+            address actor = handler.actors(i);
+            address[] memory selected = resonance.accountStrategies(actor);
+            for (uint256 j; j < selected.length; ++j) {
+                uint256 amount = resonance.accountSignals(actor, selected[j]);
+                vm.prank(actor);
+                resonance.removeSignal(selected[j], amount);
+            }
+
+            uint256 balance = signalGBX.balanceOf(actor);
+            if (balance != 0) {
+                vm.prank(actor);
+                signalGBX.unstake(balance);
+            }
+
+            assertEq(resonance.accountSignalWeight(actor), 0);
+            assertEq(signalGBX.balanceOf(actor), 0);
+        }
+
+        assertTrue(vm.revertToState(snapshot));
+    }
+
+    /// @notice From every reached state, each actor can withdraw its entire unallocated balance without touching signals.
+    function invariant_EveryActorCanUnstakeItsUnallocatedBalance() external {
+        uint256 snapshot = vm.snapshotState();
+
+        for (uint256 i; i < handler.actorCount(); ++i) {
+            address actor = handler.actors(i);
+            uint256 unallocated = signalGBX.balanceOf(actor) - resonance.accountSignalWeight(actor);
+            if (unallocated == 0) continue;
+
+            vm.prank(actor);
+            signalGBX.unstake(unallocated);
+            assertEq(signalGBX.balanceOf(actor), resonance.accountSignalWeight(actor));
+        }
+
+        assertTrue(vm.revertToState(snapshot));
+    }
+
     /*//////////////////////////////////////////////////////////////
                           REVENUE ACCOUNTING
     //////////////////////////////////////////////////////////////*/
@@ -252,7 +295,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @dev Invariants are also evaluated once before the first call, so this cannot assert nonzero counts.
     ///      `test_EveryHandlerActionIsReachable` carries that assertion instead.
     function invariant_CallSummary() external view {
-        string[16] memory actions = _actionNames();
+        string[18] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             console.log(actions[i], handler.ghostCalls(bytes32(bytes(actions[i]))));
         }
@@ -262,11 +305,14 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @dev Without this, every invariant above could pass vacuously against a handler that never does anything.
     function test_EveryHandlerActionIsReachable() external {
         handler.stake(0, 1_000 ether);
-        handler.signal(0, 1);
+        handler.addSignal(0, 0, 100 ether);
+        handler.addSignalMany(0, 2);
+        handler.removeSignal(0, 0, 1 ether);
+        handler.removeSignalMany(0, 1);
         handler.contribute(0, 100_000e6);
         handler.donateRevenue(50_000e6);
         handler.distributeAll();
-        handler.buy(1, 0);
+        handler.buy(1, 1);
         handler.setBribeBps(2_500);
         handler.advanceTime(type(uint256).max);
 
@@ -282,10 +328,9 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
         handler.redeem(0, 1 ether, true);
         handler.killStrategy(0);
-        handler.reset(0);
         handler.unstake(0, type(uint256).max);
 
-        string[16] memory actions = _actionNames();
+        string[18] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             assertGt(
                 handler.ghostCalls(bytes32(bytes(actions[i]))),
@@ -295,12 +340,14 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         }
     }
 
-    function _actionNames() private pure returns (string[16] memory actions) {
+    function _actionNames() private pure returns (string[18] memory actions) {
         return [
             "stake",
             "unstake",
-            "signal",
-            "reset",
+            "addSignal",
+            "removeSignal",
+            "addSignalMany",
+            "removeSignalMany",
             "contribute",
             "donateRevenue",
             "distributeAll",

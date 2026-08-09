@@ -10,7 +10,7 @@ import { SignalGBX } from "../../src/core/SignalGBX.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 
 /// @title SignalGBXTest
-/// @notice Covers the one-for-one staking receipt, its non-transferability, and the reset-then-unstake exit.
+/// @notice Covers the one-for-one staking receipt, non-transferability, and withdrawal of unallocated balances.
 contract SignalGBXTest is ProtocolFixture {
     event Staked(address indexed account, uint256 amount);
     event Unstaked(address indexed account, uint256 amount);
@@ -159,7 +159,7 @@ contract SignalGBXTest is ProtocolFixture {
         signalGBX.unstake(11 ether);
     }
 
-    function test_UnstakeIsBlockedWhileAnyAllocationRemains() external {
+    function test_UnstakeCannotConsumeBalanceThatIsStillAllocated() external {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(acquisitionStrategy));
 
@@ -168,12 +168,12 @@ contract SignalGBXTest is ProtocolFixture {
         signalGBX.unstake(1);
     }
 
-    function test_UnstakeSucceedsImmediatelyAfterResetWithNoTimeLock() external {
+    function test_UnstakeSucceedsImmediatelyAfterSignalRemovalWithNoTimeLock() external {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(acquisitionStrategy));
 
         vm.startPrank(ALICE);
-        resonance.reset();
+        resonance.removeSignal(address(acquisitionStrategy), 100 ether);
         vm.expectEmit(true, false, false, true);
         emit Unstaked(ALICE, 100 ether);
         signalGBX.unstake(100 ether);
@@ -185,33 +185,39 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(gbx.balanceOf(address(signalGBX)), 0);
     }
 
-    function test_UnstakeAndSignalCanBeCombinedInOneTransaction() external {
+    function test_RemoveUnstakeAndAddSignalCanBeCombinedInOneTransaction() external {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(acquisitionStrategy));
 
-        // No epoch gate exists, so reset and exit are legal in the same block as the original allocation.
+        // No epoch gate exists, so removal, exit, and a new signal are legal in the allocation block.
         vm.startPrank(ALICE);
-        resonance.reset();
+        resonance.removeSignal(address(acquisitionStrategy), 100 ether);
         signalGBX.unstake(40 ether);
-        resonance.signal(_addresses(address(buybackStrategy)), _uints(1));
+        resonance.addSignal(address(buybackStrategy), 60 ether);
         vm.stopPrank();
 
         assertEq(resonance.accountSignals(ALICE, address(buybackStrategy)), 60 ether);
         assertEq(signalGBX.balanceOf(ALICE), 60 ether);
     }
 
-    function test_StakingMoreAfterSignalingStillBlocksEveryPartialExit() external {
+    function test_StakingMoreAfterSignalingLeavesTheNewBalanceImmediatelyWithdrawable() external {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(acquisitionStrategy));
         _stake(ALICE, 100 ether);
 
-        // The recorded weight is a snapshot of the balance at signal time, but any nonzero weight blocks the exit.
+        // The recorded absolute weight does not expand when the holder stakes more.
         assertEq(resonance.accountSignalWeight(ALICE), 100 ether);
         assertEq(signalGBX.balanceOf(ALICE), 200 ether);
 
         vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(SignalGBX.ActiveSignals.selector, ALICE, 100 ether));
         signalGBX.unstake(100 ether);
+
+        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
+        assertEq(resonance.accountSignalWeight(ALICE), 100 ether);
+
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(SignalGBX.ActiveSignals.selector, ALICE, 100 ether));
+        signalGBX.unstake(1);
     }
 
     function test_UnstakeWorksBeforeResonanceIsBound() external {
@@ -294,9 +300,8 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(signalGBX.balanceOf(ALICE), 0);
     }
 
-    /// @notice An account's recorded signal weight can never exceed the receipts it actually holds.
-    /// @dev A split whose rounded share is zero is rejected outright, so both branches are legal outcomes.
-    function testFuzz_SignalWeightNeverExceedsTheReceiptBalance(uint256 amount, uint256 weightA, uint256 weightB)
+    /// @notice Exact per-Strategy amounts can be interleaved without exceeding the receipt balance.
+    function testFuzz_SignalWeightNeverExceedsTheReceiptBalance(uint256 amount, uint256 amountA, uint256 amountB)
         external
     {
         uint256 stakeAmount = bound(amount, 2, 1_000 ether);
@@ -306,42 +311,37 @@ contract SignalGBXTest is ProtocolFixture {
         strategies[0] = address(acquisitionStrategy);
         strategies[1] = address(buybackStrategy);
 
-        uint256[] memory weights = new uint256[](2);
-        weights[0] = bound(weightA, 1, 1e18);
-        weights[1] = bound(weightB, 1, 1e18);
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = bound(amountA, 1, stakeAmount - 1);
+        amounts[1] = bound(amountB, 1, stakeAmount - amounts[0]);
 
         vm.prank(ALICE);
-        try resonance.signal(strategies, weights) {
-            assertLe(resonance.accountSignalWeight(ALICE), signalGBX.balanceOf(ALICE));
-            assertEq(
-                resonance.accountSignals(ALICE, strategies[0]) + resonance.accountSignals(ALICE, strategies[1]),
-                resonance.accountSignalWeight(ALICE)
-            );
-        } catch (bytes memory reason) {
-            assertEq(bytes4(reason), Resonance.ZeroSignalWeight.selector, "the only tolerated rejection");
-            assertEq(resonance.accountSignalWeight(ALICE), 0, "a rejected allocation must leave no residue");
-        }
+        resonance.addSignalMany(strategies, amounts);
+
+        assertLe(resonance.accountSignalWeight(ALICE), signalGBX.balanceOf(ALICE));
+        assertEq(
+            resonance.accountSignals(ALICE, strategies[0]) + resonance.accountSignals(ALICE, strategies[1]),
+            resonance.accountSignalWeight(ALICE)
+        );
     }
 
-    /// @notice A lopsided split whose smaller share floors to zero rejects the complete allocation.
-    /// @dev This is fail-closed by design: no zero-weight entry is ever written. It also means a small staker
-    ///      cannot express a very skewed split, and must rebalance the relative weights instead.
-    function test_SignalRejectsAnAllocationWhoseSmallerShareRoundsToZero() external {
+    /// @notice Absolute signaling represents very lopsided allocations without relative-weight rounding.
+    function test_AbsoluteSignalsDoNotRoundAwaySmallAllocations() external {
         _stake(ALICE, 1_000);
 
         address[] memory strategies = new address[](2);
         strategies[0] = address(acquisitionStrategy);
         strategies[1] = address(buybackStrategy);
 
-        uint256[] memory weights = new uint256[](2);
-        weights[0] = 1;
-        weights[1] = 1_000_000;
+        uint256[] memory amounts = new uint256[](2);
+        amounts[0] = 1;
+        amounts[1] = 999;
 
         vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(Resonance.ZeroSignalWeight.selector, address(acquisitionStrategy)));
-        resonance.signal(strategies, weights);
+        resonance.addSignalMany(strategies, amounts);
 
-        assertEq(resonance.accountSignalWeight(ALICE), 0);
-        assertEq(resonance.strategySignalWeight(address(buybackStrategy)), 0, "no partial allocation is retained");
+        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 1);
+        assertEq(resonance.accountSignals(ALICE, address(buybackStrategy)), 999);
+        assertEq(resonance.accountSignalWeight(ALICE), 1_000);
     }
 }

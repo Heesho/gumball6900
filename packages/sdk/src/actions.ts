@@ -115,36 +115,84 @@ export function buildStake(signalGBX: Address, amount: bigint): ContractTransact
   return transaction(signalGBX, encodeFunctionData({ abi: signalGbxAbi, functionName: 'stake', args: [amount] }));
 }
 
-/** Burns SignalGBX and immediately withdraws the underlying GBX after signals are reset. */
+/** Burns unallocated SignalGBX and immediately withdraws the same amount of underlying GBX. */
 export function buildUnstake(signalGBX: Address, amount: bigint): ContractTransaction {
   positiveUint256(amount, 'amount');
   return transaction(signalGBX, encodeFunctionData({ abi: signalGbxAbi, functionName: 'unstake', args: [amount] }));
 }
 
-/** Replaces the caller's complete unrestricted Strategy allocation. */
-export function buildSignal(
-  resonance: Address,
-  strategies: readonly Address[],
-  relativeWeights: readonly bigint[],
-): ContractTransaction {
-  if (strategies.length === 0 || strategies.length !== relativeWeights.length) {
-    throw new RangeError('strategies and relativeWeights must have the same non-zero length');
-  }
-  const normalizedStrategies = uniqueAddresses(strategies, 'strategies');
-  for (const weight of relativeWeights) positiveUint256(weight, 'relativeWeight');
+/** Adds an absolute amount to the caller's existing signal for one Strategy. The amount is a delta, not a target. */
+export function buildAddSignal(resonance: Address, strategy: Address, amount: bigint): ContractTransaction {
+  positiveUint256(amount, 'amount');
   return transaction(
     resonance,
     encodeFunctionData({
       abi: resonanceAbi,
-      functionName: 'signal',
-      args: [normalizedStrategies, [...relativeWeights]],
+      functionName: 'addSignal',
+      args: [getAddress(strategy), amount],
     }),
   );
 }
 
-/** Clears every Strategy allocation for the caller. */
-export function buildResetSignals(resonance: Address): ContractTransaction {
-  return transaction(resonance, encodeFunctionData({ abi: resonanceAbi, functionName: 'reset' }));
+/** Removes an absolute amount from the caller's existing signal for one Strategy. */
+export function buildRemoveSignal(resonance: Address, strategy: Address, amount: bigint): ContractTransaction {
+  positiveUint256(amount, 'amount');
+  return transaction(
+    resonance,
+    encodeFunctionData({
+      abi: resonanceAbi,
+      functionName: 'removeSignal',
+      args: [getAddress(strategy), amount],
+    }),
+  );
+}
+
+/** Adds absolute deltas to the caller's existing signals for a caller-bounded Strategy batch. */
+export function buildAddSignalMany(
+  resonance: Address,
+  strategies: readonly Address[],
+  amounts: readonly bigint[],
+): ContractTransaction {
+  if (strategies.length === 0 || strategies.length !== amounts.length) {
+    throw new RangeError('strategies and amounts must have the same non-zero length');
+  }
+  const normalizedStrategies = strategies.map((strategy) => getAddress(strategy));
+  if (normalizedStrategies.some((strategy) => strategy === zeroAddress)) {
+    throw new RangeError('strategies cannot contain the zero address');
+  }
+  for (const amount of amounts) positiveUint256(amount, 'amount');
+  return transaction(
+    resonance,
+    encodeFunctionData({
+      abi: resonanceAbi,
+      functionName: 'addSignalMany',
+      args: [normalizedStrategies, [...amounts]],
+    }),
+  );
+}
+
+/** Removes absolute deltas from the caller's existing signals for a caller-bounded Strategy batch. */
+export function buildRemoveSignalMany(
+  resonance: Address,
+  strategies: readonly Address[],
+  amounts: readonly bigint[],
+): ContractTransaction {
+  if (strategies.length === 0 || strategies.length !== amounts.length) {
+    throw new RangeError('strategies and amounts must have the same non-zero length');
+  }
+  const normalizedStrategies = strategies.map((strategy) => getAddress(strategy));
+  if (normalizedStrategies.some((strategy) => strategy === zeroAddress)) {
+    throw new RangeError('strategies cannot contain the zero address');
+  }
+  for (const amount of amounts) positiveUint256(amount, 'amount');
+  return transaction(
+    resonance,
+    encodeFunctionData({
+      abi: resonanceAbi,
+      functionName: 'removeSignalMany',
+      args: [normalizedStrategies, [...amounts]],
+    }),
+  );
 }
 
 /** Claims the caller's rewards from the selected Strategies' Bribes. */

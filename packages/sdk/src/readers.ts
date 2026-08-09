@@ -197,10 +197,11 @@ export const signalViewSchema = z.object({
   accountStrategies: z.array(addressSchema),
   blockNumber: unsignedBigIntSchema,
   signalBalance: unsignedBigIntSchema,
+  unallocatedSignalBalance: unsignedBigIntSchema,
 });
 export type SignalView = z.infer<typeof signalViewSchema>;
 
-/** Reads an account's current SignalGBX balance and unrestricted allocation. */
+/** Reads an account's SignalGBX balance, absolute allocation, and immediately withdrawable remainder. */
 export async function readSignalView(
   client: PublicClient,
   contracts: Readonly<{ signalGBX: Address; resonance: Address }>,
@@ -215,7 +216,15 @@ export async function readSignalView(
     read(client, blockNumber, contracts.resonance, resonanceAbi, 'accountSignalWeight', [signalerAccount]),
     read(client, blockNumber, contracts.resonance, resonanceAbi, 'accountStrategies', [signalerAccount]),
   ]);
-  const result = signalViewSchema.parse({ accountSignalWeight, accountStrategies, blockNumber, signalBalance });
+  const parsedSignalBalance = unsignedBigIntSchema.parse(signalBalance);
+  const parsedAccountSignalWeight = unsignedBigIntSchema.parse(accountSignalWeight);
+  const result = signalViewSchema.parse({
+    accountSignalWeight: parsedAccountSignalWeight,
+    accountStrategies,
+    blockNumber,
+    signalBalance: parsedSignalBalance,
+    unallocatedSignalBalance: parsedSignalBalance - parsedAccountSignalWeight,
+  });
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }

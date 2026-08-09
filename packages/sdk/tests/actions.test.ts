@@ -3,15 +3,17 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildApproval,
+  buildAddSignal,
+  buildAddSignalMany,
   buildContribution,
   buildCompoundLiquidity,
   buildFundBurn,
   buildFundraiserClaim,
   buildRedemption,
-  buildResetSignals,
+  buildRemoveSignal,
+  buildRemoveSignalMany,
   buildSettleFundraiserEpochs,
   buildStrategyBuy,
-  buildSignal,
   fundAbi,
   fundraiserAbi,
   gbxAbi,
@@ -36,16 +38,29 @@ describe('minimal typed transaction builders', () => {
     });
   });
 
-  it('encodes unrestricted relative signal and rejects duplicates', () => {
-    expect(() => buildSignal(A, [B, B], [1n, 1n])).toThrow('duplicates');
-    const transaction = buildSignal(A, [B, C], [3n, 7n]);
-    const decoded = decodeFunctionData({ abi: resonanceAbi, data: transaction.data });
-    expect(decoded.functionName).toBe('signal');
-    expect(decoded.args).toEqual([
+  it('encodes absolute scalar and caller-bounded batch signal deltas', () => {
+    expect(decodeFunctionData({ abi: resonanceAbi, data: buildAddSignal(A, B, 3n).data })).toMatchObject({
+      args: [getAddress(B), 3n],
+      functionName: 'addSignal',
+    });
+    expect(decodeFunctionData({ abi: resonanceAbi, data: buildRemoveSignal(A, B, 2n).data })).toMatchObject({
+      args: [getAddress(B), 2n],
+      functionName: 'removeSignal',
+    });
+
+    const added = decodeFunctionData({ abi: resonanceAbi, data: buildAddSignalMany(A, [B, C], [3n, 7n]).data });
+    expect(added.functionName).toBe('addSignalMany');
+    expect(added.args).toEqual([
       [getAddress(B), getAddress(C)],
       [3n, 7n],
     ]);
-    expect(decodeFunctionData({ abi: resonanceAbi, data: buildResetSignals(A).data }).functionName).toBe('reset');
+
+    const removed = decodeFunctionData({ abi: resonanceAbi, data: buildRemoveSignalMany(A, [B, B], [1n, 2n]).data });
+    expect(removed.functionName).toBe('removeSignalMany');
+    expect(removed.args).toEqual([
+      [getAddress(B), getAddress(B)],
+      [1n, 2n],
+    ]);
   });
 
   it('encodes caller-selected Fund redemption and accumulated GBX burning', () => {

@@ -16,8 +16,8 @@ import { StrategyFactory } from "./StrategyFactory.sol";
 /// @title Resonance
 /// @author GUM BALL 6900
 /// @notice Lets SignalGBX holders direct USDG revenue to Strategies and receive the associated payment-token rewards.
-/// @dev Adapted from Liquid Signal Governance. Signaling is intentionally unrestricted: allocations can be replaced or
-///      cleared at any time, and clearing them immediately unlocks the holder's staked GBX.
+/// @dev Adapted from Liquid Signal Governance. Signaling is intentionally unrestricted: absolute allocations can be
+///      increased or decreased at any time, and unallocated SignalGBX can always be unstaked immediately.
 contract Resonance is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
@@ -71,6 +71,7 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @notice Signal weight an account assigned to a Strategy.
     mapping(address account => mapping(address strategy => uint256 signals)) public accountSignals;
     mapping(address account => address[] strategies) private _accountStrategies;
+    mapping(address account => mapping(address strategy => uint256 indexPlusOne)) private _accountStrategyIndex;
     /// @notice Total signal weight currently allocated by an account.
     mapping(address account => uint256 signalWeight) public accountSignalWeight;
 
@@ -108,22 +109,24 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @notice Emitted when governance permanently stops future revenue for a Strategy.
     /// @param strategy Strategy that was killed.
     event StrategyKilled(address indexed strategy);
-    /// @notice Emitted when an account assigns signal weight to a Strategy.
+    /// @notice Emitted when an account incrementally adds signal weight to a Strategy.
     /// @param account Signal account.
     /// @param strategy Strategy receiving the weight.
-    /// @param signalWeight SignalGBX weight assigned.
-    event SignalAllocated(address indexed account, address indexed strategy, uint256 signalWeight);
-    /// @notice Emitted when an account removes signal weight from a Strategy.
+    /// @param amount Absolute SignalGBX amount added to the existing signal.
+    event SignalAdded(address indexed account, address indexed strategy, uint256 amount);
+    /// @notice Emitted when an account incrementally removes signal weight from a Strategy.
     /// @param account Signal account.
     /// @param strategy Strategy losing the weight.
-    /// @param signalWeight SignalGBX weight removed.
-    event SignalReset(address indexed account, address indexed strategy, uint256 signalWeight);
+    /// @param amount Absolute SignalGBX amount removed from the existing signal.
+    event SignalRemoved(address indexed account, address indexed strategy, uint256 amount);
     /// @notice Emitted when the sole USDG revenue router is bound.
     /// @param resonanceRouter Bound ResonanceRouter address.
     event ResonanceRouterSet(address indexed resonanceRouter);
 
     error BribeBpsAboveMaximum(uint256 requested);
     error DuplicateStrategy(address strategy);
+    error InsufficientSignal(address strategy, uint256 available, uint256 requested);
+    error InsufficientUnallocatedSignal(uint256 available, uint256 requested);
     error InexactRevenueTransfer(uint256 expected, uint256 received);
     error LengthMismatch();
     error StrategyAlreadyDead(address strategy);
@@ -132,8 +135,6 @@ contract Resonance is ReentrancyGuard, Ownable {
     error UnauthorizedRevenueSource(address caller);
     error ZeroAddress();
     error ZeroAmount();
-    error ZeroTotalRelativeWeight();
-    error ZeroSignalWeight(address strategy);
 
     /// @notice Creates the allocation system with immutable token, Fund, and factory dependencies.
     /// @param signalGBX_ Non-transferable staking receipt used as signal power.
@@ -164,19 +165,49 @@ contract Resonance is ReentrancyGuard, Ownable {
         strategyFactory = strategyFactory_;
     }
 
-    /// @notice Replaces the caller's complete allocation using relative weights.
-    /// @dev Relative inputs are normalized against the caller's current SignalGBX balance. There is no epoch gate.
-    /// @param requestedStrategies Strategies to receive the caller's signal weight.
-    /// @param relativeWeights Relative allocation assigned to each corresponding Strategy.
-    function signal(address[] calldata requestedStrategies, uint256[] calldata relativeWeights) external {
-        if (requestedStrategies.length != relativeWeights.length) revert LengthMismatch();
-        _reset(msg.sender);
-        _signal(msg.sender, requestedStrategies, relativeWeights);
+    /// @notice Adds an absolute SignalGBX amount to the caller's existing signal for one Strategy.
+    /// @dev `amount` is a delta, not a target: repeated calls increase rather than replace the existing allocation.
+    /// @param strategy Strategy whose signal should increase.
+    /// @param amount Absolute SignalGBX amount to add to the existing signal.
+    function addSignal(address strategy, uint256 amount) external nonReentrant {
+        _addSignal(msg.sender, strategy, amount);
     }
 
-    /// @notice Clears every allocation immediately, allowing SignalGBX to be unstaked in the same transaction.
-    function reset() external {
-        _reset(msg.sender);
+    /// @notice Removes an absolute SignalGBX amount from the caller's existing signal for one Strategy.
+    /// @dev `amount` is a delta, not a target. Removal remains available after a Strategy is killed.
+    /// @param strategy Strategy whose signal should decrease.
+    /// @param amount Absolute SignalGBX amount to remove from the existing signal.
+    function removeSignal(address strategy, uint256 amount) external nonReentrant {
+        _removeSignal(msg.sender, strategy, amount);
+    }
+
+    /// @notice Adds absolute SignalGBX amounts to the caller's existing signals for several Strategies.
+    /// @dev Every amount is a delta, not a target. The caller controls the batch size, so no unbounded batch is forced.
+    /// @param requestedStrategies Strategies whose signals should increase.
+    /// @param amounts Absolute SignalGBX amounts to add to the corresponding existing signals.
+    function addSignalMany(address[] calldata requestedStrategies, uint256[] calldata amounts) external nonReentrant {
+        if (requestedStrategies.length != amounts.length) revert LengthMismatch();
+
+        uint256 strategyCount = requestedStrategies.length;
+        for (uint256 i; i < strategyCount; ++i) {
+            _addSignal(msg.sender, requestedStrategies[i], amounts[i]);
+        }
+    }
+
+    /// @notice Removes absolute SignalGBX amounts from the caller's existing signals for several Strategies.
+    /// @dev Every amount is a delta, not a target. The caller controls the batch size, so no unbounded batch is forced.
+    /// @param requestedStrategies Strategies whose signals should decrease.
+    /// @param amounts Absolute SignalGBX amounts to remove from the corresponding existing signals.
+    function removeSignalMany(address[] calldata requestedStrategies, uint256[] calldata amounts)
+        external
+        nonReentrant
+    {
+        if (requestedStrategies.length != amounts.length) revert LengthMismatch();
+
+        uint256 strategyCount = requestedStrategies.length;
+        for (uint256 i; i < strategyCount; ++i) {
+            _removeSignal(msg.sender, requestedStrategies[i], amounts[i]);
+        }
     }
 
     /// @notice Claims rewards from the Bribes associated with `strategies` for the caller.
@@ -285,8 +316,8 @@ contract Resonance is ReentrancyGuard, Ownable {
     }
 
     /// @notice Stops a Strategy from receiving future USDG; its already indexed revenue is returned to Fund.
-    /// @dev Existing signal weights remain until their owners replace or reset them. Their dead-Strategy revenue share
-    ///      is routed to Fund whenever that Strategy's index is updated.
+    /// @dev Existing signal weights remain until their owners remove them incrementally. Their dead-Strategy revenue
+    ///      share is routed to Fund whenever that Strategy's index is updated.
     /// @param strategy Strategy to disable permanently.
     function killStrategy(address strategy) external onlyOwner nonReentrant {
         if (!isStrategy[strategy]) revert StrategyNotFound(strategy);
@@ -368,73 +399,72 @@ contract Resonance is ReentrancyGuard, Ownable {
         }
     }
 
-    /// @notice Removes all allocations recorded for an account.
-    /// @dev Checkpoints every affected Strategy and Bribe before changing weight.
-    /// @param account Signal account to reset.
-    function _reset(address account) private {
-        address[] storage selectedStrategies = _accountStrategies[account];
-        uint256 strategyCount = selectedStrategies.length;
-        uint256 removedWeight;
+    /// @notice Applies one absolute signal increase.
+    /// @param account Signal account whose allocation increases.
+    /// @param strategy Strategy receiving the allocation.
+    /// @param amount Absolute SignalGBX delta to add.
+    function _addSignal(address account, address strategy, uint256 amount) private {
+        if (!isStrategy[strategy]) revert StrategyNotFound(strategy);
+        if (!isStrategyAlive[strategy]) revert StrategyAlreadyDead(strategy);
+        if (amount == 0) revert ZeroAmount();
 
-        for (uint256 i; i < strategyCount; ++i) {
-            address strategy = selectedStrategies[i];
-            uint256 signals = accountSignals[account][strategy];
-            if (signals == 0) continue;
+        uint256 allocated = accountSignalWeight[account];
+        uint256 available = signalGBX.balanceOf(account) - allocated;
+        if (amount > available) revert InsufficientUnallocatedSignal(available, amount);
 
-            _updateStrategy(strategy);
-            strategySignalWeight[strategy] -= signals;
-            accountSignals[account][strategy] = 0;
-            Bribe(bribeFor[strategy]).withdraw(signals, account);
-            removedWeight += signals;
+        _updateStrategy(strategy);
 
-            emit SignalReset(account, strategy, signals);
+        uint256 previousSignal = accountSignals[account][strategy];
+        if (previousSignal == 0) {
+            _accountStrategies[account].push(strategy);
+            _accountStrategyIndex[account][strategy] = _accountStrategies[account].length;
         }
 
-        totalSignalWeight -= removedWeight;
-        accountSignalWeight[account] = 0;
-        delete _accountStrategies[account];
+        accountSignals[account][strategy] = previousSignal + amount;
+        accountSignalWeight[account] = allocated + amount;
+        strategySignalWeight[strategy] += amount;
+        totalSignalWeight += amount;
+        Bribe(bribeFor[strategy]).deposit(amount, account);
+
+        emit SignalAdded(account, strategy, amount);
     }
 
-    /// @notice Applies a complete normalized allocation for an account.
-    /// @dev Normalizes relative weights against the account's current SignalGBX balance.
-    /// @param account Signal account whose allocation is being written.
-    /// @param requestedStrategies Strategies eligible to receive weight.
-    /// @param relativeWeights Relative allocation for each corresponding Strategy.
-    function _signal(address account, address[] calldata requestedStrategies, uint256[] calldata relativeWeights)
-        private
-    {
-        uint256 strategyCount = requestedStrategies.length;
-        uint256 relativeWeightTotal;
+    /// @notice Applies one absolute signal decrease and removes empty account-list entries with swap-and-pop.
+    /// @param account Signal account whose allocation decreases.
+    /// @param strategy Strategy losing the allocation.
+    /// @param amount Absolute SignalGBX delta to remove.
+    function _removeSignal(address account, address strategy, uint256 amount) private {
+        if (!isStrategy[strategy]) revert StrategyNotFound(strategy);
+        if (amount == 0) revert ZeroAmount();
 
-        for (uint256 i; i < strategyCount; ++i) {
-            address strategy = requestedStrategies[i];
-            if (isStrategy[strategy] && isStrategyAlive[strategy]) relativeWeightTotal += relativeWeights[i];
-        }
-        if (relativeWeightTotal == 0) revert ZeroTotalRelativeWeight();
+        uint256 previousSignal = accountSignals[account][strategy];
+        if (amount > previousSignal) revert InsufficientSignal(strategy, previousSignal, amount);
 
-        uint256 signalPower = signalGBX.balanceOf(account);
-        uint256 allocatedSignalWeight;
+        _updateStrategy(strategy);
 
-        for (uint256 i; i < strategyCount; ++i) {
-            address strategy = requestedStrategies[i];
-            if (!isStrategy[strategy] || !isStrategyAlive[strategy]) continue;
-            if (accountSignals[account][strategy] != 0) revert DuplicateStrategy(strategy);
+        uint256 remainingSignal = previousSignal - amount;
+        accountSignals[account][strategy] = remainingSignal;
+        accountSignalWeight[account] -= amount;
+        strategySignalWeight[strategy] -= amount;
+        totalSignalWeight -= amount;
+        Bribe(bribeFor[strategy]).withdraw(amount, account);
 
-            uint256 allocatedWeight = Math.mulDiv(relativeWeights[i], signalPower, relativeWeightTotal);
-            if (allocatedWeight == 0) revert ZeroSignalWeight(strategy);
+        if (remainingSignal == 0) {
+            address[] storage selectedStrategies = _accountStrategies[account];
+            uint256 removedIndex = _accountStrategyIndex[account][strategy] - 1;
+            uint256 lastIndex = selectedStrategies.length - 1;
 
-            _updateStrategy(strategy);
-            _accountStrategies[account].push(strategy);
-            strategySignalWeight[strategy] += allocatedWeight;
-            accountSignals[account][strategy] = allocatedWeight;
-            Bribe(bribeFor[strategy]).deposit(allocatedWeight, account);
-            allocatedSignalWeight += allocatedWeight;
+            if (removedIndex != lastIndex) {
+                address movedStrategy = selectedStrategies[lastIndex];
+                selectedStrategies[removedIndex] = movedStrategy;
+                _accountStrategyIndex[account][movedStrategy] = removedIndex + 1;
+            }
 
-            emit SignalAllocated(account, strategy, allocatedWeight);
+            selectedStrategies.pop();
+            delete _accountStrategyIndex[account][strategy];
         }
 
-        totalSignalWeight += allocatedSignalWeight;
-        accountSignalWeight[account] = allocatedSignalWeight;
+        emit SignalRemoved(account, strategy, amount);
     }
 
     /// @notice Advances one Strategy to the current global revenue index.

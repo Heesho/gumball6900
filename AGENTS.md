@@ -25,10 +25,12 @@ authorized for user funds. A green local build is engineering evidence, never a 
   half-life. Empty epochs forfeit that day's emission without carry. Permissionless bounded settlement must preserve
   sequential rounding; do not replace it with configurable halvings or restore separate mining/controller contracts.
 - `SignalGBX` represents staked GBX. There is no staking withdrawal lock, signal cooldown, epoch restriction, or
-  once-per-period allocation rule. A signaler may replace or reset allocations at any time and may withdraw after reset.
+  once-per-period allocation rule. Signals are absolute per-Strategy amounts changed by incremental deltas; a signaler
+  may add or remove them at any time and may immediately withdraw any unallocated SignalGBX balance.
 - `Resonance` distributes received USDG among active Strategies according to current SignalGBX allocations. Strategy and
   Bribe deployment follows the Liquid Signal shape: Resonance uses `StrategyFactory` and `BribeFactory`, and each Strategy
   has a corresponding `BribeRouter` and `Bribe`.
+- Each Bribe may register at most eight append-only reward tokens. The cap is fixed in code and is not governable.
 - A normal acquisition is a bounded reverse Dutch Strategy. Acquisition proceeds flow 90% to `Fund` and 10% through
   `BribeRouter` to the Strategy's `Bribe`. The bribe share starts at 10% and may be changed through timelocked
   governance, but may never exceed 50%. When there are no eligible signalers, the bribe share returns to `Fund`.

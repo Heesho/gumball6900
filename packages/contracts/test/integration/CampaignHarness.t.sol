@@ -37,7 +37,7 @@ contract CampaignHarnessTest is Test {
         campaign.stake(0, 1_000_000 ether);
         _assertAllProperties();
 
-        campaign.signal(0, 2);
+        campaign.addSignalMany(0, 2);
         assertGt(campaign.resonance().totalSignalWeight(), 0, "signal must actually allocate");
         _assertAllProperties();
 
@@ -80,7 +80,7 @@ contract CampaignHarnessTest is Test {
         assertEq(_aliveCount(), 2, "a Strategy must actually be retired");
         _assertAllProperties();
 
-        campaign.reset(0);
+        campaign.removeSignalMany(0, 2);
         assertEq(campaign.resonance().totalSignalWeight(), 0);
         _assertAllProperties();
 
@@ -91,7 +91,7 @@ contract CampaignHarnessTest is Test {
     /// @notice The buyback Strategy is reachable and still leaves every property intact.
     function test_TheBuybackPathIsReachableFromTheCampaign() external {
         campaign.stake(0, 1_000_000 ether);
-        campaign.signal(0, 2);
+        campaign.addSignalMany(0, 2);
         campaign.donateRevenue(500_000_000);
         campaign.distributeAll();
 
@@ -120,12 +120,12 @@ contract CampaignHarnessTest is Test {
 
             // Failing actions are exactly what the fuzzer discards, so ignore them and keep exploring.
             if (seed % 8 == 0) try campaign.stake(actor, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
-            if (seed % 8 == 1) try campaign.signal(actor, seed) { } catch { }
+            if (seed % 8 == 1) try campaign.addSignal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
             if (seed % 8 == 2) try campaign.contribute(actor, 10_000 + uint64(seed) * 1e6) { } catch { }
             if (seed % 8 == 3) try campaign.donateRevenue(uint64(seed) * 1e6 + 1) { } catch { }
             if (seed % 8 == 4) try campaign.distributeAll() { } catch { }
             if (seed % 8 == 5) try campaign.buy(actor, seed) { } catch { }
-            if (seed % 8 == 6) try campaign.reset(actor) { } catch { }
+            if (seed % 8 == 6) try campaign.removeSignalMany(actor, seed) { } catch { }
             if (seed % 8 == 7) try campaign.claimRewards(actor, seed) { } catch { }
 
             vm.warp(block.timestamp + 1 hours + uint256(seed) * 1 hours);
@@ -141,6 +141,8 @@ contract CampaignHarnessTest is Test {
         assertTrue(campaign.echidna_strategyWeightsSumToTheGlobalTotal(), "strategy weight sum");
         assertTrue(campaign.echidna_accountWeightsSumToTheGlobalTotal(), "account weight sum");
         assertTrue(campaign.echidna_signalWeightNeverExceedsTheReceiptBalance(), "weight within balance");
+        assertTrue(campaign.echidna_everyAccountExitRemainsBounded(), "bounded account exits");
+        assertTrue(campaign.echidna_rewardTokenLoopsStayBounded(), "bounded reward-token loops");
         assertTrue(campaign.echidna_bribeAccountingMirrorsResonance(), "bribe mirroring");
         assertTrue(campaign.echidna_resonanceIsSolventAgainstClaimableRevenue(), "resonance solvency");
         assertTrue(campaign.echidna_deadStrategiesHoldNoClaims(), "dead strategy claims");

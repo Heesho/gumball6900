@@ -33,14 +33,13 @@ The result is a simple flywheel:
 
 1. **Mine** — users contribute USDG through the Fundraiser and mine GBX from a fixed public distribution schedule.
 2. **Signal** — GBX can be staked one-for-one into SignalGBX (`sGBX`) and allocated among approved Strategies without a
-   time lock or signal cooldown.
+   time lock or signal cooldown. Each signal is an absolute per-Strategy amount changed incrementally.
 3. **Acquire** — USDG follows current signals. Each acquisition Strategy runs a reverse Dutch auction in which a buyer
    receives the accumulated USDG and pays with the asset that Strategy is acquiring.
 4. **Build the Fund** — 90% of each acquisition payment enters the Fund. The remaining 10% is streamed through that
    Strategy's Bribe to eligible signalers.
 5. **Redeem** — a holder can burn GBX for a proportional share of any caller-selected Fund assets.
-6. **Reduce supply** — GBX received through buybacks and GBX fees collected from the canonical liquidity position are
-   burned permanently.
+6. **Reduce supply** — GBX received through buybacks is burned permanently.
 
 ```text
 USDG contribution
@@ -76,7 +75,8 @@ selective GBX redemption
 ### Holder-directed index formation
 
 GBX holders decide how new USDG revenue is allocated among active Strategies. Signaling is deliberately liquid: an
-account can replace or reset its allocations at any time and withdraw its staked GBX after clearing its signals.
+account can add or remove absolute amounts one Strategy at a time, use caller-bounded batches, and withdraw any
+unallocated staked GBX immediately. Idle `sGBX` earns nothing and does not dilute active signalers.
 
 ### Signal what you want to accumulate
 
@@ -102,7 +102,7 @@ asset.
 
 ### Permissionless execution
 
-Revenue routing, Strategy distribution, Fundraiser settlement, liquidity-fee collection, reward claims, and committed
+Revenue routing, Strategy distribution, Fundraiser settlement, liquidity compounding, reward claims, and committed
 Fund burns can all be executed permissionlessly. Holders govern capital direction through continuous signals; the
 target final design leaves management only the four explicit actions listed below.
 
@@ -172,16 +172,16 @@ Assets leave only through the protocol's fixed redemption and acquisition mechan
 | ------------------- | --------------------------------------------------------------------------------------------------- |
 | `GBX`               | Transferable protocol token, burns, signal checkpoints, and the one-billion lifetime mint ceiling.  |
 | `Fundraiser`        | USDG contributions and the fixed 980-million-GBX contributor distribution.                          |
-| `SignalGBX`         | Non-transferable, one-for-one staked GBX with ticker `sGBX`, used for current Strategy allocations. |
+| `SignalGBX`         | Non-transferable, one-for-one staked GBX; any unallocated balance is immediately withdrawable.      |
 | `ResonanceRouter`   | Permissionlessly moves accumulated USDG into Resonance.                                             |
 | `Resonance`         | Tracks allocations, distributes USDG, and controls Strategy and Bribe creation.                     |
 | `StrategyFactory`   | Resonance-only factory for Strategies and their dedicated BribeRouters.                             |
 | `Strategy`          | Reverse Dutch acquisition auction or GBX buyback.                                                   |
 | `BribeFactory`      | Resonance-only factory for one Bribe per Strategy.                                                  |
 | `BribeRouter`       | Routes the signal-reward share of acquisition payments to the Strategy's Bribe.                     |
-| `Bribe`             | Streams payment-token rewards across the Strategy's signal balances.                                |
+| `Bribe`             | Streams at most eight reward tokens across the Strategy's signal balances.                          |
 | `Fund`              | Registry-free asset backing, selective redemption, and GBX burning.                                 |
-| `LiquidityPosition` | Fixed custody and fee processing for the canonical Uniswap v4 position.                             |
+| `LiquidityPosition` | Permanent custody and fixed 0.20% permissionless compounding for the canonical Uniswap v4 position. |
 
 The Solidity source of truth is [`packages/contracts/src/core`](packages/contracts/src/core). Foundry and Hardhat
 compile the same source tree.
@@ -192,9 +192,9 @@ The intended final system is deployed once as direct, non-upgradeable contracts.
 capital flows. A designated manager has exactly four actions:
 
 - add a Strategy;
-- remove a Strategy;
-- change the management fee; and
-- add Bribe rewards.
+- kill a Strategy;
+- change the acquisition bribe share within its 50% cap; and
+- add Bribe rewards within each Bribe's immutable eight-token cap.
 
 There is no general call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, pause
 function, or other mutable protocol parameter. Fund and LiquidityPosition are ownerless. Successor binding and

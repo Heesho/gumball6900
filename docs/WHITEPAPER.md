@@ -23,8 +23,8 @@ GBX to redeem a proportional, in-kind share of caller-selected Fund assets.
 
 The result is not a token that tracks a predetermined index. It is a mechanism for forming a basket over time. Signals
 direct future flow rather than forcing the Fund to sell existing holdings. The intended final contracts are deployed
-once, are not upgradeable, and expose only five management actions: add a Strategy, remove a Strategy, change the
-management fee, change the signal-reward share within a fixed bound, and add Bribe rewards.
+once, are not upgradeable, and expose only four management actions on Resonance: add a Strategy, kill a Strategy,
+change the signal-reward share within a fixed bound, and add Bribe rewards.
 
 The fixed Fundraiser emission also creates a recurring market for new GBX. If GBX has a usable market price and enough
 liquidity, miners can compare the value of each day's emission with the USDG currently competing for it. Profitable
@@ -54,13 +54,14 @@ The target system is designed around six goals:
 
 1. **Fair public distribution.** GBX is mined through the Fundraiser without a team, founder, investor, presale, or
    advisor allocation. The separate 20 million GBX genesis tranche is committed to canonical liquidity.
-2. **Continuous holder direction.** `sGBX` allocations may be replaced or reset at any time. There is no voting season,
-   allocation epoch, signal cooldown, or withdrawal lock after allocations are reset.
+2. **Continuous holder direction.** Absolute per-Strategy `sGBX` amounts may be increased or decreased independently at
+   any time. There is no voting season, allocation epoch, signal cooldown, forced whole-account reset, or withdrawal
+   lock on unallocated `sGBX`.
 3. **Real assets, not a synthetic index number.** The Fund holds raw tokens and redemption transfers selected tokens in
    kind. The core does not need a protocol-wide net asset value oracle.
 4. **Market-based acquisition.** Reverse Dutch auctions let external buyers decide when an acquisition price is
    acceptable.
-5. **Governance minimization.** Signals govern capital direction. Management maintains only five explicitly authorized
+5. **Governance minimization.** Signals govern capital direction. Management maintains only four explicitly authorized
    edges, each bounded, and the deployed core cannot be upgraded.
 6. **Inspectability.** Each contract has a narrow responsibility so money flow and failure boundaries remain legible.
 
@@ -199,8 +200,10 @@ The simple version is:
 - want to accumulate a SpaceX-linked asset: signal SPCX; and
 - want something else: signal its Strategy once an eligible onchain asset and active Strategy exist.
 
-Signaling is continuous. A holder may replace or reset allocations at any time. After resetting allocations, the holder
-may withdraw the underlying GBX without a time lock.
+Signaling is continuous and incremental. Each call adds or removes an absolute amount from one Strategy, or applies a
+bounded batch of those deltas. The amount is a delta, not a target or a relative weight. A holder may leave some `sGBX`
+unallocated and withdraw that unallocated balance immediately. Allocated `sGBX` remains staked until the holder removes
+the corresponding signals; no whole-account reset is required.
 
 Signaling alone does not guarantee a reward. The selected Strategy must receive capital and complete an acquisition,
 and the holder's reward depends on eligible signal weight during distribution.
@@ -215,6 +218,10 @@ across Strategies. When Resonance distributes revenue `R`, Strategy `i` receives
 Rounding and no-signal behavior are implementation details that must preserve value and avoid discretionary routing.
 Conceptually, the formula means that a Strategy holding 30% of active signal weight receives about 30% of the next
 distribution.
+
+`S_total` may be smaller than the total `sGBX` supply because holders may leave balances idle. Idle `sGBX` earns no
+Strategy reward and does not dilute active signalers; only explicitly allocated amounts participate in routing and
+Bribe accounting.
 
 Signals apply when new revenue is distributed. If preferences change after an acquisition, existing Fund holdings do
 not automatically rebalance. This makes the basket path-dependent: its composition reflects the full history of
@@ -309,15 +316,15 @@ A holder may omit an unwanted or broken token. The omitted claim is permanently 
 supply that continues after redemption. This selective design avoids making every Fund asset a mandatory dependency
 of every redemption.
 
-## 11. Liquidity fees and buybacks
+## 11. Liquidity compounding and buybacks
 
 The canonical market position is a precommitted, hookless GBX/USDG Uniswap v4 position funded with the 20 million GBX
 genesis allocation.
 
-Fee processing removes zero principal:
-
-- collected GBX fees are burned permanently; and
-- collected USDG fees return to the signal-directed revenue flow.
+The position removes zero principal. Its permissionless `compound` operation increases position liquidity by a fixed
+0.20% and pays the caller everything accrued by the position. Uniswap v4 nets accrued fees against the increase, so the
+caller funds only any shortfall. Position fees are the compounding incentive: they are not protocol revenue, do not
+burn GBX, and do not enter ResonanceRouter.
 
 A buyback Strategy uses USDG to buy GBX and burns all received GBX atomically. Buybacks pay no signal reward. They are a
 separate route for protocol-directed capital and must not leave purchased GBX sitting as treasury inventory.
@@ -327,25 +334,24 @@ separate route for protocol-directed capital and must not leave purchased GBX si
 GumBall6900 separates economic direction from maintenance.
 
 `sGBX` holders direct capital continuously by signaling active Strategies. The intended final management authority has
-exactly five callable actions:
+exactly four callable actions on Resonance:
 
 1. add a Strategy;
-2. remove a Strategy;
-3. change the management fee;
-4. change the signal-reward share, within its 0-50% bound; and
-5. add Bribe rewards.
+2. kill a Strategy;
+3. change the signal-reward share, within its 0-50% bound; and
+4. add Bribe rewards, subject to each Bribe's lifetime maximum of eight reward tokens.
 
 There is no general call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, pause function,
 or general parameter setter. The system is deployed as direct contracts and the core rules cannot be rewritten after
 deployment.
 
-Note what the fifth action can and cannot do. It moves the split between shared backing and directed rewards, and its
+Changing the signal-reward share moves the split between shared backing and directed rewards, and its
 bound guarantees the Fund keeps a majority of every acquisition. It cannot redirect either share to a third party, and
 it cannot reach the Fund's existing holdings.
 
-The exact management-fee meaning, basis, and bounds remain to be specified in the final contracts. Strategy removal,
-Bribe reward registration, manager authorization, and key lifecycle must also be fully specified without creating a
-sixth management action.
+The timelock owns Resonance; the project multisig proposes or cancels actions, and execution may be permissionless after
+the documented delay. Whether additional Bribe reward tokens should exist at all remains an open owner decision. The
+eight-token cap bounds lifetime loop growth but does not make multi-token reward registration desirable by itself.
 
 Immutability reduces governance power, but it also makes mistakes permanent. That tradeoff is part of the design, not a
 claim that immutable code is automatically safe.
@@ -358,14 +364,17 @@ The final implementation should make the following properties explicit and testa
 2. burning GBX never restores mint capacity;
 3. Fundraiser emissions follow the fixed sequential daily schedule;
 4. all contribution revenue enters the signal-directed routing path;
-5. `sGBX` allocations can be replaced or reset without an epoch restriction;
+5. absolute per-Strategy `sGBX` signals change by incremental deltas, never exceed the account's staked balance, and
+   leave unallocated `sGBX` immediately withdrawable;
 6. redemption uses pre-burn supply and balance snapshots;
 7. a redemption burn and all selected transfers are atomic;
 8. a normal acquisition splits the acquired asset at the current signal-reward share, which starts at 10% and can
    never exceed 50%, and returns that share to the Fund when no eligible signalers exist;
 9. a buyback burns all received GBX atomically and pays no signal reward;
-10. liquidity-fee collection removes no principal, burns GBX fees, and routes USDG fees; and
-11. the deployed core has no upgrade or arbitrary asset-withdrawal path.
+10. each Bribe registers at most eight append-only reward tokens;
+11. permissionless liquidity compounding increases position liquidity by 0.20%, removes no principal, and pays the
+    caller all accrued position fees; and
+12. the deployed core has no upgrade or arbitrary asset-withdrawal path.
 
 ## 14. Risks and trust assumptions
 
@@ -373,7 +382,7 @@ GumBall6900 remains exposed to meaningful risks:
 
 - **Smart-contract risk.** A coding error can break routing, auctions, rewards, burns, or redemption. Immutability can
   make the consequences permanent.
-- **Manager-key risk.** A compromised manager can misuse the five authorized actions, including pushing the
+- **Manager-key risk.** A compromised proposer can schedule misuse of the four authorized actions, including pushing the
   signal-reward share to its 50% cap, even though it cannot upgrade the
   core or withdraw Fund assets.
 - **Signal concentration.** Large `sGBX` holders may direct a disproportionate share of future capital.
@@ -394,13 +403,13 @@ GumBall6900 remains exposed to meaningful risks:
 This whitepaper specifies a target final design, not a deployed system.
 
 The current repository is a pre-audit engineering starting point. Its contracts, generated interfaces, indexing layer,
-deployment scripts, and technical documentation still describe a broader administrative surface. Those differences
-must be removed and the entire repository reconciled before deployment.
+deployment scripts, and technical documentation require independent review and must remain reconciled before any
+deployment.
 
 At minimum, production would require:
 
-- final contract interfaces matching the five-action management surface;
-- precise management-fee economics and bounds;
+- final contract interfaces matching the four-action Resonance management surface;
+- an owner decision on whether multi-token Bribe rewards should exist;
 - complete unit, integration, invariant, and economic-model tests;
 - reviewed asset and chain configuration;
 - reproducible deployment rehearsals;
@@ -433,9 +442,8 @@ in-kind redemption, and a governance-minimized core can make capital allocation 
 - **Fund:** the raw-token treasury that holds acquired assets and supports selective in-kind redemption.
 - **Fundraiser:** the public USDG contribution mechanism through which GBX is mined.
 - **GBX:** the transferable protocol token with a one billion lifetime mint ceiling.
-- **Management fee:** the only adjustable fee in the target design; its final definition and bounds are not yet fixed.
 - **Resonance:** the allocation engine that distributes incoming USDG according to live `sGBX` signals.
-- **SignalGBX (`sGBX`):** non-transferable staked GBX used as live signal weight.
+- **SignalGBX (`sGBX`):** non-transferable staked GBX; only explicitly allocated amounts become live signal weight.
 - **Strategy:** an active, eligible acquisition or buyback path.
 - **USDG:** the stable asset contributed and routed through the protocol.
 

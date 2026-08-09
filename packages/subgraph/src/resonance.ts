@@ -6,8 +6,8 @@ import {
   RevenueNotified,
   StrategyAdded,
   StrategyKilled,
-  SignalAllocated,
-  SignalReset,
+  SignalAdded,
+  SignalRemoved,
   ResonanceRouterSet,
 } from '../generated/Resonance/Resonance';
 import { getAccount, getProtocol, getStrategy, recordEvent } from './entities';
@@ -83,33 +83,33 @@ export function handleStrategyKilled(event: StrategyKilled): void {
   record.save();
 }
 
-export function handleSignalAllocated(event: SignalAllocated): void {
+export function handleSignalAdded(event: SignalAdded): void {
   const account = getAccount(event.params.account, event);
-  account.signalWeightRaw = account.signalWeightRaw.plus(event.params.signalWeight);
+  account.signalWeightRaw = account.signalWeightRaw.plus(event.params.amount);
   account.save();
 
   const strategy = getStrategy(event.params.strategy, event);
-  strategy.totalSignalWeightRaw = strategy.totalSignalWeightRaw.plus(event.params.signalWeight);
+  strategy.totalSignalWeightRaw = strategy.totalSignalWeightRaw.plus(event.params.amount);
   strategy.save();
 
-  const record = recordEvent(event, 'RESONANCE_SIGNAL_ALLOCATED');
+  const record = recordEvent(event, 'RESONANCE_SIGNAL_ADDED');
   record.addresses = [event.params.account, event.params.strategy];
-  record.values = [event.params.signalWeight];
+  record.values = [event.params.amount];
   record.save();
 }
 
-export function handleSignalReset(event: SignalReset): void {
+export function handleSignalRemoved(event: SignalRemoved): void {
   const account = getAccount(event.params.account, event);
-  account.signalWeightRaw = account.signalWeightRaw.minus(event.params.signalWeight);
+  account.signalWeightRaw = account.signalWeightRaw.minus(event.params.amount);
   account.save();
 
   const strategy = getStrategy(event.params.strategy, event);
-  strategy.totalSignalWeightRaw = strategy.totalSignalWeightRaw.minus(event.params.signalWeight);
+  strategy.totalSignalWeightRaw = strategy.totalSignalWeightRaw.minus(event.params.amount);
   strategy.save();
 
-  const record = recordEvent(event, 'RESONANCE_SIGNAL_RESET');
+  const record = recordEvent(event, 'RESONANCE_SIGNAL_REMOVED');
   record.addresses = [event.params.account, event.params.strategy];
-  record.values = [event.params.signalWeight];
+  record.values = [event.params.amount];
   record.save();
 }
 

@@ -23,13 +23,13 @@ Resonance ownership controls:
 - `setBribeBps`, bounded to 0–5,000 basis points;
 - `addStrategy`;
 - `killStrategy`, permanently; and
-- `addBribeReward`.
+- `addBribeReward`, subject to Bribe's immutable eight-token cap.
 
 Fund has no owner at all. It exposes no administrative withdrawal, arbitrary-call method, successor, or migration.
 Assets leave Fund only when a GBX holder burns their own tokens through `redeem`.
 
 LiquidityPosition has no owner at all. Once the precommitted NFT is accepted it can never be transferred out, by any
-caller or any mechanism. Only permissionless fee processing remains.
+caller or any mechanism. Only permissionless compounding remains.
 
 ## One-time deployment bindings
 
@@ -39,6 +39,6 @@ the intended final minter is Fundraiser.
 
 ## Permissionless operations
 
-Contribution, epoch settlement, claiming, routing, signaling, allocation reset, staking, unstaking, Strategy purchase, revenue
-distribution, Bribe claiming, liquidity-fee collection, Fund burning, redemption, and post-activation migrations do
-not require an administrator.
+Contribution, epoch settlement, claiming, routing, incremental signal addition and removal, staking, unstaking,
+Strategy purchase, revenue distribution, Bribe claiming, liquidity compounding, Fund burning, and redemption do not
+require an administrator.

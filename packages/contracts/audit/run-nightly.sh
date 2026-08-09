@@ -47,7 +47,10 @@ if ! docker run --rm \
 fi
 
 cd "$CONTRACTS_DIR"
-if ! medusa fuzz --config audit/medusa.json >"$REPORT_DIR/medusa.txt" 2>&1; then
+if ! medusa fuzz \
+    --config audit/medusa.json \
+    --compilation-target "$CONTRACTS_DIR/audit/harness/ProtocolStateMachineCampaign.sol" \
+    >"$REPORT_DIR/medusa.txt" 2>&1; then
     status=1
 fi
 

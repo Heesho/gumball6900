@@ -2,7 +2,7 @@
 
 ## Adversarial test campaign — 2026-08-09
 
-This section records findings from an internal adversarial test campaign against the core graph: 330 new Foundry
+This section records findings from an internal adversarial test campaign against the core graph: 335 new Foundry
 tests covering unit behavior, property fuzzing, and stateful invariants, plus the Echidna and Medusa state-machine
 harness at `audit/harness/ProtocolStateMachineCampaign.sol`. Every finding below is reproduced by a named regression
 test, so the recorded behavior cannot change silently.
@@ -81,17 +81,17 @@ Candidate remediations, none applied: track and re-roll the rate remainder into 
 `periodFinish` by the zero-supply interval instead of skipping it; or accept and document the loss and require
 `BribeRouter` to forward only amounts large enough to make it negligible.
 
-### A-04 — Open — a revenue token that can block transfers to Fund blocks exit from a retired Strategy
+### A-04 — Open — a revenue token that can block transfers to Fund blocks removal from a retired Strategy
 
 `Resonance._updateStrategy` routes a dead Strategy's share of newly indexed revenue to `Fund` with a direct transfer.
-`_reset` checkpoints every Strategy an account selected before clearing its weight, so if that transfer reverts,
-`reset` reverts. `accountSignalWeight` then stays nonzero, `SignalGBX.unstake` stays blocked, and the account's staked
-GBX is unreachable. The same failure also bricks `distributeAll` and `updateStrategy` for every Strategy in the
-registry, not only the retired one.
+`removeSignal` checkpoints the selected Strategy before clearing its weight, so if that transfer reverts, removal of
+that Strategy's signal reverts. The same failure also bricks `distributeAll` and `updateStrategy` for every Strategy
+in the registry, not only the retired one.
 
-`test_AFrozenFundPermanentlyBlocksExitFromARetiredStrategy` reproduces the complete lock and shows the exit reopening
-only when the transfer can succeed again, so the lock lasts exactly as long as the block does. This requires a
-Strategy to have been retired while it still holds signal weight, and new revenue to arrive afterwards.
+ADR 0019 shrinks the blast radius but does not remove this failure. `test_AFrozenFundBlocksOnlyTheRetiredStrategySignal`
+shows that the affected absolute signal remains stuck until the transfer succeeds, while the same account can still
+unstake its unallocated balance and signals assigned to other Strategies remain independently removable. This
+requires a Strategy to have been retired while it still holds signal weight, and new revenue to arrive afterwards.
 
 The dependency is not hypothetical: USDG (Global Dollar) is an administered stablecoin whose issuer can freeze
 addresses. A freeze on `Fund` would produce this state.
@@ -146,72 +146,38 @@ Note the interaction with A-02. That finding concerns revenue too small to move 
 fees no longer routed, every unit of Resonance revenue now originates from Fundraiser contributions, whose minimum is
 10,000 raw USDG units. The absorption threshold is unchanged, but the flow it applies to is now narrower.
 
-### A-08 — Open — registering a third Bribe reward token inverts the signal/reset gas cost
+### A-08 — Open — Bribe reward-token work is bounded but remains linear
 
-Leaving a signal position is not symmetric with entering it, and past a threshold the exit becomes the more expensive
-side. This matters more than an ordinary gas observation because the exit path is the only way a staker recovers their
-GBX, and ADR 0017 removed every rescue mechanism, so an exit that cannot complete is permanent.
+ADR 0019 removes the atomic whole-account cliff and bounds the append-only reward-token dimension. Resonance now
+changes absolute signal amounts one Strategy at a time, with caller-selected batch variants, and Bribe rejects a ninth
+reward token through the fixed `MAX_REWARD_TOKENS = 8` chokepoint. SignalGBX also permits immediate withdrawal of the
+unallocated balance. An account can therefore make bounded progress without iterating its complete position.
 
-**Mechanism.** `Resonance._reset` calls `Bribe.withdraw` for every Strategy the account signaled to, and `withdraw`
-carries the `updateReward(account)` modifier, which loops every registered reward token. Two opposing effects:
+The underlying cost remains linear. `Bribe.withdraw`, `claimRewards`, and `notifyRewardAmount` each run
+`updateReward`, which loops every registered reward token. The last path is part of `Strategy.buy`, the only function
+that moves revenue out of a Strategy, so settlement—not only signal exit—needs a permanent bound.
 
-- Per Strategy, reset is roughly 63,000 gas **cheaper** than signal. Signal pays cold zero-to-nonzero writes for
-  `_accountStrategies.push`, `accountSignals`, `strategySignalWeight`, and the Bribe's `totalSupply` and `balanceOf`;
-  reset zeroes them and collects the refunds.
-- Per reward token, reset is roughly 42,000 gas **more expensive**. Entering, `rewards[account][token]` and
-  `userRewardPerTokenPaid` are zero-to-zero and nearly free because `balanceOf[account]` is still zero when the
-  modifier runs. Leaving, `earned()` is nonzero, so both become cold zero-to-nonzero writes.
+**Post-change measurements** (Foundry, `optimizer_runs = 10_000`, `test/minimal/SignalGas.t.sol`):
 
-**Measurements** (Foundry, this repository, `optimizer_runs = 10_000`):
+| Measured path                                    | Gas     |
+| ------------------------------------------------ | ------- |
+| `addSignal`, one reward token                    | 222,352 |
+| `removeSignal`, one active reward token          | 76,137  |
+| `removeSignal`, eight active reward tokens       | 534,519 |
+| `claimRewards`, eight active reward tokens       | 752,732 |
+| `Strategy.buy`, eight registered reward tokens   | 329,869 |
+| `addSignal` slope per additional reward token    | 13,629  |
+| `removeSignal` slope per additional active token | 65,483  |
 
-| Configuration                                   | signal    | reset     | reset ÷ signal |
-| ----------------------------------------------- | --------- | --------- | -------------- |
-| 20 Strategies, 1 reward token each (as shipped) | 2,722,271 | 1,458,354 | 0.54           |
-| 60 Strategies, 1 reward token each (as shipped) | 8,025,991 | 4,370,554 | 0.54           |
-| 1 Strategy, 21 reward tokens                    | 539,312   | 1,325,019 | 2.46           |
+The shipped one-token removal remains cheaper than entry, while every capped worst case retains more than 10x
+headroom under a 30 million gas block. Regression tests measure rather than estimate these values and fail if the
+one-token ordering inverts, the slope changes materially, or a capped path exceeds 3 million gas.
 
-Per Strategy in the shipped configuration: signal ≈ 136,000, reset ≈ 73,000. Each additional reward token adds
-≈ 20,000 to signal and ≈ 63,000 to reset. The crossover is at **three total reward tokens per Bribe**; at two, reset
-is still cheaper.
-
-**Current exposure is nil.** As shipped, every Bribe has exactly one reward token, registered at Strategy creation.
-Reset is roughly half the cost of signal, and the ratio is flat in the number of Strategies, so in a 30,000,000 gas
-block an account can signal to about 220 Strategies but reset about 410. An account therefore cannot signal its way
-into a position it cannot leave: if entry fit, exit fits, with roughly 2x headroom.
-
-**The exposure is created solely by `Resonance.addBribeReward`.** It is `onlyOwner` behind the timelock, so this is a
-trust-model gap rather than a permissionless attack, but the protocol's stated direction is that user funds cannot be
-trapped regardless of how governance behaves. Aggravating factors, all confirmed by reading the source:
-
-- `_reset` is atomic over all of an account's Strategies. There is no bounded variant, even though `distributeRange`
-  exists for exactly this reason on the distribution loop.
-- `reset()` acts on `msg.sender` only. No third party can reset on an account's behalf or pay its gas.
-- sGBX is non-transferable, so a trapped account cannot sell its way out.
-- `Bribe._rewardTokens` is append-only. There is no removal function, so the cost only ever rises.
-- The exit price is not fixed when the account signals. Reward tokens registered afterwards raise it while the account
-  is already committed.
-
-**Remediation options considered, none applied.** These solve the problem at different costs and are not exclusive:
-
-1. **Bound the reward tokens.** A `MAX_REWARD_TOKENS` constant in `Bribe.addRewardToken`, set to 2, keeps reset
-   cheaper than signal by construction and forever. One line, no new governance surface. Removing
-   `Resonance.addBribeReward` entirely, and making the reward token immutable in the Bribe constructor, is the
-   stronger version: it deletes the array, reduces `updateReward` to constant work, and drops Resonance's
-   administrative surface from four actions to three.
-2. **Rework the accrual accounting.** Decouple weight accounting from reward accrual: record token-agnostic
-   weight-change checkpoints and compute per-token rewards lazily at claim time. Exit then costs `O(strategies)`
-   regardless of token count, and the per-token expense moves to `claim`, which is optional and non-trapping. This is
-   architecturally the cleanest answer and the only one that supports many reward tokens, but it is a rewrite of the
-   protocol's subtlest math and adds storage and lookup complexity. Only worth it if multi-token rewards are wanted.
-3. **Add `resetRange(start, end)`**, mirroring `distributeRange`. This does not reduce the cost; it removes the cliff,
-   so however expensive reset becomes, an account can always make progress across several transactions. Safe by
-   construction because `SignalGBX.unstake` requires `accountSignalWeight == 0`, so a partial reset simply defers
-   withdrawal until the account finishes.
-
-Options 1 and 3 together give a provable liveness property — the exit path can always be completed in bounded steps —
-without touching the accrual math before an independent audit. The suggested regression tests are a gas assertion that
-reset per Strategy stays below signal per Strategy in the shipped configuration, and a stateful invariant that every
-actor can always fully reset and unstake after any action sequence.
+**Disposition remains open pending an owner decision.** The implemented cap and per-Strategy surface close the
+unbounded-growth and whole-account-cliff mechanisms, but they do not make reward accounting constant-time and do not
+answer whether multi-token Bribe rewards are a wanted capability. Removing `addBribeReward` would still be the
+stronger structural simplification. A lazy per-token accrual redesign remains an alternative if more than eight
+reward tokens are ever required. No audit finding is marked resolved by this implementation alone.
 
 ### Open design questions — 2026-08-09
 
@@ -219,8 +185,9 @@ Recorded so later sessions can pick these up with the context intact. Neither is
 decisions that interact with A-08.
 
 - **Should multi-token Bribe rewards exist at all?** The owner raised removing `addBribeReward` so that a signaler
-  only ever earns the asset of the Strategy they signaled for, then paused the decision. Removing it eliminates A-08
-  structurally and makes option 2 above unnecessary. The cost is that a third party cannot incentivize a Strategy in
+  only ever earns the asset of the Strategy they signaled for, then paused the decision. The eight-token cap bounds
+  the current implementation but leaves this product and trust-model decision unchanged. Removing the function would
+  eliminate the multi-token loop structurally. The cost is that a third party cannot incentivize a Strategy in
   its own token, though `Bribe.notifyRewardAmount` is already permissionless for the registered payment token, so
   outside incentives survive denominated in the asset the Strategy actually buys. The deciding question is whether
   multi-token rewards are a wanted product capability; if they are not, option 1 is strictly better than option 2.
@@ -235,11 +202,15 @@ decisions that interact with A-08.
 
 ### Adversarial campaign evidence
 
-- 329 Foundry tests under the default profile plus 6 harness-profile tests, all passing under `FOUNDRY_PROFILE=ci`.
-- 22 stateful invariants at 1,000 runs and depth 500 each: 11,000,000 handler calls with zero reverts under
+- 335 Foundry tests under the default/CI profile plus 6 integration-harness tests, all passing.
+- 24 stateful invariants at 1,000 runs and depth 500 each: 12,000,000 handler calls with zero reverts under
   `fail_on_revert = true`. The handler is guarded so that any revert is a genuine finding, and
   `test_EveryHandlerActionIsReachable` proves no handler action is dead code that always short-circuits.
-- Reentrancy was attacked across `Fund.redeem`, `Strategy.buy`, and `LiquidityPosition.collectFees` with a token that
+- The exact `FOUNDRY_PROFILE=nightly forge test --summary` gate also passed all 335 tests. Every fuzz property completed
+  100,000 runs. With the configured 10,000-run/depth-1,000 invariant profile, Forge's per-property report recorded
+  59,140,000 handler calls across the 24 properties (2,446–2,486 reported runs each), again with zero reverts.
+- Reentrancy was attacked across `Fund.redeem`, `Strategy.buy`, Resonance signal removal, and
+  `LiquidityPosition.compound` with a token that
   calls back into the protocol mid-transfer. Same-contract reentry is rejected by the guards; cross-contract reentry
   during acquisition settlement is reachable but harmless, because `Strategy.buy` snapshots the revenue balance before
   pulling payment, so injected revenue funds the next epoch instead of the current buyer.
@@ -247,9 +218,21 @@ decisions that interact with A-08.
   allocation while using at least 99.9% of it.
 - Fee-on-transfer, missing-return, returns-false, blocklisting, and reentrant token behaviors are covered as
   fail-closed evidence only. Supporting non-standard tokens remains a non-objective.
-- Echidna and Medusa were not executed for this campaign; neither binary is available in the local toolchain. The
-  harness they target is exercised under Foundry instead through `pnpm --filter @gumball-6900/contracts test:harness`,
-  which asserts all nineteen `echidna_` properties across seeded and randomized action sequences.
+- Medusa 1.5.1 executed the checked-in 100,000-transaction campaign on 2026-08-09. Four workers reached 102,157 calls
+  before the shared limit halted, covering 3,099 branches; all 21 `echidna_` properties and all 34 assertion tests
+  passed. The same harness passed its six integration-profile Foundry tests. The pinned Echidna 2.3.2 runner could not
+  execute because it requires Docker and no Docker runtime is available on this host. A native, explicitly unpinned
+  Echidna 2.3.3 fallback was attempted with both four workers and one worker; every worker crashed before transaction
+  one with `Set.elemAt: index out of range`, while Echidna incorrectly exited zero with all tests still marked
+  `fuzzing`. No Echidna pass is claimed.
+- A disposable-copy Slither mutation campaign targeted the changed `Resonance`, `SignalGBX`, and `Bribe` entry points
+  with revert, comment, arithmetic, assignment, logical, relational, and unary operators. Of 254 compiling mutants,
+  239 were killed and 15 were manually classified as equivalent (94.1% raw, 100% after equivalent-mutant exclusion).
+  Focused replay tests killed every initially surviving non-equivalent mutant, including batch-removal reentrancy,
+  pre-weight-change revenue checkpointing, both batch-length mismatch directions, exact partial-removal accounting,
+  the canonical unknown-Strategy error, and private one-based index cleanup. Equivalent cases were limited to
+  unsigned-zero identities, pre/post-increment or bounded-loop identities, invariant-equivalent index comparisons,
+  the unreachable `Bribe` length-above-cap state, and zero-delta failures that return the identical downstream error.
 
 ## Current minimal graph internal audit — 2026-08-03
 

@@ -1,9 +1,23 @@
-# Archived external-fuzzing design
+# External state-machine fuzzing
 
-The checked-in Echidna/Medusa campaign targets the superseded protocol graph, including contracts removed by the
-minimal rebuild. Its runner and package/CI entrypoints are disabled. It is retained only as historical design material
-and is not evidence about the current contracts.
+`harness/ProtocolStateMachineCampaign.sol` deploys and wires the current core graph without Forge cheatcodes. Three
+distinct actor contracts drive staking, partial unstaking, scalar and bounded-batch signal deltas, fundraising,
+routing, Strategy purchases, claims, redemption, Strategy killing, and the bounded Resonance governance surface.
+Echidna and Medusa share the `echidna_` property surface.
 
-A replacement campaign must compose the current 14-contract architecture, prove action reachability, and restate its
-properties and limits before any result can be reviewed. Until then, do not describe the archived campaign as run,
-passing, current, or audit coverage.
+The accounting properties reconcile account, Strategy, Resonance, Bribe, staking, emission, revenue, and supply state.
+The liveness/boundedness properties additionally prove that every represented account's complete exit remains within
+the configured three-Strategy/eight-reward-token graph and that reward-token loops cannot grow beyond Bribe's immutable
+cap. They do not resolve A-04: a hostile USDG transfer to Fund can still block removal of the affected dead-Strategy
+signal, although unallocated `sGBX` and signals on unaffected Strategies remain independently removable.
+
+Run the pinned campaign with:
+
+```bash
+bash audit/install-tools.sh nightly
+bash audit/run-nightly.sh
+```
+
+Both engines are configured for 100,000 transactions, sequences up to 150 calls, and a one-hour ceiling. `run-nightly`
+also performs the Foundry campaign smoke test and the pinned static/Mythril gates. Raw reports and corpora are ignored
+engineering evidence under `audit/reports`; a green campaign is neither an independent audit nor release approval.

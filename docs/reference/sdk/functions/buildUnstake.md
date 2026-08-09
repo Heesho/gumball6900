@@ -8,7 +8,7 @@
 
 > **buildUnstake**(`signalGBX`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Burns SignalGBX and immediately withdraws the underlying GBX after signals are reset.
+Burns unallocated SignalGBX and immediately withdraws the same amount of underlying GBX.
 
 ## Parameters
 

@@ -94,11 +94,12 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     function unstake(uint256 actorSeed, uint256 amount) external {
         address actor = _actor(actorSeed);
         uint256 balance = signalGBX.balanceOf(actor);
-        if (balance == 0) return;
-        if (resonance.accountSignalWeight(actor) != 0) return;
+        uint256 allocated = resonance.accountSignalWeight(actor);
+        uint256 available = balance - allocated;
+        if (available == 0) return;
 
         vm.prank(actor);
-        signalGBX.unstake(_bound(amount, 1, balance));
+        signalGBX.unstake(_bound(amount, 1, available));
 
         ghostCalls["unstake"] += 1;
     }
@@ -107,39 +108,76 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
                             SIGNAL ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function signal(uint256 actorSeed, uint256 selectionSeed) external {
+    function addSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
         address actor = _actor(actorSeed);
-        uint256 power = signalGBX.balanceOf(actor);
-        if (power == 0) return;
+        uint256 available = signalGBX.balanceOf(actor) - resonance.accountSignalWeight(actor);
+        if (available == 0) return;
+        address[] memory alive = _aliveStrategies();
+        if (alive.length == 0) return;
+
+        address strategy = alive[_bound(strategySeed, 0, alive.length - 1)];
+        vm.prank(actor);
+        resonance.addSignal(strategy, _bound(amount, 1, available));
+
+        ghostCalls["addSignal"] += 1;
+    }
+
+    function removeSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
+        address actor = _actor(actorSeed);
+        address[] memory selected = resonance.accountStrategies(actor);
+        if (selected.length == 0) return;
+
+        address strategy = selected[_bound(strategySeed, 0, selected.length - 1)];
+        uint256 held = resonance.accountSignals(actor, strategy);
+        vm.prank(actor);
+        resonance.removeSignal(strategy, _bound(amount, 1, held));
+
+        ghostCalls["removeSignal"] += 1;
+    }
+
+    function addSignalMany(uint256 actorSeed, uint256 countSeed) external {
+        address actor = _actor(actorSeed);
+        uint256 available = signalGBX.balanceOf(actor) - resonance.accountSignalWeight(actor);
+        if (available == 0) return;
 
         address[] memory alive = _aliveStrategies();
         if (alive.length == 0) return;
 
-        // An equal split guarantees each share is at least `power / count`, so no share can round to zero.
-        uint256 count = _bound(selectionSeed, 1, alive.length);
-        if (power < count) return;
+        uint256 count = _bound(countSeed, 1, alive.length);
+        if (available < count) return;
 
         address[] memory selected = new address[](count);
-        uint256[] memory weights = new uint256[](count);
+        uint256[] memory amounts = new uint256[](count);
+        uint256 share = available / count;
         for (uint256 i; i < count; ++i) {
             selected[i] = alive[i];
-            weights[i] = 1;
+            amounts[i] = share;
+        }
+        amounts[0] += available - (share * count);
+
+        vm.prank(actor);
+        resonance.addSignalMany(selected, amounts);
+
+        ghostCalls["addSignalMany"] += 1;
+    }
+
+    function removeSignalMany(uint256 actorSeed, uint256 countSeed) external {
+        address actor = _actor(actorSeed);
+        address[] memory current = resonance.accountStrategies(actor);
+        if (current.length == 0) return;
+
+        uint256 count = _bound(countSeed, 1, current.length);
+        address[] memory selected = new address[](count);
+        uint256[] memory amounts = new uint256[](count);
+        for (uint256 i; i < count; ++i) {
+            selected[i] = current[i];
+            amounts[i] = resonance.accountSignals(actor, current[i]);
         }
 
         vm.prank(actor);
-        resonance.signal(selected, weights);
+        resonance.removeSignalMany(selected, amounts);
 
-        ghostCalls["signal"] += 1;
-    }
-
-    function reset(uint256 actorSeed) external {
-        address actor = _actor(actorSeed);
-        if (resonance.accountSignalWeight(actor) == 0) return;
-
-        vm.prank(actor);
-        resonance.reset();
-
-        ghostCalls["reset"] += 1;
+        ghostCalls["removeSignalMany"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////
