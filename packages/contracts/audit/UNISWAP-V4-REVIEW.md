@@ -13,21 +13,27 @@ periphery and the vendored Permit2 submodule include MIT text. This belongs in t
 
 ## Contract behavior reviewed
 
-LiquidityPosition fixes the exact PositionManager, Permit2, GBX/USDG currency ordering, fee, tick spacing, hookless
-PoolKey hash, tick range, depositor, and token ID. The ERC-721 receiver validates ownership, pool identity, range, and
-nonzero liquidity before recording the position. There is no outward ERC-721 call.
+LiquidityPosition fixes the exact PositionManager, GBX/USDG currency ordering, fee, tick spacing, hookless PoolKey
+hash, tick range, depositor, token ID, ResonanceRouter, and Fund. The constructor verifies that the route destinations
+bind the canonical USDG and GBX. The ERC-721 receiver validates ownership, pool identity, range, and nonzero liquidity
+before recording the position. There is no outward ERC-721 call or Permit2 approval.
 
-`compound` reads current liquidity, adds `floor(L * 20 / 10000)`, uses PositionManager
-`INCREASE_LIQUIDITY + CLOSE_CURRENCY + CLOSE_CURRENCY`, checks the resulting liquidity lower bound, and transfers all
-returned balances to the caller with exact deltas. Its event records liquidity before/added/after, funding maxima, and
-total transferred amounts. Principal removal, swaps, oracles, fee splits, keepers, and governance parameters are absent.
+`harvestFees` reads principal liquidity, uses PositionManager
+`DECREASE_LIQUIDITY(0) + CLOSE_CURRENCY + CLOSE_CURRENCY`, and requires the resulting liquidity to equal the original
+value exactly. It then transfers the complete USDG balance to ResonanceRouter and calls `route`, transfers the complete
+GBX balance to Fund and calls `burnGBX`, and verifies exact transfer deltas. Its event records principal, routed USDG,
+and burned GBX. Collection, routing, and burning are atomic. Caller funding/payout, principal changes, swaps, oracles,
+fee splits, keepers, and governance parameters are absent.
 
 ## Genuine integration result
 
-`FOUNDRY_PROFILE=integration forge test` passed 21 tests: 15 real PoolManager/PositionManager compounding tests and six
-campaign-harness tests. The fuzzed compounding test ran 257 cases. Canonical Permit2 itself is replaced only in this
-suite because its exact 0.8.17 pragma cannot compile in the pinned 0.8.26 graph; the netting property under test lives
-in PositionManager.
+The integration profile passed 17/17 tests: 11 genuine-v4 fee-harvest tests and six campaign-harness tests. The v4
+suite deploys the pinned PoolManager and PositionManager, creates the
+canonical position, accrues both USDG and GBX fees through real swaps, and proves zero-liquidity fee collection,
+unchanged principal across repeated harvests, exact USDG routing, exact GBX Fund burn, donation routing, caller
+independence, out-of-range behavior, destination-failure rollback, and removal of the old compounding selectors. Its
+fuzzed exact-routing test passed 10,000 cases. Permit2 is only a mint/setup test dependency; production
+LiquidityPosition neither stores nor approves it.
 
 ## Target-chain read-only evidence
 
@@ -47,6 +53,6 @@ them, PoolKey/ticks/token ID, and final custody.
 
 ## Residual
 
-A compounder can choose or atomically influence the market price at which the fixed liquidity delta is funded. The
-required token composition changes across the range. This A-06 timing/composition risk remains open because an oracle
-or protocol swap would violate the frozen design.
+ADR 0022 removes the caller-funded increase and therefore resolves A-06. Harvesting has no direct caller reward, so
+fee realization may be delayed until someone voluntarily pays gas. If Resonance routing or the Fund burn fails, the
+transaction rolls back and the fee entitlement remains on the position for a later retry.

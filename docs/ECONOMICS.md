@@ -16,17 +16,17 @@ Every contributed USDG is routed into Resonance in the same transaction.
 
 ## Liquidity fees
 
-The canonical v4 position begins single-sided with the 20 million GBX genesis allocation and compounds its own
-fees forever. Anyone may call `compound`, which grows the position by 0.20% of its current liquidity and pays the
-caller everything the position had accrued. Uniswap v4 nets accrued fees against an increase, so the caller funds
-only the shortfall and keeps the surplus.
+The canonical v4 position begins single-sided with the 20 million GBX genesis allocation and keeps exactly that
+principal liquidity forever. Anyone may call `harvestFees`, which collects accrued fees with a zero-liquidity decrease.
+The caller supplies no tokens and receives no bounty.
 
-The result is a self-running incentive with no keeper, oracle, or incentive budget: while accrued fees are worth less
-than 0.20% of the position the call costs money and nobody makes it, and the moment they are worth more a searcher is
-paid to compound. Position liquidity is therefore monotonically non-decreasing, and principal is never withdrawn.
+Every harvested USDG routes through ResonanceRouter into Resonance. Every harvested GBX transfers to Fund and is
+burned in the same atomic transaction. Direct canonical-token donations to LiquidityPosition follow the same routes.
+If either destination step fails, the complete harvest reverts and the v4 fee accounting remains uncollected.
 
-Liquidity fees do not fund the protocol. They are the compounding incentive, so Fundraiser contributions are the only
-source of USDG revenue reaching Resonance, and position fees no longer burn GBX.
+Permissionless execution without a bounty means harvest timing is not guaranteed. Fees can remain accrued until a
+caller chooses to pay the transaction gas, but no keeper, oracle, swap, configurable split, or governance parameter is
+introduced.
 
 ## Revenue allocation
 
@@ -35,6 +35,12 @@ floor remainder. When no signal weight exists, or when a killed Strategy accrues
 becomes a fixed liability to Fund. Anyone may later call `payFundRevenue`; a Fund transfer failure cannot block signal
 removal or unstaking. Direct USDG donations are visible through `unaccountedRevenue` and can be classified with
 `syncRevenue`.
+
+Carry conservation does not preserve exact historical attribution when signal supply changes before the carry reaches
+one index unit. A-09 demonstrates that a late Strategy signal or signaler may share earlier carry. The pending bucket
+is less than `totalSignalWeight / 1e18` token base units per index, which can be material for low-decimal tokens at
+large signal supply. The owner must choose an attribution/dust policy or explicitly accept this behavior before
+release.
 
 ## Signal-directed asset accumulation
 

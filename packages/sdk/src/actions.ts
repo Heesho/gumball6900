@@ -89,24 +89,13 @@ export function buildSettleFundraiserEpochs(fundraiser: Address, maximumEpochs: 
   );
 }
 
-/**
- * Grows the canonical v4 position by its fixed requirement and pays the caller everything it had accrued.
- *
- * `amount0Max` and `amount1Max` are both the funding pulled from the caller and the slippage ceiling: unspent
- * funding is returned in the same call, so set them to what the increase may cost at an acceptable price.
- */
-export function buildCompoundLiquidity(
-  liquidityPosition: Address,
-  amount0Max: bigint,
-  amount1Max: bigint,
-  deadline: bigint,
-): ContractTransaction {
+/** Collects canonical LP fees, routes USDG through ResonanceRouter, and burns GBX through Fund. */
+export function buildHarvestLiquidityFees(liquidityPosition: Address): ContractTransaction {
   return transaction(
     liquidityPosition,
     encodeFunctionData({
       abi: liquidityPositionAbi,
-      functionName: 'compound',
-      args: [amount0Max, amount1Max, deadline],
+      functionName: 'harvestFees',
     }),
   );
 }

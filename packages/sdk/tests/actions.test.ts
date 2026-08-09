@@ -6,7 +6,7 @@ import {
   buildAddSignal,
   buildAddSignalMany,
   buildContribution,
-  buildCompoundLiquidity,
+  buildHarvestLiquidityFees,
   buildClaimBribeReward,
   buildClaimSelectedBribeRewards,
   buildFundBurn,
@@ -108,8 +108,8 @@ describe('minimal typed transaction builders', () => {
       functionName: 'settleEpochs',
     });
     expect(
-      decodeFunctionData({ abi: liquidityPositionAbi, data: buildCompoundLiquidity(A, 1n, 2n, 3n).data }).functionName,
-    ).toBe('compound');
+      decodeFunctionData({ abi: liquidityPositionAbi, data: buildHarvestLiquidityFees(A).data }).functionName,
+    ).toBe('harvestFees');
   });
 
   it('encodes selective reward claims and retryable fixed-liability settlement', () => {

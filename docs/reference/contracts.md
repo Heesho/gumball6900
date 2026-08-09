@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 16. Documented ABI entries: 486. Documented public ABI functions: 252.
+Documented source surfaces: 17. Documented ABI entries: 484. Documented public ABI functions: 252.
 
 ## Bribe
 
@@ -2041,15 +2041,47 @@ error ZeroAmount();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+## ILiquidityRevenueRouter
+
+Source: [`src/core/LiquidityPosition.sol`](../../packages/contracts/src/core/LiquidityPosition.sol)
+
+Artifact: `out/LiquidityPosition.sol/ILiquidityRevenueRouter.json`
+
+Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `route()`
+
+```solidity
+function route() external returns (uint256 amount);
+```
+
+Routes the complete pending USDG balance to Resonance.
+
+**Returns**
+
+- `amount`: Amount of USDG delivered to Resonance.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (contract IERC20 token);
+```
+
+Canonical USDG token accepted by the router.
+
+**Returns**
+
+- `token`: Canonical USDG token.
+
 ## LiquidityPosition
 
 Source: [`src/core/LiquidityPosition.sol`](../../packages/contracts/src/core/LiquidityPosition.sol)
 
 Artifact: `out/LiquidityPosition.sol/LiquidityPosition.json`
 
-Public ABI: 22 functions, 2 events, 22 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 20 functions, 2 events, 20 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
-### `constructor((address,address,uint256,address,address,address),(address,address,uint24,int24,address),int24,int24)`
+### `constructor((address,address,uint256,address,address,address,address),(address,address,uint24,int24,address),int24,int24)`
 
 ```solidity
 constructor(struct LiquidityPosition.Dependencies dependencies, struct PoolKey canonicalPoolKey, int24 tickLower, int24 tickUpper);
@@ -2063,55 +2095,6 @@ Fixes the exact v4 pool, range, and NFT permanently.
 - `dependencies`: Immutable protocol and PositionManager dependencies.
 - `tickLower`: Expected lower tick of the precommitted single-sided position.
 - `tickUpper`: Expected upper tick of the precommitted single-sided position.
-
-### `BPS_SCALE()`
-
-```solidity
-function BPS_SCALE() external view returns (uint256 arg0);
-```
-
-Basis-point denominator for the compounding requirement.
-
-### `COMPOUND_BPS()`
-
-```solidity
-function COMPOUND_BPS() external view returns (uint256 arg0);
-```
-
-Liquidity growth, in basis points, a caller must add to claim the position's accrued fees.
-
-### `compound(uint128,uint128,uint256)`
-
-```solidity
-function compound(uint128 amount0Max, uint128 amount1Max, uint256 deadline) external returns (uint128 liquidityAdded, uint256 claimed0, uint256 claimed1);
-```
-
-Grows the position by `COMPOUND_BPS` and pays the caller everything the position had accrued.
-Permissionless and unpriced. Uniswap v4 nets the position's accrued fees against the increase, so the caller funds only the shortfall and keeps the surplus. Once accrued fees exceed the growth requirement the surplus is positive and a searcher is paid to compound; before that the call is a donation nobody is obliged to make. Principal is never withdrawn, and the position can only ever get larger. Unspent funding is returned in the same call, so `amount0Max` and `amount1Max` are pure slippage bounds: set them to what the increase may cost at an acceptable price, not to what it is expected to cost. Any token sitting in this contract, including unsolicited transfers, is swept to the caller as part of the claim, which is why nothing can become stuck here.
-
-**Parameters**
-
-- `amount0Max`: Maximum `currency0` the caller will fund for the increase.
-- `amount1Max`: Maximum `currency1` the caller will fund for the increase.
-- `deadline`: Latest timestamp at which this call may execute.
-
-**Returns**
-
-- `claimed0`: Amount of `currency0` paid to the caller.
-- `claimed1`: Amount of `currency1` paid to the caller.
-- `liquidityAdded`: Liquidity permanently added to the position.
-
-### `compoundRequirement()`
-
-```solidity
-function compoundRequirement() external view returns (uint128 liquidityRequired);
-```
-
-Returns the liquidity a caller must add right now to claim everything the position has accrued.
-
-**Returns**
-
-- `liquidityRequired`: Liquidity that `compound` will add to the position.
 
 ### `currency0()`
 
@@ -2153,6 +2136,14 @@ function expectedTickUpper() external view returns (int24 arg0);
 
 Expected upper tick of the genesis position.
 
+### `fund()`
+
+```solidity
+function fund() external view returns (contract IFund arg0);
+```
+
+Ownerless Fund that receives and burns harvested GBX.
+
 ### `gbx()`
 
 ```solidity
@@ -2160,6 +2151,20 @@ function gbx() external view returns (contract GBX arg0);
 ```
 
 GBX side of the canonical pool.
+
+### `harvestFees()`
+
+```solidity
+function harvestFees() external returns (uint256 usdgRouted, uint256 gbxBurned);
+```
+
+Collects every accrued LP fee while preserving principal, routes USDG, and burns GBX.
+`DECREASE_LIQUIDITY` with zero liquidity is Uniswap v4 PositionManager's fee-collection path. The two `CLOSE_CURRENCY` actions take the complete fee credits into this contract without removing principal. Any direct canonical-token donation is intentionally processed with the same destination on the next harvest. Routing and burn are atomic with collection: any failure restores the position's fee accounting.
+
+**Returns**
+
+- `gbxBurned`: Complete GBX balance sent to Fund and burned.
+- `usdgRouted`: Complete USDG balance routed through ResonanceRouter.
 
 ### `onERC721Received(address,address,uint256,bytes)`
 
@@ -2180,14 +2185,6 @@ The ERC-721 operator and data parameters are intentionally ignored; only the fix
 **Returns**
 
 - `selector`: ERC-721 receiver acceptance selector.
-
-### `permit2()`
-
-```solidity
-function permit2() external view returns (contract IAllowanceTransfer arg0);
-```
-
-Canonical Permit2, used to settle the compounding increase.
 
 ### `poolFee()`
 
@@ -2261,6 +2258,14 @@ function positionTokenId() external view returns (uint256 arg0);
 
 The canonical PositionManager NFT held by this contract.
 
+### `resonanceRouter()`
+
+```solidity
+function resonanceRouter() external view returns (contract ILiquidityRevenueRouter arg0);
+```
+
+Immutable permissionless USDG route into Resonance.
+
 ### `tickSpacing()`
 
 ```solidity
@@ -2279,10 +2284,10 @@ USDG side of the canonical pool.
 
 ### Events
 
-#### `Compounded(uint256,address,uint128,uint128,uint128,uint256,uint256,uint256,uint256)`
+#### `FeesHarvested(uint256,address,uint128,uint256,uint256)`
 
 ```solidity
-event Compounded(uint256 indexed positionTokenId, address indexed caller, uint128 liquidityBefore, uint128 liquidityAdded, uint128 liquidityAfter, uint256 funding0, uint256 funding1, uint256 transferred0, uint256 transferred1);
+event FeesHarvested(uint256 indexed positionTokenId, address indexed caller, uint128 principalLiquidity, uint256 usdgRouted, uint256 gbxBurned);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2305,14 +2310,6 @@ error AddressHasNoCode(address account);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `CompoundDeadlinePassed(uint256)`
-
-```solidity
-error CompoundDeadlinePassed(uint256 deadline);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `EmptyPosition(uint256)`
 
 ```solidity
@@ -2321,26 +2318,18 @@ error EmptyPosition(uint256 positionTokenId);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InexactFunding(address,uint256,uint256,uint256)`
+#### `InexactTransfer(address,address,uint256,uint256,uint256)`
 
 ```solidity
-error InexactFunding(address token, uint256 expected, uint256 payerDebit, uint256 positionCredit);
+error InexactTransfer(address token, address destination, uint256 expected, uint256 debit, uint256 credit);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InexactPayout(address,uint256,uint256,uint256)`
+#### `InvalidDestinationToken(address,address,address)`
 
 ```solidity
-error InexactPayout(address token, uint256 expected, uint256 positionDebit, uint256 callerCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InsufficientCompound(uint128,uint128)`
-
-```solidity
-error InsufficientCompound(uint128 expected, uint128 actual);
+error InvalidDestinationToken(address destination, address expected, address actual);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2417,10 +2406,10 @@ error PositionNotOwned(uint256 positionTokenId, address owner);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `PositionTooSmallToCompound(uint128)`
+#### `PrincipalLiquidityChanged(uint128,uint128)`
 
 ```solidity
-error PositionTooSmallToCompound(uint128 liquidity);
+error PrincipalLiquidityChanged(uint128 expected, uint128 actual);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._

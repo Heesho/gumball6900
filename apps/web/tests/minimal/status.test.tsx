@@ -16,7 +16,7 @@ describe('core starting-point status page', () => {
     ).toBeTruthy();
     expect(screen.getByText('Pro-rata independently funded Bribe stream')).toBeTruthy();
     expect(screen.getByText('Fundraiser → Resonance → Strategies')).toBeTruthy();
-    expect(screen.getByText('Permissionless compound caller incentive · not protocol revenue')).toBeTruthy();
+    expect(screen.getByText('USDG → Resonance · GBX → Fund burn · principal fixed')).toBeTruthy();
     expect(screen.getByText('Internally hardened candidate · not deployed · external audit pending')).toBeTruthy();
     expect(screen.getByText('fundRevenueLiability → payFundRevenue()')).toBeTruthy();
     expect(screen.getByText('fundPaymentLiability → payFundPayment()')).toBeTruthy();

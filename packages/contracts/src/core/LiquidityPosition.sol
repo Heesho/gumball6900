@@ -5,7 +5,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC721 } from "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 import { IERC721Receiver } from "@openzeppelin/contracts/token/ERC721/IERC721Receiver.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { IHooks } from "@uniswap/v4-core/src/interfaces/IHooks.sol";
@@ -14,22 +13,29 @@ import { PoolKey } from "@uniswap/v4-core/src/types/PoolKey.sol";
 import { IPositionManager } from "@uniswap/v4-periphery/src/interfaces/IPositionManager.sol";
 import { Actions } from "@uniswap/v4-periphery/src/libraries/Actions.sol";
 import { PositionInfo } from "@uniswap/v4-periphery/src/libraries/PositionInfoLibrary.sol";
-import { IAllowanceTransfer } from "permit2/src/interfaces/IAllowanceTransfer.sol";
 
 import { GBX } from "./GBX.sol";
+import { IFund } from "./interfaces/IFund.sol";
+import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
+
+/// @title Liquidity Revenue Router Identity
+/// @author Heesho
+/// @notice Read-only token identity exposed by the immutable revenue router.
+interface ILiquidityRevenueRouter is IResonanceRouter {
+    /// @notice Canonical USDG token accepted by the router.
+    /// @return token Canonical USDG token.
+    function usdg() external view returns (IERC20 token);
+}
 
 /// @title GumBall6900 Immutable Genesis Liquidity Position
 /// @author Heesho
-/// @notice Holds the canonical GBX/USDG Uniswap v4 position and lets anyone compound its fees back into it.
-/// @dev The genesis position starts outside the active price as a GBX-only position. There is one rule: a caller may
-///      take everything the position has accrued, provided the same call grows the position by `COMPOUND_BPS`.
-///      Uniswap v4 nets accrued fees against an increase, so a caller only funds the shortfall, and the position
-///      compounds without the protocol holding, pricing, or swapping anything. Once fees are worth more than the
-///      growth requirement a searcher is paid to compound, and until then nobody can move the fees at all.
+/// @notice Holds the canonical GBX/USDG Uniswap v4 position and lets anyone harvest its fees into the protocol.
+/// @dev The genesis position starts outside the active price as a GBX-only position. Harvesting collects fees with a
+///      zero-liquidity decrease, routes USDG through ResonanceRouter, and sends GBX to Fund for an atomic burn. The
+///      position's principal liquidity never changes, and the contract performs no swap, pricing, or caller funding.
 ///
 ///      The contract is ownerless and immutable: once the precommitted NFT is received it can never leave, by any
-///      caller or any mechanism, and principal is never withdrawn. Adapted in shape from Uniswap's TokenJar, where a
-///      fixed threshold releases an accumulated basket.
+///      caller or any mechanism, and principal is never withdrawn.
 /// @custom:version 1.0.0
 contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -40,20 +46,17 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
     /// @param expectedPositionTokenId Precommitted PositionManager token ID.
     /// @param gbx Canonical GBX token.
     /// @param usdg Canonical USDG token.
-    /// @param permit2 Canonical Permit2 allowance manager.
+    /// @param resonanceRouter Immutable USDG route into Resonance.
+    /// @param fund Ownerless Fund that receives and burns harvested GBX.
     struct Dependencies {
         IPositionManager positionManager;
         address positionDepositor;
         uint256 expectedPositionTokenId;
         GBX gbx;
         IERC20 usdg;
-        IAllowanceTransfer permit2;
+        ILiquidityRevenueRouter resonanceRouter;
+        IFund fund;
     }
-
-    /// @notice Basis-point denominator for the compounding requirement.
-    uint256 public constant BPS_SCALE = 10_000;
-    /// @notice Liquidity growth, in basis points, a caller must add to claim the position's accrued fees.
-    uint256 public constant COMPOUND_BPS = 20;
 
     /// @notice Canonical Uniswap v4 PositionManager.
     IPositionManager public immutable positionManager;
@@ -65,8 +68,10 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
     GBX public immutable gbx;
     /// @notice USDG side of the canonical pool.
     IERC20 public immutable usdg;
-    /// @notice Canonical Permit2, used to settle the compounding increase.
-    IAllowanceTransfer public immutable permit2;
+    /// @notice Immutable permissionless USDG route into Resonance.
+    ILiquidityRevenueRouter public immutable resonanceRouter;
+    /// @notice Ownerless Fund that receives and burns harvested GBX.
+    IFund public immutable fund;
 
     /// @notice Lower-address token of the canonical pool.
     address public immutable currency0;
@@ -88,26 +93,18 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
     /// @notice The canonical PositionManager NFT held by this contract.
     uint256 public positionTokenId;
 
-    /// @notice Emitted after a caller grows the position and receives every balance returned by PositionManager.
+    /// @notice Emitted after a caller collects all fees without changing principal and routes them into the protocol.
     /// @param positionTokenId Canonical position NFT.
-    /// @param caller Account that funded the growth and received the accrued balances.
-    /// @param liquidityBefore Position liquidity before the increase.
-    /// @param liquidityAdded Liquidity permanently added to the position.
-    /// @param liquidityAfter Position liquidity after the increase.
-    /// @param funding0 Maximum `currency0` supplied by the caller.
-    /// @param funding1 Maximum `currency1` supplied by the caller.
-    /// @param transferred0 Complete `currency0` balance paid to the caller after the operation.
-    /// @param transferred1 Complete `currency1` balance paid to the caller after the operation.
-    event Compounded(
+    /// @param caller Account that triggered the permissionless harvest.
+    /// @param principalLiquidity Unchanged canonical position liquidity.
+    /// @param usdgRouted Complete USDG amount sent through ResonanceRouter.
+    /// @param gbxBurned Complete GBX amount sent to Fund and burned.
+    event FeesHarvested(
         uint256 indexed positionTokenId,
         address indexed caller,
-        uint128 liquidityBefore,
-        uint128 liquidityAdded,
-        uint128 liquidityAfter,
-        uint256 funding0,
-        uint256 funding1,
-        uint256 transferred0,
-        uint256 transferred1
+        uint128 principalLiquidity,
+        uint256 usdgRouted,
+        uint256 gbxBurned
     );
     /// @notice Emitted after the expected position is received and validated.
     /// @param positionTokenId Canonical position NFT.
@@ -117,16 +114,12 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
 
     /// @notice A required immutable dependency is not deployed code.
     error AddressHasNoCode(address account);
-    /// @notice The caller-supplied compound deadline has passed.
-    error CompoundDeadlinePassed(uint256 deadline);
     /// @notice The delivered position has zero liquidity.
     error EmptyPosition(uint256 positionTokenId);
-    /// @notice PositionManager added less liquidity than the fixed requirement.
-    error InsufficientCompound(uint128 expected, uint128 actual);
-    /// @notice Caller funding did not produce exact sender debit and position credit.
-    error InexactFunding(address token, uint256 expected, uint256 payerDebit, uint256 positionCredit);
-    /// @notice A caller payout did not produce exact position debit and caller credit.
-    error InexactPayout(address token, uint256 expected, uint256 positionDebit, uint256 callerCredit);
+    /// @notice An immutable route is bound to a token other than the canonical pool token.
+    error InvalidDestinationToken(address destination, address expected, address actual);
+    /// @notice A protocol-bound transfer did not debit this contract and credit its destination exactly.
+    error InexactTransfer(address token, address destination, uint256 expected, uint256 debit, uint256 credit);
     /// @notice The supplied PoolKey does not contain exactly GBX and USDG in address order.
     error InvalidPoolCurrencies(address currency0, address currency1);
     /// @notice The received NFT belongs to a different PoolKey.
@@ -135,7 +128,7 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
     error InvalidPositionTicks(int24 expectedLower, int24 expectedUpper, int24 actualLower, int24 actualUpper);
     /// @notice The configured lower tick is not below the upper tick.
     error InvalidTickRange(int24 tickLower, int24 tickUpper);
-    /// @notice Compounding was requested before the expected NFT was recorded.
+    /// @notice Fee harvesting was requested before the expected NFT was recorded.
     error NoPositionRecorded();
     /// @notice The configured canonical PoolKey uses a hook.
     error NonzeroHook(address hook);
@@ -145,8 +138,8 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
     error PositionNotInCustody(uint256 positionTokenId);
     /// @notice The NFT receiver callback observed an unexpected post-transfer owner.
     error PositionNotOwned(uint256 positionTokenId, address owner);
-    /// @notice Rounding the fixed growth fraction produced zero liquidity.
-    error PositionTooSmallToCompound(uint128 liquidity);
+    /// @notice Fee collection unexpectedly changed the permanently locked principal liquidity.
+    error PrincipalLiquidityChanged(uint128 expected, uint128 actual);
     /// @notice An ERC-721 contract other than the canonical PositionManager called the receiver hook.
     error UnexpectedNFTSender(address sender);
     /// @notice An account other than the precommitted depositor delivered the NFT.
@@ -165,13 +158,25 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
         if (
             address(dependencies.positionManager) == address(0) || dependencies.positionDepositor == address(0)
                 || address(dependencies.gbx) == address(0) || address(dependencies.usdg) == address(0)
-                || address(dependencies.permit2) == address(0)
+                || address(dependencies.resonanceRouter) == address(0) || address(dependencies.fund) == address(0)
         ) revert ZeroAddress();
 
         _requireCode(address(dependencies.positionManager));
         _requireCode(address(dependencies.gbx));
         _requireCode(address(dependencies.usdg));
-        _requireCode(address(dependencies.permit2));
+        _requireCode(address(dependencies.resonanceRouter));
+        _requireCode(address(dependencies.fund));
+
+        address routerToken = address(dependencies.resonanceRouter.usdg());
+        if (routerToken != address(dependencies.usdg)) {
+            revert InvalidDestinationToken(
+                address(dependencies.resonanceRouter), address(dependencies.usdg), routerToken
+            );
+        }
+        address fundToken = dependencies.fund.gbx();
+        if (fundToken != address(dependencies.gbx)) {
+            revert InvalidDestinationToken(address(dependencies.fund), address(dependencies.gbx), fundToken);
+        }
 
         address poolCurrency0 = Currency.unwrap(canonicalPoolKey.currency0);
         address poolCurrency1 = Currency.unwrap(canonicalPoolKey.currency1);
@@ -192,7 +197,8 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
         expectedPositionTokenId = dependencies.expectedPositionTokenId;
         gbx = dependencies.gbx;
         usdg = dependencies.usdg;
-        permit2 = dependencies.permit2;
+        resonanceRouter = dependencies.resonanceRouter;
+        fund = dependencies.fund;
         currency0 = poolCurrency0;
         currency1 = poolCurrency1;
         poolFee = canonicalPoolKey.fee;
@@ -200,16 +206,6 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
         poolKeyHash = keccak256(abi.encode(canonicalPoolKey));
         expectedTickLower = tickLower;
         expectedTickUpper = tickUpper;
-
-        // Standing approvals so compounding can settle. They grant the canonical PositionManager the ability to pull
-        // only what this contract itself holds, and this contract only ever holds a caller's own compounding funds
-        // for the duration of one call.
-        IERC20(poolCurrency0).forceApprove(address(dependencies.permit2), type(uint256).max);
-        IERC20(poolCurrency1).forceApprove(address(dependencies.permit2), type(uint256).max);
-        dependencies.permit2
-            .approve(poolCurrency0, address(dependencies.positionManager), type(uint160).max, type(uint48).max);
-        dependencies.permit2
-            .approve(poolCurrency1, address(dependencies.positionManager), type(uint160).max, type(uint48).max);
     }
 
     /// @notice Returns the immutable canonical hookless pool identity.
@@ -276,79 +272,45 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
         return IERC721Receiver.onERC721Received.selector;
     }
 
-    /// @notice Returns the liquidity a caller must add right now to claim everything the position has accrued.
-    /// @return liquidityRequired Liquidity that `compound` will add to the position.
-    function compoundRequirement() public view returns (uint128 liquidityRequired) {
-        if (!positionRecorded) return 0;
-        uint128 current = positionManager.getPositionLiquidity(positionTokenId);
-        return uint128(Math.mulDiv(current, COMPOUND_BPS, BPS_SCALE));
-    }
-
-    /// @notice Grows the position by `COMPOUND_BPS` and pays the caller everything the position had accrued.
-    /// @dev Permissionless and unpriced. Uniswap v4 nets the position's accrued fees against the increase, so the
-    ///      caller funds only the shortfall and keeps the surplus. Once accrued fees exceed the growth requirement
-    ///      the surplus is positive and a searcher is paid to compound; before that the call is a donation nobody is
-    ///      obliged to make. Principal is never withdrawn, and the position can only ever get larger.
-    ///
-    ///      Unspent funding is returned in the same call, so `amount0Max` and `amount1Max` are pure slippage bounds:
-    ///      set them to what the increase may cost at an acceptable price, not to what it is expected to cost.
-    ///      Any token sitting in this contract, including unsolicited transfers, is swept to the caller as part of
-    ///      the claim, which is why nothing can become stuck here.
-    /// @param amount0Max Maximum `currency0` the caller will fund for the increase.
-    /// @param amount1Max Maximum `currency1` the caller will fund for the increase.
-    /// @param deadline Latest timestamp at which this call may execute.
-    /// @return liquidityAdded Liquidity permanently added to the position.
-    /// @return claimed0 Amount of `currency0` paid to the caller.
-    /// @return claimed1 Amount of `currency1` paid to the caller.
-    function compound(uint128 amount0Max, uint128 amount1Max, uint256 deadline)
-        external
-        nonReentrant
-        returns (uint128 liquidityAdded, uint256 claimed0, uint256 claimed1)
-    {
-        if (block.timestamp > deadline) revert CompoundDeadlinePassed(deadline);
+    /// @notice Collects every accrued LP fee while preserving principal, routes USDG, and burns GBX.
+    /// @dev `DECREASE_LIQUIDITY` with zero liquidity is Uniswap v4 PositionManager's fee-collection path. The two
+    ///      `CLOSE_CURRENCY` actions take the complete fee credits into this contract without removing principal.
+    ///      Any direct canonical-token donation is intentionally processed with the same destination on the next
+    ///      harvest. Routing and burn are atomic with collection: any failure restores the position's fee accounting.
+    /// @return usdgRouted Complete USDG balance routed through ResonanceRouter.
+    /// @return gbxBurned Complete GBX balance sent to Fund and burned.
+    function harvestFees() external nonReentrant returns (uint256 usdgRouted, uint256 gbxBurned) {
         _requirePositionInCustody();
 
-        uint128 liquidityBefore = positionManager.getPositionLiquidity(positionTokenId);
-        liquidityAdded = uint128(Math.mulDiv(liquidityBefore, COMPOUND_BPS, BPS_SCALE));
-        if (liquidityAdded == 0) revert PositionTooSmallToCompound(liquidityBefore);
-
-        // Take the caller's funding up front. Whatever the increase does not consume goes back to them below.
-        if (amount0Max != 0) _pullExact(currency0, amount0Max);
-        if (amount1Max != 0) _pullExact(currency1, amount1Max);
-
-        // CLOSE_CURRENCY settles or takes each side according to the net delta, so one batch both funds the
-        // increase and collects the accrued fees.
+        uint128 principalLiquidity = positionManager.getPositionLiquidity(positionTokenId);
         bytes memory actions = new bytes(3);
-        actions[0] = bytes1(uint8(Actions.INCREASE_LIQUIDITY));
+        actions[0] = bytes1(uint8(Actions.DECREASE_LIQUIDITY));
         actions[1] = bytes1(uint8(Actions.CLOSE_CURRENCY));
         actions[2] = bytes1(uint8(Actions.CLOSE_CURRENCY));
         bytes[] memory params = new bytes[](3);
-        params[0] = abi.encode(positionTokenId, uint256(liquidityAdded), amount0Max, amount1Max, bytes(""));
+        params[0] = abi.encode(positionTokenId, uint256(0), uint128(0), uint128(0), bytes(""));
         params[1] = abi.encode(Currency.wrap(currency0));
         params[2] = abi.encode(Currency.wrap(currency1));
-        positionManager.modifyLiquidities(abi.encode(actions, params), deadline);
+        positionManager.modifyLiquidities(abi.encode(actions, params), block.timestamp);
 
         uint128 liquidityAfter = positionManager.getPositionLiquidity(positionTokenId);
-        if (liquidityAfter < liquidityBefore + liquidityAdded) {
-            revert InsufficientCompound(liquidityBefore + liquidityAdded, liquidityAfter);
+        if (liquidityAfter != principalLiquidity) {
+            revert PrincipalLiquidityChanged(principalLiquidity, liquidityAfter);
         }
 
-        claimed0 = IERC20(currency0).balanceOf(address(this));
-        claimed1 = IERC20(currency1).balanceOf(address(this));
-        if (claimed0 != 0) _payExact(currency0, claimed0);
-        if (claimed1 != 0) _payExact(currency1, claimed1);
+        usdgRouted = usdg.balanceOf(address(this));
+        if (usdgRouted != 0) {
+            _transferExact(usdg, address(resonanceRouter), usdgRouted);
+            resonanceRouter.route();
+        }
 
-        emit Compounded(
-            positionTokenId,
-            msg.sender,
-            liquidityBefore,
-            liquidityAdded,
-            liquidityAfter,
-            amount0Max,
-            amount1Max,
-            claimed0,
-            claimed1
-        );
+        gbxBurned = gbx.balanceOf(address(this));
+        if (gbxBurned != 0) {
+            _transferExact(gbx, address(fund), gbxBurned);
+            fund.burnGBX(gbxBurned);
+        }
+
+        emit FeesHarvested(positionTokenId, msg.sender, principalLiquidity, usdgRouted, gbxBurned);
     }
 
     /// @notice Reverts unless the canonical position is recorded and currently owned here.
@@ -357,31 +319,18 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
         if (!positionInCustody()) revert PositionNotInCustody(positionTokenId);
     }
 
-    /// @notice Pulls an exact amount of one canonical pool token from the caller.
-    /// @param token Canonical pool token to pull.
-    /// @param amount Exact caller-supplied maximum.
-    function _pullExact(address token, uint256 amount) private {
-        uint256 payerBalanceBefore = IERC20(token).balanceOf(msg.sender);
-        uint256 positionBalanceBefore = IERC20(token).balanceOf(address(this));
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        uint256 payerDebit = payerBalanceBefore - IERC20(token).balanceOf(msg.sender);
-        uint256 positionCredit = IERC20(token).balanceOf(address(this)) - positionBalanceBefore;
-        if (payerDebit != amount || positionCredit != amount) {
-            revert InexactFunding(token, amount, payerDebit, positionCredit);
-        }
-    }
-
-    /// @notice Pays an exact amount of one canonical pool token to the caller.
-    /// @param token Canonical pool token to pay.
-    /// @param amount Complete post-operation contract balance.
-    function _payExact(address token, uint256 amount) private {
-        uint256 positionBalanceBefore = IERC20(token).balanceOf(address(this));
-        uint256 callerBalanceBefore = IERC20(token).balanceOf(msg.sender);
-        IERC20(token).safeTransfer(msg.sender, amount);
-        uint256 positionDebit = positionBalanceBefore - IERC20(token).balanceOf(address(this));
-        uint256 callerCredit = IERC20(token).balanceOf(msg.sender) - callerBalanceBefore;
-        if (positionDebit != amount || callerCredit != amount) {
-            revert InexactPayout(token, amount, positionDebit, callerCredit);
+    /// @notice Transfers a canonical token only when sender debit and destination credit are exact.
+    /// @param token Canonical pool token to transfer.
+    /// @param destination Immutable protocol destination.
+    /// @param amount Complete amount to route.
+    function _transferExact(IERC20 token, address destination, uint256 amount) private {
+        uint256 senderBefore = token.balanceOf(address(this));
+        uint256 destinationBefore = token.balanceOf(destination);
+        token.safeTransfer(destination, amount);
+        uint256 debit = senderBefore - token.balanceOf(address(this));
+        uint256 credit = token.balanceOf(destination) - destinationBefore;
+        if (debit != amount || credit != amount) {
+            revert InexactTransfer(address(token), destination, amount, debit, credit);
         }
     }
 

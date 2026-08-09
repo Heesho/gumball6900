@@ -16,6 +16,8 @@
 - Every accounted Resonance USDG unit is represented by global scaled carry, indexed scaled carry, per-Strategy
   scaled carry, live Strategy liability, or fixed Fund liability. Completed exact payouts reduce both balance and
   liability by the same amount.
+- Conservation does not imply historical attribution: pending Resonance and Bribe carry is divided by the signal
+  supply present when it becomes indexable. A-09 remains an explicit open property with deterministic PoCs.
 - Every accounted Bribe reward-token unit is represented by an active schedule, queue, pending/indexed scaled carry,
   user scaled carry, whole user liability, or fixed Fund liability and carry.
 - Bribe stream-rate division remainders emit during the earliest seconds; zero supply pauses rather than consumes
@@ -32,6 +34,6 @@
 - Redemption rejects GBX, zero addresses, and duplicate token entries.
 - Fund is ownerless: redemption is the only path by which any asset can ever leave it.
 - LiquidityPosition accepts only its exact precommitted nonempty v4 NFT, canonical hookless pool, and tick range.
-- LiquidityPosition liquidity is monotonically non-decreasing: compounding adds exactly 0.20% and never removes
-  principal, and the contract retains no token balance after a compound.
+- Every successful LiquidityPosition harvest leaves principal liquidity exactly unchanged, routes its complete USDG
+  balance through ResonanceRouter, burns its complete GBX balance through Fund, and retains neither token.
 - LiquidityPosition is ownerless: once accepted, the canonical NFT can never leave the contract.

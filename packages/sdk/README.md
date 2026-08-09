@@ -12,7 +12,7 @@ import {
   buildContribution,
   buildAddSignal,
   buildAddSignalMany,
-  buildCompoundLiquidity,
+  buildHarvestLiquidityFees,
   buildRemoveSignal,
   buildRemoveSignalMany,
   buildRedemption,
@@ -33,7 +33,7 @@ const removeSignal = buildRemoveSignal(resonanceAddress, strategyAddress, 250n *
 const removeSignals = buildRemoveSignalMany(resonanceAddress, strategyAddresses, amountsToRemove);
 const contribution = buildContribution(fundraiser, beneficiary, usdGAmount);
 const settlement = buildSettleFundraiserEpochs(fundraiser, 30n);
-const compound = buildCompoundLiquidity(liquidityPosition, amount0Max, amount1Max, deadline);
+const harvest = buildHarvestLiquidityFees(liquidityPosition);
 const redemption = buildRedemption(fund, gbxAmount, receiver, selectedTokens);
 const purchase = buildStrategyBuy({
   strategy,

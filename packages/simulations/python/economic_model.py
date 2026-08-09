@@ -223,18 +223,18 @@ def gbx_acquisition_and_burn_scenario(identifier: str, market_price: int) -> Dic
     }
 
 
-def revenue_funded_gbx_acquisition_and_burn(identifier: str) -> Dict[str, Any]:
+def mining_revenue_funded_gbx_acquisition_and_burn() -> Dict[str, Any]:
     starting_supply = tokens(100_000_000)
     starting_vault = usd_g(100_000_000)
-    revenue = usd_g(10_000_000) if identifier == "mining-revenue" else usd_g(1_000_000)
-    emission = tokens(10_000_000) if identifier == "mining-revenue" else 0
+    revenue = usd_g(10_000_000)
+    emission = tokens(10_000_000)
     spend = usd_g(1_000_000)
     market_price = 8 * 10**17
     burned = mul_div(normalize_usdg(spend), WAD, market_price)
     supply_after = starting_supply + emission - burned
     vault_after = starting_vault + revenue - spend
     return {
-        "id": identifier,
+        "id": "mining-revenue",
         "startingSupply": starting_supply,
         "startingVaultValueUSDGRaw": starting_vault,
         "revenueUSDGRaw": revenue,
@@ -245,6 +245,25 @@ def revenue_funded_gbx_acquisition_and_burn(identifier: str) -> Dict[str, Any]:
         "supplyAfter": supply_after,
         "vaultValueAfterUSDGRaw": vault_after,
         "backingPerGBXAfter": usdg_price_wad(vault_after, supply_after),
+    }
+
+
+def lp_fee_harvest() -> Dict[str, Any]:
+    principal_liquidity = 1_000_000_000_000_000_000
+    starting_supply = tokens(100_000_000)
+    usdg_fees = usd_g(1_000_000)
+    gbx_fees = tokens(1_250_000)
+    return {
+        "id": "lp-fee-harvest",
+        "principalLiquidityBefore": principal_liquidity,
+        "principalLiquidityAfter": principal_liquidity,
+        "usdgFeesRaw": usdg_fees,
+        "usdgRoutedToResonanceRaw": usdg_fees,
+        "gbxFees": gbx_fees,
+        "gbxSentToFund": gbx_fees,
+        "gbxBurned": gbx_fees,
+        "startingSupply": starting_supply,
+        "supplyAfter": starting_supply - gbx_fees,
     }
 
 
@@ -446,10 +465,8 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
                 gbx_acquisition_and_burn_scenario("gbx-below-backing", 8 * 10**17),
                 gbx_acquisition_and_burn_scenario("gbx-above-backing", 12 * 10**17),
             ],
-            "revenueSourceComparison": [
-                revenue_funded_gbx_acquisition_and_burn("mining-revenue"),
-                revenue_funded_gbx_acquisition_and_burn("lp-fee-revenue"),
-            ],
+            "miningRevenueAcquisitionAndBurn": mining_revenue_funded_gbx_acquisition_and_burn(),
+            "liquidityFeeHarvest": lp_fee_harvest(),
             "simultaneousEmissionAndBurn": simultaneous,
             "sequentialLargeRedemptions": sequential_redemptions(),
         },

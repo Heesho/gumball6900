@@ -2,7 +2,7 @@ import { ethereum } from '@graphprotocol/graph-ts';
 import { assert, beforeEach, clearStore, describe, newMockEvent, test } from 'matchstick-as/assembly/index';
 import { Claimed, Contributed, EpochSettled } from '../generated/Fundraiser/Fundraiser';
 import { Burned, Minted } from '../generated/GBX/GBX';
-import { Compounded } from '../generated/LiquidityPosition/LiquidityPosition';
+import { FeesHarvested } from '../generated/LiquidityPosition/LiquidityPosition';
 import {
   FundRevenueAccrued,
   FundRevenuePaid,
@@ -14,7 +14,7 @@ import {
 import { handleClaimed, handleContributed, handleEpochSettled } from '../src/fundraiser';
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
-import { handleCompounded } from '../src/liquidity-position';
+import { handleFeesHarvested } from '../src/liquidity-position';
 import {
   handleFundRevenueAccrued,
   handleFundRevenuePaid,
@@ -30,7 +30,7 @@ export {
   handleClaimed,
   handleContributed,
   handleEpochSettled,
-  handleCompounded,
+  handleFeesHarvested,
   handleMinted,
   handleStrategyAdded,
   handleRevenueSynced,
@@ -92,7 +92,7 @@ describe('core protocol mappings', () => {
     assert.fieldEquals('Account', '4663-' + USER_TWO.toHexString(), 'claimedGBXRaw', '40');
   });
 
-  test('tracks sequential Fundraiser settlement and liquidity compounding', () => {
+  test('tracks sequential Fundraiser settlement and fixed-principal fee harvesting', () => {
     const settlement = changetype<EpochSettled>(newMockEvent());
     configureEvent(settlement, CONTRACT, 1);
     settlement.parameters = new Array<ethereum.EventParam>();
@@ -102,27 +102,25 @@ describe('core protocol mappings', () => {
     settlement.parameters.push(uintParam('nextScheduledEmission', 90));
     handleEpochSettled(settlement);
 
-    const compounded = changetype<Compounded>(newMockEvent());
-    configureEvent(compounded, CONTRACT, 2);
-    compounded.parameters = new Array<ethereum.EventParam>();
-    compounded.parameters.push(uintParam('positionTokenId', 11));
-    compounded.parameters.push(addressParam('caller', USER));
-    compounded.parameters.push(uintParam('liquidityBefore', 5000));
-    compounded.parameters.push(uintParam('liquidityAdded', 10));
-    compounded.parameters.push(uintParam('liquidityAfter', 5010));
-    compounded.parameters.push(uintParam('funding0', 100));
-    compounded.parameters.push(uintParam('funding1', 200));
-    compounded.parameters.push(uintParam('transferred0', 20));
-    compounded.parameters.push(uintParam('transferred1', 30));
-    handleCompounded(compounded);
+    const harvested = changetype<FeesHarvested>(newMockEvent());
+    configureEvent(harvested, CONTRACT, 2);
+    harvested.parameters = new Array<ethereum.EventParam>();
+    harvested.parameters.push(uintParam('positionTokenId', 11));
+    harvested.parameters.push(addressParam('caller', USER));
+    harvested.parameters.push(uintParam('principalLiquidity', 5000));
+    harvested.parameters.push(uintParam('usdgRouted', 20));
+    harvested.parameters.push(uintParam('gbxBurned', 30));
+    handleFeesHarvested(harvested);
 
     const fundraiserEpochId = '4663-' + CONTRACT.toHexString() + '-epoch-7';
     assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'settled', 'true');
     assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'scheduledEmissionRaw', '100');
     assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'contributorEmissionRaw', '80');
-    assert.fieldEquals('ProtocolState', '4663', 'liquidityAddedRaw', '10');
-    assert.fieldEquals('ProtocolState', '4663', 'liquidityCompoundCount', '1');
-    assert.fieldEquals('ProtocolEvent', eventId(compounded), 'eventType', 'LIQUIDITY_COMPOUNDED');
+    assert.fieldEquals('ProtocolState', '4663', 'liquidityPrincipalRaw', '5000');
+    assert.fieldEquals('ProtocolState', '4663', 'liquidityFeeHarvestCount', '1');
+    assert.fieldEquals('ProtocolState', '4663', 'liquidityUSDGRoutedRaw', '20');
+    assert.fieldEquals('ProtocolState', '4663', 'liquidityGBXBurnedRaw', '30');
+    assert.fieldEquals('ProtocolEvent', eventId(harvested), 'eventType', 'LIQUIDITY_FEES_HARVESTED');
   });
 
   test('tracks Strategy creation and incremental absolute signal events', () => {

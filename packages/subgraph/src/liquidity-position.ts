@@ -1,24 +1,22 @@
-import { Compounded, PositionRecorded } from '../generated/LiquidityPosition/LiquidityPosition';
+import { FeesHarvested, PositionRecorded } from '../generated/LiquidityPosition/LiquidityPosition';
 import { ONE } from './constants';
 import { getProtocol, recordEvent } from './entities';
 
-export function handleCompounded(event: Compounded): void {
+export function handleFeesHarvested(event: FeesHarvested): void {
   const protocol = getProtocol(event);
-  protocol.liquidityAddedRaw = protocol.liquidityAddedRaw.plus(event.params.liquidityAdded);
-  protocol.liquidityCompoundCount = protocol.liquidityCompoundCount.plus(ONE);
+  protocol.liquidityPrincipalRaw = event.params.principalLiquidity;
+  protocol.liquidityFeeHarvestCount = protocol.liquidityFeeHarvestCount.plus(ONE);
+  protocol.liquidityUSDGRoutedRaw = protocol.liquidityUSDGRoutedRaw.plus(event.params.usdgRouted);
+  protocol.liquidityGBXBurnedRaw = protocol.liquidityGBXBurnedRaw.plus(event.params.gbxBurned);
   protocol.save();
 
-  const record = recordEvent(event, 'LIQUIDITY_COMPOUNDED');
+  const record = recordEvent(event, 'LIQUIDITY_FEES_HARVESTED');
   record.addresses = [event.params.caller];
   record.values = [
     event.params.positionTokenId,
-    event.params.liquidityBefore,
-    event.params.liquidityAdded,
-    event.params.liquidityAfter,
-    event.params.funding0,
-    event.params.funding1,
-    event.params.transferred0,
-    event.params.transferred1,
+    event.params.principalLiquidity,
+    event.params.usdgRouted,
+    event.params.gbxBurned,
   ];
   record.save();
 }

@@ -9,8 +9,10 @@ type ProtocolState @entity(immutable: false) {
   totalSupplyRaw: BigInt!
   fundraiserContributionsRaw: BigInt!
   fundraiserClaimsRaw: BigInt!
-  liquidityAddedRaw: BigInt!
-  liquidityCompoundCount: BigInt!
+  liquidityPrincipalRaw: BigInt!
+  liquidityFeeHarvestCount: BigInt!
+  liquidityUSDGRoutedRaw: BigInt!
+  liquidityGBXBurnedRaw: BigInt!
   routedRevenueRaw: BigInt!
   notifiedRevenueRaw: BigInt!
   syncedRevenueRaw: BigInt!

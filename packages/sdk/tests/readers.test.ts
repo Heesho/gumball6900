@@ -78,10 +78,12 @@ describe('Fundraiser and liquidity reads', () => {
       expectedPositionTokenId: 11n,
       expectedTickLower: -120,
       expectedTickUpper: -60,
+      fund: address(2),
       poolKeyHash,
       positionInCustody: true,
       positionRecorded: true,
       positionTokenId: 11n,
+      resonanceRouter: address(3),
     };
     const readContract = vi.fn(
       async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],

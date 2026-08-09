@@ -195,10 +195,8 @@ contract Fundraiser is ReentrancyGuard {
             emit EpochSettled(epoch, scheduledEmission, contributorEmission, nextScheduledEmission);
 
             scheduledEmission = nextScheduledEmission;
-            unchecked {
-                ++epoch;
-                ++settledCount;
-            }
+            ++epoch;
+            ++settledCount;
         }
 
         nextEpochToSettle = epoch;

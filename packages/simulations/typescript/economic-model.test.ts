@@ -165,11 +165,16 @@ describe('minimal-protocol economic suite', () => {
     }
 
     const section = record(root.redemptionAndGbxBurn);
-    for (const source of list(section.revenueSourceComparison).map(record)) {
-      expect(integer(source.supplyAfter)).toBe(
-        integer(source.startingSupply) + integer(source.emission) - integer(source.gbxBurned),
-      );
-    }
+    const miningRevenue = record(section.miningRevenueAcquisitionAndBurn);
+    expect(integer(miningRevenue.supplyAfter)).toBe(
+      integer(miningRevenue.startingSupply) + integer(miningRevenue.emission) - integer(miningRevenue.gbxBurned),
+    );
+    const feeHarvest = record(section.liquidityFeeHarvest);
+    expect(feeHarvest.principalLiquidityAfter).toBe(feeHarvest.principalLiquidityBefore);
+    expect(feeHarvest.usdgRoutedToResonanceRaw).toBe(feeHarvest.usdgFeesRaw);
+    expect(feeHarvest.gbxSentToFund).toBe(feeHarvest.gbxFees);
+    expect(feeHarvest.gbxBurned).toBe(feeHarvest.gbxFees);
+    expect(integer(feeHarvest.supplyAfter)).toBe(integer(feeHarvest.startingSupply) - integer(feeHarvest.gbxBurned));
     const redemptions = list(section.sequentialLargeRedemptions).map(record);
     expect(redemptions.at(-1)?.supplyAfter).toBe('25000000000000000000000000');
   });

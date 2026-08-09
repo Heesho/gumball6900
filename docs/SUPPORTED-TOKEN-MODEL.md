@@ -11,9 +11,13 @@ non-rebasing ERC-20s:
 - balances do not change asynchronously through rebases;
 - token callbacks cannot bypass protocol reentrancy guards or authorization.
 
-Core receipt, payment, reward, revenue, redemption, and liquidity-funding paths compare balance deltas and revert
+Core receipt, payment, reward, revenue, redemption, and liquidity-fee-routing paths compare balance deltas and revert
 atomically on inexact movement. This is fail-closed evidence, not support for fee-on-transfer, rebasing, ERC-777-style,
 blocklisting, pausable, or otherwise adversarial tokens.
+
+Token decimals also affect the economic size of A-09 carry-boundary reallocation. At maximum signal supply, one
+pending bucket can approach one billion base units: negligible for an 18-decimal token but up to 1,000 whole units for
+a six-decimal token. Standard transfer behavior alone does not eliminate that allocation risk.
 
 ## Failure isolation
 

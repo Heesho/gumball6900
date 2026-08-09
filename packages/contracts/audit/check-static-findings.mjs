@@ -26,7 +26,7 @@ function sourceElement(element) {
     source != null &&
     source.is_dependency !== true &&
     typeof source.filename_relative === 'string' &&
-    (source.filename_relative.startsWith('src/') || source.filename_relative.startsWith('script/minimal/'))
+    source.filename_relative.startsWith('src/')
   );
 }
 
@@ -90,7 +90,7 @@ function normalizeAderyn(report) {
       for (const instance of issue.instances) {
         if (
           typeof instance.contract_path !== 'string' ||
-          !(instance.contract_path.startsWith('src/') || instance.contract_path.startsWith('script/minimal/')) ||
+          !instance.contract_path.startsWith('src/') ||
           !Number.isInteger(instance.line_no)
         ) {
           fail(`Aderyn finding ${issue.detector_name} has a malformed source location`);

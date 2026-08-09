@@ -72,8 +72,16 @@ test('accepts a deliberate zero-branch floor only when the LCOV record has no br
   assert.deepEqual(result.branches, { covered: 0, total: 0, basisPoints: 0 });
 });
 
-test('production policy contains unique critical source files that exist', () => {
-  assert.equal(new Set(FORGE_COVERAGE_POLICY.map(({ path: source }) => source)).size, FORGE_COVERAGE_POLICY.length);
+test('production policy exactly covers every direct core contract', () => {
+  const policySources = FORGE_COVERAGE_POLICY.map(({ path: source }) => source).sort();
+  const directCoreSources = fs
+    .readdirSync(path.join(CONTRACTS_DIRECTORY, 'src/core'), { withFileTypes: true })
+    .filter((entry) => entry.isFile() && entry.name.endsWith('.sol'))
+    .map((entry) => `src/core/${entry.name}`)
+    .sort();
+
+  assert.equal(new Set(policySources).size, FORGE_COVERAGE_POLICY.length);
+  assert.deepEqual(policySources, directCoreSources);
   for (const { path: source } of FORGE_COVERAGE_POLICY) {
     assert.equal(fs.statSync(path.join(CONTRACTS_DIRECTORY, source)).isFile(), true, source);
   }

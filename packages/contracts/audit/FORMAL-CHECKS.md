@@ -9,9 +9,23 @@ burning, redemption snapshots, duplicate rejection, and LP custody/growth. They 
 mathematical proof of all EVM
 behaviors.
 
-Mythril 0.24.8 is pinned in `audit/toolchain.lock`, but its checked-in runner depends on the nightly tool installation
-and did not execute in this environment. No Certora, Halmos, Kontrol, hevm symbolic, or Solidity SMTChecker proof
-specification is checked in for the current graph. Symbolic result: blocked/unavailable.
+Mythril 0.24.8 is pinned in `audit/toolchain.lock`. The audit corrected its policy from the deleted legacy graph to
+the exact 12 current production contracts and ran:
+
+```bash
+node audit/check-mythril-findings.mjs --run audit/mythril-policy.json . audit/reports
+```
+
+The runner failed closed before launching analysis. Ten contracts contain constructor-resolved immutable references,
+and deployed runtimes must be linked from actual constructor values before sound analysis. The runtime templates also
+contain Cancun instructions Mythril 0.24.8 cannot safely interpret: `MCOPY` in GBX, SignalGBX, and
+LiquidityPosition, plus `TLOAD`/`TSTORE` in Fund. The summary is retained under ignored raw reports. This is a current
+symbolic compatibility blocker, not a pass and not merely an unavailable Docker image.
+
+No Certora, Halmos, Kontrol, hevm symbolic, or Solidity SMTChecker proof specification is checked in for the current
+graph. Symbolic result: blocked/unavailable. Any later runner must analyze constructor-resolved deployed bytecode and
+remain Cancun-aware; analyzing creation templates or silently treating unknown opcodes as legacy instructions is not
+acceptable.
 
 The two unfixed compiler bugs listed for Solidity 0.8.26 were reviewed:
 

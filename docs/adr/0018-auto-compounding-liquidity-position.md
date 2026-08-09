@@ -1,6 +1,6 @@
 # ADR 0018: Auto-compound the canonical liquidity position instead of routing its fees
 
-- Status: accepted
+- Status: superseded by [ADR 0022](0022-fixed-principal-lp-fee-routing.md)
 - Date: 2026-08-09
 - Supersedes the fee-routing provisions of [ADR 0014](0014-fixed-distribution-and-v4-liquidity-position.md)
 - Builds on [ADR 0017](0017-remove-successor-migration.md)

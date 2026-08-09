@@ -237,18 +237,18 @@ function gbxAcquisitionAndBurnScenario(id: string, marketPrice: bigint) {
   };
 }
 
-function revenueFundedGbxAcquisitionAndBurn(id: 'mining-revenue' | 'lp-fee-revenue') {
+function miningRevenueFundedGbxAcquisitionAndBurn() {
   const startingSupply = tokens(100_000_000n);
   const startingVaultValue = usdG(100_000_000n);
-  const revenue = id === 'mining-revenue' ? usdG(10_000_000n) : usdG(1_000_000n);
-  const emission = id === 'mining-revenue' ? tokens(10_000_000n) : 0n;
+  const revenue = usdG(10_000_000n);
+  const emission = tokens(10_000_000n);
   const gbxAcquisitionBudget = usdG(1_000_000n);
   const marketPrice = 8n * 10n ** 17n;
   const gbxBurned = mulDiv(normalizeUSDG(gbxAcquisitionBudget), WAD, marketPrice);
   const supplyAfter = startingSupply + emission - gbxBurned;
   const vaultValueAfter = startingVaultValue + revenue - gbxAcquisitionBudget;
   return {
-    id,
+    id: 'mining-revenue',
     startingSupply,
     startingVaultValueUSDGRaw: startingVaultValue,
     revenueUSDGRaw: revenue,
@@ -259,6 +259,25 @@ function revenueFundedGbxAcquisitionAndBurn(id: 'mining-revenue' | 'lp-fee-reven
     supplyAfter,
     vaultValueAfterUSDGRaw: vaultValueAfter,
     backingPerGBXAfter: usdGPriceWad(vaultValueAfter, supplyAfter),
+  };
+}
+
+function lpFeeHarvest() {
+  const principalLiquidity = 1_000_000_000_000_000_000n;
+  const startingSupply = tokens(100_000_000n);
+  const usdgFees = usdG(1_000_000n);
+  const gbxFees = tokens(1_250_000n);
+  return {
+    id: 'lp-fee-harvest',
+    principalLiquidityBefore: principalLiquidity,
+    principalLiquidityAfter: principalLiquidity,
+    usdgFeesRaw: usdgFees,
+    usdgRoutedToResonanceRaw: usdgFees,
+    gbxFees,
+    gbxSentToFund: gbxFees,
+    gbxBurned: gbxFees,
+    startingSupply,
+    supplyAfter: startingSupply - gbxFees,
   };
 }
 
@@ -419,10 +438,8 @@ function computeEconomicSuiteRaw() {
         gbxAcquisitionAndBurnScenario('gbx-below-backing', 8n * 10n ** 17n),
         gbxAcquisitionAndBurnScenario('gbx-above-backing', 12n * 10n ** 17n),
       ],
-      revenueSourceComparison: [
-        revenueFundedGbxAcquisitionAndBurn('mining-revenue'),
-        revenueFundedGbxAcquisitionAndBurn('lp-fee-revenue'),
-      ],
+      miningRevenueAcquisitionAndBurn: miningRevenueFundedGbxAcquisitionAndBurn(),
+      liquidityFeeHarvest: lpFeeHarvest(),
       simultaneousEmissionAndBurn: [0n, 5_000n, 10_000n, 15_000n].map((burnRateBps) => {
         const startingSupply = tokens(100_000_000n);
         const emission = tokens(10_000_000n);

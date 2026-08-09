@@ -1,85 +1,103 @@
-# Production-hardening test campaign
+# Adversarial-audit test campaign
 
 Date: 2026-08-09
 
-Baseline: `395a0dfbf56e3d478233736ef7a110e584a676e7`
-Candidate branch: `codex/gumball-production-hardening`
+Reviewed candidate: `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84`
+
+Audit branch: `codex/gumball-adversarial-audit`
 
 This is reproducible internal engineering evidence. It is not an independent audit, formal verification, legal
 approval, deployment authorization, or a claim that the protocol is safe for unlimited value.
 
 ## Toolchain
 
-| Tool             | Version/configuration                                    |
-| ---------------- | -------------------------------------------------------- |
-| Node             | 22.23.1                                                  |
-| pnpm             | 10.14.0                                                  |
-| Foundry          | 1.7.1, commit `4072e48705af9d93e3c0f6e29e93b5e9a40caed8` |
-| Solidity         | 0.8.26, Cancun, optimizer 10,000, legacy pipeline        |
-| Hardhat          | 2.29.0                                                   |
-| Slither          | 0.11.5                                                   |
-| Aderyn           | 0.6.8                                                    |
-| Semgrep          | 1.162.0                                                  |
-| Solhint          | 6.0.1                                                    |
-| Gitleaks         | 8.30.1                                                   |
-| Medusa           | 1.5.1                                                    |
-| Echidna fallback | native 2.3.3; pinned campaign is 2.3.2 container         |
+| Tool     | Version/configuration                                               |
+| -------- | ------------------------------------------------------------------- |
+| Node     | 22.23.1                                                             |
+| pnpm     | 10.14.0                                                             |
+| Foundry  | 1.7.1, commit `4072e48705af9d93e3c0f6e29e93b5e9a40caed8`            |
+| Solidity | 0.8.26, Cancun, optimizer 10,000, legacy pipeline, no metadata hash |
+| Hardhat  | 2.29.0                                                              |
+| Slither  | 0.11.5                                                              |
+| Aderyn   | 0.6.8                                                               |
+| Semgrep  | 1.162.0                                                             |
+| Solhint  | 6.0.1                                                               |
+| Gitleaks | 8.30.1                                                              |
+| Medusa   | 1.5.1                                                               |
+| Echidna  | pinned 2.3.2 container; native fallback 2.3.3                       |
+| Mythril  | pinned 0.24.8                                                       |
+| Mutation | no current pinned framework/configuration                           |
 
-Package commands used the repository Node binary and Foundry commands used the task-local exact 1.7.1 installation.
+Package commands used the repository Node binary. Foundry commands used the audit-local exact 1.7.1 binaries whose
+release archive and binary SHA-256 values were checked against the upstream sigstore attestation.
 
-## Completed contract campaigns
+## Foundry and Hardhat
+
+Commands executed include:
 
 ```bash
-forge test --summary
-FOUNDRY_PROFILE=ci forge test --summary
-FOUNDRY_TEST=test/integration forge test --summary
-pnpm --filter @gumball-6900/contracts test:hardhat
+forge fmt --check
 forge build --sizes
+forge test --summary
+FOUNDRY_PROFILE=ci pnpm --filter @gumball-6900/contracts test:gas
+FOUNDRY_PROFILE=integration forge test --summary
+pnpm test:hardhat
 forge test --match-contract SignalGasTest -vv
 ```
 
-| Campaign              | Actual result                                             |
-| --------------------- | --------------------------------------------------------- |
-| Default/root Foundry  | 334 passed, 0 failed, 0 skipped                           |
-| CI profile            | same 10,000-fuzz/1,000×500 invariant configuration; green |
-| Integration profile   | 21 passed, 0 failed, 0 skipped                            |
-| Hardhat parity/supply | 2 passed, 0 failed                                        |
-| Signal gas suite      | 4 passed, 0 failed                                        |
-| Production sizes      | all runtime/initcode below EIP-170/EIP-3860 ceilings      |
+| Campaign              | Actual result                                        |
+| --------------------- | ---------------------------------------------------- |
+| Default/root Foundry  | 340 passed, 0 failed, 0 skipped                      |
+| CI profile + gas      | 339 passed before ADR 0022; measured paths unchanged |
+| Integration profile   | 17 passed, 0 failed, 0 skipped                       |
+| Hardhat parity/supply | 2 passed, 0 failed                                   |
+| Signal gas suite      | 4 passed, 0 failed                                   |
+| Production sizes      | all runtime/initcode below EIP-170/EIP-3860 ceilings |
 
-`forge build --sizes` reported the following production-contract bytecode sizes in bytes:
+The default suite contains 27 ordinary `testFuzz_` properties. Each completed 10,000 runs: 270,000 configured fuzz
+cases. Foundry did not print its automatically selected seed for a passing campaign, so no seed is invented.
 
-| Contract          | Runtime | Initcode |
-| ----------------- | ------: | -------: |
-| Bribe             |  11,539 |   11,976 |
-| BribeFactory      |  13,229 |   13,474 |
-| BribeRouter       |   4,075 |    4,647 |
-| Fund              |   4,491 |    4,775 |
-| Fundraiser        |   5,157 |    5,646 |
-| GBX               |  10,098 |   13,117 |
-| LiquidityPosition |   9,988 |   12,225 |
-| Resonance         |  13,463 |   14,265 |
-| ResonanceRouter   |   1,852 |    2,220 |
-| SignalGBX         |  12,439 |   13,889 |
-| Strategy          |   5,661 |    6,681 |
-| StrategyFactory   |  13,011 |   13,256 |
+The invariant suite contains 27 `invariant_` properties plus one deterministic handler-reachability test. Every
+property completed 1,000 runs at depth 500 with `fail_on_revert = true`: 500,000 calls per property and 13,500,000
+aggregate state-machine calls. The handler exposes 22 actions; the reachability regression prevents a permanently
+short-circuited action from creating false confidence. The checked nightly profile remains 100,000 fuzz runs and
+10,000 invariant runs at depth 1,000; it was not completed and is not counted as passing.
 
-There are 27 ordinary `testFuzz_` properties. Each completed the configured 10,000 Foundry runs in the full default
-campaign (270,000 configured cases). Foundry did not emit its automatically selected seed on a passing run; no seed is
-invented here. The complete schedule and independent model suites exercise additional deterministic vectors.
+The final CI/gas run reported the same deterministic 500,000-call action sequence for each invariant property:
 
-All 28 stateful invariants completed 1,000 runs at depth 500. Forge reported 500,000 calls and zero handler reverts per
-property under `fail_on_revert = true`: 14,000,000 aggregate handler calls. The handler exposes 22 actions, and
-`test_EveryHandlerActionIsReachable` prevents a permanently short-circuited action from creating false confidence.
+| Handler action         |       Calls |
+| ---------------------- | ----------: |
+| `addSignal`            |      22,733 |
+| `addSignalMany`        |      22,669 |
+| `advanceTime`          |      22,527 |
+| `burnFundGBX`          |      22,845 |
+| `buy`                  |      22,757 |
+| `claimEmission`        |      22,604 |
+| `claimRewards`         |      22,629 |
+| `claimSelectiveReward` |      22,770 |
+| `contribute`           |      22,812 |
+| `distributeAll`        |      22,755 |
+| `donateDirectRevenue`  |      22,901 |
+| `donateRevenue`        |      23,003 |
+| `killStrategy`         |      22,526 |
+| `notifyTinyReward`     |      22,663 |
+| `payFixedLiabilities`  |      22,782 |
+| `recordRevenueIndex`   |      22,587 |
+| `redeem`               |      22,753 |
+| `removeSignal`         |      22,783 |
+| `removeSignalMany`     |      22,704 |
+| `settleEpochs`         |      22,503 |
+| `stake`                |      22,836 |
+| `unstake`              |      22,858 |
+| **Total per property** | **500,000** |
 
-The nightly profile is configured for 100,000 fuzz runs and 10,000 invariant runs at depth 1,000. The exact command
-started successfully against this candidate and early suites demonstrated the configured 100,000-run fuzz setting.
-It was stopped before the full multi-hour campaign completed. No partial result is counted as a pass, and the command
-remains an incomplete release gate.
+The audit added two expected-behavior PoCs in `CarryReallocation.t.sol`. Both pass by demonstrating the open A-09
+allocation defect. It also added three Strategy receiver-boundary tests proving atomic failure for a Strategy self
+receiver, exact direct Fund settlement, and synchronizable Resonance donation behavior.
 
 ## Independent state-machine fuzzing
 
-Final Medusa command:
+Medusa command:
 
 ```bash
 medusa fuzz \
@@ -88,47 +106,42 @@ medusa fuzz \
 ```
 
 Medusa 1.5.1 used four workers, sequences up to 150 calls, a 12,500,000 transaction-gas limit, and a 100,000
-transaction target. Actual result: 100,069 calls, 3,632 branches, corpus 93, zero failures, 23 property tests plus 39
-assertion surfaces (62/62 pass). No explicit seed is configured by the checked-in Medusa file, so none is claimed.
+transaction target. Actual result: 101,840 calls, 3,632 branches, corpus 101, zero failures, 23 property tests plus 39
+assertion surfaces (62/62 pass). No explicit Medusa seed is configured, so none is claimed.
 
-Pinned Echidna command:
-
-```bash
-bash audit/install-tools.sh nightly
-bash audit/run-nightly.sh
-```
-
-The pinned Echidna 2.3.2 image and its digest are in `audit/toolchain.lock`. Docker is unavailable, so the pinned
-campaign did not run. The native fallback used Echidna 2.3.3 with checked-in seed 6900, 100,000 test limit, and sequence
-length 150. All four workers crashed before transaction one with `Set.elemAt: index out of range`; status remained
-0/25 tests and 0/100,000 fuzz transactions even though Echidna returned exit code zero. This is an invalid run, not a
-pass.
+Pinned Echidna 2.3.2 could not run because Docker is unavailable. The native fallback used Echidna 2.3.3 with checked
+seed 6900, 100,000-test limit, and sequence length 150. All four workers crashed before transaction one with
+`Set.elemAt: index out of range`; status was 0/25 tests and 0/100,000 fuzz transactions even though Echidna returned
+exit code zero. This is an invalid result and remains a release blocker.
 
 ## Coverage
 
-Clean coverage command:
+Exact coverage command:
 
 ```bash
 FOUNDRY_FUZZ_RUNS=256 \
 FOUNDRY_INVARIANT_RUNS=32 \
 FOUNDRY_INVARIANT_DEPTH=64 \
-forge coverage --report summary
+forge coverage --report summary --report lcov \
+  --report-file audit/reports/adversarial-current-coverage.lcov --summary
+node scripts/check-forge-coverage.mjs audit/reports/adversarial-current-coverage.lcov
 ```
 
-The instrumentation run passed 334/334 tests. Compiled-scope totals were:
+All 340 tests passed under instrumentation. Compiled-scope totals were:
 
 | Metric     |               Result |
 | ---------- | -------------------: |
-| Lines      | 91.79% (1,297/1,413) |
-| Statements | 91.22% (1,704/1,868) |
-| Branches   |     79.06% (219/277) |
-| Functions  |     87.88% (174/198) |
+| Lines      | 92.98% (1,311/1,410) |
+| Statements | 92.86% (1,716/1,848) |
+| Branches   |     80.22% (219/273) |
+| Functions  |     89.34% (176/197) |
 
-An earlier `--ir-minimum` coverage attempt produced inaccurate-source-mapping warnings and two instrumentation-only
-failures (a gas threshold and an ERC-5805 same-block lookup). It is not the reported coverage result. Removing that
-mode made the same reduced instrumentation profile pass completely.
+The source-only policy exactly enumerates all 12 direct core contracts, pins denominator floors, and passes this
+report. Per-file function coverage is 83.33% or higher except LiquidityPosition's default mock/deep result of 62.50%;
+its genuine PositionManager behavior is covered separately by 11 fee-harvest integration tests. Current Solidity source maps produce
+nonfatal coverage warnings; the non-IR instrumentation campaign itself is green.
 
-## Eight-token gas measurements
+## Gas measurements
 
 Foundry 1.7.1, Solidity 0.8.26, optimizer 10,000:
 
@@ -149,63 +162,79 @@ Foundry 1.7.1, Solidity 0.8.26, optimizer 10,000:
 | Add-signal marginal token slope         |    15,549 |
 | Remove-signal marginal token slope      |   160,520 |
 
-The largest required user exit is below 1.35 million gas. Target-chain evidence, not an assumed Ethereum gas limit, is
-recorded in `UNISWAP-V4-REVIEW.md` and the baseline.
+The largest required user exit is below 1.35 million gas. This is engineering margin against the documented
+60,000,000 target-chain limit, not a guarantee about a future block policy.
 
-## Static, dependency, and generated-artifact gates
+## Production bytecode sizes
 
-Completed or executed commands include:
+| Contract          | Runtime bytes | Initcode bytes |
+| ----------------- | ------------: | -------------: |
+| Bribe             |        11,539 |         11,976 |
+| BribeFactory      |        13,229 |         13,474 |
+| BribeRouter       |         4,075 |          4,647 |
+| Fund              |         4,491 |          4,775 |
+| Fundraiser        |         5,225 |          5,714 |
+| GBX               |        10,098 |         13,117 |
+| LiquidityPosition |         8,214 |         10,608 |
+| Resonance         |        13,463 |         14,265 |
+| ResonanceRouter   |         1,852 |          2,220 |
+| SignalGBX         |        12,439 |         13,889 |
+| Strategy          |         5,661 |          6,681 |
+| StrategyFactory   |        13,011 |         13,256 |
 
-```bash
-pnpm install --frozen-lockfile
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm build
-pnpm test
-pnpm docs:check
-pnpm sdk:abi:check
-pnpm subgraph:build
-pnpm web:test:e2e
-bash audit/run-static.sh
-```
+## Static, symbolic, mutation, and fork status
 
-Root `pnpm test` passed 9/9 tasks. SDK/subgraph ABIs, generated docs, economic fixtures/charts, whitepaper, and browser
-E2E checks pass. The static policy accepts 186 exact current-source findings across 24 detector classes; Semgrep is
-clean and dependency audit has no High/Critical advisory after the narrow nanoid 3.3.17 override. The aggregate static
-script remains red because Gitleaks reports six redacted historical candidates awaiting independent classification.
-Darwin and Linux dependency inventories reproduce from the frozen graph but remain `inventory-baselined`, not legally
-approved.
+`bash audit/run-static.sh` verified the seven pinned static tools, accepted 186 exact current-source findings across
+23 detector classes, found zero Semgrep findings, zero compiler errors, and no High/Critical dependency advisory. It
+remains red solely because Gitleaks reports six redacted historical candidates awaiting independent classification.
+Solhint reports 106 nonblocking warnings.
 
-## Mutation and symbolic status
+The corrected Mythril runner targets all 12 current production contracts and fails closed before analysis:
+constructor-resolved deployed runtimes are required, and Mythril 0.24.8 cannot safely interpret current `MCOPY`,
+`TLOAD`, or `TSTORE` runtime instructions. No current pinned mutation configuration, mutant manifest, or survivor
+review exists; raw and equivalent-adjusted mutation scores are unavailable. These are release blockers.
 
-No reproducible pinned current-tree mutation configuration, source-span baseline, survivor ledger, or equivalence
-review exists. Raw score, equivalent-adjusted score, and surviving meaningful mutants are unavailable. Historical
-scores from other graphs are not reused. This is a release blocker.
+No current-graph fork passed. Read-only target-chain evidence is pinned to Robinhood block 32,035,314, but the only
+deployment schema is an explicitly archived incompatible graph and there is no signed current manifest. See
+`FORK-VALIDATION.md`.
 
-Mythril 0.24.8 is pinned but container-only in the checked runner; Docker is unavailable. No complete Certora, Halmos,
-Kontrol, hevm, or SMTChecker specification exists. Foundry invariants and independent TypeScript/Python models are
-testing evidence, not formal verification.
+## Integration and repository gates
 
-## Failures fixed during the campaign
+Applicable repository commands were executed with Node 22.23.1, Python 3.11.14 with all five exact dependency pins,
+and the exact Foundry installation. The serialized root `pnpm test` run passed all nine Turbo tasks: configuration
+124/124, SDK 39/39, simulations 25/25 TypeScript plus 19/19 Python and 5/5 environment-policy tests, subgraph 4/4
+specification checks plus 5/5 Matchstick tests, and the complete Foundry suite. Subgraph codegen, 11-ABI sync, build,
+web unit 3/3, browser E2E 6/6, SDK ABI/pack checks, generated docs, economic fixtures/charts, the 25-page whitepaper,
+format, lint, typecheck, and build also passed. The audit-policy JavaScript suite passed 78/78. The genuine v4 profile
+passed 11 LiquidityPosition fee-harvest tests and six campaign-harness tests. ADR 0022 intentionally replaced the
+LiquidityPosition compounding ABI; generated SDK and subgraph consumers match the new `harvestFees` surface.
 
-- exact carried revenue and reward conservation replaced lossy floor accounting;
-- zero-supply streams now pause and queued notifications remain reachable;
-- exit paths no longer depend on fixed-destination token transfers;
-- supported-token boundaries validate observed debit and credit;
-- Strategy payments now obey ADR 0021's uniform 100% Fund liability at both Strategy and router boundaries;
-- SDK, subgraph, models, generated ABIs/docs, and public copy were regenerated for the reduced interface;
-- the vulnerable `postcss -> nanoid@3.3.16` edge is overridden to 3.3.17; and
-- stale analyzer source spans fail closed through the exact disposition register.
+## Failures and audit remediations
 
-## Blocked capabilities and release gates
+- A-09 remains open because exact temporal attribution across changing signal denominators is a product/accounting
+  choice. Two minimal PoCs preserve the behavior for owner and external-auditor review.
+- The Forge coverage policy referenced 32 deleted contracts and stale LCOV evidence. It now exactly covers the 12
+  direct core contracts and rejects missing/new graph members.
+- The Mythril policy referenced five deleted legacy contracts. It now enumerates the exact current graph and records
+  current constructor/opcode blockers.
+- Three audit-assurance tests contained stale license, time, and nonexistent-workflow assumptions; all now exercise the
+  current repository state.
+- Static lint/analyzer commands referenced removed `script/minimal` paths; they now target the current source tree.
+- The refreshed current-source Semgrep scan exposed an `unchecked` increment block in `Fundraiser.settleEpochs`.
+  Checked increments are now used; the Fundraiser suite remains 31/31 and Semgrep is zero-finding. The subsequent ADR
+  0022 source change brings the complete default suite to 340/340. The exact static register was refreshed for the
+  resulting Fundraiser and LiquidityPosition source changes and accepts 186 reviewed findings across 23 classes.
+
+## Blocked reproducible commands
 
 ```bash
 FOUNDRY_PROFILE=nightly forge test --summary
 bash audit/install-tools.sh nightly
 bash audit/run-nightly.sh
+node audit/check-mythril-findings.mjs --run audit/mythril-policy.json . audit/reports
 ```
 
-The exhaustive Foundry nightly profile was not completed in this handoff; the exact command remains required before a
-release claim. Docker absence blocks pinned Echidna and Mythril. Mutation, independent audit, legal/provenance review,
-signed deployment evidence, and the six Gitleaks classifications also remain incomplete.
+The exhaustive Foundry nightly profile was not completed. Docker absence blocks pinned Echidna. Mythril has an
+additional current-bytecode compatibility blocker. Mutation, independent audit, monitored testnet, legal/provenance
+review, current deployment tooling, signed deployment evidence, and the six Gitleaks classifications remain
+incomplete.

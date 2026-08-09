@@ -1,5 +1,8 @@
 # Production-hardening baseline
 
+> Historical snapshot only. ADR 0022 later superseded the captured LiquidityPosition compounding API and A-06/A-07
+> dispositions with fixed-principal fee routing. The inventory below is intentionally preserved as baseline evidence.
+
 > Captured before production Solidity was modified on 2026-08-09. This is internal engineering evidence for the
 > reviewed checkout; it is not a deployment, release authorization, or independent audit.
 

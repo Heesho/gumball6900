@@ -1,7 +1,7 @@
 # Release checklist
 
-Current description: **internally hardened and ready for independent security review**. This is not a production-ready
-or deployment-authorized state.
+Current description: **internal adversarial review completed with open findings; focused independent security review
+is required**. This is not a production-ready or deployment-authorized state.
 
 ## Internal engineering
 
@@ -9,16 +9,18 @@ or deployment-authorized state.
 - [x] A-02 exact revenue carry implemented with conservation invariants.
 - [x] A-03 exact stream/queue/zero-supply accounting and selective claims implemented.
 - [x] A-04 exit path decoupled from fixed-destination transfers.
+- [x] A-06 caller-funded LP composition risk removed by ADR 0022 fixed-principal fee routing.
 - [x] Eight-token cap preserved and worst-case exit gas measured below 3,000,000.
 - [x] ABI generation and subgraph ABI synchronization updated.
 - [x] Genuine Uniswap v4 integration suite passed.
 - [x] Target-chain EIP-1153 and documented v4 addresses checked at a pinned block.
-- [ ] A-06 resolved or explicitly accepted by the protocol owner after independent review.
+- [ ] A-09 carry-boundary reallocation resolved or explicitly accepted with a documented low-decimal-token policy.
 - [ ] Current-tree mutation campaign has no surviving meaningful mutant.
 - [x] Medusa 1.5.1 passes the current graph at more than 100,000 calls.
 - [ ] Pinned Echidna 2.3.2 passes the current graph.
 - [ ] Mythril/symbolic checks complete or formally dispositioned.
 - [x] Static disposition database regenerated for the current graph.
+- [x] Coverage and Mythril policies enumerate the exact current 12-contract graph and fail closed on drift.
 - [ ] Six redacted Gitleaks history matches independently classified.
 
 ## Independent and legal
@@ -30,6 +32,7 @@ or deployment-authorized state.
 ## Deployment evidence
 
 - [ ] Canonical USDG and all external dependency addresses approved.
+- [ ] Current ADR 0021 deployment schema and non-broadcast validation harness replace the archived legacy graph.
 - [ ] Signed manifest verifies chain ID, runtime bytecode, constructor arguments, and code hashes.
 - [ ] Timelock delay and proposer/canceller/executor/default-admin roles verified.
 - [ ] GBX minter lock and all one-time bindings verified.

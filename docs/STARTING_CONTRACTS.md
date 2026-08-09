@@ -11,8 +11,8 @@ Fundraiser -> ResonanceRouter -> Resonance -> Strategies
                                       |       +-> complete payment -> BribeRouter -> Fund
                                       +-> independently funded Bribes -> signalers
 
-Uniswap v4 position -> LiquidityPosition -> caller adds 0.20% liquidity
-                                        -> caller takes the accrued fees
+Uniswap v4 position -> LiquidityPosition -> USDG -> ResonanceRouter -> Resonance
+                                        -> GBX -> Fund -> atomic burn
 ```
 
 GBX holders stake one-for-one into SignalGBX (`sGBX`) and allocate absolute amounts among active Strategies. Signaling
@@ -23,20 +23,20 @@ auction proceeds do not fund them.
 
 ## Contract responsibilities
 
-| Contract            | Responsibility and important boundaries                                                                                                                                                                                       |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GBX`               | Transferable token with permits and signal checkpoints. It creates 20M genesis-liquidity GBX, disables later minting until the one-time Fundraiser handover, and enforces the one-billion lifetime cap.                       |
-| `Fundraiser`        | Preserves the exact daily four-year-half-life schedule for the 980M contributor allocation, routes all contributed USDG immediately, settles sequentially, and mints pro-rata claims.                                         |
-| `LiquidityPosition` | Ownerless. Validates and permanently holds one precommitted hookless GBX/USDG v4 NFT and auto-compounds it: anyone may add 0.20% liquidity to claim the accrued fees. Principal is never removed and the NFT can never leave. |
-| `SignalGBX`         | Holds staked GBX and mints non-transferable `sGBX` one-for-one. Withdrawal has no time lock and may consume any balance not currently allocated to a Strategy.                                                                |
-| `ResonanceRouter`   | Holds no intended long-term balance. Anyone can route its complete USDG balance into Resonance, which also makes unsolicited USDG recoverable into the intended revenue flow.                                                 |
-| `Resonance`         | Maintains absolute per-Strategy signals, exact carry-forward USDG indexing, fixed Fund liabilities, Strategy/Bribe graphs, and each Bribe's virtual balances.                                                                 |
-| `StrategyFactory`   | Can be bound once to Resonance. Only that Resonance may deploy a Strategy and its dedicated BribeRouter.                                                                                                                      |
-| `Strategy`          | Sells its complete USDG balance through a bounded linearly declining price. Its complete payment becomes a fixed Fund liability, regardless of the payment asset.                                                             |
-| `BribeFactory`      | Can be bound once to Resonance. Only that Resonance may deploy Bribes.                                                                                                                                                        |
-| `BribeRouter`       | Pulls the complete Strategy payment once and records it as a fixed Fund liability payable by any caller.                                                                                                                      |
-| `Bribe`             | Streams up to eight independently funded reward tokens with exact rate/index carry, zero-supply pausing, queues, and selective claims across virtual balances maintained only by Resonance.                                   |
-| `Fund`              | Ownerless. Holds arbitrary ERC-20 balances without registration, burns held GBX, and supports caller-selected pro-rata redemption. Redemption is the only way an asset can ever leave.                                        |
+| Contract            | Responsibility and important boundaries                                                                                                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GBX`               | Transferable token with permits and signal checkpoints. It creates 20M genesis-liquidity GBX, disables later minting until the one-time Fundraiser handover, and enforces the one-billion lifetime cap.                  |
+| `Fundraiser`        | Preserves the exact daily four-year-half-life schedule for the 980M contributor allocation, routes all contributed USDG immediately, settles sequentially, and mints pro-rata claims.                                    |
+| `LiquidityPosition` | Ownerless. Validates and permanently holds one precommitted hookless GBX/USDG v4 NFT. Anyone may harvest fees; principal stays fixed, USDG routes to Resonance, GBX is burned through Fund, and the NFT can never leave. |
+| `SignalGBX`         | Holds staked GBX and mints non-transferable `sGBX` one-for-one. Withdrawal has no time lock and may consume any balance not currently allocated to a Strategy.                                                           |
+| `ResonanceRouter`   | Holds no intended long-term balance. Anyone can route its complete USDG balance into Resonance, which also makes unsolicited USDG recoverable into the intended revenue flow.                                            |
+| `Resonance`         | Maintains absolute per-Strategy signals, exact carry-forward USDG indexing, fixed Fund liabilities, Strategy/Bribe graphs, and each Bribe's virtual balances.                                                            |
+| `StrategyFactory`   | Can be bound once to Resonance. Only that Resonance may deploy a Strategy and its dedicated BribeRouter.                                                                                                                 |
+| `Strategy`          | Sells its complete USDG balance through a bounded linearly declining price. Its complete payment becomes a fixed Fund liability, regardless of the payment asset.                                                        |
+| `BribeFactory`      | Can be bound once to Resonance. Only that Resonance may deploy Bribes.                                                                                                                                                   |
+| `BribeRouter`       | Pulls the complete Strategy payment once and records it as a fixed Fund liability payable by any caller.                                                                                                                 |
+| `Bribe`             | Streams up to eight independently funded reward tokens with exact rate/index carry, zero-supply pausing, queues, and selective claims across virtual balances maintained only by Resonance.                              |
+| `Fund`              | Ownerless. Holds arbitrary ERC-20 balances without registration, burns held GBX, and supports caller-selected pro-rata redemption. Redemption is the only way an asset can ever leave.                                   |
 
 ## Supply and daily distribution
 
@@ -55,13 +55,11 @@ genesis allocation. LiquidityPosition accepts only the precommitted PositionMana
 tick range, and a nonzero-liquidity position. The deployment process remains responsible for proving the exact 20
 million amount was converted into the reviewed position and handling any deterministic rounding residual.
 
-Anyone may call `compound`. It increases position liquidity by 0.20% and pays the caller every token the contract
-holds afterward, which is the position's accrued fees plus any unspent funding. Principal is never removed and the
-NFT never moves. Direct GBX or USDG transfers to LiquidityPosition are swept to the next caller the same way, so
+Anyone may call `harvestFees`. A zero-liquidity decrease collects every accrued fee while preserving the exact
+principal liquidity. The complete USDG balance routes through ResonanceRouter into Resonance, and the complete GBX
+balance transfers to Fund and is burned atomically. The NFT never moves. Direct GBX or USDG transfers to
+LiquidityPosition follow those same destinations, so
 nothing becomes stuck.
-
-The caller's `amount0Max` and `amount1Max` are both the funding pulled from them and the slippage ceiling Uniswap
-enforces on the increase; unspent funding is returned in the same call.
 
 ## Revenue and acquisition rules
 

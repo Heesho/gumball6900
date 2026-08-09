@@ -482,7 +482,7 @@ export const pages = [
             ${note({
               label: 'One entrance',
               kind: 'capital',
-              body: 'Fundraiser contributions are the only USDG revenue entering this router. Liquidity-position fees belong entirely to the permissionless compounding incentive.',
+              body: 'USDG enters through Fundraiser contributions or permissionlessly harvested position fees. Both use the same immutable ResonanceRouter entrance.',
             })}
           </div>
         </div>
@@ -999,20 +999,21 @@ export const pages = [
           eyebrow: 'One market loop, one explicit burn path',
           number: '12',
           title: 'Liquidity fees and Fund burns',
-          deck: 'The canonical market position auto-compounds; GBX auction payments remain supply-neutral until Fund burns them.',
+          deck: 'The canonical market position keeps fixed principal while its fees route into Resonance and the Fund burn path.',
         })}
         ${figureBlock({
           index: context.figure('burns'),
           svg: fig.burnLoops({ width: widths.full }),
           caption:
-            'The position grows by a fixed rule and pays its caller accrued fees; Fund-held GBX can be burned permissionlessly.',
+            'Position principal stays fixed; harvested USDG routes to Resonance and harvested GBX is burned through Fund.',
         })}
         <div class="spread stack-2">
           <div class="col-main">
             <p>
               The canonical market position is a precommitted, hookless GBX/USDG Uniswap v4 position funded with the 20
-              million GBX genesis allocation. Compounding is permissionless and removes zero principal: a caller grows
-              liquidity by the fixed 0.20% and receives every accrued fee. Position fees are not protocol revenue.
+              million GBX genesis allocation. Fee harvesting is permissionless and leaves principal exactly unchanged.
+              USDG routes through ResonanceRouter; GBX transfers to Fund and is burned atomically. The caller supplies
+              no token funding and receives no bounty.
             </p>
             <p>
               A Strategy may accept GBX like any other payment asset. Its complete GBX payment becomes a fixed Fund
@@ -1197,7 +1198,7 @@ export const pages = [
               <li>Every Strategy payment is fully classified as an immutable Fund liability.</li>
               <li>A GBX-priced Strategy leaves supply unchanged until an explicit Fund burn or redemption.</li>
               <li>Each Bribe has at most eight append-only reward tokens.</li>
-              <li>Liquidity compounding adds 0.20% and removes no principal.</li>
+              <li>Liquidity-fee harvesting preserves principal, routes USDG, and burns GBX atomically.</li>
               <li>The deployed core has no upgrade path and no arbitrary asset-withdrawal path.</li>
               <li>Revenue and reward floor remainders remain explicit carry; signal exit transfers no payout token.</li>
             </ol>

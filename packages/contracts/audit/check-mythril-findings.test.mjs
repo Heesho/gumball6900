@@ -111,13 +111,13 @@ async function fixture(t) {
   return { contractsDirectory, policy: zeroFindingsPolicy(), reportDirectory, root };
 }
 
-test('runs and validates all five clean Mythril targets while preserving stdout, stderr, and exit codes', async (t) => {
+test('runs and validates all twelve clean Mythril targets while preserving stdout, stderr, and exit codes', async (t) => {
   const current = await fixture(t);
   const mythExecutable = await makeFakeMyth(current.root, { exitCode: 0, report: cleanReport() });
   const summary = await runMythrilCampaign({ ...current, mythExecutable });
 
   assert.equal(summary.success, true);
-  assert.equal(summary.targetCount, 5);
+  assert.equal(summary.targetCount, 12);
   assert.deepEqual(
     summary.targets.map((target) => target.contract),
     REQUIRED_MYTHRIL_TARGETS.map((target) => target.contract),
@@ -151,6 +151,21 @@ test('runtime opcode scan skips PUSH data and blocks Cancun opcodes that Mythril
   ]);
 });
 
+test('accepts Foundry 1.7 null or omitted reference maps as empty reference sets', async (t) => {
+  const current = await fixture(t);
+  for (const target of REQUIRED_MYTHRIL_TARGETS) {
+    const artifactPath = resolve(current.contractsDirectory, ...target.artifact.split('/'));
+    const artifact = JSON.parse(await readFile(artifactPath, 'utf8'));
+    artifact.deployedBytecode.immutableReferences = null;
+    delete artifact.deployedBytecode.linkReferences;
+    await writeFile(artifactPath, JSON.stringify(artifact), 'utf8');
+  }
+
+  const mythExecutable = await makeFakeMyth(current.root, { exitCode: 0, report: cleanReport() });
+  const summary = await runMythrilCampaign({ ...current, mythExecutable });
+  assert.equal(summary.success, true);
+});
+
 test('records and rejects incompatible deployed runtime bytecode before launching Mythril', async (t) => {
   const current = await fixture(t);
   const target = REQUIRED_MYTHRIL_TARGETS[0];
@@ -161,7 +176,7 @@ test('records and rejects incompatible deployed runtime bytecode before launchin
 
   await assert.rejects(
     runMythrilCampaign({ ...current, mythExecutable: resolve(current.root, 'missing-mythril-executable') }),
-    /compatibility blocker.*GBXToken:MCOPY\(0x5e\)@0x0/,
+    /compatibility blocker.*GBX:MCOPY\(0x5e\)@0x0/,
   );
   const summary = JSON.parse(await readFile(resolve(current.reportDirectory, 'mythril-summary.json'), 'utf8'));
   assert.equal(summary.success, false);
@@ -187,13 +202,13 @@ test('records and rejects unresolved immutable and library references before lau
 
   await assert.rejects(
     runMythrilCampaign({ ...current, mythExecutable: resolve(current.root, 'missing-mythril-executable') }),
-    /compatibility blocker.*constructor-resolved runtime required.*GumBallVault:immutable-ids=fixture-immutable.*FixtureLibrary/,
+    /compatibility blocker.*constructor-resolved runtime required.*Fundraiser:immutable-ids=fixture-immutable.*FixtureLibrary/,
   );
   const summary = JSON.parse(await readFile(resolve(current.reportDirectory, 'mythril-summary.json'), 'utf8'));
   const evidence = summary.compatibility.unresolvedRuntimeTargets[0];
   assert.equal(summary.success, false);
   assert.equal(summary.compatibility.bytecodeResolution, MYTHRIL_ANALYSIS.bytecodeResolution);
-  assert.equal(evidence.contract, 'GumBallVault');
+  assert.equal(evidence.contract, 'Fundraiser');
   assert.match(evidence.templateBytecodeSha256, /^[a-f0-9]{64}$/);
   assert.deepEqual(evidence.immutableReferences, [{ id: 'fixture-immutable', spans: [{ length: 1, start: 1 }] }]);
   assert.deepEqual(evidence.linkReferences, [
@@ -211,7 +226,7 @@ test('rejects Mythril error JSONV2 even when the analyzer exits zero and preserv
   await assert.rejects(runMythrilCampaign({ ...current, mythExecutable }), /contains Mythril error log/);
 
   const manifest = JSON.parse(await readFile(resolve(current.reportDirectory, 'mythril-run-manifest.json'), 'utf8'));
-  assert.equal(manifest.targets.length, 5);
+  assert.equal(manifest.targets.length, 12);
   assert.ok(manifest.targets.every((target) => target.exitCode === 0));
   const summary = JSON.parse(await readFile(resolve(current.reportDirectory, 'mythril-summary.json'), 'utf8'));
   assert.equal(summary.success, false);
@@ -257,14 +272,14 @@ test('rejects missing targets, stale bytecode hashes, and malformed archived JSO
   missing.targets.pop();
   await assert.rejects(
     evaluateMythrilRun({ ...current, manifest: missing }),
-    /must contain exactly 5 expected targets/,
+    /must contain exactly 12 expected targets/,
   );
 
   const staleHash = structuredClone(manifest);
   staleHash.targets[0].bytecodeSha256 = '0'.repeat(64);
   await assert.rejects(evaluateMythrilRun({ ...current, manifest: staleHash }), /does not match artifact hash/);
 
-  await writeFile(resolve(current.reportDirectory, 'mythril-GBXToken.json'), '[', 'utf8');
+  await writeFile(resolve(current.reportDirectory, 'mythril-GBX.json'), '[', 'utf8');
   await assert.rejects(evaluateMythrilRun({ ...current, manifest }), /stdout report is not valid JSON/);
 });
 
@@ -275,7 +290,7 @@ test('zero-findings policy schema cannot silently add an accepted finding or rem
 
   const incomplete = zeroFindingsPolicy();
   incomplete.expectedTargets.pop();
-  assert.throws(() => validateMythrilPolicy(incomplete), /exactly 5 expected targets/);
+  assert.throws(() => validateMythrilPolicy(incomplete), /exactly 12 expected targets/);
 
   const wrongInputMode = zeroFindingsPolicy();
   wrongInputMode.analysis.inputMode = 'creation-bytecode';
@@ -294,7 +309,7 @@ test('zero-findings policy schema cannot silently add an accepted finding or rem
   assert.throws(() => validateMythrilPolicy(weakenedCompatibility), /opcodeCompatibility must equal/);
 });
 
-test('checked-in Mythril policy remains the exact five-target zero-findings policy', async () => {
+test('checked-in Mythril policy remains the exact twelve-target zero-findings policy', async () => {
   const policy = JSON.parse(await readFile(resolve(auditDirectory, 'mythril-policy.json'), 'utf8'));
   assert.equal(validateMythrilPolicy(policy), policy);
 });

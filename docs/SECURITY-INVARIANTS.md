@@ -46,6 +46,10 @@ accountedRevenueBalance * P
 `unaccountedRevenue = actual USDG balance - accountedRevenueBalance`. `syncRevenue` moves only that surplus into the
 identity. A Strategy or Fund payout reduces both `accountedRevenueBalance` and the matching whole liability exactly.
 
+This identity proves conservation, not historical allocation fairness. A-09 demonstrates that `pendingRevenueScaled`
+is divided by the signal supply present when it becomes indexable, so signal added after receipt can share earlier
+sub-index carry. The same temporal limitation applies to Bribe pending carry below.
+
 ## Bribe reward-token conservation
 
 For each registered token, including all account remainders in the test/model state:
@@ -66,6 +70,9 @@ An exact stream of `A` units emits `floor(A / 604800)` each second plus one addi
 `A mod 604800` seconds. Zero supply pauses all stream boundaries. A notification behind an active stream queues rather
 than resetting it. A completed exact claim clears only the selected token liability.
 
+Exact temporal attribution across a signal-supply change is not currently an invariant. The deterministic A-09 PoCs
+are expected to demonstrate the open carry-boundary reallocation until the owner selects an accounting policy.
+
 ## BribeRouter conservation
 
 ```text
@@ -84,10 +91,13 @@ payout(token) = floor(balanceBefore(token) * gbxAmount / totalSupplyBeforeBurn)
 ```
 
 The GBX burn and every selected transfer are atomic. LiquidityPosition only accepts its exact precommitted hookless
-NFT and range. Every successful compound satisfies:
+NFT and range. Every successful fee harvest satisfies:
 
 ```text
-liquidityAfter >= liquidityBefore + floor(liquidityBefore * 20 / 10000)
+liquidityAfter = liquidityBefore
+USDG balance after = 0; collected USDG = USDG credited to ResonanceRouter and routed to Resonance
+GBX balance after = 0; collected GBX = GBX credited to Fund and burned
 ```
 
-No function transfers the position NFT out or removes principal.
+Those routes and the Fund burn are atomic with fee collection. No function transfers the position NFT out or removes
+principal.

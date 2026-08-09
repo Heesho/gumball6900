@@ -75,9 +75,8 @@ dataSources:
         - name: LiquidityPosition
           file: ./abis/LiquidityPosition.json
       eventHandlers:
-        - event: Compounded(indexed uint256,indexed
-            address,uint128,uint128,uint128,uint256,uint256,uint256,uint256)
-          handler: handleCompounded
+        - event: FeesHarvested(indexed uint256,indexed address,uint128,uint256,uint256)
+          handler: handleFeesHarvested
         - event: PositionRecorded(indexed uint256,indexed address,indexed bytes32)
           handler: handlePositionRecorded
       file: ./src/liquidity-position.ts

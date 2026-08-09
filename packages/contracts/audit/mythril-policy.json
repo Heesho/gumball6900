@@ -13,24 +13,52 @@
   },
   "expectedTargets": [
     {
-      "artifact": "out/GBXToken.sol/GBXToken.json",
-      "contract": "GBXToken"
+      "artifact": "out/GBX.sol/GBX.json",
+      "contract": "GBX"
     },
     {
-      "artifact": "out/GumBallVault.sol/GumBallVault.json",
-      "contract": "GumBallVault"
+      "artifact": "out/Fundraiser.sol/Fundraiser.json",
+      "contract": "Fundraiser"
     },
     {
-      "artifact": "out/AcquisitionStrategy.sol/AcquisitionStrategy.json",
-      "contract": "AcquisitionStrategy"
+      "artifact": "out/SignalGBX.sol/SignalGBX.json",
+      "contract": "SignalGBX"
     },
     {
-      "artifact": "out/BuybackBurnStrategy.sol/BuybackBurnStrategy.json",
-      "contract": "BuybackBurnStrategy"
+      "artifact": "out/ResonanceRouter.sol/ResonanceRouter.json",
+      "contract": "ResonanceRouter"
     },
     {
-      "artifact": "out/ProtocolTimelock.sol/ProtocolTimelock.json",
-      "contract": "ProtocolTimelock"
+      "artifact": "out/Resonance.sol/Resonance.json",
+      "contract": "Resonance"
+    },
+    {
+      "artifact": "out/StrategyFactory.sol/StrategyFactory.json",
+      "contract": "StrategyFactory"
+    },
+    {
+      "artifact": "out/Strategy.sol/Strategy.json",
+      "contract": "Strategy"
+    },
+    {
+      "artifact": "out/BribeFactory.sol/BribeFactory.json",
+      "contract": "BribeFactory"
+    },
+    {
+      "artifact": "out/BribeRouter.sol/BribeRouter.json",
+      "contract": "BribeRouter"
+    },
+    {
+      "artifact": "out/Bribe.sol/Bribe.json",
+      "contract": "Bribe"
+    },
+    {
+      "artifact": "out/Fund.sol/Fund.json",
+      "contract": "Fund"
+    },
+    {
+      "artifact": "out/LiquidityPosition.sol/LiquidityPosition.json",
+      "contract": "LiquidityPosition"
     }
   ],
   "acceptedFindings": []

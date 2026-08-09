@@ -64,12 +64,12 @@ authorized for user funds. A green local build is engineering evidence, never a 
 
 - The canonical market position is one precommitted, hookless GBX/USDG Uniswap v4 position held by
   `LiquidityPosition`. It begins outside the active price range with GBX only, using the 20 million genesis allocation.
-- The position auto-compounds and removes zero principal. `compound` is permissionless: it grows position liquidity
-  by the fixed `COMPOUND_BPS` (0.20%) and pays the caller everything the position accrued. Uniswap v4 nets accrued
-  fees against the increase, so the caller funds only the shortfall. Do not add a keeper role, an oracle, a swap, a
-  fee split, or a governance parameter to this mechanism; the fixed threshold is the entire incentive.
-- Position fees are the compounding incentive and are not protocol revenue. They do not burn GBX and do not reach
-  `ResonanceRouter`. Fundraiser contributions are the only USDG revenue source for Resonance.
+- The position retains fixed principal and removes zero liquidity. `harvestFees` is permissionless: it collects fees
+  through a zero-liquidity PositionManager decrease, verifies principal is unchanged, routes USDG through
+  `ResonanceRouter`, and sends GBX to `Fund` for an atomic burn. Do not add caller funding, Permit2 approvals, a keeper
+  role, an oracle, a swap, a fee split, a caller bounty, or a governance parameter to this mechanism.
+- Position fees are protocol revenue. Harvested USDG follows the normal `ResonanceRouter -> Resonance -> Strategy`
+  route, while harvested GBX is burned from Fund in the same harvest transaction.
 - The position NFT can never be withdrawn, to any receiver, by any caller. `LiquidityPosition` is ownerless and has no
   successor or migration path: once the precommitted NFT is accepted it stays there permanently.
 

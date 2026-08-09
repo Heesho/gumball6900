@@ -11,6 +11,10 @@ the configured three-Strategy/eight-reward-token graph and that reward-token loo
 cap. A later production-hardening change resolves A-04 by recording a fixed Fund liability, so hostile USDG cannot block removal of the affected dead-Strategy
 signal, although unallocated `sGBX` and signals on unaffected Strategies remain independently removable.
 
+The 2026-08-09 adversarial rerun completed 101,840 Medusa calls, 3,632 branches, corpus 101, and 62/62 passing
+property/assertion surfaces. These conservation properties do not encode exact historical attribution across a
+changing signal denominator; the deterministic A-09 unit PoCs remain the evidence for that open issue.
+
 Run the pinned campaign with:
 
 ```bash

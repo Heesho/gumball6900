@@ -249,7 +249,7 @@ export function systemMap({ width = widths.full } = {}) {
       w: boxW,
       h: boxH,
       title: 'LiquidityPosition',
-      sub: 'Fixed 0.20% auto-compounding',
+      sub: 'Fixed principal, routed fees',
       accent: flow.capital,
     },
 
@@ -1519,12 +1519,12 @@ export function burnLoops({ width = widths.full } = {}) {
 
   loop(
     0,
-    'Liquidity compounding',
-    'Grow without removing principal',
+    'Liquidity fee harvest',
+    'Route without changing principal',
     [
-      { text: 'Caller adds the fixed 0.20% liquidity' },
-      { text: 'v4 nets fees against the increase' },
-      { text: 'Caller receives every accrued fee', terminal: true },
+      { text: 'Zero-liquidity decrease collects fees' },
+      { text: 'USDG routes into Resonance' },
+      { text: 'GBX reaches Fund and burns', terminal: true },
     ],
     palette.blue,
   );
@@ -1546,7 +1546,7 @@ export function burnLoops({ width = widths.full } = {}) {
     height,
     defs: markers,
     children: parts.join(''),
-    title: 'Liquidity compounding and explicit Fund burns',
+    title: 'Fixed-principal fee routing and explicit Fund burns',
   });
 }
 

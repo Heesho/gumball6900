@@ -10,7 +10,7 @@
     "docs:generate": "forge build && node scripts/generate-contract-docs.mjs",
     "fmt": "forge fmt",
     "fmt:check": "forge fmt --check",
-    "lint": "solhint 'src/**/*.sol' 'script/minimal/**/*.sol' && forge fmt --check",
+    "lint": "solhint 'src/**/*.sol' && forge fmt --check",
     "snapshot": "forge snapshot",
     "test": "forge test",
     "test:gas": "forge test --gas-report",

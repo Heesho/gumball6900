@@ -10,7 +10,7 @@ contributions: Fundraiser -> ResonanceRouter -> Resonance -> Strategy
 acquisitions:  buyer payment -> BribeRouter -> Fund liability -> Fund
 GBX payments:  buyer GBX -> BribeRouter -> Fund liability -> Fund -> permissionless burn
 redemptions:   user GBX -> burn; selected Fund assets -> receiver
-liquidity:      caller funds 0.20% growth shortfall -> position; accrued position fees -> caller
+liquidity:      accrued USDG -> ResonanceRouter; accrued GBX -> Fund -> atomic burn; principal fixed
 ```
 
 ## Contracts
@@ -19,7 +19,7 @@ liquidity:      caller funds 0.20% growth shortfall -> position; accrued positio
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------- |
 | `GBX`               | Creates 20M genesis-liquidity GBX, reserves the remaining 980M capacity for Fundraiser, and enforces the lifetime cap. |
 | `Fundraiser`        | Fixed daily four-year-half-life contribution schedule, proportional GBX claims, and immediate USDG routing.            |
-| `LiquidityPosition` | Permanently holds one canonical GBX/USDG v4 NFT and permissionlessly compounds it by a fixed 0.20%.                    |
+| `LiquidityPosition` | Permanently holds one canonical GBX/USDG v4 NFT at fixed principal and permissionlessly routes its fees.               |
 | `SignalGBX`         | Non-transferable, one-for-one staked GBX; unallocated `sGBX` is immediately withdrawable.                              |
 | `ResonanceRouter`   | Permissionlessly forwards all accumulated USDG to Resonance.                                                           |
 | `Resonance`         | Incremental absolute SignalGBX allocation, indexed USDG distribution, Strategy creation, and Bribe accounting.         |

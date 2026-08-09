@@ -31,7 +31,7 @@ invariant = { runs = 10_000, depth = 1_000, fail_on_revert = true }
 #
 #   - the Echidna/Medusa campaign harness deploys the whole protocol graph from its own constructor, as property-mode
 #     fuzzing requires, so its initcode exceeds EIP-3860 (Medusa sets `codeSizeCheckDisabled` for the same reason); and
-#   - the auto-compounder integration suite deploys real Uniswap v4, whose `PositionManager` exceeds EIP-170 when
+#   - the liquidity-fee integration suite deploys real Uniswap v4, whose `PositionManager` exceeds EIP-170 when
 #     built at this project's `optimizer_runs` rather than the settings Uniswap ships it with.
 #
 # Run with `pnpm --filter @gumball-6900/contracts test:integration`.

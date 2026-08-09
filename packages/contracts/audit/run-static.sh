@@ -47,7 +47,7 @@ if ! semgrep scan \
     --error \
     --sarif \
     --output "$REPORT_DIR/semgrep.sarif" \
-    src script/minimal; then
+    src; then
     status=1
 fi
 if ! jq --exit-status '.runs | type == "array" and all(.[]; (.results | type == "array" and length == 0))' \
@@ -83,7 +83,7 @@ if ! jq --exit-status 'type == "array" and length == 0' "$REPORT_DIR/gitleaks.js
     status=1
 fi
 
-if ! pnpm exec solhint 'src/**/*.sol' 'script/minimal/**/*.sol' >"$REPORT_DIR/solhint.txt" 2>&1; then
+if ! pnpm exec solhint 'src/**/*.sol' >"$REPORT_DIR/solhint.txt" 2>&1; then
     status=1
 fi
 

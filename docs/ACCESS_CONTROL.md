@@ -28,7 +28,7 @@ Fund has no owner at all. It exposes no administrative withdrawal, arbitrary-cal
 Assets leave Fund only when a GBX holder burns their own tokens through `redeem`.
 
 LiquidityPosition has no owner at all. Once the precommitted NFT is accepted it can never be transferred out, by any
-caller or any mechanism. Only permissionless compounding remains.
+caller or any mechanism. Only permissionless fixed-principal fee harvesting remains.
 
 ## One-time deployment bindings
 
@@ -40,4 +40,4 @@ the intended final minter is Fundraiser.
 
 Contribution, epoch settlement, claiming, routing, incremental signal addition and removal, staking, unstaking,
 Strategy purchase, revenue distribution, revenue synchronization/indexing, fixed Fund-liability payment, scalar or
-selective Bribe claiming, liquidity compounding, Fund burning, and redemption do not require an administrator.
+selective Bribe claiming, liquidity-fee harvesting, Fund burning, and redemption do not require an administrator.

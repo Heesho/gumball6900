@@ -133,9 +133,9 @@ test('rejects a stale disposition when a finding disappears', async () => {
 test('rejects expired dispositions', async () => {
   const paths = await fixture();
   const policy = JSON.parse(await readFile(paths.policy, 'utf8'));
-  policy.expiresAt = '2026-08-03T00:00:00Z';
+  policy.expiresAt = '2026-08-10T00:00:00Z';
   await writeFile(paths.policy, JSON.stringify(policy));
-  const result = run(paths, [], { STATIC_FINDINGS_NOW: '2026-08-04T00:00:00Z' });
+  const result = run(paths, [], { STATIC_FINDINGS_NOW: '2026-08-11T00:00:00Z' });
   assert.notEqual(result.status, 0);
   assert.match(result.stderr, /expired/);
 });

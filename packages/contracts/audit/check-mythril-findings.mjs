@@ -26,11 +26,18 @@ const MYTHRIL_INCOMPATIBLE_RUNTIME_OPCODES = new Map([
 
 export const REQUIRED_MYTHRIL_TARGETS = Object.freeze(
   [
-    ['GBXToken', 'out/GBXToken.sol/GBXToken.json'],
-    ['GumBallVault', 'out/GumBallVault.sol/GumBallVault.json'],
-    ['AcquisitionStrategy', 'out/AcquisitionStrategy.sol/AcquisitionStrategy.json'],
-    ['BuybackBurnStrategy', 'out/BuybackBurnStrategy.sol/BuybackBurnStrategy.json'],
-    ['ProtocolTimelock', 'out/ProtocolTimelock.sol/ProtocolTimelock.json'],
+    ['GBX', 'out/GBX.sol/GBX.json'],
+    ['Fundraiser', 'out/Fundraiser.sol/Fundraiser.json'],
+    ['SignalGBX', 'out/SignalGBX.sol/SignalGBX.json'],
+    ['ResonanceRouter', 'out/ResonanceRouter.sol/ResonanceRouter.json'],
+    ['Resonance', 'out/Resonance.sol/Resonance.json'],
+    ['StrategyFactory', 'out/StrategyFactory.sol/StrategyFactory.json'],
+    ['Strategy', 'out/Strategy.sol/Strategy.json'],
+    ['BribeFactory', 'out/BribeFactory.sol/BribeFactory.json'],
+    ['BribeRouter', 'out/BribeRouter.sol/BribeRouter.json'],
+    ['Bribe', 'out/Bribe.sol/Bribe.json'],
+    ['Fund', 'out/Fund.sol/Fund.json'],
+    ['LiquidityPosition', 'out/LiquidityPosition.sol/LiquidityPosition.json'],
   ].map(([contract, artifact]) => Object.freeze({ artifact, contract })),
 );
 
@@ -259,6 +266,8 @@ function normalizedReferenceSpans(value, bytecodeLength, label) {
 }
 
 function immutableReferenceEvidence(value, bytecodeLength, label) {
+  // Foundry 1.7.1 serializes an absent immutable-reference map as null for contracts with no immutables.
+  if (value === null || value === undefined) return [];
   if (!isObject(value)) fail(`${label} must be an object`);
   return Object.entries(value)
     .map(([id, spans]) => ({
@@ -269,6 +278,7 @@ function immutableReferenceEvidence(value, bytecodeLength, label) {
 }
 
 function linkReferenceEvidence(value, bytecodeLength, label) {
+  if (value === null || value === undefined) return [];
   if (!isObject(value)) fail(`${label} must be an object`);
   const references = [];
   for (const [source, libraries] of Object.entries(value)) {

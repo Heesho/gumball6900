@@ -304,15 +304,15 @@ A holder may omit an unwanted or broken token. The omitted claim is permanently 
 supply that continues after redemption. This selective design avoids making every Fund asset a mandatory dependency
 of every redemption.
 
-## 11. Liquidity compounding and Fund burns
+## 11. Fixed-principal liquidity fee routing and Fund burns
 
 The canonical market position is a precommitted, hookless GBX/USDG Uniswap v4 position funded with the 20 million GBX
 genesis allocation.
 
-The position removes zero principal. Its permissionless `compound` operation increases position liquidity by a fixed
-0.20% and pays the caller everything accrued by the position. Uniswap v4 nets accrued fees against the increase, so the
-caller funds only any shortfall. Position fees are the compounding incentive: they are not protocol revenue, do not
-burn GBX, and do not enter ResonanceRouter.
+The position keeps exactly its deposited principal liquidity. Its permissionless `harvestFees` operation uses a
+zero-liquidity decrease to collect every accrued fee without pulling funds from or paying a bounty to the caller.
+Harvested USDG routes through ResonanceRouter into Resonance. Harvested GBX transfers to Fund and is burned in the same
+atomic transaction. If either destination step fails, the entire harvest reverts.
 
 A Strategy may accept GBX like any other payment asset. Its complete GBX payment becomes a fixed Fund liability, and
 delivery does not change supply. Anyone may later burn GBX held by Fund through the dedicated permissionless function.
@@ -359,8 +359,8 @@ The final implementation should make the following properties explicit and testa
 8. every Strategy payment is fully classified as an immutable Fund liability;
 9. a GBX-priced Strategy leaves supply unchanged until an explicit Fund burn or redemption;
 10. each Bribe registers at most eight append-only reward tokens;
-11. permissionless liquidity compounding increases position liquidity by 0.20%, removes no principal, and pays the
-    caller all accrued position fees; and
+11. permissionless liquidity-fee harvesting leaves principal exactly unchanged, routes USDG through ResonanceRouter,
+    and burns GBX through Fund atomically; and
 12. the deployed core has no upgrade or arbitrary asset-withdrawal path.
 13. revenue and reward floor remainders remain explicit carry, while signal removal and unstaking perform no revenue
     or reward-token transfer.

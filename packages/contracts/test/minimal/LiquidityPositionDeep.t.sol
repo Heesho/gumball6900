@@ -11,18 +11,23 @@ import { PoolKey } from "@uniswap/v4-core/src/types/PoolKey.sol";
 import { IPositionManager } from "@uniswap/v4-periphery/src/interfaces/IPositionManager.sol";
 import { PositionInfo, PositionInfoLibrary } from "@uniswap/v4-periphery/src/libraries/PositionInfoLibrary.sol";
 
+import { Fund } from "../../src/core/Fund.sol";
 import { GBX } from "../../src/core/GBX.sol";
-import { LiquidityPosition } from "../../src/core/LiquidityPosition.sol";
-import { IAllowanceTransfer } from "permit2/src/interfaces/IAllowanceTransfer.sol";
+import { ILiquidityRevenueRouter, LiquidityPosition } from "../../src/core/LiquidityPosition.sol";
+import { IFund } from "../../src/core/interfaces/IFund.sol";
 
 import { MockERC20 } from "./utils/Tokens.sol";
 
-/// @notice Minimal Permit2 stand-in; this suite never settles, so it only has to exist and hold approvals.
-contract Permit2Mock {
-    mapping(address owner => mapping(address token => mapping(address spender => uint160 amount))) public allowanceOf;
+/// @notice Minimal immutable revenue-route identity for admission and dependency tests.
+contract RevenueRouterIdentityMock {
+    IERC20 public immutable usdg;
 
-    function approve(address token, address spender, uint160 amount, uint48) external {
-        allowanceOf[msg.sender][token][spender] = amount;
+    constructor(IERC20 usdg_) {
+        usdg = usdg_;
+    }
+
+    function route() external pure returns (uint256 amount) {
+        return 0;
     }
 }
 
@@ -58,17 +63,16 @@ contract PositionManagerMock is ERC721 {
 
 /// @title LiquidityPositionDeepTest
 /// @notice Exhaustive coverage of position admission and immutability on the ownerless position holder.
-/// @dev Compounding behavior is covered against real Uniswap v4 contracts in `LiquidityCompounding.t.sol`; this
+/// @dev Fee-harvest behavior is covered against real Uniswap v4 contracts in `LiquidityFeeHarvest.t.sol`; this
 ///      suite uses a stand-in PositionManager so every admission rejection branch is reachable.
 contract LiquidityPositionDeepTest is Test {
     uint256 private constant TOKEN_ID = 7;
-    address private constant RESONANCE = address(0xB07E);
-    address private constant KEEPER = address(0x9EE9E5);
     address private constant ALICE = address(0xA11CE);
 
     GBX private gbx;
     MockERC20 private usdg;
-    Permit2Mock private permit2;
+    Fund private fund;
+    RevenueRouterIdentityMock private resonanceRouter;
     PositionManagerMock private positionManager;
     LiquidityPosition private position;
     PoolKey private poolKey;
@@ -81,7 +85,8 @@ contract LiquidityPositionDeepTest is Test {
         vm.warp(365 days);
         gbx = new GBX(address(this), address(this));
         usdg = new MockERC20("Global Dollar", "USDG", 6);
-        permit2 = new Permit2Mock();
+        fund = new Fund(gbx);
+        resonanceRouter = new RevenueRouterIdentityMock(IERC20(address(usdg)));
         positionManager = new PositionManagerMock();
 
         poolKey = _keyFor(address(gbx), address(usdg), 3_000, 60, address(0));
@@ -97,13 +102,14 @@ contract LiquidityPositionDeepTest is Test {
     //////////////////////////////////////////////////////////////*/
 
     function test_ConstructorRejectsEveryZeroDependency() external {
-        for (uint256 i; i < 5; ++i) {
+        for (uint256 i; i < 6; ++i) {
             LiquidityPosition.Dependencies memory dependencies = _dependencies(address(this), TOKEN_ID);
             if (i == 0) dependencies.positionManager = IPositionManager(address(0));
             if (i == 1) dependencies.positionDepositor = address(0);
             if (i == 2) dependencies.gbx = GBX(address(0));
             if (i == 3) dependencies.usdg = IERC20(address(0));
-            if (i == 4) dependencies.permit2 = IAllowanceTransfer(address(0));
+            if (i == 4) dependencies.resonanceRouter = ILiquidityRevenueRouter(address(0));
+            if (i == 5) dependencies.fund = IFund(address(0));
 
             vm.expectRevert(LiquidityPosition.ZeroAddress.selector);
             new LiquidityPosition(dependencies, poolKey, tickLower, tickUpper);
@@ -111,16 +117,46 @@ contract LiquidityPositionDeepTest is Test {
     }
 
     function test_ConstructorRejectsEveryCodelessDependency() external {
-        for (uint256 i; i < 4; ++i) {
+        for (uint256 i; i < 5; ++i) {
             LiquidityPosition.Dependencies memory dependencies = _dependencies(address(this), TOKEN_ID);
             if (i == 0) dependencies.positionManager = IPositionManager(ALICE);
             if (i == 1) dependencies.gbx = GBX(ALICE);
             if (i == 2) dependencies.usdg = IERC20(ALICE);
-            if (i == 3) dependencies.permit2 = IAllowanceTransfer(ALICE);
+            if (i == 3) dependencies.resonanceRouter = ILiquidityRevenueRouter(ALICE);
+            if (i == 4) dependencies.fund = IFund(ALICE);
 
             vm.expectRevert(abi.encodeWithSelector(LiquidityPosition.AddressHasNoCode.selector, ALICE));
             new LiquidityPosition(dependencies, poolKey, tickLower, tickUpper);
         }
+    }
+
+    function test_ConstructorRejectsMismatchedDestinationTokens() external {
+        MockERC20 stranger = new MockERC20("Stranger", "STR", 18);
+        RevenueRouterIdentityMock wrongRouter = new RevenueRouterIdentityMock(IERC20(address(stranger)));
+        LiquidityPosition.Dependencies memory dependencies = _dependencies(address(this), TOKEN_ID);
+        dependencies.resonanceRouter = ILiquidityRevenueRouter(address(wrongRouter));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                LiquidityPosition.InvalidDestinationToken.selector,
+                address(wrongRouter),
+                address(usdg),
+                address(stranger)
+            )
+        );
+        new LiquidityPosition(dependencies, poolKey, tickLower, tickUpper);
+
+        GBX wrongGBX = new GBX(address(this), address(this));
+        Fund wrongFund = new Fund(wrongGBX);
+        dependencies = _dependencies(address(this), TOKEN_ID);
+        dependencies.fund = IFund(address(wrongFund));
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                LiquidityPosition.InvalidDestinationToken.selector, address(wrongFund), address(gbx), address(wrongGBX)
+            )
+        );
+        new LiquidityPosition(dependencies, poolKey, tickLower, tickUpper);
     }
 
     function test_ConstructorRejectsAPoolThatIsNotTheCanonicalPair() external {
@@ -282,11 +318,21 @@ contract LiquidityPositionDeepTest is Test {
             assertFalse(succeeded, string.concat("LiquidityPosition must not expose ", removed[i]));
             assertEq(returnData.length, 0, string.concat("no dispatch target should exist for ", removed[i]));
         }
+
+        (bool compoundSucceeded, bytes memory compoundData) = address(position)
+            .call(abi.encodeWithSignature("compound(uint128,uint128,uint256)", uint128(0), uint128(0), block.timestamp));
+        assertFalse(compoundSucceeded, "compound must not exist");
+        assertEq(compoundData.length, 0, "compound must have no dispatch target");
+
+        (bool requirementSucceeded, bytes memory requirementData) =
+            address(position).call(abi.encodeWithSignature("compoundRequirement()"));
+        assertFalse(requirementSucceeded, "compoundRequirement must not exist");
+        assertEq(requirementData.length, 0, "compoundRequirement must have no dispatch target");
     }
 
     /// @notice Once admitted, the canonical NFT can never leave, by any caller or any mechanism.
     /// @dev The accepted cost of removing migration: the genesis position is locked permanently. It stays
-    ///      productive regardless, which `LiquidityCompounding.t.sol` proves against real Uniswap v4.
+    ///      productive regardless, while `LiquidityFeeHarvest.t.sol` proves fixed-principal fee collection.
     function test_TheCanonicalNFTCanNeverLeaveOnceAdmitted() external {
         assertTrue(position.positionInCustody());
 
@@ -327,7 +373,8 @@ contract LiquidityPositionDeepTest is Test {
             expectedPositionTokenId: tokenId,
             gbx: gbx,
             usdg: IERC20(address(usdg)),
-            permit2: IAllowanceTransfer(address(permit2))
+            resonanceRouter: ILiquidityRevenueRouter(address(resonanceRouter)),
+            fund: IFund(address(fund))
         });
     }
 

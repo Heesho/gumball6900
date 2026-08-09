@@ -724,34 +724,31 @@
         "backingPerGBXAfter": "981818181818181818"
       }
     ],
-    "revenueSourceComparison": [
-      {
-        "id": "mining-revenue",
-        "startingSupply": "100000000000000000000000000",
-        "startingVaultValueUSDGRaw": "100000000000000",
-        "revenueUSDGRaw": "10000000000000",
-        "emission": "10000000000000000000000000",
-        "gbxAcquisitionBudgetUSDGRaw": "1000000000000",
-        "marketPrice": "800000000000000000",
-        "gbxBurned": "1250000000000000000000000",
-        "supplyAfter": "108750000000000000000000000",
-        "vaultValueAfterUSDGRaw": "109000000000000",
-        "backingPerGBXAfter": "1002298850574712643"
-      },
-      {
-        "id": "lp-fee-revenue",
-        "startingSupply": "100000000000000000000000000",
-        "startingVaultValueUSDGRaw": "100000000000000",
-        "revenueUSDGRaw": "1000000000000",
-        "emission": "0",
-        "gbxAcquisitionBudgetUSDGRaw": "1000000000000",
-        "marketPrice": "800000000000000000",
-        "gbxBurned": "1250000000000000000000000",
-        "supplyAfter": "98750000000000000000000000",
-        "vaultValueAfterUSDGRaw": "100000000000000",
-        "backingPerGBXAfter": "1012658227848101265"
-      }
-    ],
+    "miningRevenueAcquisitionAndBurn": {
+      "id": "mining-revenue",
+      "startingSupply": "100000000000000000000000000",
+      "startingVaultValueUSDGRaw": "100000000000000",
+      "revenueUSDGRaw": "10000000000000",
+      "emission": "10000000000000000000000000",
+      "gbxAcquisitionBudgetUSDGRaw": "1000000000000",
+      "marketPrice": "800000000000000000",
+      "gbxBurned": "1250000000000000000000000",
+      "supplyAfter": "108750000000000000000000000",
+      "vaultValueAfterUSDGRaw": "109000000000000",
+      "backingPerGBXAfter": "1002298850574712643"
+    },
+    "liquidityFeeHarvest": {
+      "id": "lp-fee-harvest",
+      "principalLiquidityBefore": "1000000000000000000",
+      "principalLiquidityAfter": "1000000000000000000",
+      "usdgFeesRaw": "1000000000000",
+      "usdgRoutedToResonanceRaw": "1000000000000",
+      "gbxFees": "1250000000000000000000000",
+      "gbxSentToFund": "1250000000000000000000000",
+      "gbxBurned": "1250000000000000000000000",
+      "startingSupply": "100000000000000000000000000",
+      "supplyAfter": "98750000000000000000000000"
+    },
     "simultaneousEmissionAndBurn": [
       {
         "burnRateBps": "0",

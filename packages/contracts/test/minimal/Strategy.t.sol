@@ -239,6 +239,55 @@ contract StrategyTest is ProtocolFixture {
         vm.stopPrank();
     }
 
+    function test_RevenueReceiverEqualToStrategyFailsAtomically() external {
+        _fundStrategy(targetStrategy, 50_000_000);
+        target.mint(CAROL, DEFAULT_INITIAL_PRICE);
+
+        vm.startPrank(CAROL);
+        target.approve(address(targetStrategy), DEFAULT_INITIAL_PRICE);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Strategy.InexactPayout.selector, address(targetStrategy), 50_000_000, uint256(0), uint256(0)
+            )
+        );
+        targetStrategy.buy(address(targetStrategy), 0, block.timestamp, DEFAULT_INITIAL_PRICE);
+        vm.stopPrank();
+
+        assertEq(targetStrategy.epochId(), 0);
+        assertEq(targetRouter.fundPaymentLiability(), 0);
+        assertEq(target.balanceOf(CAROL), DEFAULT_INITIAL_PRICE);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 50_000_000);
+    }
+
+    function test_RevenueReceiverEqualToFundSettlesExactly() external {
+        _fundStrategy(targetStrategy, 50_000_000);
+        uint256 price = targetStrategy.currentPrice();
+        target.mint(CAROL, price);
+
+        vm.startPrank(CAROL);
+        target.approve(address(targetStrategy), price);
+        targetStrategy.buy(address(fund), 0, block.timestamp, price);
+        vm.stopPrank();
+
+        assertEq(usdg.balanceOf(address(fund)), 50_000_000);
+    }
+
+    function test_RevenueReceiverEqualToResonanceCreatesSynchronizableDonation() external {
+        _fundStrategy(targetStrategy, 50_000_000);
+        uint256 price = targetStrategy.currentPrice();
+        target.mint(CAROL, price);
+
+        vm.startPrank(CAROL);
+        target.approve(address(targetStrategy), price);
+        targetStrategy.buy(address(resonance), 0, block.timestamp, price);
+        vm.stopPrank();
+
+        assertEq(resonance.unaccountedRevenue(), 50_000_000);
+        resonance.syncRevenue();
+        assertEq(resonance.unaccountedRevenue(), 0);
+        assertEq(resonance.fundRevenueLiability(), 50_000_000);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           ACQUISITION SETTLEMENT
     //////////////////////////////////////////////////////////////*/

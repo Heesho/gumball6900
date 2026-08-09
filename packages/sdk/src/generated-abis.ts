@@ -3529,9 +3529,14 @@ export const liquidityPositionAbi = [
             internalType: 'contract IERC20',
           },
           {
-            name: 'permit2',
+            name: 'resonanceRouter',
             type: 'address',
-            internalType: 'contract IAllowanceTransfer',
+            internalType: 'contract ILiquidityRevenueRouter',
+          },
+          {
+            name: 'fund',
+            type: 'address',
+            internalType: 'contract IFund',
           },
         ],
       },
@@ -3579,84 +3584,6 @@ export const liquidityPositionAbi = [
       },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'BPS_SCALE',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'COMPOUND_BPS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'compound',
-    inputs: [
-      {
-        name: 'amount0Max',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-      {
-        name: 'amount1Max',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'liquidityAdded',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-      {
-        name: 'claimed0',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'claimed1',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'compoundRequirement',
-    inputs: [],
-    outputs: [
-      {
-        name: 'liquidityRequired',
-        type: 'uint128',
-        internalType: 'uint128',
-      },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -3725,6 +3652,19 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'function',
+    name: 'fund',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'contract IFund',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'gbx',
     inputs: [],
     outputs: [
@@ -3735,6 +3675,24 @@ export const liquidityPositionAbi = [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'harvestFees',
+    inputs: [],
+    outputs: [
+      {
+        name: 'usdgRouted',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'gbxBurned',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -3769,19 +3727,6 @@ export const liquidityPositionAbi = [
       },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'permit2',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract IAllowanceTransfer',
-      },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -3916,6 +3861,19 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'function',
+    name: 'resonanceRouter',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'contract ILiquidityRevenueRouter',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'tickSpacing',
     inputs: [],
     outputs: [
@@ -3942,7 +3900,7 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'event',
-    name: 'Compounded',
+    name: 'FeesHarvested',
     inputs: [
       {
         name: 'positionTokenId',
@@ -3957,43 +3915,19 @@ export const liquidityPositionAbi = [
         internalType: 'address',
       },
       {
-        name: 'liquidityBefore',
+        name: 'principalLiquidity',
         type: 'uint128',
         indexed: false,
         internalType: 'uint128',
       },
       {
-        name: 'liquidityAdded',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'liquidityAfter',
-        type: 'uint128',
-        indexed: false,
-        internalType: 'uint128',
-      },
-      {
-        name: 'funding0',
+        name: 'usdgRouted',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
       },
       {
-        name: 'funding1',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'transferred0',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'transferred1',
+        name: 'gbxBurned',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -4039,17 +3973,6 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'error',
-    name: 'CompoundDeadlinePassed',
-    inputs: [
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'EmptyPosition',
     inputs: [
       {
@@ -4061,10 +3984,15 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'error',
-    name: 'InexactFunding',
+    name: 'InexactTransfer',
     inputs: [
       {
         name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'destination',
         type: 'address',
         internalType: 'address',
       },
@@ -4074,12 +4002,12 @@ export const liquidityPositionAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'payerDebit',
+        name: 'debit',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'positionCredit',
+        name: 'credit',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -4087,43 +4015,22 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'error',
-    name: 'InexactPayout',
+    name: 'InvalidDestinationToken',
     inputs: [
       {
-        name: 'token',
+        name: 'destination',
         type: 'address',
         internalType: 'address',
       },
       {
         name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'positionDebit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'callerCredit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InsufficientCompound',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint128',
-        internalType: 'uint128',
+        type: 'address',
+        internalType: 'address',
       },
       {
         name: 'actual',
-        type: 'uint128',
-        internalType: 'uint128',
+        type: 'address',
+        internalType: 'address',
       },
     ],
   },
@@ -4257,10 +4164,15 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'error',
-    name: 'PositionTooSmallToCompound',
+    name: 'PrincipalLiquidityChanged',
     inputs: [
       {
-        name: 'liquidity',
+        name: 'expected',
+        type: 'uint128',
+        internalType: 'uint128',
+      },
+      {
+        name: 'actual',
         type: 'uint128',
         internalType: 'uint128',
       },

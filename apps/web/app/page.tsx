@@ -65,10 +65,7 @@ export default function HomePage() {
         <Panel eyebrow="Core economics" title="Simple, explicit value flows">
           <dl className="space-y-5">
             <Definition label="Contribution revenue" value="Fundraiser → Resonance → Strategies" />
-            <Definition
-              label="v4 position fees"
-              value="Permissionless compound caller incentive · not protocol revenue"
-            />
+            <Definition label="v4 position fees" value="USDG → Resonance · GBX → Fund burn · principal fixed" />
             <Definition label="Strategy payment" value="100% fixed Fund liability" />
             <Definition label="GBX payment" value="Fund receipt · optional later burn" />
             <Definition label="Signal" value="Replaceable at any time" />

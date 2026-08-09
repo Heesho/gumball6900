@@ -1,6 +1,6 @@
 # Mutation-testing record
 
-No defensible mutation score exists for the current production-hardening tree.
+No defensible mutation score exists for the current adversarial-audit tree.
 
 The repository contains historical prose reporting a disposable-copy Slither mutation campaign against an earlier
 tree, but it has no checked-in mutation configuration, current source-span baseline, equivalence-review ledger, or

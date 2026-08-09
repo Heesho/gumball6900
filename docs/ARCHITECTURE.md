@@ -12,8 +12,8 @@ GBX in Fund -> permissionless burn
 
 GBX holder -> Fund.redeem(selected tokens) -> in-kind assets
 
-Uniswap v4 position -> LiquidityPosition -> caller adds 0.20% liquidity
-                                        -> caller takes the accrued fees
+Uniswap v4 position -> LiquidityPosition -> USDG -> ResonanceRouter -> Resonance
+                                        -> GBX -> Fund -> atomic burn
 ```
 
 Fundraiser accounts for contribution epochs and routes every USDG contribution immediately. Resonance maintains an
@@ -28,6 +28,7 @@ caller, using EIP-1153 transient storage for O(n) duplicate detection. Fund has 
 
 GBX mints exactly 20 million tokens to the genesis-liquidity recipient before its minter is locked to Fundraiser.
 LiquidityPosition validates and holds one precommitted, nonempty, hookless GBX/USDG position NFT with the reviewed
-single-sided range. Permissionless compounding adds a fixed 0.20% liquidity and removes no principal.
+single-sided range. Permissionless harvesting preserves its exact principal, routes USDG to Resonance, and burns GBX
+through Fund atomically.
 
 See [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md) for contract-level responsibilities.

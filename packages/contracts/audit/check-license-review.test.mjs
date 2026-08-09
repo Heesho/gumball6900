@@ -401,7 +401,8 @@ test('checked-in inventory baseline exactly matches the checked-in lockfile and 
     workspaceConfigBytes: checkedWorkspaceConfigBytes,
   });
   assert.deepEqual(result.errors, []);
-  assert.equal(result.requiredEntries.length, 38);
+  assert.equal(result.requiredEntries.length, 30);
+  assert.equal(result.requiredEntries.length, policy.entries.length);
   assert.match(releaseApprovalErrors(policy).join('\n'), /state is not approved/);
 });
 

@@ -97,7 +97,7 @@ asset.
 
 ### Permissionless execution
 
-Revenue routing, Strategy distribution, Fundraiser settlement, liquidity compounding, reward claims, and committed
+Revenue routing, Strategy distribution, Fundraiser settlement, liquidity-fee harvesting, reward claims, and committed
 Fund burns can all be executed permissionlessly. Holders govern capital direction through continuous signals; the
 target final design leaves management only the four explicit actions listed below.
 
@@ -138,11 +138,9 @@ Sequential integer rounding leaves less than one millionth of one GBX unminted a
 The canonical market is one hookless GBX/USDG Uniswap v4 position. It begins outside the active price range with the
 20 million GBX genesis allocation on one side.
 
-The position stays inside `LiquidityPosition` permanently; there is no NFT withdrawal at all. It compounds itself:
-
-- anyone may grow the position by 0.20% of its liquidity and take everything it has accrued; and
-- Uniswap v4 nets accrued fees against that increase, so a searcher is paid to do it exactly when the fees are worth
-  more than the growth, and nobody has to be paid to watch it.
+The position stays inside `LiquidityPosition` permanently; there is no NFT withdrawal at all and principal liquidity
+never changes. Anyone may harvest the accrued fees without receiving a bounty: USDG is routed through
+`ResonanceRouter` into Resonance, while GBX is sent to Fund and burned in the same transaction.
 
 In the target final design, the deployed position cannot be withdrawn, migrated, or upgraded.
 
@@ -176,7 +174,7 @@ Assets leave only through the protocol's fixed redemption and acquisition mechan
 | `BribeRouter`       | Records each complete Strategy payment as a permissionless fixed Fund liability.                    |
 | `Bribe`             | Streams at most eight independently funded reward tokens across Strategy signal balances.           |
 | `Fund`              | Registry-free asset backing, selective redemption, and GBX burning.                                 |
-| `LiquidityPosition` | Permanent custody and fixed 0.20% permissionless compounding for the canonical Uniswap v4 position. |
+| `LiquidityPosition` | Permanent fixed-principal custody and permissionless protocol routing of canonical Uniswap v4 fees. |
 
 The Solidity source of truth is [`packages/contracts/src/core`](packages/contracts/src/core). Foundry and Hardhat
 compile the same source tree.

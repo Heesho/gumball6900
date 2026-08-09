@@ -157,23 +157,20 @@ test('installer consumes configured locks with require-hashes and retains the ex
   assert.match(installer, /"\$ANALYZER_DEPENDENCIES_PREPARED" == true/u);
 });
 
-test('analyzer workflows resolve setup-python from policy before installing tools', async () => {
-  const workflowCases = [
-    ['.github/workflows/pr.yml', '\n  security:', '\n  codeql:'],
-    ['.github/workflows/nightly.yml', '\n  external-tooling:', '\n  dependency-report:'],
-    ['.github/workflows/release.yml', '\n  security_evidence:', '\n  candidate_authorization:'],
-  ];
-  for (const [repositoryPath, startMarker, endMarker] of workflowCases) {
+test('workflow analyzer installs cannot bypass policy resolution', async () => {
+  for (const repositoryPath of ['.github/workflows/pr.yml', '.github/workflows/nightly.yml']) {
     const workflow = await readFile(path.join(REPOSITORY_ROOT, repositoryPath), 'utf8');
-    const section = workflow.slice(workflow.indexOf(startMarker), workflow.indexOf(endMarker));
-    const resolver = section.indexOf('resolve-analyzer-environment.mjs');
-    const setupPython = section.indexOf('actions/setup-python@');
-    const installer = section.indexOf('audit/install-tools.sh');
-    assert.ok(resolver >= 0, `${repositoryPath} analyzer job omits policy resolution`);
-    assert.ok(setupPython > resolver, `${repositoryPath} sets Python before policy resolution`);
-    assert.ok(installer > setupPython, `${repositoryPath} installs analyzers before Python setup`);
-    assert.match(section, /architecture: x64/u);
-    assert.match(section, /python-version: \$\{\{ steps\.analyzer_environment\.outputs\.python_version \}\}/u);
-    assert.doesNotMatch(section, /python-version: ['"]?3\.10(?:['"]|\s*$)/mu);
+    const jobs = workflow.split(/\n(?= {2}[a-zA-Z0-9_-]+:\n)/u);
+    for (const job of jobs.filter((section) => section.includes('audit/install-tools.sh'))) {
+      const resolver = job.indexOf('resolve-analyzer-environment.mjs');
+      const setupPython = job.indexOf('actions/setup-python@');
+      const installer = job.indexOf('audit/install-tools.sh');
+      assert.ok(resolver >= 0, `${repositoryPath} analyzer job omits policy resolution`);
+      assert.ok(setupPython > resolver, `${repositoryPath} sets Python before policy resolution`);
+      assert.ok(installer > setupPython, `${repositoryPath} installs analyzers before Python setup`);
+      assert.match(job, /architecture: x64/u);
+      assert.match(job, /python-version: \$\{\{ steps\.analyzer_environment\.outputs\.python_version \}\}/u);
+      assert.doesNotMatch(job, /python-version: ['"]?3\.10(?:['"]|\s*$)/mu);
+    }
   }
 });

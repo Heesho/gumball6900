@@ -1,0 +1,35 @@
+# Fork-validation record
+
+Date: 2026-08-09
+
+No current-graph fork campaign passed in this audit. This is a blocked release gate, not a skipped test represented as
+success.
+
+## What was validated
+
+The prior hardening pass performed non-mutating JSON-RPC reads against Robinhood Chain ID 4663 at block `32,035,314`,
+block hash `0xe13569d3a71001227e35d660dfbcfed1e7660d10b74c0c639e4bc0eab1555aea`. It recorded code hashes for the
+documented PoolManager, PositionManager, and Permit2 addresses and successfully executed `TSTORE`/`TLOAD` in an
+`eth_call`. Exact addresses and hashes are in `UNISWAP-V4-REVIEW.md`.
+
+That evidence establishes Cancun/EIP-1153 availability and observed dependency code at one historical block. It does
+not instantiate this undeployed protocol, verify a deployment manifest, prove current code at a later block, or test
+the canonical pool/NFT because no canonical GBX deployment exists.
+
+## Why a fork did not run
+
+- The repository has no signed deployment manifest for the current 12-contract ADR 0021 graph.
+- The checked deployment schema and release/fork utilities are explicitly archived legacy evidence for a different
+  14-contract graph and cannot safely construct current protocol state.
+- No current deployment addresses, constructor arguments, one-time bindings, PoolKey, token ID, or role snapshot are
+  authorized.
+- No credential-bearing RPC URL was requested, recorded, or printed during this review.
+
+## Reproducible requirement
+
+Before release, build a current non-broadcast deployment/fork harness, bind it to a signed manifest, record the RPC
+provider capability without exposing credentials, and pin chain ID, block number, block hash, dependency code hashes,
+constructor inputs, one-time bindings, timelock roles, PoolKey, ticks, token ID, and NFT custody. Then rerun Fund
+EIP-1153 redemption and genuine PositionManager fixed-principal fee harvesting against that exact state.
+
+Status: **blocked / not executed**. Release blocker: **yes**.

@@ -6,6 +6,9 @@
   LiquidityPosition are ownerless.
 - Unrestricted signaling permits rapid allocation movement and wallet-splitting; it deliberately provides no
   epoch-level stability or anti-churn guarantee.
+- Sub-index Resonance and Bribe carry is conserved but indexed against the signal supply present when the threshold is
+  crossed. A late signal can therefore share value received or emitted before entry (A-09), especially for
+  low-decimal supported tokens.
 - A broken or blocklisting token can prevent its own deferred Fund or user payout. The fixed liability remains
   observable and retryable, while signal removal and unstaking remain available because neither path transfers it.
 - A malformed caller-selected token can revert that redemption, but cannot block redemptions that omit
@@ -23,8 +26,8 @@
   the committed pool, token ID, ticks, and nonzero liquidity but cannot reconstruct the amount deposited.
 - The canonical v4 position is locked in LiquidityPosition permanently. A deployment error in its pool, range, or
   token ID cannot be corrected afterwards; admission checks are the only defense, and they run once, on receipt.
-- A compounder chooses the market price at which the fixed 0.20% liquidity increase occurs. Without an oracle or
-  swap, range width and transaction-level price movement can change the token composition required for the increase.
+- Fee harvesting has no caller bounty. Accrued fees may remain unharvested until someone voluntarily pays gas, and a
+  failing Resonance route or Fund burn reverts the entire harvest until the destination is usable again.
 
 ## Explicitly absent protections
 

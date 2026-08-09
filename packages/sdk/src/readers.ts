@@ -147,10 +147,12 @@ export const liquidityPositionViewSchema = z.object({
   expectedPositionTokenId: unsignedBigIntSchema,
   expectedTickLower: z.number().int(),
   expectedTickUpper: z.number().int(),
+  fund: addressSchema,
   poolKeyHash: z.string().regex(/^0x[\da-f]{64}$/iu),
   positionInCustody: z.boolean(),
   positionRecorded: z.boolean(),
   positionTokenId: unsignedBigIntSchema,
+  resonanceRouter: addressSchema,
 });
 export type LiquidityPositionView = z.infer<typeof liquidityPositionViewSchema>;
 
@@ -166,28 +168,34 @@ export async function readLiquidityPositionView(
     expectedPositionTokenId,
     expectedTickLower,
     expectedTickUpper,
+    fund,
     poolKeyHash,
     positionInCustody,
     positionRecorded,
     positionTokenId,
+    resonanceRouter,
   ] = await Promise.all([
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'expectedPositionTokenId'),
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'expectedTickLower'),
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'expectedTickUpper'),
+    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'fund'),
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'poolKeyHash'),
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'positionInCustody'),
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'positionRecorded'),
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'positionTokenId'),
+    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'resonanceRouter'),
   ]);
   const result = liquidityPositionViewSchema.parse({
     blockNumber,
     expectedPositionTokenId,
     expectedTickLower,
     expectedTickUpper,
+    fund,
     poolKeyHash,
     positionInCustody,
     positionRecorded,
     positionTokenId,
+    resonanceRouter,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;
