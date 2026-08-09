@@ -73,7 +73,7 @@ describe('Fundraiser and liquidity reads', () => {
     });
   });
 
-  it('reads the canonical v4 position custody and successor state', async () => {
+  it('reads the canonical v4 position custody and range state', async () => {
     const poolKeyHash = `0x${'cd'.repeat(32)}`;
     const values: Readonly<Record<string, unknown>> = {
       expectedPositionTokenId: 11n,
@@ -83,7 +83,6 @@ describe('Fundraiser and liquidity reads', () => {
       positionInCustody: true,
       positionRecorded: true,
       positionTokenId: 11n,
-      successor: address(3),
     };
     const readContract = vi.fn(
       async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],

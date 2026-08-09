@@ -87,16 +87,25 @@ export function buildSettleFundraiserEpochs(fundraiser: Address, maximumEpochs: 
   );
 }
 
-/** Collects canonical v4 position fees, burns GBX, and routes USDG through ResonanceRouter. */
-export function buildCollectLiquidityFees(liquidityPosition: Address): ContractTransaction {
-  return transaction(liquidityPosition, encodeFunctionData({ abi: liquidityPositionAbi, functionName: 'collectFees' }));
-}
-
-/** Executes the canonical position's migration after governance binds a compatible successor. */
-export function buildMigrateLiquidityPosition(liquidityPosition: Address): ContractTransaction {
+/**
+ * Grows the canonical v4 position by its fixed requirement and pays the caller everything it had accrued.
+ *
+ * `amount0Max` and `amount1Max` are both the funding pulled from the caller and the slippage ceiling: unspent
+ * funding is returned in the same call, so set them to what the increase may cost at an acceptable price.
+ */
+export function buildCompoundLiquidity(
+  liquidityPosition: Address,
+  amount0Max: bigint,
+  amount1Max: bigint,
+  deadline: bigint,
+): ContractTransaction {
   return transaction(
     liquidityPosition,
-    encodeFunctionData({ abi: liquidityPositionAbi, functionName: 'migratePosition' }),
+    encodeFunctionData({
+      abi: liquidityPositionAbi,
+      functionName: 'compound',
+      args: [amount0Max, amount1Max, deadline],
+    }),
   );
 }
 

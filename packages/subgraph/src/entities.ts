@@ -13,8 +13,8 @@ export function getProtocol(event: ethereum.Event): ProtocolState {
     protocol.totalSupplyRaw = ZERO;
     protocol.fundraiserContributionsRaw = ZERO;
     protocol.fundraiserClaimsRaw = ZERO;
-    protocol.liquidityGBXBurnedRaw = ZERO;
-    protocol.liquidityUSDGRoutedRaw = ZERO;
+    protocol.liquidityAddedRaw = ZERO;
+    protocol.liquidityCompoundCount = ZERO;
     protocol.routedRevenueRaw = ZERO;
     protocol.notifiedRevenueRaw = ZERO;
     protocol.distributedRevenueRaw = ZERO;

@@ -4,10 +4,9 @@ import { describe, expect, it } from 'vitest';
 import {
   buildApproval,
   buildContribution,
-  buildCollectLiquidityFees,
+  buildCompoundLiquidity,
   buildFundBurn,
   buildFundraiserClaim,
-  buildMigrateLiquidityPosition,
   buildRedemption,
   buildResetSignals,
   buildSettleFundraiserEpochs,
@@ -85,10 +84,7 @@ describe('minimal typed transaction builders', () => {
       functionName: 'settleEpochs',
     });
     expect(
-      decodeFunctionData({ abi: liquidityPositionAbi, data: buildCollectLiquidityFees(A).data }).functionName,
-    ).toBe('collectFees');
-    expect(
-      decodeFunctionData({ abi: liquidityPositionAbi, data: buildMigrateLiquidityPosition(A).data }).functionName,
-    ).toBe('migratePosition');
+      decodeFunctionData({ abi: liquidityPositionAbi, data: buildCompoundLiquidity(A, 1n, 2n, 3n).data }).functionName,
+    ).toBe('compound');
   });
 });

@@ -1,0 +1,200 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Test } from "forge-std/Test.sol";
+
+import { Bribe } from "../../../src/core/Bribe.sol";
+import { BribeFactory } from "../../../src/core/BribeFactory.sol";
+import { BribeRouter } from "../../../src/core/BribeRouter.sol";
+import { Fund } from "../../../src/core/Fund.sol";
+import { Fundraiser } from "../../../src/core/Fundraiser.sol";
+import { GBX } from "../../../src/core/GBX.sol";
+import { Resonance } from "../../../src/core/Resonance.sol";
+import { ResonanceRouter } from "../../../src/core/ResonanceRouter.sol";
+import { SignalGBX } from "../../../src/core/SignalGBX.sol";
+import { Strategy } from "../../../src/core/Strategy.sol";
+import { StrategyFactory } from "../../../src/core/StrategyFactory.sol";
+
+import { MockERC20 } from "./Tokens.sol";
+
+/// @title ProtocolFixture
+/// @notice Deploys the complete core graph in the same order the minimal deployment script uses.
+/// @dev Every suite in this directory inherits from this fixture so the wiring under test is the real wiring.
+abstract contract ProtocolFixture is Test {
+    address internal constant ALICE = address(0xA11CE);
+    address internal constant BOB = address(0xB0B);
+    address internal constant CAROL = address(0xCA401);
+    address internal constant DAVE = address(0xDA3E);
+    address internal constant KEEPER = address(0x9EE9E5);
+    address internal constant GENESIS = address(0x6E4E515);
+
+    /// @notice Deployment timestamp used by every suite so epoch math never starts near zero.
+    uint256 internal constant DEPLOYED_AT = 365 days;
+
+    uint256 internal constant DEFAULT_INITIAL_PRICE = 10 ether;
+    uint256 internal constant DEFAULT_EPOCH_DURATION = 1 days;
+    uint256 internal constant DEFAULT_PRICE_MULTIPLIER = 1.5e18;
+    uint256 internal constant DEFAULT_MINIMUM_PRICE = 1e6;
+
+    MockERC20 internal usdg;
+    MockERC20 internal target;
+    MockERC20 internal secondAsset;
+
+    GBX internal gbx;
+    Fund internal fund;
+    SignalGBX internal signalGBX;
+    BribeFactory internal bribeFactory;
+    StrategyFactory internal strategyFactory;
+    Resonance internal resonance;
+    ResonanceRouter internal resonanceRouter;
+    Fundraiser internal fundraiser;
+
+    Strategy internal acquisitionStrategy;
+    Strategy internal buybackStrategy;
+    Bribe internal acquisitionBribe;
+    Bribe internal buybackBribe;
+    BribeRouter internal acquisitionRouter;
+    BribeRouter internal buybackRouter;
+
+    /// @notice Deploys and wires the protocol exactly once per test.
+    function _deployProtocol() internal {
+        vm.warp(DEPLOYED_AT);
+
+        usdg = new MockERC20("Global Dollar", "USDG", 6);
+        target = new MockERC20("Target Asset", "TGT", 18);
+        secondAsset = new MockERC20("Second Asset", "TWO", 18);
+
+        gbx = new GBX(GENESIS, address(this));
+        fund = new Fund(gbx);
+        signalGBX = new SignalGBX(IERC20(address(gbx)), address(this));
+        bribeFactory = new BribeFactory(address(this));
+        strategyFactory = new StrategyFactory(address(this));
+        resonance = new Resonance(
+            IERC20(address(signalGBX)),
+            IERC20(address(usdg)),
+            address(fund),
+            bribeFactory,
+            strategyFactory,
+            address(this)
+        );
+
+        bribeFactory.setResonance(address(resonance));
+        strategyFactory.setResonance(address(resonance));
+        signalGBX.setResonance(address(resonance));
+
+        resonanceRouter = new ResonanceRouter(IERC20(address(usdg)), address(resonance));
+        resonance.setResonanceRouter(address(resonanceRouter));
+
+        fundraiser = new Fundraiser(gbx, IERC20(address(usdg)), address(resonanceRouter));
+        gbx.setMinter(address(fundraiser));
+
+        (address acquisition, address acquisitionBribeAddress, address acquisitionRouterAddress) =
+            resonance.addStrategy(IERC20(address(target)), Strategy.Kind.Acquisition, defaultConfig());
+        (address buyback, address buybackBribeAddress, address buybackRouterAddress) =
+            resonance.addStrategy(IERC20(address(gbx)), Strategy.Kind.Buyback, defaultConfig());
+
+        acquisitionStrategy = Strategy(acquisition);
+        buybackStrategy = Strategy(buyback);
+        acquisitionBribe = Bribe(acquisitionBribeAddress);
+        buybackBribe = Bribe(buybackBribeAddress);
+        acquisitionRouter = BribeRouter(acquisitionRouterAddress);
+        buybackRouter = BribeRouter(buybackRouterAddress);
+
+        vm.label(address(gbx), "GBX");
+        vm.label(address(usdg), "USDG");
+        vm.label(address(fund), "Fund");
+        vm.label(address(signalGBX), "SignalGBX");
+        vm.label(address(resonance), "Resonance");
+        vm.label(address(resonanceRouter), "ResonanceRouter");
+        vm.label(address(fundraiser), "Fundraiser");
+        vm.label(acquisition, "AcquisitionStrategy");
+        vm.label(buyback, "BuybackStrategy");
+    }
+
+    /// @notice Returns the default in-range auction configuration.
+    function defaultConfig() internal pure returns (Strategy.Config memory config) {
+        return Strategy.Config({
+            initialPrice: DEFAULT_INITIAL_PRICE,
+            epochDuration: DEFAULT_EPOCH_DURATION,
+            priceMultiplier: DEFAULT_PRICE_MULTIPLIER,
+            minimumPrice: DEFAULT_MINIMUM_PRICE
+        });
+    }
+
+    /// @notice Mints GBX by impersonating the locked Fundraiser minter.
+    function _mintGBX(address receiver, uint256 amount) internal {
+        vm.prank(address(fundraiser));
+        gbx.mint(receiver, amount);
+    }
+
+    /// @notice Stakes GBX for `account`, minting the GBX first when the account is short.
+    function _stake(address account, uint256 amount) internal {
+        if (gbx.balanceOf(account) < amount) _mintGBX(account, amount - gbx.balanceOf(account));
+
+        vm.startPrank(account);
+        gbx.approve(address(signalGBX), amount);
+        signalGBX.stake(amount);
+        vm.stopPrank();
+    }
+
+    /// @notice Allocates the account's entire signal power to one Strategy.
+    function _signalOne(address account, address strategy) internal {
+        vm.prank(account);
+        resonance.signal(_addresses(strategy), _uints(1));
+    }
+
+    /// @notice Allocates the account's signal power between two Strategies using relative weights.
+    function _signalTwo(address account, address first, address second, uint256 firstWeight, uint256 secondWeight)
+        internal
+    {
+        address[] memory strategies = new address[](2);
+        strategies[0] = first;
+        strategies[1] = second;
+
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = firstWeight;
+        weights[1] = secondWeight;
+
+        vm.prank(account);
+        resonance.signal(strategies, weights);
+    }
+
+    /// @notice Contributes USDG through the Fundraiser, minting the USDG first.
+    function _contribute(address account, uint256 amount) internal {
+        usdg.mint(account, amount);
+
+        vm.startPrank(account);
+        usdg.approve(address(fundraiser), amount);
+        fundraiser.contribute(account, amount);
+        vm.stopPrank();
+    }
+
+    /// @notice Delivers USDG revenue straight through the router, bypassing Fundraiser epoch accounting.
+    function _routeRevenue(uint256 amount) internal {
+        usdg.mint(address(resonanceRouter), amount);
+        vm.prank(KEEPER);
+        resonanceRouter.route();
+    }
+
+    /// @notice Fills one acquisition epoch at the current price.
+    function _buyAcquisition(address buyer, Strategy strategy, MockERC20 payment) internal returns (uint256 paid) {
+        uint256 price = strategy.currentPrice();
+        payment.mint(buyer, price);
+
+        vm.startPrank(buyer);
+        payment.approve(address(strategy), price);
+        paid = strategy.buy(buyer, strategy.epochId(), block.timestamp, price);
+        vm.stopPrank();
+    }
+
+    function _addresses(address value) internal pure returns (address[] memory values) {
+        values = new address[](1);
+        values[0] = value;
+    }
+
+    function _uints(uint256 value) internal pure returns (uint256[] memory values) {
+        values = new uint256[](1);
+        values[0] = value;
+    }
+}

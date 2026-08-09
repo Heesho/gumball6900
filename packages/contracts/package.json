@@ -14,6 +14,7 @@
     "snapshot": "forge snapshot",
     "test": "forge test",
     "test:gas": "forge test --gas-report",
+    "test:integration": "FOUNDRY_PROFILE=integration forge test",
     "test:hardhat": "forge build && hardhat test",
     "typecheck": "tsc --noEmit"
   },

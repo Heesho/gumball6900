@@ -62,22 +62,29 @@ authorized for user funds. A green local build is engineering evidence, never a 
 
 - The canonical market position is one precommitted, hookless GBX/USDG Uniswap v4 position held by
   `LiquidityPosition`. It begins outside the active price range with GBX only, using the 20 million genesis allocation.
-- Fee collection is permissionless and removes zero principal. All GBX held after collection is burned and all USDG
-  is routed through `ResonanceRouter`; no searcher-only compounding or fee diversion belongs in the starting point.
-- The position NFT cannot be withdrawn to an arbitrary receiver. Timelocked governance may bind one compatible
-  `LiquidityPosition` successor exactly once, after which anyone may migrate the exact NFT.
+- The position auto-compounds and removes zero principal. `compound` is permissionless: it grows position liquidity
+  by the fixed `COMPOUND_BPS` (0.20%) and pays the caller everything the position accrued. Uniswap v4 nets accrued
+  fees against the increase, so the caller funds only the shortfall. Do not add a keeper role, an oracle, a swap, a
+  fee split, or a governance parameter to this mechanism; the fixed threshold is the entire incentive.
+- Position fees are the compounding incentive and are not protocol revenue. They do not burn GBX and do not reach
+  `ResonanceRouter`. Fundraiser contributions are the only USDG revenue source for Resonance.
+- The position NFT can never be withdrawn, to any receiver, by any caller. `LiquidityPosition` is ownerless and has no
+  successor or migration path: once the precommitted NFT is accepted it stays there permanently.
 
-## Migration and administration
+## Immutability and administration
 
-- Keep the initial system migratable through explicit contract-level powers rather than an arbitrary Fund withdrawal.
-- `Fund` may bind one successor exactly once through timelocked governance. The successor must use the same GBX
-  token. After activation, anyone may migrate complete balances of caller-selected non-GBX tokens to that successor in
-  batches. Do not allow an arbitrary receiver or partial administrative withdrawal.
-- GBX held by the old Fund is burned, never migrated. The old Fund's redemption remains available for omitted or broken
-  tokens after a successor is set.
-- Administrative work remains behind OpenZeppelin `TimelockController`, with the project multisig holding proposer and
-  canceller roles. The timelock should own Resonance, Fund, and LiquidityPosition, use a documented minimum delay, have no
-  external default admin after setup, and may grant the executor role to the zero address for permissionless execution.
+- The protocol targets maximum decentralization with minimal governance, per ADR 0016 and ADR 0017. Do not add an
+  upgrade path, proxy, pause switch, rescue or sweep function, arbitrary-call executor, successor binding, migration
+  routine, or any new owner role. When a design choice trades governance flexibility against immutability, choose
+  immutability and record the accepted consequence.
+- `Fund` and `LiquidityPosition` are ownerless. `Fund` assets move only when a GBX holder burns their own tokens
+  through redemption; assets that redeemers omit stay in `Fund` for the remaining GBX supply indefinitely. GBX held by
+  `Fund` is burnable by anyone through the dedicated burn function.
+- `Resonance` holds the entire remaining administrative surface: `setBribeBps` (bounded at 50%), `addStrategy`,
+  `killStrategy`, and `addBribeReward`. Nothing else is owner-gated anywhere in the protocol.
+- That administration remains behind OpenZeppelin `TimelockController`, with the project multisig holding proposer and
+  canceller roles. The timelock should own Resonance, use a documented minimum delay, have no external default admin
+  after setup, and may grant the executor role to the zero address for permissionless execution.
 - CI must never broadcast mainnet transactions.
 
 ## Source and generated artifacts

@@ -1,31 +1,26 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { GBX } from "./GBX.sol";
-import { IFund } from "./interfaces/IFund.sol";
 
 /// @title Fund
 /// @author GUM BALL 6900
 /// @notice Holds the protocol's raw token backing and lets GBX holders redeem a selected in-kind basket.
-/// @dev Fund intentionally has no asset registry. Callers select the assets they want to redeem or migrate, which
-///      keeps a malformed token from blocking every other asset in the treasury.
-contract Fund is ReentrancyGuard, Ownable {
+/// @dev Fund intentionally has no asset registry. Callers select the assets they want to redeem, which keeps a
+///      malformed token from blocking every other asset in the treasury. Fund is ownerless and immutable: it has no
+///      administrator, no upgrade path, no successor, and no way to move assets except redemption by GBX holders.
+contract Fund is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     bytes32 private constant REDEMPTION_NAMESPACE = keccak256("gumball6900.fund.redemption");
-    bytes32 private constant MIGRATION_NAMESPACE = keccak256("gumball6900.fund.migration");
 
     /// @notice GBX token burned by redemptions and buybacks.
     GBX public immutable gbx;
-
-    /// @notice One-way migration destination. The zero address means migration is not enabled.
-    address public successor;
 
     /// @notice Emitted when GBX held by Fund is permanently burned.
     /// @param caller Account that triggered the burn.
@@ -37,30 +32,17 @@ contract Fund is ReentrancyGuard, Ownable {
     /// @param gbxAmount Amount of GBX burned.
     /// @param tokenCount Number of selected assets processed.
     event Redeemed(address indexed account, address indexed receiver, uint256 gbxAmount, uint256 tokenCount);
-    /// @notice Emitted when the one-way migration destination is set.
-    /// @param successor New Fund-compatible destination.
-    event SuccessorSet(address indexed successor);
-    /// @notice Emitted after one complete token balance is migrated.
-    /// @param caller Account that triggered migration.
-    /// @param token Token migrated.
-    /// @param successor Fund that received the token balance.
-    /// @param amount Amount migrated.
-    event TokenMigrated(address indexed caller, address indexed token, address indexed successor, uint256 amount);
 
     error DuplicateToken(address token);
     error EmptyTokenList();
     error ForbiddenToken(address token);
     error InexactTransfer(address token, uint256 expected, uint256 received);
     error InvalidReceiver(address receiver);
-    error InvalidSuccessor(address successor);
-    error SuccessorAlreadySet(address successor);
-    error SuccessorNotSet();
     error ZeroAmount();
 
-    /// @notice Creates a registry-free treasury for `gbx_` and assigns migration authority to `initialOwner`.
+    /// @notice Creates the ownerless, registry-free treasury backing `gbx_`.
     /// @param gbx_ GBX token backed by this Fund.
-    /// @param initialOwner Timelock that may configure the one-way successor.
-    constructor(GBX gbx_, address initialOwner) Ownable(initialOwner) {
+    constructor(GBX gbx_) {
         if (address(gbx_) == address(0) || address(gbx_).code.length == 0) revert ForbiddenToken(address(gbx_));
         gbx = gbx_;
     }
@@ -116,48 +98,6 @@ contract Fund is ReentrancyGuard, Ownable {
         }
 
         emit Redeemed(msg.sender, receiver, gbxAmount, tokenCount);
-    }
-
-    /// @notice Permanently enables one-way, token-by-token migration to `newSuccessor`.
-    /// @dev The successor must be a Fund-compatible contract backed by this exact GBX token.
-    /// @param newSuccessor Fund-compatible destination to set permanently.
-    function setSuccessor(address newSuccessor) external onlyOwner {
-        if (successor != address(0)) revert SuccessorAlreadySet(successor);
-        if (newSuccessor == address(0) || newSuccessor == address(this) || newSuccessor.code.length == 0) {
-            revert InvalidSuccessor(newSuccessor);
-        }
-        if (IFund(newSuccessor).gbx() != address(gbx)) revert InvalidSuccessor(newSuccessor);
-
-        successor = newSuccessor;
-
-        emit SuccessorSet(newSuccessor);
-    }
-
-    /// @notice Moves the complete Fund balance of each selected token to the configured successor.
-    /// @dev Anyone may execute migration in gas-bounded batches. GBX cannot be migrated and remains burnable here.
-    /// @param tokens Unique, non-GBX token addresses whose complete balances should move.
-    function migrate(address[] calldata tokens) external nonReentrant {
-        address migrationTarget = successor;
-        if (migrationTarget == address(0)) revert SuccessorNotSet();
-
-        uint256 tokenCount = tokens.length;
-        if (tokenCount == 0) revert EmptyTokenList();
-
-        for (uint256 i; i < tokenCount; ++i) {
-            address token = tokens[i];
-            _markToken(MIGRATION_NAMESPACE, token);
-
-            uint256 amount = IERC20(token).balanceOf(address(this));
-            if (amount != 0) {
-                uint256 successorBalanceBefore = IERC20(token).balanceOf(migrationTarget);
-                IERC20(token).safeTransfer(migrationTarget, amount);
-                uint256 received = IERC20(token).balanceOf(migrationTarget) - successorBalanceBefore;
-                if (received != amount) revert InexactTransfer(token, amount, received);
-            }
-
-            _clearToken(MIGRATION_NAMESPACE, token);
-            emit TokenMigrated(msg.sender, token, migrationTarget, amount);
-        }
     }
 
     /// @notice Returns GBX currently held by Fund and available to burn.

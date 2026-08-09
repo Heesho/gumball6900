@@ -75,14 +75,10 @@ dataSources:
         - name: LiquidityPosition
           file: ./abis/LiquidityPosition.json
       eventHandlers:
-        - event: FeesProcessed(indexed uint256,indexed address,uint256,uint256)
-          handler: handleFeesProcessed
-        - event: PositionMigrated(indexed uint256,indexed address,indexed address)
-          handler: handlePositionMigrated
+        - event: Compounded(indexed uint256,indexed address,uint128,uint256,uint256)
+          handler: handleCompounded
         - event: PositionRecorded(indexed uint256,indexed address,indexed bytes32)
           handler: handlePositionRecorded
-        - event: SuccessorSet(indexed address)
-          handler: handleLiquiditySuccessorSet
       file: ./src/liquidity-position.ts
   - kind: ethereum/contract
     name: SignalGBX
@@ -194,10 +190,6 @@ dataSources:
           handler: handleFundGBXBurned
         - event: Redeemed(indexed address,indexed address,uint256,uint256)
           handler: handleRedeemed
-        - event: SuccessorSet(indexed address)
-          handler: handleSuccessorSet
-        - event: TokenMigrated(indexed address,indexed address,indexed address,uint256)
-          handler: handleTokenMigrated
       file: ./src/fund.ts
   - kind: ethereum/contract
     name: TimelockController

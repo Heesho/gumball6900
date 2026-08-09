@@ -89,7 +89,7 @@ contract StartingPointTest is Test {
         secondAsset = new CoreTestToken("Second Asset", "TWO", 18);
         gbx = new GBX(address(this), address(this));
         gbx.burn(gbx.GENESIS_LIQUIDITY_ALLOCATION());
-        fund = new Fund(gbx, address(this));
+        fund = new Fund(gbx);
         signalGBX = new SignalGBX(IERC20(address(gbx)), address(this));
         bribeFactory = new BribeFactory(address(this));
         strategyFactory = new StrategyFactory(address(this));
@@ -340,28 +340,25 @@ contract StartingPointTest is Test {
         assertEq(gbx.totalSupply(), 380 ether);
     }
 
-    function test_FundMigrationIsOneWayCompleteAndPermissionless() external {
-        Fund successor = new Fund(gbx, address(this));
+    function test_FundHoldsAssetsPermanentlyWithRedemptionAndBurnAsItsOnlyExits() external {
         target.mint(address(fund), 123 ether);
         vm.prank(ALICE);
         gbx.transfer(address(fund), 10 ether);
 
-        fund.setSuccessor(address(successor));
-        vm.prank(CAROL);
-        fund.migrate(_singleAddress(address(target)));
+        // There is no migration, no successor, and no owner: assets leave only through a GBX burn.
+        (bool succeeded,) = address(fund).call(abi.encodeWithSignature("migrate(address[])", new address[](0)));
+        assertFalse(succeeded);
+        assertEq(target.balanceOf(address(fund)), 123 ether);
 
-        assertEq(target.balanceOf(address(fund)), 0);
-        assertEq(target.balanceOf(address(successor)), 123 ether);
-        assertEq(gbx.balanceOf(address(fund)), 10 ether);
+        vm.startPrank(ALICE);
+        gbx.approve(address(fund), 100 ether);
+        fund.redeem(100 ether, ALICE, _singleAddress(address(target)));
+        vm.stopPrank();
 
-        vm.expectRevert(abi.encodeWithSelector(Fund.ForbiddenToken.selector, address(gbx)));
-        fund.migrate(_singleAddress(address(gbx)));
-
-        Fund anotherSuccessor = new Fund(gbx, address(this));
-        vm.expectRevert(abi.encodeWithSelector(Fund.SuccessorAlreadySet.selector, address(successor)));
-        fund.setSuccessor(address(anotherSuccessor));
+        assertGt(target.balanceOf(ALICE), 0);
 
         uint256 supplyBefore = gbx.totalSupply();
+        vm.prank(CAROL);
         fund.burnGBX(10 ether);
         assertEq(gbx.totalSupply(), supplyBefore - 10 ether);
     }
@@ -388,28 +385,26 @@ contract StartingPointTest is Test {
         assertEq(resonance.bribeBps(), 2_500);
     }
 
-    function test_CoreAdministrationExecutesThroughOpenZeppelinTimelock() external {
+    /// @dev Resonance holds the entire remaining administrative surface. Fund and LiquidityPosition are ownerless,
+    ///      so the timelock has nothing to execute against them.
+    function test_TheRemainingAdministrationExecutesThroughOpenZeppelinTimelock() external {
         TimelockController timelock =
             new TimelockController(7 days, _singleAddress(address(this)), _singleAddress(address(0)), address(0));
-        Fund successor = new Fund(gbx, address(this));
         bytes32 salt = keccak256("CORE_ADMINISTRATION");
-        address[] memory targets = new address[](4);
-        uint256[] memory values = new uint256[](4);
-        bytes[] memory payloads = new bytes[](4);
+        address[] memory targets = new address[](3);
+        uint256[] memory values = new uint256[](3);
+        bytes[] memory payloads = new bytes[](3);
 
         targets[0] = address(resonance);
         payloads[0] = abi.encodeCall(Resonance.setBribeBps, (2_000));
-        targets[1] = address(fund);
-        payloads[1] = abi.encodeCall(Fund.setSuccessor, (address(successor)));
-        targets[2] = address(resonance);
-        payloads[2] = abi.encodeCall(
+        targets[1] = address(resonance);
+        payloads[1] = abi.encodeCall(
             Resonance.addStrategy, (IERC20(address(secondAsset)), Strategy.Kind.Acquisition, _strategyConfig())
         );
-        targets[3] = address(resonance);
-        payloads[3] = abi.encodeCall(Resonance.killStrategy, (address(buybackStrategy)));
+        targets[2] = address(resonance);
+        payloads[2] = abi.encodeCall(Resonance.killStrategy, (address(buybackStrategy)));
 
         resonance.transferOwnership(address(timelock));
-        fund.transferOwnership(address(timelock));
 
         timelock.scheduleBatch(targets, values, payloads, bytes32(0), salt, timelock.getMinDelay());
 
@@ -421,7 +416,6 @@ contract StartingPointTest is Test {
         address newStrategy = strategies[strategies.length - 1];
 
         assertEq(resonance.bribeBps(), 2_000);
-        assertEq(fund.successor(), address(successor));
         assertTrue(resonance.isStrategy(newStrategy));
         assertFalse(resonance.isStrategyAlive(address(buybackStrategy)));
     }

@@ -12,9 +12,10 @@ The required behavior is:
 5. Fund supports registry-free selective in-kind redemption and one-way batched migration.
 6. GBX creates 20 million genesis-liquidity tokens and permanently reserves the remaining 980 million capacity for
    Fundraiser's fixed daily four-year-half-life schedule.
-7. LiquidityPosition holds one precommitted single-sided GBX/USDG v4 position, never removes principal during fee
-   collection, burns GBX fees, and routes USDG fees to ResonanceRouter.
-8. Resonance, Fund, and LiquidityPosition administration passes through OpenZeppelin `TimelockController`.
+7. LiquidityPosition holds one precommitted single-sided GBX/USDG v4 position permanently and auto-compounds it:
+   anyone may claim its accrued fees by growing it 0.20%. Principal is never removed.
+8. Resonance administration passes through OpenZeppelin `TimelockController`. Fund and LiquidityPosition are
+   ownerless.
 
 Detailed mechanics are in [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md), with risks in
 [THREAT_MODEL.md](THREAT_MODEL.md).

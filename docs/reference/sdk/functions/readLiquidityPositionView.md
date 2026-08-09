@@ -6,9 +6,9 @@
 
 # Function: readLiquidityPositionView()
 
-> **readLiquidityPositionView**(`client`, `liquidityPosition`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `expectedPositionTokenId`: `bigint`; `expectedTickLower`: `number`; `expectedTickUpper`: `number`; `poolKeyHash`: `string`; `positionInCustody`: `boolean`; `positionRecorded`: `boolean`; `positionTokenId`: `bigint`; `successor`: `` `0x${string}` ``; \}\>
+> **readLiquidityPositionView**(`client`, `liquidityPosition`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `expectedPositionTokenId`: `bigint`; `expectedTickLower`: `number`; `expectedTickUpper`: `number`; `poolKeyHash`: `string`; `positionInCustody`: `boolean`; `positionRecorded`: `boolean`; `positionTokenId`: `bigint`; \}\>
 
-Reads custody, range, and migration state for the canonical Uniswap v4 position.
+Reads custody and range state for the canonical Uniswap v4 position.
 
 ## Parameters
 
@@ -20,4 +20,4 @@ Reads custody, range, and migration state for the canonical Uniswap v4 position.
 
 ## Returns
 
-`Promise`\<\{ `blockNumber`: `bigint`; `expectedPositionTokenId`: `bigint`; `expectedTickLower`: `number`; `expectedTickUpper`: `number`; `poolKeyHash`: `string`; `positionInCustody`: `boolean`; `positionRecorded`: `boolean`; `positionTokenId`: `bigint`; `successor`: `` `0x${string}` ``; \}\>
+`Promise`\<\{ `blockNumber`: `bigint`; `expectedPositionTokenId`: `bigint`; `expectedTickLower`: `number`; `expectedTickUpper`: `number`; `poolKeyHash`: `string`; `positionInCustody`: `boolean`; `positionRecorded`: `boolean`; `positionTokenId`: `bigint`; \}\>
