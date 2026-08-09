@@ -17,7 +17,8 @@ test, so the recorded behavior cannot change silently.
 > [ADR 0018](../../../docs/adr/0018-auto-compounding-liquidity-position.md). A-06 and A-07 below record the new
 > surface and the accepted economic consequence.
 
-This is internal engineering evidence, not an independent audit or a release approval. Four findings remain open.
+This is internal engineering evidence, not an independent audit or a release approval. Five findings remain open,
+plus two unresolved design questions recorded at the end of this section.
 
 ### A-01 — Resolved by removal — `Fund.migrate` could not enforce its own uniqueness requirement
 
@@ -144,6 +145,93 @@ contracts against older economic material will find the burn-and-route path miss
 Note the interaction with A-02. That finding concerns revenue too small to move Resonance's index; with liquidity
 fees no longer routed, every unit of Resonance revenue now originates from Fundraiser contributions, whose minimum is
 10,000 raw USDG units. The absorption threshold is unchanged, but the flow it applies to is now narrower.
+
+### A-08 — Open — registering a third Bribe reward token inverts the signal/reset gas cost
+
+Leaving a signal position is not symmetric with entering it, and past a threshold the exit becomes the more expensive
+side. This matters more than an ordinary gas observation because the exit path is the only way a staker recovers their
+GBX, and ADR 0017 removed every rescue mechanism, so an exit that cannot complete is permanent.
+
+**Mechanism.** `Resonance._reset` calls `Bribe.withdraw` for every Strategy the account signaled to, and `withdraw`
+carries the `updateReward(account)` modifier, which loops every registered reward token. Two opposing effects:
+
+- Per Strategy, reset is roughly 63,000 gas **cheaper** than signal. Signal pays cold zero-to-nonzero writes for
+  `_accountStrategies.push`, `accountSignals`, `strategySignalWeight`, and the Bribe's `totalSupply` and `balanceOf`;
+  reset zeroes them and collects the refunds.
+- Per reward token, reset is roughly 42,000 gas **more expensive**. Entering, `rewards[account][token]` and
+  `userRewardPerTokenPaid` are zero-to-zero and nearly free because `balanceOf[account]` is still zero when the
+  modifier runs. Leaving, `earned()` is nonzero, so both become cold zero-to-nonzero writes.
+
+**Measurements** (Foundry, this repository, `optimizer_runs = 10_000`):
+
+| Configuration                                   | signal    | reset     | reset ÷ signal |
+| ----------------------------------------------- | --------- | --------- | -------------- |
+| 20 Strategies, 1 reward token each (as shipped) | 2,722,271 | 1,458,354 | 0.54           |
+| 60 Strategies, 1 reward token each (as shipped) | 8,025,991 | 4,370,554 | 0.54           |
+| 1 Strategy, 21 reward tokens                    | 539,312   | 1,325,019 | 2.46           |
+
+Per Strategy in the shipped configuration: signal ≈ 136,000, reset ≈ 73,000. Each additional reward token adds
+≈ 20,000 to signal and ≈ 63,000 to reset. The crossover is at **three total reward tokens per Bribe**; at two, reset
+is still cheaper.
+
+**Current exposure is nil.** As shipped, every Bribe has exactly one reward token, registered at Strategy creation.
+Reset is roughly half the cost of signal, and the ratio is flat in the number of Strategies, so in a 30,000,000 gas
+block an account can signal to about 220 Strategies but reset about 410. An account therefore cannot signal its way
+into a position it cannot leave: if entry fit, exit fits, with roughly 2x headroom.
+
+**The exposure is created solely by `Resonance.addBribeReward`.** It is `onlyOwner` behind the timelock, so this is a
+trust-model gap rather than a permissionless attack, but the protocol's stated direction is that user funds cannot be
+trapped regardless of how governance behaves. Aggravating factors, all confirmed by reading the source:
+
+- `_reset` is atomic over all of an account's Strategies. There is no bounded variant, even though `distributeRange`
+  exists for exactly this reason on the distribution loop.
+- `reset()` acts on `msg.sender` only. No third party can reset on an account's behalf or pay its gas.
+- sGBX is non-transferable, so a trapped account cannot sell its way out.
+- `Bribe._rewardTokens` is append-only. There is no removal function, so the cost only ever rises.
+- The exit price is not fixed when the account signals. Reward tokens registered afterwards raise it while the account
+  is already committed.
+
+**Remediation options considered, none applied.** These solve the problem at different costs and are not exclusive:
+
+1. **Bound the reward tokens.** A `MAX_REWARD_TOKENS` constant in `Bribe.addRewardToken`, set to 2, keeps reset
+   cheaper than signal by construction and forever. One line, no new governance surface. Removing
+   `Resonance.addBribeReward` entirely, and making the reward token immutable in the Bribe constructor, is the
+   stronger version: it deletes the array, reduces `updateReward` to constant work, and drops Resonance's
+   administrative surface from four actions to three.
+2. **Rework the accrual accounting.** Decouple weight accounting from reward accrual: record token-agnostic
+   weight-change checkpoints and compute per-token rewards lazily at claim time. Exit then costs `O(strategies)`
+   regardless of token count, and the per-token expense moves to `claim`, which is optional and non-trapping. This is
+   architecturally the cleanest answer and the only one that supports many reward tokens, but it is a rewrite of the
+   protocol's subtlest math and adds storage and lookup complexity. Only worth it if multi-token rewards are wanted.
+3. **Add `resetRange(start, end)`**, mirroring `distributeRange`. This does not reduce the cost; it removes the cliff,
+   so however expensive reset becomes, an account can always make progress across several transactions. Safe by
+   construction because `SignalGBX.unstake` requires `accountSignalWeight == 0`, so a partial reset simply defers
+   withdrawal until the account finishes.
+
+Options 1 and 3 together give a provable liveness property — the exit path can always be completed in bounded steps —
+without touching the accrual math before an independent audit. The suggested regression tests are a gas assertion that
+reset per Strategy stays below signal per Strategy in the shipped configuration, and a stateful invariant that every
+actor can always fully reset and unstake after any action sequence.
+
+### Open design questions — 2026-08-09
+
+Recorded so later sessions can pick these up with the context intact. Neither is a defect; both are unresolved
+decisions that interact with A-08.
+
+- **Should multi-token Bribe rewards exist at all?** The owner raised removing `addBribeReward` so that a signaler
+  only ever earns the asset of the Strategy they signaled for, then paused the decision. Removing it eliminates A-08
+  structurally and makes option 2 above unnecessary. The cost is that a third party cannot incentivize a Strategy in
+  its own token, though `Bribe.notifyRewardAmount` is already permissionless for the registered payment token, so
+  outside incentives survive denominated in the asset the Strategy actually buys. The deciding question is whether
+  multi-token rewards are a wanted product capability; if they are not, option 1 is strictly better than option 2.
+- **Should `Bribe` be renamed?** The term is inherited from the Curve and Velodrome vernacular and carries an
+  unhelpful connotation. If multi-token rewards are removed, it also becomes inaccurate: the payout is a signaler's
+  share of the payments made to the Strategy they backed, not a payment to vote. The codebase already uses an
+  acoustic vocabulary (Resonance, Signal, sGBX), so a name from that family fits. Any rename touches `Bribe`,
+  `BribeFactory`, `BribeRouter`, `IBribe`, `bribeBps`, `DEFAULT_BRIBE_BPS`, `MAX_BRIBE_BPS`, `bribeFor`,
+  `bribeRouterFor`, the `BribeBpsSet` and `BribeRewardAdded` events, the subgraph, the SDK, the docs, and the name
+  list AGENTS.md pins. ADR 0015 is precedent for recording a terminology change. Sequence the mechanism decision
+  first: renaming something that is about to be redesigned is wasted churn.
 
 ### Adversarial campaign evidence
 
