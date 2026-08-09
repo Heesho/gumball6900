@@ -12,7 +12,6 @@ import {
   MAX_AUCTION_EPOCH_PERIOD,
   MAX_AUCTION_PRICE_MULTIPLIER,
   MAX_CUMULATIVE_MINT,
-  MAX_MANAGER_REWARD_BPS,
   FUNDRAISER_DISTRIBUTION_ALLOCATION,
   MIN_AUCTION_EPOCH_PERIOD,
   MIN_AUCTION_PRICE_MULTIPLIER,
@@ -31,7 +30,7 @@ import {
   quoteFundraiserEpoch,
   redemptionPercentageWad,
   simulateAllNonEmptyEmissions,
-  splitAcquiredAsset,
+  settleStrategyPayment,
   updateRewardIndex,
   validateAuctionConfig,
 } from '../src/index.js';
@@ -111,7 +110,7 @@ describe('Fundraiser distribution schedule and epoch quotes', () => {
   });
 });
 
-describe('auctions and manager rewards', () => {
+describe('auctions and Strategy settlement', () => {
   it('matches the give.fun linear-decay endpoints and Solidity floor order', () => {
     expect(auctionPriceAt(100n, 0n, 6n)).toBe(100n);
     expect(auctionPriceAt(100n, 1n, 6n)).toBe(84n);
@@ -166,22 +165,11 @@ describe('auctions and manager rewards', () => {
     );
   });
 
-  it('sends 90% to the vault and 10% to active managers at the launch share', () => {
-    const live = splitAcquiredAsset(token(42n), true);
-    expect(live.vaultAmount).toBe(37_800_000_000_000_000_000n);
-    expect(live.managerAmount).toBe(4_200_000_000_000_000_000n);
-    expect(live.vaultAmount + live.managerAmount).toBe(live.actualTargetReceived);
-
-    const zeroWeight = splitAcquiredAsset(token(42n), false);
-    expect(zeroWeight.vaultAmount).toBe(token(42n));
-    expect(zeroWeight.managerAmount).toBe(0n);
-  });
-
-  it('honours a governed share other than the launch value', () => {
-    const raised = splitAcquiredAsset(token(42n), true, MAX_MANAGER_REWARD_BPS);
-    expect(raised.managerAmount).toBe(token(21n));
-    expect(raised.vaultAmount).toBe(token(21n));
-    expect(raised.vaultAmount + raised.managerAmount).toBe(raised.actualTargetReceived);
+  it('settles the complete payment to Fund without a signal-dependent split', () => {
+    expect(settleStrategyPayment(token(42n))).toEqual({
+      paymentAmount: token(42n),
+      fundAmount: token(42n),
+    });
   });
 
   it('leaves independently floored reward residue in the contract', () => {

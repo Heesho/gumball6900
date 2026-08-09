@@ -20,7 +20,6 @@ contracts expose, not by a project-specific calldata allowlist.
 Resonance ownership controls:
 
 - `setResonanceRouter`, once;
-- `setBribeBps`, bounded to 0–5,000 basis points;
 - `addStrategy`;
 - `killStrategy`, permanently; and
 - `addBribeReward`, subject to Bribe's immutable eight-token cap.
@@ -40,5 +39,5 @@ the intended final minter is Fundraiser.
 ## Permissionless operations
 
 Contribution, epoch settlement, claiming, routing, incremental signal addition and removal, staking, unstaking,
-Strategy purchase, revenue distribution, Bribe claiming, liquidity compounding, Fund burning, and redemption do not
-require an administrator.
+Strategy purchase, revenue distribution, revenue synchronization/indexing, fixed Fund-liability payment, scalar or
+selective Bribe claiming, liquidity compounding, Fund burning, and redemption do not require an administrator.

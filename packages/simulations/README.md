@@ -23,7 +23,7 @@ This package contains reproducible TypeScript and independent Python models for 
 - deployment-script-only one-position genesis budgeting and residual burn policy;
 - AuctionEngine endpoints, last-second rounding, multiplier transitions, and bounds;
 - immediate floor-index supporter rewards, 98/2 acquisition routing, and zero-weight vault routing;
-- strategy-budget conservation, buyback burns, and raw-basket redemptions.
+- strategy-budget conservation, explicit Fund-held GBX burns, and raw-basket redemptions.
 
 The smaller `fixtures/reference-results.json` is the SDK formula-vector fixture. Both fixtures are checked across TypeScript and Python, and each language also asserts the important mechanics independently of fixture parity.
 
@@ -57,6 +57,7 @@ Only run `fixtures:generate` after intentionally changing a protocol formula. It
 | Full non-empty / forfeited empty epochs | `emissions.participationScenarios`, `roundingRegressions`                 |
 | Burns do not reopen emissions           | `emissions.burnSweep`                                                     |
 | give.fun auction rounding               | `auctions.curve`, `auctions.transitions`, `auctions.bounds`               |
-| 1e27 reward floor and residue           | `managerRewards.rewardIndexExamples`                                      |
-| 98/2 and zero-weight routing            | `managerRewards.rewardYieldByStrategy`                                    |
-| Raw redemptions and buybacks            | `redemptionAndBuyback`                                                    |
+| 1e27 reward floor and residue           | `bribeRewards.rewardIndexExamples`                                        |
+| Independent Bribe reward yields         | `bribeRewards.rewardYieldByStrategy`                                      |
+| Uniform 100% Fund settlement            | `bribeRewards.strategySettlementConservation`                             |
+| Raw redemptions and explicit GBX burns  | `redemptionAndGbxBurn`                                                    |

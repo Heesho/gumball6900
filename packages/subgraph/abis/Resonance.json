@@ -37,46 +37,7 @@
   },
   {
     "type": "function",
-    "name": "BPS_SCALE",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "DEFAULT_BRIBE_BPS",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "INDEX_PRECISION",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "MAX_BRIBE_BPS",
     "inputs": [],
     "outputs": [
       {
@@ -151,6 +112,19 @@
   },
   {
     "type": "function",
+    "name": "accountedRevenueBalance",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "addBribeReward",
     "inputs": [
       {
@@ -213,11 +187,6 @@
         "internalType": "contract IERC20"
       },
       {
-        "name": "kind",
-        "type": "uint8",
-        "internalType": "enum Strategy.Kind"
-      },
-      {
         "name": "config",
         "type": "tuple",
         "internalType": "struct Strategy.Config",
@@ -263,19 +232,6 @@
       }
     ],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "bribeBps",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -419,6 +375,45 @@
   },
   {
     "type": "function",
+    "name": "fundRevenueLiability",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "indexPendingRevenue",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "indexDelta",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "indexedRevenueScaled",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "isStrategy",
     "inputs": [
       {
@@ -496,6 +491,19 @@
   },
   {
     "type": "function",
+    "name": "payFundRevenue",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "paymentTokenFor",
     "inputs": [
       {
@@ -526,6 +534,19 @@
     "outputs": [
       {
         "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pendingRevenueScaled",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -603,19 +624,6 @@
   },
   {
     "type": "function",
-    "name": "setBribeBps",
-    "inputs": [
-      {
-        "name": "newBribeBps",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "setResonanceRouter",
     "inputs": [
       {
@@ -687,6 +695,25 @@
   },
   {
     "type": "function",
+    "name": "strategyRevenueRemainder",
+    "inputs": [
+      {
+        "name": "strategy",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "scaledRemainder",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "strategySignalWeight",
     "inputs": [
       {
@@ -698,6 +725,32 @@
     "outputs": [
       {
         "name": "signalWeight",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "syncRevenue",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "totalClaimableRevenue",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -732,6 +785,19 @@
   },
   {
     "type": "function",
+    "name": "unaccountedRevenue",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "updateStrategy",
     "inputs": [
       {
@@ -758,25 +824,6 @@
   },
   {
     "type": "event",
-    "name": "BribeBpsSet",
-    "inputs": [
-      {
-        "name": "previousBps",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      },
-      {
-        "name": "newBps",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
     "name": "BribeRewardAdded",
     "inputs": [
       {
@@ -796,6 +843,50 @@
         "type": "address",
         "indexed": true,
         "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FundRevenueAccrued",
+    "inputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalLiability",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FundRevenuePaid",
+    "inputs": [
+      {
+        "name": "caller",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "fund",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
       }
     ],
     "anonymous": false
@@ -863,6 +954,25 @@
     "inputs": [
       {
         "name": "resonanceRouter",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "RevenueSynced",
+    "inputs": [
+      {
+        "name": "caller",
         "type": "address",
         "indexed": true,
         "internalType": "address"
@@ -953,12 +1063,6 @@
         "type": "address",
         "indexed": false,
         "internalType": "address"
-      },
-      {
-        "name": "kind",
-        "type": "uint8",
-        "indexed": false,
-        "internalType": "enum Strategy.Kind"
       }
     ],
     "anonymous": false
@@ -978,23 +1082,38 @@
   },
   {
     "type": "error",
-    "name": "BribeBpsAboveMaximum",
-    "inputs": [
-      {
-        "name": "requested",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
     "name": "DuplicateStrategy",
     "inputs": [
       {
         "name": "strategy",
         "type": "address",
         "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InexactRevenuePayout",
+    "inputs": [
+      {
+        "name": "receiver",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "senderDebit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "receiverCredit",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },
@@ -1091,6 +1210,33 @@
         "name": "resonanceRouter",
         "type": "address",
         "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "RevenueBalanceDeficit",
+    "inputs": [
+      {
+        "name": "accounted",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "actual",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "RevenueScaleOverflow",
+    "inputs": [
+      {
+        "name": "balance",
+        "type": "uint256",
+        "internalType": "uint256"
       }
     ]
   },

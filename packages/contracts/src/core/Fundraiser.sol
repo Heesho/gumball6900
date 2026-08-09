@@ -9,11 +9,12 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { GBX } from "./GBX.sol";
 import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
 
-/// @title Fundraiser
-/// @author GUM BALL 6900
+/// @title GumBall6900 Sequential-Decay Fundraiser
+/// @author Heesho
 /// @notice Accepts USDG contributions and distributes each epoch's GBX emission pro rata to contributors.
 /// @dev Adapted from the give.fun Fundraiser contract. GUM BALL 6900 sends every contribution to ResonanceRouter instead
 ///      of splitting it among recipients, so all contributed USDG follows current SignalGBX allocations.
+/// @custom:version 1.0.0
 contract Fundraiser is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -76,14 +77,23 @@ contract Fundraiser is ReentrancyGuard {
         uint256 indexed epoch, uint256 scheduledEmission, uint256 contributorEmission, uint256 nextScheduledEmission
     );
 
+    /// @notice An account has already claimed its allocation for an epoch.
     error AlreadyClaimed(uint256 epoch, address account);
+    /// @notice A contribution is below the immutable minimum.
     error BelowMinimumContribution(uint256 amount);
+    /// @notice All nonzero scheduled emissions have been settled.
     error DistributionComplete();
+    /// @notice Settlement was requested before the target epoch ended.
     error EpochNotEnded(uint256 epoch);
+    /// @notice A claim was requested before its epoch was sequentially settled.
     error EpochNotSettled(uint256 epoch);
+    /// @notice A contribution token transfer credited less than the exact requested amount.
     error InexactTransfer(uint256 expected, uint256 received);
+    /// @notice The permissionless settlement bound is zero.
     error InvalidSettlementLimit();
+    /// @notice An account did not contribute during the requested epoch.
     error NoContribution(uint256 epoch, address account);
+    /// @notice A required deployment address is zero.
     error ZeroAddress();
 
     /// @notice Creates the fixed contribution schedule and immutable revenue route.
@@ -93,7 +103,8 @@ contract Fundraiser is ReentrancyGuard {
     constructor(GBX gbx_, IERC20 usdg_, address resonanceRouter_) {
         if (
             address(gbx_) == address(0) || address(usdg_) == address(0) || resonanceRouter_ == address(0)
-                || address(gbx_).code.length == 0 || address(usdg_).code.length == 0 || resonanceRouter_.code.length == 0
+                || address(gbx_).code.length == 0 || address(usdg_).code.length == 0
+                || resonanceRouter_.code.length == 0
         ) revert ZeroAddress();
         gbx = gbx_;
         usdg = usdg_;

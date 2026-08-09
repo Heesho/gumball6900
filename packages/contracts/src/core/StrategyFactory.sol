@@ -8,10 +8,11 @@ import { Bribe } from "./Bribe.sol";
 import { BribeRouter } from "./BribeRouter.sol";
 import { Strategy } from "./Strategy.sol";
 
-/// @title StrategyFactory
-/// @author GUM BALL 6900
+/// @title GumBall6900 Resonance-Bound Strategy Factory
+/// @author Heesho
 /// @notice Deploys each Strategy together with its dedicated BribeRouter.
 /// @dev Adapted from Liquid Signal Governance. Only the bound Resonance can create protocol Strategies.
+/// @custom:version 1.0.0
 contract StrategyFactory is Ownable {
     /// @notice Resonance exclusively authorized to create Strategy graphs.
     address public resonance;
@@ -20,16 +21,16 @@ contract StrategyFactory is Ownable {
     /// @param strategy Newly deployed Strategy.
     /// @param bribeRouter Router paired with the Strategy.
     /// @param paymentToken Asset accepted by the Strategy.
-    /// @param kind Whether the Strategy acquires an asset or performs GBX buybacks.
-    event StrategyCreated(
-        address indexed strategy, address indexed bribeRouter, address indexed paymentToken, Strategy.Kind kind
-    );
+    event StrategyCreated(address indexed strategy, address indexed bribeRouter, address indexed paymentToken);
     /// @notice Emitted when the factory is permanently bound to Resonance.
     /// @param resonance Bound Resonance address.
     event ResonanceSet(address indexed resonance);
 
+    /// @notice A caller other than the permanently bound Resonance requested deployment.
     error NotResonance(address caller);
+    /// @notice The one-time Resonance binding has already completed.
     error ResonanceAlreadySet(address resonance);
+    /// @notice A required deployment or binding address is zero.
     error ZeroAddress();
 
     /// @notice Creates an unbound factory whose owner may set Resonance exactly once.
@@ -50,9 +51,8 @@ contract StrategyFactory is Ownable {
     /// @notice Deploys a Strategy and the BribeRouter paired with it.
     /// @param revenueToken USDG token sold by the Strategy.
     /// @param paymentToken Asset buyers pay to fill the Strategy.
-    /// @param fund Treasury receiving acquisition proceeds or GBX buybacks.
-    /// @param bribe Bribe that streams the Strategy's signal-reward share.
-    /// @param kind Whether the Strategy acquires an asset or performs GBX buybacks.
+    /// @param fund Treasury that ultimately receives the complete payment.
+    /// @param bribe Independently fundable Bribe paired with the Strategy.
     /// @param config Immutable auction configuration.
     /// @return strategy Newly deployed Strategy.
     /// @return bribeRouter Newly deployed BribeRouter paired with `strategy`.
@@ -61,15 +61,14 @@ contract StrategyFactory is Ownable {
         IERC20 paymentToken,
         address fund,
         Bribe bribe,
-        Strategy.Kind kind,
         Strategy.Config calldata config
     ) external returns (Strategy strategy, BribeRouter bribeRouter) {
         address configuredResonance = resonance;
         if (msg.sender != configuredResonance) revert NotResonance(msg.sender);
 
-        strategy = new Strategy(configuredResonance, revenueToken, paymentToken, fund, kind, config);
+        strategy = new Strategy(configuredResonance, revenueToken, paymentToken, fund, config);
         bribeRouter = new BribeRouter(address(strategy), bribe, paymentToken, fund);
 
-        emit StrategyCreated(address(strategy), address(bribeRouter), address(paymentToken), kind);
+        emit StrategyCreated(address(strategy), address(bribeRouter), address(paymentToken));
     }
 }

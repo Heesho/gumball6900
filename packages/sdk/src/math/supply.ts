@@ -9,7 +9,7 @@ export function currentTotalSupply(cumulativeMinted: bigint, cumulativeBurned: b
   return cumulativeMinted - cumulativeBurned;
 }
 
-/** Signed result: a buyback can burn more GBX than an epoch emits. */
+/** Signed result: a later permissionless Fund burn can exceed an epoch's new GBX emission. */
 export function netSupplyChange(newEmission: bigint, gbxBurned: bigint): bigint {
   assertNonNegative(newEmission, 'newEmission');
   assertNonNegative(gbxBurned, 'gbxBurned');

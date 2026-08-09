@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-/// @title IBribe
-/// @author GUM BALL 6900
+/// @title GumBall6900 Multi-Token Reward Interface
+/// @author Heesho
 /// @notice Minimal reward-stream interface used by BribeRouter.
+/// @custom:version 1.0.0
 interface IBribe {
-    /// @notice Starts or extends a reward stream.
+    /// @notice Starts a reward stream or queues funding behind the current stream without changing its finish time.
     /// @param rewardToken Token to stream.
     /// @param amount Amount pulled from the caller and added to the stream.
     function notifyRewardAmount(address rewardToken, uint256 amount) external;

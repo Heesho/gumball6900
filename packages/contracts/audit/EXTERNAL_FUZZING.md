@@ -8,7 +8,7 @@ Echidna and Medusa share the `echidna_` property surface.
 The accounting properties reconcile account, Strategy, Resonance, Bribe, staking, emission, revenue, and supply state.
 The liveness/boundedness properties additionally prove that every represented account's complete exit remains within
 the configured three-Strategy/eight-reward-token graph and that reward-token loops cannot grow beyond Bribe's immutable
-cap. They do not resolve A-04: a hostile USDG transfer to Fund can still block removal of the affected dead-Strategy
+cap. A later production-hardening change resolves A-04 by recording a fixed Fund liability, so hostile USDG cannot block removal of the affected dead-Strategy
 signal, although unallocated `sGBX` and signals on unaffected Strategies remain independently removable.
 
 Run the pinned campaign with:

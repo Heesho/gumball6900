@@ -8,8 +8,9 @@ The required behavior is:
 1. USDG contributions route through Fundraiser, ResonanceRouter, and Resonance.
 2. SignalGBX signaling uses incremental absolute per-Strategy amounts. It has no time-based withdrawal lock, and any
    unallocated balance can be unstaked immediately.
-3. Resonance creates and funds acquisition or buyback Strategies through bound factories.
-4. Acquisition payments grow Fund and reward signalers; buyback payments burn GBX.
+3. Resonance creates uniform acquisition Strategies through bound factories.
+4. Every Strategy payment becomes a 100% fixed Fund liability. Auction proceeds never fund Bribes, and GBX payments
+   remain unburned until anyone pays the liability and calls Fund's permissionless burn function.
 5. Fund supports registry-free selective in-kind redemption and has no migration or administrative withdrawal path.
 6. GBX creates 20 million genesis-liquidity tokens and permanently reserves the remaining 980 million capacity for
    Fundraiser's fixed daily four-year-half-life schedule.
@@ -17,8 +18,10 @@ The required behavior is:
    anyone may claim its accrued fees by growing it 0.20%. Principal is never removed.
 8. Resonance administration passes through OpenZeppelin `TimelockController`. Fund and LiquidityPosition are
    ownerless.
-9. Each Bribe's append-only reward-token list is permanently capped at eight, bounding signal removal, reward claims,
-   and Strategy settlement.
+9. Each Bribe's append-only reward-token list is permanently capped at eight, bounding signal removal and reward claims.
+10. Revenue and reward floor remainders are retained as explicit scaled carry. Zero-supply reward streams pause,
+    notifications queue, and Fund-bound value is paid through fixed permissionless liabilities rather than inline
+    signal-exit transfers.
 
 Detailed mechanics are in [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md), with risks in
 [THREAT_MODEL.md](THREAT_MODEL.md).

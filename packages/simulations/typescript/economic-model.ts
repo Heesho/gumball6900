@@ -14,12 +14,6 @@ const USDG_NORMALIZATION_SCALE = WAD / USDG_UNIT;
 // Strategy rates are human-normalized target tokens per USDG, scaled by WAD.
 const UNIT_TARGET_PER_USDG_RATE = WAD;
 
-// Launch value of the signal-reward share. Settable through timelocked governance, capped
-// at MAX_MANAGER_REWARD_BPS. Declared here rather than imported so this model stays an
-// independent implementation that can disagree with the SDK and be caught doing so.
-const MANAGER_REWARD_BPS = 1_000n;
-const MAX_MANAGER_REWARD_BPS = 5_000n;
-
 const MAX_CUMULATIVE_MINT = 1_000_000_000n * WAD;
 const GENESIS_LP_GBX = 20_000_000n * WAD;
 const GENESIS_SUPPLY = GENESIS_LP_GBX;
@@ -178,13 +172,11 @@ function nextAuctionInitPrice(paymentAmount: bigint, priceMultiplier: bigint, mi
   return min(max(mulDiv(paymentAmount, priceMultiplier, WAD), minInitPrice), absoluteMaximum);
 }
 
-function acquisitionDestinations(acquired: bigint, hasActiveWeight: boolean) {
-  const nominalManagerReward = mulDiv(acquired, MANAGER_REWARD_BPS, BPS);
+function strategySettlement(paymentAmount: bigint) {
   return {
-    acquired,
-    managerReward: hasActiveWeight ? nominalManagerReward : 0n,
-    vaultGrowth: acquired - (hasActiveWeight ? nominalManagerReward : 0n),
-    redirectedToVault: hasActiveWeight ? 0n : nominalManagerReward,
+    paymentAmount,
+    fundAmount: paymentAmount,
+    auctionBribeReward: 0n,
   };
 }
 
@@ -217,16 +209,16 @@ function rewardConcentration() {
   const reward = tokens(20n);
   const weightsBps = [7_000n, 2_000n, 1_000n] as const;
   let distributed = 0n;
-  const managers = weightsBps.map((weightBps, index) => {
+  const signalers = weightsBps.map((weightBps, index) => {
     const amount = index === weightsBps.length - 1 ? reward - distributed : mulDiv(reward, weightBps, BPS);
     distributed += amount;
-    return { manager: `manager-${index + 1}`, weightBps, reward: amount };
+    return { signaler: `signaler-${index + 1}`, weightBps, reward: amount };
   });
   const hhiBps = weightsBps.reduce((sum, weight) => sum + mulDiv(weight, weight, BPS), 0n);
-  return { totalReward: reward, hhiBps, managers };
+  return { totalReward: reward, hhiBps, signalers };
 }
 
-function buybackScenario(id: string, marketPrice: bigint) {
+function gbxAcquisitionAndBurnScenario(id: string, marketPrice: bigint) {
   const supplyBefore = tokens(100_000_000n);
   const vaultValueBefore = usdG(100_000_000n);
   const usdGSpent = usdG(10_000_000n);
@@ -237,7 +229,7 @@ function buybackScenario(id: string, marketPrice: bigint) {
     id,
     marketPrice,
     backingPerGBXBefore: usdGPriceWad(vaultValueBefore, supplyBefore),
-    usdGSpentRaw: usdGSpent,
+    gbxAcquisitionBudgetUSDGRaw: usdGSpent,
     gbxBurned,
     vaultValueAfterUSDGRaw: vaultValueAfter,
     supplyAfter,
@@ -245,23 +237,23 @@ function buybackScenario(id: string, marketPrice: bigint) {
   };
 }
 
-function revenueFundedBuyback(id: 'mining-revenue' | 'lp-fee-revenue') {
+function revenueFundedGbxAcquisitionAndBurn(id: 'mining-revenue' | 'lp-fee-revenue') {
   const startingSupply = tokens(100_000_000n);
   const startingVaultValue = usdG(100_000_000n);
   const revenue = id === 'mining-revenue' ? usdG(10_000_000n) : usdG(1_000_000n);
   const emission = id === 'mining-revenue' ? tokens(10_000_000n) : 0n;
-  const buybackSpend = usdG(1_000_000n);
+  const gbxAcquisitionBudget = usdG(1_000_000n);
   const marketPrice = 8n * 10n ** 17n;
-  const gbxBurned = mulDiv(normalizeUSDG(buybackSpend), WAD, marketPrice);
+  const gbxBurned = mulDiv(normalizeUSDG(gbxAcquisitionBudget), WAD, marketPrice);
   const supplyAfter = startingSupply + emission - gbxBurned;
-  const vaultValueAfter = startingVaultValue + revenue - buybackSpend;
+  const vaultValueAfter = startingVaultValue + revenue - gbxAcquisitionBudget;
   return {
     id,
     startingSupply,
     startingVaultValueUSDGRaw: startingVaultValue,
     revenueUSDGRaw: revenue,
     emission,
-    buybackSpendUSDGRaw: buybackSpend,
+    gbxAcquisitionBudgetUSDGRaw: gbxAcquisitionBudget,
     marketPrice,
     gbxBurned,
     supplyAfter,
@@ -348,8 +340,8 @@ function computeEconomicSuiteRaw() {
       initialDailyScheduledEmission: INITIAL_DAILY_EMISSION,
       dailyDecayWad: DAILY_DECAY_WAD,
       auctionDurationSeconds: DAY,
-      managerRewardBps: MANAGER_REWARD_BPS,
-      maxManagerRewardBps: MAX_MANAGER_REWARD_BPS,
+      strategyPaymentFundBps: BPS,
+      auctionProceedsFundBribes: false,
       noOnchainNavOracle: true,
     },
     emissions: {
@@ -398,36 +390,39 @@ function computeEconomicSuiteRaw() {
       }),
       budgetAccumulation: budgetAccumulationTrace(),
     },
-    managerRewards: {
+    bribeRewards: {
       rewardYieldByStrategy: [
-        { id: 'strategy-a', activeWeight: tokens(1_000_000n), ...acquisitionDestinations(tokens(1_000n), true) },
-        { id: 'strategy-b', activeWeight: tokens(2_000_000n), ...acquisitionDestinations(tokens(5_000n), true) },
-        { id: 'strategy-without-live-weight', activeWeight: 0n, ...acquisitionDestinations(tokens(5_000n), false) },
+        { id: 'strategy-a', activeWeight: tokens(1_000_000n), notifiedReward: tokens(100n) },
+        { id: 'strategy-b', activeWeight: tokens(2_000_000n), notifiedReward: tokens(500n) },
+        { id: 'strategy-without-live-weight', activeWeight: 0n, notifiedReward: tokens(500n) },
       ].map((strategy) => ({
         ...strategy,
         rewardPerActiveGBX:
-          strategy.activeWeight === 0n ? 0n : mulDiv(strategy.managerReward, WAD, strategy.activeWeight),
+          strategy.activeWeight === 0n ? 0n : mulDiv(strategy.notifiedReward, WAD, strategy.activeWeight),
       })),
-      voteConcentration: rewardConcentration(),
+      signalConcentration: rewardConcentration(),
       rewardIndexExamples: [
         { id: 'production-scale', ...rewardIndexExample(840_000_000_000_000_000n, tokens(200n)) },
         { id: 'independent-floor-residue', ...rewardIndexExample(10n, 3n, 10n) },
       ],
-      rewardLeakageVsVaultGrowth: [
+      strategySettlementConservation: [
         {
           id: 'one-hundred-fills-with-live-weight',
           fillCount: 100n,
-          ...acquisitionDestinations(tokens(100_000n), true),
+          ...strategySettlement(tokens(100_000n)),
         },
-        { id: 'ten-fills-without-live-weight', fillCount: 10n, ...acquisitionDestinations(tokens(10_000n), false) },
+        { id: 'ten-fills-without-live-weight', fillCount: 10n, ...strategySettlement(tokens(10_000n)) },
       ],
     },
-    redemptionAndBuyback: {
+    redemptionAndGbxBurn: {
       marketRelativeToBacking: [
-        buybackScenario('gbx-below-backing', 8n * 10n ** 17n),
-        buybackScenario('gbx-above-backing', 12n * 10n ** 17n),
+        gbxAcquisitionAndBurnScenario('gbx-below-backing', 8n * 10n ** 17n),
+        gbxAcquisitionAndBurnScenario('gbx-above-backing', 12n * 10n ** 17n),
       ],
-      revenueSourceComparison: [revenueFundedBuyback('mining-revenue'), revenueFundedBuyback('lp-fee-revenue')],
+      revenueSourceComparison: [
+        revenueFundedGbxAcquisitionAndBurn('mining-revenue'),
+        revenueFundedGbxAcquisitionAndBurn('lp-fee-revenue'),
+      ],
       simultaneousEmissionAndBurn: [0n, 5_000n, 10_000n, 15_000n].map((burnRateBps) => {
         const startingSupply = tokens(100_000_000n);
         const emission = tokens(10_000_000n);

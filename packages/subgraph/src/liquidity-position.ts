@@ -10,7 +10,16 @@ export function handleCompounded(event: Compounded): void {
 
   const record = recordEvent(event, 'LIQUIDITY_COMPOUNDED');
   record.addresses = [event.params.caller];
-  record.values = [event.params.positionTokenId, event.params.claimed0, event.params.claimed1];
+  record.values = [
+    event.params.positionTokenId,
+    event.params.liquidityBefore,
+    event.params.liquidityAdded,
+    event.params.liquidityAfter,
+    event.params.funding0,
+    event.params.funding1,
+    event.params.transferred0,
+    event.params.transferred1,
+  ];
   record.save();
 }
 

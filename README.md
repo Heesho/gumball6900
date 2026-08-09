@@ -5,19 +5,18 @@
 **Mine GBX. Signal acquisitions. Build a shared treasury. Redeem onchain.**
 
 GumBall6900 is an experimental index protocol designed for Robinhood Chain. At launch, anyone will be able to mine GBX
-by contributing USDG through the Fundraiser. Those contributions and other protocol revenue build a growing basket of
+by contributing USDG through the Fundraiser. Those contributions build a growing basket of
 onchain assets chosen by GBX holders.
 
 Think of it as a community-built onchain index: approved acquisition Strategies compete for signal-directed capital,
 the assets they acquire accumulate in a shared Fund, and GBX can be burned to redeem a proportional share of selected
 Fund holdings. There is no synthetic price peg, NAV oracle, or offchain redemption desk in the core protocol.
 
-> **Development status:** this repository is a pre-audit engineering starting point. The protocol is not deployed and
-> is not authorized for user funds.
+> **Development status:** this repository is internally hardened and ready for independent security review. The
+> protocol is not deployed and is not authorized for user funds.
 >
-> **Target-design note:** the public explanation below describes the governance-minimized final surface proposed in
-> [ADR 0016](docs/adr/0016-governance-minimized-final-surface.md). The current Solidity still has a broader
-> administrative surface and must be reduced, tested, and reconciled with these docs before any deployment.
+> **Release note:** independent audit, pinned security campaigns, legal/provenance clearance, and signed deployment
+> evidence remain blockers; see the [release checklist](packages/contracts/audit/RELEASE-CHECKLIST.md).
 
 Read the accessible protocol paper in [`docs/WHITEPAPER.md`](docs/WHITEPAPER.md), or open the designed
 [`GumBall6900 whitepaper`](output/pdf/GumBall6900-the-index-fund-that-chooses-itself.pdf).
@@ -36,10 +35,9 @@ The result is a simple flywheel:
    time lock or signal cooldown. Each signal is an absolute per-Strategy amount changed incrementally.
 3. **Acquire** — USDG follows current signals. Each acquisition Strategy runs a reverse Dutch auction in which a buyer
    receives the accumulated USDG and pays with the asset that Strategy is acquiring.
-4. **Build the Fund** — 90% of each acquisition payment enters the Fund. The remaining 10% is streamed through that
-   Strategy's Bribe to eligible signalers.
+4. **Build the Fund** — every Strategy payment becomes an immutable Fund liability and can be delivered by any caller.
 5. **Redeem** — a holder can burn GBX for a proportional share of any caller-selected Fund assets.
-6. **Reduce supply** — GBX received through buybacks is burned permanently.
+6. **Maintain supply** — GBX held by Fund can be burned permissionlessly before redemptions.
 
 ```text
 USDG contribution
@@ -53,9 +51,10 @@ USDG contribution
        v
    Strategies
        |
- target asset payment
-   /            \
-90% Fund    10% signal rewards
+ complete asset payment
+       |
+       v
+ BribeRouter ---> Fund
     |
     v
 selective GBX redemption
@@ -63,12 +62,12 @@ selective GBX redemption
 
 ## One loop, four participants
 
-| Participant       | Incentive                                                                                    |
-| ----------------- | -------------------------------------------------------------------------------------------- |
-| GBX miners        | Contribute USDG to mine GBX from the fixed public distribution curve.                        |
-| GBX holders       | Direct new acquisitions, earn Strategy signal rewards, and retain in-kind redemption rights. |
-| Asset communities | Compete for allocation and Fund inclusion after a Strategy is admitted.                      |
-| Auction buyers    | Receive a Strategy's accumulated USDG when the declining price reaches their target.         |
+| Participant       | Incentive                                                                                       |
+| ----------------- | ----------------------------------------------------------------------------------------------- |
+| GBX miners        | Contribute USDG to mine GBX from the fixed public distribution curve.                           |
+| GBX holders       | Direct new acquisitions, may receive independently funded Bribes, and retain redemption rights. |
+| Asset communities | Compete for allocation and Fund inclusion after a Strategy is admitted.                         |
+| Auction buyers    | Receive a Strategy's accumulated USDG when the declining price reaches their target.            |
 
 ## Why it is different
 
@@ -78,16 +77,12 @@ GBX holders decide how new USDG revenue is allocated among active Strategies. Si
 account can add or remove absolute amounts one Strategy at a time, use caller-bounded batches, and withdraw any
 unallocated staked GBX immediately. Idle `sGBX` earns nothing and does not dilute active signalers.
 
-### Signal what you want to accumulate
+### Signal what the Fund should accumulate
 
-Signaling is also a personal accumulation choice. If an active Strategy acquires an onchain representation of NVIDIA
-shares (`NVDA`), an `sGBX` holder can signal that Strategy and earn a pro-rata stream of the acquired asset when its
-auctions settle. The same idea applies to Apple (`AAPL`), a SpaceX-linked asset, or anything else with an eligible
-onchain asset and an active GumBall6900 Strategy.
-
-The initial split sends 90% of each completed acquisition to the shared Fund and 10% to eligible signalers through the
-Strategy's Bribe. Signaling alone does not guarantee a reward or a particular amount: the Strategy must successfully
-complete acquisitions, and the reward depends on the holder's signal weight.
+If an active Strategy acquires an onchain representation of NVIDIA shares (`NVDA`), an `sGBX` holder can signal that
+Strategy to direct more USDG toward it. The same mechanism applies to Apple (`AAPL`), a SpaceX-linked asset, or any
+other eligible onchain asset. Every completed Strategy payment is Fund-bound. Bribes are separate, independently
+funded reward streams across the same signal balances; auction proceeds never fund them automatically.
 
 ### Assets instead of price exposure
 
@@ -176,10 +171,10 @@ Assets leave only through the protocol's fixed redemption and acquisition mechan
 | `ResonanceRouter`   | Permissionlessly moves accumulated USDG into Resonance.                                             |
 | `Resonance`         | Tracks allocations, distributes USDG, and controls Strategy and Bribe creation.                     |
 | `StrategyFactory`   | Resonance-only factory for Strategies and their dedicated BribeRouters.                             |
-| `Strategy`          | Reverse Dutch acquisition auction or GBX buyback.                                                   |
+| `Strategy`          | Reverse Dutch auction that accepts one configured payment asset.                                    |
 | `BribeFactory`      | Resonance-only factory for one Bribe per Strategy.                                                  |
-| `BribeRouter`       | Routes the signal-reward share of acquisition payments to the Strategy's Bribe.                     |
-| `Bribe`             | Streams at most eight reward tokens across the Strategy's signal balances.                          |
+| `BribeRouter`       | Records each complete Strategy payment as a permissionless fixed Fund liability.                    |
+| `Bribe`             | Streams at most eight independently funded reward tokens across Strategy signal balances.           |
 | `Fund`              | Registry-free asset backing, selective redemption, and GBX burning.                                 |
 | `LiquidityPosition` | Permanent custody and fixed 0.20% permissionless compounding for the canonical Uniswap v4 position. |
 
@@ -189,17 +184,16 @@ compile the same source tree.
 ## Governance-minimized final surface
 
 The intended final system is deployed once as direct, non-upgradeable contracts. `sGBX` signals govern where protocol
-capital flows. A designated manager has exactly four actions:
+capital flows. A designated manager has exactly three actions:
 
 - add a Strategy;
 - kill a Strategy;
-- change the acquisition bribe share within its 50% cap; and
 - add Bribe rewards within each Bribe's immutable eight-token cap.
 
 There is no general call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, pause
 function, or other mutable protocol parameter. Fund and LiquidityPosition are ownerless. Successor binding and
-migration were removed outright; see ADR 0017. The management-fee economics, manager authorization, and key lifecycle
-of ADR 0016 remain unresolved, so implementation remains blocked from production until those are settled and tested.
+migration were removed outright; see ADR 0017. Exact carry and deferred fixed-destination liabilities are recorded in
+ADR 0020. Deployment remains blocked by the release checklist and independent review requirements.
 
 ## Repository
 
@@ -245,7 +239,7 @@ are recorded in [`NOTICE`](NOTICE).
 
 ## Current status
 
-This codebase is under active development. Local tests are engineering evidence only; they are not an audit or a
-production-readiness claim. Before any deployment, the project still requires finalized network parameters, deployment
-rehearsals, independent security review, implementation of the governance-minimized final surface, and resolution of
-the repository's licensing and provenance questions.
+This codebase is under active development. Local tests are engineering evidence only; they are not an independent
+audit or production-readiness claim. Before any deployment, the project still requires finalized network parameters,
+deployment rehearsals, independent security review, complete pinned fuzzing and mutation evidence, a signed manifest,
+and resolution of the repository's licensing and provenance questions.

@@ -8,7 +8,6 @@
  */
 
 const WAD = 10n ** 18n;
-const BPS = 10_000n;
 
 export const constants = {
   maxCumulativeMint: 1_000_000_000n * WAD,
@@ -19,12 +18,6 @@ export const constants = {
   /** floor(WAD * 2^(-1/1460)) — a 1,460-day (four-year) half-life. */
   dailyDecayWad: 999_525_354_337_060_160n,
   halfLifeDays: 1460,
-  /**
-   * The signal-reward share of a completed normal acquisition, at launch. Adjustable
-   * through timelocked governance and capped, so the Fund always keeps the majority.
-   */
-  signalRewardBps: 1_000n,
-  maxSignalRewardBps: 5_000n,
   auction: {
     minEpochPeriodSeconds: 3_600,
     maxEpochPeriodSeconds: 365 * 86_400,
@@ -246,10 +239,4 @@ export function basketFormation({ assets, history, revenuePerPeriod }) {
 /** Redemption: `payout_j = floor(balance_j * burned / supplyBeforeBurn)` per selected asset. */
 export function previewRedemption({ balances, burned, supplyBeforeBurn }) {
   return balances.map((balance) => mulDiv(balance, burned, supplyBeforeBurn));
-}
-
-/** Split a completed acquisition into its Fund share and its signal-reward share. */
-export function splitAcquisition({ received, hasEligibleSignalers }) {
-  const signalShare = hasEligibleSignalers ? mulDiv(received, constants.signalRewardBps, BPS) : 0n;
-  return { fundShare: received - signalShare, signalShare };
 }

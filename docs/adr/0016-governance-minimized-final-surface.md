@@ -1,7 +1,9 @@
 # ADR 0016: Governance-minimized immutable final surface
 
-- Status: proposed
+- Status: accepted; terminology and implementation details superseded by ADRs 0017, 0019, 0020, and 0021
 - Date: 2026-08-08
+- Superseded terminology: every reference below to a "management fee" means the bounded acquisition
+  signal-reward share implemented as `bribeBps`; there is no separate management fee
 
 ## Context
 
@@ -19,36 +21,38 @@ The final deployment should distinguish two jobs:
 Deploy the protocol once as direct, non-upgradeable contracts. The core bytecode and all protocol rules outside the
 explicit management surface remain fixed after deployment.
 
-The manager receives exactly four authorized actions:
+After one-time setup, Resonance exposes exactly four ongoing owner-authorized actions:
 
-1. add a Strategy;
-2. remove a Strategy;
-3. change the management fee; and
-4. add Bribe rewards.
+1. `addStrategy`;
+2. `killStrategy`;
+3. `setBribeBps`, bounded from 0% through 50%; and
+4. `addBribeReward`, bounded by the immutable eight-token Bribe cap.
 
 There is no generic call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, pause function,
-signal-reward split setter, or general parameter setter. Strategy weights and revenue direction remain exclusively
-controlled by current `sGBX` signals.
+or general protocol parameter setter. Strategy weights and revenue direction remain exclusively controlled by current
+`sGBX` signals. OpenZeppelin TimelockController owns Resonance in the intended deployment and separately retains its
+standard delayed role and delay administration; this ADR does not claim the timelock itself can schedule only four
+selectors.
 
-The final implementation must encode the meaning and any bounds of the management fee directly. Strategy removal and
-Bribe reward registration semantics must also be fully specified and tested. The manager authorization mechanism and
-key lifecycle must be resolved without introducing additional callable management functions.
+The final implementation encodes the signal-reward share and its 50% ceiling directly. Strategy death and Bribe reward
+registration semantics are specified and tested, and the owner path is intended to terminate at the documented
+TimelockController rather than a deployer EOA.
 
 ## Current implementation gap
 
-This ADR records a target, not an implemented claim. The current Solidity, deployment scripts, access-control docs,
-ABIs, SDK, subgraph, and tests still describe a broader administrative and migration surface. No deployment or release
-may proceed until those powers are removed, the four-action surface is implemented, and every generated artifact and
-public document agrees with the final contracts.
+ADRs 0017 and 0019 implemented ownerless custody and the original four-action Resonance surface. ADR 0020 added exact
+accounting without expanding it. ADR 0021 removed `setBribeBps`, leaving three ongoing owner-authorized actions.
+Deployment remains blocked until a signed manifest verifies TimelockController ownership and roles, every one-time
+binding, and removal of meaningful deployer authority.
 
 ## Consequences
 
 - Holders control capital direction continuously without proposal ballots or parameter votes.
-- Management can curate Strategy eligibility, set the management fee, and register Bribe rewards, but cannot rewrite
-  the core protocol.
+- Timelocked management can curate Strategy eligibility, set the bounded acquisition signal-reward share, and register
+  Bribe rewards up to eight tokens, but cannot rewrite the core protocol.
 - Removing upgrade, migration, recovery, and pause mechanisms reduces governance power while making deployment errors
   and unforeseen failures permanent.
 - A compromised manager remains able to misuse the four listed actions. It cannot gain additional powers through the
   protocol.
-- The proposal remains unresolved until the management-fee economics, manager authorization, key lifecycle, and exact
-  contract interfaces are specified.
+- Incorrect timelock role setup or an unsafe proposer/canceller key lifecycle remains a deployment risk and must be
+  verified from signed external evidence.

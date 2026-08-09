@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted for development; not approved for deployment or user funds.
+Accepted as historical starting point; acquisition-split and buyback provisions superseded by ADR 0021. Not approved
+for deployment or user funds.
 
 ## Context
 

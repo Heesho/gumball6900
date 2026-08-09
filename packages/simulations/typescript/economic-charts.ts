@@ -115,12 +115,12 @@ function liquidityChart(root: { [key: string]: DecimalJson }): string {
   );
 }
 
-function buybackChart(root: { [key: string]: DecimalJson }): string {
-  const redemption = object(root.redemptionAndBuyback!, 'redemptionAndBuyback');
+function gbxAcquisitionAndBurnChart(root: { [key: string]: DecimalJson }): string {
+  const redemption = object(root.redemptionAndGbxBurn!, 'redemptionAndGbxBurn');
   const cases = array(redemption.marketRelativeToBacking, 'marketRelativeToBacking');
   const parts: string[] = [];
   cases.forEach((entry, index) => {
-    const scenario = object(entry, 'buyback scenario');
+    const scenario = object(entry, 'GBX acquisition and burn scenario');
     const before = BigInt(string(scenario.backingPerGBXBefore, 'backingPerGBXBefore'));
     const after = BigInt(string(scenario.backingPerGBXAfter, 'backingPerGBXAfter'));
     const x = 190 + index * 360;
@@ -143,8 +143,8 @@ function buybackChart(root: { [key: string]: DecimalJson }): string {
     '  <text x="690" y="112" fill="#f7c948" font-family="ui-sans-serif,system-ui" font-size="12">after</text>',
   );
   return frame(
-    'Buyback price versus basket backing',
-    'Spending below backing is accretive; spending above backing is dilutive in this explicit offchain valuation scenario',
+    'GBX acquisition price versus basket backing',
+    'After GBX reaches Fund and is explicitly burned, acquiring below backing is accretive while acquiring above backing is dilutive in this offchain valuation scenario',
     parts.join('\n'),
   );
 }
@@ -155,6 +155,6 @@ export function renderEconomicCharts(): Record<string, string> {
     'emissions-supply.svg': emissionChart(suite),
     'auction-curve.svg': auctionChart(suite),
     'genesis-liquidity.svg': liquidityChart(suite),
-    'buyback-backing.svg': buybackChart(suite),
+    'gbx-acquisition-burn.svg': gbxAcquisitionAndBurnChart(suite),
   };
 }

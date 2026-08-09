@@ -8,18 +8,19 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 import { GBX } from "./GBX.sol";
 
-/// @title Fund
-/// @author GUM BALL 6900
+/// @title GumBall6900 Ownerless In-Kind Redemption Fund
+/// @author Heesho
 /// @notice Holds the protocol's raw token backing and lets GBX holders redeem a selected in-kind basket.
 /// @dev Fund intentionally has no asset registry. Callers select the assets they want to redeem, which keeps a
 ///      malformed token from blocking every other asset in the treasury. Fund is ownerless and immutable: it has no
 ///      administrator, no upgrade path, no successor, and no way to move assets except redemption by GBX holders.
+/// @custom:version 1.0.0
 contract Fund is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     bytes32 private constant REDEMPTION_NAMESPACE = keccak256("gumball6900.fund.redemption");
 
-    /// @notice GBX token burned by redemptions and buybacks.
+    /// @notice GBX token burned by redemptions and permissionless maintenance.
     GBX public immutable gbx;
 
     /// @notice Emitted when GBX held by Fund is permanently burned.
@@ -33,11 +34,17 @@ contract Fund is ReentrancyGuard {
     /// @param tokenCount Number of selected assets processed.
     event Redeemed(address indexed account, address indexed receiver, uint256 gbxAmount, uint256 tokenCount);
 
+    /// @notice A redemption selected the same token more than once.
     error DuplicateToken(address token);
+    /// @notice A redemption selected no backing assets.
     error EmptyTokenList();
+    /// @notice A redemption selected GBX or the zero address.
     error ForbiddenToken(address token);
-    error InexactTransfer(address token, uint256 expected, uint256 received);
+    /// @notice A selected asset did not debit Fund and credit the receiver by the exact payout.
+    error InexactTransfer(address token, uint256 expected, uint256 fundDebit, uint256 receiverCredit);
+    /// @notice A redemption receiver is the zero address or Fund itself.
     error InvalidReceiver(address receiver);
+    /// @notice A burn or redemption amount is zero.
     error ZeroAmount();
 
     /// @notice Creates the ownerless, registry-free treasury backing `gbx_`.
@@ -47,7 +54,7 @@ contract Fund is ReentrancyGuard {
         gbx = gbx_;
     }
 
-    /// @notice Burns GBX already held by Fund, including GBX received during a buyback.
+    /// @notice Burns GBX already held by Fund, including GBX received from a Strategy payment.
     /// @param amount Amount of GBX to burn.
     function burnGBX(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
@@ -88,10 +95,14 @@ contract Fund is ReentrancyGuard {
             uint256 payout = payouts[i];
 
             if (payout != 0) {
+                uint256 fundBalanceBefore = IERC20(token).balanceOf(address(this));
                 uint256 receiverBalanceBefore = IERC20(token).balanceOf(receiver);
                 IERC20(token).safeTransfer(receiver, payout);
-                uint256 received = IERC20(token).balanceOf(receiver) - receiverBalanceBefore;
-                if (received != payout) revert InexactTransfer(token, payout, received);
+                uint256 fundDebit = fundBalanceBefore - IERC20(token).balanceOf(address(this));
+                uint256 receiverCredit = IERC20(token).balanceOf(receiver) - receiverBalanceBefore;
+                if (fundDebit != payout || receiverCredit != payout) {
+                    revert InexactTransfer(token, payout, fundDebit, receiverCredit);
+                }
             }
 
             _clearToken(REDEMPTION_NAMESPACE, token);

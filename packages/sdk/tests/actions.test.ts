@@ -7,13 +7,22 @@ import {
   buildAddSignalMany,
   buildContribution,
   buildCompoundLiquidity,
+  buildClaimBribeReward,
+  buildClaimSelectedBribeRewards,
   buildFundBurn,
   buildFundraiserClaim,
+  buildIndexPendingRevenue,
+  buildPayBribeFundReward,
+  buildPayFundRevenue,
+  buildPayRouterFundPayment,
   buildRedemption,
   buildRemoveSignal,
   buildRemoveSignalMany,
   buildSettleFundraiserEpochs,
   buildStrategyBuy,
+  buildSyncRevenue,
+  bribeAbi,
+  bribeRouterAbi,
   fundAbi,
   fundraiserAbi,
   gbxAbi,
@@ -101,5 +110,30 @@ describe('minimal typed transaction builders', () => {
     expect(
       decodeFunctionData({ abi: liquidityPositionAbi, data: buildCompoundLiquidity(A, 1n, 2n, 3n).data }).functionName,
     ).toBe('compound');
+  });
+
+  it('encodes selective reward claims and retryable fixed-liability settlement', () => {
+    expect(decodeFunctionData({ abi: bribeAbi, data: buildClaimBribeReward(A, B, C).data })).toMatchObject({
+      args: [B, C],
+      functionName: 'claimReward',
+    });
+    expect(decodeFunctionData({ abi: bribeAbi, data: buildClaimSelectedBribeRewards(A, B, [C]).data })).toMatchObject({
+      args: [B, [C]],
+      functionName: 'claimRewards',
+    });
+    expect(decodeFunctionData({ abi: resonanceAbi, data: buildSyncRevenue(A).data }).functionName).toBe('syncRevenue');
+    expect(decodeFunctionData({ abi: resonanceAbi, data: buildIndexPendingRevenue(A).data }).functionName).toBe(
+      'indexPendingRevenue',
+    );
+    expect(decodeFunctionData({ abi: resonanceAbi, data: buildPayFundRevenue(A).data }).functionName).toBe(
+      'payFundRevenue',
+    );
+    expect(decodeFunctionData({ abi: bribeRouterAbi, data: buildPayRouterFundPayment(A).data }).functionName).toBe(
+      'payFundPayment',
+    );
+    expect(decodeFunctionData({ abi: bribeAbi, data: buildPayBribeFundReward(A, C).data })).toMatchObject({
+      args: [C],
+      functionName: 'payFundReward',
+    });
   });
 });

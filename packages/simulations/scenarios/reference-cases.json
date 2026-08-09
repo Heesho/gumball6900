@@ -37,8 +37,7 @@
       "epochPeriod": "86400",
       "priceMultiplier": "2000000000000000000",
       "minInitPrice": "1000000",
-      "actualTargetReceived": "42000000000000000000",
-      "hasLiveManagerWeight": true
+      "actualTargetReceived": "42000000000000000000"
     },
     {
       "id": "midpoint",
@@ -47,8 +46,7 @@
       "epochPeriod": "86400",
       "priceMultiplier": "2000000000000000000",
       "minInitPrice": "1000000",
-      "actualTargetReceived": "42000000000000000000",
-      "hasLiveManagerWeight": true
+      "actualTargetReceived": "42000000000000000000"
     },
     {
       "id": "last-second",
@@ -57,8 +55,7 @@
       "epochPeriod": "86400",
       "priceMultiplier": "2000000000000000000",
       "minInitPrice": "1000000",
-      "actualTargetReceived": "42000000000000000000",
-      "hasLiveManagerWeight": false
+      "actualTargetReceived": "42000000000000000000"
     },
     {
       "id": "endpoint-zero",
@@ -67,8 +64,7 @@
       "epochPeriod": "86400",
       "priceMultiplier": "2000000000000000000",
       "minInitPrice": "1000000",
-      "actualTargetReceived": "42000000000000000000",
-      "hasLiveManagerWeight": true
+      "actualTargetReceived": "42000000000000000000"
     },
     {
       "id": "after-end-zero",
@@ -77,8 +73,7 @@
       "epochPeriod": "86400",
       "priceMultiplier": "2000000000000000000",
       "minInitPrice": "1000000",
-      "actualTargetReceived": "42000000000000000000",
-      "hasLiveManagerWeight": true
+      "actualTargetReceived": "42000000000000000000"
     }
   ],
   "rewardCases": [

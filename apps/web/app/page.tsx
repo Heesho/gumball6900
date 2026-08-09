@@ -19,9 +19,10 @@ const contracts = [
 
 const deploymentInputs = [
   'USDG, Uniswap v4, genesis price, and single-sided range inputs',
-  'Fixed management authority and management-fee definition',
+  'Timelock delay, multisig proposer/canceller, and permissionless executor roles',
   'Initial Strategy payment tokens and bounded auction parameters',
   'Independent security review of the immutable final bytecode',
+  'Written third-party licensing and provenance clearance',
 ] as const;
 
 export default function HomePage() {
@@ -29,19 +30,19 @@ export default function HomePage() {
     <div className="space-y-6">
       <section className="hero-grid rounded-[1.6rem] border border-[#75f7e7]/20 bg-[linear-gradient(145deg,rgba(20,41,41,.96),rgba(15,22,24,.92))] p-6 sm:p-10">
         <p className="inline-flex rounded-full border border-[#f4c56a]/25 bg-[#f4c56a]/10 px-3 py-1 text-[0.68rem] font-bold uppercase tracking-[0.14em] text-[#f6d58f]">
-          Target final design · contracts pending update · not deployed
+          Internally hardened candidate · not deployed · external audit pending
         </p>
         <h1 className="mt-7 max-w-4xl text-[2.5rem] font-semibold leading-[0.98] tracking-[-0.06em] text-white sm:text-[4rem]">
           The governance-minimized GBX protocol.
         </h1>
         <p className="mt-6 max-w-3xl text-sm leading-7 text-[#a5b3b2] sm:text-base">
-          Point sGBX at the active Strategy for an asset you want to accumulate. Completed acquisitions grow Fund and
-          stream signal rewards in that acquired asset; buybacks burn GBX, and holders can redeem a caller-selected
+          Point sGBX at the active Strategy for an asset you want Fund to accumulate. Every completed Strategy payment
+          is Fund-bound, independently funded Bribes may reward signalers, and holders can redeem a caller-selected
           pro-rata basket without an asset registry.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Metric label="Lifetime mint ceiling" value="1,000,000,000 GBX" />
-          <Metric label="Default acquisition split" value="90% Fund · 10% signalers" />
+          <Metric label="Strategy payment destination" value="100% Fund-bound" />
           <Metric label="Staking withdrawal lock" value="None" />
         </div>
       </section>
@@ -64,11 +65,14 @@ export default function HomePage() {
         <Panel eyebrow="Core economics" title="Simple, explicit value flows">
           <dl className="space-y-5">
             <Definition label="Contribution revenue" value="Fundraiser → Resonance → Strategies" />
-            <Definition label="v4 fees" value="GBX burned · USDG follows current signals" />
-            <Definition label="Acquisition payment" value="90% Fund · 10% signal rewards" />
-            <Definition label="Buyback payment" value="100% GBX burned" />
+            <Definition
+              label="v4 position fees"
+              value="Permissionless compound caller incentive · not protocol revenue"
+            />
+            <Definition label="Strategy payment" value="100% fixed Fund liability" />
+            <Definition label="GBX payment" value="Fund receipt · optional later burn" />
             <Definition label="Signal" value="Replaceable at any time" />
-            <Definition label="Signal reward" value="Pro-rata stream of the acquired asset" />
+            <Definition label="Signal reward" value="Pro-rata independently funded Bribe stream" />
             <Definition label="Redemption" value="Selected raw balances ÷ pre-burn GBX supply" />
           </dl>
         </Panel>
@@ -80,18 +84,18 @@ export default function HomePage() {
             <li>Burns never reopen lifetime mint capacity.</li>
             <li>Redemption always uses pre-burn supply and caller-selected Fund balances.</li>
             <li>Fund has no asset registry or protocol-wide token loop.</li>
-            <li>Buyback burns its complete observed GBX payment atomically.</li>
+            <li>GBX payments remain supply-neutral until a permissionless Fund burn.</li>
             <li>SignalGBX (sGBX) withdrawals have no time lock after allocations are reset.</li>
             <li>Genesis supply is fixed at 20M for v4 liquidity and 980M for the Fundraiser schedule.</li>
             <li>The deployed core has no proxy, upgrade path, treasury recovery, or successor migration.</li>
+            <li>Supported token movements fail closed unless sender debit and receiver credit are both exact.</li>
           </ul>
         </Panel>
 
-        <Panel eyebrow="Management" title="Exactly four management actions">
+        <Panel eyebrow="Governance" title="Exactly three timelocked Resonance actions">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
             <li>Add a Strategy.</li>
-            <li>Remove a Strategy.</li>
-            <li>Change the management fee.</li>
+            <li>Kill a Strategy.</li>
             <li>Add Bribe rewards.</li>
           </ul>
           <p className="mt-5 text-xs leading-5 text-[#778786]">
@@ -100,11 +104,23 @@ export default function HomePage() {
         </Panel>
       </section>
 
+      <Panel eyebrow="Settlement observability" title="Fixed liabilities stay visible and retryable">
+        <p className="max-w-4xl text-sm leading-6 text-[#a8b5b4]">
+          A blocked Fund or reward token cannot strand signal removal or unstaking. Settlement records the immutable
+          destination first; any caller can retry the exact transfer later. Reward holders can claim one token or a
+          unique selected set so a broken token does not block healthy rewards.
+        </p>
+        <dl className="mt-5 grid gap-4 sm:grid-cols-3">
+          <Definition label="Revenue state" value="fundRevenueLiability → payFundRevenue()" />
+          <Definition label="Acquisition state" value="fundPaymentLiability → payFundPayment()" />
+          <Definition label="Reward claims" value="claimReward() · claimRewards(account, tokens)" />
+        </dl>
+      </Panel>
+
       <Panel eyebrow="Deployment boundary" title="No production parameters are guessed">
         <p className="max-w-4xl text-sm leading-6 text-[#a8b5b4]">
-          The local rehearsal uses deterministic mocks. The current contracts still expose a broader administrative
-          surface than this target and must be reduced before every external address and market parameter below is
-          reviewed for deployment.
+          The local rehearsal uses deterministic mocks. The code is an internally hardened deployment candidate, but
+          external addresses, market parameters, legal provenance, and independent review remain unresolved gates.
         </p>
         <ul className="mt-5 grid gap-3 sm:grid-cols-2">
           {deploymentInputs.map((input) => (

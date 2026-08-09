@@ -116,6 +116,7 @@ const releaseObservationSchema = z
 
 export const RELEASE_EVIDENCE_MAX_VALIDITY_MS = 24 * 60 * 60 * 1_000;
 
+/** @deprecated Historical schema-v3 graph; incompatible with the current direct core and ADR 0021. */
 export const requiredMinimalProtocolContractNames = [
   'ProtocolTimelock',
   'EmergencyGuardian',

@@ -6,13 +6,15 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
+import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
 
-/// @title ResonanceRouter
-/// @author GUM BALL 6900
+/// @title GumBall6900 Permissionless Revenue Router
+/// @author Heesho
 /// @notice Collects USDG revenue and forwards it to Resonance for allocation among Strategies.
 /// @dev Adapted from Liquid Signal Governance's RevenueRouter. Routing is permissionless so directly transferred USDG
 ///      cannot become stuck or depend on a privileged keeper.
-contract ResonanceRouter is ReentrancyGuard {
+/// @custom:version 1.0.0
+contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /// @notice USDG revenue token forwarded by this router.
@@ -25,8 +27,11 @@ contract ResonanceRouter is ReentrancyGuard {
     /// @param amount Amount of USDG routed.
     event RevenueRouted(address indexed caller, uint256 amount);
 
+    /// @notice Routing was requested while no USDG was held.
     error NoRevenue();
+    /// @notice Resonance did not pull the complete routed USDG balance.
     error RevenueRetained(uint256 amount);
+    /// @notice A required deployment address is zero.
     error ZeroAddress();
 
     /// @notice Creates a fixed USDG route into `resonance_`.
@@ -44,7 +49,7 @@ contract ResonanceRouter is ReentrancyGuard {
 
     /// @notice Routes the complete USDG balance to Resonance.
     /// @return amount Amount delivered to Resonance in this call.
-    function route() external nonReentrant returns (uint256 amount) {
+    function route() external override nonReentrant returns (uint256 amount) {
         amount = usdg.balanceOf(address(this));
         if (amount == 0) revert NoRevenue();
 

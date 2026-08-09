@@ -461,19 +461,43 @@
         "internalType": "address"
       },
       {
+        "name": "liquidityBefore",
+        "type": "uint128",
+        "indexed": false,
+        "internalType": "uint128"
+      },
+      {
         "name": "liquidityAdded",
         "type": "uint128",
         "indexed": false,
         "internalType": "uint128"
       },
       {
-        "name": "claimed0",
+        "name": "liquidityAfter",
+        "type": "uint128",
+        "indexed": false,
+        "internalType": "uint128"
+      },
+      {
+        "name": "funding0",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
       },
       {
-        "name": "claimed1",
+        "name": "funding1",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "transferred0",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "transferred1",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -534,6 +558,58 @@
     "inputs": [
       {
         "name": "positionTokenId",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InexactFunding",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "payerDebit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "positionCredit",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "InexactPayout",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "expected",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "positionDebit",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "callerCredit",
         "type": "uint256",
         "internalType": "uint256"
       }

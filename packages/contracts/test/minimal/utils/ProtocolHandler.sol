@@ -7,6 +7,7 @@ import { StdCheats } from "forge-std/StdCheats.sol";
 import { StdUtils } from "forge-std/StdUtils.sol";
 
 import { Bribe } from "../../../src/core/Bribe.sol";
+import { BribeRouter } from "../../../src/core/BribeRouter.sol";
 import { Fund } from "../../../src/core/Fund.sol";
 import { Fundraiser } from "../../../src/core/Fundraiser.sol";
 import { GBX } from "../../../src/core/GBX.sol";
@@ -37,8 +38,6 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
     /// @notice Total USDG the handler has ever created, used as the conservation reference.
     uint256 public ghostUSDGMinted;
-    /// @notice Total GBX ever paid into buyback fills, all of which must end up burned.
-    uint256 public ghostBuybackPaid;
     /// @notice Highest revenue index observed, used to prove monotonicity across the whole run.
     uint256 public ghostHighestRevenueIndex;
     /// @notice Number of times each action actually executed rather than short-circuiting.
@@ -208,6 +207,14 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         ghostCalls["donateRevenue"] += 1;
     }
 
+    function donateDirectRevenue(uint256 amount) external {
+        uint256 donation = _bound(amount, 1, 1_000_000e6);
+        _mintUSDG(address(resonance), donation);
+        resonance.syncRevenue();
+
+        ghostCalls["donateDirectRevenue"] += 1;
+    }
+
     function distributeAll() external {
         resonance.distributeAll();
         ghostCalls["distributeAll"] += 1;
@@ -226,9 +233,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
         uint256 price = strategy.currentPrice();
         IERC20 payment = strategy.paymentToken();
-        bool isBuyback = strategy.kind() == Strategy.Kind.Buyback;
-
-        // The payment asset differs per Strategy, including one acquisition priced in the revenue token itself.
+        // The payment asset differs per Strategy, including one Strategy priced in the revenue token itself.
         if (price != 0) {
             if (address(payment) == address(gbx)) {
                 if (!_supplyGBX(actor, price)) return;
@@ -244,7 +249,6 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         strategy.buy(actor, strategy.epochId(), block.timestamp, price);
         vm.stopPrank();
 
-        if (isBuyback) ghostBuybackPaid += price;
         ghostCalls["buy"] += 1;
     }
 
@@ -259,6 +263,56 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         resonance.claimRewards(selected);
 
         ghostCalls["claimRewards"] += 1;
+    }
+
+    function claimSelectiveReward(uint256 actorSeed, uint256 strategySeed, uint256 tokenSeed) external {
+        if (strategies.length == 0) return;
+
+        address actor = _actor(actorSeed);
+        Bribe bribe = Bribe(resonance.bribeFor(strategies[_bound(strategySeed, 0, strategies.length - 1)]));
+        address[] memory tokens = bribe.rewardTokens();
+        if (tokens.length == 0) return;
+
+        vm.prank(actor);
+        bribe.claimReward(actor, tokens[_bound(tokenSeed, 0, tokens.length - 1)]);
+
+        ghostCalls["claimSelectiveReward"] += 1;
+    }
+
+    function notifyTinyReward(uint256 strategySeed, uint256 amount) external {
+        if (strategies.length == 0) return;
+
+        Strategy strategy = Strategy(strategies[_bound(strategySeed, 0, strategies.length - 1)]);
+        IERC20 payment = strategy.paymentToken();
+        uint256 reward = _bound(amount, 1, Bribe(resonance.bribeFor(address(strategy))).REWARD_DURATION() * 2);
+
+        if (address(payment) == address(gbx)) {
+            if (!_supplyGBX(address(this), reward)) return;
+        } else if (address(payment) == address(usdg)) {
+            _mintUSDG(address(this), reward);
+        } else {
+            target.mint(address(this), reward);
+        }
+
+        Bribe bribe = Bribe(resonance.bribeFor(address(strategy)));
+        payment.approve(address(bribe), reward);
+        bribe.notifyRewardAmount(address(payment), reward);
+
+        ghostCalls["notifyTinyReward"] += 1;
+    }
+
+    function payFixedLiabilities() external {
+        resonance.payFundRevenue();
+        for (uint256 i; i < strategies.length; ++i) {
+            BribeRouter(resonance.bribeRouterFor(strategies[i])).payFundPayment();
+            Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
+            address[] memory tokens = bribe.rewardTokens();
+            for (uint256 t; t < tokens.length; ++t) {
+                bribe.payFundReward(tokens[t]);
+            }
+        }
+
+        ghostCalls["payFixedLiabilities"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -324,15 +378,6 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     /*//////////////////////////////////////////////////////////////
                           GOVERNANCE AND TIME
     //////////////////////////////////////////////////////////////*/
-
-    function setBribeBps(uint256 shareSeed) external {
-        uint256 share = _bound(shareSeed, 0, resonance.MAX_BRIBE_BPS());
-
-        vm.prank(resonance.owner());
-        resonance.setBribeBps(share);
-
-        ghostCalls["setBribeBps"] += 1;
-    }
 
     function killStrategy(uint256 strategySeed) external {
         address[] memory alive = _aliveStrategies();

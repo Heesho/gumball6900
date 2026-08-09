@@ -8,21 +8,21 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 import { BribeRouter } from "./BribeRouter.sol";
 import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
-import { IFund } from "./interfaces/IFund.sol";
 
-/// @title Strategy
-/// @author GUM BALL 6900
-/// @notice Reverse Dutch auction that sells accumulated USDG for a configured asset or for GBX buybacks.
+/// @title GumBall6900 Reverse Dutch Strategy
+/// @author Heesho
+/// @notice Reverse Dutch auction that sells accumulated USDG for a configured payment asset.
 /// @dev The auction design is adapted with credit to Euler Fee Flow and Liquid Signal Governance. Price falls linearly
 ///      to zero, then the next auction starts from the previous payment multiplied within immutable bounds.
+/// @custom:version 1.0.0
 contract Strategy is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    enum Kind {
-        Acquisition,
-        Buyback
-    }
-
+    /// @notice Immutable auction parameters validated at Strategy creation.
+    /// @param initialPrice First epoch's starting canonical-token payment.
+    /// @param epochDuration Seconds over which the price linearly decays to zero.
+    /// @param priceMultiplier Fixed-point multiplier applied to the previous clearing payment.
+    /// @param minimumPrice Floor for the next epoch's starting payment, not a fill-time price floor.
     struct Config {
         uint256 initialPrice;
         uint256 epochDuration;
@@ -44,19 +44,14 @@ contract Strategy is ReentrancyGuard {
     uint256 public constant ABSOLUTE_MAXIMUM_PRICE = type(uint192).max;
     /// @notice Fixed-point precision for the next-price multiplier.
     uint256 public constant PRICE_SCALE = 1e18;
-    /// @notice Basis-point denominator used for the acquisition payment split.
-    uint256 public constant BPS_SCALE = 10_000;
-
-    /// @notice Resonance that supplies the current bribe share and paired BribeRouter.
+    /// @notice Resonance that supplies the paired BribeRouter.
     address public immutable resonance;
     /// @notice USDG sold by this Strategy.
     IERC20 public immutable revenueToken;
     /// @notice Asset required from a buyer.
     IERC20 public immutable paymentToken;
-    /// @notice Treasury that receives acquisition proceeds or buyback GBX.
+    /// @notice Treasury that ultimately receives every auction payment.
     address public immutable fund;
-    /// @notice Whether this Strategy performs an acquisition or GBX buyback.
-    Kind public immutable kind;
     /// @notice Number of seconds over which price declines to zero.
     uint256 public immutable epochDuration;
     /// @notice Fixed-point multiplier applied to a completed epoch's payment.
@@ -85,33 +80,36 @@ contract Strategy is ReentrancyGuard {
         uint256 paymentAmount
     );
 
+    /// @notice The caller-supplied purchase deadline has passed.
     error DeadlinePassed(uint256 deadline);
+    /// @notice A purchase was attempted while the Strategy held no USDG revenue.
     error EmptyRevenue();
+    /// @notice The configured auction duration is outside immutable safety bounds.
     error EpochDurationOutOfRange(uint256 duration);
+    /// @notice The caller's expected auction epoch differs from current state.
     error EpochIdMismatch(uint256 expected, uint256 actual);
-    error InexactPayment(uint256 expected, uint256 received);
+    /// @notice Payment collection did not produce exact payer debit and Strategy credit.
+    error InexactPayment(uint256 expected, uint256 payerDebit, uint256 strategyCredit);
+    /// @notice Settlement did not produce exact Strategy debit and receiver credit.
+    error InexactPayout(address receiver, uint256 expected, uint256 strategyDebit, uint256 receiverCredit);
+    /// @notice The configured initial auction price is outside immutable safety bounds.
     error InitialPriceOutOfRange(uint256 price);
-    error InvalidBuybackToken(address token);
+    /// @notice The current Dutch-auction payment exceeds the caller's slippage ceiling.
     error MaximumPaymentExceeded(uint256 payment, uint256 maximum);
+    /// @notice The configured minimum next-auction price is outside immutable safety bounds.
     error MinimumPriceOutOfRange(uint256 price);
+    /// @notice The configured next-price multiplier is outside immutable safety bounds.
     error PriceMultiplierOutOfRange(uint256 multiplier);
+    /// @notice A required deployment address is zero.
     error ZeroAddress();
 
-    /// @notice Creates one immutable acquisition or buyback Strategy.
-    /// @param resonance_ Resonance that provides the reward share and paired BribeRouter.
+    /// @notice Creates one immutable Strategy.
+    /// @param resonance_ Resonance that provides the paired BribeRouter.
     /// @param revenueToken_ USDG token sold by this Strategy.
     /// @param paymentToken_ Asset buyers pay to fill this Strategy.
-    /// @param fund_ Treasury receiving acquisition payments or buyback GBX.
-    /// @param kind_ Whether this Strategy acquires an asset or performs GBX buybacks.
+    /// @param fund_ Treasury that ultimately receives every auction payment.
     /// @param config Immutable auction configuration.
-    constructor(
-        address resonance_,
-        IERC20 revenueToken_,
-        IERC20 paymentToken_,
-        address fund_,
-        Kind kind_,
-        Config memory config
-    ) {
+    constructor(address resonance_, IERC20 revenueToken_, IERC20 paymentToken_, address fund_, Config memory config) {
         if (
             resonance_ == address(0) || address(revenueToken_) == address(0) || address(paymentToken_) == address(0)
                 || fund_ == address(0) || resonance_.code.length == 0 || address(revenueToken_).code.length == 0
@@ -129,15 +127,10 @@ contract Strategy is ReentrancyGuard {
         if (config.minimumPrice < ABSOLUTE_MINIMUM_PRICE || config.minimumPrice > ABSOLUTE_MAXIMUM_PRICE) {
             revert MinimumPriceOutOfRange(config.minimumPrice);
         }
-        if (kind_ == Kind.Buyback && IFund(fund_).gbx() != address(paymentToken_)) {
-            revert InvalidBuybackToken(address(paymentToken_));
-        }
-
         resonance = resonance_;
         revenueToken = revenueToken_;
         paymentToken = paymentToken_;
         fund = fund_;
-        kind = kind_;
         epochDuration = config.epochDuration;
         priceMultiplier = config.priceMultiplier;
         minimumPrice = config.minimumPrice;
@@ -167,26 +160,24 @@ contract Strategy is ReentrancyGuard {
         if (paymentAmount > maximumPayment) revert MaximumPaymentExceeded(paymentAmount, maximumPayment);
 
         if (paymentAmount != 0) {
+            uint256 payerBalanceBefore = paymentToken.balanceOf(msg.sender);
             uint256 paymentBalanceBefore = paymentToken.balanceOf(address(this));
             paymentToken.safeTransferFrom(msg.sender, address(this), paymentAmount);
-            uint256 received = paymentToken.balanceOf(address(this)) - paymentBalanceBefore;
-            if (received != paymentAmount) revert InexactPayment(paymentAmount, received);
-
-            if (kind == Kind.Buyback) {
-                _executeBuyback(paymentAmount);
-            } else {
-                _settleAcquisition(paymentAmount);
+            uint256 payerDebit = payerBalanceBefore - paymentToken.balanceOf(msg.sender);
+            uint256 strategyCredit = paymentToken.balanceOf(address(this)) - paymentBalanceBefore;
+            if (payerDebit != paymentAmount || strategyCredit != paymentAmount) {
+                revert InexactPayment(paymentAmount, payerDebit, strategyCredit);
             }
+
+            _settlePayment(paymentAmount);
         }
 
-        revenueToken.safeTransfer(revenueReceiver, revenueAmount);
+        _transferExact(revenueToken, revenueReceiver, revenueAmount);
 
         uint256 completedEpoch = epochId;
         initialPrice = _nextInitialPrice(paymentAmount);
         epochStartedAt = block.timestamp;
-        unchecked {
-            epochId = completedEpoch + 1;
-        }
+        epochId = completedEpoch + 1;
 
         emit Purchased(msg.sender, revenueReceiver, completedEpoch, revenueAmount, paymentAmount);
     }
@@ -205,30 +196,32 @@ contract Strategy is ReentrancyGuard {
         return initialPrice - Math.mulDiv(initialPrice, elapsed, epochDuration);
     }
 
-    /// @notice Settles an acquisition payment between Fund and signalers.
-    /// @dev Splits the payment using Resonance's current governance-bounded share.
+    /// @notice Converts the complete payment into an immutable Fund liability.
+    /// @dev Deferred delivery preserves auction liveness when a payment token temporarily rejects Fund. Bribes remain
+    ///      independently fundable and never receive auction proceeds.
     /// @param paymentAmount Total payment collected from the buyer.
-    function _settleAcquisition(uint256 paymentAmount) private {
-        uint256 bribeAmount = Math.mulDiv(paymentAmount, ICoreResonance(resonance).bribeBps(), BPS_SCALE);
-        uint256 fundAmount = paymentAmount - bribeAmount;
-
-        if (fundAmount != 0) paymentToken.safeTransfer(fund, fundAmount);
-        if (bribeAmount == 0) return;
-
+    function _settlePayment(uint256 paymentAmount) private {
         address router = ICoreResonance(resonance).bribeRouterFor(address(this));
         if (router == address(0)) revert ZeroAddress();
 
-        paymentToken.forceApprove(router, bribeAmount);
-        BribeRouter(router).routeRewards(bribeAmount);
+        paymentToken.forceApprove(router, paymentAmount);
+        BribeRouter(router).routePayment(paymentAmount);
         paymentToken.forceApprove(router, 0);
     }
 
-    /// @notice Settles a buyback by sending purchased GBX to Fund and burning it.
-    /// @dev Transfer and burn occur atomically in the same fill transaction.
-    /// @param paymentAmount GBX collected from the buyer.
-    function _executeBuyback(uint256 paymentAmount) private {
-        paymentToken.safeTransfer(fund, paymentAmount);
-        IFund(fund).burnGBX(paymentAmount);
+    /// @notice Transfers a supported token only when Strategy debit and receiver credit both equal `amount`.
+    /// @param token Supported revenue or payment token.
+    /// @param receiver Fixed buyer-selected revenue receiver or immutable Fund.
+    /// @param amount Exact amount to transfer.
+    function _transferExact(IERC20 token, address receiver, uint256 amount) private {
+        uint256 senderBefore = token.balanceOf(address(this));
+        uint256 receiverBefore = token.balanceOf(receiver);
+        token.safeTransfer(receiver, amount);
+        uint256 senderDebit = senderBefore - token.balanceOf(address(this));
+        uint256 receiverCredit = token.balanceOf(receiver) - receiverBefore;
+        if (senderDebit != amount || receiverCredit != amount) {
+            revert InexactPayout(receiver, amount, senderDebit, receiverCredit);
+        }
     }
 
     /// @notice Computes the next auction's bounded starting price.

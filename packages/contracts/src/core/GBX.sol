@@ -6,11 +6,12 @@ import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 import { ERC20Votes } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
 
-/// @title GBX
-/// @author GUM BALL 6900
+/// @title GumBall6900 Capped Governance and Redemption Token
+/// @author Heesho
 /// @notice Governance and redemption token for the GUM BALL 6900 protocol.
 /// @dev Adapted from the give.fun Coin contract. Minting authority can be handed over once, while the lifetime mint
 ///      ceiling counts every token ever minted and is never reopened by burns.
+/// @custom:version 1.0.0
 contract GBX is ERC20, ERC20Permit, ERC20Votes {
     /// @notice Maximum number of GBX that may ever be minted.
     uint256 public constant MAX_LIFETIME_MINT = 1_000_000_000 ether;
@@ -41,12 +42,19 @@ contract GBX is ERC20, ERC20Permit, ERC20Votes {
     /// @param newMinter Address that now controls minting.
     event MinterSet(address indexed previousMinter, address indexed newMinter);
 
+    /// @notice A mint would exceed the cumulative one-billion-token ceiling.
     error LifetimeMintCapExceeded(uint256 requested, uint256 remaining);
+    /// @notice A Fundraiser mint was requested before permanent minter handover.
     error MinterNotLocked();
+    /// @notice The one-time minter handover has already completed.
     error MinterAlreadyLocked();
+    /// @notice A caller other than the current minter requested minting or handover.
     error NotMinter(address caller);
+    /// @notice A minter handover selected the already-authorized minter.
     error SameMinter();
+    /// @notice A required receiver or minter address is zero.
     error ZeroAddress();
+    /// @notice A mint or burn amount is zero.
     error ZeroAmount();
 
     /// @notice Creates the fixed genesis allocation and assigns deployment-time minting authority.
@@ -56,7 +64,9 @@ contract GBX is ERC20, ERC20Permit, ERC20Votes {
         ERC20("GUM BALL 6900", "GBX")
         ERC20Permit("GUM BALL 6900")
     {
-        if (genesisLiquidityRecipient == address(0) || initialMinter == address(0)) revert ZeroAddress();
+        if (genesisLiquidityRecipient == address(0) || initialMinter == address(0)) {
+            revert ZeroAddress();
+        }
 
         minter = initialMinter;
         lifetimeMinted = GENESIS_LIQUIDITY_ALLOCATION;

@@ -93,7 +93,7 @@ contract FundraiserTest is ProtocolFixture {
 
     function test_ContributeRoutesEveryUnitThroughResonanceRouter() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
 
         usdg.mint(BOB, 100_000_000);
         vm.startPrank(BOB);

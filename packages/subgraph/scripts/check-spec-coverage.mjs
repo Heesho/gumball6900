@@ -18,7 +18,6 @@ export const REQUIRED_ENTITIES = Object.freeze([
 export const ACCOUNTING_EXTENSION_ENTITIES = Object.freeze([]);
 
 export const REQUIRED_HANDLERS = Object.freeze([
-  'handleBribeBpsSet',
   'handleBribeRewardAdded',
   'handleBurned',
   'handleCallExecuted',
@@ -37,6 +36,9 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleRedeemed',
   'handleRevenueDistributed',
   'handleRevenueNotified',
+  'handleRevenueSynced',
+  'handleFundRevenueAccrued',
+  'handleFundRevenuePaid',
   'handleRevenueRouted',
   'handleSignalResonanceSet',
   'handleStaked',
@@ -46,6 +48,12 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleSignalAdded',
   'handleSignalRemoved',
   'handleResonanceRouterSet',
+  'handleRewardNotified',
+  'handleRewardPaid',
+  'handleBribeFundRewardAccrued',
+  'handleBribeFundRewardPaid',
+  'handleRouterFundPaymentAccrued',
+  'handleRouterFundPaymentPaid',
 ]);
 
 function matches(text, expression, captureIndex = 1) {

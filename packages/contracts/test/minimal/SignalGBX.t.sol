@@ -8,6 +8,7 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { Resonance } from "../../src/core/Resonance.sol";
 import { SignalGBX } from "../../src/core/SignalGBX.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
+import { FeeOnTransferToken } from "./utils/Tokens.sol";
 
 /// @title SignalGBXTest
 /// @notice Covers the one-for-one staking receipt, non-transferability, and withdrawal of unallocated balances.
@@ -73,6 +74,24 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(signalGBX.totalSupply(), 100 ether);
         assertEq(gbx.balanceOf(address(signalGBX)), 100 ether);
         assertEq(gbx.balanceOf(ALICE), 900 ether);
+    }
+
+    function test_StakeRejectsFeeOnTransferUnderlying() external {
+        FeeOnTransferToken token = new FeeOnTransferToken(18);
+        SignalGBX receipt = new SignalGBX(IERC20(address(token)), address(this));
+        token.mint(ALICE, 100 ether);
+        token.setFeeBps(100);
+
+        vm.startPrank(ALICE);
+        token.approve(address(receipt), 100 ether);
+        vm.expectRevert(
+            abi.encodeWithSelector(SignalGBX.InexactUnderlyingTransfer.selector, 100 ether, 100 ether, 99 ether)
+        );
+        receipt.stake(100 ether);
+        vm.stopPrank();
+
+        assertEq(receipt.totalSupply(), 0);
+        assertEq(token.balanceOf(ALICE), 100 ether);
     }
 
     function test_StakeSelfDelegatesOnFirstDepositOnly() external {
@@ -159,9 +178,28 @@ contract SignalGBXTest is ProtocolFixture {
         signalGBX.unstake(11 ether);
     }
 
+    function test_UnstakeRejectsFeeOnTransferUnderlyingAndRestoresReceipt() external {
+        FeeOnTransferToken token = new FeeOnTransferToken(18);
+        SignalGBX receipt = new SignalGBX(IERC20(address(token)), address(this));
+        token.mint(ALICE, 100 ether);
+
+        vm.startPrank(ALICE);
+        token.approve(address(receipt), 100 ether);
+        receipt.stake(100 ether);
+        token.setFeeBps(100);
+        vm.expectRevert(
+            abi.encodeWithSelector(SignalGBX.InexactUnderlyingTransfer.selector, 100 ether, 100 ether, 99 ether)
+        );
+        receipt.unstake(100 ether);
+        vm.stopPrank();
+
+        assertEq(receipt.balanceOf(ALICE), 100 ether);
+        assertEq(token.balanceOf(address(receipt)), 100 ether);
+    }
+
     function test_UnstakeCannotConsumeBalanceThatIsStillAllocated() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
 
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(SignalGBX.ActiveSignals.selector, ALICE, 100 ether));
@@ -170,10 +208,10 @@ contract SignalGBXTest is ProtocolFixture {
 
     function test_UnstakeSucceedsImmediatelyAfterSignalRemovalWithNoTimeLock() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
 
         vm.startPrank(ALICE);
-        resonance.removeSignal(address(acquisitionStrategy), 100 ether);
+        resonance.removeSignal(address(targetStrategy), 100 ether);
         vm.expectEmit(true, false, false, true);
         emit Unstaked(ALICE, 100 ether);
         signalGBX.unstake(100 ether);
@@ -187,22 +225,22 @@ contract SignalGBXTest is ProtocolFixture {
 
     function test_RemoveUnstakeAndAddSignalCanBeCombinedInOneTransaction() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
 
         // No epoch gate exists, so removal, exit, and a new signal are legal in the allocation block.
         vm.startPrank(ALICE);
-        resonance.removeSignal(address(acquisitionStrategy), 100 ether);
+        resonance.removeSignal(address(targetStrategy), 100 ether);
         signalGBX.unstake(40 ether);
-        resonance.addSignal(address(buybackStrategy), 60 ether);
+        resonance.addSignal(address(gbxStrategy), 60 ether);
         vm.stopPrank();
 
-        assertEq(resonance.accountSignals(ALICE, address(buybackStrategy)), 60 ether);
+        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 60 ether);
         assertEq(signalGBX.balanceOf(ALICE), 60 ether);
     }
 
     function test_StakingMoreAfterSignalingLeavesTheNewBalanceImmediatelyWithdrawable() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
         _stake(ALICE, 100 ether);
 
         // The recorded absolute weight does not expand when the holder stakes more.
@@ -308,8 +346,8 @@ contract SignalGBXTest is ProtocolFixture {
         _stake(ALICE, stakeAmount);
 
         address[] memory strategies = new address[](2);
-        strategies[0] = address(acquisitionStrategy);
-        strategies[1] = address(buybackStrategy);
+        strategies[0] = address(targetStrategy);
+        strategies[1] = address(gbxStrategy);
 
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = bound(amountA, 1, stakeAmount - 1);
@@ -330,8 +368,8 @@ contract SignalGBXTest is ProtocolFixture {
         _stake(ALICE, 1_000);
 
         address[] memory strategies = new address[](2);
-        strategies[0] = address(acquisitionStrategy);
-        strategies[1] = address(buybackStrategy);
+        strategies[0] = address(targetStrategy);
+        strategies[1] = address(gbxStrategy);
 
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 1;
@@ -340,8 +378,8 @@ contract SignalGBXTest is ProtocolFixture {
         vm.prank(ALICE);
         resonance.addSignalMany(strategies, amounts);
 
-        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 1);
-        assertEq(resonance.accountSignals(ALICE, address(buybackStrategy)), 999);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 1);
+        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 999);
         assertEq(resonance.accountSignalWeight(ALICE), 1_000);
     }
 }

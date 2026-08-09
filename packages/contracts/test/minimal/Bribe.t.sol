@@ -4,7 +4,7 @@ pragma solidity 0.8.26;
 import { Test } from "forge-std/Test.sol";
 
 import { Bribe } from "../../src/core/Bribe.sol";
-import { FeeOnTransferToken, MockERC20 } from "./utils/Tokens.sol";
+import { FeeOnTransferToken, MockERC20, RevertingToken } from "./utils/Tokens.sol";
 
 /// @title BribeTest
 /// @notice Drives the reward stream directly, with the test contract acting as Resonance.
@@ -26,6 +26,10 @@ contract BribeTest is Test {
     event RewardPaid(address indexed account, address indexed rewardToken, uint256 amount);
     event SignalWeightDeposited(address indexed account, uint256 amount);
     event SignalWeightWithdrawn(address indexed account, uint256 amount);
+
+    function fund() external view returns (address fundAddress) {
+        return address(this);
+    }
 
     function setUp() external {
         vm.warp(365 days);
@@ -127,18 +131,25 @@ contract BribeTest is Test {
         bribe.notifyRewardAmount(address(secondReward), 10 ether);
     }
 
-    function test_NotifyRejectsAnAmountThatCannotSustainANonZeroRate() external {
-        vm.expectRevert(abi.encodeWithSelector(Bribe.RewardBelowDuration.selector, WEEK - 1));
-        bribe.notifyRewardAmount(address(reward), WEEK - 1);
+    function test_NotifyAcceptsAndExactlySchedulesAnAmountBelowTheDuration() external {
+        bribe.deposit(1 ether, ALICE);
+        _notify(WEEK - 1);
+
+        vm.warp(block.timestamp + WEEK);
+        bribe.claimReward(ALICE, address(reward));
+        assertEq(reward.balanceOf(ALICE), WEEK - 1);
     }
 
-    function test_NotifyRejectsAnAmountThatWouldShrinkALiveStream() external {
+    function test_NotifyQueuesRatherThanShrinkingALiveStream() external {
+        bribe.deposit(1 ether, ALICE);
         _notify(70 ether);
         vm.warp(block.timestamp + 1 days);
 
         uint256 remaining = bribe.left(address(reward));
-        vm.expectRevert(abi.encodeWithSelector(Bribe.RewardBelowRemaining.selector, remaining, remaining));
-        bribe.notifyRewardAmount(address(reward), remaining);
+        _notify(1);
+
+        assertEq(bribe.left(address(reward)), remaining);
+        assertEq(bribe.queuedRewards(address(reward)), 1);
     }
 
     function test_NotifyRejectsAFeeOnTransferRewardToken() external {
@@ -149,7 +160,9 @@ contract BribeTest is Test {
         feeToken.setFeeBps(100);
 
         vm.expectRevert(
-            abi.encodeWithSelector(Bribe.InexactRewardTransfer.selector, 70 ether, (70 ether * 9_900) / 10_000)
+            abi.encodeWithSelector(
+                Bribe.InexactRewardTransfer.selector, 70 ether, 70 ether, (70 ether * 9_900) / 10_000
+            )
         );
         bribe.notifyRewardAmount(address(feeToken), 70 ether);
     }
@@ -167,11 +180,11 @@ contract BribeTest is Test {
         emit RewardNotified(address(reward), 70 ether);
         bribe.notifyRewardAmount(address(reward), 70 ether);
 
-        (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime,) = bribe.rewardData(address(reward));
+        (uint256 periodFinish,, uint256 rewardRate, uint256 lastUpdateTime,,) = bribe.rewardData(address(reward));
         assertEq(rewardRate, 70 ether / WEEK);
         assertEq(periodFinish, block.timestamp + WEEK);
         assertEq(lastUpdateTime, block.timestamp);
-        assertEq(bribe.left(address(reward)), (70 ether / WEEK) * WEEK);
+        assertEq(bribe.left(address(reward)), 70 ether);
     }
 
     function test_LeftAndApplicableTimeCollapseAfterThePeriodEnds() external {
@@ -188,18 +201,20 @@ contract BribeTest is Test {
         assertEq(bribe.left(address(reward)), 0);
     }
 
-    function test_ATopUpRollsTheUndistributedRemainderIntoTheNewStream() external {
+    function test_ATopUpWaitsBehindTheUndisturbedActiveStream() external {
         bribe.deposit(100 ether, ALICE);
         _notify(70 ether);
         uint256 firstRate = 70 ether / WEEK;
 
         vm.warp(block.timestamp + 3 days);
         uint256 remaining = bribe.left(address(reward));
-        assertEq(remaining, firstRate * 4 days);
+        assertGe(remaining, firstRate * 4 days);
 
         _notify(140 ether);
-        (, uint256 rewardRate,,) = bribe.rewardData(address(reward));
-        assertEq(rewardRate, (140 ether + remaining) / WEEK);
+        (,, uint256 rewardRate,,,) = bribe.rewardData(address(reward));
+        assertEq(rewardRate, firstRate);
+        assertEq(bribe.left(address(reward)), remaining);
+        assertEq(bribe.queuedRewards(address(reward)), 140 ether);
     }
 
     function test_AccrualIsProportionalToVirtualWeight() external {
@@ -292,10 +307,42 @@ contract BribeTest is Test {
         assertEq(secondReward.balanceOf(ALICE), secondAmount);
     }
 
-    /// @notice A low-decimal reward token loses the whole rate remainder, which can be a large share of a small stream.
-    /// @dev `rewardRate = amount / 604800` floors, so for six-decimal USDG the loss is material at realistic sizes.
-    ///      A stream of 7.0 USDG strands 4.96% of itself; a stream of 1.209599 USDG strands 50%.
-    function test_LowDecimalRewardTokensLoseTheEntireRateRemainder() external {
+    function test_SelectiveClaimOmitsABrokenRewardToken() external {
+        RevertingToken broken = new RevertingToken(18);
+        bribe.addRewardToken(address(broken));
+        bribe.deposit(100 ether, ALICE);
+
+        _notify(70 ether);
+        broken.mint(address(this), 35 ether);
+        broken.approve(address(bribe), 35 ether);
+        bribe.notifyRewardAmount(address(broken), 35 ether);
+        vm.warp(block.timestamp + WEEK);
+
+        broken.setBlocked(ALICE, true);
+        vm.prank(OUTSIDER);
+        assertEq(bribe.claimReward(ALICE, address(reward)), 70 ether);
+        assertEq(reward.balanceOf(ALICE), 70 ether);
+
+        uint256 brokenLiability = bribe.earned(ALICE, address(broken));
+        vm.expectRevert("BLOCKED");
+        bribe.claimReward(ALICE, address(broken));
+        assertEq(bribe.earned(ALICE, address(broken)), brokenLiability);
+    }
+
+    function test_SelectiveClaimRejectsDuplicatesAndUnregisteredTokensBeforeInteraction() external {
+        address[] memory duplicate = new address[](2);
+        duplicate[0] = address(reward);
+        duplicate[1] = address(reward);
+        vm.expectRevert(abi.encodeWithSelector(Bribe.DuplicateRewardToken.selector, address(reward)));
+        bribe.claimRewards(ALICE, duplicate);
+
+        address[] memory unregistered = new address[](1);
+        unregistered[0] = address(secondReward);
+        vm.expectRevert(abi.encodeWithSelector(Bribe.NotRewardToken.selector, address(secondReward)));
+        bribe.claimRewards(ALICE, unregistered);
+    }
+
+    function test_LowDecimalRewardTokensDistributeTheExactRateRemainder() external {
         bribe.addRewardToken(address(secondReward));
         bribe.deposit(100 ether, ALICE);
 
@@ -307,17 +354,11 @@ contract BribeTest is Test {
         vm.warp(block.timestamp + WEEK);
         bribe.claimRewards(ALICE);
 
-        uint256 distributed = (amount / WEEK) * WEEK;
-        uint256 stranded = amount - distributed;
-
-        assertEq(secondReward.balanceOf(ALICE), distributed);
-        assertEq(secondReward.balanceOf(address(bribe)), stranded);
-        assertEq(stranded, 347_200);
-        assertGt((stranded * 10_000) / amount, 400, "over four percent of a seven dollar stream is lost");
+        assertEq(secondReward.balanceOf(ALICE), amount);
+        assertEq(secondReward.balanceOf(address(bribe)), 0);
     }
 
-    /// @notice At the smallest amount the router will forward, half of a two-unit-per-second stream is lost.
-    function test_TheWorstCaseRateFlooringLossIsAlmostHalfOfTheStream() external {
+    function test_TheWorstCaseFormerRateFlooringRemainderIsFullyDistributed() external {
         bribe.addRewardToken(address(secondReward));
         bribe.deposit(100 ether, ALICE);
 
@@ -329,18 +370,15 @@ contract BribeTest is Test {
         vm.warp(block.timestamp + WEEK);
         bribe.claimRewards(ALICE);
 
-        assertEq(secondReward.balanceOf(ALICE), WEEK);
-        assertEq(secondReward.balanceOf(address(bribe)), WEEK - 1);
+        assertEq(secondReward.balanceOf(ALICE), amount);
+        assertEq(secondReward.balanceOf(address(bribe)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
                        STRANDED VALUE (DOCUMENTED)
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Rewards that elapse while no signal weight exists are permanently unreachable.
-    /// @dev `rewardPerToken` cannot advance with a zero total supply, but `updateReward` still moves
-    ///      `lastUpdateTime` forward, so that slice of the stream is skipped and never re-enters accounting.
-    function test_RewardsElapsingWithZeroSignalWeightAreStrandedForever() external {
+    function test_ZeroSignalWeightPausesAndExtendsTheStreamWithoutRetroactiveAccrual() external {
         bribe.deposit(100 ether, ALICE);
         _notify(70 ether);
         uint256 rate = 70 ether / WEEK;
@@ -353,7 +391,7 @@ contract BribeTest is Test {
         vm.warp(block.timestamp + 3 days);
         bribe.deposit(100 ether, BOB);
 
-        vm.warp(block.timestamp + 3 days);
+        vm.warp(block.timestamp + 6 days);
         bribe.claimRewards(ALICE);
         bribe.claimRewards(BOB);
 
@@ -361,18 +399,12 @@ contract BribeTest is Test {
         uint256 stranded = reward.balanceOf(address(bribe));
 
         assertApproxEqAbs(reward.balanceOf(ALICE), rate * 1 days, 1e6);
-        assertApproxEqAbs(reward.balanceOf(BOB), rate * 3 days, 1e6);
-        assertApproxEqRel(stranded, (70 ether * 3) / 7, 1e12, "three of seven days are lost");
+        assertApproxEqAbs(reward.balanceOf(BOB), rate * 6 days, 1e6);
+        assertEq(stranded, 0, "the paused interval cannot strand rewards");
         assertEq(paidOut + stranded, 70 ether);
-
-        // A later stream cannot recover the stranded balance: only freshly transferred amounts are scheduled.
-        _notify(70 ether);
-        (, uint256 rewardRate,,) = bribe.rewardData(address(reward));
-        assertEq(rewardRate, 70 ether / WEEK, "the stranded balance is not rescheduled");
     }
 
-    /// @notice The floored reward rate leaves a permanent remainder of up to one week minus one wei.
-    function test_TheFlooredRewardRateStrandsTheRemainder() external {
+    function test_TheFormerFlooredRewardRateRemainderIsFullyClaimable() external {
         bribe.deposit(100 ether, ALICE);
         uint256 amount = WEEK + WEEK - 1; // rate floors to 1, remainder is WEEK - 1
         _notify(amount);
@@ -380,12 +412,11 @@ contract BribeTest is Test {
         vm.warp(block.timestamp + WEEK);
         bribe.claimRewards(ALICE);
 
-        assertEq(reward.balanceOf(ALICE), WEEK);
-        assertEq(reward.balanceOf(address(bribe)), WEEK - 1, "the division remainder is unreachable");
+        assertEq(reward.balanceOf(ALICE), amount);
+        assertEq(reward.balanceOf(address(bribe)), 0);
     }
 
-    /// @notice Anyone may extend a live stream, which delays payout but can never reduce the total.
-    function test_AnOutsiderCanExtendTheStreamAsADonationOnly() external {
+    function test_AnOutsiderCannotExtendOrSlowTheLiveStream() external {
         bribe.deposit(100 ether, ALICE);
         _notify(70 ether);
 
@@ -398,9 +429,10 @@ contract BribeTest is Test {
         bribe.notifyRewardAmount(address(reward), 700 ether);
         vm.stopPrank();
 
-        assertEq(bribe.left(address(reward)), ((700 ether + remainingBefore) / WEEK) * WEEK);
+        assertEq(bribe.left(address(reward)), remainingBefore);
+        assertEq(bribe.queuedRewards(address(reward)), 700 ether);
 
-        vm.warp(block.timestamp + WEEK);
+        vm.warp(block.timestamp + 8 days);
         bribe.claimRewards(ALICE);
         assertApproxEqRel(reward.balanceOf(ALICE), 770 ether, 1e12, "the extension only adds value");
     }

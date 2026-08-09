@@ -17,8 +17,8 @@
     "initialDailyScheduledEmission": "465152749681042811702004",
     "dailyDecayWad": "999525354337060160",
     "auctionDurationSeconds": "86400",
-    "managerRewardBps": "1000",
-    "maxManagerRewardBps": "5000",
+    "strategyPaymentFundBps": "10000",
+    "auctionProceedsFundBribes": false,
     "noOnchainNavOracle": true
   },
   "emissions": {
@@ -624,52 +624,43 @@
       }
     ]
   },
-  "managerRewards": {
+  "bribeRewards": {
     "rewardYieldByStrategy": [
       {
         "id": "strategy-a",
         "activeWeight": "1000000000000000000000000",
-        "acquired": "1000000000000000000000",
-        "managerReward": "100000000000000000000",
-        "vaultGrowth": "900000000000000000000",
-        "redirectedToVault": "0",
+        "notifiedReward": "100000000000000000000",
         "rewardPerActiveGBX": "100000000000000"
       },
       {
         "id": "strategy-b",
         "activeWeight": "2000000000000000000000000",
-        "acquired": "5000000000000000000000",
-        "managerReward": "500000000000000000000",
-        "vaultGrowth": "4500000000000000000000",
-        "redirectedToVault": "0",
+        "notifiedReward": "500000000000000000000",
         "rewardPerActiveGBX": "250000000000000"
       },
       {
         "id": "strategy-without-live-weight",
         "activeWeight": "0",
-        "acquired": "5000000000000000000000",
-        "managerReward": "0",
-        "vaultGrowth": "5000000000000000000000",
-        "redirectedToVault": "500000000000000000000",
+        "notifiedReward": "500000000000000000000",
         "rewardPerActiveGBX": "0"
       }
     ],
-    "voteConcentration": {
+    "signalConcentration": {
       "totalReward": "20000000000000000000",
       "hhiBps": "5400",
-      "managers": [
+      "signalers": [
         {
-          "manager": "manager-1",
+          "signaler": "signaler-1",
           "weightBps": "7000",
           "reward": "14000000000000000000"
         },
         {
-          "manager": "manager-2",
+          "signaler": "signaler-2",
           "weightBps": "2000",
           "reward": "4000000000000000000"
         },
         {
-          "manager": "manager-3",
+          "signaler": "signaler-3",
           "weightBps": "1000",
           "reward": "2000000000000000000"
         }
@@ -693,32 +684,30 @@
         "residue": "1"
       }
     ],
-    "rewardLeakageVsVaultGrowth": [
+    "strategySettlementConservation": [
       {
         "id": "one-hundred-fills-with-live-weight",
         "fillCount": "100",
-        "acquired": "100000000000000000000000",
-        "managerReward": "10000000000000000000000",
-        "vaultGrowth": "90000000000000000000000",
-        "redirectedToVault": "0"
+        "paymentAmount": "100000000000000000000000",
+        "fundAmount": "100000000000000000000000",
+        "auctionBribeReward": "0"
       },
       {
         "id": "ten-fills-without-live-weight",
         "fillCount": "10",
-        "acquired": "10000000000000000000000",
-        "managerReward": "0",
-        "vaultGrowth": "10000000000000000000000",
-        "redirectedToVault": "1000000000000000000000"
+        "paymentAmount": "10000000000000000000000",
+        "fundAmount": "10000000000000000000000",
+        "auctionBribeReward": "0"
       }
     ]
   },
-  "redemptionAndBuyback": {
+  "redemptionAndGbxBurn": {
     "marketRelativeToBacking": [
       {
         "id": "gbx-below-backing",
         "marketPrice": "800000000000000000",
         "backingPerGBXBefore": "1000000000000000000",
-        "usdGSpentRaw": "10000000000000",
+        "gbxAcquisitionBudgetUSDGRaw": "10000000000000",
         "gbxBurned": "12500000000000000000000000",
         "vaultValueAfterUSDGRaw": "90000000000000",
         "supplyAfter": "87500000000000000000000000",
@@ -728,7 +717,7 @@
         "id": "gbx-above-backing",
         "marketPrice": "1200000000000000000",
         "backingPerGBXBefore": "1000000000000000000",
-        "usdGSpentRaw": "10000000000000",
+        "gbxAcquisitionBudgetUSDGRaw": "10000000000000",
         "gbxBurned": "8333333333333333333333333",
         "vaultValueAfterUSDGRaw": "90000000000000",
         "supplyAfter": "91666666666666666666666667",
@@ -742,7 +731,7 @@
         "startingVaultValueUSDGRaw": "100000000000000",
         "revenueUSDGRaw": "10000000000000",
         "emission": "10000000000000000000000000",
-        "buybackSpendUSDGRaw": "1000000000000",
+        "gbxAcquisitionBudgetUSDGRaw": "1000000000000",
         "marketPrice": "800000000000000000",
         "gbxBurned": "1250000000000000000000000",
         "supplyAfter": "108750000000000000000000000",
@@ -755,7 +744,7 @@
         "startingVaultValueUSDGRaw": "100000000000000",
         "revenueUSDGRaw": "1000000000000",
         "emission": "0",
-        "buybackSpendUSDGRaw": "1000000000000",
+        "gbxAcquisitionBudgetUSDGRaw": "1000000000000",
         "marketPrice": "800000000000000000",
         "gbxBurned": "1250000000000000000000000",
         "supplyAfter": "98750000000000000000000000",

@@ -47,7 +47,7 @@ if ! semgrep scan \
     --error \
     --sarif \
     --output "$REPORT_DIR/semgrep.sarif" \
-    src script/foundry; then
+    src script/minimal; then
     status=1
 fi
 if ! jq --exit-status '.runs | type == "array" and all(.[]; (.results | type == "array" and length == 0))' \
@@ -83,7 +83,7 @@ if ! jq --exit-status 'type == "array" and length == 0' "$REPORT_DIR/gitleaks.js
     status=1
 fi
 
-if ! pnpm exec solhint 'src/**/*.sol' 'script/foundry/**/*.sol' >"$REPORT_DIR/solhint.txt" 2>&1; then
+if ! pnpm exec solhint 'src/**/*.sol' 'script/minimal/**/*.sol' >"$REPORT_DIR/solhint.txt" 2>&1; then
     status=1
 fi
 
@@ -95,11 +95,8 @@ fi
 
 : >"$REPORT_DIR/storage-layout.jsonl"
 for contract in \
-    GBXToken EmissionController GenesisBootstrap GenesisClaims MiningPool MiningClaims \
-    StakedGBX AllocationVoter ManagerRewards AssetRegistry GumBallVault AcquisitionStrategy \
-    HoldUSDGStrategy BuybackBurnStrategy RevenueRouter LaunchGuardHook LiquidityManager \
-    GumBallPermissionedHook AdapterVerificationEscrow PermissionedLiquidityManager \
-    ProtocolTimelock EmergencyGuardian; do
+    GBX Fundraiser LiquidityPosition SignalGBX ResonanceRouter Resonance Strategy \
+    BribeRouter Bribe StrategyFactory BribeFactory Fund TimelockController; do
     layout="$(forge inspect "$contract" storage-layout --json)"
     jq --compact-output --null-input --arg contract "$contract" --argjson layout "$layout" \
         '{contract: $contract, layout: $layout}' >>"$REPORT_DIR/storage-layout.jsonl"

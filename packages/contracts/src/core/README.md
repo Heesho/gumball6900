@@ -7,8 +7,8 @@ authorized for user funds.
 
 ```text
 contributions: Fundraiser -> ResonanceRouter -> Resonance -> Strategy
-acquisitions:  buyer payment -> Fund + BribeRouter -> Bribe -> signalers
-buybacks:      buyer GBX -> Fund -> burn
+acquisitions:  buyer payment -> BribeRouter -> Fund liability -> Fund
+GBX payments:  buyer GBX -> BribeRouter -> Fund liability -> Fund -> permissionless burn
 redemptions:   user GBX -> burn; selected Fund assets -> receiver
 liquidity:      caller funds 0.20% growth shortfall -> position; accrued position fees -> caller
 ```
@@ -24,14 +24,14 @@ liquidity:      caller funds 0.20% growth shortfall -> position; accrued positio
 | `ResonanceRouter`   | Permissionlessly forwards all accumulated USDG to Resonance.                                                           |
 | `Resonance`         | Incremental absolute SignalGBX allocation, indexed USDG distribution, Strategy creation, and Bribe accounting.         |
 | `StrategyFactory`   | Resonance-only deployment of a Strategy and its BribeRouter.                                                           |
-| `Strategy`          | Bounded reverse Dutch acquisition or GBX buyback.                                                                      |
+| `Strategy`          | Uniform bounded reverse Dutch acquisition whose complete payment is owed to Fund.                                      |
 | `BribeFactory`      | Resonance-only deployment of Bribe contracts.                                                                          |
-| `BribeRouter`       | Sends an acquisition's signal-reward share to Bribe, or to Fund when the Strategy has no signalers.                    |
+| `BribeRouter`       | Records every Strategy payment as a fixed, permissionlessly payable Fund liability.                                    |
 | `Bribe`             | Seven-day reward streams over virtual signal balances, with at most eight append-only reward tokens.                   |
 | `Fund`              | Ownerless registry-free raw treasury, GBX burn boundary, and selective in-kind redemption.                             |
 
-The initial acquisition split is 90% Fund and 10% signal rewards. Typed timelocked governance may change the signal-reward
-share up to 50%. Buybacks never pay signal rewards.
+Every Strategy payment is 100% Fund-bound. Bribes are funded independently through explicit reward notifications.
+GBX received by Fund is burnable by anyone but is not burned automatically during Strategy settlement.
 
 ## Fund redemption
 
@@ -44,7 +44,7 @@ malformed token can only revert that caller-selected transaction.
 
 Resonance is owned by OpenZeppelin `TimelockController`. The project multisig is intended to hold proposer and
 canceller roles, while execution may be permissionless after the configured delay. Its continuing management surface
-is limited to `setBribeBps`, `addStrategy`, `killStrategy`, and `addBribeReward`.
+is limited to `addStrategy`, `killStrategy`, and `addBribeReward`.
 
 Fund and LiquidityPosition are ownerless. Fund has no administrative asset path, and the canonical position NFT can
 never leave LiquidityPosition after it is accepted.

@@ -17,11 +17,14 @@ export function getProtocol(event: ethereum.Event): ProtocolState {
     protocol.liquidityCompoundCount = ZERO;
     protocol.routedRevenueRaw = ZERO;
     protocol.notifiedRevenueRaw = ZERO;
+    protocol.syncedRevenueRaw = ZERO;
     protocol.distributedRevenueRaw = ZERO;
+    protocol.fundRevenueAccruedRaw = ZERO;
+    protocol.fundRevenuePaidRaw = ZERO;
+    protocol.pendingFundRevenueRaw = ZERO;
     protocol.stakedGBXRaw = ZERO;
     protocol.fundBurnedGBXRaw = ZERO;
     protocol.redeemedGBXRaw = ZERO;
-    protocol.bribeBps = ZERO;
     protocol.timelockDelay = ZERO;
     protocol.strategyCount = 0;
   }
@@ -76,10 +79,17 @@ export function getStrategy(address: Address, event: ethereum.Event): Strategy {
     strategy.bribe = Address.zero();
     strategy.bribeRouter = Address.zero();
     strategy.paymentToken = Address.zero();
-    strategy.kind = 0;
     strategy.live = true;
     strategy.totalSignalWeightRaw = ZERO;
     strategy.distributedRevenueRaw = ZERO;
+    strategy.notifiedRewardRaw = ZERO;
+    strategy.paidRewardRaw = ZERO;
+    strategy.routerFundPaymentAccruedRaw = ZERO;
+    strategy.routerFundPaymentPaidRaw = ZERO;
+    strategy.pendingRouterFundPaymentRaw = ZERO;
+    strategy.bribeFundRewardAccruedRaw = ZERO;
+    strategy.bribeFundRewardPaidRaw = ZERO;
+    strategy.pendingBribeFundRewardRaw = ZERO;
     strategy.createdBlockNumber = event.block.number;
   }
   strategy.lastBlockNumber = event.block.number;

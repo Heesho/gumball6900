@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import {
   bribeAbi,
+  bribeRouterAbi,
   fundraiserAbi,
   gbxAbi,
   liquidityPositionAbi,
@@ -230,11 +231,16 @@ export async function readSignalView(
 }
 
 export const resonanceViewSchema = z.object({
+  accountedRevenueBalance: unsignedBigIntSchema,
   blockNumber: unsignedBigIntSchema,
-  bribeBps: unsignedBigIntSchema,
+  fundRevenueLiability: unsignedBigIntSchema,
+  indexedRevenueScaled: unsignedBigIntSchema,
+  pendingRevenueScaled: unsignedBigIntSchema,
   revenueIndex: unsignedBigIntSchema,
   strategies: z.array(addressSchema),
+  totalClaimableRevenue: unsignedBigIntSchema,
   totalSignalWeight: unsignedBigIntSchema,
+  unaccountedRevenue: unsignedBigIntSchema,
 });
 export type ResonanceView = z.infer<typeof resonanceViewSchema>;
 
@@ -246,13 +252,39 @@ export async function readResonanceView(
 ): Promise<ResonanceView> {
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [bribeBps, revenueIndex, strategies, totalSignalWeight] = await Promise.all([
-    read(client, blockNumber, resonance, resonanceAbi, 'bribeBps'),
+  const [
+    accountedRevenueBalance,
+    fundRevenueLiability,
+    indexedRevenueScaled,
+    pendingRevenueScaled,
+    revenueIndex,
+    strategies,
+    totalClaimableRevenue,
+    totalSignalWeight,
+    unaccountedRevenue,
+  ] = await Promise.all([
+    read(client, blockNumber, resonance, resonanceAbi, 'accountedRevenueBalance'),
+    read(client, blockNumber, resonance, resonanceAbi, 'fundRevenueLiability'),
+    read(client, blockNumber, resonance, resonanceAbi, 'indexedRevenueScaled'),
+    read(client, blockNumber, resonance, resonanceAbi, 'pendingRevenueScaled'),
     read(client, blockNumber, resonance, resonanceAbi, 'revenueIndex'),
     read(client, blockNumber, resonance, resonanceAbi, 'strategies'),
+    read(client, blockNumber, resonance, resonanceAbi, 'totalClaimableRevenue'),
     read(client, blockNumber, resonance, resonanceAbi, 'totalSignalWeight'),
+    read(client, blockNumber, resonance, resonanceAbi, 'unaccountedRevenue'),
   ]);
-  const result = resonanceViewSchema.parse({ blockNumber, bribeBps, revenueIndex, strategies, totalSignalWeight });
+  const result = resonanceViewSchema.parse({
+    accountedRevenueBalance,
+    blockNumber,
+    fundRevenueLiability,
+    indexedRevenueScaled,
+    pendingRevenueScaled,
+    revenueIndex,
+    strategies,
+    totalClaimableRevenue,
+    totalSignalWeight,
+    unaccountedRevenue,
+  });
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
@@ -266,7 +298,6 @@ export const strategyViewSchema = z.object({
   epochStartedAt: unsignedBigIntSchema,
   fund: addressSchema,
   initialPrice: unsignedBigIntSchema,
-  kind: z.union([z.literal(0), z.literal(1)]),
   minimumPrice: unsignedBigIntSchema,
   paymentToken: addressSchema,
   priceMultiplier: unsignedBigIntSchema,
@@ -292,7 +323,6 @@ export async function readStrategyView(
     epochStartedAt,
     fund,
     initialPrice,
-    kind,
     minimumPrice,
     paymentToken,
     priceMultiplier,
@@ -305,7 +335,6 @@ export async function readStrategyView(
     read(client, blockNumber, strategy, strategyAbi, 'epochStartedAt'),
     read(client, blockNumber, strategy, strategyAbi, 'fund'),
     read(client, blockNumber, strategy, strategyAbi, 'initialPrice'),
-    read(client, blockNumber, strategy, strategyAbi, 'kind'),
     read(client, blockNumber, strategy, strategyAbi, 'minimumPrice'),
     read(client, blockNumber, strategy, strategyAbi, 'paymentToken'),
     read(client, blockNumber, strategy, strategyAbi, 'priceMultiplier'),
@@ -320,7 +349,6 @@ export async function readStrategyView(
     epochStartedAt,
     fund,
     initialPrice,
-    kind,
     minimumPrice,
     paymentToken,
     priceMultiplier,
@@ -332,11 +360,16 @@ export async function readStrategyView(
 }
 
 export const bribeRewardViewSchema = z.object({
+  accountedRewardBalances: z.array(unsignedBigIntSchema),
   accountSignalWeight: unsignedBigIntSchema,
   account: addressSchema,
   blockNumber: unsignedBigIntSchema,
   earned: z.array(unsignedBigIntSchema),
+  fundRewardLiabilities: z.array(unsignedBigIntSchema),
+  queuedRewards: z.array(unsignedBigIntSchema),
   rewardTokens: z.array(addressSchema),
+  rewardSurpluses: z.array(unsignedBigIntSchema),
+  scheduledRewards: z.array(unsignedBigIntSchema),
   totalSignalWeight: unsignedBigIntSchema,
 });
 export type BribeRewardView = z.infer<typeof bribeRewardViewSchema>;
@@ -362,13 +395,73 @@ export async function readBribeRewardView(
       read(client, blockNumber, bribe, bribeAbi, 'earned', [rewardAccount, rewardToken]),
     ),
   );
+  const [accountedRewardBalances, fundRewardLiabilities, queuedRewards, rewardSurpluses, scheduledRewards] =
+    await Promise.all([
+      Promise.all(
+        rewardTokens.map((rewardToken) =>
+          read(client, blockNumber, bribe, bribeAbi, 'accountedRewardBalance', [rewardToken]),
+        ),
+      ),
+      Promise.all(
+        rewardTokens.map((rewardToken) =>
+          read(client, blockNumber, bribe, bribeAbi, 'fundRewardLiability', [rewardToken]),
+        ),
+      ),
+      Promise.all(
+        rewardTokens.map((rewardToken) => read(client, blockNumber, bribe, bribeAbi, 'queuedRewards', [rewardToken])),
+      ),
+      Promise.all(
+        rewardTokens.map((rewardToken) => read(client, blockNumber, bribe, bribeAbi, 'rewardSurplus', [rewardToken])),
+      ),
+      Promise.all(
+        rewardTokens.map((rewardToken) =>
+          read(client, blockNumber, bribe, bribeAbi, 'scheduledRewards', [rewardToken]),
+        ),
+      ),
+    ]);
   const result = bribeRewardViewSchema.parse({
+    accountedRewardBalances,
     account: rewardAccount,
     blockNumber,
     earned,
+    fundRewardLiabilities,
+    queuedRewards,
     rewardTokens,
+    rewardSurpluses,
+    scheduledRewards,
     totalSignalWeight,
     accountSignalWeight,
+  });
+  await revalidateBlockSnapshot(client, pinned);
+  return result;
+}
+
+export const bribeRouterViewSchema = z.object({
+  accountedPaymentBalance: unsignedBigIntSchema,
+  blockNumber: unsignedBigIntSchema,
+  fundPaymentLiability: unsignedBigIntSchema,
+  paymentSurplus: unsignedBigIntSchema,
+});
+export type BribeRouterView = z.infer<typeof bribeRouterViewSchema>;
+
+/** Reads a Strategy router's fixed Fund payment liability and direct-donation surplus. */
+export async function readBribeRouterView(
+  client: PublicClient,
+  bribeRouter: Address,
+  options: ReadOptions = {},
+): Promise<BribeRouterView> {
+  const pinned = await snapshot(client, options);
+  const { blockNumber } = pinned;
+  const [accountedPaymentBalance, fundPaymentLiability, paymentSurplus] = await Promise.all([
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'accountedPaymentBalance'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'fundPaymentLiability'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'paymentSurplus'),
+  ]);
+  const result = bribeRouterViewSchema.parse({
+    accountedPaymentBalance,
+    blockNumber,
+    fundPaymentLiability,
+    paymentSurplus,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;

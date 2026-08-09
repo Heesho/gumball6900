@@ -4,7 +4,7 @@
  * Charts derive their geometry from `model.mjs`, which mirrors the committed reference
  * model, so a figure cannot quietly disagree with the economics the repository tests.
  * Schematics share one colour grammar: blue is USDG arriving, pink is the holder-directed
- * chain (signal, the acquisition it causes, the reward it pays), graphite is GBX supply and
+ * chain (signal, the acquisition it causes, and optional independent rewards), graphite is GBX supply and
  * burns. Charts whose series are categorical rather than semantic — the basket-formation
  * chart — opt out and use three separable colours instead.
  */
@@ -36,7 +36,6 @@ import {
   emissionMilestones,
   miningMarket,
   previewRedemption,
-  splitAcquisition,
 } from './model.mjs';
 
 const flow = {
@@ -300,13 +299,13 @@ export function systemMap({ width = widths.full } = {}) {
       sub: 'Reverse Dutch auction',
       accent: flow.asset,
     },
-    buyback: {
+    gbxStrategy: {
       x: width - 163,
       y: 312,
       w: 140,
       h: boxH,
-      title: 'Strategy — buyback',
-      sub: 'Buys GBX, burns it',
+      title: 'Strategy — GBX',
+      sub: 'GBX payment is Fund-bound',
       accent: flow.supply,
     },
 
@@ -317,7 +316,7 @@ export function systemMap({ width = widths.full } = {}) {
       w: 160,
       h: boxH,
       title: 'Bribe',
-      sub: '10% streamed to signalers',
+      sub: 'Independently funded',
       accent: flow.asset,
     },
 
@@ -381,7 +380,7 @@ export function systemMap({ width = widths.full } = {}) {
   [
     ['strategyA', 2],
     ['strategyB', 1.4],
-    ['buyback', 0.8],
+    ['gbxStrategy', 0.8],
   ].forEach(([key, weight]) => {
     connect(
       elbow({ x1: cx('resonance'), y1: bottom('resonance'), x2: cx(key), y2: 312, axis: 'y', bend: 0.55 }),
@@ -394,7 +393,7 @@ export function systemMap({ width = widths.full } = {}) {
 
   // Acquisitions clear against the open market, down the free right-hand lane.
   connect(
-    `M${boxes.market.x + boxes.market.w},37 L${lane},37 L${lane},329 L${boxes.buyback.x + boxes.buyback.w + 2},329`,
+    `M${boxes.market.x + boxes.market.w},37 L${lane},37 L${lane},329 L${boxes.gbxStrategy.x + boxes.gbxStrategy.w + 2},329`,
     'asset',
     {
       dash: '2.6 2.4',
@@ -402,7 +401,7 @@ export function systemMap({ width = widths.full } = {}) {
     },
   );
 
-  // Acquired asset splits 90/10.
+  // Every Strategy payment is Fund-bound.
   connect(
     elbow({ x1: cx('strategyA'), y1: bottom('strategyA'), x2: cx('fund') - 26, y2: 398, axis: 'y', bend: 0.46 }),
     'asset',
@@ -414,9 +413,9 @@ export function systemMap({ width = widths.full } = {}) {
     { strokeWidth: 1.5 },
   );
   connect(
-    elbow({ x1: cx('strategyB') + 34, y1: bottom('strategyB'), x2: cx('bribe'), y2: 398, axis: 'y', bend: 0.3 }),
+    elbow({ x1: cx('gbxStrategy'), y1: bottom('gbxStrategy'), x2: cx('fund') + 54, y2: 398, axis: 'y', bend: 0.2 }),
     'asset',
-    { strokeWidth: 0.9 },
+    { strokeWidth: 1.2 },
   );
 
   // Terminal legs.
@@ -427,9 +426,11 @@ export function systemMap({ width = widths.full } = {}) {
     { opacity: 0.8 },
   );
   connect(
-    elbow({ x1: cx('buyback'), y1: bottom('buyback'), x2: cx('burned'), y2: 498, axis: 'y', bend: 0.78 }),
+    elbow({ x1: cx('fund') + 34, y1: bottom('fund'), x2: cx('burned'), y2: 498, axis: 'y', bend: 0.72 }),
     'supply',
-    { strokeWidth: 1.2 },
+    {
+      strokeWidth: 1.2,
+    },
   );
 
   Object.values(boxes).forEach((box) => {
@@ -456,10 +457,10 @@ export function systemMap({ width = widths.full } = {}) {
   annotate('reads live sGBX weight', boxes.signalgbx.x + boxes.signalgbx.w, 222, 'end', palette.pink);
   annotate('weighted USDG follows signal', cx('resonance'), 283, 'middle', palette.blue);
   annotate('fills the auction', lane - 6, 200, 'end', palette.pink);
-  annotate('90% to the Fund', 4, 384, 'start', palette.pink);
-  annotate('10%', boxes.bribe.x + boxes.bribe.w, 380, 'end', palette.pink);
+  annotate('100% Fund-bound', 4, 384, 'start', palette.pink);
+  annotate('external incentives', boxes.bribe.x + boxes.bribe.w, 380, 'end', palette.pink);
   annotate('burn GBX to claim', cx('fund') + 6, 480, 'start', palette.graphite);
-  annotate('100% of bought GBX', boxes.burned.x + boxes.burned.w, 480, 'end', palette.graphite);
+  annotate('permissionless Fund burn', boxes.burned.x + boxes.burned.w, 480, 'end', palette.graphite);
 
   return figure({
     width,
@@ -1012,13 +1013,10 @@ export function signalAllocation({ width = widths.full } = {}) {
 /* ----------------------------------------------------------- routing flow ---- */
 
 /**
- * Two consecutive splits: revenue by signal, then each acquisition 90/10.
- *
- * The Fund sits above every Strategy and the Bribe below, so the 90% and 10% ribbons fan
- * in opposite directions and never cross one another.
+ * Revenue splits by live signal, then every Strategy payment converges on Fund.
  */
 export function routingFlow({ width = widths.full } = {}) {
-  const height = 300;
+  const height = 238;
   const parts = [];
   const revenueX = 4;
   const strategyX = 168;
@@ -1027,7 +1025,6 @@ export function routingFlow({ width = widths.full } = {}) {
   const bandTotal = 108;
   const midY = 156;
   const fundY = 40;
-  const bribeY = 264;
 
   const shares = [
     { name: 'Strategy A', weight: 0.5 },
@@ -1061,37 +1058,19 @@ export function routingFlow({ width = widths.full } = {}) {
     );
   });
 
-  // Split 2 — amber, fixed. Ribbon widths come from the model's acquisition split.
-  const reference = 10_000n;
-  const split = splitAcquisition({ received: reference, hasEligibleSignalers: true });
-  const fundShare = Number(split.fundShare) / Number(reference);
-  const signalShare = Number(split.signalShare) / Number(reference);
-
+  // Every auction payment converges on Fund without a reward split.
   placed.forEach((share) => {
     parts.push(
       path(
         ribbon({
           x1: strategyX + strategyW,
-          y1: share.centre - (share.height * signalShare) / 2,
+          y1: share.centre,
           x2: outX,
           y2: fundY + 20,
-          w1: share.height * fundShare,
-          w2: share.height * fundShare,
+          w1: share.height,
+          w2: share.height,
         }),
         { fill: palette.pink, opacity: 0.2 },
-      ),
-    );
-    parts.push(
-      path(
-        ribbon({
-          x1: strategyX + strategyW,
-          y1: share.centre + (share.height * fundShare) / 2,
-          x2: outX,
-          y2: bribeY + 20,
-          w1: Math.max(2.4, share.height * signalShare),
-          w2: Math.max(2.4, share.height * signalShare),
-        }),
-        { fill: palette.pink, opacity: 0.45 },
       ),
     );
   });
@@ -1141,30 +1120,18 @@ export function routingFlow({ width = widths.full } = {}) {
       width: 128,
       height: 42,
       title: 'Fund',
-      subtitle: '90% — shared backing',
+      subtitle: '100% — shared backing',
       accent: palette.pink,
     }),
   );
-  parts.push(
-    node({
-      x: outX,
-      y: bribeY,
-      width: 128,
-      height: 42,
-      title: 'Bribe',
-      subtitle: '10% — signal rewards',
-      accent: palette.pink,
-    }),
-  );
-
-  parts.push(label('Split 1 — by live signal weight', { x: revenueX, y: 14, fill: palette.blue }));
-  parts.push(label('Split 2 — same for every acquisition', { x: width, y: 14, fill: palette.pink, anchor: 'end' }));
+  parts.push(label('Split — by live signal weight', { x: revenueX, y: 14, fill: palette.blue }));
+  parts.push(label('Settlement — 100% Fund-bound', { x: width, y: 14, fill: palette.pink, anchor: 'end' }));
   parts.push(
     line({
       x1: strategyX + strategyW + 16,
       y1: 24,
       x2: strategyX + strategyW + 16,
-      y2: height - 24,
+      y2: height - 12,
       stroke: palette.rule,
       width: 0.6,
       dash: '2 3',
@@ -1183,7 +1150,12 @@ export function routingFlow({ width = widths.full } = {}) {
     }),
   );
 
-  return figure({ width, height, children: parts.join(''), title: 'Revenue splits twice: by signal, then 90/10' });
+  return figure({
+    width,
+    height,
+    children: parts.join(''),
+    title: 'Revenue follows signals; payments converge on Fund',
+  });
 }
 
 /* ---------------------------------------------------------------- auction ---- */
@@ -1559,17 +1531,23 @@ export function burnLoops({ width = widths.full } = {}) {
 
   loop(
     width - half,
-    'Buyback Strategy',
-    'Spend USDG, retire GBX',
+    'GBX-priced Strategy',
+    'Spend USDG, deliver GBX',
     [
-      { text: 'A buyback Strategy receives routed USDG' },
+      { text: 'A GBX-priced Strategy receives routed USDG' },
       { text: 'It buys GBX on the open market' },
-      { text: 'Every bought GBX is burned atomically', terminal: true },
+      { text: 'Fund receives GBX; anyone may burn it later', terminal: true },
     ],
     palette.graphite,
   );
 
-  return figure({ width, height, defs: markers, children: parts.join(''), title: 'The two supply-reducing loops' });
+  return figure({
+    width,
+    height,
+    defs: markers,
+    children: parts.join(''),
+    title: 'Liquidity compounding and explicit Fund burns',
+  });
 }
 
 /* -------------------------------------------------------- path dependence ---- */
@@ -1715,14 +1693,14 @@ export function governancePerimeter({ width = widths.full } = {}) {
   );
 
   // The authorized edges, drawn as the only openings in the perimeter.
-  const doors = ['Add a Strategy', 'Kill a Strategy', 'Change the reward share', 'Add Bribe rewards (max 8)'];
+  const doors = ['Add a Strategy', 'Kill a Strategy', 'Add Bribe rewards (max 8)'];
   doors.forEach((door, index) => {
     const y = 48 + index * 34;
     parts.push(rect({ x: coreX - 6, y: y - 9, width: 12, height: 18, r: 2, fill: palette.pinkBright }));
     parts.push(text(door, { x: coreX - 14, y: y + 3, size: 7.2, weight: 600, fill: palette.ink, anchor: 'end' }));
     parts.push(text(String(index + 1), { x: 4, y: y + 3, size: 7.2, weight: 600, fill: palette.pink }));
   });
-  parts.push(label('Four authorized actions', { x: 4, y: 22, fill: palette.pink }));
+  parts.push(label('Three authorized actions', { x: 4, y: 22, fill: palette.pink }));
 
   // What has no door at all.
   const sealed = [
@@ -1791,9 +1769,9 @@ export function workedExample() {
     },
     {
       kind: 'asset',
-      title: 'The acquisition splits',
-      detail: 'At the current signal-reward share, which starts at 10% and is capped at 50%.',
-      result: '90% joins the Fund; 10% streams to eligible NVDA signalers, including you.',
+      title: 'The complete payment is Fund-bound',
+      detail: 'The Strategy records the received NVDA-linked tokens as a fixed Fund liability.',
+      result: 'Any caller can deliver 100% to Fund; auction proceeds do not fund Bribes.',
     },
     {
       kind: 'supply',

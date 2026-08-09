@@ -5,10 +5,11 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 
 import { Bribe } from "./Bribe.sol";
 
-/// @title BribeFactory
-/// @author GUM BALL 6900
+/// @title GumBall6900 Resonance-Bound Bribe Factory
+/// @author Heesho
 /// @notice Deploys the Bribe associated with each Resonance-created Strategy.
 /// @dev Adapted from Liquid Signal Governance. The factory is bound to one Resonance and is not publicly permissionless.
+/// @custom:version 1.0.0
 contract BribeFactory is Ownable {
     /// @notice Resonance exclusively authorized to create Bribes.
     address public resonance;
@@ -21,8 +22,11 @@ contract BribeFactory is Ownable {
     /// @param resonance Bound Resonance address.
     event ResonanceSet(address indexed resonance);
 
+    /// @notice A caller other than the permanently bound Resonance requested deployment.
     error NotResonance(address caller);
+    /// @notice The one-time Resonance binding has already completed.
     error ResonanceAlreadySet(address resonance);
+    /// @notice A required deployment or binding address is zero.
     error ZeroAddress();
 
     /// @notice Creates an unbound factory whose owner may set Resonance exactly once.

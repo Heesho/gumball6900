@@ -26,6 +26,7 @@ overrides:
   mocha@11.7.6>serialize-javascript: 7.0.5
   next@16.2.12>postcss: 8.5.25
   next@16.2.12>sharp: 0.35.0
+  postcss@8.5.25>nanoid: 3.3.17
   number-to-bn@1.7.0>bn.js: 4.12.3
   solc@0.8.26>tmp: 0.2.7
   viem@2.23.2>ws: 8.21.0
@@ -5851,9 +5852,9 @@ packages:
       { integrity: sha512-WWdIxpyjEn+FhQJQQv9aQAYlHoNVdzIzUySNV1gHUPDSdZJ3yZn7pAAbQcV7B56Mvu881q9FZV+0Vx2xC44VWA== }
     engines: { node: ^18.17.0 || >=20.5.0 }
 
-  nanoid@3.3.16:
+  nanoid@3.3.17:
     resolution:
-      { integrity: sha512-bzlKTyNJ7+LdGIIwy8ijFpIqEQIvafahV7eYykJ8Cvh42EdJeODoJ6gUJXpQJvej1BddH8OqTXZNE/KfbWAu8Q== }
+      { integrity: sha512-xQLf0A3HOMlgHq0n247/LRuAOYmB7dXJ/DvAxGvsSBij45XtBSmQycu+F8ODbHwns/XyFZagyL1+J0Offw1E0g== }
     engines: { node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1 }
     hasBin: true
 
@@ -12775,7 +12776,7 @@ snapshots:
 
   mute-stream@2.0.0: {}
 
-  nanoid@3.3.16: {}
+  nanoid@3.3.17: {}
 
   nanoid@5.1.16: {}
 
@@ -13091,7 +13092,7 @@ snapshots:
 
   postcss@8.5.25:
     dependencies:
-      nanoid: 3.3.16
+      nanoid: 3.3.17
       picocolors: 1.1.1
       source-map-js: 1.2.1
 

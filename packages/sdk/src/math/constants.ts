@@ -31,14 +31,3 @@ export const MIN_AUCTION_PRICE_MULTIPLIER = 1_100_000_000_000_000_000n;
 export const MAX_AUCTION_PRICE_MULTIPLIER = 3n * WAD;
 export const ABS_MIN_AUCTION_INIT_PRICE = 1_000_000n;
 export const ABS_MAX_AUCTION_INIT_PRICE = (1n << 192n) - 1n;
-
-/**
- * The signal-reward share of a completed normal acquisition.
- *
- * This is the launch value, not a fixed constant: the share is settable through timelocked
- * governance and may never exceed `MAX_MANAGER_REWARD_BPS`. Callers that model a changed
- * share should pass it explicitly rather than relying on this default.
- */
-export const MANAGER_REWARD_BPS = 1_000n;
-export const MAX_MANAGER_REWARD_BPS = 5_000n;
-export const VAULT_ACQUISITION_BPS = BPS_DENOMINATOR - MANAGER_REWARD_BPS;

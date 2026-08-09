@@ -15,7 +15,7 @@ import {
   quoteFundraiserEpoch,
   redemptionPercentageWad,
   simulateAllNonEmptyEmissions,
-  splitAcquiredAsset,
+  settleStrategyPayment,
   updateRewardIndex,
 } from '@gumball-6900/sdk';
 
@@ -69,7 +69,6 @@ interface AuctionCase {
   priceMultiplier: string;
   minInitPrice: string;
   actualTargetReceived: string;
-  hasLiveManagerWeight: boolean;
 }
 
 interface RewardCase {
@@ -130,13 +129,6 @@ function asIdentifier(value: unknown, label: string): string {
   return value;
 }
 
-function asBoolean(value: unknown, label: string): boolean {
-  if (typeof value !== 'boolean') {
-    throw new TypeError(`${label} must be a boolean`);
-  }
-  return value;
-}
-
 function asArray(value: unknown, label: string): unknown[] {
   if (!Array.isArray(value)) {
     throw new TypeError(`${label} must be an array`);
@@ -170,7 +162,6 @@ export function parseReferenceScenarios(value: unknown): ReferenceScenarios {
     priceMultiplier: asString(record.priceMultiplier, `${label}.priceMultiplier`),
     minInitPrice: asString(record.minInitPrice, `${label}.minInitPrice`),
     actualTargetReceived: asString(record.actualTargetReceived, `${label}.actualTargetReceived`),
-    hasLiveManagerWeight: asBoolean(record.hasLiveManagerWeight, `${label}.hasLiveManagerWeight`),
   }));
 
   const rewardCases = parseObjects(root, 'rewardCases', (record, label) => ({
@@ -269,7 +260,7 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
         BigInt(scenario.elapsedSeconds),
         BigInt(scenario.epochPeriod),
       );
-      const split = splitAcquiredAsset(BigInt(scenario.actualTargetReceived), scenario.hasLiveManagerWeight);
+      const settlement = settleStrategyPayment(BigInt(scenario.actualTargetReceived));
       return {
         id: scenario.id,
         paymentAmount: paymentAmount.toString(),
@@ -278,8 +269,7 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
           BigInt(scenario.priceMultiplier),
           BigInt(scenario.minInitPrice),
         ).toString(),
-        vaultAmount: split.vaultAmount.toString(),
-        managerAmount: split.managerAmount.toString(),
+        fundAmount: settlement.fundAmount.toString(),
       };
     }),
     rewardQuotes: scenarios.rewardCases.map((scenario) => {

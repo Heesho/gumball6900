@@ -13,10 +13,21 @@
   never exceeds the account's current SignalGBX balance.
 - Account signal weights and Strategy signal weights each sum exactly to `totalSignalWeight`.
 - Each Bribe account balance mirrors its Strategy signal, and each Bribe supply mirrors its Strategy's total weight.
+- Every accounted Resonance USDG unit is represented by global scaled carry, indexed scaled carry, per-Strategy
+  scaled carry, live Strategy liability, or fixed Fund liability. Completed exact payouts reduce both balance and
+  liability by the same amount.
+- Every accounted Bribe reward-token unit is represented by an active schedule, queue, pending/indexed scaled carry,
+  user scaled carry, whole user liability, or fixed Fund liability and carry.
+- Bribe stream-rate division remainders emit during the earliest seconds; zero supply pauses rather than consumes
+  stream time, and a live stream is never reset by a top-up.
 - A zero signal is removed from `accountStrategies` without leaving a duplicate or stale swap-and-pop index.
 - A Bribe has at most eight registered reward tokens.
+- A broken reward token can block only a claim selecting that token; scalar and caller-selected claims for other
+  tokens remain available.
+- Signal removal and unstaking never require a USDG, Fund, Strategy-payment-token, or reward-token transfer.
 - Only Resonance can deploy through StrategyFactory or BribeFactory and maintain Bribe virtual balances.
-- Acquisition Bribe share never exceeds 50%; buybacks burn 100% of their GBX payment.
+- Every nonzero Strategy payment is fully classified as a fixed Fund liability; no auction proceeds queue for Bribe.
+- A GBX-priced Strategy does not change GBX supply. GBX is burned only by an explicit later burn from Fund or redemption.
 - Fund redemption uses one pre-burn supply snapshot for every selected token and is atomic with the GBX burn.
 - Redemption rejects GBX, zero addresses, and duplicate token entries.
 - Fund is ownerless: redemption is the only path by which any asset can ever leave it.

@@ -3,7 +3,7 @@
 Minimal read model for the provisional Robinhood Chain core. It indexes fixed `GBX`, `Fundraiser`,
 `LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`, `Fund`, and OpenZeppelin `TimelockController` data sources.
 
-The subgraph tracks raw integer supply, contribution, staking, revenue, Strategy, signal, redemption, migration, and
+The subgraph tracks raw integer supply, contribution, staking, revenue, Strategy, signal, redemption, and
 timelock state. `ProtocolEvent` also records every handled core event positionally. It is a convenience index, not
 authoritative protocol accounting.
 

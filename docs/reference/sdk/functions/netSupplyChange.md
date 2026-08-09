@@ -8,7 +8,7 @@
 
 > **netSupplyChange**(`newEmission`, `gbxBurned`): `bigint`
 
-Signed result: a buyback can burn more GBX than an epoch emits.
+Signed result: a later permissionless Fund burn can exceed an epoch's new GBX emission.
 
 ## Parameters
 

@@ -6,4 +6,4 @@
 
 # Variable: resonanceViewSchema
 
-> `const` **resonanceViewSchema**: `ZodObject`\<\{ `blockNumber`: `ZodBigInt`; `bribeBps`: `ZodBigInt`; `revenueIndex`: `ZodBigInt`; `strategies`: `ZodArray`\<`ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>\>; `totalSignalWeight`: `ZodBigInt`; \}, `$strip`\>
+> `const` **resonanceViewSchema**: `ZodObject`\<\{ `accountedRevenueBalance`: `ZodBigInt`; `blockNumber`: `ZodBigInt`; `fundRevenueLiability`: `ZodBigInt`; `indexedRevenueScaled`: `ZodBigInt`; `pendingRevenueScaled`: `ZodBigInt`; `revenueIndex`: `ZodBigInt`; `strategies`: `ZodArray`\<`ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>\>; `totalClaimableRevenue`: `ZodBigInt`; `totalSignalWeight`: `ZodBigInt`; `unaccountedRevenue`: `ZodBigInt`; \}, `$strip`\>

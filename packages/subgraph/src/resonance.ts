@@ -1,26 +1,19 @@
-import { BigInt } from '@graphprotocol/graph-ts';
+import { DataSourceContext } from '@graphprotocol/graph-ts';
 import {
-  BribeBpsSet,
   BribeRewardAdded,
   RevenueDistributed,
   RevenueNotified,
+  RevenueSynced,
+  FundRevenueAccrued,
+  FundRevenuePaid,
   StrategyAdded,
   StrategyKilled,
   SignalAdded,
   SignalRemoved,
   ResonanceRouterSet,
 } from '../generated/Resonance/Resonance';
+import { BribeTemplate, BribeRouterTemplate } from '../generated/templates';
 import { getAccount, getProtocol, getStrategy, recordEvent } from './entities';
-
-export function handleBribeBpsSet(event: BribeBpsSet): void {
-  const protocol = getProtocol(event);
-  protocol.bribeBps = event.params.newBps;
-  protocol.save();
-
-  const record = recordEvent(event, 'RESONANCE_BRIBE_BPS_SET');
-  record.values = [event.params.previousBps, event.params.newBps];
-  record.save();
-}
 
 export function handleBribeRewardAdded(event: BribeRewardAdded): void {
   const record = recordEvent(event, 'RESONANCE_BRIBE_REWARD_ADDED');
@@ -54,6 +47,40 @@ export function handleRevenueNotified(event: RevenueNotified): void {
   record.save();
 }
 
+export function handleRevenueSynced(event: RevenueSynced): void {
+  const protocol = getProtocol(event);
+  protocol.syncedRevenueRaw = protocol.syncedRevenueRaw.plus(event.params.amount);
+  protocol.save();
+
+  const record = recordEvent(event, 'RESONANCE_REVENUE_SYNCED');
+  record.addresses = [event.params.caller];
+  record.values = [event.params.amount];
+  record.save();
+}
+
+export function handleFundRevenueAccrued(event: FundRevenueAccrued): void {
+  const protocol = getProtocol(event);
+  protocol.fundRevenueAccruedRaw = protocol.fundRevenueAccruedRaw.plus(event.params.amount);
+  protocol.pendingFundRevenueRaw = event.params.totalLiability;
+  protocol.save();
+
+  const record = recordEvent(event, 'RESONANCE_FUND_REVENUE_ACCRUED');
+  record.values = [event.params.amount, event.params.totalLiability];
+  record.save();
+}
+
+export function handleFundRevenuePaid(event: FundRevenuePaid): void {
+  const protocol = getProtocol(event);
+  protocol.fundRevenuePaidRaw = protocol.fundRevenuePaidRaw.plus(event.params.amount);
+  protocol.pendingFundRevenueRaw = protocol.pendingFundRevenueRaw.minus(event.params.amount);
+  protocol.save();
+
+  const record = recordEvent(event, 'RESONANCE_FUND_REVENUE_PAID');
+  record.addresses = [event.params.caller, event.params.fund];
+  record.values = [event.params.amount];
+  record.save();
+}
+
 export function handleStrategyAdded(event: StrategyAdded): void {
   const protocol = getProtocol(event);
   protocol.strategyCount += 1;
@@ -63,13 +90,16 @@ export function handleStrategyAdded(event: StrategyAdded): void {
   strategy.bribe = event.params.bribe;
   strategy.bribeRouter = event.params.bribeRouter;
   strategy.paymentToken = event.params.paymentToken;
-  strategy.kind = event.params.kind;
   strategy.live = true;
   strategy.save();
 
+  const context = new DataSourceContext();
+  context.setString('strategyId', strategy.id);
+  BribeTemplate.createWithContext(event.params.bribe, context);
+  BribeRouterTemplate.createWithContext(event.params.bribeRouter, context);
+
   const record = recordEvent(event, 'RESONANCE_STRATEGY_ADDED');
   record.addresses = [event.params.strategy, event.params.bribe, event.params.bribeRouter, event.params.paymentToken];
-  record.values = [BigInt.fromI32(event.params.kind)];
   record.save();
 }
 

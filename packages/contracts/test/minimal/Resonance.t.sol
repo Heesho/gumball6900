@@ -22,7 +22,6 @@ contract ResonanceTest is ProtocolFixture {
     event SignalAdded(address indexed account, address indexed strategy, uint256 amount);
     event SignalRemoved(address indexed account, address indexed strategy, uint256 amount);
     event StrategyKilled(address indexed strategy);
-    event BribeBpsSet(uint256 previousBps, uint256 newBps);
 
     function setUp() external {
         _deployProtocol();
@@ -33,9 +32,6 @@ contract ResonanceTest is ProtocolFixture {
     //////////////////////////////////////////////////////////////*/
 
     function test_InitialStateMatchesTheDocumentedDefaults() external view {
-        assertEq(resonance.bribeBps(), 1_000);
-        assertEq(resonance.DEFAULT_BRIBE_BPS(), 1_000);
-        assertEq(resonance.MAX_BRIBE_BPS(), 5_000);
         assertEq(resonance.INDEX_PRECISION(), 1e18);
         assertEq(resonance.totalSignalWeight(), 0);
         assertEq(resonance.revenueIndex(), 0);
@@ -92,38 +88,21 @@ contract ResonanceTest is ProtocolFixture {
                           GOVERNANCE SURFACE
     //////////////////////////////////////////////////////////////*/
 
-    function test_SetBribeBpsIsOwnerOnlyAndBoundedByFiftyPercent() external {
-        vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, ALICE));
-        resonance.setBribeBps(2_000);
-
-        vm.expectRevert(abi.encodeWithSelector(Resonance.BribeBpsAboveMaximum.selector, 5_001));
-        resonance.setBribeBps(5_001);
-
-        vm.expectEmit(false, false, false, true);
-        emit BribeBpsSet(1_000, 5_000);
-        resonance.setBribeBps(5_000);
-        assertEq(resonance.bribeBps(), 5_000);
-
-        resonance.setBribeBps(0);
-        assertEq(resonance.bribeBps(), 0);
-    }
-
     function test_AddStrategyIsOwnerOnlyAndValidatesThePaymentToken() external {
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, ALICE));
-        resonance.addStrategy(IERC20(address(target)), Strategy.Kind.Acquisition, defaultConfig());
+        resonance.addStrategy(IERC20(address(target)), defaultConfig());
 
         vm.expectRevert(Resonance.ZeroAddress.selector);
-        resonance.addStrategy(IERC20(address(0)), Strategy.Kind.Acquisition, defaultConfig());
+        resonance.addStrategy(IERC20(address(0)), defaultConfig());
 
         vm.expectRevert(Resonance.ZeroAddress.selector);
-        resonance.addStrategy(IERC20(ALICE), Strategy.Kind.Acquisition, defaultConfig());
+        resonance.addStrategy(IERC20(ALICE), defaultConfig());
     }
 
     function test_AddStrategyRegistersTheCompleteRewardGraph() external {
         (address strategyAddress, address bribeAddress, address routerAddress) =
-            resonance.addStrategy(IERC20(address(secondAsset)), Strategy.Kind.Acquisition, defaultConfig());
+            resonance.addStrategy(IERC20(address(secondAsset)), defaultConfig());
 
         assertTrue(resonance.isStrategy(strategyAddress));
         assertTrue(resonance.isStrategyAlive(strategyAddress));
@@ -137,14 +116,13 @@ contract ResonanceTest is ProtocolFixture {
 
     function test_AStrategyAddedLaterCannotClaimHistoricRevenue() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
 
         uint256 indexAtCreation = resonance.revenueIndex();
         assertGt(indexAtCreation, 0);
 
-        (address lateStrategy,,) =
-            resonance.addStrategy(IERC20(address(secondAsset)), Strategy.Kind.Acquisition, defaultConfig());
+        (address lateStrategy,,) = resonance.addStrategy(IERC20(address(secondAsset)), defaultConfig());
 
         assertEq(resonance.strategyRevenueIndex(lateStrategy), indexAtCreation);
         assertEq(resonance.pendingRevenue(lateStrategy), 0);
@@ -154,19 +132,19 @@ contract ResonanceTest is ProtocolFixture {
     function test_AddBribeRewardIsOwnerOnlyAndValidated() external {
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, ALICE));
-        resonance.addBribeReward(address(acquisitionStrategy), address(secondAsset));
+        resonance.addBribeReward(address(targetStrategy), address(secondAsset));
 
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, ALICE));
         resonance.addBribeReward(ALICE, address(secondAsset));
 
         vm.expectRevert(Resonance.ZeroAddress.selector);
-        resonance.addBribeReward(address(acquisitionStrategy), address(0));
+        resonance.addBribeReward(address(targetStrategy), address(0));
 
         vm.expectRevert(Resonance.ZeroAddress.selector);
-        resonance.addBribeReward(address(acquisitionStrategy), BOB);
+        resonance.addBribeReward(address(targetStrategy), BOB);
 
-        resonance.addBribeReward(address(acquisitionStrategy), address(secondAsset));
-        assertTrue(acquisitionBribe.isRewardToken(address(secondAsset)));
+        resonance.addBribeReward(address(targetStrategy), address(secondAsset));
+        assertTrue(targetBribe.isRewardToken(address(secondAsset)));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -177,9 +155,9 @@ contract ResonanceTest is ProtocolFixture {
         _stake(ALICE, 100 ether);
 
         address[] memory strategies = new address[](2);
-        strategies[0] = address(acquisitionStrategy);
-        strategies[1] = address(buybackStrategy);
-        address[] memory oneStrategy = _addresses(address(acquisitionStrategy));
+        strategies[0] = address(targetStrategy);
+        strategies[1] = address(gbxStrategy);
+        address[] memory oneStrategy = _addresses(address(targetStrategy));
         uint256[] memory twoAmounts = new uint256[](2);
         twoAmounts[0] = 1;
         twoAmounts[1] = 1;
@@ -231,19 +209,19 @@ contract ResonanceTest is ProtocolFixture {
 
         vm.prank(ALICE);
         vm.expectRevert(Resonance.ZeroAmount.selector);
-        resonance.addSignal(address(acquisitionStrategy), 0);
+        resonance.addSignal(address(targetStrategy), 0);
 
         vm.prank(ALICE);
         vm.expectRevert(Resonance.ZeroAmount.selector);
-        resonance.removeSignal(address(acquisitionStrategy), 0);
+        resonance.removeSignal(address(targetStrategy), 0);
     }
 
     function test_AddSignalManyTreatsRepeatedStrategiesAsSequentialDeltas() external {
         _stake(ALICE, 100 ether);
 
         address[] memory strategies = new address[](2);
-        strategies[0] = address(acquisitionStrategy);
-        strategies[1] = address(acquisitionStrategy);
+        strategies[0] = address(targetStrategy);
+        strategies[1] = address(targetStrategy);
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 25 ether;
         amounts[1] = 15 ether;
@@ -251,21 +229,21 @@ contract ResonanceTest is ProtocolFixture {
         vm.prank(ALICE);
         resonance.addSignalMany(strategies, amounts);
 
-        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 40 ether);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 40 ether);
         assertEq(resonance.accountStrategies(ALICE).length, 1);
     }
 
     function test_AddSignalRejectsMoreThanTheUnallocatedBalance() external {
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(Resonance.InsufficientUnallocatedSignal.selector, 0, 1 ether));
-        resonance.addSignal(address(acquisitionStrategy), 1 ether);
+        resonance.addSignal(address(targetStrategy), 1 ether);
     }
 
     function test_AddSignalManyRejectsUnknownEntriesAtomically() external {
         _stake(ALICE, 100 ether);
 
         address[] memory strategies = new address[](2);
-        strategies[0] = address(acquisitionStrategy);
+        strategies[0] = address(targetStrategy);
         strategies[1] = BOB;
         uint256[] memory amounts = new uint256[](2);
         amounts[0] = 50 ether;
@@ -275,18 +253,18 @@ contract ResonanceTest is ProtocolFixture {
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, BOB));
         resonance.addSignalMany(strategies, amounts);
 
-        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 0);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 0);
         assertEq(resonance.accountStrategies(ALICE).length, 0);
     }
 
     function test_AddSignalCannotExceedTheRemainingUnallocatedBalance() external {
         _stake(ALICE, 100 ether);
         vm.prank(ALICE);
-        resonance.addSignal(address(acquisitionStrategy), 40 ether);
+        resonance.addSignal(address(targetStrategy), 40 ether);
 
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(Resonance.InsufficientUnallocatedSignal.selector, 60 ether, 61 ether));
-        resonance.addSignal(address(buybackStrategy), 61 ether);
+        resonance.addSignal(address(gbxStrategy), 61 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -297,30 +275,30 @@ contract ResonanceTest is ProtocolFixture {
         _stake(ALICE, 100 ether);
 
         vm.expectEmit(true, true, false, true);
-        emit SignalAdded(ALICE, address(acquisitionStrategy), 75 ether);
-        _signalTwo(ALICE, address(acquisitionStrategy), address(buybackStrategy), 3, 1);
+        emit SignalAdded(ALICE, address(targetStrategy), 75 ether);
+        _signalTwo(ALICE, address(targetStrategy), address(gbxStrategy), 3, 1);
 
-        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 75 ether);
-        assertEq(resonance.accountSignals(ALICE, address(buybackStrategy)), 25 ether);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 75 ether);
+        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 25 ether);
         assertEq(resonance.accountSignalWeight(ALICE), 100 ether);
         assertEq(resonance.totalSignalWeight(), 100 ether);
-        assertEq(resonance.strategySignalWeight(address(acquisitionStrategy)), 75 ether);
-        assertEq(acquisitionBribe.balanceOf(ALICE), 75 ether);
-        assertEq(acquisitionBribe.totalSupply(), 75 ether);
-        assertEq(buybackBribe.balanceOf(ALICE), 25 ether);
+        assertEq(resonance.strategySignalWeight(address(targetStrategy)), 75 ether);
+        assertEq(targetBribe.balanceOf(ALICE), 75 ether);
+        assertEq(targetBribe.totalSupply(), 75 ether);
+        assertEq(gbxBribe.balanceOf(ALICE), 25 ether);
     }
 
     function test_AddSignalIncreasesRatherThanReplaces() external {
         _stake(ALICE, 100 ether);
         vm.startPrank(ALICE);
-        resonance.addSignal(address(acquisitionStrategy), 30 ether);
-        resonance.addSignal(address(acquisitionStrategy), 20 ether);
+        resonance.addSignal(address(targetStrategy), 30 ether);
+        resonance.addSignal(address(targetStrategy), 20 ether);
         vm.stopPrank();
 
-        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 50 ether);
-        assertEq(resonance.strategySignalWeight(address(acquisitionStrategy)), 50 ether);
-        assertEq(acquisitionBribe.balanceOf(ALICE), 50 ether);
-        assertEq(acquisitionBribe.totalSupply(), 50 ether);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 50 ether);
+        assertEq(resonance.strategySignalWeight(address(targetStrategy)), 50 ether);
+        assertEq(targetBribe.balanceOf(ALICE), 50 ether);
+        assertEq(targetBribe.totalSupply(), 50 ether);
         assertEq(resonance.totalSignalWeight(), 50 ether);
         assertEq(resonance.accountStrategies(ALICE).length, 1);
     }
@@ -328,58 +306,58 @@ contract ResonanceTest is ProtocolFixture {
     function test_RemoveSignalPreservesTheExactPartialAllocation() external {
         _stake(ALICE, 137 ether);
         vm.startPrank(ALICE);
-        resonance.addSignal(address(acquisitionStrategy), 101 ether);
-        resonance.removeSignal(address(acquisitionStrategy), 37 ether);
+        resonance.addSignal(address(targetStrategy), 101 ether);
+        resonance.removeSignal(address(targetStrategy), 37 ether);
         vm.stopPrank();
 
-        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 64 ether);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 64 ether);
         assertEq(resonance.accountSignalWeight(ALICE), 64 ether);
-        assertEq(resonance.strategySignalWeight(address(acquisitionStrategy)), 64 ether);
+        assertEq(resonance.strategySignalWeight(address(targetStrategy)), 64 ether);
         assertEq(resonance.totalSignalWeight(), 64 ether);
-        assertEq(acquisitionBribe.balanceOf(ALICE), 64 ether);
-        assertEq(acquisitionBribe.totalSupply(), 64 ether);
+        assertEq(targetBribe.balanceOf(ALICE), 64 ether);
+        assertEq(targetBribe.totalSupply(), 64 ether);
         assertEq(resonance.accountStrategies(ALICE).length, 1);
-        assertEq(resonance.accountStrategies(ALICE)[0], address(acquisitionStrategy));
+        assertEq(resonance.accountStrategies(ALICE)[0], address(targetStrategy));
     }
 
     function test_StakingMoreCreatesUnallocatedBalanceWithoutRepricingExistingSignals() external {
         _stake(ALICE, 100 ether);
         vm.prank(ALICE);
-        resonance.addSignal(address(acquisitionStrategy), 60 ether);
+        resonance.addSignal(address(targetStrategy), 60 ether);
         _stake(ALICE, 400 ether);
 
-        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 60 ether);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 60 ether);
         assertEq(resonance.totalSignalWeight(), 60 ether);
         assertEq(signalGBX.balanceOf(ALICE) - resonance.accountSignalWeight(ALICE), 440 ether);
     }
 
     function test_RemoveSignalManyClearsSelectedAllocationsAndBribeBalances() external {
         _stake(ALICE, 100 ether);
-        _signalTwo(ALICE, address(acquisitionStrategy), address(buybackStrategy), 1, 1);
+        _signalTwo(ALICE, address(targetStrategy), address(gbxStrategy), 1, 1);
 
         vm.expectEmit(true, true, false, true);
-        emit SignalRemoved(ALICE, address(acquisitionStrategy), 50 ether);
+        emit SignalRemoved(ALICE, address(targetStrategy), 50 ether);
         _removeAllSignals(ALICE);
 
         assertEq(resonance.accountSignalWeight(ALICE), 0);
         assertEq(resonance.totalSignalWeight(), 0);
         assertEq(resonance.accountStrategies(ALICE).length, 0);
-        assertEq(acquisitionBribe.balanceOf(ALICE), 0);
-        assertEq(buybackBribe.balanceOf(ALICE), 0);
+        assertEq(targetBribe.balanceOf(ALICE), 0);
+        assertEq(gbxBribe.balanceOf(ALICE), 0);
     }
 
     function test_FullRemovalClearsThePrivateOneBasedStrategyIndex() external {
         _stake(ALICE, 100 ether);
         vm.prank(ALICE);
-        resonance.addSignal(address(acquisitionStrategy), 100 ether);
+        resonance.addSignal(address(targetStrategy), 100 ether);
 
-        // Slot 16 is pinned by `forge inspect Resonance storage-layout`; the nested mapping entry must not linger.
-        bytes32 accountMappingSlot = keccak256(abi.encode(ALICE, uint256(16)));
-        bytes32 strategyIndexSlot = keccak256(abi.encode(address(acquisitionStrategy), accountMappingSlot));
+        // Slot 21 is pinned by `forge inspect Resonance storage-layout`; the nested mapping entry must not linger.
+        bytes32 accountMappingSlot = keccak256(abi.encode(ALICE, uint256(21)));
+        bytes32 strategyIndexSlot = keccak256(abi.encode(address(targetStrategy), accountMappingSlot));
         assertEq(uint256(vm.load(address(resonance), strategyIndexSlot)), 1);
 
         vm.prank(ALICE);
-        resonance.removeSignal(address(acquisitionStrategy), 100 ether);
+        resonance.removeSignal(address(targetStrategy), 100 ether);
         assertEq(uint256(vm.load(address(resonance), strategyIndexSlot)), 0);
     }
 
@@ -387,10 +365,10 @@ contract ResonanceTest is ProtocolFixture {
         vm.prank(ALICE);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Resonance.InsufficientSignal.selector, address(acquisitionStrategy), uint256(0), uint256(1)
+                Resonance.InsufficientSignal.selector, address(targetStrategy), uint256(0), uint256(1)
             )
         );
-        resonance.removeSignal(address(acquisitionStrategy), 1);
+        resonance.removeSignal(address(targetStrategy), 1);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -410,36 +388,42 @@ contract ResonanceTest is ProtocolFixture {
         resonance.notifyRevenue(0);
     }
 
-    function test_RevenueWithNoAllocationsBecomesFundBackingImmediately() external {
+    function test_RevenueWithNoAllocationsBecomesAPullBasedFundLiability() external {
         _routeRevenue(100_000_000);
 
-        assertEq(usdg.balanceOf(address(fund)), 100_000_000);
-        assertEq(usdg.balanceOf(address(resonance)), 0);
+        assertEq(usdg.balanceOf(address(fund)), 0);
+        assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
+        assertEq(resonance.fundRevenueLiability(), 100_000_000);
         assertEq(resonance.revenueIndex(), 0);
+
+        vm.prank(KEEPER);
+        assertEq(resonance.payFundRevenue(), 100_000_000);
+        assertEq(usdg.balanceOf(address(fund)), 100_000_000);
+        assertEq(resonance.fundRevenueLiability(), 0);
     }
 
     function test_AddSignalCheckpointsRevenueBeforeIncreasingStrategyWeight() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
 
         _stake(BOB, 100 ether);
         vm.prank(BOB);
-        resonance.addSignal(address(acquisitionStrategy), 100 ether);
+        resonance.addSignal(address(targetStrategy), 100 ether);
 
-        assertEq(resonance.claimableRevenue(address(acquisitionStrategy)), 100_000_000);
-        assertEq(resonance.strategyRevenueIndex(address(acquisitionStrategy)), resonance.revenueIndex());
+        assertEq(resonance.claimableRevenue(address(targetStrategy)), 100_000_000);
+        assertEq(resonance.strategyRevenueIndex(address(targetStrategy)), resonance.revenueIndex());
 
         _routeRevenue(100_000_000);
-        resonance.distribute(address(acquisitionStrategy));
-        assertEq(usdg.balanceOf(address(acquisitionStrategy)), 200_000_000);
+        resonance.distribute(address(targetStrategy));
+        assertEq(usdg.balanceOf(address(targetStrategy)), 200_000_000);
     }
 
     function test_RevenueSplitsByCurrentSignalWeight() external {
         _stake(ALICE, 75 ether);
         _stake(BOB, 25 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
-        _signalOne(BOB, address(buybackStrategy));
+        _signalOne(ALICE, address(targetStrategy));
+        _signalOne(BOB, address(gbxStrategy));
 
         usdg.mint(address(resonanceRouter), 100_000_000);
         vm.expectEmit(true, false, false, true);
@@ -447,13 +431,13 @@ contract ResonanceTest is ProtocolFixture {
         vm.prank(KEEPER);
         resonanceRouter.route();
 
-        assertEq(resonance.pendingRevenue(address(acquisitionStrategy)), 75_000_000);
-        assertEq(resonance.pendingRevenue(address(buybackStrategy)), 25_000_000);
+        assertEq(resonance.pendingRevenue(address(targetStrategy)), 75_000_000);
+        assertEq(resonance.pendingRevenue(address(gbxStrategy)), 25_000_000);
 
-        assertEq(resonance.distribute(address(acquisitionStrategy)), 75_000_000);
-        assertEq(resonance.distribute(address(buybackStrategy)), 25_000_000);
-        assertEq(usdg.balanceOf(address(acquisitionStrategy)), 75_000_000);
-        assertEq(usdg.balanceOf(address(buybackStrategy)), 25_000_000);
+        assertEq(resonance.distribute(address(targetStrategy)), 75_000_000);
+        assertEq(resonance.distribute(address(gbxStrategy)), 25_000_000);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 75_000_000);
+        assertEq(usdg.balanceOf(address(gbxStrategy)), 25_000_000);
     }
 
     function test_NotifyRevenueRejectsAFeeOnTransferRevenueToken() external {
@@ -468,14 +452,9 @@ contract ResonanceTest is ProtocolFixture {
         assertEq(feeResonance.revenueIndex(), 0);
     }
 
-    /// @notice Revenue too small to move the index is silently retained by Resonance forever.
-    /// @dev `indexDelta = amount * 1e18 / totalSignalWeight` floors to zero whenever
-    ///      `amount < totalSignalWeight / 1e18`. With eighteen-decimal signal weight and six-decimal USDG that
-    ///      threshold is `staked GBX / 1e12` raw units, so at 100,000,000 GBX signaled every notification below
-    ///      100 USDG is absorbed without accounting. Nothing reverts and no index advances.
-    function test_RevenueBelowTheIndexResolutionIsSilentlySwallowed() external {
+    function test_RevenueBelowTheIndexResolutionRemainsExplicitlyCarried() external {
         _stake(ALICE, 100_000_000 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
         assertEq(resonance.totalSignalWeight(), 1e26);
 
         uint256 threshold = 1e26 / 1e18; // 100_000_000 raw USDG units, i.e. 100 USDG
@@ -484,28 +463,30 @@ contract ResonanceTest is ProtocolFixture {
         _routeRevenue(threshold - 1);
 
         assertEq(resonance.revenueIndex(), 0, "the index never moved");
-        assertEq(resonance.pendingRevenue(address(acquisitionStrategy)), 0);
-        assertEq(usdg.balanceOf(address(resonance)), threshold - 1, "the revenue is stranded in Resonance");
-        assertEq(resonance.distribute(address(acquisitionStrategy)), 0);
+        assertEq(resonance.pendingRevenue(address(targetStrategy)), 0);
+        assertEq(resonance.pendingRevenueScaled(), (threshold - 1) * resonance.INDEX_PRECISION());
+        assertEq(usdg.balanceOf(address(resonance)), threshold - 1, "the revenue is explicitly carried");
+        assertEq(resonance.distribute(address(targetStrategy)), 0);
 
         // One unit more is the first amount that registers at all, and it registers as the minimum tick.
         _routeRevenue(threshold);
         assertEq(resonance.revenueIndex(), 1);
-        assertEq(resonance.pendingRevenue(address(acquisitionStrategy)), threshold);
+        assertEq(resonance.pendingRevenue(address(targetStrategy)), threshold);
     }
 
-    /// @notice Repeated sub-threshold notifications never aggregate; each one is absorbed independently.
-    function test_SubThresholdRevenueNeverAccumulatesIntoAClaim() external {
+    function test_RepeatedSubThresholdRevenueAggregatesIntoAClaim() external {
         _stake(ALICE, 100_000_000 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
 
         for (uint256 i; i < 20; ++i) {
             _routeRevenue(50_000_000); // 50 USDG, half the resolution threshold
         }
 
-        assertEq(resonance.revenueIndex(), 0);
-        assertEq(usdg.balanceOf(address(resonance)), 1_000_000_000, "1,000 USDG absorbed with no claim created");
-        assertEq(resonance.pendingRevenue(address(acquisitionStrategy)), 0);
+        assertEq(resonance.revenueIndex(), 10);
+        assertEq(resonance.pendingRevenue(address(targetStrategy)), 1_000_000_000);
+        assertEq(resonance.distribute(address(targetStrategy)), 1_000_000_000);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 1_000_000_000);
+        assertEq(usdg.balanceOf(address(resonance)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -525,64 +506,64 @@ contract ResonanceTest is ProtocolFixture {
 
     function test_DistributingTwiceYieldsNothingTheSecondTime() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
 
         vm.expectEmit(true, true, false, true);
-        emit RevenueDistributed(address(this), address(acquisitionStrategy), 100_000_000);
-        assertEq(resonance.distribute(address(acquisitionStrategy)), 100_000_000);
-        assertEq(resonance.distribute(address(acquisitionStrategy)), 0);
+        emit RevenueDistributed(address(this), address(targetStrategy), 100_000_000);
+        assertEq(resonance.distribute(address(targetStrategy)), 100_000_000);
+        assertEq(resonance.distribute(address(targetStrategy)), 0);
     }
 
     function test_UpdateStrategyCheckpointsWithoutMovingTokens() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
 
-        resonance.updateStrategy(address(acquisitionStrategy));
+        resonance.updateStrategy(address(targetStrategy));
 
-        assertEq(resonance.claimableRevenue(address(acquisitionStrategy)), 100_000_000);
-        assertEq(resonance.pendingRevenue(address(acquisitionStrategy)), 0);
-        assertEq(usdg.balanceOf(address(acquisitionStrategy)), 0);
+        assertEq(resonance.claimableRevenue(address(targetStrategy)), 100_000_000);
+        assertEq(resonance.pendingRevenue(address(targetStrategy)), 0);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 0);
         assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
     }
 
     function test_DistributeRangeIsBoundedAndClampsTheEndIndex() external {
         _stake(ALICE, 50 ether);
         _stake(BOB, 50 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
-        _signalOne(BOB, address(buybackStrategy));
+        _signalOne(ALICE, address(targetStrategy));
+        _signalOne(BOB, address(gbxStrategy));
         _routeRevenue(100_000_000);
 
         resonance.distributeRange(0, 1);
-        assertEq(usdg.balanceOf(address(acquisitionStrategy)), 50_000_000);
-        assertEq(usdg.balanceOf(address(buybackStrategy)), 0);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 50_000_000);
+        assertEq(usdg.balanceOf(address(gbxStrategy)), 0);
 
         resonance.distributeRange(1, type(uint256).max);
-        assertEq(usdg.balanceOf(address(buybackStrategy)), 50_000_000);
+        assertEq(usdg.balanceOf(address(gbxStrategy)), 50_000_000);
     }
 
     function test_DistributeRangeWithAnInvertedWindowIsANoOp() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
 
         resonance.distributeRange(5, 1);
-        assertEq(usdg.balanceOf(address(acquisitionStrategy)), 0);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 0);
     }
 
     function test_DistributeAllSweepsEveryStrategy() external {
         _stake(ALICE, 50 ether);
         _stake(BOB, 50 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
-        _signalOne(BOB, address(buybackStrategy));
+        _signalOne(ALICE, address(targetStrategy));
+        _signalOne(BOB, address(gbxStrategy));
         _routeRevenue(100_000_000);
 
         vm.prank(KEEPER);
         resonance.distributeAll();
 
-        assertEq(usdg.balanceOf(address(acquisitionStrategy)), 50_000_000);
-        assertEq(usdg.balanceOf(address(buybackStrategy)), 50_000_000);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 50_000_000);
+        assertEq(usdg.balanceOf(address(gbxStrategy)), 50_000_000);
         assertEq(usdg.balanceOf(address(resonance)), 0);
     }
 
@@ -593,79 +574,83 @@ contract ResonanceTest is ProtocolFixture {
     function test_KillStrategyIsOwnerOnlyAndSingleUse() external {
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, ALICE));
-        resonance.killStrategy(address(acquisitionStrategy));
+        resonance.killStrategy(address(targetStrategy));
 
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, ALICE));
         resonance.killStrategy(ALICE);
 
         vm.expectEmit(true, false, false, false);
-        emit StrategyKilled(address(acquisitionStrategy));
-        resonance.killStrategy(address(acquisitionStrategy));
+        emit StrategyKilled(address(targetStrategy));
+        resonance.killStrategy(address(targetStrategy));
 
-        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(acquisitionStrategy)));
-        resonance.killStrategy(address(acquisitionStrategy));
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(targetStrategy)));
+        resonance.killStrategy(address(targetStrategy));
     }
 
-    function test_KillStrategyReturnsAlreadyIndexedRevenueToFund() external {
+    function test_KillStrategyAccruesAlreadyIndexedRevenueToFundWithoutTransfer() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
 
-        resonance.killStrategy(address(acquisitionStrategy));
+        resonance.killStrategy(address(targetStrategy));
 
-        assertFalse(resonance.isStrategyAlive(address(acquisitionStrategy)));
-        assertEq(resonance.claimableRevenue(address(acquisitionStrategy)), 0);
+        assertFalse(resonance.isStrategyAlive(address(targetStrategy)));
+        assertEq(resonance.claimableRevenue(address(targetStrategy)), 0);
+        assertEq(usdg.balanceOf(address(fund)), 0);
+        assertEq(resonance.fundRevenueLiability(), 100_000_000);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 0);
+
+        resonance.payFundRevenue();
         assertEq(usdg.balanceOf(address(fund)), 100_000_000);
-        assertEq(usdg.balanceOf(address(acquisitionStrategy)), 0);
     }
 
     function test_ADeadStrategyKeepsDilutingUntilItsSignalersRemoveTheirSignal() external {
         _stake(ALICE, 50 ether);
         _stake(BOB, 50 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
-        _signalOne(BOB, address(buybackStrategy));
+        _signalOne(ALICE, address(targetStrategy));
+        _signalOne(BOB, address(gbxStrategy));
 
-        resonance.killStrategy(address(acquisitionStrategy));
+        resonance.killStrategy(address(targetStrategy));
         assertEq(resonance.totalSignalWeight(), 100 ether, "dead weight still counts toward the denominator");
 
         _routeRevenue(100_000_000);
         resonance.distributeAll();
 
-        // The dead half is rerouted to Fund; only the live half reaches its Strategy.
-        assertEq(usdg.balanceOf(address(buybackStrategy)), 50_000_000);
-        assertEq(usdg.balanceOf(address(fund)), 50_000_000);
-        assertEq(usdg.balanceOf(address(acquisitionStrategy)), 0);
+        // The dead half becomes a fixed Fund liability; only the live half reaches its Strategy.
+        assertEq(usdg.balanceOf(address(gbxStrategy)), 50_000_000);
+        assertEq(resonance.fundRevenueLiability(), 50_000_000);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 0);
 
         vm.prank(ALICE);
-        resonance.removeSignal(address(acquisitionStrategy), 50 ether);
+        resonance.removeSignal(address(targetStrategy), 50 ether);
         assertEq(resonance.totalSignalWeight(), 50 ether);
 
         _routeRevenue(100_000_000);
         resonance.distributeAll();
-        assertEq(usdg.balanceOf(address(buybackStrategy)), 150_000_000, "the survivor now takes the whole flow");
+        assertEq(usdg.balanceOf(address(gbxStrategy)), 150_000_000, "the survivor now takes the whole flow");
     }
 
     function test_ADeadStrategyCannotBeSignaledAgain() external {
         _stake(ALICE, 100 ether);
-        resonance.killStrategy(address(acquisitionStrategy));
+        resonance.killStrategy(address(targetStrategy));
 
         vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(acquisitionStrategy)));
-        resonance.addSignal(address(acquisitionStrategy), 1 ether);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(targetStrategy)));
+        resonance.addSignal(address(targetStrategy), 1 ether);
 
         vm.prank(ALICE);
-        resonance.addSignal(address(buybackStrategy), 100 ether);
-        assertEq(resonance.accountSignals(ALICE, address(acquisitionStrategy)), 0);
-        assertEq(resonance.accountSignals(ALICE, address(buybackStrategy)), 100 ether);
+        resonance.addSignal(address(gbxStrategy), 100 ether);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 0);
+        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 100 ether);
     }
 
     function test_SignalersCanStillExitADeadStrategy() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
-        resonance.killStrategy(address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
+        resonance.killStrategy(address(targetStrategy));
 
         vm.startPrank(ALICE);
-        resonance.removeSignal(address(acquisitionStrategy), 100 ether);
+        resonance.removeSignal(address(targetStrategy), 100 ether);
         signalGBX.unstake(100 ether);
         vm.stopPrank();
 
@@ -679,14 +664,16 @@ contract ResonanceTest is ProtocolFixture {
 
     function test_ClaimRewardsPullsFromEveryRequestedBribe() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
-        _routeRevenue(100_000_000);
-        resonance.distribute(address(acquisitionStrategy));
-        _buyAcquisition(CAROL, acquisitionStrategy, target);
+        _signalOne(ALICE, address(targetStrategy));
+        target.mint(CAROL, 1 ether);
+        vm.startPrank(CAROL);
+        target.approve(address(targetBribe), 1 ether);
+        targetBribe.notifyRewardAmount(address(target), 1 ether);
+        vm.stopPrank();
 
         vm.warp(block.timestamp + 7 days);
         vm.prank(ALICE);
-        resonance.claimRewards(_addresses(address(acquisitionStrategy)));
+        resonance.claimRewards(_addresses(address(targetStrategy)));
 
         assertApproxEqRel(target.balanceOf(ALICE), 1 ether, 1e12);
     }
@@ -704,16 +691,16 @@ contract ResonanceTest is ProtocolFixture {
         uint256 relativeB = bound(second, 1, 1e6);
 
         _stake(ALICE, amount);
-        _signalTwo(ALICE, address(acquisitionStrategy), address(buybackStrategy), relativeA, relativeB);
+        _signalTwo(ALICE, address(targetStrategy), address(gbxStrategy), relativeA, relativeB);
 
-        uint256 summed = resonance.strategySignalWeight(address(acquisitionStrategy))
-            + resonance.strategySignalWeight(address(buybackStrategy));
+        uint256 summed = resonance.strategySignalWeight(address(targetStrategy))
+            + resonance.strategySignalWeight(address(gbxStrategy));
 
         assertEq(summed, resonance.totalSignalWeight());
         assertEq(summed, resonance.accountSignalWeight(ALICE));
         assertLe(summed, signalGBX.balanceOf(ALICE), "rounding may only lose weight, never invent it");
-        assertEq(acquisitionBribe.totalSupply(), resonance.strategySignalWeight(address(acquisitionStrategy)));
-        assertEq(buybackBribe.totalSupply(), resonance.strategySignalWeight(address(buybackStrategy)));
+        assertEq(targetBribe.totalSupply(), resonance.strategySignalWeight(address(targetStrategy)));
+        assertEq(gbxBribe.totalSupply(), resonance.strategySignalWeight(address(gbxStrategy)));
     }
 
     /// @notice Distribution never pays out more USDG than Resonance actually received.
@@ -723,13 +710,13 @@ contract ResonanceTest is ProtocolFixture {
 
         _stake(ALICE, 100 ether);
         _stake(BOB, 100 ether);
-        _signalTwo(ALICE, address(acquisitionStrategy), address(buybackStrategy), share, 100 - share);
-        _signalOne(BOB, address(acquisitionStrategy));
+        _signalTwo(ALICE, address(targetStrategy), address(gbxStrategy), share, 100 - share);
+        _signalOne(BOB, address(targetStrategy));
 
         _routeRevenue(amount);
         resonance.distributeAll();
 
-        uint256 delivered = usdg.balanceOf(address(acquisitionStrategy)) + usdg.balanceOf(address(buybackStrategy));
+        uint256 delivered = usdg.balanceOf(address(targetStrategy)) + usdg.balanceOf(address(gbxStrategy));
         uint256 retained = usdg.balanceOf(address(resonance));
 
         assertLe(delivered, amount, "Resonance can never hand out more than it took in");
@@ -746,13 +733,13 @@ contract ResonanceTest is ProtocolFixture {
 
         _stake(ALICE, first);
         _stake(BOB, second);
-        _signalTwo(ALICE, address(acquisitionStrategy), address(buybackStrategy), relative, 1e6);
-        _signalOne(BOB, address(acquisitionStrategy));
+        _signalTwo(ALICE, address(targetStrategy), address(gbxStrategy), relative, 1e6);
+        _signalOne(BOB, address(targetStrategy));
 
-        assertEq(acquisitionBribe.balanceOf(ALICE), resonance.accountSignals(ALICE, address(acquisitionStrategy)));
-        assertEq(acquisitionBribe.balanceOf(BOB), resonance.accountSignals(BOB, address(acquisitionStrategy)));
-        assertEq(buybackBribe.balanceOf(ALICE), resonance.accountSignals(ALICE, address(buybackStrategy)));
-        assertEq(acquisitionBribe.totalSupply(), acquisitionBribe.balanceOf(ALICE) + acquisitionBribe.balanceOf(BOB));
+        assertEq(targetBribe.balanceOf(ALICE), resonance.accountSignals(ALICE, address(targetStrategy)));
+        assertEq(targetBribe.balanceOf(BOB), resonance.accountSignals(BOB, address(targetStrategy)));
+        assertEq(gbxBribe.balanceOf(ALICE), resonance.accountSignals(ALICE, address(gbxStrategy)));
+        assertEq(targetBribe.totalSupply(), targetBribe.balanceOf(ALICE) + targetBribe.balanceOf(BOB));
     }
 
     /// @notice Caller-bounded batch removal can always return the system to a pristine zero-weight state.
@@ -760,18 +747,16 @@ contract ResonanceTest is ProtocolFixture {
         uint256 amount = bound(stakeAmount, 1e18, 1e24);
 
         _stake(ALICE, amount);
-        _signalTwo(
-            ALICE, address(acquisitionStrategy), address(buybackStrategy), bound(first, 1, 1e6), bound(second, 1, 1e6)
-        );
+        _signalTwo(ALICE, address(targetStrategy), address(gbxStrategy), bound(first, 1, 1e6), bound(second, 1, 1e6));
 
         _removeAllSignals(ALICE);
 
         assertEq(resonance.accountSignalWeight(ALICE), 0);
         assertEq(resonance.totalSignalWeight(), 0);
-        assertEq(resonance.strategySignalWeight(address(acquisitionStrategy)), 0);
-        assertEq(resonance.strategySignalWeight(address(buybackStrategy)), 0);
-        assertEq(acquisitionBribe.totalSupply(), 0);
-        assertEq(buybackBribe.totalSupply(), 0);
+        assertEq(resonance.strategySignalWeight(address(targetStrategy)), 0);
+        assertEq(resonance.strategySignalWeight(address(gbxStrategy)), 0);
+        assertEq(targetBribe.totalSupply(), 0);
+        assertEq(gbxBribe.totalSupply(), 0);
         assertEq(resonance.accountStrategies(ALICE).length, 0);
     }
 

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-/// @title IFund
-/// @author GUM BALL 6900
-/// @notice Minimal Fund surface required by Strategy and migration validation.
+/// @title GumBall6900 Fund Interface
+/// @author Heesho
+/// @notice Minimal ownerless Fund burn and GBX-identification surface.
+/// @custom:version 1.0.0
 interface IFund {
     /// @notice Burns GBX already held by the Fund.
     /// @param amount Amount of GBX to burn.

@@ -17,10 +17,6 @@ const facts = {
   initialEmission: formatWad(initialEmission, 18),
   dailyDecay: formatWad(constants.dailyDecayWad, 18),
   miningAllocation: formatWad(constants.miningAllocation, 0),
-  signalRewardPercent: Number(constants.signalRewardBps) / 100,
-  get fundPercent() {
-    return 100 - this.signalRewardPercent;
-  },
 };
 
 export const meta = {
@@ -195,7 +191,8 @@ export const pages = [
           <p class="eyebrow" style="color:${palette.blueBright};">Colour is not decoration</p>
           <p class="note" style="color:${palette.onDeepMuted}; max-width:150mm;">
             Every figure uses the same grammar. A line's colour tells you what is moving — and pink traces the whole
-            holder-directed chain, from the signal through the acquisition it causes to the reward it pays.
+            holder-directed chain, from the signal through the acquisition it causes and any independently funded
+            reward.
           </p>
           <div class="stack-1">${fig.legendStrip({ onDark: true })}</div>
         </div>
@@ -227,7 +224,7 @@ export const pages = [
         <div class="stack-3">
           <p class="eyebrow" style="color:${palette.blueBright};">Fixed by construction</p>
           <p class="note" style="color:${palette.onDeepMuted}; max-width:150mm;">
-            Set before deployment. Only the signal-reward share can be changed afterwards, and only within its cap.
+            Set before deployment. Ongoing management can add or kill Strategies and register bounded Bribe rewards.
           </p>
           <div class="stack-1" style="display:grid; grid-template-columns:repeat(3, 1fr); gap:5mm 8mm;">
             ${[
@@ -235,7 +232,7 @@ export const pages = [
               ['20,000,000 GBX', 'Genesis liquidity, committed'],
               ['0 GBX', 'Team, investor and presale allocation'],
               [`${constants.halfLifeDays.toLocaleString()} days`, 'Emission half-life'],
-              [`${facts.signalRewardPercent}%`, 'Signal-reward share at launch, capped at 50%'],
+              ['100%', 'Every Strategy payment is Fund-bound'],
               ['None', 'Withdrawal lock, cooldown or epoch'],
             ]
               .map(
@@ -440,11 +437,7 @@ export const pages = [
               <ul class="checklist capital">
                 <li><span class="muted">That every contributed USDG enters the signal-directed path.</span></li>
                 <li><span class="muted">That miners compete for a schedule, not a team-set price.</span></li>
-                <li>
-                  <span class="muted"
-                    >That the Fund keeps the majority of every acquisition, whatever the reward share is set to.</span
-                  >
-                </li>
+                <li><span class="muted">That every completed Strategy payment is owed entirely to Fund.</span></li>
                 <li><span class="muted">That burning never reopens mint capacity.</span></li>
                 <li><span class="muted">That redemption cannot be paused.</span></li>
               </ul>
@@ -527,7 +520,7 @@ export const pages = [
                   'sGBX',
                   'Non-transferable staked GBX. It measures an account&rsquo;s live signal weight and nothing else.',
                 ],
-                ['Strategy', 'An eligible destination for USDG: normally an asset acquisition, or a GBX buyback.'],
+                ['Strategy', 'An eligible USDG destination whose auction accepts one configured payment asset.'],
                 [
                   'Resonance',
                   'The allocation engine that distributes newly received USDG according to current signals.',
@@ -563,7 +556,7 @@ export const pages = [
               ['Tokens', ['GBX', 'SignalGBX'], palette.graphite],
               ['Distribution', ['Fundraiser', 'LiquidityPosition'], palette.blue],
               ['Routing', ['ResonanceRouter', 'Resonance', 'StrategyFactory', 'BribeFactory'], palette.blue],
-              ['Acquisition and rewards', ['Strategy', 'BribeRouter', 'Bribe', 'Fund'], palette.pink],
+              ['Acquisition and optional rewards', ['Strategy', 'BribeRouter', 'Bribe', 'Fund'], palette.pink],
             ]
               .map(
                 ([group, names, accent]) => html`
@@ -696,11 +689,7 @@ export const pages = [
                 >
               </li>
               <li><span class="muted">Miners compete for a fixed schedule, not a team-selected sale price.</span></li>
-              <li>
-                <span class="muted"
-                  >The Fund keeps the majority of every acquisition, whatever the share is set to.</span
-                >
-              </li>
+              <li><span class="muted">Every completed Strategy payment is owed entirely to Fund.</span></li>
             </ul>
           </div>
           <div class="ledger__side">
@@ -744,9 +733,9 @@ export const pages = [
             <p>
               If the active Strategies target an NVIDIA-linked asset, an Apple-linked asset, a SpaceX-linked asset or
               anything else eligible, a holder signals the Strategy for the asset they want the protocol to accumulate.
-              When that Strategy completes an acquisition, the signal-reward share is streamed in
-              <em>that acquired asset</em> across eligible signal balances — so the reward arrives in the thing the
-              signaler asked for.
+              When that Strategy completes an acquisition, the complete payment becomes shared Fund backing.
+              Independently funded Bribes may still stream registered incentives across the same signal balances, but
+              they never receive an automatic share of the auction payment.
             </p>
             <p>
               Signaling is continuous and reversible. Each operation adds or removes an absolute per-Strategy amount;
@@ -757,7 +746,7 @@ export const pages = [
           <div class="col-side">
             ${note({
               label: 'A signal is not a claim',
-              body: 'Signaling alone earns nothing. The Strategy must receive capital, and an auction must actually complete, before there is any asset to stream. Rewards depend on eligible weight at the moment of distribution.',
+              body: 'Signaling directs future USDG but creates no automatic reward claim. Any Bribe reward must be funded independently and accrues against eligible weight.',
             })}
             ${note({
               label: 'And not a vote',
@@ -773,20 +762,20 @@ export const pages = [
   {
     id: 'allocation',
     runner: '8 · Capital allocation',
-    section: { number: 8, title: 'Capital allocation', note: 'Two splits, one adjustable' },
+    section: { number: 8, title: 'Capital allocation', note: 'Signal-directed, then Fund-bound' },
     render: (context) => html`
       <div class="frame">
         ${sectionHead({
           eyebrow: 'The next distribution follows live weight',
           number: '8',
           title: 'Capital allocation',
-          deck: 'Revenue is divided twice on its way to the Fund. Only the first division responds to holders.',
+          deck: 'Revenue follows live signal weight into Strategies; every resulting payment then converges on Fund.',
         })}
         ${figureBlock({
           index: context.figure('routing'),
           svg: fig.routingFlow({ width: widths.full }),
           caption:
-            'Ribbon thickness is proportional to share. The first split is whatever holders currently want; the second is the same for every acquisition the protocol will ever make.',
+            'Ribbon thickness is proportional to live signal share. Strategy payments then converge completely on the common Fund.',
         })}
         <div class="spread stack-2">
           <div class="col-main">
@@ -804,9 +793,9 @@ export const pages = [
           </div>
           <div class="col-side">
             ${note({
-              label: 'Order matters',
+              label: 'One holder-directed split',
               kind: 'asset',
-              body: 'Capital is split by signal <em>before</em> anything is acquired, and by the reward share <em>after</em>. No party sits between the two splits with a choice to make.',
+              body: 'Capital is split by signal before anything is acquired. Settlement has no second policy split: every payment is Fund-bound.',
             })}
           </div>
         </div>
@@ -883,58 +872,56 @@ export const pages = [
   {
     id: 'formation',
     runner: '10 · Fund formation and rewards',
-    section: { number: 10, title: 'Fund formation and signal rewards', note: 'How each acquisition divides' },
+    section: { number: 10, title: 'Fund formation and independent rewards', note: 'One settlement rule' },
     render: () => html`
       <div class="frame">
         ${sectionHead({
-          eyebrow: 'Most builds shared backing; some rewards the signal',
+          eyebrow: 'Every payment builds shared backing',
           number: '10',
-          title: 'Fund formation and signal rewards',
-          deck: 'Every completed normal acquisition does two things at once: it strengthens the common basket, and it pays the holders who directed it.',
+          title: 'Fund formation and independent rewards',
+          deck: 'Every completed Strategy payment is Fund-bound. Optional Bribes are funded separately across the same signal balances.',
         })}
         <div class="spread">
           <div class="col-main">
             <p>
-              The acquired asset splits on a fixed rule. Ninety percent enters the Fund and becomes shared raw-token
-              backing available to every GBX holder through proportional in-kind redemption. Ten percent funds the
-              Strategy's Bribe, which streams that same asset across eligible signal balances.
+              Every Strategy uses one settlement rule: its complete payment becomes an immutable Fund liability. Anyone
+              may deliver that liability later, preserving auction and signal-exit liveness if the payment token
+              temporarily rejects the Fund. Auction proceeds never fund a Bribe automatically.
             </p>
             <p>
-              Ten percent is the launch value, not a constant. The share is adjustable through timelocked governance and
-              bounded: it may never exceed 50%, so a majority of every acquisition always reaches the Fund. Raising it
-              moves value from shared backing toward the holders who directed that specific acquisition; lowering it
-              does the reverse. If a Strategy has no eligible signalers at the moment of distribution, the reward share
-              does not accumulate anywhere or wait for a claimant — it returns to the Fund.
+              Bribes remain permissionless, independently funded reward streams. A third party can notify a registered
+              reward token, and that reward accrues across the Strategy's live signal balances. This incentive surface
+              does not alter where auction payments go and does not depend on the identity of the Strategy payment
+              asset.
             </p>
             <p>
-              The structure pairs a common benefit with a personal one. Most of what a signal directs becomes backing
-              for everyone; the smaller share lets the holder who chose it hold the thing they chose.
+              A signal therefore has one protocol-native effect: it directs new USDG toward the asset the common Fund
+              should accumulate. Any personal reward is an explicit external incentive, not a tax on shared backing.
             </p>
           </div>
           <div class="col-side">
             ${note({
               label: 'Streamed, not airdropped',
               kind: 'asset',
-              body: 'Rewards accrue against signal weight held over the distribution period, using a reward-per-weight accumulator. Signaling immediately before a fill does not retroactively earn the whole reward.',
+              body: 'Independently notified rewards accrue against signal weight held over the distribution period, using a reward-per-weight accumulator.',
             })}
             ${note({
-              label: 'Buybacks pay nothing',
+              label: 'GBX follows the same route',
               kind: 'supply',
-              body: 'A buyback Strategy has no acquired asset to split. It burns everything it buys, so there is no reward leg at all.',
+              body: 'A GBX-priced Strategy sends its complete payment toward Fund without burning it. Anyone may burn Fund-held GBX later.',
             })}
           </div>
         </div>
         <p class="statement stack-2">
-          Signal the asset you want, and a completed acquisition pays you in that asset —
-          <em>while the larger share joins the basket every GBX holder can redeem against.</em>
+          Signal the asset the Fund should accumulate —
+          <em>every completed payment strengthens the basket every GBX holder can redeem against.</em>
         </p>
         <div class="stack-2 tint">
-          <h3>Why not pay rewards in GBX?</h3>
+          <h3>Why separate Bribes from settlement?</h3>
           <p class="small muted" style="margin:0;">
-            Paying in the acquired asset keeps the incentive aligned with the choice. A holder who signals an
-            NVIDIA-linked Strategy because they want that exposure receives that exposure. Paying in GBX would convert
-            every signal into a claim on the protocol token regardless of what was actually bought, and would make
-            signaling a yield strategy rather than a statement of preference.
+            A fixed auction-proceeds reward share makes Strategy settlement depend on reward policy and diverts assets
+            from common backing. Independent Bribes keep optional incentives possible while leaving the core rule
+            legible: the Fund receives every Strategy payment.
           </p>
         </div>
       </div>
@@ -1004,21 +991,21 @@ export const pages = [
 
   {
     id: 'burns',
-    runner: '12 · Liquidity fees and buybacks',
-    section: { number: 12, title: 'Liquidity fees and buybacks', note: 'Two supply-reducing loops' },
+    runner: '12 · Liquidity fees and Fund burns',
+    section: { number: 12, title: 'Liquidity fees and Fund burns', note: 'Explicit supply maintenance' },
     render: (context) => html`
       <div class="frame">
         ${sectionHead({
-          eyebrow: 'One market loop, one supply-reduction loop',
+          eyebrow: 'One market loop, one explicit burn path',
           number: '12',
-          title: 'Liquidity fees and buybacks',
-          deck: 'The canonical market position auto-compounds; the buyback Strategy terminates in an atomic burn.',
+          title: 'Liquidity fees and Fund burns',
+          deck: 'The canonical market position auto-compounds; GBX auction payments remain supply-neutral until Fund burns them.',
         })}
         ${figureBlock({
           index: context.figure('burns'),
           svg: fig.burnLoops({ width: widths.full }),
           caption:
-            'The position grows by a fixed rule and pays its caller accrued fees; buybacks destroy every GBX payment.',
+            'The position grows by a fixed rule and pays its caller accrued fees; Fund-held GBX can be burned permissionlessly.',
         })}
         <div class="spread stack-2">
           <div class="col-main">
@@ -1028,9 +1015,10 @@ export const pages = [
               liquidity by the fixed 0.20% and receives every accrued fee. Position fees are not protocol revenue.
             </p>
             <p>
-              A buyback Strategy is an ordinary Strategy whose target asset is GBX itself. It spends routed USDG, buys
-              GBX on the open market, and burns everything it receives, atomically. It pays no signal reward and must
-              never leave purchased GBX sitting as inventory.
+              A Strategy may accept GBX like any other payment asset. Its complete GBX payment becomes a fixed Fund
+              liability, and delivery does not change supply. Anyone may later call the dedicated Fund burn function.
+              Before redemption, settling outstanding GBX liabilities and burning Fund-held GBX prevents those tokens
+              from remaining in the redemption denominator.
             </p>
           </div>
           <div class="col-side">
@@ -1154,15 +1142,14 @@ export const pages = [
           index: context.figure('governance'),
           svg: fig.governancePerimeter({ width: widths.full }),
           caption:
-            'The four authorized actions are the entire management surface. Everything on the right has no entry point, not a restricted one.',
+            'The three authorized actions are the entire ongoing management surface. Everything on the right has no entry point, not a restricted one.',
         })}
         <div class="spread stack-2">
           <div class="col-main">
             <p>
               sGBX holders direct capital continuously by signaling active Strategies. Management maintains the edges of
-              the system — which Strategies exist, how each acquisition divides between the Fund and its signalers, and
-              which additional Bribe rewards are registered — and can do nothing else. Each Bribe is permanently capped
-              at eight reward tokens.
+              the system — which Strategies exist and which additional Bribe rewards are registered — and can do nothing
+              else. Each Bribe is permanently capped at eight reward tokens.
             </p>
             <p class="small muted">
               Open work: whether multi-token Bribe rewards should exist at all remains unresolved. The eight-token cap
@@ -1173,7 +1160,7 @@ export const pages = [
             ${note({
               label: 'Minimized, not absent',
               kind: 'asset',
-              body: 'A compromised manager key can still add or kill Strategies, push the signal-reward share to its 50% cap, and register rewards up to the eight-token limit. It cannot upgrade the core, withdraw Fund assets, pause redemption, or touch what the Fund already holds.',
+              body: 'A compromised manager key can still add or kill Strategies and register rewards up to the eight-token limit. It cannot redirect Strategy payments, upgrade the core, withdraw Fund assets, pause redemption, or touch what the Fund already holds.',
             })}
           </div>
         </div>
@@ -1207,14 +1194,12 @@ export const pages = [
               </li>
               <li>Redemption uses pre-burn supply and balance snapshots.</li>
               <li>A redemption burn and all selected transfers are atomic.</li>
-              <li>
-                A normal acquisition divides the acquired asset at the current signal-reward share, which starts at 10%
-                and can never exceed 50%, and returns that share to the Fund when no eligible signalers exist.
-              </li>
-              <li>A buyback burns all received GBX atomically and pays no signal reward.</li>
+              <li>Every Strategy payment is fully classified as an immutable Fund liability.</li>
+              <li>A GBX-priced Strategy leaves supply unchanged until an explicit Fund burn or redemption.</li>
               <li>Each Bribe has at most eight append-only reward tokens.</li>
               <li>Liquidity compounding adds 0.20% and removes no principal.</li>
               <li>The deployed core has no upgrade path and no arbitrary asset-withdrawal path.</li>
+              <li>Revenue and reward floor remainders remain explicit carry; signal exit transfers no payout token.</li>
             </ol>
           </div>
           <div class="col-side">
@@ -1257,8 +1242,8 @@ export const pages = [
               ],
               [
                 'Manager key',
-                'A compromised key adds or kills Strategies, changes the reward share, or registers Bribe rewards.',
-                'Four bounded actions only. No upgrade, withdrawal, pause, or way to reach the Fund&rsquo;s existing holdings.',
+                'A compromised key adds or kills Strategies, or registers Bribe reward tokens.',
+                'Three bounded actions only. No upgrade, withdrawal, pause, or way to reach the Fund&rsquo;s existing holdings.',
               ],
               [
                 'Signal concentration',
@@ -1462,7 +1447,7 @@ export const pages = [
                 'Signal weight',
                 'The share of active sGBX allocated to a Strategy, which determines its share of the next distribution.',
               ],
-              ['Strategy', 'An active, eligible acquisition or buyback path registered in Resonance.'],
+              ['Strategy', 'An active reverse Dutch auction registered in Resonance with one payment asset.'],
               ['USDG', 'The stable asset contributed by miners and routed through the protocol.'],
             ],
           })}

@@ -58,9 +58,13 @@ contract LiquidityCompoundingTest is Test {
     event Compounded(
         uint256 indexed positionTokenId,
         address indexed caller,
+        uint128 liquidityBefore,
         uint128 liquidityAdded,
-        uint256 claimed0,
-        uint256 claimed1
+        uint128 liquidityAfter,
+        uint256 funding0,
+        uint256 funding1,
+        uint256 transferred0,
+        uint256 transferred1
     );
 
     function setUp() external {

@@ -22,7 +22,7 @@ signals from conventional DAO voting.
   the same Resonance and signaling vocabulary.
 - Describe participants as signalers, their allocation as signal weight, and their Strategy-linked distributions as
   signal rewards.
-- Retain the `Bribe`, `BribeRouter`, and `bribeBps` contract names because they describe the incentive mechanism rather
+- Retain the `Bribe` and `BribeRouter` contract names because they describe the incentive mechanism rather
   than the holder allocation action.
 - Retain standards-defined or inherited names such as OpenZeppelin `ERC20Votes`, `getVotes`, and `getPastVotes` where
   changing them would fork a standard interface. Historical upstream provenance and provisional evidence for the

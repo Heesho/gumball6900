@@ -6,7 +6,7 @@
 
 # Function: readResonanceView()
 
-> **readResonanceView**(`client`, `resonance`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `bribeBps`: `bigint`; `revenueIndex`: `bigint`; `strategies`: `` `0x${string}` ``[]; `totalSignalWeight`: `bigint`; \}\>
+> **readResonanceView**(`client`, `resonance`, `options?`): `Promise`\<\{ `accountedRevenueBalance`: `bigint`; `blockNumber`: `bigint`; `fundRevenueLiability`: `bigint`; `indexedRevenueScaled`: `bigint`; `pendingRevenueScaled`: `bigint`; `revenueIndex`: `bigint`; `strategies`: `` `0x${string}` ``[]; `totalClaimableRevenue`: `bigint`; `totalSignalWeight`: `bigint`; `unaccountedRevenue`: `bigint`; \}\>
 
 Reads Resonance's global allocation and revenue state.
 
@@ -20,4 +20,4 @@ Reads Resonance's global allocation and revenue state.
 
 ## Returns
 
-`Promise`\<\{ `blockNumber`: `bigint`; `bribeBps`: `bigint`; `revenueIndex`: `bigint`; `strategies`: `` `0x${string}` ``[]; `totalSignalWeight`: `bigint`; \}\>
+`Promise`\<\{ `accountedRevenueBalance`: `bigint`; `blockNumber`: `bigint`; `fundRevenueLiability`: `bigint`; `indexedRevenueScaled`: `bigint`; `pendingRevenueScaled`: `bigint`; `revenueIndex`: `bigint`; `strategies`: `` `0x${string}` ``[]; `totalClaimableRevenue`: `bigint`; `totalSignalWeight`: `bigint`; `unaccountedRevenue`: `bigint`; \}\>

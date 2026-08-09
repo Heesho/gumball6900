@@ -4,29 +4,11 @@
   "schemaVersion": 1,
   "state": "inventory-baselined",
   "platform": "linux-x64",
-  "pnpmLockSha256": "6a72948a3f11802bd5b1eed6862615f940fb6e3deac78166b19c07469bb96a08",
-  "licenseReportSha256": "589f2c5a61dbb70216b39d1e755242ffe9710dcba3028d7f0805039858d38fc6",
+  "pnpmLockSha256": "9590de37080ceb168ff0a1c38d5f1e4c1c7854be4acd28c5d90fc4ff03b8e21d",
+  "licenseReportSha256": "487101489dd49d21132cfe267f4e6a959416e98239807a512b883bf4358302af",
   "reviewedAt": null,
   "reviewedBy": null,
   "entries": [
-    {
-      "classification": "copyleft",
-      "license": "AGPL-3.0-or-later",
-      "name": "ua-parser-js",
-      "versions": ["2.0.10"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "copyleft",
-      "license": "Apache-2.0 AND LGPL-3.0-or-later AND MIT",
-      "name": "@img/sharp-wasm32",
-      "versions": ["0.35.0"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
     {
       "classification": "restricted",
       "license": "BSD",
@@ -201,15 +183,6 @@
     {
       "classification": "copyleft",
       "license": "MPL-2.0",
-      "name": "@ethereumjs/tx",
-      "versions": ["4.2.0"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "copyleft",
-      "license": "MPL-2.0",
       "name": "@ethereumjs/util",
       "versions": ["8.1.0", "9.1.0"],
       "disposition": "needs-counsel",
@@ -271,15 +244,6 @@
       "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
     },
     {
-      "classification": "copyleft",
-      "license": "MPL-2.0",
-      "name": "webextension-polyfill",
-      "versions": ["0.10.0"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
       "classification": "restricted",
       "license": "PSF",
       "name": "difflib",
@@ -302,42 +266,6 @@
       "license": "Unknown",
       "name": "@graphprotocol/graph-ts",
       "versions": ["0.38.2"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "unknown",
-      "license": "Unknown",
-      "name": "@metamask/eth-json-rpc-provider",
-      "versions": ["1.0.1"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "unknown",
-      "license": "Unknown",
-      "name": "@metamask/sdk",
-      "versions": ["0.33.1"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "unknown",
-      "license": "Unknown",
-      "name": "@metamask/sdk-communication-layer",
-      "versions": ["0.33.1"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "unknown",
-      "license": "Unknown",
-      "name": "@metamask/sdk-install-modal-web",
-      "versions": ["0.32.1"],
       "disposition": "needs-counsel",
       "releaseRelevance": "undetermined",
       "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."

@@ -1,9 +1,0 @@
-[**GUM BALL 6900 TypeScript SDK**](../README.md)
-
----
-
-[GUM BALL 6900 TypeScript SDK](../README.md) / MAX_MANAGER_REWARD_BPS
-
-# Variable: MAX_MANAGER_REWARD_BPS
-
-> `const` **MAX_MANAGER_REWARD_BPS**: `5000n` = `5_000n`

@@ -1,6 +1,8 @@
 import { encodeFunctionData, getAddress, zeroAddress, type Address, type Hex } from 'viem';
 
 import {
+  bribeAbi,
+  bribeRouterAbi,
   fundAbi,
   fundraiserAbi,
   gbxAbi,
@@ -208,6 +210,35 @@ export function buildClaimRewards(resonance: Address, strategies: readonly Addre
   );
 }
 
+/** Claims one registered Bribe token for a fixed entitled account without touching any other reward token. */
+export function buildClaimBribeReward(bribe: Address, account: Address, rewardToken: Address): ContractTransaction {
+  return transaction(
+    bribe,
+    encodeFunctionData({
+      abi: bribeAbi,
+      functionName: 'claimReward',
+      args: [getAddress(account), getAddress(rewardToken)],
+    }),
+  );
+}
+
+/** Claims a unique caller-selected set of registered Bribe tokens for a fixed entitled account. */
+export function buildClaimSelectedBribeRewards(
+  bribe: Address,
+  account: Address,
+  rewardTokens: readonly Address[],
+): ContractTransaction {
+  if (rewardTokens.length === 0) throw new RangeError('rewardTokens cannot be empty');
+  return transaction(
+    bribe,
+    encodeFunctionData({
+      abi: bribeAbi,
+      functionName: 'claimRewards',
+      args: [getAddress(account), uniqueAddresses(rewardTokens, 'rewardTokens')],
+    }),
+  );
+}
+
 /** Routes all USDG currently held by ResonanceRouter into Resonance. */
 export function buildRouteRevenue(resonanceRouter: Address): ContractTransaction {
   return transaction(resonanceRouter, encodeFunctionData({ abi: resonanceRouterAbi, functionName: 'route' }));
@@ -218,6 +249,34 @@ export function buildDistributeRevenue(resonance: Address, strategy: Address): C
   return transaction(
     resonance,
     encodeFunctionData({ abi: resonanceAbi, functionName: 'distribute', args: [getAddress(strategy)] }),
+  );
+}
+
+/** Synchronizes direct USDG donations already held by Resonance into explicit accounting. */
+export function buildSyncRevenue(resonance: Address): ContractTransaction {
+  return transaction(resonance, encodeFunctionData({ abi: resonanceAbi, functionName: 'syncRevenue' }));
+}
+
+/** Attempts to advance Resonance's sub-index carry without requiring another notification. */
+export function buildIndexPendingRevenue(resonance: Address): ContractTransaction {
+  return transaction(resonance, encodeFunctionData({ abi: resonanceAbi, functionName: 'indexPendingRevenue' }));
+}
+
+/** Pays Resonance's complete fixed Fund revenue liability to the immutable Fund. */
+export function buildPayFundRevenue(resonance: Address): ContractTransaction {
+  return transaction(resonance, encodeFunctionData({ abi: resonanceAbi, functionName: 'payFundRevenue' }));
+}
+
+/** Pays a BribeRouter's complete fixed Fund payment-token liability. */
+export function buildPayRouterFundPayment(bribeRouter: Address): ContractTransaction {
+  return transaction(bribeRouter, encodeFunctionData({ abi: bribeRouterAbi, functionName: 'payFundPayment' }));
+}
+
+/** Retries one Bribe token's complete fixed Fund rounding liability. */
+export function buildPayBribeFundReward(bribe: Address, rewardToken: Address): ContractTransaction {
+  return transaction(
+    bribe,
+    encodeFunctionData({ abi: bribeAbi, functionName: 'payFundReward', args: [getAddress(rewardToken)] }),
   );
 }
 

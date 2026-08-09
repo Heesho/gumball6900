@@ -30,21 +30,30 @@ source of USDG revenue reaching Resonance, and position fees no longer burn GBX.
 
 ## Revenue allocation
 
-Resonance distributes USDG by current SignalGBX (`sGBX`) allocation. When no signal weight exists, new revenue goes to Fund.
-Strategies with weight accrue indexed revenue and may be distributed individually or in bounded ranges.
+Resonance distributes USDG by current SignalGBX (`sGBX`) allocation. Global and per-Strategy scaled carry retain every
+floor remainder. When no signal weight exists, or when a killed Strategy accrues revenue, the exact whole-token value
+becomes a fixed liability to Fund. Anyone may later call `payFundRevenue`; a Fund transfer failure cannot block signal
+removal or unstaking. Direct USDG donations are visible through `unaccountedRevenue` and can be classified with
+`syncRevenue`.
 
 ## Signal-directed asset accumulation
 
-An `sGBX` holder can allocate signal to the active acquisition Strategy for an asset they want to accumulate. When that
-Strategy completes an acquisition, its payment token is the acquired asset: the Fund receives the Fund share, while
-BribeRouter streams the configured signal-reward share pro rata across eligible signalers. The Strategy must exist and
-successfully settle an acquisition before any such reward is earned.
+An `sGBX` holder can allocate signal to the active Strategy for an asset they want the protocol to accumulate. When that
+Strategy completes an acquisition, its complete payment token amount becomes Fund-bound. Signal rewards are separate:
+anyone may explicitly notify a registered token to the Strategy's Bribe, which streams that independently supplied
+reward across eligible signalers.
 
 ## Strategy settlement
 
-A Strategy sells its entire USDG balance at a linearly declining price. Acquisition payments begin at 90% to Fund and
-10% through BribeRouter; governance may set the signal-reward share between 0% and 50%. A buyback accepts GBX and burns the
-entire payment without a Bribe split.
+A Strategy sells its entire USDG balance at a linearly declining price. BribeRouter pulls each complete payment once
+and records 100% as a fixed Fund liability, so a token that temporarily rejects Fund cannot strand the Strategy's USDG.
+There is no acquisition/buyback mode and no auction-proceeds reward split. If the payment token is GBX, supply remains
+unchanged until the liability is paid to Fund and anyone later calls `burnGBX`.
+
+Each Bribe retains exact whole-token rate remainders, scaled global and per-user allocation carry, and pauses active
+stream time while signal supply is zero. Notifications received behind an active stream or with zero supply are
+queued. A user may claim one token, a selected unique set, or all registered tokens; the append-only registry remains
+permanently capped at eight.
 
 ## Redemption
 
@@ -55,3 +64,5 @@ payout = floor(Fund token balance * GBX burned / GBX total supply before burn)
 ```
 
 Omitted assets remain for the post-redemption supply. There is no NAV, price oracle, or registered basket.
+Because Fund-held GBX remains in total supply, a redeemer should first pay any GBX Strategy liabilities and burn all
+`pendingGBX`; redeeming without that maintenance produces a smaller payout and permanently forfeits the difference.

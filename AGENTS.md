@@ -31,11 +31,11 @@ authorized for user funds. A green local build is engineering evidence, never a 
   Bribe deployment follows the Liquid Signal shape: Resonance uses `StrategyFactory` and `BribeFactory`, and each Strategy
   has a corresponding `BribeRouter` and `Bribe`.
 - Each Bribe may register at most eight append-only reward tokens. The cap is fixed in code and is not governable.
-- A normal acquisition is a bounded reverse Dutch Strategy. Acquisition proceeds flow 90% to `Fund` and 10% through
-  `BribeRouter` to the Strategy's `Bribe`. The bribe share starts at 10% and may be changed through timelocked
-  governance, but may never exceed 50%. When there are no eligible signalers, the bribe share returns to `Fund`.
-- A buyback Strategy accepts GBX for USDG and burns the received GBX. Buybacks do not pay signal rewards: 100% of the
-  received GBX is burned atomically.
+- Every Strategy is the same bounded reverse Dutch acquisition mechanism. Its complete payment, regardless of token,
+  becomes a fixed `Fund` liability through the paired `BribeRouter`; auction proceeds never fund `Bribe` rewards.
+  Bribes are funded independently by explicit reward notifications.
+- A Strategy priced in GBX does not burn during settlement. After its fixed liability is paid into `Fund`, anyone may
+  burn that GBX through `Fund.burnGBX`. Users should settle and burn pending Fund GBX before calculating a redemption.
 - GBX lifetime minting is capped cumulatively at one billion tokens.
 
 ## Fund behavior
@@ -43,8 +43,8 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - `Fund` is a permissionless raw-token treasury, not a curated asset registry. Any ERC-20 sent to it may become GBX
   backing. Official protocol/index membership is represented by Strategies registered in Resonance, not by a Fund
   asset list.
-- Anyone may burn GBX already held by `Fund` through the dedicated burn function. Protocol buybacks should burn their
-  received GBX atomically rather than leave it accumulated.
+- Anyone may burn GBX already held by `Fund` through the dedicated burn function. GBX may accumulate there until a
+  permissionless caller burns it; burning before redemption removes Fund-held GBX from the payout denominator.
 - Redemption is unpausable and does not enumerate Fund assets. A redeemer supplies `gbxAmount`, a receiver, and a
   caller-selected array of unique non-GBX token addresses. For every selected token, transfer:
 
@@ -82,8 +82,8 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - `Fund` and `LiquidityPosition` are ownerless. `Fund` assets move only when a GBX holder burns their own tokens
   through redemption; assets that redeemers omit stay in `Fund` for the remaining GBX supply indefinitely. GBX held by
   `Fund` is burnable by anyone through the dedicated burn function.
-- `Resonance` holds the entire remaining administrative surface: `setBribeBps` (bounded at 50%), `addStrategy`,
-  `killStrategy`, and `addBribeReward`. Nothing else is owner-gated anywhere in the protocol.
+- `Resonance` holds the entire remaining administrative surface: `addStrategy`, `killStrategy`, and `addBribeReward`.
+  Nothing else is owner-gated anywhere in the protocol.
 - That administration remains behind OpenZeppelin `TimelockController`, with the project multisig holding proposer and
   canceller roles. The timelock should own Resonance, use a documented minimum delay, have no external default admin
   after setup, and may grant the executor role to the zero address for permissionless execution.

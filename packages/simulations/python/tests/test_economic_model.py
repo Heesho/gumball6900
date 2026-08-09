@@ -104,11 +104,13 @@ def test_fixture_invariants_and_burns_do_not_reopen_capacity() -> None:
                 tokens(20_000_000) + as_int(row["recurringMinted"])
             )
 
-    rewards = suite["managerRewards"]["rewardYieldByStrategy"]
-    # Launch share is 10%, so the acquisition is ten times the reward.
-    assert as_int(rewards[0]["managerReward"]) * 10 == as_int(rewards[0]["acquired"])
-    assert rewards[2]["managerReward"] == "0"
-    assert rewards[2]["vaultGrowth"] == rewards[2]["acquired"]
+    rewards = suite["bribeRewards"]["rewardYieldByStrategy"]
+    assert as_int(rewards[0]["notifiedReward"]) > 0
+    assert as_int(rewards[0]["rewardPerActiveGBX"]) > 0
+    assert rewards[2]["rewardPerActiveGBX"] == "0"
+    for settlement in suite["bribeRewards"]["strategySettlementConservation"]:
+        assert settlement["fundAmount"] == settlement["paymentAmount"]
+        assert settlement["auctionBribeReward"] == "0"
 
 
 def test_python_suite_matches_generated_fixture() -> None:

@@ -17,7 +17,6 @@ describe('Strategy reads', () => {
       epochStartedAt: 1_900n,
       fund: address(2),
       initialPrice: 10n,
-      kind: 0,
       minimumPrice: 1n,
       paymentToken: address(3),
       priceMultiplier: 1_100_000_000_000_000_000n,

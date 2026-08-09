@@ -60,7 +60,8 @@ silently resize existing signals; the holder must explicitly add the newly avail
 
 - Every normal exit is decomposable into bounded per-Strategy removals followed by unstaking.
 - A failure in one Strategy no longer freezes signals assigned to other Strategies or the account's unallocated
-  SignalGBX. It can still block removal of the amount assigned to that Strategy; A-04 remains open.
+  SignalGBX. This historical A-04 statement is superseded by [ADR 0020](0020-exact-carry-and-deferred-fixed-liabilities.md),
+  which makes the Fund destination a fixed pull liability and removes token transfers from signal exit.
 - The eight-token cap bounds, but does not eliminate, the linear per-token work in Bribe accounting. Removal, claiming,
   and Strategy settlement remain measured gas-regression surfaces.
 - Swap-and-pop bookkeeping is new state complexity. Unit, adversarial, fuzz, stateful invariant, Echidna, and Medusa

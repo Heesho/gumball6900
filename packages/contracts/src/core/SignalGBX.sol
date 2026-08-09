@@ -12,11 +12,12 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
 
-/// @title SignalGBX
-/// @author GUM BALL 6900
+/// @title GumBall6900 Non-Transferable Signal Receipt
+/// @author Heesho
 /// @notice Non-transferable signal receipt with ticker sGBX, minted one-for-one when a holder stakes GBX.
 /// @dev Adapted from Liquid Signal Governance. There is no time lock: a holder may immediately unstake any balance not
 ///      currently allocated to Strategies.
+/// @custom:version 1.0.0
 contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
@@ -38,10 +39,20 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
     /// @param resonance Bound Resonance address.
     event ResonanceSet(address indexed resonance);
 
+    /// @notice An unstake exceeds the account's SignalGBX not allocated in Resonance.
     error ActiveSignals(address account, uint256 signalWeight);
+    /// @notice The underlying token did not move by the exact requested amount at both ends of a transfer.
+    /// @param expected Requested underlying amount.
+    /// @param senderDebit Amount removed from the sender.
+    /// @param receiverCredit Amount credited to the receiver.
+    error InexactUnderlyingTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
+    /// @notice A transfer other than minting or burning was attempted.
     error TransferDisabled();
+    /// @notice The one-time Resonance binding has already completed.
     error ResonanceAlreadySet(address resonance);
+    /// @notice A required deployment or binding address is zero.
     error ZeroAddress();
+    /// @notice A stake or unstake amount is zero.
     error ZeroAmount();
 
     /// @notice Creates the non-transferable staking receipt and assigns deployment-time ownership.
@@ -52,7 +63,9 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
         ERC20Permit("Signal GUM BALL 6900")
         Ownable(initialOwner)
     {
-        if (address(gbx_) == address(0) || address(gbx_).code.length == 0) revert ZeroAddress();
+        if (address(gbx_) == address(0) || address(gbx_).code.length == 0) {
+            revert ZeroAddress();
+        }
         gbx = gbx_;
     }
 
@@ -61,7 +74,14 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
     function stake(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
 
+        uint256 senderBalanceBefore = gbx.balanceOf(msg.sender);
+        uint256 receiptBalanceBefore = gbx.balanceOf(address(this));
         gbx.safeTransferFrom(msg.sender, address(this), amount);
+        uint256 senderDebit = senderBalanceBefore - gbx.balanceOf(msg.sender);
+        uint256 receiverCredit = gbx.balanceOf(address(this)) - receiptBalanceBefore;
+        if (senderDebit != amount || receiverCredit != amount) {
+            revert InexactUnderlyingTransfer(amount, senderDebit, receiverCredit);
+        }
         _mint(msg.sender, amount);
 
         // Self-delegation activates ERC20Votes checkpoints without requiring a second setup transaction.
@@ -86,7 +106,14 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
         }
 
         _burn(msg.sender, amount);
+        uint256 receiptBalanceBefore = gbx.balanceOf(address(this));
+        uint256 receiverBalanceBefore = gbx.balanceOf(msg.sender);
         gbx.safeTransfer(msg.sender, amount);
+        uint256 senderDebit = receiptBalanceBefore - gbx.balanceOf(address(this));
+        uint256 receiverCredit = gbx.balanceOf(msg.sender) - receiverBalanceBefore;
+        if (senderDebit != amount || receiverCredit != amount) {
+            revert InexactUnderlyingTransfer(amount, senderDebit, receiverCredit);
+        }
 
         emit Unstaked(msg.sender, amount);
     }

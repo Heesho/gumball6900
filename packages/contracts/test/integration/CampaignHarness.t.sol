@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import { Test } from "forge-std/Test.sol";
 
 import { ProtocolStateMachineCampaign } from "../../audit/harness/ProtocolStateMachineCampaign.sol";
+import { BribeRouter } from "../../src/core/BribeRouter.sol";
 
 /// @title CampaignHarnessTest
 /// @notice Verifies the Echidna and Medusa campaign harness is live rather than dead configuration.
@@ -56,10 +57,6 @@ contract CampaignHarnessTest is Test {
         campaign.buy(2, 0);
         _assertAllProperties();
 
-        campaign.setBribeBps(2_500);
-        assertEq(campaign.resonance().bribeBps(), 2_500);
-        _assertAllProperties();
-
         vm.warp(block.timestamp + 2 days);
         campaign.settleEpochs(10);
         assertTrue(campaign.fundraiser().epochSettled(0), "settlement must actually advance");
@@ -88,8 +85,8 @@ contract CampaignHarnessTest is Test {
         _assertAllProperties();
     }
 
-    /// @notice The buyback Strategy is reachable and still leaves every property intact.
-    function test_TheBuybackPathIsReachableFromTheCampaign() external {
+    /// @notice A GBX-priced Strategy is reachable and leaves its payment available for later Fund settlement.
+    function test_TheGBXPaymentPathIsReachableFromTheCampaign() external {
         campaign.stake(0, 1_000_000 ether);
         campaign.addSignalMany(0, 2);
         campaign.donateRevenue(500_000_000);
@@ -98,7 +95,12 @@ contract CampaignHarnessTest is Test {
         uint256 supplyBefore = campaign.gbx().totalSupply();
         campaign.buy(1, 1);
 
-        assertLt(campaign.gbx().totalSupply(), supplyBefore, "the buyback must have burned GBX");
+        assertEq(campaign.gbx().totalSupply(), supplyBefore, "the Strategy must not burn GBX automatically");
+        assertGt(
+            BribeRouter(campaign.resonance().bribeRouterFor(campaign.strategies(1))).fundPaymentLiability(),
+            0,
+            "the complete GBX payment must be Fund-bound"
+        );
         _assertAllProperties();
     }
 
@@ -150,9 +152,8 @@ contract CampaignHarnessTest is Test {
         assertTrue(campaign.echidna_bribesAreSolventAgainstAccruedRewards(), "bribe solvency");
         assertTrue(campaign.echidna_revenueIsNeverParkedInARouter(), "router pass-through");
         assertTrue(campaign.echidna_auctionPricesStayWithinTheirBounds(), "auction bounds");
-        assertTrue(campaign.echidna_buybackProceedsAreNeverHeld(), "buyback burn");
+        assertTrue(campaign.echidna_gbxPaymentsLeaveStrategy(), "GBX payment leaves Strategy");
         assertTrue(campaign.echidna_settlementNeverOutrunsTheClock(), "settlement clock");
-        assertTrue(campaign.echidna_bribeShareStaysBelowTheCeiling(), "bribe share ceiling");
         assertTrue(campaign.echidna_usdgIsConserved(), "USDG conservation");
         assertTrue(campaign.echidna_revenueIndexIsMonotonic(), "revenue index monotonicity");
     }

@@ -75,7 +75,8 @@ dataSources:
         - name: LiquidityPosition
           file: ./abis/LiquidityPosition.json
       eventHandlers:
-        - event: Compounded(indexed uint256,indexed address,uint128,uint256,uint256)
+        - event: Compounded(indexed uint256,indexed
+            address,uint128,uint128,uint128,uint256,uint256,uint256,uint256)
           handler: handleCompounded
         - event: PositionRecorded(indexed uint256,indexed address,indexed bytes32)
           handler: handlePositionRecorded
@@ -147,16 +148,19 @@ dataSources:
         - name: Resonance
           file: ./abis/Resonance.json
       eventHandlers:
-        - event: BribeBpsSet(uint256,uint256)
-          handler: handleBribeBpsSet
         - event: BribeRewardAdded(indexed address,indexed address,indexed address)
           handler: handleBribeRewardAdded
         - event: RevenueDistributed(indexed address,indexed address,uint256)
           handler: handleRevenueDistributed
         - event: RevenueNotified(indexed address,uint256)
           handler: handleRevenueNotified
-        - event: StrategyAdded(indexed address,indexed address,indexed
-            address,address,uint8)
+        - event: RevenueSynced(indexed address,uint256)
+          handler: handleRevenueSynced
+        - event: FundRevenueAccrued(uint256,uint256)
+          handler: handleFundRevenueAccrued
+        - event: FundRevenuePaid(indexed address,indexed address,uint256)
+          handler: handleFundRevenuePaid
+        - event: StrategyAdded(indexed address,indexed address,indexed address,address)
           handler: handleStrategyAdded
         - event: StrategyKilled(indexed address)
           handler: handleStrategyKilled
@@ -221,3 +225,50 @@ dataSources:
         - event: MinDelayChange(uint256,uint256)
           handler: handleMinDelayChange
       file: ./src/timelock-controller.ts
+templates:
+  - kind: ethereum/contract
+    name: BribeTemplate
+    network: robinhood
+    source:
+      abi: Bribe
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Strategy
+        - ProtocolEvent
+      abis:
+        - name: Bribe
+          file: ./abis/Bribe.json
+      eventHandlers:
+        - event: RewardNotified(indexed address,uint256)
+          handler: handleRewardNotified
+        - event: RewardPaid(indexed address,indexed address,uint256)
+          handler: handleRewardPaid
+        - event: FundRewardAccrued(indexed address,uint256,uint256)
+          handler: handleBribeFundRewardAccrued
+        - event: FundRewardPaid(indexed address,indexed address,indexed address,uint256)
+          handler: handleBribeFundRewardPaid
+      file: ./src/bribe.ts
+  - kind: ethereum/contract
+    name: BribeRouterTemplate
+    network: robinhood
+    source:
+      abi: BribeRouter
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - Strategy
+        - ProtocolEvent
+      abis:
+        - name: BribeRouter
+          file: ./abis/BribeRouter.json
+      eventHandlers:
+        - event: FundPaymentAccrued(indexed address,indexed address,uint256,uint256)
+          handler: handleRouterFundPaymentAccrued
+        - event: FundPaymentPaid(indexed address,indexed address,indexed address,uint256)
+          handler: handleRouterFundPaymentPaid
+      file: ./src/bribe-router.ts

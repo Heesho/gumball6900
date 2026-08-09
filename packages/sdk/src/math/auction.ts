@@ -1,8 +1,6 @@
 import {
   ABS_MAX_AUCTION_INIT_PRICE,
   ABS_MIN_AUCTION_INIT_PRICE,
-  BPS_DENOMINATOR,
-  MANAGER_REWARD_BPS,
   MAX_AUCTION_EPOCH_PERIOD,
   MAX_AUCTION_PRICE_MULTIPLIER,
   MIN_AUCTION_EPOCH_PERIOD,
@@ -11,10 +9,9 @@ import {
 } from './constants.js';
 import { assertNonNegative, assertPositive, clampBigInt, mulDiv } from './integer.js';
 
-export interface AcquisitionSplit {
-  actualTargetReceived: bigint;
-  vaultAmount: bigint;
-  managerAmount: bigint;
+export interface StrategyPaymentSettlement {
+  paymentAmount: bigint;
+  fundAmount: bigint;
 }
 
 export interface AuctionConfig {
@@ -62,17 +59,8 @@ export function nextAuctionInitPrice(
   return clampBigInt(mulDiv(quotedPaymentAmount, priceMultiplier, WAD), minInitPrice, ABS_MAX_AUCTION_INIT_PRICE);
 }
 
-export function splitAcquiredAsset(
-  actualTargetReceived: bigint,
-  hasLiveManagerWeight: boolean,
-  managerRewardBps = MANAGER_REWARD_BPS,
-): AcquisitionSplit {
-  assertNonNegative(actualTargetReceived, 'actualTargetReceived');
-  assertNonNegative(managerRewardBps, 'managerRewardBps');
-  if (managerRewardBps > BPS_DENOMINATOR) {
-    throw new RangeError('managerRewardBps must not exceed BPS_DENOMINATOR');
-  }
-
-  const managerAmount = hasLiveManagerWeight ? mulDiv(actualTargetReceived, managerRewardBps, BPS_DENOMINATOR) : 0n;
-  return { actualTargetReceived, vaultAmount: actualTargetReceived - managerAmount, managerAmount };
+/** Models the uniform Strategy rule: every completed payment is owed entirely to Fund. */
+export function settleStrategyPayment(paymentAmount: bigint): StrategyPaymentSettlement {
+  assertNonNegative(paymentAmount, 'paymentAmount');
+  return { paymentAmount, fundAmount: paymentAmount };
 }

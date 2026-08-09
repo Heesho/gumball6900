@@ -31,69 +31,72 @@ contract PartialPullResonance {
 }
 
 /// @title BribeRouterTest
-/// @notice Covers the queue-or-forward decision between a Strategy, its Bribe, and Fund.
+/// @notice Covers the fixed Fund-only payment route paired with every Strategy.
 contract BribeRouterTest is Test {
     address private constant ALICE = address(0xA11CE);
     address private constant KEEPER = address(0x9EE9E5);
     address private constant FUND = address(0xF0D);
 
-    uint256 private constant WEEK = 7 days;
-
     Bribe private bribe;
     BribeRouter private router;
-    MockERC20 private reward;
+    MockERC20 private payment;
     MockERC20 private fundStandIn;
 
-    event RewardsDistributed(address indexed bribe, address indexed rewardToken, uint256 amount);
-    event RewardsQueued(address indexed strategy, uint256 amount);
-    event RewardsReturnedToFund(address indexed fund, address indexed rewardToken, uint256 amount);
+    event PaymentRouted(address indexed strategy, uint256 amount);
+    event FundPaymentAccrued(
+        address indexed fund, address indexed paymentToken, uint256 amount, uint256 totalLiability
+    );
+
+    function fund() external view returns (address fundAddress) {
+        return address(fundStandIn);
+    }
 
     function setUp() external {
         vm.warp(365 days);
-        reward = new MockERC20("Reward", "RWD", 18);
+        payment = new MockERC20("Payment", "PAY", 18);
         fundStandIn = new MockERC20("Fund Stand In", "FSI", 18);
 
         // The test contract plays both Resonance (for the Bribe) and Strategy (for the router).
         bribe = new Bribe(address(this));
-        bribe.addRewardToken(address(reward));
-        router = new BribeRouter(address(this), bribe, IERC20(address(reward)), address(fundStandIn));
+        bribe.addRewardToken(address(payment));
+        router = new BribeRouter(address(this), bribe, IERC20(address(payment)), address(fundStandIn));
     }
 
     function test_ConstructorRejectsZeroAndEOADependencies() external {
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(address(0), bribe, IERC20(address(reward)), address(fundStandIn));
+        new BribeRouter(address(0), bribe, IERC20(address(payment)), address(fundStandIn));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(address(this), Bribe(address(0)), IERC20(address(reward)), address(fundStandIn));
+        new BribeRouter(address(this), Bribe(address(0)), IERC20(address(payment)), address(fundStandIn));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
         new BribeRouter(address(this), bribe, IERC20(address(0)), address(fundStandIn));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(address(this), bribe, IERC20(address(reward)), address(0));
+        new BribeRouter(address(this), bribe, IERC20(address(payment)), address(0));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(ALICE, bribe, IERC20(address(reward)), address(fundStandIn));
+        new BribeRouter(ALICE, bribe, IERC20(address(payment)), address(fundStandIn));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
         new BribeRouter(address(this), bribe, IERC20(ALICE), address(fundStandIn));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(address(this), bribe, IERC20(address(reward)), ALICE);
+        new BribeRouter(address(this), bribe, IERC20(address(payment)), ALICE);
     }
 
-    function test_RouteRewardsIsStrategyOnly() external {
+    function test_RoutePaymentIsStrategyOnly() external {
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(BribeRouter.NotStrategy.selector, ALICE));
-        router.routeRewards(1 ether);
+        router.routePayment(1 ether);
     }
 
-    function test_RouteRewardsRejectsZero() external {
+    function test_RoutePaymentRejectsZero() external {
         vm.expectRevert(BribeRouter.ZeroAmount.selector);
-        router.routeRewards(0);
+        router.routePayment(0);
     }
 
-    function test_RouteRewardsRejectsAFeeOnTransferToken() external {
+    function test_RoutePaymentRejectsAFeeOnTransferToken() external {
         FeeOnTransferToken feeToken = new FeeOnTransferToken(18);
         BribeRouter feeRouter = new BribeRouter(address(this), bribe, IERC20(address(feeToken)), address(fundStandIn));
 
@@ -102,104 +105,62 @@ contract BribeRouterTest is Test {
         feeToken.setFeeBps(100);
 
         vm.expectRevert(
-            abi.encodeWithSelector(BribeRouter.InexactTransfer.selector, 10 ether, (10 ether * 9_900) / 10_000)
+            abi.encodeWithSelector(
+                BribeRouter.InexactTransfer.selector, 10 ether, 10 ether, (10 ether * 9_900) / 10_000
+            )
         );
-        feeRouter.routeRewards(10 ether);
+        feeRouter.routePayment(10 ether);
     }
 
-    function test_RewardsGoToFundWhenTheBribeHasNoSignalWeight() external {
-        reward.mint(address(this), 10 ether);
-        reward.approve(address(router), 10 ether);
-
-        vm.expectEmit(true, true, false, true);
-        emit RewardsReturnedToFund(address(fundStandIn), address(reward), 10 ether);
-        assertEq(router.routeRewards(10 ether), 0);
-
-        assertEq(reward.balanceOf(address(fundStandIn)), 10 ether);
-        assertEq(router.pendingRewards(), 0);
-    }
-
-    function test_RewardsAreQueuedWhenTooSmallToSustainANonZeroRate() external {
+    function test_CompletePaymentBecomesFundLiabilityEvenWithLiveSignalWeight() external {
         bribe.deposit(100 ether, ALICE);
-        reward.mint(address(this), WEEK - 1);
-        reward.approve(address(router), WEEK - 1);
-
-        assertEq(router.routeRewards(WEEK - 1), 0);
-        assertEq(router.pendingRewards(), WEEK - 1, "the amount waits in the router");
-        assertEq(reward.balanceOf(address(bribe)), 0);
-    }
-
-    function test_QueuedRewardsFlushOnceTheThresholdIsCrossed() external {
-        bribe.deposit(100 ether, ALICE);
-        reward.mint(address(this), WEEK - 1);
-        reward.approve(address(router), WEEK - 1);
-        router.routeRewards(WEEK - 1);
-
-        // A direct top-up plus a permissionless nudge is enough to start the stream.
-        reward.mint(address(router), 10 ether);
-        vm.prank(KEEPER);
-        uint256 distributed = router.distribute();
-
-        assertEq(distributed, 10 ether + WEEK - 1);
-        assertEq(router.pendingRewards(), 0);
-        assertEq(reward.balanceOf(address(bribe)), 10 ether + WEEK - 1);
-    }
-
-    function test_RewardsAreQueuedRatherThanShrinkingALiveStream() external {
-        bribe.deposit(100 ether, ALICE);
-        reward.mint(address(this), 70 ether);
-        reward.approve(address(router), 70 ether);
-        router.routeRewards(70 ether);
-
-        reward.mint(address(this), 1 ether);
-        reward.approve(address(router), 1 ether);
-        assertEq(router.routeRewards(1 ether), 0, "a smaller amount must not reset the stream");
-        assertEq(router.pendingRewards(), 1 ether);
-    }
-
-    function test_RouteRewardsStartsTheStreamAndClearsItsApproval() external {
-        bribe.deposit(100 ether, ALICE);
-        reward.mint(address(this), 70 ether);
-        reward.approve(address(router), 70 ether);
+        payment.mint(address(this), 70 ether);
+        payment.approve(address(router), 70 ether);
 
         vm.expectEmit(true, false, false, true);
-        emit RewardsQueued(address(this), 70 ether);
-        assertEq(router.routeRewards(70 ether), 70 ether);
-
-        assertEq(reward.balanceOf(address(bribe)), 70 ether);
-        assertEq(reward.allowance(address(router), address(bribe)), 0, "no standing approval may remain");
-        assertEq(router.pendingRewards(), 0);
-    }
-
-    function test_DistributeOnAnEmptyRouterIsAHarmlessNoOp() external {
-        vm.prank(KEEPER);
-        assertEq(router.distribute(), 0);
-    }
-
-    function test_DistributeIsPermissionless() external {
-        bribe.deposit(100 ether, ALICE);
-        reward.mint(address(router), 70 ether);
-
-        vm.prank(KEEPER);
+        emit PaymentRouted(address(this), 70 ether);
         vm.expectEmit(true, true, false, true);
-        emit RewardsDistributed(address(bribe), address(reward), 70 ether);
-        assertEq(router.distribute(), 70 ether);
+        emit FundPaymentAccrued(address(fundStandIn), address(payment), 70 ether, 70 ether);
+        router.routePayment(70 ether);
+
+        assertEq(router.fundPaymentLiability(), 70 ether);
+        assertEq(router.accountedPaymentBalance(), 70 ether);
+        assertEq(payment.balanceOf(address(bribe)), 0, "auction payments never fund Bribe");
     }
 
-    /// @notice Whatever the routing decision, the reward token is never created or destroyed.
-    function testFuzz_RoutingConservesEveryUnit(uint256 amount, uint256 weight) external {
+    function test_PayingFundIsPermissionlessAndClearsTheLiability() external {
+        payment.mint(address(this), 10 ether);
+        payment.approve(address(router), 10 ether);
+        router.routePayment(10 ether);
+
+        vm.prank(KEEPER);
+        assertEq(router.payFundPayment(), 10 ether);
+
+        assertEq(payment.balanceOf(address(fundStandIn)), 10 ether);
+        assertEq(router.fundPaymentLiability(), 0);
+        assertEq(router.accountedPaymentBalance(), 0);
+    }
+
+    function test_DirectRouterDonationsRemainUnaccountedSurplus() external {
+        payment.mint(address(router), 10 ether);
+
+        assertEq(router.paymentSurplus(), 10 ether);
+        assertEq(router.fundPaymentLiability(), 0);
+    }
+
+    /// @notice Every routed payment is conserved and remains entirely Fund-bound.
+    function testFuzz_RoutingConservesEveryUnit(uint256 amount, bool payNow) external {
         uint256 routed = bound(amount, 1, 1e30);
-        uint256 signalWeight = bound(weight, 0, 1e24);
-        if (signalWeight != 0) bribe.deposit(signalWeight, ALICE);
 
-        reward.mint(address(this), routed);
-        reward.approve(address(router), routed);
-        router.routeRewards(routed);
+        payment.mint(address(this), routed);
+        payment.approve(address(router), routed);
+        router.routePayment(routed);
+        if (payNow) router.payFundPayment();
 
-        uint256 total = reward.balanceOf(address(bribe)) + reward.balanceOf(address(router))
-            + reward.balanceOf(address(fundStandIn));
+        uint256 total = payment.balanceOf(address(router)) + payment.balanceOf(address(fundStandIn));
         assertEq(total, routed);
-        if (signalWeight == 0) assertEq(reward.balanceOf(address(fundStandIn)), routed);
+        assertEq(payment.balanceOf(address(bribe)), 0);
+        assertEq(router.accountedPaymentBalance(), router.fundPaymentLiability());
     }
 }
 
@@ -234,7 +195,7 @@ contract ResonanceRouterTest is ProtocolFixture {
 
     function test_RouteIsPermissionlessAndForwardsTheCompleteBalance() external {
         _stake(ALICE, 100 ether);
-        _signalOne(ALICE, address(acquisitionStrategy));
+        _signalOne(ALICE, address(targetStrategy));
         usdg.mint(address(resonanceRouter), 100_000_000);
 
         vm.prank(KEEPER);
@@ -253,7 +214,7 @@ contract ResonanceRouterTest is ProtocolFixture {
         vm.prank(DAVE);
         resonanceRouter.route();
 
-        assertEq(usdg.balanceOf(address(fund)), 42_000_000, "with no signals it becomes Fund backing");
+        assertEq(resonance.fundRevenueLiability(), 42_000_000, "with no signals it becomes Fund backing");
     }
 
     function test_RouteRevertsIfResonanceLeavesRevenueBehind() external {
@@ -272,7 +233,7 @@ contract ResonanceRouterTest is ProtocolFixture {
         uint256 revenue = bound(amount, 1, 1e15);
         if (withSignals) {
             _stake(ALICE, 100 ether);
-            _signalOne(ALICE, address(acquisitionStrategy));
+            _signalOne(ALICE, address(targetStrategy));
         }
 
         usdg.mint(address(resonanceRouter), revenue);

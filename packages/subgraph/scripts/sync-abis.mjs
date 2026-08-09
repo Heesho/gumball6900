@@ -10,11 +10,14 @@ const skipBuild = process.argv.includes('--skip-build');
 const check = process.argv.includes('--check');
 
 const contracts = [
+  'Bribe',
+  'BribeRouter',
   'Fund',
   'Fundraiser',
   'GBX',
   'LiquidityPosition',
   'SignalGBX',
+  'Strategy',
   'TimelockController',
   'Resonance',
   'ResonanceRouter',

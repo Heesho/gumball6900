@@ -15,9 +15,7 @@ import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 /// @notice Confirms both factories are permanently bound to one Resonance and are never publicly callable.
 contract FactoriesTest is ProtocolFixture {
     event BribeCreated(address indexed bribe, address indexed resonance);
-    event StrategyCreated(
-        address indexed strategy, address indexed bribeRouter, address indexed paymentToken, Strategy.Kind kind
-    );
+    event StrategyCreated(address indexed strategy, address indexed bribeRouter, address indexed paymentToken);
     event ResonanceSet(address indexed resonance);
 
     function setUp() external {
@@ -67,13 +65,15 @@ contract FactoriesTest is ProtocolFixture {
 
     function test_ACreatedBribeIsControlledByTheBoundResonance() external {
         BribeFactory factory = new BribeFactory(address(this));
-        factory.setResonance(address(this));
+        factory.setResonance(address(resonance));
 
         vm.expectEmit(false, true, false, false);
-        emit BribeCreated(address(0), address(this));
+        emit BribeCreated(address(0), address(resonance));
+        vm.prank(address(resonance));
         Bribe created = factory.createBribe();
 
-        assertEq(created.resonance(), address(this));
+        assertEq(created.resonance(), address(resonance));
+        assertEq(created.fund(), address(fund));
         assertEq(created.totalSupply(), 0);
         assertEq(created.rewardTokens().length, 0);
     }
@@ -103,23 +103,13 @@ contract FactoriesTest is ProtocolFixture {
     function test_StrategyCreationIsResonanceOnly() external {
         vm.expectRevert(abi.encodeWithSelector(StrategyFactory.NotResonance.selector, address(this)));
         strategyFactory.createStrategy(
-            IERC20(address(usdg)),
-            IERC20(address(target)),
-            address(fund),
-            acquisitionBribe,
-            Strategy.Kind.Acquisition,
-            defaultConfig()
+            IERC20(address(usdg)), IERC20(address(target)), address(fund), targetBribe, defaultConfig()
         );
 
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(StrategyFactory.NotResonance.selector, ALICE));
         strategyFactory.createStrategy(
-            IERC20(address(usdg)),
-            IERC20(address(target)),
-            address(fund),
-            acquisitionBribe,
-            Strategy.Kind.Acquisition,
-            defaultConfig()
+            IERC20(address(usdg)), IERC20(address(target)), address(fund), targetBribe, defaultConfig()
         );
     }
 
@@ -128,12 +118,7 @@ contract FactoriesTest is ProtocolFixture {
         factory.setResonance(address(this));
 
         (Strategy strategy, BribeRouter router) = factory.createStrategy(
-            IERC20(address(usdg)),
-            IERC20(address(target)),
-            address(fund),
-            acquisitionBribe,
-            Strategy.Kind.Acquisition,
-            defaultConfig()
+            IERC20(address(usdg)), IERC20(address(target)), address(fund), targetBribe, defaultConfig()
         );
 
         assertEq(strategy.resonance(), address(this));
@@ -142,16 +127,16 @@ contract FactoriesTest is ProtocolFixture {
         assertEq(strategy.fund(), address(fund));
 
         assertEq(router.strategy(), address(strategy), "the router is bound to exactly this Strategy");
-        assertEq(address(router.bribe()), address(acquisitionBribe));
-        assertEq(address(router.rewardToken()), address(target));
+        assertEq(address(router.bribe()), address(targetBribe));
+        assertEq(address(router.paymentToken()), address(target));
         assertEq(router.fund(), address(fund));
     }
 
     function test_EachCreationProducesAFreshIndependentGraph() external {
         (address firstStrategy, address firstBribe, address firstRouter) =
-            resonance.addStrategy(IERC20(address(target)), Strategy.Kind.Acquisition, defaultConfig());
+            resonance.addStrategy(IERC20(address(target)), defaultConfig());
         (address secondStrategy, address secondBribe, address secondRouter) =
-            resonance.addStrategy(IERC20(address(target)), Strategy.Kind.Acquisition, defaultConfig());
+            resonance.addStrategy(IERC20(address(target)), defaultConfig());
 
         assertTrue(firstStrategy != secondStrategy);
         assertTrue(firstBribe != secondBribe);

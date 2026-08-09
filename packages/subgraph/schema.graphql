@@ -13,11 +13,14 @@ type ProtocolState @entity(immutable: false) {
   liquidityCompoundCount: BigInt!
   routedRevenueRaw: BigInt!
   notifiedRevenueRaw: BigInt!
+  syncedRevenueRaw: BigInt!
   distributedRevenueRaw: BigInt!
+  fundRevenueAccruedRaw: BigInt!
+  fundRevenuePaidRaw: BigInt!
+  pendingFundRevenueRaw: BigInt!
   stakedGBXRaw: BigInt!
   fundBurnedGBXRaw: BigInt!
   redeemedGBXRaw: BigInt!
-  bribeBps: BigInt!
   timelockDelay: BigInt!
   strategyCount: Int!
   lastBlockNumber: BigInt!
@@ -57,10 +60,17 @@ type Strategy @entity(immutable: false) {
   bribe: Bytes!
   bribeRouter: Bytes!
   paymentToken: Bytes!
-  kind: Int!
   live: Boolean!
   totalSignalWeightRaw: BigInt!
   distributedRevenueRaw: BigInt!
+  notifiedRewardRaw: BigInt!
+  paidRewardRaw: BigInt!
+  routerFundPaymentAccruedRaw: BigInt!
+  routerFundPaymentPaidRaw: BigInt!
+  pendingRouterFundPaymentRaw: BigInt!
+  bribeFundRewardAccruedRaw: BigInt!
+  bribeFundRewardPaidRaw: BigInt!
+  pendingBribeFundRewardRaw: BigInt!
   createdBlockNumber: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!

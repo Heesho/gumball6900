@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { Bribe } from "../../src/core/Bribe.sol";
 import { BribeFactory } from "../../src/core/BribeFactory.sol";
+import { BribeRouter } from "../../src/core/BribeRouter.sol";
 import { Fund } from "../../src/core/Fund.sol";
 import { Fundraiser } from "../../src/core/Fundraiser.sol";
 import { GBX } from "../../src/core/GBX.sol";
@@ -76,7 +77,7 @@ contract ProtocolStateMachineCampaign {
     uint256 private constant AUCTION_MINIMUM_PRICE = 1e6;
 
     CampaignToken public immutable usdg;
-    CampaignToken public immutable acquisitionAsset;
+    CampaignToken public immutable paymentAsset;
 
     GBX public immutable gbx;
     Fund public immutable fund;
@@ -89,6 +90,7 @@ contract ProtocolStateMachineCampaign {
 
     CampaignActor[ACTOR_COUNT] public actors;
     address[] public strategies;
+    CampaignToken[] public supplementalRewardTokens;
 
     /// @notice Total USDG ever created by the campaign, used as the conservation reference.
     uint256 public totalUSDGCreated;
@@ -99,7 +101,7 @@ contract ProtocolStateMachineCampaign {
 
     constructor() {
         usdg = new CampaignToken("Global Dollar", "USDG", 6);
-        acquisitionAsset = new CampaignToken("Acquisition Asset", "ACQ", 18);
+        paymentAsset = new CampaignToken("Acquisition Asset", "ACQ", 18);
 
         gbx = new GBX(address(this), address(this));
         fund = new Fund(gbx);
@@ -133,14 +135,20 @@ contract ProtocolStateMachineCampaign {
             minimumPrice: AUCTION_MINIMUM_PRICE
         });
 
-        (address acquisition,,) =
-            resonance.addStrategy(IERC20(address(acquisitionAsset)), Strategy.Kind.Acquisition, config);
-        (address buyback,,) = resonance.addStrategy(IERC20(address(gbx)), Strategy.Kind.Buyback, config);
-        (address selfPriced,,) = resonance.addStrategy(IERC20(address(usdg)), Strategy.Kind.Acquisition, config);
+        (address paymentStrategy,,) = resonance.addStrategy(IERC20(address(paymentAsset)), config);
+        (address gbxPaymentStrategy,,) = resonance.addStrategy(IERC20(address(gbx)), config);
+        (address selfPriced,,) = resonance.addStrategy(IERC20(address(usdg)), config);
 
-        strategies.push(acquisition);
-        strategies.push(buyback);
+        strategies.push(paymentStrategy);
+        strategies.push(gbxPaymentStrategy);
         strategies.push(selfPriced);
+
+        // Exercise the exact fixed cap in every Echidna/Medusa state rather than proving only a one-token graph.
+        for (uint256 i; i < 7; ++i) {
+            CampaignToken supplemental = new CampaignToken("Supplemental Reward", "SUP", 6);
+            supplementalRewardTokens.push(supplemental);
+            resonance.addBribeReward(paymentStrategy, address(supplemental));
+        }
 
         genesisSupply = gbx.totalSupply();
 
@@ -248,6 +256,16 @@ contract ProtocolStateMachineCampaign {
         resonanceRouter.route();
     }
 
+    function donateRevenueDirectly(uint64 amount) external {
+        uint256 donation = _clamp(amount, 1, 1_000_000e6);
+        _createUSDG(address(resonance), donation);
+        resonance.syncRevenue();
+    }
+
+    function indexPendingRevenue() external {
+        resonance.indexPendingRevenue();
+    }
+
     function distributeAll() external {
         resonance.distributeAll();
     }
@@ -266,8 +284,8 @@ contract ProtocolStateMachineCampaign {
         if (price != 0) {
             if (payment == address(usdg)) {
                 _createUSDG(address(actor), price);
-            } else if (payment == address(acquisitionAsset)) {
-                acquisitionAsset.mint(address(actor), price);
+            } else if (payment == address(paymentAsset)) {
+                paymentAsset.mint(address(actor), price);
             }
             actor.run(payment, abi.encodeCall(IERC20.approve, (address(strategy), price)));
         }
@@ -285,6 +303,39 @@ contract ProtocolStateMachineCampaign {
         _actor(actorSeed).run(address(resonance), abi.encodeCall(Resonance.claimRewards, (selected)));
     }
 
+    function notifySupplementalReward(uint8 actorSeed, uint8 tokenSeed, uint64 amount) external {
+        CampaignActor actor = _actor(actorSeed);
+        CampaignToken token = supplementalRewardTokens[uint256(tokenSeed) % supplementalRewardTokens.length];
+        uint256 reward = _clamp(amount, 1, 1_000_000e6);
+        address bribe = resonance.bribeFor(strategies[0]);
+
+        token.mint(address(actor), reward);
+        actor.run(address(token), abi.encodeCall(IERC20.approve, (bribe, reward)));
+        actor.run(bribe, abi.encodeCall(Bribe.notifyRewardAmount, (address(token), reward)));
+    }
+
+    function claimOneReward(uint8 actorSeed, uint8 strategySeed, uint8 tokenSeed) external {
+        CampaignActor actor = _actor(actorSeed);
+        Bribe bribe = Bribe(resonance.bribeFor(_strategy(strategySeed)));
+        address[] memory tokens = bribe.rewardTokens();
+        address token = tokens[uint256(tokenSeed) % tokens.length];
+        bribe.claimReward(address(actor), token);
+    }
+
+    function payFixedLiabilities() external {
+        resonance.payFundRevenue();
+        for (uint256 i; i < strategies.length; ++i) {
+            BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
+            router.payFundPayment();
+
+            Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
+            address[] memory tokens = bribe.rewardTokens();
+            for (uint256 t; t < tokens.length; ++t) {
+                bribe.payFundReward(tokens[t]);
+            }
+        }
+    }
+
     function settleEpochs(uint8 limit) external {
         fundraiser.settleEpochs(_clamp(limit, 1, 30));
     }
@@ -297,14 +348,14 @@ contract ProtocolStateMachineCampaign {
         fundraiser.claim(address(actor), uint256(epochSeed) % current);
     }
 
-    function redeem(uint8 actorSeed, uint96 amount, bool includeAcquisitionAsset) external {
+    function redeem(uint8 actorSeed, uint96 amount, bool includePaymentAsset) external {
         CampaignActor actor = _actor(actorSeed);
         uint256 burned = _clamp(amount, 1, gbx.balanceOf(address(actor)));
 
-        uint256 length = includeAcquisitionAsset ? 2 : 1;
+        uint256 length = includePaymentAsset ? 2 : 1;
         address[] memory tokens = new address[](length);
         tokens[0] = address(usdg);
-        if (includeAcquisitionAsset) tokens[1] = address(acquisitionAsset);
+        if (includePaymentAsset) tokens[1] = address(paymentAsset);
 
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(fund), burned)));
         actor.run(address(fund), abi.encodeCall(Fund.redeem, (burned, address(actor), tokens)));
@@ -312,10 +363,6 @@ contract ProtocolStateMachineCampaign {
 
     function burnFundGBX(uint96 amount) external {
         fund.burnGBX(_clamp(amount, 1, gbx.balanceOf(address(fund))));
-    }
-
-    function setBribeBps(uint16 shareSeed) external {
-        resonance.setBribeBps(uint256(shareSeed) % (resonance.MAX_BRIBE_BPS() + 1));
     }
 
     function killStrategy(uint8 strategySeed) external {
@@ -433,6 +480,18 @@ contract ProtocolStateMachineCampaign {
         return owed <= usdg.balanceOf(address(resonance));
     }
 
+    /// @notice Every accounted USDG unit remains in exactly one whole-token or scaled accounting category.
+    function echidna_resonanceAccountingIsExact() public view returns (bool holds) {
+        uint256 strategyRemainders;
+        for (uint256 i; i < strategies.length; ++i) {
+            strategyRemainders += resonance.strategyRevenueRemainder(strategies[i]);
+        }
+
+        uint256 right = resonance.pendingRevenueScaled() + resonance.indexedRevenueScaled() + strategyRemainders
+            + (resonance.totalClaimableRevenue() + resonance.fundRevenueLiability()) * 1e18;
+        return resonance.accountedRevenueBalance() * 1e18 == right;
+    }
+
     /// @notice A retired Strategy never accumulates a new claim.
     function echidna_deadStrategiesHoldNoClaims() public view returns (bool holds) {
         for (uint256 i; i < strategies.length; ++i) {
@@ -468,6 +527,39 @@ contract ProtocolStateMachineCampaign {
         return true;
     }
 
+    /// @notice Every notified reward unit remains in exactly one stream, queue, carry, user, or Fund category.
+    function echidna_bribeAccountingIsExact() public view returns (bool holds) {
+        for (uint256 i; i < strategies.length; ++i) {
+            Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
+            address[] memory rewardTokens = bribe.rewardTokens();
+
+            for (uint256 t; t < rewardTokens.length; ++t) {
+                address token = rewardTokens[t];
+                uint256 userRemainders;
+                for (uint256 j; j < ACTOR_COUNT; ++j) {
+                    userRemainders += bribe.userRewardRemainder(address(actors[j]), token);
+                }
+
+                uint256 right = (
+                    bribe.scheduledRewards(token) + bribe.queuedRewards(token) + bribe.accruedRewardLiability(token)
+                        + bribe.fundRewardLiability(token)
+                ) * 1e18 + bribe.pendingRewardScaled(token) + bribe.indexedRewardScaled(token) + userRemainders
+                    + bribe.fundRewardRemainder(token);
+                if (bribe.accountedRewardBalance(token) * 1e18 != right) return false;
+            }
+        }
+        return true;
+    }
+
+    /// @notice Every Strategy payment Router balance is immutable Fund liability; auction proceeds never queue for Bribe.
+    function echidna_bribeRouterAccountingIsExact() public view returns (bool holds) {
+        for (uint256 i; i < strategies.length; ++i) {
+            BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
+            if (router.accountedPaymentBalance() != router.fundPaymentLiability()) return false;
+        }
+        return true;
+    }
+
     /// @notice Neither router nor Fundraiser ever custodies revenue between transactions.
     function echidna_revenueIsNeverParkedInARouter() public view returns (bool holds) {
         return usdg.balanceOf(address(resonanceRouter)) == 0 && usdg.balanceOf(address(fundraiser)) == 0;
@@ -484,8 +576,8 @@ contract ProtocolStateMachineCampaign {
         return true;
     }
 
-    /// @notice Buyback proceeds are burned atomically and never accumulate in the Strategy.
-    function echidna_buybackProceedsAreNeverHeld() public view returns (bool holds) {
+    /// @notice GBX payments never remain in the Strategy after a successful fill.
+    function echidna_gbxPaymentsLeaveStrategy() public view returns (bool holds) {
         return gbx.balanceOf(strategies[1]) == 0;
     }
 
@@ -496,16 +588,10 @@ contract ProtocolStateMachineCampaign {
             && fundraiser.currentScheduledEmission() <= fundraiser.INITIAL_DAILY_EMISSION();
     }
 
-    /// @notice The governance-bounded reward share can never exceed its documented ceiling.
-    function echidna_bribeShareStaysBelowTheCeiling() public view returns (bool holds) {
-        return resonance.bribeBps() <= resonance.MAX_BRIBE_BPS();
-    }
-
     /// @notice USDG is only ever moved between accounts, never created or destroyed by the protocol.
     function echidna_usdgIsConserved() public view returns (bool holds) {
         uint256 total = usdg.balanceOf(address(this)) + usdg.balanceOf(address(resonance))
-            + usdg.balanceOf(address(resonanceRouter)) + usdg.balanceOf(address(fund))
-            + usdg.balanceOf(address(fundraiser));
+            + usdg.balanceOf(address(resonanceRouter)) + usdg.balanceOf(address(fund)) + usdg.balanceOf(address(fundraiser));
 
         for (uint256 i; i < strategies.length; ++i) {
             total += usdg.balanceOf(strategies[i]);

@@ -3,12 +3,26 @@ import { assert, beforeEach, clearStore, describe, newMockEvent, test } from 'ma
 import { Claimed, Contributed, EpochSettled } from '../generated/Fundraiser/Fundraiser';
 import { Burned, Minted } from '../generated/GBX/GBX';
 import { Compounded } from '../generated/LiquidityPosition/LiquidityPosition';
-import { SignalAdded, SignalRemoved, StrategyAdded } from '../generated/Resonance/Resonance';
+import {
+  FundRevenueAccrued,
+  FundRevenuePaid,
+  RevenueSynced,
+  SignalAdded,
+  SignalRemoved,
+  StrategyAdded,
+} from '../generated/Resonance/Resonance';
 import { handleClaimed, handleContributed, handleEpochSettled } from '../src/fundraiser';
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
 import { handleCompounded } from '../src/liquidity-position';
-import { handleSignalAdded, handleSignalRemoved, handleStrategyAdded } from '../src/resonance';
+import {
+  handleFundRevenueAccrued,
+  handleFundRevenuePaid,
+  handleRevenueSynced,
+  handleSignalAdded,
+  handleSignalRemoved,
+  handleStrategyAdded,
+} from '../src/resonance';
 import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, configureEvent, uintParam } from './helpers';
 
 export {
@@ -19,6 +33,9 @@ export {
   handleCompounded,
   handleMinted,
   handleStrategyAdded,
+  handleRevenueSynced,
+  handleFundRevenueAccrued,
+  handleFundRevenuePaid,
   handleSignalAdded,
   handleSignalRemoved,
 };
@@ -90,9 +107,13 @@ describe('core protocol mappings', () => {
     compounded.parameters = new Array<ethereum.EventParam>();
     compounded.parameters.push(uintParam('positionTokenId', 11));
     compounded.parameters.push(addressParam('caller', USER));
+    compounded.parameters.push(uintParam('liquidityBefore', 5000));
     compounded.parameters.push(uintParam('liquidityAdded', 10));
-    compounded.parameters.push(uintParam('claimed0', 20));
-    compounded.parameters.push(uintParam('claimed1', 30));
+    compounded.parameters.push(uintParam('liquidityAfter', 5010));
+    compounded.parameters.push(uintParam('funding0', 100));
+    compounded.parameters.push(uintParam('funding1', 200));
+    compounded.parameters.push(uintParam('transferred0', 20));
+    compounded.parameters.push(uintParam('transferred1', 30));
     handleCompounded(compounded);
 
     const fundraiserEpochId = '4663-' + CONTRACT.toHexString() + '-epoch-7';
@@ -112,7 +133,6 @@ describe('core protocol mappings', () => {
     added.parameters.push(addressParam('bribe', REWARDS));
     added.parameters.push(addressParam('bribeRouter', USER_TWO));
     added.parameters.push(addressParam('paymentToken', ASSET));
-    added.parameters.push(uintParam('kind', 0));
     handleStrategyAdded(added);
 
     const cast = changetype<SignalAdded>(newMockEvent());
@@ -136,5 +156,34 @@ describe('core protocol mappings', () => {
     assert.fieldEquals('Strategy', strategyId, 'paymentToken', ASSET.toHexString());
     assert.fieldEquals('Strategy', strategyId, 'totalSignalWeightRaw', '0');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'signalWeightRaw', '0');
+  });
+
+  test('tracks synchronized revenue and the retryable fixed Fund liability', () => {
+    const synced = changetype<RevenueSynced>(newMockEvent());
+    configureEvent(synced, CONTRACT, 1);
+    synced.parameters = new Array<ethereum.EventParam>();
+    synced.parameters.push(addressParam('caller', USER));
+    synced.parameters.push(uintParam('amount', 100));
+    handleRevenueSynced(synced);
+
+    const accrued = changetype<FundRevenueAccrued>(newMockEvent());
+    configureEvent(accrued, CONTRACT, 2);
+    accrued.parameters = new Array<ethereum.EventParam>();
+    accrued.parameters.push(uintParam('amount', 40));
+    accrued.parameters.push(uintParam('totalLiability', 40));
+    handleFundRevenueAccrued(accrued);
+
+    const paid = changetype<FundRevenuePaid>(newMockEvent());
+    configureEvent(paid, CONTRACT, 3);
+    paid.parameters = new Array<ethereum.EventParam>();
+    paid.parameters.push(addressParam('caller', USER));
+    paid.parameters.push(addressParam('fund', ASSET));
+    paid.parameters.push(uintParam('amount', 40));
+    handleFundRevenuePaid(paid);
+
+    assert.fieldEquals('ProtocolState', '4663', 'syncedRevenueRaw', '100');
+    assert.fieldEquals('ProtocolState', '4663', 'fundRevenueAccruedRaw', '40');
+    assert.fieldEquals('ProtocolState', '4663', 'fundRevenuePaidRaw', '40');
+    assert.fieldEquals('ProtocolState', '4663', 'pendingFundRevenueRaw', '0');
   });
 });

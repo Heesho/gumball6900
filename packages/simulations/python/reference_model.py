@@ -11,7 +11,6 @@ from typing import Any, Dict, List
 
 WAD = 10**18
 ACCUMULATOR_PRECISION = 10**27
-BPS_DENOMINATOR = 10_000
 
 MAX_CUMULATIVE_MINT = 1_000_000_000 * WAD
 GENESIS_LIQUIDITY_ALLOCATION = 20_000_000 * WAD
@@ -26,10 +25,6 @@ MIN_AUCTION_PRICE_MULTIPLIER = 1_100_000_000_000_000_000
 MAX_AUCTION_PRICE_MULTIPLIER = 3 * WAD
 ABS_MIN_AUCTION_INIT_PRICE = 1_000_000
 ABS_MAX_AUCTION_INIT_PRICE = 2**192 - 1
-# Launch value of the signal-reward share, not a fixed constant: it is settable through
-# timelocked governance and may never exceed MAX_MANAGER_REWARD_BPS.
-MANAGER_REWARD_BPS = 1_000
-MAX_MANAGER_REWARD_BPS = 5_000
 
 
 def derive_initial_daily_scheduled_emission(allocation: int = MINING_EMISSION_ALLOCATION) -> int:
@@ -182,24 +177,10 @@ def next_auction_init_price(
     )
 
 
-def split_acquired_asset(
-    actual_target_received: int,
-    has_live_manager_weight: bool,
-    manager_reward_bps: int = MANAGER_REWARD_BPS,
-) -> Dict[str, int]:
-    _non_negative(actual_target_received, "actual_target_received")
-    _non_negative(manager_reward_bps, "manager_reward_bps")
-    if manager_reward_bps > BPS_DENOMINATOR:
-        raise ValueError("manager_reward_bps must not exceed BPS_DENOMINATOR")
-    manager_amount = (
-        mul_div(actual_target_received, manager_reward_bps, BPS_DENOMINATOR)
-        if has_live_manager_weight
-        else 0
-    )
-    return {
-        "vault_amount": actual_target_received - manager_amount,
-        "manager_amount": manager_amount,
-    }
+def settle_strategy_payment(payment_amount: int) -> Dict[str, int]:
+    """Model the uniform rule that every Strategy payment is owed entirely to Fund."""
+    _non_negative(payment_amount, "payment_amount")
+    return {"payment_amount": payment_amount, "fund_amount": payment_amount}
 
 
 def update_reward_index(
@@ -321,9 +302,7 @@ def compute_reference_results(scenarios: Dict[str, Any]) -> Dict[str, Any]:
             int(scenario["elapsedSeconds"]),
             int(scenario["epochPeriod"]),
         )
-        split = split_acquired_asset(
-            int(scenario["actualTargetReceived"]), scenario["hasLiveManagerWeight"]
-        )
+        settlement = settle_strategy_payment(int(scenario["actualTargetReceived"]))
         auction_quotes.append(
             {
                 "id": scenario["id"],
@@ -335,8 +314,7 @@ def compute_reference_results(scenarios: Dict[str, Any]) -> Dict[str, Any]:
                         int(scenario["minInitPrice"]),
                     )
                 ),
-                "vaultAmount": _decimal(split["vault_amount"]),
-                "managerAmount": _decimal(split["manager_amount"]),
+                "fundAmount": _decimal(settlement["fund_amount"]),
             }
         )
 

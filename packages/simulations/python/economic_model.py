@@ -18,12 +18,6 @@ TARGET_UNIT = WAD
 # Strategy rates are human-normalized target tokens per USDG, scaled by WAD.
 UNIT_TARGET_PER_USDG_RATE = WAD
 
-# Launch value of the signal-reward share. Settable through timelocked governance, capped
-# at MAX_MANAGER_REWARD_BPS. Declared here rather than imported so this model stays an
-# independent implementation that can disagree with the TypeScript one and be caught.
-MANAGER_REWARD_BPS = 1_000
-MAX_MANAGER_REWARD_BPS = 5_000
-
 MAX_CUMULATIVE_MINT = 1_000_000_000 * WAD
 GENESIS_LP_GBX = 20_000_000 * WAD
 GENESIS_SUPPLY = GENESIS_LP_GBX
@@ -161,14 +155,11 @@ def next_auction_init_price(payment_amount: int, price_multiplier: int, min_init
     return min(max(mul_div(payment_amount, price_multiplier, WAD), min_init_price), absolute_maximum)
 
 
-def acquisition_destinations(acquired: int, has_active_weight: bool) -> Dict[str, Any]:
-    nominal_manager_reward = mul_div(acquired, MANAGER_REWARD_BPS, BPS)
-    manager_reward = nominal_manager_reward if has_active_weight else 0
+def strategy_settlement(payment_amount: int) -> Dict[str, Any]:
     return {
-        "acquired": acquired,
-        "managerReward": manager_reward,
-        "vaultGrowth": acquired - manager_reward,
-        "redirectedToVault": 0 if has_active_weight else nominal_manager_reward,
+        "paymentAmount": payment_amount,
+        "fundAmount": payment_amount,
+        "auctionBribeReward": 0,
     }
 
 
@@ -204,16 +195,16 @@ def reward_concentration() -> Dict[str, Any]:
     reward = tokens(20)
     weights_bps = [7_000, 2_000, 1_000]
     distributed = 0
-    managers: List[Dict[str, Any]] = []
+    signalers: List[Dict[str, Any]] = []
     for index, weight_bps in enumerate(weights_bps):
         amount = reward - distributed if index == len(weights_bps) - 1 else mul_div(reward, weight_bps, BPS)
         distributed += amount
-        managers.append({"manager": f"manager-{index + 1}", "weightBps": weight_bps, "reward": amount})
+        signalers.append({"signaler": f"signaler-{index + 1}", "weightBps": weight_bps, "reward": amount})
     hhi_bps = sum(mul_div(weight, weight, BPS) for weight in weights_bps)
-    return {"totalReward": reward, "hhiBps": hhi_bps, "managers": managers}
+    return {"totalReward": reward, "hhiBps": hhi_bps, "signalers": signalers}
 
 
-def buyback_scenario(identifier: str, market_price: int) -> Dict[str, Any]:
+def gbx_acquisition_and_burn_scenario(identifier: str, market_price: int) -> Dict[str, Any]:
     supply_before = tokens(100_000_000)
     vault_before = usd_g(100_000_000)
     spent = usd_g(10_000_000)
@@ -224,7 +215,7 @@ def buyback_scenario(identifier: str, market_price: int) -> Dict[str, Any]:
         "id": identifier,
         "marketPrice": market_price,
         "backingPerGBXBefore": usdg_price_wad(vault_before, supply_before),
-        "usdGSpentRaw": spent,
+        "gbxAcquisitionBudgetUSDGRaw": spent,
         "gbxBurned": burned,
         "vaultValueAfterUSDGRaw": vault_after,
         "supplyAfter": supply_after,
@@ -232,7 +223,7 @@ def buyback_scenario(identifier: str, market_price: int) -> Dict[str, Any]:
     }
 
 
-def revenue_funded_buyback(identifier: str) -> Dict[str, Any]:
+def revenue_funded_gbx_acquisition_and_burn(identifier: str) -> Dict[str, Any]:
     starting_supply = tokens(100_000_000)
     starting_vault = usd_g(100_000_000)
     revenue = usd_g(10_000_000) if identifier == "mining-revenue" else usd_g(1_000_000)
@@ -248,7 +239,7 @@ def revenue_funded_buyback(identifier: str) -> Dict[str, Any]:
         "startingVaultValueUSDGRaw": starting_vault,
         "revenueUSDGRaw": revenue,
         "emission": emission,
-        "buybackSpendUSDGRaw": spend,
+        "gbxAcquisitionBudgetUSDGRaw": spend,
         "marketPrice": market_price,
         "gbxBurned": burned,
         "supplyAfter": supply_after,
@@ -327,13 +318,9 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
 
     strategy_yields: List[Dict[str, Any]] = []
     strategy_inputs = [
-        {"id": "strategy-a", "activeWeight": tokens(1_000_000), **acquisition_destinations(tokens(1_000), True)},
-        {"id": "strategy-b", "activeWeight": tokens(2_000_000), **acquisition_destinations(tokens(5_000), True)},
-        {
-            "id": "strategy-without-live-weight",
-            "activeWeight": 0,
-            **acquisition_destinations(tokens(5_000), False),
-        },
+        {"id": "strategy-a", "activeWeight": tokens(1_000_000), "notifiedReward": tokens(100)},
+        {"id": "strategy-b", "activeWeight": tokens(2_000_000), "notifiedReward": tokens(500)},
+        {"id": "strategy-without-live-weight", "activeWeight": 0, "notifiedReward": tokens(500)},
     ]
     for strategy in strategy_inputs:
         strategy_yields.append(
@@ -341,7 +328,7 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
                 **strategy,
                 "rewardPerActiveGBX": 0
                 if strategy["activeWeight"] == 0
-                else mul_div(strategy["managerReward"], WAD, strategy["activeWeight"]),
+                else mul_div(strategy["notifiedReward"], WAD, strategy["activeWeight"]),
             }
         )
 
@@ -380,8 +367,8 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
             "initialDailyScheduledEmission": INITIAL_DAILY_EMISSION,
             "dailyDecayWad": DAILY_DECAY_WAD,
             "auctionDurationSeconds": DAY,
-            "managerRewardBps": MANAGER_REWARD_BPS,
-            "maxManagerRewardBps": MAX_MANAGER_REWARD_BPS,
+            "strategyPaymentFundBps": BPS,
+            "auctionProceedsFundBribes": False,
             "noOnchainNavOracle": True,
         },
         "emissions": {
@@ -439,9 +426,9 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
             ],
             "budgetAccumulation": budget_accumulation_trace(),
         },
-        "managerRewards": {
+        "bribeRewards": {
             "rewardYieldByStrategy": strategy_yields,
-            "voteConcentration": reward_concentration(),
+            "signalConcentration": reward_concentration(),
             "rewardIndexExamples": [
                 {
                     "id": "production-scale",
@@ -449,17 +436,20 @@ def compute_economic_suite_raw() -> Dict[str, Any]:
                 },
                 {"id": "independent-floor-residue", **reward_index_example(10, 3, 10)},
             ],
-            "rewardLeakageVsVaultGrowth": [
-                {"id": "one-hundred-fills-with-live-weight", "fillCount": 100, **acquisition_destinations(tokens(100_000), True)},
-                {"id": "ten-fills-without-live-weight", "fillCount": 10, **acquisition_destinations(tokens(10_000), False)},
+            "strategySettlementConservation": [
+                {"id": "one-hundred-fills-with-live-weight", "fillCount": 100, **strategy_settlement(tokens(100_000))},
+                {"id": "ten-fills-without-live-weight", "fillCount": 10, **strategy_settlement(tokens(10_000))},
             ],
         },
-        "redemptionAndBuyback": {
+        "redemptionAndGbxBurn": {
             "marketRelativeToBacking": [
-                buyback_scenario("gbx-below-backing", 8 * 10**17),
-                buyback_scenario("gbx-above-backing", 12 * 10**17),
+                gbx_acquisition_and_burn_scenario("gbx-below-backing", 8 * 10**17),
+                gbx_acquisition_and_burn_scenario("gbx-above-backing", 12 * 10**17),
             ],
-            "revenueSourceComparison": [revenue_funded_buyback("mining-revenue"), revenue_funded_buyback("lp-fee-revenue")],
+            "revenueSourceComparison": [
+                revenue_funded_gbx_acquisition_and_burn("mining-revenue"),
+                revenue_funded_gbx_acquisition_and_burn("lp-fee-revenue"),
+            ],
             "simultaneousEmissionAndBurn": simultaneous,
             "sequentialLargeRedemptions": sequential_redemptions(),
         },

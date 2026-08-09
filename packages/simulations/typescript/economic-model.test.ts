@@ -132,8 +132,8 @@ describe('minimal-protocol economic suite', () => {
     expect(bounds.maxEpochPeriod).toBe('31536000');
   });
 
-  it('uses immediate floor-index rewards with uncarried residue and 98/2 routing', () => {
-    const rewards = record(record(loadTypeScriptEconomicSuite()).managerRewards);
+  it('uses immediate floor-index rewards and keeps auction payments entirely Fund-bound', () => {
+    const rewards = record(record(loadTypeScriptEconomicSuite()).bribeRewards);
     const examples = list(rewards.rewardIndexExamples).map(record);
     const dust = namedEntry(examples, 'independent-floor-residue');
     expect(dust.rewardPerWeightIncrement).toBe('33');
@@ -143,14 +143,17 @@ describe('minimal-protocol economic suite', () => {
     const yields = list(rewards.rewardYieldByStrategy).map(record);
     const active = yields[0]!;
     const inactive = yields[2]!;
-    // The signal-reward share launches at 10%, so the acquisition is ten times the reward.
-    expect(integer(active.managerReward) * 10n).toBe(integer(active.acquired));
-    expect(integer(active.managerReward) + integer(active.vaultGrowth)).toBe(integer(active.acquired));
-    expect(inactive.managerReward).toBe('0');
-    expect(inactive.vaultGrowth).toBe(inactive.acquired);
+    expect(integer(active.notifiedReward)).toBeGreaterThan(0n);
+    expect(integer(active.rewardPerActiveGBX)).toBeGreaterThan(0n);
+    expect(inactive.rewardPerActiveGBX).toBe('0');
+
+    for (const settlement of list(rewards.strategySettlementConservation).map(record)) {
+      expect(settlement.fundAmount).toBe(settlement.paymentAmount);
+      expect(settlement.auctionBribeReward).toBe('0');
+    }
   });
 
-  it('conserves strategy budgets, raw redemptions, and buyback supply accounting', () => {
+  it('conserves strategy budgets, raw redemptions, and explicit Fund-burn supply accounting', () => {
     const root = record(loadTypeScriptEconomicSuite());
     const budget = list(record(root.auctions).budgetAccumulation).map(record);
     let opening = 0n;
@@ -161,7 +164,7 @@ describe('minimal-protocol economic suite', () => {
       opening = integer(row.closingBudgetUSDGRaw);
     }
 
-    const section = record(root.redemptionAndBuyback);
+    const section = record(root.redemptionAndGbxBurn);
     for (const source of list(section.revenueSourceComparison).map(record)) {
       expect(integer(source.supplyAfter)).toBe(
         integer(source.startingSupply) + integer(source.emission) - integer(source.gbxBurned),

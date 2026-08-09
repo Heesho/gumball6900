@@ -77,7 +77,7 @@ export const palette = {
  *
  * With only pink and blue available, the previous four-way split collapses to three roles.
  * That turns out to be the more honest cut anyway: pink traces the entire holder-directed
- * chain — signal, the acquisition it causes, and the reward it pays — while blue is
+ * chain — signal, the acquisition it causes, and optional independent rewards — while blue is
  * capital arriving and black is supply being destroyed.
  */
 export const legend = [
@@ -89,7 +89,7 @@ export const legend = [
 /** What each colour means, for the key printed on page 2. */
 export const legendCaptions = [
   'Contributed and routed in',
-  'Weight, acquisition and reward',
+  'Weight, acquisition and independent reward',
   'Minted once, burned forever',
 ];
 

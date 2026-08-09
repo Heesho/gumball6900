@@ -1,7 +1,9 @@
-# Deployment evidence
+# Archived deployment evidence
 
-`deployment-manifest.ts` schema version 3 is the active machine-readable evidence format for the minimal rebuild. It
-records exactly these 14 direct deployments:
+> Schema version 3 predates the current core and ADR 0021. It is retained only to validate historical candidate files;
+> it is not a deployment format for the current protocol and cannot authorize a release.
+
+The archived `deployment-manifest.ts` schema records these 14 legacy deployments:
 
 1. `ProtocolTimelock`
 2. `EmergencyGuardian`
@@ -25,7 +27,7 @@ verified addresses, runtime hashes, constructor arguments, deployment receipts, 
 complete post-deployment wiring snapshot, passed evidence gates, and the configured signature quorum. The committed
 signer policy is intentionally unresolved, so no current file can validate as release-approved.
 
-The deployment snapshot includes both auction lots and price bounds, epoch period and multiplier, the explicit
+The historical snapshot includes both auction lots and price bounds, epoch period and multiplier, the explicit
 hookless PoolKey, initial sqrt price, ticks, and the absolute `GBX_V4_LIQUIDITY_DEADLINE`. Its initial-state snapshot
 keeps both strategies unregistered with `startTime == 0`, binds the acquisition/rewards pair and buyback dependencies,
 records the GBX controller and cached mining pool, proves the genesis NFT is in `LiquidityCustodian`, records principal
@@ -37,5 +39,7 @@ Validate a local draft or candidate with:
 pnpm --filter @gumball-6900/config manifest:validate --file path/to/manifest.json
 ```
 
-The examples and policy files in this directory remain provisional evidence or archival inputs; they do not supply
+The Acquisition/Buyback distinction and atomic Buyback burn in this schema are incompatible with ADR 0021's uniform
+Strategy settlement. Current deployment tooling must be rebuilt against the direct core described in
+`docs/DEPLOYMENT.md`. The examples and policy files here remain provisional or archival inputs; they do not supply
 canonical addresses, approvals, or deployment authorization.

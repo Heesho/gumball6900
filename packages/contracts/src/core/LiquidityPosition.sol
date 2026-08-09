@@ -18,8 +18,8 @@ import { IAllowanceTransfer } from "permit2/src/interfaces/IAllowanceTransfer.so
 
 import { GBX } from "./GBX.sol";
 
-/// @title LiquidityPosition
-/// @author GUM BALL 6900
+/// @title GumBall6900 Immutable Genesis Liquidity Position
+/// @author Heesho
 /// @notice Holds the canonical GBX/USDG Uniswap v4 position and lets anyone compound its fees back into it.
 /// @dev The genesis position starts outside the active price as a GBX-only position. There is one rule: a caller may
 ///      take everything the position has accrued, provided the same call grows the position by `COMPOUND_BPS`.
@@ -30,9 +30,17 @@ import { GBX } from "./GBX.sol";
 ///      The contract is ownerless and immutable: once the precommitted NFT is received it can never leave, by any
 ///      caller or any mechanism, and principal is never withdrawn. Adapted in shape from Uniswap's TokenJar, where a
 ///      fixed threshold releases an accumulated basket.
+/// @custom:version 1.0.0
 contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    /// @notice Immutable contracts and precommitted NFT identity fixed during deployment.
+    /// @param positionManager Canonical Uniswap v4 PositionManager.
+    /// @param positionDepositor One-time account authorized to deliver the genesis NFT.
+    /// @param expectedPositionTokenId Precommitted PositionManager token ID.
+    /// @param gbx Canonical GBX token.
+    /// @param usdg Canonical USDG token.
+    /// @param permit2 Canonical Permit2 allowance manager.
     struct Dependencies {
         IPositionManager positionManager;
         address positionDepositor;
@@ -80,18 +88,26 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
     /// @notice The canonical PositionManager NFT held by this contract.
     uint256 public positionTokenId;
 
-    /// @notice Emitted after a caller grows the position and takes everything it had accrued.
+    /// @notice Emitted after a caller grows the position and receives every balance returned by PositionManager.
     /// @param positionTokenId Canonical position NFT.
     /// @param caller Account that funded the growth and received the accrued balances.
+    /// @param liquidityBefore Position liquidity before the increase.
     /// @param liquidityAdded Liquidity permanently added to the position.
-    /// @param claimed0 Amount of `currency0` paid out to the caller.
-    /// @param claimed1 Amount of `currency1` paid out to the caller.
+    /// @param liquidityAfter Position liquidity after the increase.
+    /// @param funding0 Maximum `currency0` supplied by the caller.
+    /// @param funding1 Maximum `currency1` supplied by the caller.
+    /// @param transferred0 Complete `currency0` balance paid to the caller after the operation.
+    /// @param transferred1 Complete `currency1` balance paid to the caller after the operation.
     event Compounded(
         uint256 indexed positionTokenId,
         address indexed caller,
+        uint128 liquidityBefore,
         uint128 liquidityAdded,
-        uint256 claimed0,
-        uint256 claimed1
+        uint128 liquidityAfter,
+        uint256 funding0,
+        uint256 funding1,
+        uint256 transferred0,
+        uint256 transferred1
     );
     /// @notice Emitted after the expected position is received and validated.
     /// @param positionTokenId Canonical position NFT.
@@ -99,23 +115,45 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
     /// @param poolKeyHash Hash of the validated PoolKey.
     event PositionRecorded(uint256 indexed positionTokenId, address indexed previousOwner, bytes32 indexed poolKeyHash);
 
+    /// @notice A required immutable dependency is not deployed code.
     error AddressHasNoCode(address account);
+    /// @notice The caller-supplied compound deadline has passed.
     error CompoundDeadlinePassed(uint256 deadline);
+    /// @notice The delivered position has zero liquidity.
     error EmptyPosition(uint256 positionTokenId);
+    /// @notice PositionManager added less liquidity than the fixed requirement.
     error InsufficientCompound(uint128 expected, uint128 actual);
+    /// @notice Caller funding did not produce exact sender debit and position credit.
+    error InexactFunding(address token, uint256 expected, uint256 payerDebit, uint256 positionCredit);
+    /// @notice A caller payout did not produce exact position debit and caller credit.
+    error InexactPayout(address token, uint256 expected, uint256 positionDebit, uint256 callerCredit);
+    /// @notice The supplied PoolKey does not contain exactly GBX and USDG in address order.
     error InvalidPoolCurrencies(address currency0, address currency1);
+    /// @notice The received NFT belongs to a different PoolKey.
     error InvalidPoolKey(bytes32 expected, bytes32 actual);
+    /// @notice The received NFT uses a different tick range.
     error InvalidPositionTicks(int24 expectedLower, int24 expectedUpper, int24 actualLower, int24 actualUpper);
+    /// @notice The configured lower tick is not below the upper tick.
     error InvalidTickRange(int24 tickLower, int24 tickUpper);
+    /// @notice Compounding was requested before the expected NFT was recorded.
     error NoPositionRecorded();
+    /// @notice The configured canonical PoolKey uses a hook.
     error NonzeroHook(address hook);
+    /// @notice The one-time expected position has already been recorded.
     error PositionAlreadyRecorded(uint256 positionTokenId);
+    /// @notice The recorded NFT is no longer owned by this contract.
     error PositionNotInCustody(uint256 positionTokenId);
+    /// @notice The NFT receiver callback observed an unexpected post-transfer owner.
     error PositionNotOwned(uint256 positionTokenId, address owner);
+    /// @notice Rounding the fixed growth fraction produced zero liquidity.
     error PositionTooSmallToCompound(uint128 liquidity);
+    /// @notice An ERC-721 contract other than the canonical PositionManager called the receiver hook.
     error UnexpectedNFTSender(address sender);
+    /// @notice An account other than the precommitted depositor delivered the NFT.
     error UnexpectedPositionDepositor(address depositor);
+    /// @notice The delivered NFT ID differs from the precommitted ID.
     error UnexpectedPositionTokenId(uint256 expected, uint256 actual);
+    /// @notice A required deployment address is zero.
     error ZeroAddress();
 
     /// @notice Fixes the exact v4 pool, range, and NFT permanently.
@@ -168,12 +206,10 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
         // for the duration of one call.
         IERC20(poolCurrency0).forceApprove(address(dependencies.permit2), type(uint256).max);
         IERC20(poolCurrency1).forceApprove(address(dependencies.permit2), type(uint256).max);
-        dependencies.permit2.approve(
-            poolCurrency0, address(dependencies.positionManager), type(uint160).max, type(uint48).max
-        );
-        dependencies.permit2.approve(
-            poolCurrency1, address(dependencies.positionManager), type(uint160).max, type(uint48).max
-        );
+        dependencies.permit2
+            .approve(poolCurrency0, address(dependencies.positionManager), type(uint160).max, type(uint48).max);
+        dependencies.permit2
+            .approve(poolCurrency1, address(dependencies.positionManager), type(uint160).max, type(uint48).max);
     }
 
     /// @notice Returns the immutable canonical hookless pool identity.
@@ -201,11 +237,13 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
     }
 
     /// @notice Records and validates the first and only accepted PositionManager NFT.
-    /// @param operator Account that initiated the safe transfer.
+    /// @param operator Account that initiated the safe transfer; not used for authorization.
     /// @param from Previous position owner.
     /// @param tokenId PositionManager token ID.
     /// @param data Optional transfer data; ignored.
     /// @return selector ERC-721 receiver acceptance selector.
+    /// @dev The ERC-721 operator and data parameters are intentionally ignored; only the fixed manager, depositor,
+    ///      token ID, pool key, hookless configuration, ticks, fee, and custody state authorize acceptance.
     function onERC721Received(address operator, address from, uint256 tokenId, bytes calldata data)
         external
         returns (bytes4 selector)
@@ -275,8 +313,8 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
         if (liquidityAdded == 0) revert PositionTooSmallToCompound(liquidityBefore);
 
         // Take the caller's funding up front. Whatever the increase does not consume goes back to them below.
-        if (amount0Max != 0) IERC20(currency0).safeTransferFrom(msg.sender, address(this), amount0Max);
-        if (amount1Max != 0) IERC20(currency1).safeTransferFrom(msg.sender, address(this), amount1Max);
+        if (amount0Max != 0) _pullExact(currency0, amount0Max);
+        if (amount1Max != 0) _pullExact(currency1, amount1Max);
 
         // CLOSE_CURRENCY settles or takes each side according to the net delta, so one batch both funds the
         // increase and collects the accrued fees.
@@ -297,16 +335,54 @@ contract LiquidityPosition is IERC721Receiver, ReentrancyGuard {
 
         claimed0 = IERC20(currency0).balanceOf(address(this));
         claimed1 = IERC20(currency1).balanceOf(address(this));
-        if (claimed0 != 0) IERC20(currency0).safeTransfer(msg.sender, claimed0);
-        if (claimed1 != 0) IERC20(currency1).safeTransfer(msg.sender, claimed1);
+        if (claimed0 != 0) _payExact(currency0, claimed0);
+        if (claimed1 != 0) _payExact(currency1, claimed1);
 
-        emit Compounded(positionTokenId, msg.sender, liquidityAdded, claimed0, claimed1);
+        emit Compounded(
+            positionTokenId,
+            msg.sender,
+            liquidityBefore,
+            liquidityAdded,
+            liquidityAfter,
+            amount0Max,
+            amount1Max,
+            claimed0,
+            claimed1
+        );
     }
 
     /// @notice Reverts unless the canonical position is recorded and currently owned here.
     function _requirePositionInCustody() private view {
         if (!positionRecorded) revert NoPositionRecorded();
         if (!positionInCustody()) revert PositionNotInCustody(positionTokenId);
+    }
+
+    /// @notice Pulls an exact amount of one canonical pool token from the caller.
+    /// @param token Canonical pool token to pull.
+    /// @param amount Exact caller-supplied maximum.
+    function _pullExact(address token, uint256 amount) private {
+        uint256 payerBalanceBefore = IERC20(token).balanceOf(msg.sender);
+        uint256 positionBalanceBefore = IERC20(token).balanceOf(address(this));
+        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        uint256 payerDebit = payerBalanceBefore - IERC20(token).balanceOf(msg.sender);
+        uint256 positionCredit = IERC20(token).balanceOf(address(this)) - positionBalanceBefore;
+        if (payerDebit != amount || positionCredit != amount) {
+            revert InexactFunding(token, amount, payerDebit, positionCredit);
+        }
+    }
+
+    /// @notice Pays an exact amount of one canonical pool token to the caller.
+    /// @param token Canonical pool token to pay.
+    /// @param amount Complete post-operation contract balance.
+    function _payExact(address token, uint256 amount) private {
+        uint256 positionBalanceBefore = IERC20(token).balanceOf(address(this));
+        uint256 callerBalanceBefore = IERC20(token).balanceOf(msg.sender);
+        IERC20(token).safeTransfer(msg.sender, amount);
+        uint256 positionDebit = positionBalanceBefore - IERC20(token).balanceOf(address(this));
+        uint256 callerCredit = IERC20(token).balanceOf(msg.sender) - callerBalanceBefore;
+        if (positionDebit != amount || callerCredit != amount) {
+            revert InexactPayout(token, amount, positionDebit, callerCredit);
+        }
     }
 
     /// @notice Reverts unless an immutable dependency is a deployed contract.

@@ -51,12 +51,12 @@ abstract contract ProtocolFixture is Test {
     ResonanceRouter internal resonanceRouter;
     Fundraiser internal fundraiser;
 
-    Strategy internal acquisitionStrategy;
-    Strategy internal buybackStrategy;
-    Bribe internal acquisitionBribe;
-    Bribe internal buybackBribe;
-    BribeRouter internal acquisitionRouter;
-    BribeRouter internal buybackRouter;
+    Strategy internal targetStrategy;
+    Strategy internal gbxStrategy;
+    Bribe internal targetBribe;
+    Bribe internal gbxBribe;
+    BribeRouter internal targetRouter;
+    BribeRouter internal gbxRouter;
 
     /// @notice Deploys and wires the protocol exactly once per test.
     function _deployProtocol() internal {
@@ -90,17 +90,17 @@ abstract contract ProtocolFixture is Test {
         fundraiser = new Fundraiser(gbx, IERC20(address(usdg)), address(resonanceRouter));
         gbx.setMinter(address(fundraiser));
 
-        (address acquisition, address acquisitionBribeAddress, address acquisitionRouterAddress) =
-            resonance.addStrategy(IERC20(address(target)), Strategy.Kind.Acquisition, defaultConfig());
-        (address buyback, address buybackBribeAddress, address buybackRouterAddress) =
-            resonance.addStrategy(IERC20(address(gbx)), Strategy.Kind.Buyback, defaultConfig());
+        (address targetStrategyAddress, address targetBribeAddress, address targetRouterAddress) =
+            resonance.addStrategy(IERC20(address(target)), defaultConfig());
+        (address gbxStrategyAddress, address gbxBribeAddress, address gbxRouterAddress) =
+            resonance.addStrategy(IERC20(address(gbx)), defaultConfig());
 
-        acquisitionStrategy = Strategy(acquisition);
-        buybackStrategy = Strategy(buyback);
-        acquisitionBribe = Bribe(acquisitionBribeAddress);
-        buybackBribe = Bribe(buybackBribeAddress);
-        acquisitionRouter = BribeRouter(acquisitionRouterAddress);
-        buybackRouter = BribeRouter(buybackRouterAddress);
+        targetStrategy = Strategy(targetStrategyAddress);
+        gbxStrategy = Strategy(gbxStrategyAddress);
+        targetBribe = Bribe(targetBribeAddress);
+        gbxBribe = Bribe(gbxBribeAddress);
+        targetRouter = BribeRouter(targetRouterAddress);
+        gbxRouter = BribeRouter(gbxRouterAddress);
 
         vm.label(address(gbx), "GBX");
         vm.label(address(usdg), "USDG");
@@ -109,8 +109,8 @@ abstract contract ProtocolFixture is Test {
         vm.label(address(resonance), "Resonance");
         vm.label(address(resonanceRouter), "ResonanceRouter");
         vm.label(address(fundraiser), "Fundraiser");
-        vm.label(acquisition, "AcquisitionStrategy");
-        vm.label(buyback, "BuybackStrategy");
+        vm.label(targetStrategyAddress, "TargetPaymentStrategy");
+        vm.label(gbxStrategyAddress, "GBXPaymentStrategy");
     }
 
     /// @notice Returns the default in-range auction configuration.
@@ -194,7 +194,7 @@ abstract contract ProtocolFixture is Test {
     }
 
     /// @notice Fills one acquisition epoch at the current price.
-    function _buyAcquisition(address buyer, Strategy strategy, MockERC20 payment) internal returns (uint256 paid) {
+    function _buyTarget(address buyer, Strategy strategy, MockERC20 payment) internal returns (uint256 paid) {
         uint256 price = strategy.currentPrice();
         payment.mint(buyer, price);
 

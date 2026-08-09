@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="500" viewBox="0 0 840 500" role="img">
   <rect width="840" height="500" rx="18" fill="#0b0d12"/>
-  <text x="42" y="46" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="24" font-weight="700">Buyback price versus basket backing</text>
-  <text x="42" y="72" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="13">Spending below backing is accretive; spending above backing is dilutive in this explicit offchain valuation scenario</text>
+  <text x="42" y="46" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="24" font-weight="700">GBX acquisition price versus basket backing</text>
+  <text x="42" y="72" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="13">After GBX reaches Fund and is explicitly burned, acquiring below backing is accretive while acquiring above backing is dilutive in this offchain valuation scenario</text>
   <line x1="78" y1="410" x2="798" y2="410" stroke="#394150"/>
   <line x1="78" y1="100" x2="78" y2="410" stroke="#394150"/>
   <rect x="190" y="210" width="72" height="200" rx="6" fill="#697586"/>

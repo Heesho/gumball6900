@@ -246,7 +246,7 @@ contract FundTest is ProtocolFixture {
         gbx.approve(address(fund), 100 ether);
         vm.expectRevert(
             abi.encodeWithSelector(
-                Fund.InexactTransfer.selector, address(feeToken), 100 ether, (100 ether * 9_900) / 10_000
+                Fund.InexactTransfer.selector, address(feeToken), 100 ether, 100 ether, (100 ether * 9_900) / 10_000
             )
         );
         fund.redeem(100 ether, ALICE, _addresses(address(feeToken)));
