@@ -1,20 +1,16 @@
-import {
-  FeesProcessed,
-  PositionMigrated,
-  PositionRecorded,
-  SuccessorSet,
-} from '../generated/LiquidityPosition/LiquidityPosition';
+import { Compounded, PositionRecorded } from '../generated/LiquidityPosition/LiquidityPosition';
+import { ONE } from './constants';
 import { getProtocol, recordEvent } from './entities';
 
-export function handleFeesProcessed(event: FeesProcessed): void {
+export function handleCompounded(event: Compounded): void {
   const protocol = getProtocol(event);
-  protocol.liquidityGBXBurnedRaw = protocol.liquidityGBXBurnedRaw.plus(event.params.gbxBurned);
-  protocol.liquidityUSDGRoutedRaw = protocol.liquidityUSDGRoutedRaw.plus(event.params.usdgRouted);
+  protocol.liquidityAddedRaw = protocol.liquidityAddedRaw.plus(event.params.liquidityAdded);
+  protocol.liquidityCompoundCount = protocol.liquidityCompoundCount.plus(ONE);
   protocol.save();
 
-  const record = recordEvent(event, 'LIQUIDITY_FEES_PROCESSED');
+  const record = recordEvent(event, 'LIQUIDITY_COMPOUNDED');
   record.addresses = [event.params.caller];
-  record.values = [event.params.positionTokenId, event.params.gbxBurned, event.params.usdgRouted];
+  record.values = [event.params.positionTokenId, event.params.claimed0, event.params.claimed1];
   record.save();
 }
 
@@ -23,22 +19,5 @@ export function handlePositionRecorded(event: PositionRecorded): void {
   record.addresses = [event.params.previousOwner];
   record.values = [event.params.positionTokenId];
   record.bytesValues = [event.params.poolKeyHash];
-  record.save();
-}
-
-export function handleLiquiditySuccessorSet(event: SuccessorSet): void {
-  const protocol = getProtocol(event);
-  protocol.liquidityPositionSuccessor = event.params.successor;
-  protocol.save();
-
-  const record = recordEvent(event, 'LIQUIDITY_SUCCESSOR_SET');
-  record.addresses = [event.params.successor];
-  record.save();
-}
-
-export function handlePositionMigrated(event: PositionMigrated): void {
-  const record = recordEvent(event, 'LIQUIDITY_POSITION_MIGRATED');
-  record.addresses = [event.params.caller, event.params.successor];
-  record.values = [event.params.positionTokenId];
   record.save();
 }

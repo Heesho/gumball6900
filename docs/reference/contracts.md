@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 17. Documented ABI entries: 480. Documented public ABI functions: 249.
+Documented source surfaces: 16. Documented ABI entries: 447. Documented public ABI functions: 230.
 
 ## Bribe
 
@@ -686,20 +686,19 @@ Source: [`src/core/Fund.sol`](../../packages/contracts/src/core/Fund.sol)
 
 Artifact: `out/Fund.sol/Fund.json`
 
-Public ABI: 10 functions, 5 events, 13 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 4 functions, 2 events, 8 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
-### `constructor(address,address)`
+### `constructor(address)`
 
 ```solidity
-constructor(contract GBX gbx_, address initialOwner);
+constructor(contract GBX gbx_);
 ```
 
-Creates a registry-free treasury for `gbx_` and assigns migration authority to `initialOwner`.
+Creates the ownerless, registry-free treasury backing `gbx_`.
 
 **Parameters**
 
 - `gbx_`: GBX token backed by this Fund.
-- `initialOwner`: Timelock that may configure the one-way successor.
 
 ### `burnGBX(uint256)`
 
@@ -720,27 +719,6 @@ function gbx() external view returns (contract GBX arg0);
 ```
 
 GBX token burned by redemptions and buybacks.
-
-### `migrate(address[])`
-
-```solidity
-function migrate(address[] tokens) external;
-```
-
-Moves the complete Fund balance of each selected token to the configured successor.
-Anyone may execute migration in gas-bounded batches. GBX cannot be migrated and remains burnable here.
-
-**Parameters**
-
-- `tokens`: Unique, non-GBX token addresses whose complete balances should move.
-
-### `owner()`
-
-```solidity
-function owner() external view returns (address arg0);
-```
-
-Returns the address of the current owner.
 
 ### `pendingGBX()`
 
@@ -769,43 +747,6 @@ Every payout uses the same total supply captured before GBX is burned. Tokens om
 - `receiver`: Address that receives the selected assets.
 - `tokens`: Unique, non-GBX token addresses to include in this redemption.
 
-### `renounceOwnership()`
-
-```solidity
-function renounceOwnership() external;
-```
-
-Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
-
-### `setSuccessor(address)`
-
-```solidity
-function setSuccessor(address newSuccessor) external;
-```
-
-Permanently enables one-way, token-by-token migration to `newSuccessor`.
-The successor must be a Fund-compatible contract backed by this exact GBX token.
-
-**Parameters**
-
-- `newSuccessor`: Fund-compatible destination to set permanently.
-
-### `successor()`
-
-```solidity
-function successor() external view returns (address arg0);
-```
-
-One-way migration destination. The zero address means migration is not enabled.
-
-### `transferOwnership(address)`
-
-```solidity
-function transferOwnership(address newOwner) external;
-```
-
-Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
-
 ### Events
 
 #### `GBXBurned(address,uint256)`
@@ -816,34 +757,10 @@ event GBXBurned(address indexed caller, uint256 amount);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `OwnershipTransferred(address,address)`
-
-```solidity
-event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `Redeemed(address,address,uint256,uint256)`
 
 ```solidity
 event Redeemed(address indexed account, address indexed receiver, uint256 gbxAmount, uint256 tokenCount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SuccessorSet(address)`
-
-```solidity
-event SuccessorSet(address indexed successor);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `TokenMigrated(address,address,address,uint256)`
-
-```solidity
-event TokenMigrated(address indexed caller, address indexed token, address indexed successor, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -890,30 +807,6 @@ error InvalidReceiver(address receiver);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InvalidSuccessor(address)`
-
-```solidity
-error InvalidSuccessor(address successor);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `OwnableInvalidOwner(address)`
-
-```solidity
-error OwnableInvalidOwner(address owner);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `OwnableUnauthorizedAccount(address)`
-
-```solidity
-error OwnableUnauthorizedAccount(address account);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `ReentrancyGuardReentrantCall()`
 
 ```solidity
@@ -926,22 +819,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SuccessorAlreadySet(address)`
-
-```solidity
-error SuccessorAlreadySet(address successor);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SuccessorNotSet()`
-
-```solidity
-error SuccessorNotSet();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1923,15 +1800,15 @@ Source: [`src/core/LiquidityPosition.sol`](../../packages/contracts/src/core/Liq
 
 Artifact: `out/LiquidityPosition.sol/LiquidityPosition.json`
 
-Public ABI: 25 functions, 5 events, 23 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 22 functions, 2 events, 20 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
-### `constructor((address,address,uint256,address,address,address,address),(address,address,uint24,int24,address),int24,int24)`
+### `constructor((address,address,uint256,address,address,address),(address,address,uint24,int24,address),int24,int24)`
 
 ```solidity
 constructor(struct LiquidityPosition.Dependencies dependencies, struct PoolKey canonicalPoolKey, int24 tickLower, int24 tickUpper);
 ```
 
-Fixes the exact v4 pool, range, NFT, fee route, and timelocked migration authority.
+Fixes the exact v4 pool, range, and NFT permanently.
 
 **Parameters**
 
@@ -1940,19 +1817,54 @@ Fixes the exact v4 pool, range, NFT, fee route, and timelocked migration authori
 - `tickLower`: Expected lower tick of the precommitted single-sided position.
 - `tickUpper`: Expected upper tick of the precommitted single-sided position.
 
-### `collectFees()`
+### `BPS_SCALE()`
 
 ```solidity
-function collectFees() external returns (uint256 gbxBurned, uint256 usdgRouted);
+function BPS_SCALE() external view returns (uint256 arg0);
 ```
 
-Collects fees without removing principal, burns all held GBX, and routes all held USDG to Resonance.
-Processing complete balances also makes direct GBX or USDG transfers harmless. A failure in collection, burning, transfer, or routing reverts the entire operation atomically.
+Basis-point denominator for the compounding requirement.
+
+### `COMPOUND_BPS()`
+
+```solidity
+function COMPOUND_BPS() external view returns (uint256 arg0);
+```
+
+Liquidity growth, in basis points, a caller must add to claim the position's accrued fees.
+
+### `compound(uint128,uint128,uint256)`
+
+```solidity
+function compound(uint128 amount0Max, uint128 amount1Max, uint256 deadline) external returns (uint128 liquidityAdded, uint256 claimed0, uint256 claimed1);
+```
+
+Grows the position by `COMPOUND_BPS` and pays the caller everything the position had accrued.
+Permissionless and unpriced. Uniswap v4 nets the position's accrued fees against the increase, so the caller funds only the shortfall and keeps the surplus. Once accrued fees exceed the growth requirement the surplus is positive and a searcher is paid to compound; before that the call is a donation nobody is obliged to make. Principal is never withdrawn, and the position can only ever get larger. Unspent funding is returned in the same call, so `amount0Max` and `amount1Max` are pure slippage bounds: set them to what the increase may cost at an acceptable price, not to what it is expected to cost. Any token sitting in this contract, including unsolicited transfers, is swept to the caller as part of the claim, which is why nothing can become stuck here.
+
+**Parameters**
+
+- `amount0Max`: Maximum `currency0` the caller will fund for the increase.
+- `amount1Max`: Maximum `currency1` the caller will fund for the increase.
+- `deadline`: Latest timestamp at which this call may execute.
 
 **Returns**
 
-- `gbxBurned`: GBX permanently burned in this call.
-- `usdgRouted`: USDG delivered to ResonanceRouter in this call.
+- `claimed0`: Amount of `currency0` paid to the caller.
+- `claimed1`: Amount of `currency1` paid to the caller.
+- `liquidityAdded`: Liquidity permanently added to the position.
+
+### `compoundRequirement()`
+
+```solidity
+function compoundRequirement() external view returns (uint128 liquidityRequired);
+```
+
+Returns the liquidity a caller must add right now to claim everything the position has accrued.
+
+**Returns**
+
+- `liquidityRequired`: Liquidity that `compound` will add to the position.
 
 ### `currency0()`
 
@@ -2000,16 +1912,7 @@ Expected upper tick of the genesis position.
 function gbx() external view returns (contract GBX arg0);
 ```
 
-GBX token burned when collected as fees.
-
-### `migratePosition()`
-
-```solidity
-function migratePosition() external;
-```
-
-Moves the exact canonical position to the configured compatible successor.
-Execution is permissionless after the timelocked owner has committed to the successor.
+GBX side of the canonical pool.
 
 ### `onERC721Received(address,address,uint256,bytes)`
 
@@ -2030,13 +1933,13 @@ Records and validates the first and only accepted PositionManager NFT.
 
 - `selector`: ERC-721 receiver acceptance selector.
 
-### `owner()`
+### `permit2()`
 
 ```solidity
-function owner() external view returns (address arg0);
+function permit2() external view returns (contract IAllowanceTransfer arg0);
 ```
 
-Returns the address of the current owner.
+Canonical Permit2, used to settle the compounding increase.
 
 ### `poolFee()`
 
@@ -2110,42 +2013,6 @@ function positionTokenId() external view returns (uint256 arg0);
 
 The canonical PositionManager NFT held by this contract.
 
-### `renounceOwnership()`
-
-```solidity
-function renounceOwnership() external;
-```
-
-Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
-
-### `resonanceRouter()`
-
-```solidity
-function resonanceRouter() external view returns (address arg0);
-```
-
-Router receiving all collected USDG.
-
-### `setSuccessor(address)`
-
-```solidity
-function setSuccessor(address newSuccessor) external;
-```
-
-Permanently binds one replacement contract with identical immutable position configuration.
-
-**Parameters**
-
-- `newSuccessor`: Compatible LiquidityPosition that expects this contract to deliver the same NFT.
-
-### `successor()`
-
-```solidity
-function successor() external view returns (address arg0);
-```
-
-One-way compatible migration target, or zero before governance binds one.
-
 ### `tickSpacing()`
 
 ```solidity
@@ -2154,44 +2021,20 @@ function tickSpacing() external view returns (int24 arg0);
 
 Tick spacing of the canonical pool.
 
-### `transferOwnership(address)`
-
-```solidity
-function transferOwnership(address newOwner) external;
-```
-
-Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
-
 ### `usdg()`
 
 ```solidity
 function usdg() external view returns (contract IERC20 arg0);
 ```
 
-USDG token routed to Resonance.
+USDG side of the canonical pool.
 
 ### Events
 
-#### `FeesProcessed(uint256,address,uint256,uint256)`
+#### `Compounded(uint256,address,uint128,uint256,uint256)`
 
 ```solidity
-event FeesProcessed(uint256 indexed positionTokenId, address indexed caller, uint256 gbxBurned, uint256 usdgRouted);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `OwnershipTransferred(address,address)`
-
-```solidity
-event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `PositionMigrated(uint256,address,address)`
-
-```solidity
-event PositionMigrated(uint256 indexed positionTokenId, address indexed caller, address indexed successor);
+event Compounded(uint256 indexed positionTokenId, address indexed caller, uint128 liquidityAdded, uint256 claimed0, uint256 claimed1);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2200,14 +2043,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 event PositionRecorded(uint256 indexed positionTokenId, address indexed previousOwner, bytes32 indexed poolKeyHash);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SuccessorSet(address)`
-
-```solidity
-event SuccessorSet(address indexed successor);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2222,6 +2057,14 @@ error AddressHasNoCode(address account);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `CompoundDeadlinePassed(uint256)`
+
+```solidity
+error CompoundDeadlinePassed(uint256 deadline);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `EmptyPosition(uint256)`
 
 ```solidity
@@ -2230,18 +2073,10 @@ error EmptyPosition(uint256 positionTokenId);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `IncompatibleSuccessor(address)`
+#### `InsufficientCompound(uint128,uint128)`
 
 ```solidity
-error IncompatibleSuccessor(address successor);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InexactUSDGTransfer(uint256,uint256,uint256)`
-
-```solidity
-error InexactUSDGTransfer(uint256 expected, uint256 debited, uint256 received);
+error InsufficientCompound(uint128 expected, uint128 actual);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2294,22 +2129,6 @@ error NonzeroHook(address hook);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `OwnableInvalidOwner(address)`
-
-```solidity
-error OwnableInvalidOwner(address owner);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `OwnableUnauthorizedAccount(address)`
-
-```solidity
-error OwnableUnauthorizedAccount(address account);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `PositionAlreadyRecorded(uint256)`
 
 ```solidity
@@ -2334,6 +2153,14 @@ error PositionNotOwned(uint256 positionTokenId, address owner);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `PositionTooSmallToCompound(uint128)`
+
+```solidity
+error PositionTooSmallToCompound(uint128 liquidity);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `ReentrancyGuardReentrantCall()`
 
 ```solidity
@@ -2346,22 +2173,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SuccessorAlreadySet(address)`
-
-```solidity
-error SuccessorAlreadySet(address successor);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SuccessorNotSet()`
-
-```solidity
-error SuccessorNotSet();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -4396,134 +4207,6 @@ Returns the GBX token backed by the Fund.
 **Returns**
 
 - `token`: GBX token address.
-
-## ILiquidityPosition
-
-Source: [`src/core/interfaces/ILiquidityPosition.sol`](../../packages/contracts/src/core/interfaces/ILiquidityPosition.sol)
-
-Artifact: `out/ILiquidityPosition.sol/ILiquidityPosition.json`
-
-Public ABI: 10 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `expectedPositionTokenId()`
-
-```solidity
-function expectedPositionTokenId() external view returns (uint256 tokenId);
-```
-
-Returns the precommitted PositionManager token ID.
-
-**Returns**
-
-- `tokenId`: Expected position token ID.
-
-### `expectedTickLower()`
-
-```solidity
-function expectedTickLower() external view returns (int24 tickLower);
-```
-
-Returns the committed lower position tick.
-
-**Returns**
-
-- `tickLower`: Committed lower tick.
-
-### `expectedTickUpper()`
-
-```solidity
-function expectedTickUpper() external view returns (int24 tickUpper);
-```
-
-Returns the committed upper position tick.
-
-**Returns**
-
-- `tickUpper`: Committed upper tick.
-
-### `gbx()`
-
-```solidity
-function gbx() external view returns (address token);
-```
-
-Returns the canonical GBX token.
-
-**Returns**
-
-- `token`: Canonical GBX address.
-
-### `poolKeyHash()`
-
-```solidity
-function poolKeyHash() external view returns (bytes32 keyHash);
-```
-
-Returns the hash of the complete canonical v4 PoolKey.
-
-**Returns**
-
-- `keyHash`: Canonical PoolKey hash.
-
-### `positionDepositor()`
-
-```solidity
-function positionDepositor() external view returns (address depositor);
-```
-
-Returns the account expected to deliver the position NFT.
-
-**Returns**
-
-- `depositor`: Expected NFT depositor.
-
-### `positionManager()`
-
-```solidity
-function positionManager() external view returns (address manager);
-```
-
-Returns the canonical Uniswap v4 PositionManager.
-
-**Returns**
-
-- `manager`: Canonical PositionManager address.
-
-### `positionRecorded()`
-
-```solidity
-function positionRecorded() external view returns (bool recorded);
-```
-
-Returns whether this contract has already accepted its expected NFT.
-
-**Returns**
-
-- `recorded`: Whether the expected position was recorded.
-
-### `resonanceRouter()`
-
-```solidity
-function resonanceRouter() external view returns (address router);
-```
-
-Returns the immutable USDG fee router.
-
-**Returns**
-
-- `router`: ResonanceRouter address.
-
-### `usdg()`
-
-```solidity
-function usdg() external view returns (address token);
-```
-
-Returns the canonical USDG token.
-
-**Returns**
-
-- `token`: Canonical USDG address.
 
 ## IResonanceRouter
 

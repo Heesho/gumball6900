@@ -998,11 +998,6 @@ export const fundAbi = [
         type: 'address',
         internalType: 'contract GBX',
       },
-      {
-        name: 'initialOwner',
-        type: 'address',
-        internalType: 'address',
-      },
     ],
     stateMutability: 'nonpayable',
   },
@@ -1028,32 +1023,6 @@ export const fundAbi = [
         name: '',
         type: 'address',
         internalType: 'contract GBX',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'migrate',
-    inputs: [
-      {
-        name: 'tokens',
-        type: 'address[]',
-        internalType: 'address[]',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'owner',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -1095,52 +1064,6 @@ export const fundAbi = [
     stateMutability: 'nonpayable',
   },
   {
-    type: 'function',
-    name: 'renounceOwnership',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'setSuccessor',
-    inputs: [
-      {
-        name: 'newSuccessor',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'successor',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'transferOwnership',
-    inputs: [
-      {
-        name: 'newOwner',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
     type: 'event',
     name: 'GBXBurned',
     inputs: [
@@ -1155,25 +1078,6 @@ export const fundAbi = [
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'OwnershipTransferred',
-    inputs: [
-      {
-        name: 'previousOwner',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'newOwner',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
       },
     ],
     anonymous: false,
@@ -1202,50 +1106,6 @@ export const fundAbi = [
       },
       {
         name: 'tokenCount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'SuccessorSet',
-    inputs: [
-      {
-        name: 'successor',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'TokenMigrated',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'token',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'successor',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -1314,39 +1174,6 @@ export const fundAbi = [
   },
   {
     type: 'error',
-    name: 'InvalidSuccessor',
-    inputs: [
-      {
-        name: 'successor',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'OwnableInvalidOwner',
-    inputs: [
-      {
-        name: 'owner',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'OwnableUnauthorizedAccount',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'ReentrancyGuardReentrantCall',
     inputs: [],
   },
@@ -1360,22 +1187,6 @@ export const fundAbi = [
         internalType: 'address',
       },
     ],
-  },
-  {
-    type: 'error',
-    name: 'SuccessorAlreadySet',
-    inputs: [
-      {
-        name: 'successor',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'SuccessorNotSet',
-    inputs: [],
   },
   {
     type: 'error',
@@ -3137,14 +2948,9 @@ export const liquidityPositionAbi = [
             internalType: 'contract IERC20',
           },
           {
-            name: 'resonanceRouter',
+            name: 'permit2',
             type: 'address',
-            internalType: 'address',
-          },
-          {
-            name: 'initialOwner',
-            type: 'address',
-            internalType: 'address',
+            internalType: 'contract IAllowanceTransfer',
           },
         ],
       },
@@ -3195,21 +3001,81 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'function',
-    name: 'collectFees',
+    name: 'BPS_SCALE',
     inputs: [],
     outputs: [
       {
-        name: 'gbxBurned',
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'COMPOUND_BPS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'compound',
+    inputs: [
+      {
+        name: 'amount0Max',
+        type: 'uint128',
+        internalType: 'uint128',
+      },
+      {
+        name: 'amount1Max',
+        type: 'uint128',
+        internalType: 'uint128',
+      },
+      {
+        name: 'deadline',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [
+      {
+        name: 'liquidityAdded',
+        type: 'uint128',
+        internalType: 'uint128',
+      },
+      {
+        name: 'claimed0',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'usdgRouted',
+        name: 'claimed1',
         type: 'uint256',
         internalType: 'uint256',
       },
     ],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'compoundRequirement',
+    inputs: [],
+    outputs: [
+      {
+        name: 'liquidityRequired',
+        type: 'uint128',
+        internalType: 'uint128',
+      },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -3291,13 +3157,6 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'function',
-    name: 'migratePosition',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     name: 'onERC721Received',
     inputs: [
       {
@@ -3332,13 +3191,13 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'function',
-    name: 'owner',
+    name: 'permit2',
     inputs: [],
     outputs: [
       {
         name: '',
         type: 'address',
-        internalType: 'address',
+        internalType: 'contract IAllowanceTransfer',
       },
     ],
     stateMutability: 'view',
@@ -3476,52 +3335,6 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'function',
-    name: 'renounceOwnership',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'resonanceRouter',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'setSuccessor',
-    inputs: [
-      {
-        name: 'newSuccessor',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'successor',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'tickSpacing',
     inputs: [],
     outputs: [
@@ -3532,19 +3345,6 @@ export const liquidityPositionAbi = [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'transferOwnership',
-    inputs: [
-      {
-        name: 'newOwner',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -3561,7 +3361,7 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'event',
-    name: 'FeesProcessed',
+    name: 'Compounded',
     inputs: [
       {
         name: 'positionTokenId',
@@ -3576,60 +3376,22 @@ export const liquidityPositionAbi = [
         internalType: 'address',
       },
       {
-        name: 'gbxBurned',
+        name: 'liquidityAdded',
+        type: 'uint128',
+        indexed: false,
+        internalType: 'uint128',
+      },
+      {
+        name: 'claimed0',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
       },
       {
-        name: 'usdgRouted',
+        name: 'claimed1',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'OwnershipTransferred',
-    inputs: [
-      {
-        name: 'previousOwner',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'newOwner',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'PositionMigrated',
-    inputs: [
-      {
-        name: 'positionTokenId',
-        type: 'uint256',
-        indexed: true,
-        internalType: 'uint256',
-      },
-      {
-        name: 'caller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'successor',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
       },
     ],
     anonymous: false,
@@ -3660,19 +3422,6 @@ export const liquidityPositionAbi = [
     anonymous: false,
   },
   {
-    type: 'event',
-    name: 'SuccessorSet',
-    inputs: [
-      {
-        name: 'successor',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
     type: 'error',
     name: 'AddressHasNoCode',
     inputs: [
@@ -3680,6 +3429,17 @@ export const liquidityPositionAbi = [
         name: 'account',
         type: 'address',
         internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'CompoundDeadlinePassed',
+    inputs: [
+      {
+        name: 'deadline',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
   },
@@ -3696,33 +3456,17 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'error',
-    name: 'IncompatibleSuccessor',
-    inputs: [
-      {
-        name: 'successor',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InexactUSDGTransfer',
+    name: 'InsufficientCompound',
     inputs: [
       {
         name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
+        type: 'uint128',
+        internalType: 'uint128',
       },
       {
-        name: 'debited',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'received',
-        type: 'uint256',
-        internalType: 'uint256',
+        name: 'actual',
+        type: 'uint128',
+        internalType: 'uint128',
       },
     ],
   },
@@ -3818,28 +3562,6 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'error',
-    name: 'OwnableInvalidOwner',
-    inputs: [
-      {
-        name: 'owner',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'OwnableUnauthorizedAccount',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'PositionAlreadyRecorded',
     inputs: [
       {
@@ -3878,6 +3600,17 @@ export const liquidityPositionAbi = [
   },
   {
     type: 'error',
+    name: 'PositionTooSmallToCompound',
+    inputs: [
+      {
+        name: 'liquidity',
+        type: 'uint128',
+        internalType: 'uint128',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'ReentrancyGuardReentrantCall',
     inputs: [],
   },
@@ -3891,22 +3624,6 @@ export const liquidityPositionAbi = [
         internalType: 'address',
       },
     ],
-  },
-  {
-    type: 'error',
-    name: 'SuccessorAlreadySet',
-    inputs: [
-      {
-        name: 'successor',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'SuccessorNotSet',
-    inputs: [],
   },
   {
     type: 'error',

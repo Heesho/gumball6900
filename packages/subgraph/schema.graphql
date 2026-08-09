@@ -4,15 +4,13 @@ type ProtocolState @entity(immutable: false) {
   minter: Bytes
   resonance: Bytes
   resonanceRouter: Bytes
-  fundSuccessor: Bytes
-  liquidityPositionSuccessor: Bytes
   lifetimeMintedRaw: BigInt!
   lifetimeBurnedRaw: BigInt!
   totalSupplyRaw: BigInt!
   fundraiserContributionsRaw: BigInt!
   fundraiserClaimsRaw: BigInt!
-  liquidityGBXBurnedRaw: BigInt!
-  liquidityUSDGRoutedRaw: BigInt!
+  liquidityAddedRaw: BigInt!
+  liquidityCompoundCount: BigInt!
   routedRevenueRaw: BigInt!
   notifiedRevenueRaw: BigInt!
   distributedRevenueRaw: BigInt!

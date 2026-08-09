@@ -16,9 +16,17 @@ Every contributed USDG is routed into Resonance in the same transaction.
 
 ## Liquidity fees
 
-The canonical v4 position begins single-sided with the 20 million GBX genesis allocation. Anyone may collect fees
-without removing position liquidity. Collected or directly transferred GBX is burned; USDG is routed through
-ResonanceRouter and allocated by current signals.
+The canonical v4 position begins single-sided with the 20 million GBX genesis allocation and compounds its own
+fees forever. Anyone may call `compound`, which grows the position by 0.20% of its current liquidity and pays the
+caller everything the position had accrued. Uniswap v4 nets accrued fees against an increase, so the caller funds
+only the shortfall and keeps the surplus.
+
+The result is a self-running incentive with no keeper, oracle, or incentive budget: while accrued fees are worth less
+than 0.20% of the position the call costs money and nobody makes it, and the moment they are worth more a searcher is
+paid to compound. Position liquidity is therefore monotonically non-decreasing, and principal is never withdrawn.
+
+Liquidity fees do not fund the protocol. They are the compounding incentive, so Fundraiser contributions are the only
+source of USDG revenue reaching Resonance, and position fees no longer burn GBX.
 
 ## Revenue allocation
 

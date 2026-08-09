@@ -150,11 +150,10 @@ export const liquidityPositionViewSchema = z.object({
   positionInCustody: z.boolean(),
   positionRecorded: z.boolean(),
   positionTokenId: unsignedBigIntSchema,
-  successor: addressSchema,
 });
 export type LiquidityPositionView = z.infer<typeof liquidityPositionViewSchema>;
 
-/** Reads custody, range, and migration state for the canonical Uniswap v4 position. */
+/** Reads custody and range state for the canonical Uniswap v4 position. */
 export async function readLiquidityPositionView(
   client: PublicClient,
   liquidityPosition: Address,
@@ -170,7 +169,6 @@ export async function readLiquidityPositionView(
     positionInCustody,
     positionRecorded,
     positionTokenId,
-    successor,
   ] = await Promise.all([
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'expectedPositionTokenId'),
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'expectedTickLower'),
@@ -179,7 +177,6 @@ export async function readLiquidityPositionView(
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'positionInCustody'),
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'positionRecorded'),
     read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'positionTokenId'),
-    read(client, blockNumber, liquidityPosition, liquidityPositionAbi, 'successor'),
   ]);
   const result = liquidityPositionViewSchema.parse({
     blockNumber,
@@ -190,7 +187,6 @@ export async function readLiquidityPositionView(
     positionInCustody,
     positionRecorded,
     positionTokenId,
-    successor,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;

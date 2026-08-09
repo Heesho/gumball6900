@@ -13,11 +13,12 @@
 - Strategy buyers face price movement and competing fills; expected epoch, deadline, and maximum payment protect the
   submitted transaction.
 - Bribe reward streaming and rounding may leave small residual balances.
-- A one-way Fund successor cannot be replaced if it is configured incorrectly.
+- Fund assets are permanently committed: with no successor or recovery path, an asset that redeemers omit stays in
+  Fund for the remaining GBX supply indefinitely.
 - An incorrect genesis v4 price or range can strand the initial position out of market; the custody contract validates
   the committed pool, token ID, ticks, and nonzero liquidity but cannot reconstruct the amount deposited.
-- An incorrect LiquidityPosition successor cannot be replaced after it is bound, although compatibility checks prevent
-  changing its PositionManager, assets, fee route, pool, range, or token ID.
+- The canonical v4 position is locked in LiquidityPosition permanently. A deployment error in its pool, range, or
+  token ID cannot be corrected afterwards; admission checks are the only defense, and they run once, on receipt.
 
 ## Explicitly absent protections
 

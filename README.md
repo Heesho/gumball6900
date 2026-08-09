@@ -143,11 +143,11 @@ Sequential integer rounding leaves less than one millionth of one GBX unminted a
 The canonical market is one hookless GBX/USDG Uniswap v4 position. It begins outside the active price range with the
 20 million GBX genesis allocation on one side.
 
-The position stays inside `LiquidityPosition`; there is no arbitrary NFT withdrawal. Anyone can collect its fees
-without removing principal:
+The position stays inside `LiquidityPosition` permanently; there is no NFT withdrawal at all. It compounds itself:
 
-- collected GBX is burned; and
-- collected USDG returns to the signal-directed acquisition flow.
+- anyone may grow the position by 0.20% of its liquidity and take everything it has accrued; and
+- Uniswap v4 nets accrued fees against that increase, so a searcher is paid to do it exactly when the fees are worth
+  more than the growth, and nobody has to be paid to watch it.
 
 In the target final design, the deployed position cannot be withdrawn, migrated, or upgraded.
 
@@ -196,9 +196,10 @@ capital flows. A designated manager has exactly four actions:
 - change the management fee; and
 - add Bribe rewards.
 
-There is no general call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, signal-reward
-split setter, or other mutable protocol parameter. The current development contracts do not yet enforce this exact
-surface, so implementation remains blocked from production until the discrepancy is removed and tested.
+There is no general call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, pause
+function, or other mutable protocol parameter. Fund and LiquidityPosition are ownerless. Successor binding and
+migration were removed outright; see ADR 0017. The management-fee economics, manager authorization, and key lifecycle
+of ADR 0016 remain unresolved, so implementation remains blocked from production until those are settled and tested.
 
 ## Repository
 

@@ -1,5 +1,168 @@
 # Static-analysis finding register
 
+## Adversarial test campaign — 2026-08-09
+
+This section records findings from an internal adversarial test campaign against the core graph: 330 new Foundry
+tests covering unit behavior, property fuzzing, and stateful invariants, plus the Echidna and Medusa state-machine
+harness at `audit/harness/ProtocolStateMachineCampaign.sol`. Every finding below is reproduced by a named regression
+test, so the recorded behavior cannot change silently.
+
+> **Owner direction — 2026-08-09.** The project now targets **maximum decentralization with minimal governance**.
+> Successor binding and migration were removed outright from `Fund` and `LiquidityPosition`, and both contracts are
+> ownerless; see [ADR 0017](../../../docs/adr/0017-remove-successor-migration.md). This closes A-01 below and
+> deliberately forecloses migration as a mitigation for A-03 and A-04. Those two are accepted as open, unmitigated
+> consequences of immutability rather than defects awaiting a governance escape hatch.
+>
+> **Owner direction — 2026-08-09.** The canonical position now auto-compounds instead of routing its fees; see
+> [ADR 0018](../../../docs/adr/0018-auto-compounding-liquidity-position.md). A-06 and A-07 below record the new
+> surface and the accepted economic consequence.
+
+This is internal engineering evidence, not an independent audit or a release approval. Four findings remain open.
+
+### A-01 — Resolved by removal — `Fund.migrate` could not enforce its own uniqueness requirement
+
+`Fund.migrate` called `_markToken` and `_clearToken` inside the same loop iteration, so the transient mark set for a
+token was always erased before the next iteration could read it. The `DuplicateToken` guard was therefore unreachable
+from `migrate`, and the natspec promised a uniqueness property the function did not enforce. `redeem` was unaffected:
+it marks every token in a first pass and only clears during a second pass, which is why redemption did reject
+duplicates.
+
+Impact was bounded. Migration moved complete balances, so a repeated pass observed a zero balance and transferred
+nothing; the observable consequences were a duplicated zero-amount `TokenMigrated` event and wasted gas, not a loss of
+assets. A second, independent concern was that permissionless migration raced redemption: a migration landing first
+left a redeemer burning GBX and receiving nothing for the migrated asset.
+
+**Disposition: resolved by removing the function.** `setSuccessor` and `migrate` no longer exist, and `Fund` is
+ownerless. `test_FundHasNoAdministrativeSurfaceLeft` and `test_RedemptionIsTheOnlyWayAssetsCanEverLeaveFund` assert
+that every removed selector reverts with empty returndata, which distinguishes a deleted function from a gated one.
+
+### A-02 — Open — revenue below the index resolution is silently absorbed by Resonance
+
+`Resonance.notifyRevenue` computes `indexDelta = amount * INDEX_PRECISION / totalSignalWeight` and only advances
+`revenueIndex` when that value is nonzero. Because signal weight carries eighteen decimals and USDG carries six, the
+delta floors to zero for every notification below `totalSignalWeight / 1e18` raw units — that is, below
+`staked GBX / 1e12` USDG. At 100,000,000 GBX signaled, the threshold is 100 USDG.
+
+Below that threshold the USDG is pulled into `Resonance`, no index moves, no `claimableRevenue` is created, and
+nothing reverts. The amount is unreachable afterwards: `claimableRevenue` derives entirely from the index, which never
+accounted for it. Repeated sub-threshold notifications do not aggregate; each is absorbed independently.
+`test_SubThresholdRevenueNeverAccumulatesIntoAClaim` routes twenty separate 50 USDG notifications and shows 1,000 USDG
+absorbed with the index still at zero.
+
+This is reachable through normal operation: `Fundraiser.MIN_CONTRIBUTION` is 10,000 raw units (0.01 USDG), and each
+contribution is routed individually in its own transaction, so small contributions are absorbed whole once signal
+weight is large.
+
+Candidate remediations, none applied: raise `INDEX_PRECISION`; carry the sub-threshold remainder forward in storage
+and add it to the next notification; or revert when `indexDelta` is zero so the caller can batch instead. The first
+two preserve permissionless routing; the third turns silent absorption into a visible failure.
+
+### A-03 — Open — reward streams strand value at low decimals and at zero signal weight
+
+Two independent rounding and accounting behaviors in `Bribe` permanently strand reward tokens.
+
+`notifyRewardAmount` sets `rewardRate = amount / REWARD_DURATION` with `REWARD_DURATION` at 604,800 seconds. The
+remainder is never distributed and never rescheduled. For eighteen-decimal tokens this is dust, but for six-decimal
+USDG it is material: a 7.00 USDG stream strands 347,200 units, 4.96% of itself, and the smallest amount `BribeRouter`
+will forward can strand up to nearly half. `test_LowDecimalRewardTokensLoseTheEntireRateRemainder` and
+`test_TheWorstCaseRateFlooringLossIsAlmostHalfOfTheStream` pin both figures.
+
+Separately, `rewardPerToken` cannot advance while `totalSupply` is zero, but the `updateReward` modifier still moves
+`lastUpdateTime` forward. Any interval during which a Strategy has no signalers is therefore skipped by the accrual
+index and never re-enters accounting. `test_RewardsElapsingWithZeroSignalWeightAreStrandedForever` withdraws all
+weight for three days of a seven-day stream and shows three sevenths of the stream permanently unreachable, including
+proof that a later `notifyRewardAmount` does not reschedule the stranded balance.
+
+Neither behavior over-distributes or threatens solvency — the invariant suite proves every Bribe stays solvent against
+accrued rewards across 500,000 handler calls — but both permanently reduce what signalers receive.
+
+Candidate remediations, none applied: track and re-roll the rate remainder into the next stream; extend
+`periodFinish` by the zero-supply interval instead of skipping it; or accept and document the loss and require
+`BribeRouter` to forward only amounts large enough to make it negligible.
+
+### A-04 — Open — a revenue token that can block transfers to Fund blocks exit from a retired Strategy
+
+`Resonance._updateStrategy` routes a dead Strategy's share of newly indexed revenue to `Fund` with a direct transfer.
+`_reset` checkpoints every Strategy an account selected before clearing its weight, so if that transfer reverts,
+`reset` reverts. `accountSignalWeight` then stays nonzero, `SignalGBX.unstake` stays blocked, and the account's staked
+GBX is unreachable. The same failure also bricks `distributeAll` and `updateStrategy` for every Strategy in the
+registry, not only the retired one.
+
+`test_AFrozenFundPermanentlyBlocksExitFromARetiredStrategy` reproduces the complete lock and shows the exit reopening
+only when the transfer can succeed again, so the lock lasts exactly as long as the block does. This requires a
+Strategy to have been retired while it still holds signal weight, and new revenue to arrive afterwards.
+
+The dependency is not hypothetical: USDG (Global Dollar) is an administered stablecoin whose issuer can freeze
+addresses. A freeze on `Fund` would produce this state.
+
+Candidate remediations, none applied: make the dead-Strategy payout pull-based, accruing to a claimable balance that
+anyone can later push to `Fund`, instead of transferring inline; or drop dead-Strategy weight from
+`totalSignalWeight` at `killStrategy` so no later checkpoint has anything to route. Note that removing migration
+(ADR 0017) removes the previously available escape hatch of migrating `Fund`, which makes remediation more important
+rather than less.
+
+### A-05 — Accepted by design — a single late auction fill collapses the price to its floor
+
+`Strategy._nextInitialPrice` derives the next epoch's starting price from the completed payment, floored at
+`minimumPrice`. A buyer who waits for full decay pays nothing, so the next auction starts at `minimumPrice`. With
+`ABSOLUTE_MINIMUM_PRICE` at 1e6, that is dust for an eighteen-decimal payment asset, and recovery is only geometric:
+`test_RecoveryFromTheFloorIsOnlyGeometric` measures more than sixty consecutive best-case full-price fills before the
+original level is restored.
+
+**Disposition: by design, per the protocol owner.** This is inherent to a reverse Dutch auction that resets from the
+clearing price. The operational consequence is that `minimumPrice` is the only defense and must be chosen with the
+payment asset's decimals and expected revenue in mind at Strategy creation; `ABSOLUTE_MINIMUM_PRICE` is a sanity bound,
+not a sensible default. `test_OneLateFillCollapsesTheAuctionToItsFloor` documents the behavior so it stays visible.
+
+### A-06 — Open — a compounding caller can time the increase to their own advantage
+
+`LiquidityPosition.compound` requires a fixed 20 basis points of liquidity growth. Liquidity `L` is price-invariant,
+but the token mix required to add a given `ΔL` is not: near the low end of the range the increase is paid mostly in
+`currency0`, near the high end mostly in `currency1`. A caller therefore chooses the moment, and the composition, at
+which they buy their 0.20%.
+
+A caller can go further and nudge the price toward the composition they prefer before compounding in the same
+transaction, then let it revert. Their edge is bounded by the position's range width and offset by the swap fees and
+slippage of moving the price, so it is expected to be small for a narrow range and to grow with a wide one. It is not
+mitigated in the contract, and it is not mitigable without an oracle or a swap, both of which the mechanism
+deliberately excludes.
+
+The consequence is a slightly cheaper 0.20% for a sophisticated caller, not a loss of position value: liquidity still
+grows by exactly the requirement, and `test_LiquidityIsMonotonicallyNonDecreasing` proves principal is never removed.
+Range width at deployment is the only lever.
+
+### A-07 — Accepted by design — liquidity fees are no longer protocol revenue
+
+Under [ADR 0018](../../../docs/adr/0018-auto-compounding-liquidity-position.md) the canonical position's fees fund
+the compounding incentive in full. They no longer burn GBX and no longer reach `ResonanceRouter`, so Fundraiser
+contributions are the only USDG revenue source for Resonance.
+
+**Disposition: accepted by the protocol owner on 2026-08-09** as the cost of a permanently locked, self-growing
+liquidity base. Recorded here so the economic trade-off is not rediscovered as a defect: a reviewer comparing the
+contracts against older economic material will find the burn-and-route path missing, and that is intentional.
+
+Note the interaction with A-02. That finding concerns revenue too small to move Resonance's index; with liquidity
+fees no longer routed, every unit of Resonance revenue now originates from Fundraiser contributions, whose minimum is
+10,000 raw USDG units. The absorption threshold is unchanged, but the flow it applies to is now narrower.
+
+### Adversarial campaign evidence
+
+- 329 Foundry tests under the default profile plus 6 harness-profile tests, all passing under `FOUNDRY_PROFILE=ci`.
+- 22 stateful invariants at 1,000 runs and depth 500 each: 11,000,000 handler calls with zero reverts under
+  `fail_on_revert = true`. The handler is guarded so that any revert is a genuine finding, and
+  `test_EveryHandlerActionIsReachable` proves no handler action is dead code that always short-circuits.
+- Reentrancy was attacked across `Fund.redeem`, `Strategy.buy`, and `LiquidityPosition.collectFees` with a token that
+  calls back into the protocol mid-transfer. Same-contract reentry is rejected by the guards; cross-contract reentry
+  during acquisition settlement is reachable but harmless, because `Strategy.buy` snapshots the revenue balance before
+  pulling payment, so injected revenue funds the next epoch instead of the current buyer.
+- The complete 99,884-epoch emission schedule was replayed step by step and fits inside the 980,000,000 GBX Fundraiser
+  allocation while using at least 99.9% of it.
+- Fee-on-transfer, missing-return, returns-false, blocklisting, and reentrant token behaviors are covered as
+  fail-closed evidence only. Supporting non-standard tokens remains a non-objective.
+- Echidna and Medusa were not executed for this campaign; neither binary is available in the local toolchain. The
+  harness they target is exercised under Foundry instead through `pnpm --filter @gumball-6900/contracts test:harness`,
+  which asserts all nineteen `echidna_` properties across seeded and randomized action sequences.
+
 ## Current minimal graph internal audit — 2026-08-03
 
 This section reviews the exact dirty working tree on `codex/minimal-gbx-rebuild` at base commit

@@ -2,12 +2,12 @@ import { ethereum } from '@graphprotocol/graph-ts';
 import { assert, beforeEach, clearStore, describe, newMockEvent, test } from 'matchstick-as/assembly/index';
 import { Claimed, Contributed, EpochSettled } from '../generated/Fundraiser/Fundraiser';
 import { Burned, Minted } from '../generated/GBX/GBX';
-import { FeesProcessed } from '../generated/LiquidityPosition/LiquidityPosition';
+import { Compounded } from '../generated/LiquidityPosition/LiquidityPosition';
 import { StrategyAdded, SignalAllocated, SignalReset } from '../generated/Resonance/Resonance';
 import { handleClaimed, handleContributed, handleEpochSettled } from '../src/fundraiser';
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
-import { handleFeesProcessed } from '../src/liquidity-position';
+import { handleCompounded } from '../src/liquidity-position';
 import { handleStrategyAdded, handleSignalAllocated, handleSignalReset } from '../src/resonance';
 import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, configureEvent, uintParam } from './helpers';
 
@@ -16,7 +16,7 @@ export {
   handleClaimed,
   handleContributed,
   handleEpochSettled,
-  handleFeesProcessed,
+  handleCompounded,
   handleMinted,
   handleStrategyAdded,
   handleSignalAllocated,
@@ -85,22 +85,23 @@ describe('core protocol mappings', () => {
     settlement.parameters.push(uintParam('nextScheduledEmission', 90));
     handleEpochSettled(settlement);
 
-    const fees = changetype<FeesProcessed>(newMockEvent());
-    configureEvent(fees, CONTRACT, 2);
-    fees.parameters = new Array<ethereum.EventParam>();
-    fees.parameters.push(uintParam('positionTokenId', 11));
-    fees.parameters.push(addressParam('caller', USER));
-    fees.parameters.push(uintParam('gbxBurned', 10));
-    fees.parameters.push(uintParam('usdgRouted', 20));
-    handleFeesProcessed(fees);
+    const compounded = changetype<Compounded>(newMockEvent());
+    configureEvent(compounded, CONTRACT, 2);
+    compounded.parameters = new Array<ethereum.EventParam>();
+    compounded.parameters.push(uintParam('positionTokenId', 11));
+    compounded.parameters.push(addressParam('caller', USER));
+    compounded.parameters.push(uintParam('liquidityAdded', 10));
+    compounded.parameters.push(uintParam('claimed0', 20));
+    compounded.parameters.push(uintParam('claimed1', 30));
+    handleCompounded(compounded);
 
     const fundraiserEpochId = '4663-' + CONTRACT.toHexString() + '-epoch-7';
     assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'settled', 'true');
     assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'scheduledEmissionRaw', '100');
     assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'contributorEmissionRaw', '80');
-    assert.fieldEquals('ProtocolState', '4663', 'liquidityGBXBurnedRaw', '10');
-    assert.fieldEquals('ProtocolState', '4663', 'liquidityUSDGRoutedRaw', '20');
-    assert.fieldEquals('ProtocolEvent', eventId(fees), 'eventType', 'LIQUIDITY_FEES_PROCESSED');
+    assert.fieldEquals('ProtocolState', '4663', 'liquidityAddedRaw', '10');
+    assert.fieldEquals('ProtocolState', '4663', 'liquidityCompoundCount', '1');
+    assert.fieldEquals('ProtocolEvent', eventId(compounded), 'eventType', 'LIQUIDITY_COMPOUNDED');
   });
 
   test('tracks Strategy creation and unrestricted signal replacement events', () => {

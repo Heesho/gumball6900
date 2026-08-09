@@ -10,7 +10,7 @@ The protocol uses OpenZeppelin `TimelockController` directly. There is no projec
 - `EXECUTOR_ROLE` may be granted to the zero address so anyone can execute a ready operation.
 - The controller is deployed with `admin = address(0)`. Its own default admin is the controller itself.
 - Role and delay changes must therefore be scheduled and executed through the same timelock.
-- Resonance, Fund, and LiquidityPosition ownership is transferred to the controller.
+- Resonance ownership is transferred to the controller. Fund and LiquidityPosition have no owner to transfer.
 
 OpenZeppelin's controller is a generic call executor. Governance authority is constrained by the methods the owned
 contracts expose, not by a project-specific calldata allowlist.
@@ -25,12 +25,11 @@ Resonance ownership controls:
 - `killStrategy`, permanently; and
 - `addBribeReward`.
 
-Fund ownership controls only `setSuccessor`, which is one-time and requires a same-GBX Fund-compatible destination.
-It does not expose an administrative withdrawal or arbitrary-call method.
+Fund has no owner at all. It exposes no administrative withdrawal, arbitrary-call method, successor, or migration.
+Assets leave Fund only when a GBX holder burns their own tokens through `redeem`.
 
-LiquidityPosition ownership controls only its one-time `setSuccessor`. The successor must commit to receiving the
-same PositionManager NFT and expose identical GBX, USDG, ResonanceRouter, pool-key, and tick-range configuration. Position
-migration becomes permissionless after that delayed commitment.
+LiquidityPosition has no owner at all. Once the precommitted NFT is accepted it can never be transferred out, by any
+caller or any mechanism. Only permissionless fee processing remains.
 
 ## One-time deployment bindings
 

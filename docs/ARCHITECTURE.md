@@ -10,8 +10,8 @@ SignalGBX ------------------------+      +-> acquisition token -> Fund + BribeRo
 
 GBX holder -> Fund.redeem(selected tokens) -> in-kind assets
 
-Uniswap v4 position -> LiquidityPosition -> GBX fees burned
-                                        -> USDG fees -> ResonanceRouter -> Resonance
+Uniswap v4 position -> LiquidityPosition -> caller adds 0.20% liquidity
+                                        -> caller takes the accrued fees
 ```
 
 Fundraiser accounts for contribution epochs and routes every USDG contribution immediately. Resonance maintains an

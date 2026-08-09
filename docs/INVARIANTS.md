@@ -13,9 +13,9 @@
 - Only Resonance can deploy through StrategyFactory or BribeFactory and maintain Bribe virtual balances.
 - Acquisition Bribe share never exceeds 50%; buybacks burn 100% of their GBX payment.
 - Fund redemption uses one pre-burn supply snapshot for every selected token and is atomic with the GBX burn.
-- Redemption and migration reject GBX, zero addresses, and duplicate token entries.
-- A Fund successor is same-GBX, one-time, and receives only complete selected balances.
+- Redemption rejects GBX, zero addresses, and duplicate token entries.
+- Fund is ownerless: redemption is the only path by which any asset can ever leave it.
 - LiquidityPosition accepts only its exact precommitted nonempty v4 NFT, canonical hookless pool, and tick range.
-- LiquidityPosition fee collection removes zero liquidity, burns its complete GBX balance, and routes its complete
-  USDG balance atomically.
-- A LiquidityPosition successor is configuration-identical, one-time, and receives only the exact canonical NFT.
+- LiquidityPosition liquidity is monotonically non-decreasing: compounding adds exactly 0.20% and never removes
+  principal, and the contract retains no token balance after a compound.
+- LiquidityPosition is ownerless: once accepted, the canonical NFT can never leave the contract.
