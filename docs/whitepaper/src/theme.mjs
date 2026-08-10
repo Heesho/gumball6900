@@ -55,11 +55,17 @@ export const palette = {
   paper: '#FBFBFB',
   paperTint: '#F1F1F2',
   paperTintWarm: '#F4F4F5',
-  rule: '#DEDEDF',
-  ruleStrong: '#C2C2C4',
+  // Hairlines are set one step darker than a screen design would want: a 0.5pt rule at
+  // #DEDEDF disappears on paper, and every rule in this document is 0.5-0.9pt.
+  rule: '#D8D8DA',
+  ruleStrong: '#B7B7BA',
   ink: brand.black,
   inkMuted: '#5C5C5E',
-  inkFaint: '#8C8C8E',
+  // The third ink carries the document's smallest type — runners, table heads, contents
+  // groups, axis ticks — all set at 6-7pt. The previous value (#8C8C8E) was 3.2:1 on
+  // paper, which is below AA at any size; this one clears it on paper and on both tints
+  // while staying visibly quieter than `inkMuted`.
+  inkFaint: '#6E6E70',
 
   // Brand hues at full strength — marks, fills, and anything on a dark surface.
   blueBright: brand.blue,
@@ -106,6 +112,23 @@ export const fonts = {
   brand: 'Modak',
 };
 
+/**
+ * Corner radii, in millimetres.
+ *
+ * Three values, and no others. Printed panels want much less rounding than screen cards do:
+ * anything above about 2mm starts to read as a user interface rather than as a printed
+ * block, and the eye picks up the inconsistency when four devices on one page each round
+ * differently.
+ */
+export const radii = {
+  /** Inline devices: result chips, small plates behind figure annotations. */
+  chip: 1.4,
+  /** Panels: statements, tints, formula blocks, figure surfaces. */
+  panel: 1.8,
+  /** Pills that are meant to read as pills. */
+  full: 99,
+};
+
 /** Type scale in points, because the output medium is print. */
 export const type = {
   body: { size: 9.6, leading: 15.2 },
@@ -114,7 +137,9 @@ export const type = {
   note: { size: 7.8, leading: 12.2 },
   eyebrow: { size: 7, tracking: 0.14 },
   figureLabel: { size: 6.8, tracking: 0.12 },
-  mono: { size: 8.4, leading: 13.5 },
+  // Inline code sits inside 9.6pt serif prose. Monospaced faces carry a much larger
+  // x-height, so matching on point size makes the code look shouted; 8.2 matches optically.
+  mono: { size: 8.2, leading: 13.5 },
   h1: { size: 27, leading: 30 },
   h2: { size: 13, leading: 17 },
   h3: { size: 10.2, leading: 14 },
@@ -146,17 +171,27 @@ export function assertContrast() {
   const checks = [
     ['ink on paper', palette.ink, palette.paper, 4.5],
     ['muted ink on paper', palette.inkMuted, palette.paper, 4.5],
+    ['muted ink on tint', palette.inkMuted, palette.paperTint, 4.5],
+    // The smallest type in the document — runners, table heads, contents groups, axis
+    // ticks — is set in `inkFaint`, so it is held to the same bar as everything else.
+    ['faint ink on paper', palette.inkFaint, palette.paper, 4.5],
+    ['faint ink on tint', palette.inkFaint, palette.paperTint, 4.5],
+    ['faint ink on warm tint', palette.inkFaint, palette.paperTintWarm, 4.5],
     ['capital on paper', palette.blue, palette.paper, 4.5],
     ['signal on paper', palette.pink, palette.paper, 4.5],
     ['supply on paper', palette.graphite, palette.paper, 4.5],
     ['capital on tint', palette.blue, palette.paperTint, 4.5],
+    ['capital on warm tint', palette.blue, palette.paperTintWarm, 4.5],
     ['signal on tint', palette.pink, palette.paperTint, 4.5],
     ['signal on warm tint', palette.pink, palette.paperTintWarm, 4.5],
+    ['supply on tint', palette.graphite, palette.paperTint, 4.5],
     ['body on deep', palette.onDeep, palette.deep, 4.5],
     ['muted on deep', palette.onDeepMuted, palette.deep, 4.5],
     ['capital on deep', palette.blueBright, palette.deep, 4.5],
     ['signal on deep', palette.pinkBright, palette.deep, 4.5],
     ['muted on deep panel', palette.onDeepMuted, palette.deepPanel, 4.5],
+    ['signal on deep panel', palette.pinkBright, palette.deepPanel, 4.5],
+    ['muted on raised panel', palette.onDeepMuted, palette.deepRaised, 4.5],
   ];
 
   const failures = checks

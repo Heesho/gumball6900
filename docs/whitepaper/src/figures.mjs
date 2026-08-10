@@ -16,7 +16,6 @@ import {
   axisX,
   axisY,
   circle,
-  elbow,
   figure,
   label,
   line,
@@ -63,6 +62,36 @@ const compact = (value) =>
       : value >= 1e3
         ? `${(value / 1e3).toFixed(value % 1e3 === 0 ? 0 : 1)}k`
         : String(value);
+
+/* ---------------------------------------------------------------- shared ---- */
+
+/** Rough advance width of a run of text, in points. Good enough to size a plate. */
+const runWidth = (value, size, tracking = 0) => String(value).length * (size * 0.5 + tracking);
+
+/**
+ * A label knocked out of whatever it sits on.
+ *
+ * A schematic annotation has to sit beside the connector it describes, and in a dense
+ * diagram that often means sitting on it. Knocking the line out behind the words is the
+ * cartographer's answer: the label stays attached to the thing it names, and the eye
+ * completes the interrupted line without help. Used sparingly, and never on an arrowhead.
+ */
+function plated(
+  value,
+  { x, y, size = 6.2, weight = 600, fill = palette.inkMuted, anchor = 'middle', padX = 3.6, padY = 2.4 } = {},
+) {
+  const width = runWidth(value, size) + padX * 2;
+  const height = size + padY * 2;
+  const left = anchor === 'middle' ? x - width / 2 : anchor === 'end' ? x - width + padX : x - padX;
+  return [
+    rect({ x: left, y: y - size * 0.8 - padY, width, height, r: 1.4, fill: palette.paper }),
+    text(value, { x, y, size, weight, fill, anchor }),
+  ].join('');
+}
+
+/** Drop out of a node, run along a shared lane, drop into the next. Reads as one move. */
+const dropLane = (x1, y1, lane, x2, y2) =>
+  `M${x1.toFixed(2)},${y1.toFixed(2)} L${x1.toFixed(2)},${lane.toFixed(2)} L${x2.toFixed(2)},${lane.toFixed(2)} L${x2.toFixed(2)},${y2.toFixed(2)}`;
 
 /* ------------------------------------------------------------------ cover ---- */
 
@@ -185,10 +214,12 @@ export function legendStrip({ width = widths.full, onDark = false } = {}) {
   legend.forEach((entry, index) => {
     const x = index * columnWidth;
     const color = onDark ? entry.deep : entry.paper;
-    parts.push(rect({ x, y: 12, width: 16, height: 3.4, r: 1.7, fill: color }));
+    // Square-ended swatches, matching the running-head tick: every brand-coloured marker
+    // in the document is a printed rule, and none of them is a pill.
+    parts.push(rect({ x, y: 11.6, width: 15, height: 3.2, fill: color }));
     parts.push(
       text(entry.label, {
-        x: x + 22,
+        x: x + 21,
         y: 15.6,
         size: 7.4,
         weight: 600,
@@ -197,7 +228,7 @@ export function legendStrip({ width = widths.full, onDark = false } = {}) {
     );
     parts.push(
       text(legendCaptions[index], {
-        x: x + 22,
+        x: x + 21,
         y: 26,
         size: 6.4,
         fill: onDark ? palette.onDeepMuted : palette.inkMuted,
@@ -210,7 +241,16 @@ export function legendStrip({ width = widths.full, onDark = false } = {}) {
 
 /* ------------------------------------------------------------- system map ---- */
 
-/** The whole protocol on one page: who pays what to whom, and what is irreversible. */
+/**
+ * The whole protocol on one page: who pays what to whom, and what is irreversible.
+ *
+ * The figure is built on two rules. Every connector is orthogonal and travels on a lane of
+ * its own, so where two paths must cross they cross once, at a right angle, and nowhere
+ * near a word. Every annotation sits beside the line it names, or is knocked out of it —
+ * never laid over it, which is what made the previous edition's terminal row unreadable.
+ * Fund sits on the centre spine because everything converges there; that placement is what
+ * makes the three Strategy legs planar, with no crossings at all in the busiest band.
+ */
 export function systemMap({ width = widths.full } = {}) {
   const height = 552;
   const parts = [];
@@ -222,8 +262,10 @@ export function systemMap({ width = widths.full } = {}) {
   const rightX = width - boxW - 16;
 
   const band = (y, h, title) => {
-    parts.push(rect({ x: 0, y, width, height: h, r: 4, fill: palette.paperTint, opacity: 0.5 }));
-    parts.push(label(title, { x: 7, y: y + 11, fill: palette.inkFaint }));
+    parts.push(rect({ x: 0, y, width, height: h, r: 3, fill: palette.paperTint, opacity: 0.62 }));
+    parts.push(line({ x1: 0, y1: y, x2: width, y2: y, stroke: palette.rule, width: 0.5 }));
+    parts.push(line({ x1: 0, y1: y + h, x2: width, y2: y + h, stroke: palette.rule, width: 0.5 }));
+    parts.push(label(title, { x: 7, y: y + 12, fill: palette.inkFaint }));
   };
 
   band(0, 60, 'Outside the protocol');
@@ -309,11 +351,12 @@ export function systemMap({ width = widths.full } = {}) {
       accent: flow.supply,
     },
 
-    fund: { x: 30, y: 398, w: 160, h: boxH, title: 'Fund', sub: 'Shared raw-token backing', accent: flow.asset },
+    // Fund sits on the centre spine, directly under the Strategy row it collects from.
+    fund: { x: 140, y: 398, w: 150, h: boxH, title: 'Fund', sub: 'Shared raw-token backing', accent: flow.asset },
     bribe: {
-      x: width - 206,
+      x: 320,
       y: 398,
-      w: 160,
+      w: 150,
       h: boxH,
       title: 'Bribe',
       sub: 'Independently funded',
@@ -364,31 +407,38 @@ export function systemMap({ width = widths.full } = {}) {
   connect(`M${boxes.miner.x + 30},52 L${boxes.miner.x + 30},94`, 'capital');
   connect(`M${boxes.fundraiser.x + 100},94 L${boxes.fundraiser.x + 100},52`, 'supply');
 
-  // All contribution revenue reaches exactly one entrance.
-  connect(
-    elbow({ x1: cx('fundraiser'), y1: bottom('fundraiser'), x2: cx('router') - 20, y2: 166, axis: 'y', bend: 0.58 }),
-    'capital',
-  );
+  // All contribution revenue reaches exactly one entrance. Harvested position fees are the
+  // protocol's second USDG source and take that same entrance (ADR 0022), so the two legs
+  // are drawn converging on ResonanceRouter rather than leaving the fee label dangling.
+  connect(dropLane(cx('fundraiser'), bottom('fundraiser'), 150, cx('router') - 20, 166), 'capital');
+  connect(dropLane(cx('liquidity'), bottom('liquidity'), 150, cx('router') + 20, 166), 'capital');
   connect(`M${cx('router')},${bottom('router')} L${cx('router')},230`, 'capital', { strokeWidth: 1.7 });
+
+  // The holder's own move: stake GBX to mint the non-transferable signal receipt. Without
+  // this edge the GBX holder is a labelled box with no line touching it, which reads as
+  // decoration. The lane at x=320 is the clear channel between Resonance and LiquidityPosition.
+  connect(`M${cx('holder')},52 L${cx('holder')},76 L320,76 L320,238 L${boxes.signalgbx.x - 2},238`, 'supply');
 
   // Signal is a read, not a transfer.
   connect(`M${boxes.signalgbx.x - 2},247 L${boxes.resonance.x + boxes.resonance.w + 3},247`, 'signal', {
     dash: '2.6 2.4',
   });
 
-  // Weighted split of the next distribution.
-  [
-    ['strategyA', 2],
-    ['strategyB', 1.4],
-    ['gbxStrategy', 0.8],
-  ].forEach(([key, weight]) => {
-    connect(
-      elbow({ x1: cx('resonance'), y1: bottom('resonance'), x2: cx(key), y2: 312, axis: 'y', bend: 0.55 }),
-      'capital',
-      {
-        strokeWidth: weight,
-      },
-    );
+  // Weighted split of the next distribution. One trunk out of Resonance, then a lane each.
+  // A Strategy keeps the same stroke weight on the way in and on the way out, so a reader
+  // can follow one share of the distribution from Resonance all the way to Fund.
+  // Lane heights leave every final descent longer than its own arrowhead: a 2pt stroke
+  // carries a 10pt head, and a 10pt drop would have shown the head and nothing else.
+  const legs = [
+    { key: 'strategyA', weight: 2, target: 165, outLane: 376 },
+    { key: 'strategyB', weight: 1.5, target: 215, outLane: 368 },
+    { key: 'gbxStrategy', weight: 1.1, target: 265, outLane: 360 },
+  ];
+
+  legs.forEach((leg) => {
+    connect(dropLane(cx('resonance'), bottom('resonance'), 290, cx(leg.key), 312), 'capital', {
+      strokeWidth: leg.weight,
+    });
   });
 
   // Acquisitions clear against the open market, down the free right-hand lane.
@@ -401,37 +451,21 @@ export function systemMap({ width = widths.full } = {}) {
     },
   );
 
-  // Every Strategy payment is Fund-bound.
-  connect(
-    elbow({ x1: cx('strategyA'), y1: bottom('strategyA'), x2: cx('fund') - 26, y2: 398, axis: 'y', bend: 0.46 }),
-    'asset',
-    { strokeWidth: 2 },
-  );
-  connect(
-    elbow({ x1: cx('strategyB') - 30, y1: bottom('strategyB'), x2: cx('fund') + 26, y2: 398, axis: 'y', bend: 0.66 }),
-    'asset',
-    { strokeWidth: 1.5 },
-  );
-  connect(
-    elbow({ x1: cx('gbxStrategy'), y1: bottom('gbxStrategy'), x2: cx('fund') + 54, y2: 398, axis: 'y', bend: 0.2 }),
-    'asset',
-    { strokeWidth: 1.2 },
-  );
+  // Every Strategy payment is Fund-bound. Lanes are ordered so the three legs converge
+  // without a single crossing: the leg that travels furthest takes the outermost lane.
+  legs.forEach((leg) => {
+    connect(dropLane(cx(leg.key), bottom(leg.key), leg.outLane, leg.target, 398), 'asset', {
+      strokeWidth: leg.weight,
+    });
+  });
 
-  // Terminal legs.
-  connect(`M${cx('fund')},${bottom('fund')} L${cx('fund')},498`, 'supply');
-  connect(
-    `M${cx('bribe')},${bottom('bribe')} L${cx('bribe')},466 L${cx('claimed')},466 L${cx('claimed')},498`,
-    'asset',
-    { opacity: 0.8 },
-  );
-  connect(
-    elbow({ x1: cx('fund') + 34, y1: bottom('fund'), x2: cx('burned'), y2: 498, axis: 'y', bend: 0.72 }),
-    'supply',
-    {
-      strokeWidth: 1.2,
-    },
-  );
+  // Terminal legs, one lane each. Bribe has to reach the middle outcome while Fund reaches
+  // the right-hand one, so those two cross exactly once, in clear space.
+  // The redemption leg lands right of centre on its box so that it clears the band label,
+  // which a centred entry ran straight through.
+  connect(dropLane(boxes.fund.x + 45, bottom('fund'), 458, boxes.redeem.x + 103, 498), 'supply');
+  connect(dropLane(boxes.fund.x + 110, bottom('fund'), 452, cx('burned'), 498), 'supply', { strokeWidth: 1.2 });
+  connect(dropLane(cx('bribe'), bottom('bribe'), 470, cx('claimed'), 498), 'asset', { opacity: 0.85 });
 
   Object.values(boxes).forEach((box) => {
     parts.push(
@@ -449,18 +483,22 @@ export function systemMap({ width = widths.full } = {}) {
     );
   });
 
-  // Annotations last, each parked clear of the line it describes.
+  // Annotations last. Each one either sits beside its connector in clear space, or is
+  // knocked out of it; none is laid on top of a line it does not name.
   annotate('USDG in', boxes.miner.x + 26, 76, 'end', palette.blue);
   annotate('GBX out', boxes.fundraiser.x + 104, 76, 'start', palette.graphite);
-  annotate('contribution USDG', boxes.fundraiser.x + 2, 145, 'start', palette.blue);
-  annotate('USDG fees', boxes.liquidity.x + boxes.liquidity.w - 2, 145, 'end', palette.blue);
+  annotate('contribution USDG', boxes.fundraiser.x, 143, 'start', palette.blue);
+  annotate('USDG fees', boxes.liquidity.x + boxes.liquidity.w, 143, 'end', palette.blue);
+  // Sits above the one unavoidable crossing (the holder's stake lane passes the position's
+  // fee lane at y=150), so the label names its own line rather than the intersection.
+  annotate('stakes GBX', 316, 118, 'end', palette.graphite);
   annotate('reads live sGBX weight', boxes.signalgbx.x + boxes.signalgbx.w, 222, 'end', palette.pink);
-  annotate('weighted USDG follows signal', cx('resonance'), 283, 'middle', palette.blue);
-  annotate('fills the auction', lane - 6, 200, 'end', palette.pink);
-  annotate('100% Fund-bound', 4, 384, 'start', palette.pink);
-  annotate('external incentives', boxes.bribe.x + boxes.bribe.w, 380, 'end', palette.pink);
-  annotate('burn GBX to claim', cx('fund') + 6, 480, 'start', palette.graphite);
-  annotate('permissionless Fund burn', boxes.burned.x + boxes.burned.w, 480, 'end', palette.graphite);
+  annotate('weighted USDG follows signal', cx('resonance') - 9, 281, 'end', palette.blue);
+  annotate('fills the auction', lane - 8, 196, 'end', palette.pink);
+  annotate('100% Fund-bound', boxes.fund.x - 8, 418, 'end', palette.pink);
+  annotate('external incentives', boxes.bribe.x + boxes.bribe.w, 390, 'end', palette.pink);
+  parts.push(plated('burn GBX to claim', { x: 133, y: 460.4, fill: palette.graphite }));
+  parts.push(plated('permissionless Fund burn', { x: 320, y: 454.4, fill: palette.graphite }));
 
   return figure({
     width,
@@ -474,17 +512,18 @@ export function systemMap({ width = widths.full } = {}) {
 /* --------------------------------------------------------------- problem ---- */
 
 export function problemContrast({ width = widths.full } = {}) {
-  const height = 150;
+  // Sized to its content: the panels used to run 36pt past their last line.
+  const height = 126;
   const parts = [];
   const half = width / 2 - 9;
 
   const column = (x, title, caption, steps, accent, live) => {
-    parts.push(rect({ x, y: 0, width: half, height, r: 5, fill: live ? palette.paperTintWarm : palette.paperTint }));
+    parts.push(rect({ x, y: 0, width: half, height, r: 4, fill: live ? palette.paperTintWarm : palette.paperTint }));
     parts.push(label(title, { x: x + 14, y: 20, fill: accent }));
     parts.push(text(caption, { x: x + 14, y: 38, size: 8.2, weight: 600, fill: palette.ink }));
 
     steps.forEach((step, index) => {
-      const y = 62 + index * 24;
+      const y = 60 + index * 24;
       parts.push(circle({ cx: x + 19, cy: y - 3, r: 6.4, fill: 'none', stroke: accent, strokeWidth: 0.8 }));
       parts.push(
         text(String(index + 1), { x: x + 19, y: y - 0.6, size: 6, fill: accent, anchor: 'middle', weight: 600 }),
@@ -590,26 +629,17 @@ export function supplySplit({ width = widths.full } = {}) {
   const parts = [];
   const genesisW = width * 0.02;
 
-  parts.push(rect({ x: 0, y: barY, width, height: barH, r: 3, fill: palette.paperTint }));
-  parts.push(rect({ x: 0, y: barY, width: genesisW, height: barH, r: 3, fill: palette.pink }));
+  // One bar, divided — not two pills with rounded ends facing each other. The ceiling is a
+  // single quantity, and the drawing should not suggest otherwise.
+  parts.push(rect({ x: 0, y: barY, width, height: barH, r: 2.5, fill: palette.graphite }));
+  parts.push(rect({ x: 0, y: barY, width: genesisW + 3, height: barH, r: 2.5, fill: palette.pink }));
   parts.push(
-    rect({ x: genesisW + 1.5, y: barY, width: width - genesisW - 1.5, height: barH, r: 3, fill: palette.graphite }),
+    line({ x1: genesisW, y1: barY, x2: genesisW, y2: barY + barH, stroke: palette.paper, width: 1.6, cap: 'butt' }),
   );
 
   parts.push(label('Lifetime mint ceiling', { x: 0, y: 12, fill: palette.inkFaint }));
   parts.push(text('1,000,000,000 GBX', { x: 0, y: 27, size: 10.5, weight: 600, fill: palette.ink }));
 
-  parts.push(
-    text('20M', {
-      x: genesisW + 8,
-      y: barY + 16,
-      size: 7.4,
-      weight: 600,
-      fill: palette.onDeep,
-      anchor: 'start',
-      opacity: 0,
-    }),
-  );
   parts.push(
     text('980,000,000 GBX — public Fundraiser mining capacity, 98%', {
       x: genesisW + 12,
@@ -713,20 +743,22 @@ export function emissionChart({ width = widths.full } = {}) {
         x2: px,
         y2: plot.cumulativeBottom,
         stroke: palette.pink,
-        width: 0.6,
-        dash: '2 2.2',
-        opacity: 0.7,
+        width: 0.5,
+        dash: '1.8 2.4',
+        opacity: 0.55,
       }),
     );
     parts.push(circle({ cx: px, cy: py, r: 2.4, fill: palette.paper, stroke: palette.pink, strokeWidth: 1.1 }));
+    // The last milestone turns inward: at year 16 there is no room to its right, and
+    // above it is the 100% line the value is about to be confused with.
     parts.push(
       text(`${milestone.sharePercent.toFixed(2)}%`, {
-        x: last ? px + 5 : px,
-        y: last ? py + 2.4 : py - 7,
+        x: last ? px - 6 : px,
+        y: last ? py + 13 : py - 7,
         size: 6.2,
         weight: 600,
         fill: palette.pink,
-        anchor: last ? 'start' : 'middle',
+        anchor: last ? 'end' : 'middle',
       }),
     );
   });
@@ -755,8 +787,9 @@ export function emissionChart({ width = widths.full } = {}) {
     }),
   );
 
-  // Daily emission panel, sharing the x-axis.
-  parts.push(label('Scheduled daily emission, GBX', { x: plot.left, y: plot.dailyTop - 10, fill: palette.inkMuted }));
+  // Daily emission panel, sharing the x-axis. The panel title clears the day-zero value
+  // that sits directly under it; at the previous spacing the two touched.
+  parts.push(label('Scheduled daily emission, GBX', { x: plot.left, y: plot.dailyTop - 16, fill: palette.inkMuted }));
   parts.push(
     path(
       areaPath(
@@ -830,7 +863,8 @@ export function miningMarketChart({ width = widths.full } = {}) {
   const y = linear([0, 1], [plot.bottom, plot.top]);
   const parts = [];
 
-  parts.push(label('USDG paid per GBX', { x: plot.left - 30, y: 13, fill: palette.inkMuted }));
+  // Panel titles in this document all hang from the left edge of their own plot.
+  parts.push(label('USDG paid per GBX', { x: plot.left, y: 13, fill: palette.inkMuted }));
   parts.push(
     axisY({
       scale: y,
@@ -917,10 +951,11 @@ export function miningMarketChart({ width = widths.full } = {}) {
       fill: palette.blue,
     }),
   );
+  // Lifted clear of the price line so it does not read as a second caption on it.
   parts.push(
     text('50k — margin competed away', {
       x: breakEvenX - 7,
-      y: y(0.5) - 7,
+      y: y(gbxPrice) - 17,
       size: 6.6,
       weight: 600,
       fill: palette.ink,
@@ -986,7 +1021,9 @@ export function signalAllocation({ width = widths.full } = {}) {
         }),
         {
           fill: palette.pink,
-          opacity: 0.2,
+          // Thickness already encodes the share; carrying it in tone as well means the
+          // largest allocation reads first at a glance, before any number is read.
+          opacity: 0.15 + target.weight * 0.24,
         },
       ),
     );
@@ -1126,15 +1163,17 @@ export function routingFlow({ width = widths.full } = {}) {
   );
   parts.push(label('Split — by live signal weight', { x: revenueX, y: 14, fill: palette.blue }));
   parts.push(label('Settlement — 100% Fund-bound', { x: width, y: 14, fill: palette.pink, anchor: 'end' }));
+  // The phase boundary between the split and the settlement. Every ribbon crosses it, so it
+  // is drawn as lightly as a rule can be and still be seen.
   parts.push(
     line({
-      x1: strategyX + strategyW + 16,
-      y1: 24,
-      x2: strategyX + strategyW + 16,
-      y2: height - 12,
+      x1: strategyX + strategyW + 24,
+      y1: 20,
+      x2: strategyX + strategyW + 24,
+      y2: height - 6,
       stroke: palette.rule,
-      width: 0.6,
-      dash: '2 3',
+      width: 0.5,
+      dash: '1.6 3',
     }),
   );
 
@@ -1233,10 +1272,12 @@ export function auctionChart({ width = widths.full } = {}) {
       dash: '3.4 2.6',
     }),
   );
+  // The reference label sits under its own line, which leaves the space above the crossing
+  // free for the label that names the crossing. Both used to share one baseline.
   parts.push(
     text('What the market thinks the USDG is worth', {
       x: plot.left + 4,
-      y: y(fairValue) - 8,
+      y: y(fairValue) + 12,
       size: 6.4,
       weight: 600,
       fill: palette.blue,
@@ -1254,13 +1295,15 @@ export function auctionChart({ width = widths.full } = {}) {
     }),
   );
   parts.push(
-    text('Fills here', { x: x(crossHours) + 7, y: y(fairValue) - 5, size: 7.2, weight: 600, fill: palette.pink }),
+    text('Fills here', { x: x(crossHours) + 7, y: y(fairValue) - 7, size: 7.2, weight: 600, fill: palette.pink }),
   );
+  // Each zone label sits inside its own zone and clear of the decay line: the line falls
+  // left to right, so the free corners are bottom-left and top-right.
   parts.push(text('Nobody fills', { x: plot.left + 5, y: plot.bottom - 6, size: 6.4, fill: palette.inkMuted }));
   parts.push(
     text('Profitable to fill', {
       x: plot.right - 4,
-      y: plot.bottom - 6,
+      y: plot.top + 24,
       size: 6.4,
       fill: palette.pink,
       anchor: 'end',
@@ -1291,7 +1334,37 @@ export function auctionChart({ width = widths.full } = {}) {
   const rLeft = width * 0.68;
   const rx = linear([0, ratchet.length], [rLeft, width - 6]);
   const ry = linear([0, 1000], [plot.bottom, plot.top]);
+
+  // A hairline articulates the two panels, which share a baseline but not a scale.
+  parts.push(
+    line({
+      x1: (plot.right + rLeft) / 2,
+      y1: 22,
+      x2: (plot.right + rLeft) / 2,
+      y2: plot.bottom,
+      stroke: palette.rule,
+      width: 0.5,
+    }),
+  );
+
   parts.push(label('Four epochs in sequence', { x: width, y: 13, fill: palette.ink, anchor: 'end' }));
+
+  // Alternate epochs carry a faint plate, under the gridlines, so four separate decays
+  // read as four epochs rather than as one sawtooth.
+  ratchet.forEach((epoch, index) => {
+    if (index % 2 === 0) return;
+    parts.push(
+      rect({
+        x: rx(index),
+        y: plot.top,
+        width: rx(index + 1) - rx(index),
+        height: plot.bottom - plot.top,
+        fill: palette.paperTint,
+        opacity: 0.75,
+      }),
+    );
+  });
+
   parts.push(axisY({ scale: ry, x: rLeft, x2: width - 6, ticks: [0, 500, 1000], format: (value) => compact(value) }));
 
   ratchet.forEach((epoch, index) => {
@@ -1302,6 +1375,8 @@ export function auctionChart({ width = widths.full } = {}) {
         stroke: palette.pink,
         strokeWidth: 1.3,
         opacity: 0.85,
+        // The decay terminates at zero exactly; a round cap printed past the axis.
+        cap: 'butt',
       }),
     );
     if (epoch.fills) {
@@ -1337,7 +1412,8 @@ export function auctionChart({ width = widths.full } = {}) {
       ticks: [0.5, 1.5, 2.5, 3.5],
       format: (value) => `#${Math.ceil(value)}`,
       title: 'Epoch',
-      tickLength: 0,
+      // Matching the left panel's tick length puts both axis titles on one baseline.
+      tickLength: 3,
     }),
   );
 
@@ -1382,7 +1458,7 @@ export function redemptionFigure({ width = widths.full } = {}) {
     ),
   );
 
-  const rowY = (index) => 40 + index * 54;
+  const rowY = (index) => 38 + index * 46;
   const barLeft = 104;
   const barMax = width - 104 - 176;
   const largest = Math.max(...assets.map((asset) => asset.held));
@@ -1392,6 +1468,11 @@ export function redemptionFigure({ width = widths.full } = {}) {
     const scale = barMax / largest;
     const accent = asset.selected ? palette.pink : palette.inkFaint;
     const barWidth = asset.held * scale;
+
+    // A hairline per row turns three floating bars into a ledger that can be read across.
+    if (index > 0) {
+      parts.push(line({ x1: 0, y1: y - 13, x2: width, y2: y - 13, stroke: palette.rule, width: 0.5 }));
+    }
     // A 1% slice is genuinely almost invisible; it gets a minimum width and a tick so the
     // proportion stays honest while the claim remains findable.
     const sliceWidth = Math.max(2.2, asset.payout * scale);
@@ -1458,7 +1539,7 @@ export function redemptionFigure({ width = widths.full } = {}) {
 
   return figure({
     width,
-    height: rowY(assets.length - 1) + 30,
+    height: rowY(assets.length - 1) + 32,
     children: parts.join(''),
     title: 'Selective in-kind redemption',
   });
@@ -1467,12 +1548,13 @@ export function redemptionFigure({ width = widths.full } = {}) {
 /* ------------------------------------------------------------- burn loops ---- */
 
 export function burnLoops({ width = widths.full } = {}) {
-  const height = 186;
+  // Sized to its content: the panels used to run 40pt past their last step.
+  const height = 150;
   const parts = [];
   const half = width / 2 - 10;
 
   const loop = (originX, title, caption, steps, accent) => {
-    parts.push(rect({ x: originX, y: 0, width: half, height, r: 5, fill: palette.paperTint, opacity: 0.6 }));
+    parts.push(rect({ x: originX, y: 0, width: half, height, r: 4, fill: palette.paperTint, opacity: 0.6 }));
     parts.push(label(title, { x: originX + 14, y: 20, fill: accent }));
     parts.push(text(caption, { x: originX + 14, y: 36, size: 7.8, weight: 600, fill: palette.ink }));
 
@@ -1576,22 +1658,36 @@ export function basketFormationChart({ width = widths.full } = {}) {
   const parts = [];
 
   const plot = { left: 40, right: width - 96, signalTop: 30, signalBottom: 72, basketTop: 108, basketBottom: 208 };
-  const x = linear([1, periods.length], [plot.left, plot.right]);
+  // Both panels are read against one implied time axis, so the signal column for period n
+  // has to stand directly over the point where period n enters the cumulative area. The
+  // previous scale put the columns half a column to the left of their own consequence.
+  const bandWidth = (plot.right - plot.left) / periods.length;
+  const x = linear([1, periods.length], [plot.left + bandWidth / 2, plot.right - bandWidth / 2]);
 
   // Live signal: a stacked band that snaps between distributions.
   parts.push(label('Live sGBX signal at each distribution', { x: plot.left, y: 20, fill: palette.pink }));
   periods.forEach((period, index) => {
-    const bandWidth = (plot.right - plot.left) / periods.length;
-    const x0 = plot.left + index * bandWidth;
+    const x0 = x(index + 1) - bandWidth * 0.43;
     let cursor = plot.signalTop;
     period.signal.forEach((share, assetIndex) => {
       const h = share * (plot.signalBottom - plot.signalTop);
       parts.push(
-        rect({ x: x0 + 1, y: cursor, width: bandWidth - 2, height: h, fill: colors[assetIndex], opacity: 0.8 }),
+        rect({ x: x0, y: cursor, width: bandWidth * 0.86, height: h, fill: colors[assetIndex], opacity: 0.8 }),
       );
       cursor += h;
     });
   });
+  // A baseline under the columns, matching the one the area chart stands on.
+  parts.push(
+    line({
+      x1: plot.left,
+      y1: plot.signalBottom,
+      x2: plot.right,
+      y2: plot.signalBottom,
+      stroke: palette.ruleStrong,
+      width: 0.7,
+    }),
+  );
 
   // Accumulated basket: a stacked area that can only grow.
   parts.push(label('Resulting Fund composition, cumulative', { x: plot.left, y: 98, fill: palette.ink }));
@@ -1608,9 +1704,10 @@ export function basketFormationChart({ width = widths.full } = {}) {
       (item) => y(baseline[item.index]),
     );
     parts.push(path(area, { fill: colors[assetIndex], opacity: 0.72 }));
+    // Series are named where they end, against the edge of the area they belong to.
     parts.push(
       text(asset, {
-        x: plot.right + 8,
+        x: x(periods.length) + 8,
         y: y((baseline.at(-1) + upper.at(-1)) / 2) + 2.4,
         size: 7,
         weight: 600,
@@ -1641,20 +1738,24 @@ export function basketFormationChart({ width = widths.full } = {}) {
 /* -------------------------------------------------------------- governance ---- */
 
 export function governancePerimeter({ width = widths.full } = {}) {
-  const height = 244;
+  const height = 214;
   const parts = [];
   // The core is offset so both label columns have room for their longest entry.
   const coreX = 126;
   const coreW = width - coreX - 112;
+  const coreY = 28;
+  const coreH = 150;
+  const coreMid = coreY + coreH / 2;
+  const coreCx = coreX + coreW / 2;
 
-  parts.push(rect({ x: coreX, y: 28, width: coreW, height: 168, r: 6, fill: palette.deep }));
+  parts.push(rect({ x: coreX, y: coreY, width: coreW, height: coreH, r: 4, fill: palette.deep }));
   parts.push(
     rect({
       x: coreX + 5,
-      y: 33,
+      y: coreY + 5,
       width: coreW - 10,
-      height: 158,
-      r: 4,
+      height: coreH - 10,
+      r: 2.5,
       fill: 'none',
       stroke: palette.deepRule,
       strokeWidth: 0.7,
@@ -1662,10 +1763,12 @@ export function governancePerimeter({ width = widths.full } = {}) {
     }),
   );
 
+  // The panel's three lines are centred on the panel, and the two lists either side are
+  // centred on the same line, so the whole figure reads off one horizon.
   parts.push(
     text('Deployed core', {
-      x: coreX + coreW / 2,
-      y: 92,
+      x: coreCx,
+      y: coreMid - 15,
       size: 15,
       weight: 600,
       fill: palette.onDeep,
@@ -1674,8 +1777,8 @@ export function governancePerimeter({ width = widths.full } = {}) {
   );
   parts.push(
     text('Direct contracts. No proxy, no upgrade, no successor rewrite.', {
-      x: coreX + coreW / 2,
-      y: 110,
+      x: coreCx,
+      y: coreMid + 3,
       size: 7.2,
       fill: palette.onDeepMuted,
       anchor: 'middle',
@@ -1683,8 +1786,8 @@ export function governancePerimeter({ width = widths.full } = {}) {
   );
   parts.push(
     text('Signals govern capital. Code governs rules.', {
-      x: coreX + coreW / 2,
-      y: 130,
+      x: coreCx,
+      y: coreMid + 25,
       size: 7.6,
       weight: 600,
       fill: palette.blueBright,
@@ -1695,14 +1798,32 @@ export function governancePerimeter({ width = widths.full } = {}) {
   // The authorized edges, drawn as the only openings in the perimeter.
   const doors = ['Add a Strategy', 'Kill a Strategy', 'Add Bribe rewards (max 8)'];
   doors.forEach((door, index) => {
-    const y = 48 + index * 34;
-    parts.push(rect({ x: coreX - 6, y: y - 9, width: 12, height: 18, r: 2, fill: palette.pinkBright }));
-    parts.push(text(door, { x: coreX - 14, y: y + 3, size: 7.2, weight: 600, fill: palette.ink, anchor: 'end' }));
-    parts.push(text(String(index + 1), { x: 4, y: y + 3, size: 7.2, weight: 600, fill: palette.pink }));
+    const y = coreMid + (index - 1) * 42;
+    // A dotted leader ties the numeral to its action across the empty margin, the same
+    // device the contents page uses to tie a title to its folio. A leader too short to
+    // read as a leader is left out rather than printed as three stray dots.
+    const leaderEnd = coreX - 17 - runWidth(door, 7.2);
+    if (leaderEnd - 13 > 14) {
+      parts.push(
+        line({
+          x1: 13,
+          y1: y - 1.6,
+          x2: leaderEnd,
+          y2: y - 1.6,
+          stroke: palette.ruleStrong,
+          width: 0.5,
+          dash: '0.6 2.4',
+        }),
+      );
+    }
+    parts.push(rect({ x: coreX - 5, y: y - 8, width: 10, height: 16, r: 1.5, fill: palette.pinkBright }));
+    parts.push(text(door, { x: coreX - 13, y: y + 2.6, size: 7.2, weight: 600, fill: palette.ink, anchor: 'end' }));
+    parts.push(text(String(index + 1), { x: 4, y: y + 2.6, size: 7.2, weight: 600, fill: palette.pink }));
   });
   parts.push(label('Three authorized actions', { x: 4, y: 22, fill: palette.pink }));
 
-  // What has no door at all.
+  // What has no door at all. A struck circle is the convention for a way that is closed;
+  // the previous mark was a horizontal rule crossed twice, which read as a snowflake.
   const sealed = [
     'Proxy upgrade',
     'Successor migration',
@@ -1712,11 +1833,13 @@ export function governancePerimeter({ width = widths.full } = {}) {
   ];
   parts.push(label('No entry point exists', { x: width - 4, y: 22, fill: palette.inkFaint, anchor: 'end' }));
   sealed.forEach((item, index) => {
-    const y = 44 + index * 22;
-    parts.push(text(item, { x: width - 18, y: y + 3, size: 7.2, fill: palette.inkMuted, anchor: 'end' }));
-    parts.push(line({ x1: width - 14, y1: y, x2: width - 4, y2: y, stroke: palette.inkFaint, width: 0.9 }));
-    parts.push(line({ x1: width - 12, y1: y - 4, x2: width - 6, y2: y + 4, stroke: palette.inkFaint, width: 0.9 }));
-    parts.push(line({ x1: width - 12, y1: y + 4, x2: width - 6, y2: y - 4, stroke: palette.inkFaint, width: 0.9 }));
+    const y = coreMid + (index - 2) * 22;
+    const markX = width - 8;
+    parts.push(text(item, { x: width - 18, y: y + 2.6, size: 7.2, fill: palette.inkMuted, anchor: 'end' }));
+    parts.push(circle({ cx: markX, cy: y, r: 3.6, fill: 'none', stroke: palette.inkFaint, strokeWidth: 0.9 }));
+    parts.push(
+      line({ x1: markX - 2.6, y1: y + 2.6, x2: markX + 2.6, y2: y - 2.6, stroke: palette.inkFaint, width: 0.9 }),
+    );
   });
 
   parts.push(
@@ -1724,7 +1847,7 @@ export function governancePerimeter({ width = widths.full } = {}) {
       'Immutability removes the power to fix mistakes as surely as it removes the power to cause them. That is the trade, stated plainly.',
       {
         x: width / 2,
-        y: 222,
+        y: 200,
         size: 7,
         fill: palette.inkMuted,
         anchor: 'middle',

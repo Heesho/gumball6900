@@ -1,12 +1,19 @@
 # GumBall6900
 
-## A signal-directed onchain fund
+## The Index Fund That Chooses Itself
 
-Whitepaper v0.1 - August 2026
+A plain-English whitepaper for a signal-directed onchain fund.
 
-> **Development status:** GumBall6900 is an experimental, pre-audit protocol design. It is not deployed and is not
-> authorized for user funds. This paper describes the intended governance-minimized final system. The current
-> implementation remains a development candidate and must pass every documented release gate before deployment.
+Whitepaper v0.3 - 10 August 2026 - by Heesho
+
+> **Development status:** GumBall6900 is experimental software. It is not deployed, has had no independent external
+> audit, and is not authorized for user funds. Security review status: internal adversarial review only, with one
+> open Medium finding (A-09, temporal reallocation of sub-index carry). This paper describes the internally reviewed
+> production contracts at commit `5ad1ebc50f2963c54593430036d384221e0bc10a` (internal-review candidate
+> `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84`; production Solidity changed between the two by the checked-increment
+> Fundraiser hardening and the ADR 0022 fee-harvest redesign, both covered by the finalized internal campaign).
+> Licensing and provenance remain unresolved and block distribution and deployment. The claim-by-claim verification
+> record is `docs/whitepaper/FACT-CHECK.md`; the typeset edition is generated from `docs/whitepaper/`.
 
 ## Abstract
 
@@ -128,10 +135,17 @@ from the decay factor so that the schedule pays out its own allocation and no mo
 `E_0 = A x (1 - d)`, so `sum over t of E_0 x d^t = E_0 / (1 - d) = A`
 
 where `A` is the 980,000,000 GBX mining allocation and `d` is the daily decay factor. Summing the entire infinite
-schedule returns the allocation exactly, so the mining cap is a property of the arithmetic rather than a separate
-check. Each four-year period closes half the remaining distance to it: about 50% of the allocation is emitted by year
-four, 75% by year eight, and 93.75% by year sixteen. The daily emission never reaches zero, and the total never exceeds
-980,000,000 GBX.
+ideal schedule returns the allocation exactly, so the mining cap is a property of the arithmetic rather than a
+separate check. Each four-year period closes half the remaining distance to it: about 50% of the allocation is
+emitted by year four, 75% by year eight, and 93.75% by year sixteen.
+
+The ideal real-number curve and the onchain integer schedule must not be confused. The contract stores whole wei and
+floors after every daily step (`next = floor(current x d / 1e18)`), so the onchain schedule terminates: it has
+exactly 99,884 nonzero epochs, the final one (epoch index 99,883, roughly 273 years in) emits exactly 1 wei, the
+total if every epoch is claimed is 979,999,999.999999181815005172 GBX, and the unminted rounding remainder is
+818,184,994,828 wei (about 0.0000008 GBX), which no address can ever mint. These endpoints are replayed by
+independent TypeScript and Python models and cross-checked against the repository's tested fixture at every
+whitepaper build.
 
 Burning GBX never reopens mint capacity. Cumulative minting can never exceed one billion GBX even if previously minted
 tokens have been burned.
@@ -397,15 +411,23 @@ deployment.
 
 At minimum, production would require:
 
-- final contract interfaces matching the four-action Resonance management surface;
-- an owner decision on whether multi-token Bribe rewards should exist;
-- complete unit, integration, invariant, and economic-model tests;
-- reviewed asset and chain configuration;
-- reproducible deployment rehearsals;
-- independent security review; and
-- explicit resolution of every open trust, licensing, and operational question.
+- independent external audit of the final bytecode, with all Critical/High/Medium findings resolved;
+- resolution or explicit formal acceptance of open finding A-09 (temporal carry reallocation);
+- a current-tree mutation campaign with reviewed survivors, a working pinned second fuzzer (Echidna), and
+  symbolic checks (Mythril is currently blocked on Cancun opcodes);
+- an owner decision on whether multi-token Bribe rewards should remain a product capability;
+- licensing and provenance clearance by counsel (see `docs/LEGAL-PROVENANCE-BLOCKER.md`);
+- reviewed asset and chain configuration and reproducible deployment rehearsals; and
+- a signed deployment manifest verifying chain ID, bytecode, constructor arguments, timelock roles and delay, the
+  GBX minter lock, every one-time binding, and the canonical pool, ticks, token ID, and NFT custody.
 
-A passing local build is engineering evidence only. It is not an audit, authorization, or launch claim.
+Recorded internal evidence at this edition: 340/340 default Foundry tests (27 fuzz properties x 10,000 runs);
+27 stateful invariant properties x 1,000 runs x depth 500 (13,500,000 calls, zero handler reverts); 17/17 genuine
+Uniswap v4 integration tests with a 10,000-case harvest fuzz; 2/2 Hardhat tests; Medusa 1.5.1 at 101,840 calls with
+62/62 property and assertion surfaces. Blocked or invalid: pinned Echidna (no Docker; the native fallback crashed),
+Mythril (Cancun opcodes), mutation testing (no defensible current-tree score), the nightly deep profile, and any
+current-graph fork. A passing local build is engineering evidence only. It is not an audit, authorization, or launch
+claim.
 
 ## 16. Conclusion
 
@@ -438,8 +460,10 @@ in-kind redemption, and a governance-minimized core can make capital allocation 
 
 ## Document basis
 
-This paper summarizes the intended target design recorded in the GumBall6900 repository as of 8 August 2026. The
-technical source of truth remains the final reviewed contracts and their matching specifications. If this paper and the
-deployed bytecode ever disagree, the bytecode controls system behavior.
+This paper describes the production contracts recorded in the GumBall6900 repository at commit
+`5ad1ebc50f2963c54593430036d384221e0bc10a` (10 August 2026). The technical source of truth remains the reviewed
+contracts under `packages/contracts/src/core`; the internal audit record lives under `packages/contracts/audit/`;
+the claim-by-claim verification register is `docs/whitepaper/FACT-CHECK.md`. If this paper and deployed bytecode
+ever disagree, the bytecode controls system behavior.
 
 Educational protocol overview only. Nothing in this document is investment, legal, or tax advice.

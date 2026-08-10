@@ -17,8 +17,59 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
 import { meta, renderPages } from './src/document.mjs';
+import { verifyProtocolFacts } from './src/protocol-facts.mjs';
 import { stylesheet } from './src/styles.mjs';
 import { assertContrast } from './src/theme.mjs';
+
+/**
+ * Stale-claim gate. These phrases described earlier design iterations and must never
+ * reappear in rendered output. Matching is case-insensitive against the page HTML.
+ */
+const STALE_PHRASES = [
+  'relative weights',
+  'whole-account reset',
+  'reset all allocations',
+  'one reward token per strategy',
+  'unlimited reward tokens',
+  'management fee',
+  'five management actions',
+  'four ongoing',
+  'setBribeBps',
+  'bribeBps',
+  '90/10',
+  'fund migration',
+  'successor fund',
+  'migrate liquidity',
+  'withdraw the LP NFT',
+  'compoundRequirement',
+  'compound the position',
+  'fees are not protocol revenue',
+  'always receives a majority',
+  'never reaches zero',
+  'automatic rebalancing',
+  'fixed basket',
+  'tracks nav',
+  'pegged to fund',
+  'guaranteed profit',
+  'guaranteed yield',
+  'guaranteed backing',
+  'risk-free',
+  'battle-tested',
+  'fully trustless',
+  'fully decentralized',
+  'live on robinhood',
+  'TODO',
+  'FIXME',
+];
+
+function scanStaleClaims(documentHtml) {
+  const lower = documentHtml.toLowerCase();
+  const hits = STALE_PHRASES.filter((phrase) => lower.includes(phrase.toLowerCase()));
+  if (hits.length > 0) {
+    throw new Error(`Stale or forbidden phrases present in rendered document:\n  ${hits.join('\n  ')}`);
+  }
+  return STALE_PHRASES.length;
+}
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
@@ -76,6 +127,7 @@ function findChrome() {
 }
 
 const OVERFLOW_MARKER = 'LAYOUT-OVERFLOW';
+const OVERPRINT_MARKER = 'LAYOUT-OVERPRINT';
 
 /**
  * Layout guard.
@@ -85,20 +137,53 @@ const OVERFLOW_MARKER = 'LAYOUT-OVERFLOW';
  * layout and, when anything escapes its frame, reports it through the document title —
  * which Chrome copies into the printed PDF's metadata. That lets one print pass carry both
  * the document and its own layout report, with no second browser launch to go wrong.
+ *
+ * It also catches OVERPRINTS, which overflow cannot see. An absolutely positioned block
+ * inside a frame sits outside normal flow, so it can land on top of in-flow content while
+ * the frame's scrollHeight stays perfectly within bounds — the page reports clean and prints
+ * with two paragraphs stacked on each other. Page 2 shipped that way once; this is the check
+ * that would have caught it.
  */
 const AUDIT_SCRIPT = `
 (() => {
   const offenders = [];
+  const collisions = [];
+
   document.querySelectorAll('.page').forEach((page) => {
     const frame = page.querySelector('.frame');
     if (!frame) return;
+
     const overflow = Math.max(
       frame.scrollHeight - frame.clientHeight,
       frame.scrollWidth - frame.clientWidth,
     );
     if (overflow > 1) offenders.push(page.id + '+' + Math.ceil(overflow));
+
+    // Overprint check: any out-of-flow child of the frame versus every in-flow child.
+    const children = [...frame.children];
+    const positioned = [];
+    const inFlow = [];
+    for (const child of children) {
+      const style = getComputedStyle(child);
+      const rect = child.getBoundingClientRect();
+      if (rect.width < 1 || rect.height < 1) continue;
+      (style.position === 'absolute' || style.position === 'fixed' ? positioned : inFlow).push(rect);
+    }
+    for (const a of positioned) {
+      for (const b of inFlow) {
+        const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        if (overlapX > 2 && overlapY > 2) {
+          collisions.push(page.id + '~' + Math.ceil(overlapY));
+        }
+      }
+    }
   });
-  if (offenders.length > 0) document.title = '${OVERFLOW_MARKER} ' + offenders.join(' ');
+
+  const report = [];
+  if (offenders.length > 0) report.push('${OVERFLOW_MARKER} ' + offenders.join(' '));
+  if (collisions.length > 0) report.push('${OVERPRINT_MARKER} ' + [...new Set(collisions)].join(' '));
+  if (report.length > 0) document.title = report.join(' | ');
 })();
 `;
 
@@ -108,7 +193,7 @@ function renderDocument() {
 <head>
 <meta charset="utf-8">
 <title>${meta.title}</title>
-<meta name="author" content="GumBall6900">
+<meta name="author" content="${meta.author}">
 <meta name="subject" content="${meta.subject}">
 <meta name="keywords" content="${meta.keywords.join(', ')}">
 <meta name="description" content="${meta.subject}">
@@ -125,18 +210,24 @@ ${renderPages()}
 }
 
 /** Read the layout report back out of the printed file's title. */
-function readOverflowReport(title) {
-  if (!title.startsWith(OVERFLOW_MARKER)) return [];
-  return title
-    .slice(OVERFLOW_MARKER.length)
+/** Pull one marker's segment out of the reported title. Segments are ' | '-separated. */
+function readReportSegment(title, marker, separator) {
+  const segment = title.split(' | ').find((part) => part.trim().startsWith(marker));
+  if (!segment) return [];
+  return segment
+    .trim()
+    .slice(marker.length)
     .trim()
     .split(/\s+/)
     .filter(Boolean)
     .map((entry) => {
-      const [id, overflowPx] = entry.split('+');
-      return { id, overflowPx: Number(overflowPx) };
+      const [id, px] = entry.split(separator);
+      return { id, px: Number(px) };
     });
 }
+
+const readOverflowReport = (title) => readReportSegment(title, OVERFLOW_MARKER, '+');
+const readOverprintReport = (title) => readReportSegment(title, OVERPRINT_MARKER, '~');
 
 /**
  * Print with headless Chrome.
@@ -199,6 +290,59 @@ async function printToPdf(chrome, { htmlFile, pdfFile, timeoutMs = 180_000 }) {
   }
 }
 
+/**
+ * Metadata stamp.
+ *
+ * Chrome writes only Title, Creator, Producer, and dates into the Info dictionary. The
+ * document's author, subject, keywords, and the commits it describes belong in the file's
+ * metadata too, so this appends a standards-conforming incremental update that replaces
+ * the Info object. Appending (rather than rewriting) leaves every existing byte and
+ * cross-reference untouched.
+ */
+function stampMetadata(path) {
+  const buffer = readFileSync(path);
+  const text = buffer.toString('latin1');
+
+  const tail = text.slice(-2048);
+  const trailerMatch = tail.match(/trailer\s*<<([\s\S]*?)>>\s*startxref\s*(\d+)\s*%%EOF\s*$/);
+  if (!trailerMatch) throw new Error('Metadata stamp: could not parse the PDF trailer.');
+  const trailerDict = trailerMatch[1];
+  const previousStartXref = Number(trailerMatch[2]);
+  const size = Number(trailerDict.match(/\/Size (\d+)/)?.[1]);
+  const root = trailerDict.match(/\/Root (\d+) 0 R/)?.[1];
+  const infoNum = trailerDict.match(/\/Info (\d+) 0 R/)?.[1];
+  if (!size || !root || !infoNum) throw new Error('Metadata stamp: trailer is missing Size, Root, or Info.');
+
+  const infoBody = text.match(new RegExp(`(?:^|\\n)${infoNum} 0 obj\\n<<([\\s\\S]*?)>>\\nendobj`))?.[1];
+  if (!infoBody) throw new Error('Metadata stamp: could not locate the Info object.');
+  const keep = (key) => infoBody.match(new RegExp(`\\/${key} \\((?:[^\\\\)]|\\\\.)*\\)`))?.[0] ?? '';
+
+  const escape = (value) => String(value).replace(/([()\\])/g, '\\$1');
+  const entries = [
+    keep('Title'),
+    `/Author (${escape(meta.author)})`,
+    `/Subject (${escape(meta.subject)})`,
+    `/Keywords (${escape(meta.keywords.join(', '))})`,
+    keep('Creator'),
+    keep('Producer'),
+    keep('CreationDate'),
+    keep('ModDate'),
+    `/GBXContractsCommit (${escape(meta.contractsCommit)})`,
+    `/GBXAuditCandidateCommit (${escape(meta.auditCandidateCommit)})`,
+  ].filter(Boolean);
+
+  const objectOffset = buffer.length + 1;
+  const objectBytes = `\n${infoNum} 0 obj\n<<${entries.join('\n')}>>\nendobj\n`;
+  const xrefOffset = objectOffset + objectBytes.length - 1;
+  const update =
+    objectBytes +
+    `xref\n${infoNum} 1\n${String(objectOffset).padStart(10, '0')} 00000 n \n` +
+    `trailer\n<</Size ${size}\n/Root ${root} 0 R\n/Info ${infoNum} 0 R\n/Prev ${previousStartXref}>>\n` +
+    `startxref\n${xrefOffset}\n%%EOF\n`;
+
+  writeFileSync(path, Buffer.concat([buffer, Buffer.from(update, 'latin1')]));
+}
+
 /** Read back the printed file and confirm it is what we intended to ship. */
 function inspectPdf(path) {
   const buffer = readFileSync(path);
@@ -217,12 +361,20 @@ function inspectPdf(path) {
 async function main() {
   const args = new Set(process.argv.slice(2));
 
+  const facts = verifyProtocolFacts();
+  console.log(
+    `facts     ${facts.checks} cross-checks pass · schedule ends after ${facts.nonzeroEpochs.toLocaleString('en-US')} epochs · remainder ${facts.unmintedRemainder.toLocaleString('en-US')} wei`,
+  );
+
   const contrast = assertContrast();
   const worst = contrast.reduce((low, check) => (check.ratio < low.ratio ? check : low));
 
   mkdirSync(buildDir, { recursive: true });
-  writeFileSync(htmlPath, renderDocument(), 'utf8');
+  const documentHtml = renderDocument();
+  const scanned = scanStaleClaims(documentHtml);
+  writeFileSync(htmlPath, documentHtml, 'utf8');
   console.log(`html      ${htmlPath}`);
+  console.log(`stale     ${scanned} forbidden phrases absent`);
   console.log(`contrast  ${contrast.length} pairs pass AA · lowest ${worst.ratio}:1 (${worst.label})`);
 
   if (args.has('--html')) return;
@@ -232,20 +384,31 @@ async function main() {
   // Print to a staging path so a failed verification never replaces a good published PDF.
   const stagedPath = resolve(buildDir, 'whitepaper.pdf');
   await printToPdf(chrome, { htmlFile: htmlPath, pdfFile: stagedPath });
+  stampMetadata(stagedPath);
 
   const report = inspectPdf(stagedPath);
 
   const offenders = readOverflowReport(report.title);
+  const overprints = readOverprintReport(report.title);
+
   if (offenders.length > 0) {
-    const detail = offenders.map((page) => `${page.id} (+${page.overflowPx}px)`).join(', ');
+    const detail = offenders.map((page) => `${page.id} (+${page.px}px)`).join(', ');
     console.log(`layout    OVERFLOW on ${offenders.length} page(s): ${detail}`);
+  }
+  if (overprints.length > 0) {
+    const detail = overprints.map((page) => `${page.id} (${page.px}px deep)`).join(', ');
+    console.log(`overprint OUT-OF-FLOW CONTENT lands on in-flow content: ${detail}`);
+  }
+
+  if (offenders.length > 0 || overprints.length > 0) {
     if (!args.has('--force')) {
       throw new Error(
-        `Content is clipped on the pages listed above. Shorten them, or pass --force.\nStaged file: ${stagedPath}`,
+        'Layout is broken on the pages listed above: content is clipped or printed on top of other content.\n' +
+          `Fix them, or pass --force while drafting.\nStaged file: ${stagedPath}`,
       );
     }
   } else {
-    console.log(`layout    all ${report.pageCount} pages fit their frames`);
+    console.log(`layout    all ${report.pageCount} pages fit their frames, no overprints`);
   }
 
   if (report.embedded === 0) {
