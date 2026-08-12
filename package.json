@@ -16,6 +16,7 @@
     "docs:check": "pnpm --filter @gumball-6900/contracts docs:check && pnpm --filter @gumball-6900/sdk docs:check",
     "docs:generate": "pnpm --filter @gumball-6900/contracts docs:generate && pnpm --filter @gumball-6900/sdk docs:generate",
     "docs:whitepaper": "node docs/whitepaper/build.mjs",
+    "docs:one-pager": "node docs/one-pager/gumball6900/build.mjs",
     "format": "prettier --write . && pnpm --filter @gumball-6900/contracts fmt",
     "format:check": "prettier --check . && pnpm --filter @gumball-6900/contracts fmt:check",
     "lint": "pnpm run lint:eslint && turbo run lint",

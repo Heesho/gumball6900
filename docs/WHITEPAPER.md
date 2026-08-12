@@ -71,6 +71,14 @@ The market can clear frequently without a single end-of-day transaction. Miners 
 the expected value of accrued GBX, the uncertain handoff payment, GBX liquidity, gas, and risk. None of those economic
 outcomes is guaranteed by the contract.
 
+Because price falls with elapsed time and resets upward on every handoff, a pending transaction can be invalidated by
+whoever lands first. `mine` therefore takes three caller-supplied bounds. An `epochId` must equal the slot's current
+epoch, so a transaction written against one tenure cannot execute against its successor. A `deadline` bounds how long
+the transaction may remain valid. A `maximumPrice` caps what the caller will pay. Without these a miner front-run at
+the moment of purchase would pay the reset opening price—the amount just paid times the multiplier—rather than the
+decayed price they submitted for. Each bound is supplied per call; the contract holds no allowance for slippage of its
+own.
+
 ## 4. Fixed-tenure fairness
 
 A slot's GBX-per-second rate is written when a miner enters and remains fixed until that miner is replaced. It is not

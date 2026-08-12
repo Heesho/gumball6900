@@ -170,6 +170,10 @@ export const currentPages = [
                 kind: 'asset',
                 body: 'Profitability, a successor payment, GBX liquidity, and frequent replacement are market outcomes—not contract guarantees.',
               })}
+              ${note({
+                label: 'Caller bounds',
+                body: 'Every purchase supplies an expected epoch, a deadline, and a maximum price, so a miner front-run at purchase cannot be charged the reset opening price.',
+              })}
             </div>
           </div>`,
       ),
