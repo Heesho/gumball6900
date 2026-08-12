@@ -6,16 +6,16 @@
 
 # Function: netSupplyChange()
 
-> **netSupplyChange**(`newEmission`, `gbxBurned`): `bigint`
+> **netSupplyChange**(`gbxMined`, `gbxBurned`): `bigint`
 
-Signed result: a later permissionless Fund burn can exceed an epoch's new GBX emission.
+Mining increases supply and burns decrease it.
 
 ## Parameters
 
-| Parameter     | Type     |
-| ------------- | -------- |
-| `newEmission` | `bigint` |
-| `gbxBurned`   | `bigint` |
+| Parameter   | Type     |
+| ----------- | -------- |
+| `gbxMined`  | `bigint` |
+| `gbxBurned` | `bigint` |
 
 ## Returns
 

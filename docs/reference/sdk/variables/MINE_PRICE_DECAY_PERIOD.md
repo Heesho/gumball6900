@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / MINE_PRICE_DECAY_PERIOD
+
+# Variable: MINE_PRICE_DECAY_PERIOD
+
+> `const` **MINE_PRICE_DECAY_PERIOD**: `3600n` = `3_600n`

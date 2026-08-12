@@ -1,5 +1,8 @@
 # Static-analysis record
 
+> Historical evidence only. ADR 0024 changed the source graph. The recorded findings and dispositions below must be
+> regenerated before they can describe the current Mine development candidate.
+
 Date: 2026-08-09. Raw output is under the ignored `audit/reports` directory.
 
 ## Tools actually run

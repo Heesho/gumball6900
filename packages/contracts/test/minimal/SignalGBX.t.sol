@@ -19,8 +19,8 @@ contract SignalGBXTest is ProtocolFixture {
 
     function setUp() external {
         _deployProtocol();
-        _mintGBX(ALICE, 1_000 ether);
-        _mintGBX(BOB, 1_000 ether);
+        _mintTestGBX(ALICE, 1_000 ether);
+        _mintTestGBX(BOB, 1_000 ether);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -260,7 +260,7 @@ contract SignalGBXTest is ProtocolFixture {
 
     function test_UnstakeWorksBeforeResonanceIsBound() external {
         SignalGBX unbound = new SignalGBX(IERC20(address(gbx)), address(this));
-        _mintGBX(CAROL, 10 ether);
+        _mintTestGBX(CAROL, 10 ether);
 
         vm.startPrank(CAROL);
         gbx.approve(address(unbound), 10 ether);

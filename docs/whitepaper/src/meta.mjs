@@ -9,7 +9,7 @@ export const meta = {
   shortTitle: 'GumBall6900',
   author: 'Heesho',
   subject:
-    'A plain-English whitepaper for a signal-directed onchain fund: public GBX mining, incremental absolute sGBX signaling, oracleless reverse Dutch acquisitions, multi-token capped rewards, selective in-kind redemption, fixed-principal liquidity fee routing, and a governance-minimized immutable core',
+    'A plain-English whitepaper for a signal-directed onchain fund with hourly multislot GBX mining, tenure-locked rates, oracleless acquisitions, selective in-kind redemption, and an immutable core',
   version: status.editionVersion,
   date: status.editionDate,
   status: 'Internal review only · not audited · not deployed · not authorized for user funds',
@@ -23,6 +23,8 @@ export const meta = {
     'USDG',
     'onchain fund',
     'reverse Dutch auction',
+    'multislot mining',
+    'tenure-locked rates',
     'in-kind redemption',
     'governance minimization',
     'Robinhood Chain',

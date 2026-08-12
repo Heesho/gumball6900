@@ -158,7 +158,7 @@ contract AdversarialTest is ProtocolFixture {
             address hostileStrategy
         ) = _deployWith(freezableUSDG);
 
-        _mintGBX(ALICE, 100 ether);
+        _mintTestGBX(ALICE, 100 ether);
         vm.startPrank(ALICE);
         gbx.approve(address(hostileSignalGBX), 100 ether);
         hostileSignalGBX.stake(100 ether);
@@ -435,7 +435,7 @@ contract AdversarialTest is ProtocolFixture {
             address hostileStrategy
         ) = _deployWith(hostileUSDG);
 
-        _mintGBX(ALICE, 100 ether);
+        _mintTestGBX(ALICE, 100 ether);
         vm.startPrank(ALICE);
         gbx.approve(address(hostileSignalGBX), 100 ether);
         hostileSignalGBX.stake(100 ether);
@@ -468,7 +468,7 @@ contract AdversarialTest is ProtocolFixture {
             address hostileStrategy
         ) = _deployWith(hostileUSDG);
 
-        _mintGBX(ALICE, 100 ether);
+        _mintTestGBX(ALICE, 100 ether);
         vm.startPrank(ALICE);
         gbx.approve(address(hostileSignalGBX), 100 ether);
         hostileSignalGBX.stake(100 ether);

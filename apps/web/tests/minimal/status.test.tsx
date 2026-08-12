@@ -8,14 +8,14 @@ describe('core starting-point status page', () => {
     render(<HomePage />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'The governance-minimized GBX protocol.' })).toBeTruthy();
-    expect(screen.getByText('1,000,000,000 GBX')).toBeTruthy();
+    expect(screen.getByText('20,000,000 GBX')).toBeTruthy();
     expect(screen.getByText('100% Fund-bound')).toBeTruthy();
     expect(screen.getByText('None')).toBeTruthy();
     expect(
       screen.getByText(/Point sGBX at the active Strategy for an asset you want Fund to accumulate/i),
     ).toBeTruthy();
     expect(screen.getByText('Pro-rata independently funded Bribe stream')).toBeTruthy();
-    expect(screen.getByText('Fundraiser → Resonance → Strategies')).toBeTruthy();
+    expect(screen.getByText('20% Resonance · 80% displaced miner')).toBeTruthy();
     expect(screen.getByText('USDG → Resonance · GBX → Fund burn · principal fixed')).toBeTruthy();
     expect(screen.getByText('Internally hardened candidate · not deployed · external audit pending')).toBeTruthy();
     expect(screen.getByText('fundRevenueLiability → payFundRevenue()')).toBeTruthy();

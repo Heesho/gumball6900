@@ -5,12 +5,13 @@ import {
   buildApproval,
   buildAddSignal,
   buildAddSignalMany,
-  buildContribution,
+  buildCheckpointMining,
+  buildClaimMiningPayment,
   buildHarvestLiquidityFees,
   buildClaimBribeReward,
   buildClaimSelectedBribeRewards,
   buildFundBurn,
-  buildFundraiserClaim,
+  buildIncreaseMiningCapacity,
   buildIndexPendingRevenue,
   buildPayBribeFundReward,
   buildPayFundRevenue,
@@ -18,15 +19,15 @@ import {
   buildRedemption,
   buildRemoveSignal,
   buildRemoveSignalMany,
-  buildSettleFundraiserEpochs,
+  buildMine,
   buildStrategyBuy,
   buildSyncRevenue,
   bribeAbi,
   bribeRouterAbi,
   fundAbi,
-  fundraiserAbi,
   gbxAbi,
   liquidityPositionAbi,
+  mineAbi,
   strategyAbi,
   resonanceAbi,
 } from '../src/index.js';
@@ -36,14 +37,26 @@ const B = '0x0000000000000000000000000000000000000002';
 const C = '0x0000000000000000000000000000000000000003';
 
 describe('minimal typed transaction builders', () => {
-  it('encodes a standard approval and Fundraiser contribution', () => {
+  it('encodes a standard approval and protected Mine handoff', () => {
     expect(decodeFunctionData({ abi: gbxAbi, data: buildApproval(A, B, 50n).data })).toMatchObject({
       args: [B, 50n],
       functionName: 'approve',
     });
-    expect(decodeFunctionData({ abi: fundraiserAbi, data: buildContribution(A, B, 50n).data })).toMatchObject({
-      args: [B, 50n],
-      functionName: 'contribute',
+    expect(
+      decodeFunctionData({
+        abi: mineAbi,
+        data: buildMine({
+          beneficiary: B,
+          deadline: 1_000n,
+          expectedEpochId: 7n,
+          maximumPrice: 50n,
+          mine: A,
+          slotIndex: 2n,
+        }).data,
+      }),
+    ).toMatchObject({
+      args: [B, 2n, 7n, 1_000n, 50n],
+      functionName: 'mine',
     });
   });
 
@@ -95,17 +108,20 @@ describe('minimal typed transaction builders', () => {
     });
   });
 
-  it('encodes Fundraiser claims for any beneficiary', () => {
-    expect(decodeFunctionData({ abi: fundraiserAbi, data: buildFundraiserClaim(A, B, 7n).data })).toMatchObject({
-      args: [B, 7n],
+  it('encodes permissionless mining claims for the fixed beneficiary', () => {
+    expect(decodeFunctionData({ abi: mineAbi, data: buildClaimMiningPayment(A, B).data })).toMatchObject({
+      args: [B],
       functionName: 'claim',
     });
   });
 
-  it('encodes permissionless Fundraiser settlement and liquidity maintenance', () => {
-    expect(decodeFunctionData({ abi: fundraiserAbi, data: buildSettleFundraiserEpochs(A, 30n).data })).toMatchObject({
-      args: [30n],
-      functionName: 'settleEpochs',
+  it('encodes mining checkpoint, bounded capacity governance, and liquidity maintenance', () => {
+    expect(decodeFunctionData({ abi: mineAbi, data: buildCheckpointMining(A).data })).toMatchObject({
+      functionName: 'checkpointAll',
+    });
+    expect(decodeFunctionData({ abi: mineAbi, data: buildIncreaseMiningCapacity(A, 3n).data })).toMatchObject({
+      args: [3n],
+      functionName: 'increaseCapacity',
     });
     expect(
       decodeFunctionData({ abi: liquidityPositionAbi, data: buildHarvestLiquidityFees(A).data }).functionName,

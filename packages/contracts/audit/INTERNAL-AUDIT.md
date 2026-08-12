@@ -1,5 +1,8 @@
 # Internal adversarial audit
 
+> Historical evidence only. ADR 0024 replaced the distribution contract and supply model with Mine; this report is
+> not an audit of the current development graph.
+
 Date: 2026-08-09
 
 Reviewed candidate: `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84`

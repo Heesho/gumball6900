@@ -8,8 +8,8 @@ import { Bribe } from "../../src/core/Bribe.sol";
 import { BribeFactory } from "../../src/core/BribeFactory.sol";
 import { BribeRouter } from "../../src/core/BribeRouter.sol";
 import { Fund } from "../../src/core/Fund.sol";
-import { Fundraiser } from "../../src/core/Fundraiser.sol";
 import { GBX } from "../../src/core/GBX.sol";
+import { Mine } from "../../src/core/Mine.sol";
 import { Resonance } from "../../src/core/Resonance.sol";
 import { ResonanceRouter } from "../../src/core/ResonanceRouter.sol";
 import { SignalGBX } from "../../src/core/SignalGBX.sol";
@@ -86,7 +86,7 @@ contract ProtocolStateMachineCampaign {
     StrategyFactory public immutable strategyFactory;
     Resonance public immutable resonance;
     ResonanceRouter public immutable resonanceRouter;
-    Fundraiser public immutable fundraiser;
+    Mine public immutable mineContract;
 
     CampaignActor[ACTOR_COUNT] public actors;
     address[] public strategies;
@@ -96,7 +96,7 @@ contract ProtocolStateMachineCampaign {
     uint256 public totalUSDGCreated;
     /// @notice Highest revenue index ever observed, used to prove monotonicity.
     uint256 public highestRevenueIndex;
-    /// @notice GBX supply recorded immediately after deployment, before any emission.
+    /// @notice Complete GBX supply recorded immediately after deployment.
     uint256 public immutable genesisSupply;
 
     constructor() {
@@ -125,8 +125,20 @@ contract ProtocolStateMachineCampaign {
         resonanceRouter = new ResonanceRouter(IERC20(address(usdg)), address(resonance));
         resonance.setResonanceRouter(address(resonanceRouter));
 
-        fundraiser = new Fundraiser(gbx, IERC20(address(usdg)), address(resonanceRouter));
-        gbx.setMinter(address(fundraiser));
+        mineContract = new Mine(
+            gbx,
+            IERC20(address(usdg)),
+            address(resonanceRouter),
+            address(this),
+            Mine.Config({
+                priceMultiplier: 2e18,
+                minimumInitialPrice: 1e6,
+                initialUps: 4 ether,
+                halvingAmount: 490_000_000 ether,
+                tailUps: 0.01 ether
+            })
+        );
+        gbx.setMinter(address(mineContract));
 
         Strategy.Config memory config = Strategy.Config({
             initialPrice: AUCTION_INITIAL_PRICE,
@@ -152,7 +164,7 @@ contract ProtocolStateMachineCampaign {
 
         genesisSupply = gbx.totalSupply();
 
-        // The genesis allocation is the campaign's only source of pre-emission GBX; the rest must be earned.
+        // Seed actors only from the 20 million genesis-liquidity allocation; all later GBX comes from Mine.
         for (uint256 i; i < ACTOR_COUNT; ++i) {
             actors[i] = new CampaignActor();
             gbx.transfer(address(actors[i]), SEED_PER_ACTOR);
@@ -241,13 +253,20 @@ contract ProtocolStateMachineCampaign {
         actor.run(address(resonance), abi.encodeCall(Resonance.removeSignalMany, (selected, amounts)));
     }
 
-    function contribute(uint8 actorSeed, uint64 amount) external {
+    function mine(uint8 actorSeed, uint8 slotSeed) external {
         CampaignActor actor = _actor(actorSeed);
-        uint256 contribution = _clamp(amount, fundraiser.MIN_CONTRIBUTION(), 1_000_000e6);
-        _createUSDG(address(actor), contribution);
+        uint256 index = uint256(slotSeed) % mineContract.capacity();
+        Mine.Slot memory slot = mineContract.getSlot(index);
+        uint256 payment = mineContract.price(index);
+        if (payment != 0) {
+            _createUSDG(address(actor), payment);
+            actor.run(address(usdg), abi.encodeCall(IERC20.approve, (address(mineContract), payment)));
+        }
 
-        actor.run(address(usdg), abi.encodeCall(IERC20.approve, (address(fundraiser), contribution)));
-        actor.run(address(fundraiser), abi.encodeCall(Fundraiser.contribute, (address(actor), contribution)));
+        actor.run(
+            address(mineContract),
+            abi.encodeCall(Mine.mine, (address(actor), index, slot.epochId, block.timestamp, payment))
+        );
     }
 
     function donateRevenue(uint64 amount) external {
@@ -336,16 +355,22 @@ contract ProtocolStateMachineCampaign {
         }
     }
 
-    function settleEpochs(uint8 limit) external {
-        fundraiser.settleEpochs(_clamp(limit, 1, 30));
+    function checkpointMining() external {
+        mineContract.checkpointAll();
+        _recordRevenueIndex();
     }
 
-    function claimEmission(uint8 actorSeed, uint16 epochSeed) external {
+    function claimMiningPayment(uint8 actorSeed) external {
         CampaignActor actor = _actor(actorSeed);
-        uint256 current = fundraiser.currentEpoch();
-        if (current == 0) revert("NO_ENDED_EPOCH");
+        if (mineContract.claimable(address(actor)) == 0) revert("NOTHING_TO_CLAIM");
+        mineContract.claim(address(actor));
+    }
 
-        fundraiser.claim(address(actor), uint256(epochSeed) % current);
+    function increaseMiningCapacity(uint8 capacitySeed) external {
+        uint256 current = mineContract.capacity();
+        if (current == mineContract.MAX_CAPACITY()) revert("MAX_CAPACITY");
+        mineContract.increaseCapacity(_clamp(capacitySeed, current + 1, mineContract.MAX_CAPACITY()));
+        _recordRevenueIndex();
     }
 
     function redeem(uint8 actorSeed, uint96 amount, bool includePaymentAsset) external {
@@ -382,19 +407,19 @@ contract ProtocolStateMachineCampaign {
         return gbx.balanceOf(address(signalGBX)) == signalGBX.totalSupply();
     }
 
-    /// @notice GBX supply always reconciles against its lifetime mint and burn counters.
+    /// @notice GBX supply always reconciles against cumulative issuance and burns.
     function echidna_gbxSupplyReconciles() public view returns (bool holds) {
         return gbx.totalSupply() == gbx.lifetimeMinted() - gbx.lifetimeBurned();
     }
 
-    /// @notice Lifetime minting never passes the one billion ceiling.
-    function echidna_lifetimeMintStaysWithinTheCap() public view returns (bool holds) {
-        return gbx.lifetimeMinted() <= gbx.MAX_LIFETIME_MINT();
+    /// @notice The one-time minter binding remains permanently attached to Mine.
+    function echidna_miningAuthorityRemainsFinal() public view returns (bool holds) {
+        return gbx.minterLocked() && gbx.minter() == address(mineContract);
     }
 
-    /// @notice Emissions never exceed the allocation reserved for the Fundraiser.
-    function echidna_emissionsStayWithinTheAllocation() public view returns (bool holds) {
-        return gbx.lifetimeMinted() - genesisSupply <= fundraiser.DISTRIBUTION_ALLOCATION();
+    /// @notice Pending mining emissions are represented exactly once in effective supply.
+    function echidna_effectiveSupplyIncludesPendingMining() public view returns (bool holds) {
+        return mineContract.effectiveTotalSupply() == gbx.totalSupply() + mineContract.pendingEmission();
     }
 
     /// @notice Per-Strategy signal weights sum exactly to the global total.
@@ -560,9 +585,9 @@ contract ProtocolStateMachineCampaign {
         return true;
     }
 
-    /// @notice Neither router nor Fundraiser ever custodies revenue between transactions.
+    /// @notice The revenue router never custodies revenue between transactions.
     function echidna_revenueIsNeverParkedInARouter() public view returns (bool holds) {
-        return usdg.balanceOf(address(resonanceRouter)) == 0 && usdg.balanceOf(address(fundraiser)) == 0;
+        return usdg.balanceOf(address(resonanceRouter)) == 0;
     }
 
     /// @notice Every auction's starting price stays inside its immutable configured bounds.
@@ -581,17 +606,27 @@ contract ProtocolStateMachineCampaign {
         return gbx.balanceOf(strategies[1]) == 0;
     }
 
-    /// @notice Settlement never runs ahead of the clock or past the end of the schedule.
-    function echidna_settlementNeverOutrunsTheClock() public view returns (bool holds) {
-        return fundraiser.nextEpochToSettle() <= fundraiser.currentEpoch()
-            && fundraiser.nextEpochToSettle() <= fundraiser.DISTRIBUTION_EPOCHS()
-            && fundraiser.currentScheduledEmission() <= fundraiser.INITIAL_DAILY_EMISSION();
+    /// @notice Mining capacity, slot rates, and USDG liabilities remain bounded and solvent.
+    function echidna_miningAccountingStaysBoundedAndSolvent() public view returns (bool holds) {
+        uint256 slotCount = mineContract.capacity();
+        if (slotCount == 0 || slotCount > mineContract.MAX_CAPACITY()) return false;
+        if (usdg.balanceOf(address(mineContract)) != mineContract.totalClaimable()) return false;
+
+        uint256 combinedUps;
+        for (uint256 i; i < slotCount; ++i) {
+            Mine.Slot memory slot = mineContract.getSlot(i);
+            if (slot.miner == address(0) && slot.ups != 0) return false;
+            if (mineContract.price(i) > slot.initialPrice) return false;
+            if (slot.ups > mineContract.initialUps()) return false;
+            combinedUps += slot.ups;
+        }
+        return combinedUps <= mineContract.initialUps() * slotCount && mineContract.nextGlobalUps() >= mineContract.tailUps();
     }
 
     /// @notice USDG is only ever moved between accounts, never created or destroyed by the protocol.
     function echidna_usdgIsConserved() public view returns (bool holds) {
         uint256 total = usdg.balanceOf(address(this)) + usdg.balanceOf(address(resonance))
-            + usdg.balanceOf(address(resonanceRouter)) + usdg.balanceOf(address(fund)) + usdg.balanceOf(address(fundraiser));
+            + usdg.balanceOf(address(resonanceRouter)) + usdg.balanceOf(address(fund)) + usdg.balanceOf(address(mineContract));
 
         for (uint256 i; i < strategies.length; ++i) {
             total += usdg.balanceOf(strategies[i]);

@@ -1,20 +1,34 @@
 # Security invariants
 
-This file defines the accounting identities used by the production-hardening tests. `P` is `1e18`. Quantities named
-`Scaled` are already in precision units; whole-token liabilities are multiplied by `P` in the identity.
+This file defines the accounting identities used by the hardening tests. `P` is `1e18`; quantities named `Scaled`
+already include their precision unit.
 
-## Supply and emission
+## Supply and mining
 
 ```text
-GBX lifetimeMinted <= 1,000,000,000e18
-remaining lifetime mint capacity = MAX_LIFETIME_MINT - lifetimeMinted
-burning never increases remaining lifetime mint capacity
 genesis mint = 20,000,000e18
-Fundraiser capacity = 980,000,000e18
+totalSupply = lifetimeMinted - lifetimeBurned
+pendingEmission = sum_live_slots((now - lastAccruedAt) * slot.ups)
+effectiveTotalSupply = totalSupply + pendingEmission
 ```
 
-Fundraiser settlement is sequential. Each ended day applies exactly one floor-rounded multiplication by
-`0.999525354337060160`; an empty epoch advances the schedule and forfeits that day without carry.
+`slot.ups` is written only when a slot receives a new miner. It is not rewritten by checkpointing, a cumulative-mining
+threshold, a Fund redemption, or `increaseCapacity`. On a handoff, all old accrual is checkpointed first, then:
+
+```text
+newSlot.ups = globalUps(totalMinedAfterCheckpoint) / currentCapacity
+```
+
+For a positive nonempty-slot payment:
+
+```text
+previousMinerClaim = floor(price * 8,000 / 10,000)
+routedRevenue = price - previousMinerClaim
+Mine USDG balance = totalClaimable
+```
+
+For an empty slot, `routedRevenue = price`; for a zero-price handoff both values are zero. Every nonzero token movement
+checks exact sender debit and receiver credit.
 
 ## Signals and virtual Bribe balances
 
@@ -27,13 +41,10 @@ Bribe(strategy).totalSupply() = strategySignalWeight[strategy]
 accountSignalWeight[account] <= SignalGBX.balanceOf(account)
 ```
 
-Removing signal changes only accounting and the Resonance-created Bribe's virtual balance. It does not transfer USDG,
-a Strategy payment token, or a reward token. Unallocated SignalGBX can therefore be unstaked immediately even if a
-fixed payout token is blocked.
+Removing signal changes only accounting and virtual balances. Unallocated SignalGBX remains withdrawable even if a
+fixed payout or reward token is blocked.
 
 ## Resonance USDG conservation
-
-For all registered Strategies:
 
 ```text
 accountedRevenueBalance * P
@@ -43,16 +54,11 @@ accountedRevenueBalance * P
   + (totalClaimableRevenue + fundRevenueLiability) * P
 ```
 
-`unaccountedRevenue = actual USDG balance - accountedRevenueBalance`. `syncRevenue` moves only that surplus into the
-identity. A Strategy or Fund payout reduces both `accountedRevenueBalance` and the matching whole liability exactly.
-
-This identity proves conservation, not historical allocation fairness. A-09 demonstrates that `pendingRevenueScaled`
-is divided by the signal supply present when it becomes indexable, so signal added after receipt can share earlier
-sub-index carry. The same temporal limitation applies to Bribe pending carry below.
+`syncRevenue` moves only actual unaccounted surplus into this identity. Exact payouts reduce both balance and the
+matching whole liability. This proves conservation, not perfect historical attribution; A-09 documents the carry
+boundary limitation.
 
 ## Bribe reward-token conservation
-
-For each registered token, including all account remainders in the test/model state:
 
 ```text
 accountedRewardBalance[token] * P
@@ -66,12 +72,8 @@ accountedRewardBalance[token] * P
   + fundRewardRemainder[token]
 ```
 
-An exact stream of `A` units emits `floor(A / 604800)` each second plus one additional unit during its first
-`A mod 604800` seconds. Zero supply pauses all stream boundaries. A notification behind an active stream queues rather
-than resetting it. A completed exact claim clears only the selected token liability.
-
-Exact temporal attribution across a signal-supply change is not currently an invariant. The deterministic A-09 PoCs
-are expected to demonstrate the open carry-boundary reallocation until the owner selects an accounting policy.
+Zero supply pauses stream boundaries. A live top-up queues instead of resetting the stream. Claims clear only selected
+token liabilities.
 
 ## BribeRouter conservation
 
@@ -79,25 +81,22 @@ are expected to demonstrate the open carry-boundary reallocation until the owner
 accountedPaymentBalance = fundPaymentLiability
 ```
 
-Direct donations are `actual balance - accountedPaymentBalance` and are not silently assigned to Fund. Auction
-payments never enter Bribe accounting.
+Direct donations remain unaccounted surplus. Auction payments never enter Bribe reward accounting.
 
 ## Fund and liquidity
 
-Every selected Fund payout uses the same pre-burn supply and pre-transfer balance snapshot:
+Fund first checkpoints Mine, then every selected payout uses the same post-checkpoint, pre-burn supply and raw balance:
 
 ```text
 payout(token) = floor(balanceBefore(token) * gbxAmount / totalSupplyBeforeBurn)
 ```
 
-The GBX burn and every selected transfer are atomic. LiquidityPosition only accepts its exact precommitted hookless
-NFT and range. Every successful fee harvest satisfies:
+The checkpoint, GBX burn, and every selected transfer are atomic. Every successful liquidity fee harvest satisfies:
 
 ```text
 liquidityAfter = liquidityBefore
-USDG balance after = 0; collected USDG = USDG credited to ResonanceRouter and routed to Resonance
-GBX balance after = 0; collected GBX = GBX credited to Fund and burned
+USDG balance after = 0; collected USDG = USDG routed through ResonanceRouter
+GBX balance after = 0; collected GBX = GBX transferred to Fund and burned
 ```
 
-Those routes and the Fund burn are atomic with fee collection. No function transfers the position NFT out or removes
-principal.
+No function transfers the canonical position NFT out or removes principal.

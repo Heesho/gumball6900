@@ -1,27 +1,22 @@
 import { assertNonNegative } from './integer.js';
 
-export function currentTotalSupply(cumulativeMinted: bigint, cumulativeBurned: bigint): bigint {
-  assertNonNegative(cumulativeMinted, 'cumulativeMinted');
-  assertNonNegative(cumulativeBurned, 'cumulativeBurned');
-  if (cumulativeBurned > cumulativeMinted) {
-    throw new RangeError('cumulativeBurned must not exceed cumulativeMinted');
-  }
-  return cumulativeMinted - cumulativeBurned;
+export function currentTotalSupply(lifetimeMinted: bigint, lifetimeBurned: bigint): bigint {
+  assertNonNegative(lifetimeMinted, 'lifetimeMinted');
+  assertNonNegative(lifetimeBurned, 'lifetimeBurned');
+  if (lifetimeBurned > lifetimeMinted) throw new RangeError('lifetimeBurned must not exceed lifetimeMinted');
+  return lifetimeMinted - lifetimeBurned;
 }
 
-/** Signed result: a later permissionless Fund burn can exceed an epoch's new GBX emission. */
-export function netSupplyChange(newEmission: bigint, gbxBurned: bigint): bigint {
-  assertNonNegative(newEmission, 'newEmission');
+/** Mining increases supply and burns decrease it. */
+export function netSupplyChange(gbxMined: bigint, gbxBurned: bigint): bigint {
+  assertNonNegative(gbxMined, 'gbxMined');
   assertNonNegative(gbxBurned, 'gbxBurned');
-  return newEmission - gbxBurned;
+  return gbxMined - gbxBurned;
 }
 
-export function projectTotalSupply(currentSupply: bigint, newEmission: bigint, gbxBurned: bigint): bigint {
+export function projectTotalSupply(currentSupply: bigint, gbxMined: bigint, gbxBurned: bigint): bigint {
   assertNonNegative(currentSupply, 'currentSupply');
-  const change = netSupplyChange(newEmission, gbxBurned);
-  const projected = currentSupply + change;
-  if (projected < 0n) {
-    throw new RangeError('gbxBurned must not exceed currentSupply plus newEmission');
-  }
+  const projected = currentSupply + netSupplyChange(gbxMined, gbxBurned);
+  if (projected < 0n) throw new RangeError('gbxBurned must not exceed currentSupply plus gbxMined');
   return projected;
 }

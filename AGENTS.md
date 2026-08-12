@@ -7,7 +7,7 @@ authorized for user funds. A green local build is engineering evidence, never a 
 
 - Build the core contracts as a minimal adaptation of the pinned give.fun and Liquid Signal Governance contracts.
   Preserve their simple contract boundaries and behavior unless this file or a recorded ADR explicitly changes them.
-- Use these protocol names consistently: `GBX`, `Fundraiser`, `LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`,
+- Use these protocol names consistently: `GBX`, `Mine`, `LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`,
   `StrategyFactory`, `Strategy`, `BribeFactory`, `BribeRouter`, `Bribe`, and `Fund`.
 - `packages/contracts/src` is the single Solidity source tree shared by Foundry and Hardhat. Core contracts use direct,
   non-upgradeable deployments. `StrategyFactory` and `BribeFactory` are allowed only as Resonance-controlled factories;
@@ -15,15 +15,19 @@ authorized for user funds. A green local build is engineering evidence, never a 
 
 ## Revenue, signaling, and acquisitions
 
-- The normal revenue flow is:
-  `Fundraiser -> ResonanceRouter -> Resonance -> Strategy`.
-  All USDG revenue produced by contributions goes to `ResonanceRouter`; it must not be diverted directly to `Fund`.
-- GBX creates exactly 20 million tokens for the genesis-liquidity recipient. Its remaining 980 million lifetime mint
-  capacity is permanently assigned to `Fundraiser` through the one-time minter handover.
-- Fundraiser uses the fixed daily sequential-floor schedule inherited from the previous implementation: an initial
-  emission of `465152.749681042811702004 GBX`, daily decay `0.999525354337060160`, and a four-year/1,460-day
-  half-life. Empty epochs forfeit that day's emission without carry. Permissionless bounded settlement must preserve
-  sequential rounding; do not replace it with configurable halvings or restore separate mining/controller contracts.
+- Mining revenue follows `Mine -> ResonanceRouter -> Resonance -> Strategy`. On a nonempty-slot replacement, 80% of
+  the USDG payment becomes a pull claim for the displaced miner and 20% routes to Resonance. The first occupation of
+  an empty slot routes 100% to Resonance. There is no team fee.
+- GBX creates only 20 million tokens for the genesis-liquidity recipient. Deployment permanently hands its sole mint
+  authority to one deployed `Mine`; the handover is one-time and cannot be replaced or reopened. There is no
+  protocol-defined economic supply cap, and supply reconciles as `totalSupply == lifetimeMinted - lifetimeBurned`.
+- Mine starts with one slot. Timelock governance may only increase capacity, never decrease it, up to the hard cap of 16. Each slot uses an hourly reverse Dutch replacement auction and may change hands at any time.
+- A slot's assigned GBX-per-second rate is locked for that miner's complete tenure. Checkpoints, redemptions, capacity
+  increases, and cumulative-mining threshold crossings must not reprice or dilute an occupied slot. Only a newly occupied or
+  replaced slot receives `current global rate / current capacity`. Accept that capacity expansion can temporarily
+  increase aggregate issuance while legacy-rate miners remain.
+- Global rates use constructor-immutable cumulative-mining halvings and a strictly positive tail rate. Do not add a
+  rate setter, emissions controller, migration authority, oracle, entropy source, team fee, or claim redirection.
 - `SignalGBX` represents staked GBX. There is no staking withdrawal lock, signal cooldown, epoch restriction, or
   once-per-period allocation rule. Signals are absolute per-Strategy amounts changed by incremental deltas; a signaler
   may add or remove them at any time and may immediately withdraw any unallocated SignalGBX balance.
@@ -36,7 +40,8 @@ authorized for user funds. A green local build is engineering evidence, never a 
   Bribes are funded independently by explicit reward notifications.
 - A Strategy priced in GBX does not burn during settlement. After its fixed liability is paid into `Fund`, anyone may
   burn that GBX through `Fund.burnGBX`. Users should settle and burn pending Fund GBX before calculating a redemption.
-- GBX lifetime minting is capped cumulatively at one billion tokens.
+- Before every redemption denominator snapshot, Fund must checkpoint all Mine slots so accrued unminted GBX is
+  included. Capacity remains bounded so this call stays bounded.
 
 ## Fund behavior
 
@@ -82,9 +87,9 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - `Fund` and `LiquidityPosition` are ownerless. `Fund` assets move only when a GBX holder burns their own tokens
   through redemption; assets that redeemers omit stay in `Fund` for the remaining GBX supply indefinitely. GBX held by
   `Fund` is burnable by anyone through the dedicated burn function.
-- `Resonance` holds the entire remaining administrative surface: `addStrategy`, `killStrategy`, and `addBribeReward`.
-  Nothing else is owner-gated anywhere in the protocol.
-- That administration remains behind OpenZeppelin `TimelockController`, with the project multisig holding proposer and
+- The remaining administrative surface is `Resonance.addStrategy`, `Resonance.killStrategy`,
+  `Resonance.addBribeReward`, and `Mine.increaseCapacity`. Nothing else is owner-gated after one-time setup.
+- Resonance and Mine ownership remain behind OpenZeppelin `TimelockController`, with the project multisig holding proposer and
   canceller roles. The timelock should own Resonance, use a documented minimum delay, have no external default admin
   after setup, and may grant the executor role to the zero address for permissionless execution.
 - CI must never broadcast mainnet transactions.

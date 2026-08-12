@@ -4,39 +4,35 @@ import {
   ACCUMULATOR_PRECISION,
   ABS_MAX_AUCTION_INIT_PRICE,
   ABS_MIN_AUCTION_INIT_PRICE,
-  DAILY_DECAY_WAD,
-  GENESIS_TOTAL_SUPPLY,
-  HALF_LIFE_DECAY_COMPLEMENT_X54,
-  HALF_LIFE_DERIVATION_PRECISION,
-  INITIAL_DAILY_SCHEDULED_EMISSION,
+  GENESIS_LIQUIDITY_ALLOCATION,
+  MAX_MINE_CAPACITY,
   MAX_AUCTION_EPOCH_PERIOD,
   MAX_AUCTION_PRICE_MULTIPLIER,
-  MAX_CUMULATIVE_MINT,
-  FUNDRAISER_DISTRIBUTION_ALLOCATION,
+  MINE_PRICE_DECAY_PERIOD,
   MIN_AUCTION_EPOCH_PERIOD,
   MIN_AUCTION_PRICE_MULTIPLIER,
   WAD,
-  advanceScheduledEmission,
   auctionPriceAt,
   currentTotalSupply,
   earnedStrategyReward,
-  estimateFundraiserClaim,
+  miningRateAt,
   mulDiv,
   mulDivUp,
   netSupplyChange,
+  nextMiningInitialPrice,
   nextAuctionInitPrice,
   previewRedemption,
   projectTotalSupply,
-  quoteFundraiserEpoch,
+  quoteMiningAccrual,
+  quoteMiningPayment,
+  quoteMiningPrice,
   redemptionPercentageWad,
-  simulateAllNonEmptyEmissions,
   settleStrategyPayment,
   updateRewardIndex,
   validateAuctionConfig,
 } from '../src/index.js';
 
 const token = (wholeTokens: bigint): bigint => wholeTokens * WAD;
-const usdg = (wholeTokens: bigint): bigint => wholeTokens * 10n ** 6n;
 
 describe('integer helpers', () => {
   it('matches Solidity-style floor rounding and explicit ceiling rounding', () => {
@@ -51,62 +47,44 @@ describe('integer helpers', () => {
   });
 });
 
-describe('Fundraiser distribution schedule and epoch quotes', () => {
-  it('uses the fixed constants from the master specification', () => {
-    expect(DAILY_DECAY_WAD).toBe(999_525_354_337_060_160n);
-    expect(GENESIS_TOTAL_SUPPLY).toBe(token(20_000_000n));
-    expect(FUNDRAISER_DISTRIBUTION_ALLOCATION).toBe(token(980_000_000n));
-    expect(INITIAL_DAILY_SCHEDULED_EMISSION).toBe(465_152_749_681_042_811_702_004n);
-    expect(INITIAL_DAILY_SCHEDULED_EMISSION).toBe(
-      mulDiv(FUNDRAISER_DISTRIBUTION_ALLOCATION, HALF_LIFE_DECAY_COMPLEMENT_X54, HALF_LIFE_DERIVATION_PRECISION),
-    );
+describe('multislot mining economics', () => {
+  it('pins genesis, hourly decay, and capacity constants', () => {
+    expect(GENESIS_LIQUIDITY_ALLOCATION).toBe(token(20_000_000n));
+    expect(MINE_PRICE_DECAY_PERIOD).toBe(3_600n);
+    expect(MAX_MINE_CAPACITY).toBe(16n);
   });
 
-  it('advances empty epochs instead of carrying their emissions forward', () => {
-    const afterOne = advanceScheduledEmission(INITIAL_DAILY_SCHEDULED_EMISSION);
-    const afterTwo = advanceScheduledEmission(INITIAL_DAILY_SCHEDULED_EMISSION, 2);
-
-    expect(afterOne).toBeLessThan(INITIAL_DAILY_SCHEDULED_EMISSION);
-    expect(afterTwo).toBeLessThan(afterOne);
-    expect(afterOne).toBe(mulDiv(INITIAL_DAILY_SCHEDULED_EMISSION, DAILY_DECAY_WAD, WAD));
+  it('quotes the exact linear replacement price', () => {
+    expect(quoteMiningPrice(2_000_000n, 0n)).toBe(2_000_000n);
+    expect(quoteMiningPrice(2_000_000n, 1_800n)).toBe(1_000_000n);
+    expect(quoteMiningPrice(2_000_000n, 3_600n)).toBe(0n);
   });
 
-  it('tracks the four-year half-life with integer-rounding tolerance', () => {
-    const fourYears = simulateAllNonEmptyEmissions(1_460);
-    const expected = token(490_000_000n);
-    const tolerance = token(1n);
-
-    expect(fourYears.recurringMinted).toBeGreaterThanOrEqual(expected - tolerance);
-    expect(fourYears.recurringMinted).toBeLessThanOrEqual(expected + tolerance);
+  it('routes 80% to a displaced miner and 20% to Resonance', () => {
+    expect(quoteMiningPayment(1_000_000n, true)).toEqual({
+      payment: 1_000_000n,
+      previousMinerAmount: 800_000n,
+      resonanceAmount: 200_000n,
+    });
+    expect(quoteMiningPayment(1_000_000n, false).resonanceAmount).toBe(1_000_000n);
   });
 
-  it('never exceeds the cumulative mint cap over 100 years', () => {
-    const result = simulateAllNonEmptyEmissions(36_500);
-
-    expect(result.totalCumulativeMinted).toBeLessThanOrEqual(MAX_CUMULATIVE_MINT);
-    expect(result.recurringMinted).toBeLessThanOrEqual(FUNDRAISER_DISTRIBUTION_ALLOCATION);
+  it('keeps tenure rates fixed when capacity grows', () => {
+    const quote = quoteMiningAccrual({ elapsedSeconds: 100n, slotUps: [4n, 2n] });
+    expect(quote).toEqual({ slotEmissions: [400n, 200n], totalEmission: 600n });
   });
 
-  it('quotes complete non-empty emissions without demand scaling and forfeits empty epochs', () => {
-    const common = {
-      scheduledEmission: token(100n),
-      cumulativeMinted: GENESIS_TOTAL_SUPPLY,
-    };
-
-    const large = quoteFundraiserEpoch({ ...common, totalContributedRaw: usdg(250n) });
-    const oneAtom = quoteFundraiserEpoch({ ...common, totalContributedRaw: 1n });
-    expect(large.nonEmpty).toBe(true);
-    expect(large.actualEmission).toBe(token(100n));
-    expect(oneAtom.actualEmission).toBe(large.actualEmission);
-
-    const empty = quoteFundraiserEpoch({ ...common, totalContributedRaw: 0n });
-    expect(empty.nonEmpty).toBe(false);
-    expect(empty.actualEmission).toBe(0n);
-    expect(empty.forfeitedEmission).toBe(token(100n));
+  it('applies halvings only when a slot is next assigned', () => {
+    const curve = { halvingAmount: 1_000n, initialUps: 10n, tailUps: 1n };
+    expect(miningRateAt(999n, curve)).toBe(10n);
+    expect(miningRateAt(1_000n, curve)).toBe(5n);
+    expect(miningRateAt(1_500n, curve)).toBe(2n);
+    expect(miningRateAt(10_000n, curve)).toBe(1n);
   });
 
-  it('uses pro-rata claim accounting', () => {
-    expect(estimateFundraiserClaim(token(25n), token(100n), token(80n))).toBe(token(20n));
+  it('clamps the next mining initial price', () => {
+    expect(nextMiningInitialPrice(1_000_000n, 2n * WAD, 1_000_000n, 10_000_000n)).toBe(2_000_000n);
+    expect(nextMiningInitialPrice(0n, 2n * WAD, 1_000_000n, 10_000_000n)).toBe(1_000_000n);
   });
 });
 
@@ -215,9 +193,9 @@ describe('redemption and supply', () => {
     ]);
   });
 
-  it('tracks real burns without reopening mint capacity', () => {
-    expect(currentTotalSupply(token(150_000_000n), token(5_000_000n))).toBe(token(145_000_000n));
-    expect(netSupplyChange(token(1_000_000n), token(2_000_000n))).toBe(-token(1_000_000n));
-    expect(projectTotalSupply(token(145_000_000n), token(1_000_000n), token(2_000_000n))).toBe(token(144_000_000n));
+  it('tracks continuous mining and burns', () => {
+    expect(currentTotalSupply(token(25_000_000n), token(5_000_000n))).toBe(token(20_000_000n));
+    expect(netSupplyChange(token(3_000_000n), token(2_000_000n))).toBe(token(1_000_000n));
+    expect(projectTotalSupply(token(20_000_000n), token(3_000_000n), token(2_000_000n))).toBe(token(21_000_000n));
   });
 });

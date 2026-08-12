@@ -12,7 +12,7 @@ production machinery than was useful for early protocol iteration. That made the
 mechanics the project team already understood.
 
 The first replacement draft overcorrected to six contracts. It omitted revenue and bribe routers, both factories, signal
-rewards, selective redemption, and migration. It also retained the names `Miner` and `Auction`, which did not match the
+rewards, selective redemption, and migration. It also retained the names `Mine` and `Auction`, which did not match the
 project language.
 
 ## Decision
@@ -37,7 +37,7 @@ The system makes the following deliberate choices:
 - Resonance and Fund administration use OpenZeppelin `TimelockController`, with the project multisig as proposer and
   canceller, permissionless delayed execution, and no external default administrator.
 
-The cumulative one-billion lifetime GBX mint ceiling remains mandatory and burns never reopen mint capacity.
+The historical cumulative mint ceiling was superseded by ADR 0023's complete fixed-supply construction.
 
 ## Consequences
 

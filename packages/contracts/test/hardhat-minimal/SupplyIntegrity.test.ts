@@ -1,30 +1,43 @@
 import { expect } from 'chai';
 import { ethers } from 'hardhat';
 
-describe('GBX lifetime supply integrity', function () {
-  it('never reopens lifetime mint capacity after a burn', async function () {
-    const [deployer, holder] = await ethers.getSigners();
-    if (deployer === undefined || holder === undefined) throw new Error('Hardhat signers unavailable');
+describe('GBX mining authority integrity', function () {
+  it('creates only the twenty-million genesis allocation', async function () {
+    const [deployer] = await ethers.getSigners();
+    if (deployer === undefined) throw new Error('Hardhat signer unavailable');
 
     const token = await ethers.deployContract('GBX', [deployer.address, deployer.address]);
     await token.waitForDeployment();
 
-    const amount = ethers.parseEther('100');
-    const lifetimeCap = BigInt(await token.getFunction('MAX_LIFETIME_MINT')());
-    const genesisAllocation = BigInt(await token.getFunction('GENESIS_LIQUIDITY_ALLOCATION')());
+    const genesisAllocation = ethers.parseEther('20000000');
+    expect(await token.getFunction('GENESIS_LIQUIDITY_ALLOCATION')()).to.equal(genesisAllocation);
+    expect(await token.getFunction('totalSupply')()).to.equal(genesisAllocation);
+    expect(await token.getFunction('lifetimeMinted')()).to.equal(genesisAllocation);
+    expect(await token.getFunction('balanceOf')(deployer.address)).to.equal(genesisAllocation);
+    expect(await token.getFunction('minter')()).to.equal(deployer.address);
+    expect(await token.getFunction('minterLocked')()).to.equal(false);
+  });
 
-    await expect(token.getFunction('mint')(holder.address, amount)).to.be.revertedWithCustomError(
+  it('requires deployed code for the permanent minter handover and forbids premature minting', async function () {
+    const [deployer, account] = await ethers.getSigners();
+    if (deployer === undefined || account === undefined) throw new Error('Hardhat signers unavailable');
+
+    const token = await ethers.deployContract('GBX', [deployer.address, deployer.address]);
+    await token.waitForDeployment();
+
+    await expect(token.getFunction('mint')(account.address, 1n)).to.be.revertedWithCustomError(
       token,
       'MinterNotLocked',
     );
-    await token.getFunction('setMinter')(holder.address);
-    await token.connect(holder).getFunction('mint')(holder.address, amount);
-    expect(await token.getFunction('lifetimeMinted')()).to.equal(genesisAllocation + amount);
-    expect(await token.getFunction('remainingMintableSupply')()).to.equal(lifetimeCap - genesisAllocation - amount);
+    await expect(token.getFunction('setMinter')(account.address)).to.be.revertedWithCustomError(
+      token,
+      'AddressHasNoCode',
+    );
 
-    await token.connect(holder).getFunction('burn')(amount);
-    expect(await token.getFunction('lifetimeBurned')()).to.equal(amount);
-    expect(await token.getFunction('totalSupply')()).to.equal(genesisAllocation);
-    expect(await token.getFunction('remainingMintableSupply')()).to.equal(lifetimeCap - genesisAllocation - amount);
+    const tokenAddress = await token.getAddress();
+    await token.getFunction('setMinter')(tokenAddress);
+    expect(await token.getFunction('minter')()).to.equal(tokenAddress);
+    expect(await token.getFunction('minterLocked')()).to.equal(true);
+    await expect(token.getFunction('setMinter')(tokenAddress)).to.be.revertedWithCustomError(token, 'NotMinter');
   });
 });

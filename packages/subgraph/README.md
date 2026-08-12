@@ -1,11 +1,12 @@
 # GUM BALL 6900 subgraph
 
-Minimal read model for the provisional Robinhood Chain core. It indexes fixed `GBX`, `Fundraiser`,
-`LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`, `Fund`, and OpenZeppelin `TimelockController` data sources.
+Minimal read model for the provisional core. It indexes `GBX`, `Mine`, `LiquidityPosition`, `SignalGBX`,
+`ResonanceRouter`, `Resonance`, `Fund`, and OpenZeppelin `TimelockController` data sources.
 
-The subgraph tracks raw integer supply, contribution, staking, revenue, Strategy, signal, redemption, and
-timelock state. `ProtocolEvent` also records every handled core event positionally. It is a convenience index, not
-authoritative protocol accounting.
+The subgraph tracks minted and burned supply, mining slots and claims, staking, revenue, Strategies, signals,
+redemptions, and timelock state. `ProtocolEvent` records handled events positionally. This is a convenience index, not
+authoritative protocol accounting; pending Mine accrual continues between events and must be computed from slot rate
+and timestamp when a live effective-supply view is needed.
 
 `networks.json` intentionally contains zero-address placeholders until a reviewed deployment resolves every address
 and start block. Production network validation therefore fails closed.
@@ -17,5 +18,5 @@ pnpm --filter @gumball-6900/subgraph build
 pnpm --filter @gumball-6900/subgraph test
 ```
 
-ABIs are generated from current Foundry artifacts and must not be hand-edited. The specification check requires the
-exact five-entity schema and all 32 manifest/mapping handlers.
+ABIs come from current Foundry artifacts and must not be hand-edited. The specification check requires the exact
+five-entity schema and all declared manifest/mapping handlers.

@@ -6,176 +6,67 @@ import {
   loadTypeScriptEconomicSuite,
 } from './economic-fixture-harness.js';
 
-type RecordValue = Record<string, unknown>;
+type Row = Record<string, unknown>;
+const row = (value: unknown): Row => value as Row;
+const list = (value: unknown): unknown[] => value as unknown[];
+const integer = (value: unknown): bigint => BigInt(value as string);
 
-function record(value: unknown): RecordValue {
-  expect(value).toBeTypeOf('object');
-  expect(value).not.toBeNull();
-  expect(Array.isArray(value)).toBe(false);
-  return value as RecordValue;
-}
-
-function list(value: unknown): unknown[] {
-  expect(Array.isArray(value)).toBe(true);
-  return value as unknown[];
-}
-
-function integer(value: unknown): bigint {
-  expect(value).toMatch(/^\d+$/);
-  return BigInt(value as string);
-}
-
-function namedEntry(entries: RecordValue[], id: string): RecordValue {
-  const entry = entries.find((candidate) => candidate.id === id);
-  expect(entry).toBeDefined();
-  return entry as RecordValue;
-}
-
-describe('minimal-protocol economic suite', () => {
-  it('matches the independent Python model and generated fixture', () => {
-    const typeScript = loadTypeScriptEconomicSuite();
-    expect(loadPythonEconomicSuite()).toEqual(typeScript);
-    expect(loadCommittedEconomicFixture()).toEqual(typeScript);
+describe('multislot Mine economic suite', () => {
+  it('matches the independent Python model and committed fixture', () => {
+    const typescript = loadTypeScriptEconomicSuite();
+    expect(loadPythonEconomicSuite()).toEqual(typescript);
+    expect(loadCommittedEconomicFixture()).toEqual(typescript);
   });
 
-  it('pins 20M genesis, 980M mining, and the exact sequential floor schedule', () => {
-    const root = record(loadTypeScriptEconomicSuite());
-    const assumptions = record(root.assumptions);
-    expect(assumptions.genesisSupply).toBe('20000000000000000000000000');
-    expect(assumptions.miningEmissionAllocation).toBe('980000000000000000000000000');
-    expect(assumptions.initialDailyScheduledEmission).toBe('465152749681042811702004');
-    expect(assumptions.dailyDecayWad).toBe('999525354337060160');
+  it('pins no-economic-cap supply, 80/20 handoffs, and the one-hour price endpoint', () => {
+    const root = row(loadTypeScriptEconomicSuite());
+    const assumptions = row(root.assumptions);
+    expect(assumptions.infiniteSupply).toBe(true);
+    expect(assumptions.priceDecaySeconds).toBe('3600');
+    expect(assumptions.previousMinerBps).toBe('8000');
+    expect(assumptions.resonanceRevenueBps).toBe('2000');
 
-    const emissions = record(root.emissions);
-    expect(record(emissions.scheduleLifetime)).toEqual({
-      positiveEpochs: '99884',
-      sequentialScheduledTotal: '979999999999999181815005172',
-      nominalAllocationResidual: '818184994828',
-    });
+    const mining = row(root.mining);
+    const curve = list(mining.priceCurve).map(row);
+    expect(curve.map((point) => point.priceRaw)).toEqual(['2000000', '1500000', '1000000', '500000', '0']);
+    const replacement = list(mining.paymentSplits).map(row)[1]!;
+    expect(replacement.previousMiner).toBe('800000');
+    expect(replacement.resonance).toBe('200000');
   });
 
-  it('mints the full schedule for every non-empty epoch and forfeits empty epochs', () => {
-    const emissions = record(record(loadTypeScriptEconomicSuite()).emissions);
-    const scenarios = list(emissions.participationScenarios).map(record);
-    expect(scenarios.map((scenario) => scenario.id)).toEqual([
-      'all-nonempty-large',
-      'all-nonempty-one-atom',
-      'sporadic-nonempty',
-      'long-empty-period',
+  it('keeps an incumbent rate fixed when capacity expands', () => {
+    const capacity = row(row(row(loadTypeScriptEconomicSuite()).mining).capacityExpansion);
+    expect(capacity.capacityBefore).toBe('1');
+    expect(capacity.capacityAfter).toBe('3');
+    expect(capacity.incumbentRateAfterExpansionPerHour).toBe(capacity.incumbentRatePerHour);
+    expect(integer(capacity.aggregateOneHourEmission)).toBeGreaterThan(integer(capacity.undividedGlobalRatePerHour));
+    expect(list(capacity.oneHourEmissions)).toEqual([
+      '100000000000000000000',
+      '33333333333333333333',
+      '33333333333333333333',
     ]);
+  });
 
-    for (const scenario of scenarios) {
-      expect(list(scenario.checkpoints).map((checkpoint) => record(checkpoint).days)).toEqual([
-        '365',
-        '1460',
-        '2920',
-        '5840',
-        '11680',
-      ]);
-      for (const checkpoint of list(scenario.checkpoints).map(record)) {
-        expect(integer(checkpoint.totalCumulativeMinted)).toBeLessThanOrEqual(1_000_000_000n * 10n ** 18n);
-      }
-    }
+  it('applies a lower rate only at a later slot handoff and preserves a positive tail', () => {
+    const mining = row(row(loadTypeScriptEconomicSuite()).mining);
+    const halving = row(mining.handoffHalving);
+    expect(halving.incumbentRateAfterThreshold).toBe(halving.globalRateBefore);
+    expect(integer(halving.nextReplacementRateAtCapacityThree)).toBeLessThan(integer(halving.globalRateBefore));
+    const tail = row(mining.infiniteTail);
+    expect(integer(tail.annualTailEmission)).toBeGreaterThan(0n);
+  });
 
-    const large = list(scenarios[0]?.checkpoints).map(record);
-    const oneAtom = list(scenarios[1]?.checkpoints).map(record);
-    expect(oneAtom.map((checkpoint) => checkpoint.recurringMinted)).toEqual(
-      large.map((checkpoint) => checkpoint.recurringMinted),
+  it('checkpoints pending mining before the redemption denominator', () => {
+    const redemption = row(row(loadTypeScriptEconomicSuite()).redemption);
+    expect(integer(redemption.denominatorAfterCheckpoint)).toBe(
+      integer(redemption.supplyBeforeCheckpoint) + integer(redemption.pendingMining),
     );
-    expect(integer(oneAtom.at(-1)?.totalUSDGAcceptedRaw)).toBeLessThan(integer(large.at(-1)?.totalUSDGAcceptedRaw));
-
-    const sporadic = list(scenarios[2]?.checkpoints).map(record).at(-1)!;
-    expect(integer(sporadic.emptyEpochs)).toBeGreaterThan(0n);
-    expect(integer(sporadic.forfeitedScheduled)).toBeGreaterThan(0n);
-    expect(integer(sporadic.recurringMinted)).toBeLessThan(integer(large.at(-1)?.recurringMinted));
+    expect(integer(redemption.payoutWithCheckpointRaw)).toBeLessThan(integer(redemption.payoutWithoutCheckpointRaw));
   });
 
-  it('keeps burns independent from cumulative lifetime mint capacity', () => {
-    const emissions = record(record(loadTypeScriptEconomicSuite()).emissions);
-    const rows = list(emissions.burnSweep).map(record);
-    for (const day of new Set(rows.map((row) => row.days as string))) {
-      const group = rows.filter((row) => row.days === day);
-      const recurring = group[0]?.recurringMinted;
-      expect(group.every((row) => row.recurringMinted === recurring)).toBe(true);
-      for (const row of group) {
-        expect(integer(row.currentSupply) + integer(row.actualBurn)).toBe(
-          20_000_000n * 10n ** 18n + integer(row.recurringMinted),
-        );
-      }
-    }
-  });
-
-  it('contains no public bootstrap or 80M miner allocation', () => {
-    const genesis = record(record(loadTypeScriptEconomicSuite()).genesisLiquidity);
-    expect(genesis.publicBootstrap).toBe(false);
-    expect(genesis.constructorMintGBXRaw).toBe('20000000000000000000000000');
-    expect(genesis.oneSidedPositionBudgetGBXRaw).toBe(genesis.constructorMintGBXRaw);
-    expect(genesis.unusedResidualPolicy).toBe('burn');
-    const regression = record(genesis.sixDecimalRegression);
-    expect(regression.normalizedOneUSDG).toBe('1000000000000000000');
-  });
-
-  it('matches AuctionEngine endpoint, last-second, and next-price clamp behavior', () => {
-    const auctions = record(record(loadTypeScriptEconomicSuite()).auctions);
-    const curve = list(auctions.curve).map(record);
-    expect(curve[0]?.paymentAmount).toBe('100000000000000000000000');
-    expect(integer(curve[4]?.paymentAmount)).toBeGreaterThan(0n);
-    expect(curve[5]?.paymentAmount).toBe('0');
-    expect(curve[6]?.paymentAmount).toBe('0');
-
-    const transitions = list(auctions.transitions).map(record);
-    expect(transitions[0]?.nextInitPrice).toBe('200000000000000000000000');
-    expect(transitions[2]?.nextInitPrice).toBe('1000000');
-    expect(transitions[3]?.nextInitPrice).toBe('1000000');
-    const bounds = record(auctions.bounds);
-    expect(bounds.minEpochPeriod).toBe('3600');
-    expect(bounds.maxEpochPeriod).toBe('31536000');
-  });
-
-  it('uses immediate floor-index rewards and keeps auction payments entirely Fund-bound', () => {
-    const rewards = record(record(loadTypeScriptEconomicSuite()).bribeRewards);
-    const examples = list(rewards.rewardIndexExamples).map(record);
-    const dust = namedEntry(examples, 'independent-floor-residue');
-    expect(dust.rewardPerWeightIncrement).toBe('33');
-    expect(dust.indexedReward).toBe('9');
-    expect(dust.residue).toBe('1');
-
-    const yields = list(rewards.rewardYieldByStrategy).map(record);
-    const active = yields[0]!;
-    const inactive = yields[2]!;
-    expect(integer(active.notifiedReward)).toBeGreaterThan(0n);
-    expect(integer(active.rewardPerActiveGBX)).toBeGreaterThan(0n);
-    expect(inactive.rewardPerActiveGBX).toBe('0');
-
-    for (const settlement of list(rewards.strategySettlementConservation).map(record)) {
-      expect(settlement.fundAmount).toBe(settlement.paymentAmount);
-      expect(settlement.auctionBribeReward).toBe('0');
-    }
-  });
-
-  it('conserves strategy budgets, raw redemptions, and explicit Fund-burn supply accounting', () => {
-    const root = record(loadTypeScriptEconomicSuite());
-    const budget = list(record(root.auctions).budgetAccumulation).map(record);
-    let opening = 0n;
-    for (const row of budget) {
-      expect(opening + integer(row.allocatedUSDGRaw)).toBe(
-        integer(row.closingBudgetUSDGRaw) + integer(row.lotSpentUSDGRaw),
-      );
-      opening = integer(row.closingBudgetUSDGRaw);
-    }
-
-    const section = record(root.redemptionAndGbxBurn);
-    const miningRevenue = record(section.miningRevenueAcquisitionAndBurn);
-    expect(integer(miningRevenue.supplyAfter)).toBe(
-      integer(miningRevenue.startingSupply) + integer(miningRevenue.emission) - integer(miningRevenue.gbxBurned),
-    );
-    const feeHarvest = record(section.liquidityFeeHarvest);
-    expect(feeHarvest.principalLiquidityAfter).toBe(feeHarvest.principalLiquidityBefore);
-    expect(feeHarvest.usdgRoutedToResonanceRaw).toBe(feeHarvest.usdgFeesRaw);
-    expect(feeHarvest.gbxSentToFund).toBe(feeHarvest.gbxFees);
-    expect(feeHarvest.gbxBurned).toBe(feeHarvest.gbxFees);
-    expect(integer(feeHarvest.supplyAfter)).toBe(integer(feeHarvest.startingSupply) - integer(feeHarvest.gbxBurned));
-    const redemptions = list(section.sequentialLargeRedemptions).map(record);
-    expect(redemptions.at(-1)?.supplyAfter).toBe('25000000000000000000000000');
+  it('reconciles cumulative issuance and burns without a maximum supply', () => {
+    const supply = row(row(loadTypeScriptEconomicSuite()).supply);
+    expect(supply.maximumSupply).toBeNull();
+    expect(integer(supply.totalSupply)).toBe(integer(supply.lifetimeMinted) - integer(supply.lifetimeBurned));
   });
 });

@@ -1,53 +1,40 @@
 # Release checklist
 
-Current description: **internal adversarial review completed with open findings; focused independent security review
-is required**. This is not a production-ready or deployment-authorized state.
+Current description: **ADR 0024 development candidate; independent review required**. This is not production-ready or
+deployment-authorized.
 
 ## Internal engineering
 
-- [x] Contract graph and minimized trust model preserved; ADR 0021 supersedes the earlier settlement split.
-- [x] A-02 exact revenue carry implemented with conservation invariants.
-- [x] A-03 exact stream/queue/zero-supply accounting and selective claims implemented.
-- [x] A-04 exit path decoupled from fixed-destination transfers.
-- [x] A-06 caller-funded LP composition risk removed by ADR 0022 fixed-principal fee routing.
-- [x] Eight-token cap preserved and worst-case exit gas measured below 3,000,000.
-- [x] ABI generation and subgraph ABI synchronization updated.
-- [x] Genuine Uniswap v4 integration suite passed.
-- [x] Target-chain EIP-1153 and documented v4 addresses checked at a pinned block.
-- [ ] A-09 carry-boundary reallocation resolved or explicitly accepted with a documented low-decimal-token policy.
-- [ ] Current-tree mutation campaign has no surviving meaningful mutant.
-- [x] Medusa 1.5.1 passes the current graph at more than 100,000 calls.
-- [ ] Pinned Echidna 2.3.2 passes the current graph.
-- [ ] Mythril/symbolic checks complete or formally dispositioned.
-- [x] Static disposition database regenerated for the current graph.
-- [x] Coverage and Mythril policies enumerate the exact current 12-contract graph and fail closed on drift.
-- [ ] Six redacted Gitleaks history matches independently classified.
+- [x] Fundraiser removed and immutable multislot Mine implemented.
+- [x] Incumbent slot rates remain fixed through checkpoints, thresholds, redemptions, and capacity increases.
+- [x] Capacity is increase-only from one to sixteen.
+- [x] Nonempty payments classify 80% to displaced miner and 20% to Resonance; empty slots route 100%.
+- [x] Fund checkpoints all live slots before the redemption denominator.
+- [x] SDK, subgraph, simulations, whitepaper, frontend, and active architecture docs updated.
+- [x] Full current-tree Foundry, Hardhat, SDK, subgraph, simulation, frontend, documentation, and workspace gates pass.
+- [ ] Static findings regenerated and manually dispositioned for the Mine graph.
+- [ ] Current-tree coverage thresholds recorded for Mine.
+- [ ] Current-tree mutation, Medusa, and pinned Echidna campaigns complete.
+- [ ] Compatible symbolic analysis or explicit independent disposition complete.
+- [ ] A-09 resolved or explicitly accepted with a supported-token policy.
 
-## Independent and legal
+## Economic and independent review
 
-- [ ] Independent external audit complete; all Critical/High/Medium findings resolved.
-- [ ] Licensing/provenance approved by counsel, including Euler/Solidly/Synthetix lineage and Uniswap dependency terms.
+- [ ] Initial GBX/second, cumulative halving amount, positive tail, USDG multiplier, and minimum price approved.
+- [ ] Fixed-tenure transitional over-issuance modeled under capacity and threshold scenarios.
+- [ ] Rollover, zero-price replacement, MEV, demand collapse, and thin-liquidity scenarios reviewed.
+- [ ] Independent external audit complete; all material findings resolved.
+- [ ] Farplace, give.fun, Liquid Signal, Euler, Solidly, Synthetix, and dependency provenance cleared by counsel.
 - [ ] Repository license, SPDX identifiers, attribution, and notices approved.
 
 ## Deployment evidence
 
-- [ ] Canonical USDG and all external dependency addresses approved.
-- [ ] Current ADR 0021 deployment schema and non-broadcast validation harness replace the archived legacy graph.
-- [ ] Signed manifest verifies chain ID, runtime bytecode, constructor arguments, and code hashes.
+- [ ] Canonical USDG and Uniswap dependencies approved with runtime code hashes.
+- [ ] Signed manifest verifies chain, bytecode, constructor arguments, immutable Mine parameters, and dependencies.
+- [ ] GBX genesis recipient receives exactly 20M and permanent minter handoff resolves to the deployed Mine.
+- [ ] Mine starts at capacity one; Resonance and Mine ownership resolve to the reviewed timelock.
 - [ ] Timelock delay and proposer/canceller/executor/default-admin roles verified.
-- [ ] GBX minter lock and all one-time bindings verified.
-- [ ] PoolKey, initial price, ticks, NFT ID, genesis principal, rounding residual, and final custody verified.
-- [ ] Frontend stays read-only until the complete manifest passes.
-- [ ] No CI or local script broadcasts mainnet transactions during validation.
-
-## Blocked reproducible commands
-
-```bash
-bash packages/contracts/audit/install-tools.sh nightly
-bash packages/contracts/audit/run-nightly.sh
-FOUNDRY_PROFILE=nightly forge test --summary
-```
-
-The pinned nightly command requires Docker for Echidna and Mythril. Exact Foundry 1.7.1 is available and was used for
-the completed contract and Medusa campaigns, but Docker is unavailable. A native Echidna 2.3.3 fallback is not a
-substitute for the pinned 2.3.2 image; all four native workers crashed before transaction one.
+- [ ] One-time Resonance/factory/router bindings verified.
+- [ ] PoolKey, price, ticks, NFT ID, genesis principal, rounding residual, and permanent custody verified.
+- [ ] Frontend remains read-only until the complete manifest passes.
+- [ ] No CI or local validation script broadcasts mainnet transactions.

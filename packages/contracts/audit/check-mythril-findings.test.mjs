@@ -202,13 +202,13 @@ test('records and rejects unresolved immutable and library references before lau
 
   await assert.rejects(
     runMythrilCampaign({ ...current, mythExecutable: resolve(current.root, 'missing-mythril-executable') }),
-    /compatibility blocker.*constructor-resolved runtime required.*Fundraiser:immutable-ids=fixture-immutable.*FixtureLibrary/,
+    /compatibility blocker.*constructor-resolved runtime required.*Mine:immutable-ids=fixture-immutable.*FixtureLibrary/,
   );
   const summary = JSON.parse(await readFile(resolve(current.reportDirectory, 'mythril-summary.json'), 'utf8'));
   const evidence = summary.compatibility.unresolvedRuntimeTargets[0];
   assert.equal(summary.success, false);
   assert.equal(summary.compatibility.bytecodeResolution, MYTHRIL_ANALYSIS.bytecodeResolution);
-  assert.equal(evidence.contract, 'Fundraiser');
+  assert.equal(evidence.contract, 'Mine');
   assert.match(evidence.templateBytecodeSha256, /^[a-f0-9]{64}$/);
   assert.deepEqual(evidence.immutableReferences, [{ id: 'fixture-immutable', spans: [{ length: 1, start: 1 }] }]);
   assert.deepEqual(evidence.linkReferences, [

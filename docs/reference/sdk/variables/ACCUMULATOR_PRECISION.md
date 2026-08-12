@@ -8,4 +8,4 @@
 
 > `const` **ACCUMULATOR_PRECISION**: `bigint`
 
-High-precision scale used by allocation and manager-reward accumulators.
+High-precision scale used by allocation and reward accumulators.

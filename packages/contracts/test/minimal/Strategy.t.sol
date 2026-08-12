@@ -395,7 +395,7 @@ contract StrategyTest is ProtocolFixture {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(gbxStrategy));
         _fundStrategy(gbxStrategy, 50_000_000);
-        _mintGBX(BOB, DEFAULT_INITIAL_PRICE);
+        _mintTestGBX(BOB, DEFAULT_INITIAL_PRICE);
 
         uint256 supplyBefore = gbx.totalSupply();
         uint256 burnedBefore = gbx.lifetimeBurned();
@@ -568,7 +568,7 @@ contract StrategyTest is ProtocolFixture {
         vm.warp(DEPLOYED_AT + elapsed);
 
         uint256 price = gbxStrategy.currentPrice();
-        if (price != 0) _mintGBX(BOB, price);
+        if (price != 0) _mintTestGBX(BOB, price);
         uint256 supplyBefore = gbx.totalSupply();
 
         vm.startPrank(BOB);

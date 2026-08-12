@@ -4,7 +4,7 @@ export const metadata: Metadata = { title: 'Governance-minimized final design' }
 
 const contracts = [
   'GBX',
-  'Fundraiser',
+  'Mine',
   'LiquidityPosition',
   'SignalGBX (sGBX)',
   'ResonanceRouter',
@@ -20,6 +20,7 @@ const contracts = [
 const deploymentInputs = [
   'USDG, Uniswap v4, genesis price, and single-sided range inputs',
   'Timelock delay, multisig proposer/canceller, and permissionless executor roles',
+  'Mine multiplier, minimum USDG price, initial GBX/second, halving amount, and positive tail',
   'Initial Strategy payment tokens and bounded auction parameters',
   'Independent security review of the immutable final bytecode',
   'Written third-party licensing and provenance clearance',
@@ -41,7 +42,7 @@ export default function HomePage() {
           pro-rata basket without an asset registry.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
-          <Metric label="Lifetime mint ceiling" value="1,000,000,000 GBX" />
+          <Metric label="Genesis GBX supply" value="20,000,000 GBX" />
           <Metric label="Strategy payment destination" value="100% Fund-bound" />
           <Metric label="Staking withdrawal lock" value="None" />
         </div>
@@ -64,7 +65,7 @@ export default function HomePage() {
 
         <Panel eyebrow="Core economics" title="Simple, explicit value flows">
           <dl className="space-y-5">
-            <Definition label="Contribution revenue" value="Fundraiser → Resonance → Strategies" />
+            <Definition label="Mining revenue" value="20% Resonance · 80% displaced miner" />
             <Definition label="v4 position fees" value="USDG → Resonance · GBX → Fund burn · principal fixed" />
             <Definition label="Strategy payment" value="100% fixed Fund liability" />
             <Definition label="GBX payment" value="Fund receipt · optional later burn" />
@@ -78,22 +79,24 @@ export default function HomePage() {
       <section className="grid gap-5 lg:grid-cols-2">
         <Panel eyebrow="Target guarantees" title="What the final contract code must keep narrow">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
-            <li>Burns never reopen lifetime mint capacity.</li>
+            <li>GBX starts at 20M and permanently assigns future issuance to one immutable Mine.</li>
+            <li>An occupied slot keeps its assigned rate until replacement, including across capacity increases.</li>
             <li>Redemption always uses pre-burn supply and caller-selected Fund balances.</li>
             <li>Fund has no asset registry or protocol-wide token loop.</li>
             <li>GBX payments remain supply-neutral until a permissionless Fund burn.</li>
             <li>SignalGBX (sGBX) withdrawals have no time lock after allocations are reset.</li>
-            <li>Genesis supply is fixed at 20M for v4 liquidity and 980M for the Fundraiser schedule.</li>
+            <li>Mine capacity starts at one, can only increase, and is capped at sixteen.</li>
             <li>The deployed core has no proxy, upgrade path, treasury recovery, or successor migration.</li>
             <li>Supported token movements fail closed unless sender debit and receiver credit are both exact.</li>
           </ul>
         </Panel>
 
-        <Panel eyebrow="Governance" title="Exactly three timelocked Resonance actions">
+        <Panel eyebrow="Governance" title="Four narrow timelocked actions">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
             <li>Add a Strategy.</li>
             <li>Kill a Strategy.</li>
             <li>Add Bribe rewards.</li>
+            <li>Increase Mine capacity, without repricing incumbent slots.</li>
           </ul>
           <p className="mt-5 text-xs leading-5 text-[#778786]">
             Everything else is fixed in code or directed continuously through sGBX signals.

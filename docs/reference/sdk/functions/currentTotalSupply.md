@@ -6,14 +6,14 @@
 
 # Function: currentTotalSupply()
 
-> **currentTotalSupply**(`cumulativeMinted`, `cumulativeBurned`): `bigint`
+> **currentTotalSupply**(`lifetimeMinted`, `lifetimeBurned`): `bigint`
 
 ## Parameters
 
-| Parameter          | Type     |
-| ------------------ | -------- |
-| `cumulativeMinted` | `bigint` |
-| `cumulativeBurned` | `bigint` |
+| Parameter        | Type     |
+| ---------------- | -------- |
+| `lifetimeMinted` | `bigint` |
+| `lifetimeBurned` | `bigint` |
 
 ## Returns
 

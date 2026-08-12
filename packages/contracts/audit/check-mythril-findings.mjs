@@ -27,7 +27,7 @@ const MYTHRIL_INCOMPATIBLE_RUNTIME_OPCODES = new Map([
 export const REQUIRED_MYTHRIL_TARGETS = Object.freeze(
   [
     ['GBX', 'out/GBX.sol/GBX.json'],
-    ['Fundraiser', 'out/Fundraiser.sol/Fundraiser.json'],
+    ['Mine', 'out/Mine.sol/Mine.json'],
     ['SignalGBX', 'out/SignalGBX.sol/SignalGBX.json'],
     ['ResonanceRouter', 'out/ResonanceRouter.sol/ResonanceRouter.json'],
     ['Resonance', 'out/Resonance.sol/Resonance.json'],

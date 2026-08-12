@@ -1,34 +1,31 @@
 # Architecture
 
-The active Solidity graph is intentionally small and non-upgradeable.
+The active graph is direct, immutable, and deliberately small.
 
 ```text
-Fundraiser -> ResonanceRouter -> Resonance -> Strategy
-                                  |      |
-SignalGBX ------------------------+      +-> payment token -> BribeRouter -> 100% Fund liability
+slot replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance -> Strategy
+                              \--80%--> displaced miner pull claim
 
+Mine --continuous GBX--> current slot miners
+SignalGBX -------------------------------> Resonance allocation weights
+Strategy payment -> BribeRouter -> fixed Fund liability
 independent reward funder -> Bribe -> Strategy signalers
-GBX in Fund -> permissionless burn
-
 GBX holder -> Fund.redeem(selected tokens) -> in-kind assets
-
-Uniswap v4 position -> LiquidityPosition -> USDG -> ResonanceRouter -> Resonance
-                                        -> GBX -> Fund -> atomic burn
+Uniswap v4 fees -> LiquidityPosition -> USDG revenue / GBX burn
 ```
 
-Fundraiser accounts for contribution epochs and routes every USDG contribution immediately. Resonance maintains an
-indexed USDG allocation using unrestricted, absolute per-Strategy SignalGBX (`sGBX`) signals. StrategyFactory and
-BribeFactory are bound to Resonance, so each admitted Strategy is created with a dedicated Bribe and BribeRouter. Every
-auction payment becomes a fixed Fund liability; Bribes receive only independently notified rewards. A Bribe's
-append-only reward-token list is capped at eight. Exact scaled carry preserves index and stream remainders; fixed Fund
-liabilities move transfers out of signal-exit and Strategy settlement paths.
+GBX creates only the 20 million genesis-liquidity allocation. A one-time deployment binding permanently assigns all
+later mint authority to Mine. Mine starts with one hourly reverse-Dutch slot and has an increase-only capacity cap of 16. Each occupied slot keeps its GBX-per-second rate until it is replaced. Capacity expansion therefore does not dilute
+incumbents; newly filled slots divide the current global rate by current capacity.
 
-Fund is a raw-balance treasury with no asset registry. Redemption operates on unique token arrays selected by the
-caller, using EIP-1153 transient storage for O(n) duplicate detection. Fund has no migration or administrative exit.
+Fund checkpoints all Mine slots before its redemption supply snapshot. This crystallizes pending GBX so a miner's
+earned but unminted balance cannot be excluded from the denominator. The complete checkpoint is bounded by 16 slots.
 
-GBX mints exactly 20 million tokens to the genesis-liquidity recipient before its minter is locked to Fundraiser.
-LiquidityPosition validates and holds one precommitted, nonempty, hookless GBX/USDG position NFT with the reviewed
-single-sided range. Permissionless harvesting preserves its exact principal, routes USDG to Resonance, and burns GBX
-through Fund atomically.
+Resonance distributes routed USDG using unrestricted absolute SignalGBX allocations. StrategyFactory and BribeFactory
+are bound once to Resonance. Each Strategy has a dedicated Bribe and BribeRouter; complete auction payments are fixed
+Fund liabilities, while Bribes receive only independently notified rewards.
 
-See [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md) for contract-level responsibilities.
+Fund is an ownerless raw-token treasury with caller-selected redemption arrays and no registry or migration path.
+LiquidityPosition permanently holds the precommitted, fixed-principal Uniswap v4 NFT.
+
+See [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md) and [ADR 0024](adr/0024-immutable-multislot-mine.md).

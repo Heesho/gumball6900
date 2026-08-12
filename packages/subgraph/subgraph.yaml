@@ -31,10 +31,10 @@ dataSources:
           handler: handleMinterSet
       file: ./src/gbx.ts
   - kind: ethereum/contract
-    name: Fundraiser
+    name: Mine
     network: robinhood
     source:
-      abi: Fundraiser
+      abi: Mine
       address: "0x0000000000000000000000000000000000000000"
       startBlock: 0
     mapping:
@@ -44,19 +44,28 @@ dataSources:
       entities:
         - ProtocolState
         - Account
-        - FundraiserEpoch
+        - MiningSlot
         - ProtocolEvent
       abis:
-        - name: Fundraiser
-          file: ./abis/Fundraiser.json
+        - name: Mine
+          file: ./abis/Mine.json
       eventHandlers:
-        - event: Contributed(indexed address,indexed address,indexed uint256,uint256)
-          handler: handleContributed
-        - event: Claimed(indexed address,indexed uint256,uint256)
+        - event: CapacityIncreased(uint256,uint256)
+          handler: handleCapacityIncreased
+        - event: Claimed(indexed address,uint256)
           handler: handleClaimed
-        - event: EpochSettled(indexed uint256,uint256,uint256,uint256)
-          handler: handleEpochSettled
-      file: ./src/fundraiser.ts
+        - event: EmissionCheckpointed(indexed address,indexed uint256,indexed
+            uint256,uint256)
+          handler: handleEmissionCheckpointed
+        - event: Mined(indexed address,indexed address,indexed
+            uint256,uint256,address,uint256,uint256,uint256)
+          handler: handleMined
+        - event: MinerPaymentAccrued(indexed address,indexed uint256,indexed
+            uint256,uint256)
+          handler: handleMinerPaymentAccrued
+        - event: RevenueRouted(indexed uint256,indexed uint256,uint256)
+          handler: handleMiningRevenueRouted
+      file: ./src/mine.ts
   - kind: ethereum/contract
     name: LiquidityPosition
     network: robinhood

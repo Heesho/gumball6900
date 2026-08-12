@@ -1,7 +1,7 @@
 {
   "robinhood": {
     "GBX": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "Fundraiser": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
+    "Mine": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
     "LiquidityPosition": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
     "SignalGBX": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
     "ResonanceRouter": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },

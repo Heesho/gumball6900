@@ -60,6 +60,9 @@ const STALE_PHRASES = [
   'live on robinhood',
   'TODO',
   'FIXME',
+  'fundraiser',
+  '980,000,000',
+  'fixed gbx supply',
 ];
 
 function scanStaleClaims(documentHtml) {
@@ -363,7 +366,7 @@ async function main() {
 
   const facts = verifyProtocolFacts();
   console.log(
-    `facts     ${facts.checks} cross-checks pass · schedule ends after ${facts.nonzeroEpochs.toLocaleString('en-US')} epochs · remainder ${facts.unmintedRemainder.toLocaleString('en-US')} wei`,
+    `facts     ${facts.checks} cross-checks pass · ${facts.genesisLiquidityTokens.toLocaleString('en-US')} genesis GBX · ${facts.maxCapacity} slot hard cap`,
   );
 
   const contrast = assertContrast();

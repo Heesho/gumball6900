@@ -1,107 +1,87 @@
-import {
-  DAILY_DECAY_WAD,
-  GENESIS_TOTAL_SUPPLY,
-  INITIAL_DAILY_SCHEDULED_EMISSION,
-  MAX_CUMULATIVE_MINT,
-  WAD,
-} from './constants.js';
-import { assertEpochCount, assertNonNegative, assertPositive, minBigInt, mulDiv } from './integer.js';
+import { BPS_DENOMINATOR, MINE_PRICE_DECAY_PERIOD, PREVIOUS_MINER_BPS, WAD } from './constants.js';
+import { assertNonNegative, assertPositive, mulDiv } from './integer.js';
 
-export interface AllNonEmptyEmissionResult {
-  epochCount: number;
-  recurringMinted: bigint;
-  totalCumulativeMinted: bigint;
-  nextScheduledEmission: bigint;
+export interface MiningCurveConfig {
+  readonly initialUps: bigint;
+  readonly halvingAmount: bigint;
+  readonly tailUps: bigint;
 }
 
-export interface FundraiserEpochQuoteInput {
-  scheduledEmission: bigint;
-  cumulativeMinted: bigint;
-  /** Observed raw USDG receipt. Its magnitude does not scale the emission. */
-  totalContributedRaw: bigint;
+export interface MiningAccrualInput {
+  readonly elapsedSeconds: bigint;
+  readonly slotUps: readonly bigint[];
 }
 
-export interface FundraiserEpochQuote {
-  scheduledEmission: bigint;
-  availableEmission: bigint;
-  actualEmission: bigint;
-  forfeitedEmission: bigint;
-  nonEmpty: boolean;
+export interface MiningAccrualQuote {
+  readonly slotEmissions: readonly bigint[];
+  readonly totalEmission: bigint;
 }
 
-export function remainingMintCapacity(cumulativeMinted: bigint): bigint {
-  assertNonNegative(cumulativeMinted, 'cumulativeMinted');
-  return cumulativeMinted >= MAX_CUMULATIVE_MINT ? 0n : MAX_CUMULATIVE_MINT - cumulativeMinted;
+export interface MiningPaymentQuote {
+  readonly payment: bigint;
+  readonly previousMinerAmount: bigint;
+  readonly resonanceAmount: bigint;
 }
 
-/** Advances one epoch at a time so fixed-point rounding exactly mirrors contract state transitions. */
-export function advanceScheduledEmission(currentEmission: bigint, elapsedEpochs = 1): bigint {
-  assertNonNegative(currentEmission, 'currentEmission');
-  assertEpochCount(elapsedEpochs, 'elapsedEpochs');
+/** Returns the global rate assigned at the next handoff, before dividing it by current capacity. */
+export function miningRateAt(totalMined: bigint, config: MiningCurveConfig): bigint {
+  assertNonNegative(totalMined, 'totalMined');
+  assertPositive(config.initialUps, 'initialUps');
+  assertPositive(config.halvingAmount, 'halvingAmount');
+  assertPositive(config.tailUps, 'tailUps');
+  if (config.tailUps > config.initialUps) throw new RangeError('tailUps must not exceed initialUps');
 
-  let emission = currentEmission;
-  for (let epoch = 0; epoch < elapsedEpochs && emission !== 0n; epoch += 1) {
-    emission = mulDiv(emission, DAILY_DECAY_WAD, WAD);
-  }
-  return emission;
-}
-
-export function scheduledEmissionForEpoch(epochId: number): bigint {
-  assertEpochCount(epochId, 'epochId');
-  return advanceScheduledEmission(INITIAL_DAILY_SCHEDULED_EMISSION, epochId);
-}
-
-/** Canonical path in which every epoch is non-empty, including the cumulative one-billion mint ceiling. */
-export function simulateAllNonEmptyEmissions(epochCount: number): AllNonEmptyEmissionResult {
-  assertEpochCount(epochCount);
-
-  let currentEmission = INITIAL_DAILY_SCHEDULED_EMISSION;
-  let cumulativeMinted = GENESIS_TOTAL_SUPPLY;
-
-  for (let epoch = 0; epoch < epochCount && currentEmission !== 0n; epoch += 1) {
-    cumulativeMinted += minBigInt(currentEmission, remainingMintCapacity(cumulativeMinted));
-    currentEmission = advanceScheduledEmission(currentEmission);
+  let halvings = 0n;
+  let nextThreshold = config.halvingAmount;
+  while (totalMined >= nextThreshold) {
+    halvings += 1n;
+    const shifted = config.initialUps >> halvings;
+    if (shifted <= config.tailUps) return config.tailUps;
+    nextThreshold += config.halvingAmount >> halvings;
   }
 
-  return {
-    epochCount,
-    recurringMinted: cumulativeMinted - GENESIS_TOTAL_SUPPLY,
-    totalCumulativeMinted: cumulativeMinted,
-    nextScheduledEmission: currentEmission,
-  };
+  const shifted = config.initialUps >> halvings;
+  return shifted <= config.tailUps ? config.tailUps : shifted;
 }
 
-/**
- * Mirrors Fundraiser settlement: every non-empty epoch receives
- * the complete cap-bounded schedule, while an empty epoch receives zero and
- * permanently forfeits that day's schedule. Contribution size is intentionally irrelevant.
- */
-export function quoteFundraiserEpoch(input: FundraiserEpochQuoteInput): FundraiserEpochQuote {
-  assertNonNegative(input.scheduledEmission, 'scheduledEmission');
-  assertNonNegative(input.cumulativeMinted, 'cumulativeMinted');
-  assertNonNegative(input.totalContributedRaw, 'totalContributedRaw');
-
-  const availableEmission = minBigInt(input.scheduledEmission, remainingMintCapacity(input.cumulativeMinted));
-  const nonEmpty = input.totalContributedRaw !== 0n;
-  return {
-    scheduledEmission: input.scheduledEmission,
-    availableEmission,
-    actualEmission: nonEmpty ? availableEmission : 0n,
-    forfeitedEmission: nonEmpty ? 0n : input.scheduledEmission,
-    nonEmpty,
-  };
+/** Mirrors checkpointing fixed per-slot tenure rates; thresholds never reprice an occupied slot. */
+export function quoteMiningAccrual(input: MiningAccrualInput): MiningAccrualQuote {
+  assertNonNegative(input.elapsedSeconds, 'elapsedSeconds');
+  const slotEmissions = input.slotUps.map((ups, index) => {
+    assertNonNegative(ups, `slotUps[${index}]`);
+    return ups * input.elapsedSeconds;
+  });
+  return { slotEmissions, totalEmission: slotEmissions.reduce((sum, amount) => sum + amount, 0n) };
 }
 
-export function estimateFundraiserClaim(
-  beneficiaryContribution: bigint,
-  totalEpochUSDG: bigint,
-  actualEmission: bigint,
+/** Quotes a slot's linearly decaying USDG replacement price. */
+export function quoteMiningPrice(initialPrice: bigint, elapsedSeconds: bigint): bigint {
+  assertNonNegative(initialPrice, 'initialPrice');
+  assertNonNegative(elapsedSeconds, 'elapsedSeconds');
+  if (elapsedSeconds >= MINE_PRICE_DECAY_PERIOD) return 0n;
+  return initialPrice - mulDiv(initialPrice, elapsedSeconds, MINE_PRICE_DECAY_PERIOD);
+}
+
+/** Quotes the exact 80/20 replacement split; an empty slot routes its complete payment to Resonance. */
+export function quoteMiningPayment(payment: bigint, hasPreviousMiner: boolean): MiningPaymentQuote {
+  assertNonNegative(payment, 'payment');
+  const previousMinerAmount = hasPreviousMiner ? mulDiv(payment, PREVIOUS_MINER_BPS, BPS_DENOMINATOR) : 0n;
+  return { payment, previousMinerAmount, resonanceAmount: payment - previousMinerAmount };
+}
+
+/** Computes the next slot starting price using Mine's floor multiplication and immutable clamps. */
+export function nextMiningInitialPrice(
+  payment: bigint,
+  priceMultiplier: bigint,
+  minimumInitialPrice: bigint,
+  maximumInitialPrice: bigint,
 ): bigint {
-  assertNonNegative(beneficiaryContribution, 'beneficiaryContribution');
-  assertPositive(totalEpochUSDG, 'totalEpochUSDG');
-  assertNonNegative(actualEmission, 'actualEmission');
-  if (beneficiaryContribution > totalEpochUSDG) {
-    throw new RangeError('beneficiaryContribution must not exceed totalEpochUSDG');
-  }
-  return mulDiv(beneficiaryContribution, actualEmission, totalEpochUSDG);
+  assertNonNegative(payment, 'payment');
+  assertPositive(priceMultiplier, 'priceMultiplier');
+  assertPositive(minimumInitialPrice, 'minimumInitialPrice');
+  assertPositive(maximumInitialPrice, 'maximumInitialPrice');
+  const multiplied = mulDiv(payment, priceMultiplier, WAD);
+  if (multiplied < minimumInitialPrice) return minimumInitialPrice;
+  if (multiplied > maximumInitialPrice) return maximumInitialPrice;
+  return multiplied;
 }

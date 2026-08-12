@@ -11,7 +11,7 @@ non-rebasing ERC-20s:
 - balances do not change asynchronously through rebases;
 - token callbacks cannot bypass protocol reentrancy guards or authorization.
 
-Core receipt, payment, reward, revenue, redemption, and liquidity-fee-routing paths compare balance deltas and revert
+Core mining payment, receipt, reward, revenue, redemption, and liquidity-fee-routing paths compare balance deltas and revert
 atomically on inexact movement. This is fail-closed evidence, not support for fee-on-transfer, rebasing, ERC-777-style,
 blocklisting, pausable, or otherwise adversarial tokens.
 
@@ -30,6 +30,10 @@ Fund is intentionally different: it is a permissionless raw-token treasury. Any 
 does not make the token supported or official. A redeemer chooses which unique non-GBX addresses to include. A broken
 selected token reverts the complete redemption, while omitted assets remain permanently for the post-redemption GBX
 supply.
+
+Mine USDG is also isolated through pull accounting. Exact USDG receipt is required at replacement, exact routed
+revenue must reach ResonanceRouter, and the contract retains only displaced-miner claims. A blocked claim recipient
+does not redirect the liability or block another miner's claim.
 
 ## Offchain presentation
 

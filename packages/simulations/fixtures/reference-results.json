@@ -1,132 +1,42 @@
 {
-  "schemaVersion": "4",
+  "schemaVersion": "6",
   "usdGDecimals": "6",
   "targetDecimals": "18",
-  "genesisSupply": "20000000000000000000000000",
-  "miningEmissionAllocation": "980000000000000000000000000",
-  "initialDailyScheduledEmission": "465152749681042811702004",
-  "emissionDaily100YearDigest": "0x22aef4fca7057d13da902b2bd05d3fd4b3bca71cb0e4c3ca4c35a1898f2a41db",
-  "emissionScheduleLifetime": {
-    "positiveEpochs": "99884",
-    "sequentialScheduledTotal": "979999999999999181815005172",
-    "nominalAllocationResidual": "818184994828"
-  },
-  "emissionHorizons": [
-    {
-      "days": "365",
-      "recurringMinted": "155921513051359736905857529",
-      "totalCumulativeMinted": "175921513051359736905857529",
-      "nextScheduledEmission": "391145279752197254551815"
-    },
-    {
-      "days": "1460",
-      "recurringMinted": "489999999999999874551856292",
-      "totalCumulativeMinted": "509999999999999874551856292",
-      "nextScheduledEmission": "232576374840521271244695"
-    },
-    {
-      "days": "2920",
-      "recurringMinted": "734999999999999670030938202",
-      "totalCumulativeMinted": "754999999999999670030938202",
-      "nextScheduledEmission": "116288187420260568318929"
-    },
-    {
-      "days": "5840",
-      "recurringMinted": "918749999999999374842232723",
-      "totalCumulativeMinted": "938749999999999374842232723",
-      "nextScheduledEmission": "29072046855065108427477"
-    },
-    {
-      "days": "11680",
-      "recurringMinted": "976171874999999202830328433",
-      "totalCumulativeMinted": "996171874999999202830328433",
-      "nextScheduledEmission": "1817002928441565069309"
-    },
-    {
-      "days": "36500",
-      "recurringMinted": "979999970793723241943084139",
-      "totalCumulativeMinted": "999999970793723241943084139",
-      "nextScheduledEmission": "13862632205516131"
-    }
-  ],
+  "infiniteSupply": true,
+  "genesisLiquidityAllocation": "20000000000000000000000000",
   "miningQuotes": [
     {
-      "id": "large-nonempty",
-      "scheduledEmission": "100000000000000000000",
-      "availableEmission": "100000000000000000000",
-      "actualEmission": "100000000000000000000",
-      "forfeitedEmission": "0",
-      "nonEmpty": true
+      "id": "incumbent-before-expansion",
+      "price": "1000000",
+      "previousMinerAmount": "800000",
+      "resonanceAmount": "200000",
+      "slotEmissions": ["360000000000000000000000"],
+      "totalEmission": "360000000000000000000000",
+      "nextGlobalUps": "100000000000000000000",
+      "nextSlotUps": "100000000000000000000"
     },
     {
-      "id": "one-atom-nonempty",
-      "scheduledEmission": "100000000000000000000",
-      "availableEmission": "100000000000000000000",
-      "actualEmission": "100000000000000000000",
-      "forfeitedEmission": "0",
-      "nonEmpty": true
-    },
-    {
-      "id": "empty",
-      "scheduledEmission": "100000000000000000000",
-      "availableEmission": "100000000000000000000",
-      "actualEmission": "0",
-      "forfeitedEmission": "100000000000000000000",
-      "nonEmpty": false
-    },
-    {
-      "id": "cap-clamped-nonempty",
-      "scheduledEmission": "100000000000000000000",
-      "availableEmission": "50000000000000000000",
-      "actualEmission": "50000000000000000000",
-      "forfeitedEmission": "0",
-      "nonEmpty": true
+      "id": "protected-capacity-expansion",
+      "price": "0",
+      "previousMinerAmount": "0",
+      "resonanceAmount": "0",
+      "slotEmissions": ["360000000000000000000000", "119999999999999999998800", "119999999999999999998800"],
+      "totalEmission": "599999999999999999997600",
+      "nextGlobalUps": "50000000000000000000",
+      "nextSlotUps": "16666666666666666666"
     }
   ],
   "auctionQuotes": [
     {
-      "id": "start",
-      "paymentAmount": "100000000000000000000",
-      "nextInitPrice": "200000000000000000000",
-      "fundAmount": "42000000000000000000"
-    },
-    {
-      "id": "midpoint",
+      "id": "strategy-midpoint",
       "paymentAmount": "50000000000000000000",
       "nextInitPrice": "100000000000000000000",
-      "fundAmount": "42000000000000000000"
-    },
-    {
-      "id": "last-second",
-      "paymentAmount": "1157407407407408",
-      "nextInitPrice": "2314814814814816",
-      "fundAmount": "42000000000000000000"
-    },
-    {
-      "id": "endpoint-zero",
-      "paymentAmount": "0",
-      "nextInitPrice": "1000000",
-      "fundAmount": "42000000000000000000"
-    },
-    {
-      "id": "after-end-zero",
-      "paymentAmount": "0",
-      "nextInitPrice": "1000000",
       "fundAmount": "42000000000000000000"
     }
   ],
   "rewardQuotes": [
     {
-      "id": "production-scale",
-      "notifiedReward": "840000000000000000",
-      "rewardPerWeightIncrement": "4200000000000000000000000",
-      "indexedReward": "840000000000000000",
-      "residue": "0",
-      "userEarned": "210000000000000000"
-    },
-    {
       "id": "dust-residue",
-      "notifiedReward": "10",
       "rewardPerWeightIncrement": "33",
       "indexedReward": "9",
       "residue": "1",
@@ -135,30 +45,26 @@
   ],
   "redemptionQuotes": [
     {
-      "id": "ten-percent-basket",
-      "percentageWad": "100000000000000000",
-      "assets": [
+      "id": "checkpointed-ten-percent-basket",
+      "percentageWad": "99009900990099009",
+      "outputs": [
         {
           "asset": "USDG",
-          "amount": "500000000"
+          "amount": "495049504"
         },
         {
           "asset": "NVDA",
-          "amount": "4200000000000000000"
-        },
-        {
-          "asset": "AAPL",
-          "amount": "0"
+          "amount": "4158415841584158415"
         }
       ]
     }
   ],
-  "supplyProjections": [
+  "supplyQuotes": [
     {
-      "id": "burn-exceeds-emission",
-      "currentSupply": "145000000000000000000000000",
-      "netSupplyChange": "-1000000000000000000000000",
-      "projectedSupply": "144000000000000000000000000"
+      "id": "continuous-mining-and-burn",
+      "currentSupply": "120000000000000000000000000",
+      "netSupplyChange": "1000000000000000000000000",
+      "projectedSupply": "121000000000000000000000000"
     }
   ]
 }

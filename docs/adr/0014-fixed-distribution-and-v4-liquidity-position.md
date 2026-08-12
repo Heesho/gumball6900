@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted for development; not approved for deployment or user funds.
+Accepted as historical context; GBX mint authority and distribution are superseded by ADR 0024 (which also supersedes
+ADR 0023). Not approved for deployment or user funds.
 
 ## Context
 

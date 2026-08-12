@@ -1,75 +1,42 @@
 {
-  "schemaVersion": "4",
+  "schemaVersion": "6",
   "usdGDecimals": "6",
   "targetDecimals": "18",
-  "emissionHorizonsDays": ["365", "1460", "2920", "5840", "11680", "36500"],
   "miningCases": [
     {
-      "id": "large-nonempty",
-      "scheduledEmission": "100000000000000000000",
-      "cumulativeMinted": "20000000000000000000000000",
-      "totalContributedRaw": "250000000"
+      "id": "incumbent-before-expansion",
+      "initialPrice": "2000000",
+      "elapsedSeconds": "1800",
+      "payment": "1000000",
+      "hasPreviousMiner": true,
+      "slotUps": ["100000000000000000000"],
+      "accrualSeconds": "3600",
+      "totalMined": "0",
+      "initialUps": "100000000000000000000",
+      "halvingAmount": "490000000000000000000000000",
+      "tailUps": "10000000000000000",
+      "capacity": "1"
     },
     {
-      "id": "one-atom-nonempty",
-      "scheduledEmission": "100000000000000000000",
-      "cumulativeMinted": "20000000000000000000000000",
-      "totalContributedRaw": "1"
-    },
-    {
-      "id": "empty",
-      "scheduledEmission": "100000000000000000000",
-      "cumulativeMinted": "20000000000000000000000000",
-      "totalContributedRaw": "0"
-    },
-    {
-      "id": "cap-clamped-nonempty",
-      "scheduledEmission": "100000000000000000000",
-      "cumulativeMinted": "999999950000000000000000000",
-      "totalContributedRaw": "1"
+      "id": "protected-capacity-expansion",
+      "initialPrice": "2000000",
+      "elapsedSeconds": "3600",
+      "payment": "0",
+      "hasPreviousMiner": true,
+      "slotUps": ["100000000000000000000", "33333333333333333333", "33333333333333333333"],
+      "accrualSeconds": "3600",
+      "totalMined": "490000000000000000000000000",
+      "initialUps": "100000000000000000000",
+      "halvingAmount": "490000000000000000000000000",
+      "tailUps": "10000000000000000",
+      "capacity": "3"
     }
   ],
   "auctionCases": [
     {
-      "id": "start",
-      "initPrice": "100000000000000000000",
-      "elapsedSeconds": "0",
-      "epochPeriod": "86400",
-      "priceMultiplier": "2000000000000000000",
-      "minInitPrice": "1000000",
-      "actualTargetReceived": "42000000000000000000"
-    },
-    {
-      "id": "midpoint",
+      "id": "strategy-midpoint",
       "initPrice": "100000000000000000000",
       "elapsedSeconds": "43200",
-      "epochPeriod": "86400",
-      "priceMultiplier": "2000000000000000000",
-      "minInitPrice": "1000000",
-      "actualTargetReceived": "42000000000000000000"
-    },
-    {
-      "id": "last-second",
-      "initPrice": "100000000000000000000",
-      "elapsedSeconds": "86399",
-      "epochPeriod": "86400",
-      "priceMultiplier": "2000000000000000000",
-      "minInitPrice": "1000000",
-      "actualTargetReceived": "42000000000000000000"
-    },
-    {
-      "id": "endpoint-zero",
-      "initPrice": "100000000000000000000",
-      "elapsedSeconds": "86400",
-      "epochPeriod": "86400",
-      "priceMultiplier": "2000000000000000000",
-      "minInitPrice": "1000000",
-      "actualTargetReceived": "42000000000000000000"
-    },
-    {
-      "id": "after-end-zero",
-      "initPrice": "100000000000000000000",
-      "elapsedSeconds": "86401",
       "epochPeriod": "86400",
       "priceMultiplier": "2000000000000000000",
       "minInitPrice": "1000000",
@@ -77,15 +44,6 @@
     }
   ],
   "rewardCases": [
-    {
-      "id": "production-scale",
-      "rewardAmount": "840000000000000000",
-      "totalActiveWeight": "200000000000000000000",
-      "precision": "1000000000000000000000000000",
-      "userActiveWeight": "50000000000000000000",
-      "userRewardPerWeightPaid": "0",
-      "userAccrued": "0"
-    },
     {
       "id": "dust-residue",
       "rewardAmount": "10",
@@ -98,22 +56,21 @@
   ],
   "redemptionCases": [
     {
-      "id": "ten-percent-basket",
+      "id": "checkpointed-ten-percent-basket",
       "shares": "100000000000000000000",
-      "supplyBefore": "1000000000000000000000",
+      "supplyBefore": "1010000000000000000000",
       "assets": [
         { "asset": "USDG", "balance": "5000000000" },
-        { "asset": "NVDA", "balance": "42000000000000000000" },
-        { "asset": "AAPL", "balance": "7" }
+        { "asset": "NVDA", "balance": "42000000000000000000" }
       ]
     }
   ],
   "supplyCases": [
     {
-      "id": "burn-exceeds-emission",
-      "cumulativeMinted": "150000000000000000000000000",
-      "cumulativeBurned": "5000000000000000000000000",
-      "newEmission": "1000000000000000000000000",
+      "id": "continuous-mining-and-burn",
+      "lifetimeMinted": "125000000000000000000000000",
+      "lifetimeBurned": "5000000000000000000000000",
+      "gbxMined": "3000000000000000000000000",
       "gbxBurned": "2000000000000000000000000"
     }
   ]

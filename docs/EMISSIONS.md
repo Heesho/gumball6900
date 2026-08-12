@@ -1,43 +1,40 @@
-# Fundraiser distribution schedule
+# Mine emission and handoff rules
 
-GBX has a one-billion-token cumulative mint ceiling. Construction creates exactly 20 million GBX for the canonical
-single-sided Uniswap v4 position. The deployment coordinator cannot mint any additional GBX; it may only use the
-one-time handover to make Fundraiser the permanent minter of the remaining 980 million capacity.
+Mine is a Farplace-shaped multislot mechanism with no oracle, random selection, team fee, or upgrade path.
 
-Fundraiser preserves the previous implementation's exact daily schedule:
+## Slot auction
 
 ```text
-epoch duration       = 1 day
-epoch 0 emission     = 465152.749681042811702004 GBX
-daily decay          = 0.999525354337060160
-half-life            = 1,460 days (four years)
-next emission        = floor(current emission * daily decay)
+replacement window = 1 hour
+price(t)           = initialPrice - floor(initialPrice * t / 1 hour)
+price(t >= 1 hour) = 0
+next initial price = clamp(floor(price * multiplier), immutable minimum, absolute maximum)
 ```
 
-The floor is applied after every sequential daily step. This matters: computing a distant epoch with a single
-exponentiation would not reproduce the same integer results. Known vectors include:
+Callers supply the expected slot epoch, deadline, and maximum price for frontrun protection. Slots can be replaced at
+any moment, including at zero after one hour.
 
-| Epoch |        Scheduled GBX wei |
-| ----: | -----------------------: |
-|     0 | 465152749681042811702004 |
-|     1 | 464931966945802163687533 |
-|     2 | 464711289004129249641614 |
-|    30 | 458574651527554231366536 |
-|   365 | 391145279752197254551815 |
-| 1,460 | 232576374840521271244695 |
-| 2,920 | 116288187420260568318929 |
+## Payment
 
-An ended epoch must be settled before claims can mint. `settleEpochs(maximumEpochs)` is permissionless and advances a
-caller-bounded number of epochs in strict order. This allows catch-up without making one unbounded transaction walk
-the full schedule.
+For an occupied slot, 80% of the paid USDG accrues to the displaced miner and 20% routes to ResonanceRouter. Claims are
+pull-based and permissionless to trigger, but always pay the entitled account. An empty slot has no displaced miner, so
+its complete first payment routes to Resonance.
 
-- A nonempty epoch assigns the complete scheduled amount pro rata to contributors.
-- Contribution size determines only the contributor's share, not the epoch's total allocation.
-- An empty epoch assigns zero, advances the decay once, and permanently forfeits that day's emission.
-- There is no carry, governance-controlled rate, minimum emission, or separate emission-controller contract.
-- Per-account claims mint directly to the beneficiary and use floor division.
+## GBX accrual
 
-The sequential curve has 99,884 positive integer-wei epochs and sums to
-`979999999999999181815005172` wei if every one is nonempty. The `818184994828` wei difference from nominal 980
-million GBX is deterministic fixed-point/flooring residual, not an administratively mintable reserve. Empty epochs,
-unclaimed rewards, and per-account division dust can make actual lifetime minting lower.
+Every occupied slot accrues `elapsed seconds * assigned UPS`. `checkpointAll` crystallizes all live slots without
+resetting auction clocks or changing their rates. Replacement checkpoints first, then gives the incoming miner the
+current global rate divided by current capacity.
+
+## Capacity and fairness
+
+Capacity starts at one and can only rise, through the timelock, to 16. An occupied slot keeps its assigned rate across
+capacity changes and cumulative-mining thresholds. This prevents governance from reducing a miner's reward mid-tenure. Aggregate
+issuance may temporarily exceed the undivided current global rate until old-rate slots turn over.
+
+## Infinite tail
+
+Global handoff rates follow cumulative-mining halvings down to a constructor-fixed positive tail. The tail never reaches
+zero, so GBX issuance and mining-sourced USDG revenue can continue indefinitely. Integer division by capacity may leave
+unissued rate residue, but the minimum tail bound ensures a newly assigned slot always receives a positive rate at the
+maximum capacity.

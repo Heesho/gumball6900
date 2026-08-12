@@ -2,8 +2,16 @@
 
 ## Primary risks
 
-- A compromised multisig can schedule any owner call exposed by Resonance through the standard timelock. Fund and
-  LiquidityPosition are ownerless.
+- A compromised multisig can schedule any owner call exposed by Resonance or increase Mine capacity through the
+  standard timelock. It cannot reduce capacity or reprice occupied slots. Fund and LiquidityPosition are ownerless.
+- A capacity increase can temporarily raise aggregate GBX issuance above the current global rate because incumbents
+  keep their fixed tenure rates while new slots receive divided rates. This is an accepted fairness tradeoff.
+- Miners face rollover risk: without a replacement, an incumbent continues earning GBX but never receives the 80%
+  handoff claim. A replacement can also occur at zero USDG after the hourly price reaches zero.
+- Accrued Mine rewards are unminted until checkpointed. Fund checkpoints atomically before redemption, but ordinary
+  wallet and indexer supply displays must distinguish minted supply from effective supply.
+- Mine handoffs and redemptions checkpoint up to sixteen slots. The loop is bounded, but gas rises linearly with
+  capacity and a failure in any required GBX mint reverts the whole operation.
 - Unrestricted signaling permits rapid allocation movement and wallet-splitting; it deliberately provides no
   epoch-level stability or anti-churn guarantee.
 - Sub-index Resonance and Bribe carry is conserved but indexed against the signal supply present when the threshold is
@@ -31,7 +39,8 @@
 
 ## Explicitly absent protections
 
-The starting point has no pause guardian, proxy upgrade path, price oracle, NAV calculation, curated Fund asset list,
-or per-user signal cooldown. Signal changes are caller-bounded scalar or batch operations; there is no forced
+The starting point has no pause guardian, proxy upgrade path, Mine replacement authority, emission setter, price
+oracle, NAV calculation, curated Fund asset list, or per-user signal cooldown. Signal changes are caller-bounded
+scalar or batch operations; there is no forced
 whole-account reset. These omissions are deliberate simplifications and must be reconsidered through testing and audit
 before any deployment. Current internal hardening does not replace independent security review.

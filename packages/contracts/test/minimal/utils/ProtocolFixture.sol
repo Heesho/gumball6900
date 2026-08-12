@@ -9,8 +9,8 @@ import { Bribe } from "../../../src/core/Bribe.sol";
 import { BribeFactory } from "../../../src/core/BribeFactory.sol";
 import { BribeRouter } from "../../../src/core/BribeRouter.sol";
 import { Fund } from "../../../src/core/Fund.sol";
-import { Fundraiser } from "../../../src/core/Fundraiser.sol";
 import { GBX } from "../../../src/core/GBX.sol";
+import { Mine } from "../../../src/core/Mine.sol";
 import { Resonance } from "../../../src/core/Resonance.sol";
 import { ResonanceRouter } from "../../../src/core/ResonanceRouter.sol";
 import { SignalGBX } from "../../../src/core/SignalGBX.sol";
@@ -49,7 +49,7 @@ abstract contract ProtocolFixture is Test {
     StrategyFactory internal strategyFactory;
     Resonance internal resonance;
     ResonanceRouter internal resonanceRouter;
-    Fundraiser internal fundraiser;
+    Mine internal mine;
 
     Strategy internal targetStrategy;
     Strategy internal gbxStrategy;
@@ -87,8 +87,8 @@ abstract contract ProtocolFixture is Test {
         resonanceRouter = new ResonanceRouter(IERC20(address(usdg)), address(resonance));
         resonance.setResonanceRouter(address(resonanceRouter));
 
-        fundraiser = new Fundraiser(gbx, IERC20(address(usdg)), address(resonanceRouter));
-        gbx.setMinter(address(fundraiser));
+        mine = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), defaultMineConfig());
+        gbx.setMinter(address(mine));
 
         (address targetStrategyAddress, address targetBribeAddress, address targetRouterAddress) =
             resonance.addStrategy(IERC20(address(target)), defaultConfig());
@@ -108,7 +108,7 @@ abstract contract ProtocolFixture is Test {
         vm.label(address(signalGBX), "SignalGBX");
         vm.label(address(resonance), "Resonance");
         vm.label(address(resonanceRouter), "ResonanceRouter");
-        vm.label(address(fundraiser), "Fundraiser");
+        vm.label(address(mine), "Mine");
         vm.label(targetStrategyAddress, "TargetPaymentStrategy");
         vm.label(gbxStrategyAddress, "GBXPaymentStrategy");
     }
@@ -123,15 +123,29 @@ abstract contract ProtocolFixture is Test {
         });
     }
 
-    /// @notice Mints GBX by impersonating the locked Fundraiser minter.
-    function _mintGBX(address receiver, uint256 amount) internal {
-        vm.prank(address(fundraiser));
+    /// @notice Returns the immutable mining parameters used throughout the minimal test graph.
+    function defaultMineConfig() internal pure returns (Mine.Config memory config) {
+        return Mine.Config({
+            priceMultiplier: 2e18,
+            minimumInitialPrice: 1e6,
+            initialUps: 4 ether,
+            halvingAmount: 490_000_000 ether,
+            tailUps: 0.01 ether
+        });
+    }
+
+    /// @notice Creates test-only GBX without waiting for elapsed mining time.
+    /// @dev Direct Mine impersonation is confined to fixtures whose subject is not Mine issuance accounting.
+    function _mintTestGBX(address receiver, uint256 amount) internal {
+        vm.prank(address(mine));
         gbx.mint(receiver, amount);
     }
 
-    /// @notice Stakes GBX for `account`, minting the GBX first when the account is short.
+    /// @notice Stakes GBX for `account`, distributing reserve GBX first when the account is short.
     function _stake(address account, uint256 amount) internal {
-        if (gbx.balanceOf(account) < amount) _mintGBX(account, amount - gbx.balanceOf(account));
+        if (gbx.balanceOf(account) < amount) {
+            _mintTestGBX(account, amount - gbx.balanceOf(account));
+        }
 
         vm.startPrank(account);
         gbx.approve(address(signalGBX), amount);
@@ -176,17 +190,7 @@ abstract contract ProtocolFixture is Test {
         resonance.removeSignalMany(selected, amounts);
     }
 
-    /// @notice Contributes USDG through the Fundraiser, minting the USDG first.
-    function _contribute(address account, uint256 amount) internal {
-        usdg.mint(account, amount);
-
-        vm.startPrank(account);
-        usdg.approve(address(fundraiser), amount);
-        fundraiser.contribute(account, amount);
-        vm.stopPrank();
-    }
-
-    /// @notice Delivers USDG revenue straight through the router, bypassing Fundraiser epoch accounting.
+    /// @notice Delivers USDG revenue straight through the router.
     function _routeRevenue(uint256 amount) internal {
         usdg.mint(address(resonanceRouter), amount);
         vm.prank(KEEPER);

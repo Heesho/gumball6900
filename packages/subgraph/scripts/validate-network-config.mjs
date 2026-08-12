@@ -7,7 +7,7 @@ const networkFile = process.argv[2] ?? 'networks.json';
 const config = JSON.parse(readFileSync(resolve(packageRoot, networkFile), 'utf8'));
 const requiredDataSources = [
   'GBX',
-  'Fundraiser',
+  'Mine',
   'LiquidityPosition',
   'SignalGBX',
   'ResonanceRouter',

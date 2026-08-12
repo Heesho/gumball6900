@@ -1,8 +1,8 @@
 import { ethereum } from '@graphprotocol/graph-ts';
 import { assert, beforeEach, clearStore, describe, newMockEvent, test } from 'matchstick-as/assembly/index';
-import { Claimed, Contributed, EpochSettled } from '../generated/Fundraiser/Fundraiser';
 import { Burned, Minted } from '../generated/GBX/GBX';
 import { FeesHarvested } from '../generated/LiquidityPosition/LiquidityPosition';
+import { Claimed, EmissionCheckpointed, Mined, MinerPaymentAccrued } from '../generated/Mine/Mine';
 import {
   FundRevenueAccrued,
   FundRevenuePaid,
@@ -11,10 +11,10 @@ import {
   SignalRemoved,
   StrategyAdded,
 } from '../generated/Resonance/Resonance';
-import { handleClaimed, handleContributed, handleEpochSettled } from '../src/fundraiser';
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
 import { handleFeesHarvested } from '../src/liquidity-position';
+import { handleClaimed, handleEmissionCheckpointed, handleMined, handleMinerPaymentAccrued } from '../src/mine';
 import {
   handleFundRevenueAccrued,
   handleFundRevenuePaid,
@@ -28,9 +28,10 @@ import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, confi
 export {
   handleBurned,
   handleClaimed,
-  handleContributed,
-  handleEpochSettled,
+  handleEmissionCheckpointed,
   handleFeesHarvested,
+  handleMined,
+  handleMinerPaymentAccrued,
   handleMinted,
   handleStrategyAdded,
   handleRevenueSynced,
@@ -45,62 +46,85 @@ describe('core protocol mappings', () => {
     clearStore();
   });
 
-  test('tracks cumulative lifetime minting and burning', () => {
-    const minted = changetype<Minted>(newMockEvent());
-    configureEvent(minted, CONTRACT, 1);
-    minted.parameters = new Array<ethereum.EventParam>();
-    minted.parameters.push(addressParam('account', USER));
-    minted.parameters.push(uintParam('amount', 100));
-    handleMinted(minted);
+  test('tracks genesis, mining issuance, and burning', () => {
+    const allocation = changetype<Minted>(newMockEvent());
+    configureEvent(allocation, CONTRACT, 1);
+    allocation.parameters = new Array<ethereum.EventParam>();
+    allocation.parameters.push(addressParam('account', USER));
+    allocation.parameters.push(uintParam('amount', 100));
+    handleMinted(allocation);
+
+    const miningMint = changetype<Minted>(newMockEvent());
+    configureEvent(miningMint, CONTRACT, 2);
+    miningMint.parameters = new Array<ethereum.EventParam>();
+    miningMint.parameters.push(addressParam('account', USER_TWO));
+    miningMint.parameters.push(uintParam('amount', 50));
+    handleMinted(miningMint);
 
     const burned = changetype<Burned>(newMockEvent());
-    configureEvent(burned, CONTRACT, 2);
+    configureEvent(burned, CONTRACT, 3);
     burned.parameters = new Array<ethereum.EventParam>();
     burned.parameters.push(addressParam('account', USER));
     burned.parameters.push(uintParam('amount', 25));
     handleBurned(burned);
 
-    assert.fieldEquals('ProtocolState', '4663', 'lifetimeMintedRaw', '100');
+    assert.fieldEquals('ProtocolState', '4663', 'initialSupplyRaw', '100');
+    assert.fieldEquals('ProtocolState', '4663', 'lifetimeMintedRaw', '150');
     assert.fieldEquals('ProtocolState', '4663', 'lifetimeBurnedRaw', '25');
-    assert.fieldEquals('ProtocolState', '4663', 'totalSupplyRaw', '75');
+    assert.fieldEquals('ProtocolState', '4663', 'totalSupplyRaw', '125');
+    assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'gbxInitialAllocationRaw', '100');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'gbxBurnedRaw', '25');
     assert.fieldEquals('ProtocolEvent', eventId(burned), 'eventType', 'GBX_BURNED');
   });
 
-  test('tracks Fundraiser contributions and claims by beneficiary and epoch', () => {
-    const contribution = changetype<Contributed>(newMockEvent());
-    configureEvent(contribution, CONTRACT, 1);
-    contribution.parameters = new Array<ethereum.EventParam>();
-    contribution.parameters.push(addressParam('payer', USER));
-    contribution.parameters.push(addressParam('beneficiary', USER_TWO));
-    contribution.parameters.push(uintParam('epoch', 7));
-    contribution.parameters.push(uintParam('amount', 50));
-    handleContributed(contribution);
+  test('tracks Mine slot handoffs and displaced-miner USDG claims', () => {
+    const mined = changetype<Mined>(newMockEvent());
+    configureEvent(mined, CONTRACT, 1);
+    mined.parameters = new Array<ethereum.EventParam>();
+    mined.parameters.push(addressParam('payer', USER));
+    mined.parameters.push(addressParam('miner', USER_TWO));
+    mined.parameters.push(uintParam('index', 0));
+    mined.parameters.push(uintParam('epochId', 7));
+    mined.parameters.push(addressParam('previousMiner', USER));
+    mined.parameters.push(uintParam('price', 50));
+    mined.parameters.push(uintParam('initialPrice', 100));
+    mined.parameters.push(uintParam('ups', 4));
+    handleMined(mined);
+
+    const accrued = changetype<MinerPaymentAccrued>(newMockEvent());
+    configureEvent(accrued, CONTRACT, 2);
+    accrued.parameters = new Array<ethereum.EventParam>();
+    accrued.parameters.push(addressParam('miner', USER));
+    accrued.parameters.push(uintParam('index', 0));
+    accrued.parameters.push(uintParam('epochId', 7));
+    accrued.parameters.push(uintParam('amount', 40));
+    handleMinerPaymentAccrued(accrued);
 
     const claim = changetype<Claimed>(newMockEvent());
-    configureEvent(claim, CONTRACT, 2);
+    configureEvent(claim, CONTRACT, 3);
     claim.parameters = new Array<ethereum.EventParam>();
-    claim.parameters.push(addressParam('account', USER_TWO));
-    claim.parameters.push(uintParam('epoch', 7));
+    claim.parameters.push(addressParam('account', USER));
     claim.parameters.push(uintParam('amount', 40));
     handleClaimed(claim);
 
-    const epochId = '4663-' + CONTRACT.toHexString() + '-epoch-7';
-    assert.fieldEquals('FundraiserEpoch', epochId, 'totalContributionsRaw', '50');
-    assert.fieldEquals('FundraiserEpoch', epochId, 'totalClaimedGBXRaw', '40');
-    assert.fieldEquals('Account', '4663-' + USER_TWO.toHexString(), 'contributedUSDGRaw', '50');
-    assert.fieldEquals('Account', '4663-' + USER_TWO.toHexString(), 'claimedGBXRaw', '40');
+    const slotId = '4663-' + CONTRACT.toHexString() + '-slot-0';
+    assert.fieldEquals('MiningSlot', slotId, 'epoch', '8');
+    assert.fieldEquals('MiningSlot', slotId, 'currentMiner', USER_TWO.toHexString());
+    assert.fieldEquals('MiningSlot', slotId, 'upsRaw', '4');
+    assert.fieldEquals('ProtocolState', '4663', 'miningPaymentsRaw', '50');
+    assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'miningPaymentAccruedRaw', '40');
+    assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'miningUSDGClaimedRaw', '40');
   });
 
-  test('tracks sequential Fundraiser settlement and fixed-principal fee harvesting', () => {
-    const settlement = changetype<EpochSettled>(newMockEvent());
-    configureEvent(settlement, CONTRACT, 1);
-    settlement.parameters = new Array<ethereum.EventParam>();
-    settlement.parameters.push(uintParam('epoch', 7));
-    settlement.parameters.push(uintParam('scheduledEmission', 100));
-    settlement.parameters.push(uintParam('contributorEmission', 80));
-    settlement.parameters.push(uintParam('nextScheduledEmission', 90));
-    handleEpochSettled(settlement);
+  test('tracks mining checkpoints and fixed-principal fee harvesting', () => {
+    const checkpoint = changetype<EmissionCheckpointed>(newMockEvent());
+    configureEvent(checkpoint, CONTRACT, 1);
+    checkpoint.parameters = new Array<ethereum.EventParam>();
+    checkpoint.parameters.push(addressParam('miner', USER));
+    checkpoint.parameters.push(uintParam('index', 0));
+    checkpoint.parameters.push(uintParam('epochId', 7));
+    checkpoint.parameters.push(uintParam('amount', 80));
+    handleEmissionCheckpointed(checkpoint);
 
     const harvested = changetype<FeesHarvested>(newMockEvent());
     configureEvent(harvested, CONTRACT, 2);
@@ -112,10 +136,10 @@ describe('core protocol mappings', () => {
     harvested.parameters.push(uintParam('gbxBurned', 30));
     handleFeesHarvested(harvested);
 
-    const fundraiserEpochId = '4663-' + CONTRACT.toHexString() + '-epoch-7';
-    assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'settled', 'true');
-    assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'scheduledEmissionRaw', '100');
-    assert.fieldEquals('FundraiserEpoch', fundraiserEpochId, 'contributorEmissionRaw', '80');
+    const miningSlotId = '4663-' + CONTRACT.toHexString() + '-slot-0';
+    assert.fieldEquals('MiningSlot', miningSlotId, 'totalMinedRaw', '80');
+    assert.fieldEquals('ProtocolState', '4663', 'minedGBXRaw', '80');
+    assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'gbxMinedRaw', '80');
     assert.fieldEquals('ProtocolState', '4663', 'liquidityPrincipalRaw', '5000');
     assert.fieldEquals('ProtocolState', '4663', 'liquidityFeeHarvestCount', '1');
     assert.fieldEquals('ProtocolState', '4663', 'liquidityUSDGRoutedRaw', '20');

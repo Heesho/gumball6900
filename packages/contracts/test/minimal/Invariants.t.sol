@@ -6,6 +6,7 @@ import { console } from "forge-std/console.sol";
 
 import { Bribe } from "../../src/core/Bribe.sol";
 import { BribeRouter } from "../../src/core/BribeRouter.sol";
+import { Mine } from "../../src/core/Mine.sol";
 import { Strategy } from "../../src/core/Strategy.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 import { ProtocolHandler } from "./utils/ProtocolHandler.sol";
@@ -18,7 +19,6 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     ProtocolHandler internal handler;
 
     address[] internal allStrategies;
-    uint256 internal initialGBXSupply;
 
     function setUp() external {
         _deployProtocol();
@@ -30,13 +30,10 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         (address selfPriced,,) = resonance.addStrategy(IERC20(address(usdg)), defaultConfig());
         allStrategies.push(selfPriced);
 
-        handler = new ProtocolHandler(
-            gbx, usdg, target, fund, signalGBX, resonance, resonanceRouter, fundraiser, allStrategies
-        );
+        handler =
+            new ProtocolHandler(gbx, usdg, target, fund, signalGBX, resonance, resonanceRouter, mine, allStrategies);
 
         resonance.transferOwnership(address(this));
-        initialGBXSupply = gbx.totalSupply();
-
         targetContract(address(handler));
         excludeSender(address(0));
     }
@@ -50,17 +47,15 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         assertEq(gbx.balanceOf(address(signalGBX)), signalGBX.totalSupply());
     }
 
-    /// @notice GBX supply always reconciles against its lifetime mint and burn counters.
-    function invariant_GBXSupplyReconcilesWithLifetimeCounters() external view {
+    /// @notice GBX supply always reconciles cumulative issuance and burns exactly.
+    function invariant_GBXSupplyReconcilesWithBurns() external view {
         assertEq(gbx.totalSupply(), gbx.lifetimeMinted() - gbx.lifetimeBurned());
-        assertLe(gbx.lifetimeMinted(), gbx.MAX_LIFETIME_MINT());
-        assertEq(gbx.remainingMintableSupply(), gbx.MAX_LIFETIME_MINT() - gbx.lifetimeMinted());
     }
 
     /// @notice No USDG is ever created or destroyed by the protocol: it only moves between accounts.
     function invariant_USDGIsConserved() external view {
         uint256 total = usdg.balanceOf(address(resonance)) + usdg.balanceOf(address(resonanceRouter))
-            + usdg.balanceOf(address(fund)) + usdg.balanceOf(address(fundraiser));
+            + usdg.balanceOf(address(fund)) + usdg.balanceOf(address(mine));
 
         for (uint256 i; i < allStrategies.length; ++i) {
             total += usdg.balanceOf(allStrategies[i]);
@@ -80,9 +75,9 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         assertEq(resonanceRouter.pendingRevenue(), 0);
     }
 
-    /// @notice Fundraiser never custodies contributions.
-    function invariant_FundraiserNeverCustodiesRevenue() external view {
-        assertEq(usdg.balanceOf(address(fundraiser)), 0);
+    /// @notice Mine USDG custody is exactly the sum of displaced-miner pull claims.
+    function invariant_MineIsSolventAgainstReplacementClaims() external view {
+        assertEq(usdg.balanceOf(address(mine)), mine.totalClaimable());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -328,28 +323,39 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            EMISSION SCHEDULE
+                            MINING SCHEDULE
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice The Fundraiser can never mint past the allocation reserved for it.
-    function invariant_EmissionsNeverExceedTheFundraiserAllocation() external view {
-        uint256 mintedByFundraiser = gbx.lifetimeMinted() - initialGBXSupply;
-        assertLe(mintedByFundraiser, fundraiser.DISTRIBUTION_ALLOCATION());
-        assertLe(gbx.lifetimeMinted(), gbx.MAX_LIFETIME_MINT());
+    /// @notice Pending rewards are included in the redemption-facing effective supply exactly once.
+    function invariant_EffectiveSupplyIncludesEveryPendingEmission() external view {
+        assertEq(mine.effectiveTotalSupply(), gbx.totalSupply() + mine.pendingEmission());
     }
 
-    /// @notice Settlement never runs ahead of real time or past the end of the schedule.
-    function invariant_SettlementNeverOutrunsTheClock() external view {
-        assertLe(fundraiser.nextEpochToSettle(), fundraiser.currentEpoch());
-        assertLe(fundraiser.nextEpochToSettle(), fundraiser.DISTRIBUTION_EPOCHS());
-        assertLe(fundraiser.currentScheduledEmission(), fundraiser.INITIAL_DAILY_EMISSION());
+    /// @notice Capacity is bounded and every miner's tenure rate stays within the initial global rate.
+    function invariant_MiningCapacityAndRatesStayBounded() external view {
+        uint256 capacity = mine.capacity();
+        assertGe(capacity, 1);
+        assertLe(capacity, mine.MAX_CAPACITY());
+
+        uint256 combinedUps;
+        for (uint256 i; i < capacity; ++i) {
+            Mine.Slot memory slot = mine.getSlot(i);
+            assertLe(mine.price(i), slot.initialPrice);
+            assertLe(slot.lastAccruedAt, block.timestamp);
+            if (slot.miner == address(0)) assertEq(slot.ups, 0);
+            assertLe(slot.ups, mine.initialUps());
+            combinedUps += slot.ups;
+        }
+        assertLe(combinedUps, mine.initialUps() * capacity);
+        assertGe(mine.nextGlobalUps(), mine.tailUps());
+        assertLe(mine.totalMined(), gbx.lifetimeMinted() - gbx.GENESIS_LIQUIDITY_ALLOCATION());
     }
 
     /// @notice Prints how often each action actually executed, so silently dead branches are visible under `-vv`.
     /// @dev Invariants are also evaluated once before the first call, so this cannot assert nonzero counts.
     ///      `test_EveryHandlerActionIsReachable` carries that assertion instead.
     function invariant_CallSummary() external view {
-        string[21] memory actions = _actionNames();
+        string[22] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             console.log(actions[i], handler.ghostCalls(bytes32(bytes(actions[i]))));
         }
@@ -363,7 +369,12 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.addSignalMany(0, 2);
         handler.removeSignal(0, 0, 1 ether);
         handler.removeSignalMany(0, 1);
-        handler.contribute(0, 100_000e6);
+        handler.mine(0, 0);
+        vm.warp(block.timestamp + 30 minutes);
+        handler.mine(1, 0);
+        handler.checkpointMining();
+        handler.claimMiningPayment(0);
+        handler.increaseMiningCapacity(2);
         handler.donateRevenue(50_000e6);
         handler.donateDirectRevenue(1);
         handler.distributeAll();
@@ -371,9 +382,6 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.notifyTinyReward(0, 1);
         handler.advanceTime(type(uint256).max);
 
-        vm.warp(block.timestamp + 2 days);
-        handler.settleEpochs(10);
-        handler.claimEmission(0, 0);
         handler.claimRewards(0, 0);
         handler.claimSelectiveReward(0, 0, 0);
         handler.payFixedLiabilities();
@@ -387,7 +395,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.killStrategy(0);
         handler.unstake(0, type(uint256).max);
 
-        string[21] memory actions = _actionNames();
+        string[22] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             assertGt(
                 handler.ghostCalls(bytes32(bytes(actions[i]))),
@@ -397,7 +405,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         }
     }
 
-    function _actionNames() private pure returns (string[21] memory actions) {
+    function _actionNames() private pure returns (string[22] memory actions) {
         return [
             "stake",
             "unstake",
@@ -405,7 +413,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             "removeSignal",
             "addSignalMany",
             "removeSignalMany",
-            "contribute",
+            "mine",
             "donateRevenue",
             "donateDirectRevenue",
             "distributeAll",
@@ -414,8 +422,9 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             "claimSelectiveReward",
             "notifyTinyReward",
             "payFixedLiabilities",
-            "settleEpochs",
-            "claimEmission",
+            "checkpointMining",
+            "claimMiningPayment",
+            "increaseMiningCapacity",
             "redeem",
             "burnFundGBX",
             "killStrategy",

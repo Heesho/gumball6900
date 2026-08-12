@@ -6,4 +6,4 @@
 
 # Variable: supplyViewSchema
 
-> `const` **supplyViewSchema**: `ZodObject`\<\{ `blockNumber`: `ZodBigInt`; `lifetimeBurned`: `ZodBigInt`; `lifetimeMinted`: `ZodBigInt`; `minter`: `ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>; `minterLocked`: `ZodBoolean`; `remainingMintableSupply`: `ZodBigInt`; `totalSupply`: `ZodBigInt`; \}, `$strip`\>
+> `const` **supplyViewSchema**: `ZodObject`\<\{ `blockNumber`: `ZodBigInt`; `genesisLiquidityAllocation`: `ZodBigInt`; `lifetimeBurned`: `ZodBigInt`; `lifetimeMinted`: `ZodBigInt`; `minter`: `ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>; `minterLocked`: `ZodBoolean`; `totalSupply`: `ZodBigInt`; \}, `$strip`\>

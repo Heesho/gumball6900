@@ -7,6 +7,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { GBX } from "./GBX.sol";
+import { IMine } from "./interfaces/IMine.sol";
 
 /// @title GumBall6900 Ownerless In-Kind Redemption Fund
 /// @author Heesho
@@ -44,6 +45,8 @@ contract Fund is ReentrancyGuard {
     error InexactTransfer(address token, uint256 expected, uint256 fundDebit, uint256 receiverCredit);
     /// @notice A redemption receiver is the zero address or Fund itself.
     error InvalidReceiver(address receiver);
+    /// @notice GBX mining authority is not permanently bound to the expected deployed Mine shape.
+    error InvalidMine(address mine);
     /// @notice A burn or redemption amount is zero.
     error ZeroAmount();
 
@@ -77,6 +80,15 @@ contract Fund is ReentrancyGuard {
         uint256 tokenCount = tokens.length;
         if (tokenCount == 0) revert EmptyTokenList();
 
+        address mine = gbx.minter();
+        if (!gbx.minterLocked() || mine.code.length == 0 || IMine(mine).gbx() != address(gbx)) {
+            revert InvalidMine(mine);
+        }
+
+        // Crystallize every live slot's accrued GBX before taking the common redemption denominator. This makes a
+        // handoff convert pending supply into minted supply without ever letting pending miner rewards disappear from
+        // a redemption snapshot.
+        IMine(mine).checkpointAll();
         uint256 supplyBeforeBurn = gbx.totalSupply();
         uint256[] memory payouts = new uint256[](tokenCount);
 
@@ -94,21 +106,24 @@ contract Fund is ReentrancyGuard {
             address token = tokens[i];
             uint256 payout = payouts[i];
 
-            if (payout != 0) {
-                uint256 fundBalanceBefore = IERC20(token).balanceOf(address(this));
-                uint256 receiverBalanceBefore = IERC20(token).balanceOf(receiver);
-                IERC20(token).safeTransfer(receiver, payout);
-                uint256 fundDebit = fundBalanceBefore - IERC20(token).balanceOf(address(this));
-                uint256 receiverCredit = IERC20(token).balanceOf(receiver) - receiverBalanceBefore;
-                if (fundDebit != payout || receiverCredit != payout) {
-                    revert InexactTransfer(token, payout, fundDebit, receiverCredit);
-                }
-            }
+            if (payout != 0) _transferExact(token, receiver, payout);
 
             _clearToken(REDEMPTION_NAMESPACE, token);
         }
 
         emit Redeemed(msg.sender, receiver, gbxAmount, tokenCount);
+    }
+
+    function _transferExact(address token, address receiver, uint256 amount) private {
+        IERC20 asset = IERC20(token);
+        uint256 fundBalanceBefore = asset.balanceOf(address(this));
+        uint256 receiverBalanceBefore = asset.balanceOf(receiver);
+        asset.safeTransfer(receiver, amount);
+        uint256 fundDebit = fundBalanceBefore - asset.balanceOf(address(this));
+        uint256 receiverCredit = asset.balanceOf(receiver) - receiverBalanceBefore;
+        if (fundDebit != amount || receiverCredit != amount) {
+            revert InexactTransfer(token, amount, fundDebit, receiverCredit);
+        }
     }
 
     /// @notice Returns GBX currently held by Fund and available to burn.

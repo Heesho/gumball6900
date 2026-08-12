@@ -21,8 +21,9 @@ contract CampaignHarnessTest is Test {
 
     function test_TheCampaignWiresTheCompleteProtocolGraph() external view {
         assertEq(campaign.strategyCount(), 3);
-        assertEq(campaign.gbx().minter(), address(campaign.fundraiser()));
+        assertEq(campaign.gbx().minter(), address(campaign.mineContract()));
         assertTrue(campaign.gbx().minterLocked());
+        assertEq(campaign.mineContract().capacity(), 1);
         assertEq(campaign.signalGBX().resonance(), address(campaign.resonance()));
         assertEq(campaign.resonance().resonanceRouter(), address(campaign.resonanceRouter()));
         assertEq(campaign.bribeFactory().resonance(), address(campaign.resonance()));
@@ -42,8 +43,8 @@ contract CampaignHarnessTest is Test {
         assertGt(campaign.resonance().totalSignalWeight(), 0, "signal must actually allocate");
         _assertAllProperties();
 
-        campaign.contribute(1, 500_000_000);
-        assertGt(campaign.fundraiser().epochContributions(0), 0, "contribute must actually record");
+        campaign.mine(1, 0);
+        assertEq(campaign.mineContract().getSlot(0).miner, address(campaign.actors(1)), "miner must occupy the slot");
         _assertAllProperties();
 
         campaign.donateRevenue(250_000_000);
@@ -57,13 +58,16 @@ contract CampaignHarnessTest is Test {
         campaign.buy(2, 0);
         _assertAllProperties();
 
-        vm.warp(block.timestamp + 2 days);
-        campaign.settleEpochs(10);
-        assertTrue(campaign.fundraiser().epochSettled(0), "settlement must actually advance");
+        vm.warp(block.timestamp + 30 minutes);
+        campaign.mine(2, 0);
+        assertGt(campaign.mineContract().claimable(address(campaign.actors(1))), 0, "replacement must accrue a claim");
         _assertAllProperties();
 
-        campaign.claimEmission(1, 0);
-        assertGt(campaign.gbx().balanceOf(address(campaign.actors(1))), 0, "emission must actually mint");
+        campaign.claimMiningPayment(1);
+        campaign.checkpointMining();
+        assertGt(campaign.gbx().balanceOf(address(campaign.actors(2))), 0, "emission must actually mint");
+        campaign.increaseMiningCapacity(2);
+        assertGt(campaign.mineContract().capacity(), 1, "capacity must actually increase");
         _assertAllProperties();
 
         vm.warp(block.timestamp + 8 days);
@@ -123,7 +127,7 @@ contract CampaignHarnessTest is Test {
             // Failing actions are exactly what the fuzzer discards, so ignore them and keep exploring.
             if (seed % 8 == 0) try campaign.stake(actor, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
             if (seed % 8 == 1) try campaign.addSignal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
-            if (seed % 8 == 2) try campaign.contribute(actor, 10_000 + uint64(seed) * 1e6) { } catch { }
+            if (seed % 8 == 2) try campaign.mine(actor, seed) { } catch { }
             if (seed % 8 == 3) try campaign.donateRevenue(uint64(seed) * 1e6 + 1) { } catch { }
             if (seed % 8 == 4) try campaign.distributeAll() { } catch { }
             if (seed % 8 == 5) try campaign.buy(actor, seed) { } catch { }
@@ -138,8 +142,8 @@ contract CampaignHarnessTest is Test {
     function _assertAllProperties() private view {
         assertTrue(campaign.echidna_stakingReceiptIsFullyCollateralized(), "staking collateralization");
         assertTrue(campaign.echidna_gbxSupplyReconciles(), "supply reconciliation");
-        assertTrue(campaign.echidna_lifetimeMintStaysWithinTheCap(), "lifetime mint cap");
-        assertTrue(campaign.echidna_emissionsStayWithinTheAllocation(), "emission allocation");
+        assertTrue(campaign.echidna_miningAuthorityRemainsFinal(), "permanent mining authority");
+        assertTrue(campaign.echidna_effectiveSupplyIncludesPendingMining(), "effective supply");
         assertTrue(campaign.echidna_strategyWeightsSumToTheGlobalTotal(), "strategy weight sum");
         assertTrue(campaign.echidna_accountWeightsSumToTheGlobalTotal(), "account weight sum");
         assertTrue(campaign.echidna_signalWeightNeverExceedsTheReceiptBalance(), "weight within balance");
@@ -153,7 +157,7 @@ contract CampaignHarnessTest is Test {
         assertTrue(campaign.echidna_revenueIsNeverParkedInARouter(), "router pass-through");
         assertTrue(campaign.echidna_auctionPricesStayWithinTheirBounds(), "auction bounds");
         assertTrue(campaign.echidna_gbxPaymentsLeaveStrategy(), "GBX payment leaves Strategy");
-        assertTrue(campaign.echidna_settlementNeverOutrunsTheClock(), "settlement clock");
+        assertTrue(campaign.echidna_miningAccountingStaysBoundedAndSolvent(), "mining accounting");
         assertTrue(campaign.echidna_usdgIsConserved(), "USDG conservation");
         assertTrue(campaign.echidna_revenueIndexIsMonotonic(), "revenue index monotonicity");
     }

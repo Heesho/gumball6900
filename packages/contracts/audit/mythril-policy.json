@@ -17,8 +17,8 @@
       "contract": "GBX"
     },
     {
-      "artifact": "out/Fundraiser.sol/Fundraiser.json",
-      "contract": "Fundraiser"
+      "artifact": "out/Mine.sol/Mine.json",
+      "contract": "Mine"
     },
     {
       "artifact": "out/SignalGBX.sol/SignalGBX.json",

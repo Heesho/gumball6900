@@ -1,38 +1,35 @@
 # Residual risks
 
-## Open protocol and economic risk
+## Mine and supply
 
-- Permissionless LP fee harvesting has no caller bounty, so fee realization may be delayed until someone voluntarily
-  pays gas. A failing Resonance route or Fund burn rolls back collection and leaves the entitlement retryable.
-- Harvested USDG is allocated using the signal weights present when `harvestFees` routes it. Because signaling has no
-  cooldown, temporary signal can redirect the next lumpy LP-revenue notification; this is the frozen current-signal
-  allocation policy and is distinct from A-09's sub-index carry crossing a later denominator boundary.
-- Reverse-Dutch Strategy price can fall to zero and the next starting price can ratchet to its configured floor after
-  a late fill. This is the accepted A-05 product behavior.
-- Fund has no curated asset list, recovery, or migration. Unsolicited or omitted assets stay indefinitely.
-- A blocked supported token can leave its own user or fixed Fund liability unpaid. Destinations cannot be redirected;
-  exit liveness is isolated from payout liveness.
-- Direct token donations to Bribe or BribeRouter are visible surplus but have no recovery/scheduling mechanism.
-- A-09 remains open: conserved sub-index carry is divided by the signal supply present when it becomes indexable, so a
-  later Strategy signal or signaler can receive value that arrived or emitted before entry. The maximum pending bucket
-  grows with signal supply and can be material for low-decimal tokens.
+- Fixed-tenure rates prevent mid-mine dilution but temporarily raise aggregate issuance after capacity expansion or a
+  future-handoff halving. Old slots keep their earlier rates until replacement.
+- Miners face rollover risk and may be replaced at zero USDG after one hour. The 80% successor payment is not a refund
+  or guarantee.
+- GBX has no protocol-defined economic supply cap. Immutable future-handoff halvings converge to a positive tail, so
+  dilution does not terminate on any modeled horizon; ERC20Votes still imposes its `uint208` implementation ceiling.
+- Exact production Mine parameters remain unresolved and materially affect demand, dilution, revenue, and MEV.
+- Accrued GBX is unminted between checkpoints. Fund forces a checkpoint before redemption, but indexers must compute
+  pending emission for effective-supply displays.
+- Every handoff, capacity increase, and redemption checkpoints up to sixteen slots. Work is bounded but linear.
+- The permanent GBX minter handoff and immutable dependencies cannot be repaired after an incorrect deployment.
 
-## Governance and setup risk
+## Existing protocol and economic risk
 
-The project multisig can propose/cancel Resonance owner actions through TimelockController. Ongoing actions are
-`addStrategy`, `killStrategy`, and `addBribeReward` (maximum eight tokens). One-time setup
-also binds ResonanceRouter, SignalGBX, both factories, and GBX's Fundraiser minter. Incorrect immutable addresses,
-PoolKey, ticks, token ID, initial prices, or roles are unrecoverable.
+- A-09 remains open: sub-index carry can be shared with signal weight that arrives after the value.
+- Permissionless LP fee harvesting has no bounty and may be delayed until someone volunteers gas.
+- Signal timing can redirect a lumpy revenue notification because signaling has no cooldown.
+- Strategy price may fall to zero. Fund has no curated asset list, recovery, or migration.
+- A blocked token can leave its own liability unpaid. Destinations remain fixed and retryable.
+- Omitted redemption assets stay for the post-redemption supply; unsolicited Fund tokens have no recovery path.
 
-## External dependencies
+## Governance and setup
 
-Security depends on standard-token behavior, OpenZeppelin 5.6.1, the pinned Uniswap/Permit2 code, Robinhood Chain
-Cancun/EIP-1153 behavior, RPC accuracy, indexer correctness for presentation only, and wallet/user selection of Fund
-and Bribe claim token arrays.
+The timelock can add/kill Strategies, register up to eight Bribe reward tokens, and increase Mine capacity to sixteen.
+It cannot reduce capacity, reprice incumbents, change Mine economics, move Fund assets, recover the liquidity NFT, or
+upgrade/migrate the core. Incorrect immutables, bindings, ownership, PoolKey, ticks, token ID, or roles are permanent.
 
 ## Evidence gaps
 
-No independent audit, current-tree mutation score, pinned Echidna result, Mythril result, formal proof, legal
-clearance, or signed deployment manifest exists. Medusa passed the final graph, but native Echidna 2.3.3 crashed before
-transaction one and the pinned 2.3.2 container could not run without Docker. Those are release blockers, not merely
-future enhancements.
+No independent audit, current Mine mutation score, pinned Echidna result, compatible symbolic proof, legal clearance,
+or signed deployment manifest exists. Historical campaign evidence must not be presented as a review of ADR 0024.

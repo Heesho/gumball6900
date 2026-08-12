@@ -10,7 +10,8 @@ export const FORGE_COVERAGE_POLICY = Object.freeze([
   policy('src/core/BribeFactory.sol', [95_00, 2], [95_00, 3], [95_00, 10]),
   policy('src/core/BribeRouter.sol', [95_00, 5], [70_00, 7], [95_00, 43]),
   policy('src/core/Fund.sol', [95_00, 8], [95_00, 9], [95_00, 46]),
-  policy('src/core/Fundraiser.sol', [95_00, 6], [90_00, 15], [95_00, 59]),
+  // Mine is the new distribution boundary. Final thresholds remain a release gate until the current report is recorded.
+  policy('src/core/Mine.sol', [85_00, 12], [75_00, 25], [90_00, 120]),
   policy('src/core/GBX.sol', [95_00, 7], [95_00, 11], [95_00, 37]),
   // Genuine PositionManager integration is measured separately; this floor covers the default mock/deep suite.
   policy('src/core/LiquidityPosition.sol', [50_00, 8], [50_00, 24], [55_00, 102]),

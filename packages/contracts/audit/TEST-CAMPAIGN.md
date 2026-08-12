@@ -1,5 +1,8 @@
 # Adversarial-audit test campaign
 
+> Historical evidence only. ADR 0024 changed the source graph. Counts and campaign conclusions below do not apply to
+> the current Mine development candidate until rerun and recorded.
+
 Date: 2026-08-09
 
 Reviewed candidate: `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84`

@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 17. Documented ABI entries: 484. Documented public ABI functions: 252.
+Documented source surfaces: 19. Documented ABI entries: 517. Documented public ABI functions: 271.
 
 ## Bribe
 
@@ -933,7 +933,7 @@ Source: [`src/core/Fund.sol`](../../packages/contracts/src/core/Fund.sol)
 
 Artifact: `out/Fund.sol/Fund.json`
 
-Public ABI: 4 functions, 2 events, 8 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 4 functions, 2 events, 9 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address)`
 
@@ -1046,6 +1046,14 @@ error InexactTransfer(address token, uint256 expected, uint256 fundDebit, uint25
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `InvalidMine(address)`
+
+```solidity
+error InvalidMine(address mine);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `InvalidReceiver(address)`
 
 ```solidity
@@ -1078,373 +1086,13 @@ error ZeroAmount();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## Fundraiser
-
-Source: [`src/core/Fundraiser.sol`](../../packages/contracts/src/core/Fundraiser.sol)
-
-Artifact: `out/Fundraiser.sol/Fundraiser.json`
-
-Public ABI: 23 functions, 3 events, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor(address,address,address)`
-
-```solidity
-constructor(contract GBX gbx_, contract IERC20 usdg_, address resonanceRouter_);
-```
-
-Creates the fixed contribution schedule and immutable revenue route.
-
-**Parameters**
-
-- `gbx_`: GBX token minted to contributors.
-- `resonanceRouter_`: Router that forwards every contribution to Resonance.
-- `usdg_`: USDG token accepted as contributions.
-
-### `DAILY_DECAY()`
-
-```solidity
-function DAILY_DECAY() external view returns (uint256 arg0);
-```
-
-Daily fixed-point multiplier that halves scheduled emissions every 1,460 epochs.
-
-### `DISTRIBUTION_ALLOCATION()`
-
-```solidity
-function DISTRIBUTION_ALLOCATION() external view returns (uint256 arg0);
-```
-
-Maximum GBX nominally available to Fundraiser contributors.
-
-### `DISTRIBUTION_EPOCHS()`
-
-```solidity
-function DISTRIBUTION_EPOCHS() external view returns (uint256 arg0);
-```
-
-Number of daily epochs with a nonzero scheduled emission.
-
-### `EPOCH_DURATION()`
-
-```solidity
-function EPOCH_DURATION() external view returns (uint256 arg0);
-```
-
-Duration of every contribution epoch.
-
-### `INITIAL_DAILY_EMISSION()`
-
-```solidity
-function INITIAL_DAILY_EMISSION() external view returns (uint256 arg0);
-```
-
-First daily emission in the four-year half-life schedule.
-
-### `MIN_CONTRIBUTION()`
-
-```solidity
-function MIN_CONTRIBUTION() external view returns (uint256 arg0);
-```
-
-Smallest accepted raw USDG contribution.
-
-### `WAD()`
-
-```solidity
-function WAD() external view returns (uint256 arg0);
-```
-
-Fixed-point scale used by the daily decay calculation.
-
-### `accountContributions(uint256,address)`
-
-```solidity
-function accountContributions(uint256 epoch, address account) external view returns (uint256 amount);
-```
-
-USDG contribution credited to an account in an epoch.
-
-### `accountHasClaimed(uint256,address)`
-
-```solidity
-function accountHasClaimed(uint256 epoch, address account) external view returns (bool hasClaimed);
-```
-
-Whether an account's GBX reward has been claimed for an epoch.
-
-### `claim(address,uint256)`
-
-```solidity
-function claim(address account, uint256 epoch) external returns (uint256 reward);
-```
-
-Mints an account's proportional GBX reward for a completed epoch.
-Anyone may trigger the claim, but GBX is always minted directly to `account`.
-
-**Parameters**
-
-- `account`: Contributor that receives GBX.
-- `epoch`: Completed epoch to claim.
-
-**Returns**
-
-- `reward`: Amount of GBX minted to `account`.
-
-### `contribute(address,uint256)`
-
-```solidity
-function contribute(address beneficiary, uint256 amount) external;
-```
-
-Contributes USDG and credits `beneficiary` with a proportional claim on the current epoch's emission.
-USDG is transferred directly from the payer to ResonanceRouter, then routed to Resonance in the same transaction.
-
-**Parameters**
-
-- `amount`: Amount of USDG to contribute.
-- `beneficiary`: Account credited with the contribution.
-
-### `currentEpoch()`
-
-```solidity
-function currentEpoch() external view returns (uint256 epoch);
-```
-
-Returns the active zero-indexed contribution epoch.
-
-**Returns**
-
-- `epoch`: Active epoch identifier.
-
-### `currentScheduledEmission()`
-
-```solidity
-function currentScheduledEmission() external view returns (uint256 arg0);
-```
-
-Scheduled emission for `nextEpochToSettle`.
-
-### `epochContributions(uint256)`
-
-```solidity
-function epochContributions(uint256 epoch) external view returns (uint256 amount);
-```
-
-Total USDG contributed during each epoch.
-
-### `epochEmission(uint256)`
-
-```solidity
-function epochEmission(uint256 epoch) external view returns (uint256 amount);
-```
-
-GBX allocated to contributors in a settled epoch, or zero when that epoch was empty.
-
-### `epochSettled(uint256)`
-
-```solidity
-function epochSettled(uint256 epoch) external view returns (bool settled);
-```
-
-Whether an ended epoch has been advanced through the sequential schedule.
-
-### `gbx()`
-
-```solidity
-function gbx() external view returns (contract GBX arg0);
-```
-
-GBX minted to successful epoch claimants.
-
-### `nextEpochToSettle()`
-
-```solidity
-function nextEpochToSettle() external view returns (uint256 arg0);
-```
-
-First epoch that has not yet been settled.
-
-### `pendingReward(uint256,address)`
-
-```solidity
-function pendingReward(uint256 epoch, address account) external view returns (uint256 reward);
-```
-
-Returns an account's currently claimable GBX for a completed epoch.
-
-**Parameters**
-
-- `account`: Contributor whose reward is queried.
-- `epoch`: Completed epoch to inspect.
-
-**Returns**
-
-- `reward`: Amount currently claimable, or zero when no claim is available.
-
-### `resonanceRouter()`
-
-```solidity
-function resonanceRouter() external view returns (address arg0);
-```
-
-Router that forwards every contribution into Resonance.
-
-### `settleEpochs(uint256)`
-
-```solidity
-function settleEpochs(uint256 maximumEpochs) external returns (uint256 settledCount);
-```
-
-Advances as many ended epochs as the caller permits through the exact sequential decay schedule.
-Empty epochs consume their scheduled emission without minting it. Bounded batching keeps catch-up calls usable even after long periods of inactivity, while strict ordering preserves the original floor rounding.
-
-**Parameters**
-
-- `maximumEpochs`: Maximum number of epochs to settle in this transaction.
-
-**Returns**
-
-- `settledCount`: Number of epochs actually settled.
-
-### `startedAt()`
-
-```solidity
-function startedAt() external view returns (uint256 arg0);
-```
-
-Timestamp at which epoch zero began.
-
-### `usdg()`
-
-```solidity
-function usdg() external view returns (contract IERC20 arg0);
-```
-
-Revenue token accepted from contributors.
-
-### Events
-
-#### `Claimed(address,uint256,uint256)`
-
-```solidity
-event Claimed(address indexed account, uint256 indexed epoch, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `Contributed(address,address,uint256,uint256)`
-
-```solidity
-event Contributed(address indexed payer, address indexed beneficiary, uint256 indexed epoch, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EpochSettled(uint256,uint256,uint256,uint256)`
-
-```solidity
-event EpochSettled(uint256 indexed epoch, uint256 scheduledEmission, uint256 contributorEmission, uint256 nextScheduledEmission);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-### Custom errors
-
-#### `AlreadyClaimed(uint256,address)`
-
-```solidity
-error AlreadyClaimed(uint256 epoch, address account);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BelowMinimumContribution(uint256)`
-
-```solidity
-error BelowMinimumContribution(uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `DistributionComplete()`
-
-```solidity
-error DistributionComplete();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EpochNotEnded(uint256)`
-
-```solidity
-error EpochNotEnded(uint256 epoch);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EpochNotSettled(uint256)`
-
-```solidity
-error EpochNotSettled(uint256 epoch);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InexactTransfer(uint256,uint256)`
-
-```solidity
-error InexactTransfer(uint256 expected, uint256 received);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InvalidSettlementLimit()`
-
-```solidity
-error InvalidSettlementLimit();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `NoContribution(uint256,address)`
-
-```solidity
-error NoContribution(uint256 epoch, address account);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ReentrancyGuardReentrantCall()`
-
-```solidity
-error ReentrancyGuardReentrantCall();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SafeERC20FailedOperation(address)`
-
-```solidity
-error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ZeroAddress()`
-
-```solidity
-error ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 ## GBX
 
 Source: [`src/core/GBX.sol`](../../packages/contracts/src/core/GBX.sol)
 
 Artifact: `out/GBX.sol/GBX.json`
 
-Public ABI: 34 functions, 8 events, 27 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 31 functions, 8 events, 27 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -1452,12 +1100,7 @@ Public ABI: 34 functions, 8 events, 27 custom errors, 1 constructor, 0 receive e
 constructor(address genesisLiquidityRecipient, address initialMinter);
 ```
 
-Creates the fixed genesis allocation and assigns deployment-time minting authority.
-
-**Parameters**
-
-- `genesisLiquidityRecipient`: Recipient of the 20 million GBX liquidity allocation.
-- `initialMinter`: Deployment coordinator that must permanently hand minting to Fundraiser.
+Creates the genesis-liquidity allocation and temporary deployment-time mint authority.
 
 ### `CLOCK_MODE()`
 
@@ -1475,29 +1118,13 @@ function DOMAIN_SEPARATOR() external view returns (bytes32 arg0);
 
 Returns the domain separator used in the encoding of the signature for {permit}, as defined by {EIP712}.
 
-### `FUNDRAISER_ALLOCATION()`
-
-```solidity
-function FUNDRAISER_ALLOCATION() external view returns (uint256 arg0);
-```
-
-Remaining lifetime mint capacity reserved for Fundraiser rewards.
-
 ### `GENESIS_LIQUIDITY_ALLOCATION()`
 
 ```solidity
 function GENESIS_LIQUIDITY_ALLOCATION() external view returns (uint256 arg0);
 ```
 
-GBX created once for the canonical single-sided Uniswap v4 position.
-
-### `MAX_LIFETIME_MINT()`
-
-```solidity
-function MAX_LIFETIME_MINT() external view returns (uint256 arg0);
-```
-
-Maximum number of GBX that may ever be minted.
+GBX created once for the canonical genesis-liquidity position.
 
 ### `allowance(address,address)`
 
@@ -1530,10 +1157,6 @@ function burn(uint256 amount) external;
 ```
 
 Permanently burns GBX held by the caller.
-
-**Parameters**
-
-- `amount`: Amount of GBX to burn.
 
 ### `checkpoints(address,uint32)`
 
@@ -1621,7 +1244,7 @@ Returns the current amount of votes that `account` has.
 function lifetimeBurned() external view returns (uint256 arg0);
 ```
 
-Total GBX permanently burned.
+Cumulative GBX permanently destroyed.
 
 ### `lifetimeMinted()`
 
@@ -1629,7 +1252,7 @@ Total GBX permanently burned.
 function lifetimeMinted() external view returns (uint256 arg0);
 ```
 
-Total GBX minted over the lifetime of the contract, including tokens later burned.
+Cumulative GBX created, including the genesis allocation.
 
 ### `mint(address,uint256)`
 
@@ -1637,12 +1260,7 @@ Total GBX minted over the lifetime of the contract, including tokens later burne
 function mint(address account, uint256 amount) external;
 ```
 
-Mints GBX to `account` without exceeding the lifetime ceiling.
-
-**Parameters**
-
-- `account`: Address that receives the newly minted GBX.
-- `amount`: Amount of GBX to mint.
+Mints GBX through the permanently selected Mine.
 
 ### `minter()`
 
@@ -1650,7 +1268,7 @@ Mints GBX to `account` without exceeding the lifetime ceiling.
 function minter() external view returns (address arg0);
 ```
 
-Address currently authorized to mint GBX.
+Current mint authority; permanently becomes the canonical Mine after setup.
 
 ### `minterLocked()`
 
@@ -1658,7 +1276,7 @@ Address currently authorized to mint GBX.
 function minterLocked() external view returns (bool arg0);
 ```
 
-Whether the one-time minter handover has been used.
+Whether the one-time Mine handoff has permanently completed.
 
 ### `name()`
 
@@ -1674,15 +1292,7 @@ Returns the name of the token.
 function nonces(address owner) external view returns (uint256 nonce);
 ```
 
-Returns the current ERC-2612 permit nonce for `owner`.
-
-**Parameters**
-
-- `owner`: Account whose nonce is queried.
-
-**Returns**
-
-- `nonce`: Current permit nonce.
+Returns the current permit nonce for an account.
 
 ### `numCheckpoints(address)`
 
@@ -1700,30 +1310,13 @@ function permit(address owner, address spender, uint256 value, uint256 deadline,
 
 Sets `value` as the allowance of `spender` over `owner`'s tokens, given `owner`'s signed approval. IMPORTANT: The same issues {IERC20-approve} has related to transaction ordering also applies here. Emits an {Approval} event. Requirements: - `spender` cannot be the zero address. - `deadline` must be a timestamp in the future. - `v`, `r` and `s` must be a valid `secp256k1` signature from `owner` over the EIP712-formatted function arguments. - the signature must use `owner`'s current nonce (see {nonces}). For more information on the signature format, see the https://eips.ethereum.org/EIPS/eip-2612#specification[relevant EIP section]. CAUTION: See Security Considerations above.
 
-### `remainingMintableSupply()`
-
-```solidity
-function remainingMintableSupply() external view returns (uint256 amount);
-```
-
-Returns how much GBX can still be minted over the contract's lifetime.
-
-**Returns**
-
-- `amount`: Remaining lifetime mint capacity.
-
 ### `setMinter(address)`
 
 ```solidity
 function setMinter(address newMinter) external;
 ```
 
-Permanently hands minting authority to `newMinter`.
-The current minter may perform this handover exactly once. This supports deployment-time wiring to the Fundraiser without leaving a mutable governance-controlled minter.
-
-**Parameters**
-
-- `newMinter`: Address that will permanently receive minting authority.
+Permanently hands mint authority to the canonical Mine.
 
 ### `symbol()`
 
@@ -1824,6 +1417,14 @@ event Transfer(address indexed from, address indexed to, uint256 value);
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
+
+#### `AddressHasNoCode(address)`
+
+```solidity
+error AddressHasNoCode(address account);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
 
 #### `CheckpointUnorderedInsertion()`
 
@@ -1957,14 +1558,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error InvalidShortString();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `LifetimeMintCapExceeded(uint256,uint256)`
-
-```solidity
-error LifetimeMintCapExceeded(uint256 requested, uint256 remaining);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2450,6 +2043,604 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error UnexpectedPositionTokenId(uint256 expected, uint256 actual);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ZeroAddress()`
+
+```solidity
+error ZeroAddress();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## IRevenueRouterIdentity
+
+Source: [`src/core/Mine.sol`](../../packages/contracts/src/core/Mine.sol)
+
+Artifact: `out/Mine.sol/IRevenueRouterIdentity.json`
+
+Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `route()`
+
+```solidity
+function route() external returns (uint256 amount);
+```
+
+Routes the complete pending USDG balance to Resonance.
+
+**Returns**
+
+- `amount`: Amount of USDG delivered to Resonance.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (contract IERC20 token);
+```
+
+Returns the exact USDG token forwarded by the router.
+
+## Mine
+
+Source: [`src/core/Mine.sol`](../../packages/contracts/src/core/Mine.sol)
+
+Artifact: `out/Mine.sol/Mine.json`
+
+Public ABI: 39 functions, 7 events, 20 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address,address,address,address,(uint256,uint256,uint256,uint256,uint256))`
+
+```solidity
+constructor(contract GBX gbx_, contract IERC20 usdg_, address resonanceRouter_, address initialOwner, struct Mine.Config config);
+```
+
+Creates the immutable mining market with one empty slot.
+
+**Parameters**
+
+- `config`: Immutable price and future-handoff emission configuration.
+- `gbx_`: GBX token that will permanently bind this contract as minter.
+- `initialOwner`: Timelock or setup owner allowed only to increase capacity.
+- `resonanceRouter_`: Router receiving the protocol share of replacement payments.
+- `usdg_`: Exact-transfer token paid by incoming miners.
+
+### `BPS()`
+
+```solidity
+function BPS() external view returns (uint256 arg0);
+```
+
+Basis-point denominator used by the replacement payment split.
+
+### `MAX_CAPACITY()`
+
+```solidity
+function MAX_CAPACITY() external view returns (uint256 arg0);
+```
+
+Immutable upper bound on concurrently open mining slots.
+
+### `MAX_HALVING_AMOUNT()`
+
+```solidity
+function MAX_HALVING_AMOUNT() external view returns (uint256 arg0);
+```
+
+Largest supported cumulative mining amount for the first halving.
+
+### `MAX_INITIAL_PRICE()`
+
+```solidity
+function MAX_INITIAL_PRICE() external view returns (uint256 arg0);
+```
+
+Largest supported initial USDG price.
+
+### `MAX_INITIAL_UPS()`
+
+```solidity
+function MAX_INITIAL_UPS() external view returns (uint256 arg0);
+```
+
+Largest constructor-supported initial global GBX-per-second rate.
+
+### `MAX_PRICE_MULTIPLIER()`
+
+```solidity
+function MAX_PRICE_MULTIPLIER() external view returns (uint256 arg0);
+```
+
+Largest constructor-supported next-price multiplier.
+
+### `MIN_HALVING_AMOUNT()`
+
+```solidity
+function MIN_HALVING_AMOUNT() external view returns (uint256 arg0);
+```
+
+Smallest supported cumulative mining amount for the first halving.
+
+### `MIN_INITIAL_PRICE()`
+
+```solidity
+function MIN_INITIAL_PRICE() external view returns (uint256 arg0);
+```
+
+Smallest constructor-supported initial USDG price.
+
+### `MIN_PRICE_MULTIPLIER()`
+
+```solidity
+function MIN_PRICE_MULTIPLIER() external view returns (uint256 arg0);
+```
+
+Smallest constructor-supported next-price multiplier.
+
+### `MIN_TAIL_UPS()`
+
+```solidity
+function MIN_TAIL_UPS() external view returns (uint256 arg0);
+```
+
+Smallest tail rate that keeps a new slot positive at maximum capacity.
+
+### `PREVIOUS_MINER_BPS()`
+
+```solidity
+function PREVIOUS_MINER_BPS() external view returns (uint256 arg0);
+```
+
+Share of a nonempty-slot payment owed to the displaced miner.
+
+### `PRICE_DECAY_PERIOD()`
+
+```solidity
+function PRICE_DECAY_PERIOD() external view returns (uint256 arg0);
+```
+
+Time over which a slot replacement price decays linearly to zero.
+
+### `PRICE_PRECISION()`
+
+```solidity
+function PRICE_PRECISION() external view returns (uint256 arg0);
+```
+
+Fixed-point precision used by the next-price multiplier.
+
+### `capacity()`
+
+```solidity
+function capacity() external view returns (uint256 arg0);
+```
+
+Number of open slot indices; begins at one and only increases.
+
+### `checkpointAll()`
+
+```solidity
+function checkpointAll() external returns (uint256 amount);
+```
+
+Mints every live slot's accrued GBX without changing any occupied slot's assigned rate.
+Anyone may checkpoint. Fund calls this atomically before every redemption supply snapshot.
+
+### `claim(address)`
+
+```solidity
+function claim(address account) external;
+```
+
+Claims accumulated USDG replacement payments for an account.
+Anyone may trigger a claim, but payment always goes to `account`.
+
+### `claimable(address)`
+
+```solidity
+function claimable(address account) external view returns (uint256 amount);
+```
+
+USDG pull claim owed to each displaced miner.
+
+### `effectiveTotalSupply()`
+
+```solidity
+function effectiveTotalSupply() external view returns (uint256 amount);
+```
+
+Returns minted GBX supply plus all live slots' accrued unminted rewards.
+
+### `gbx()`
+
+```solidity
+function gbx() external view returns (contract GBX arg0);
+```
+
+GBX token issued by this Mine after the permanent handoff.
+
+### `getSlot(uint256)`
+
+```solidity
+function getSlot(uint256 index) external view returns (struct Mine.Slot slot);
+```
+
+Returns the complete state of one current slot.
+
+### `halvingAmount()`
+
+```solidity
+function halvingAmount() external view returns (uint256 arg0);
+```
+
+Cumulative mining amount at the first future-handoff rate halving.
+
+### `increaseCapacity(uint256)`
+
+```solidity
+function increaseCapacity(uint256 newCapacity) external;
+```
+
+Permanently opens more concurrent slots without repricing any occupied slot.
+
+### `initialUps()`
+
+```solidity
+function initialUps() external view returns (uint256 arg0);
+```
+
+Initial global GBX-per-second rate offered to future handoffs.
+
+### `mine(address,uint256,uint256,uint256,uint256)`
+
+```solidity
+function mine(address miner, uint256 index, uint256 epochId, uint256 deadline, uint256 maximumPrice) external returns (uint256 paid);
+```
+
+Replaces one slot's miner at its current linearly decaying USDG price.
+
+**Parameters**
+
+- `deadline`: Latest timestamp at which this transaction may execute.
+- `epochId`: Expected slot epoch used for frontrun protection.
+- `index`: Slot index below current capacity.
+- `maximumPrice`: Maximum USDG price accepted by the payer.
+- `miner`: Account that receives subsequent GBX emissions for the slot.
+
+**Returns**
+
+- `paid`: Actual USDG price paid.
+
+### `minimumInitialPrice()`
+
+```solidity
+function minimumInitialPrice() external view returns (uint256 arg0);
+```
+
+Immutable lower bound for every next slot opening price.
+
+### `nextGlobalUps()`
+
+```solidity
+function nextGlobalUps() external view returns (uint256 ups);
+```
+
+Returns the global rate that would apply immediately after a checkpoint.
+
+### `owner()`
+
+```solidity
+function owner() external view returns (address arg0);
+```
+
+Returns the address of the current owner.
+
+### `pendingEmission()`
+
+```solidity
+function pendingEmission() external view returns (uint256 amount);
+```
+
+Returns accrued unminted GBX across every live slot.
+
+### `pendingEmission(uint256)`
+
+```solidity
+function pendingEmission(uint256 index) external view returns (uint256 amount);
+```
+
+Returns accrued unminted GBX for one live slot.
+
+### `price(uint256)`
+
+```solidity
+function price(uint256 index) external view returns (uint256 amount);
+```
+
+Returns the current USDG replacement price for one slot.
+
+### `priceMultiplier()`
+
+```solidity
+function priceMultiplier() external view returns (uint256 arg0);
+```
+
+Immutable multiplier used to derive a slot's next opening price.
+
+### `renounceOwnership()`
+
+```solidity
+function renounceOwnership() external;
+```
+
+Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
+
+### `resonanceRouter()`
+
+```solidity
+function resonanceRouter() external view returns (address arg0);
+```
+
+Permissionless router that receives mining revenue.
+
+### `slots(uint256)`
+
+```solidity
+function slots(uint256 index) external view returns (uint256 epochId, uint256 initialPrice, uint256 auctionStartedAt, uint256 lastAccruedAt, uint256 ups, address miner);
+```
+
+Current state of each mining slot index.
+
+### `tailUps()`
+
+```solidity
+function tailUps() external view returns (uint256 arg0);
+```
+
+Strictly positive global GBX-per-second rate floor.
+
+### `totalClaimable()`
+
+```solidity
+function totalClaimable() external view returns (uint256 arg0);
+```
+
+Total USDG currently owed to displaced miners.
+
+### `totalMined()`
+
+```solidity
+function totalMined() external view returns (uint256 arg0);
+```
+
+Cumulative GBX minted through slot checkpoints.
+
+### `transferOwnership(address)`
+
+```solidity
+function transferOwnership(address newOwner) external;
+```
+
+Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (contract IERC20 arg0);
+```
+
+Exact-transfer USDG token used for replacement payments.
+
+### Events
+
+#### `CapacityIncreased(uint256,uint256)`
+
+```solidity
+event CapacityIncreased(uint256 previousCapacity, uint256 newCapacity);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Claimed(address,uint256)`
+
+```solidity
+event Claimed(address indexed account, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EmissionCheckpointed(address,uint256,uint256,uint256)`
+
+```solidity
+event EmissionCheckpointed(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Mined(address,address,uint256,uint256,address,uint256,uint256,uint256)`
+
+```solidity
+event Mined(address indexed payer, address indexed miner, uint256 indexed index, uint256 epochId, address previousMiner, uint256 price, uint256 initialPrice, uint256 ups);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `MinerPaymentAccrued(address,uint256,uint256,uint256)`
+
+```solidity
+event MinerPaymentAccrued(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnershipTransferred(address,address)`
+
+```solidity
+event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RevenueRouted(uint256,uint256,uint256)`
+
+```solidity
+event RevenueRouted(uint256 indexed index, uint256 indexed epochId, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `CapacityNotIncreased(uint256,uint256)`
+
+```solidity
+error CapacityNotIncreased(uint256 currentCapacity, uint256 requestedCapacity);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `CapacityTooHigh(uint256)`
+
+```solidity
+error CapacityTooHigh(uint256 requestedCapacity);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `DeadlinePassed(uint256)`
+
+```solidity
+error DeadlinePassed(uint256 deadline);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EpochIdMismatch(uint256,uint256)`
+
+```solidity
+error EpochIdMismatch(uint256 expected, uint256 actual);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `HalvingAmountOutOfRange(uint256)`
+
+```solidity
+error HalvingAmountOutOfRange(uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `IndexOutOfBounds(uint256)`
+
+```solidity
+error IndexOutOfBounds(uint256 index);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InexactTransfer(uint256,uint256,uint256)`
+
+```solidity
+error InexactTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InitialPriceOutOfRange(uint256)`
+
+```solidity
+error InitialPriceOutOfRange(uint256 price);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InitialUpsOutOfRange(uint256)`
+
+```solidity
+error InitialUpsOutOfRange(uint256 ups);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `MaxPriceExceeded(uint256,uint256)`
+
+```solidity
+error MaxPriceExceeded(uint256 price, uint256 maximumPrice);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `MiningAuthorityNotFinalized(address,bool)`
+
+```solidity
+error MiningAuthorityNotFinalized(address minter, bool locked);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `NothingToClaim(address)`
+
+```solidity
+error NothingToClaim(address account);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnableInvalidOwner(address)`
+
+```solidity
+error OwnableInvalidOwner(address owner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnableUnauthorizedAccount(address)`
+
+```solidity
+error OwnableUnauthorizedAccount(address account);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `PriceMultiplierOutOfRange(uint256)`
+
+```solidity
+error PriceMultiplierOutOfRange(uint256 multiplier);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ReentrancyGuardReentrantCall()`
+
+```solidity
+error ReentrancyGuardReentrantCall();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SafeERC20FailedOperation(address)`
+
+```solidity
+error SafeERC20FailedOperation(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `TailUpsOutOfRange(uint256)`
+
+```solidity
+error TailUpsOutOfRange(uint256 ups);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `UnexpectedRevenueToken(address,address)`
+
+```solidity
+error UnexpectedRevenueToken(address expected, address actual);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -4571,6 +4762,50 @@ Returns the GBX token backed by the Fund.
 **Returns**
 
 - `token`: GBX token address.
+
+## IMine
+
+Source: [`src/core/interfaces/IMine.sol`](../../packages/contracts/src/core/interfaces/IMine.sol)
+
+Artifact: `out/IMine.sol/IMine.json`
+
+Public ABI: 4 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `checkpointAll()`
+
+```solidity
+function checkpointAll() external returns (uint256 amount);
+```
+
+Mints every live slot's accrued GBX through the current timestamp.
+
+**Returns**
+
+- `amount`: Complete GBX amount minted by this checkpoint.
+
+### `effectiveTotalSupply()`
+
+```solidity
+function effectiveTotalSupply() external view returns (uint256 amount);
+```
+
+Returns minted GBX supply plus every live slot's accrued unminted GBX.
+
+### `gbx()`
+
+```solidity
+function gbx() external view returns (address token);
+```
+
+Canonical GBX token minted by this contract.
+
+### `pendingEmission()`
+
+```solidity
+function pendingEmission() external view returns (uint256 amount);
+```
+
+Returns accrued GBX that has not yet been minted across every live slot.
 
 ## IResonanceRouter
 

@@ -43,33 +43,7 @@
   },
   {
     "type": "function",
-    "name": "FUNDRAISER_ALLOCATION",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "GENESIS_LIQUIDITY_ALLOCATION",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "MAX_LIFETIME_MINT",
     "inputs": [],
     "outputs": [
       {
@@ -563,19 +537,6 @@
   },
   {
     "type": "function",
-    "name": "remainingMintableSupply",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "setMinter",
     "inputs": [
       {
@@ -831,6 +792,17 @@
   },
   {
     "type": "error",
+    "name": "AddressHasNoCode",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "CheckpointUnorderedInsertion",
     "inputs": []
   },
@@ -1031,22 +1003,6 @@
     "type": "error",
     "name": "InvalidShortString",
     "inputs": []
-  },
-  {
-    "type": "error",
-    "name": "LifetimeMintCapExceeded",
-    "inputs": [
-      {
-        "name": "requested",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "remaining",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
   },
   {
     "type": "error",

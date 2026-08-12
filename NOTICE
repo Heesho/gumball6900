@@ -38,10 +38,26 @@ Liquid Signal Governance
 - contracts/Strategy.sol
   SHA-256: eb89ccdf1f99dc24735cc009de908bd18ca295e2852c7880f821579c3697c372
 
+Farplace multislot mining reference
+
+- Repository: https://github.com/Heesho/farplace-monorepo
+- Commit: 8cf7423016b108e7bd8d7854c14e0ac6585bb935
+- packages/hardhat/contracts/rigs/mine/MineRig.sol
+  SHA-256: 57b8a2940986b21adcdacb5f447ed5f9dcb598b8b64de82bd77176c8362cfdc2
+
+`packages/contracts/src/core/Mine.sol` is an adaptation, not a verbatim copy. It removes team, entropy, metadata, and
+migration surfaces; uses an exact 80% displaced-miner / 20% Resonance split; and adds a hard capacity cap,
+tenure-locked rates, permanent GBX authority validation, exact transfer checks, and Fund checkpointing. The reviewed
+Farplace revision has file-level MIT SPDX notices but no root license. Deployment and redistribution remain blocked
+until counsel resolves that provenance with this repository's licensing.
+
+The pinned give.fun `Fundraiser.sol` remains here only as provenance for the superseded implementation removed by ADR
+0024. It is not a behavioral source for the current Mine.
+
 give.fun Auction.sol is the sole behavioral authority for the auction state transition. The rebuild adapts only the
-necessary contribution/claim, auction, staking, signaling, indexed-allocation, and supporter-reward behavior to the
-GBX custody and trust model. It does not claim that the upstream implementations, tests, audits, operating history,
-or production use cover any GBX adaptation. Each adapted file still requires file-level lineage review.
+necessary auction, token, staking, signaling, indexed-allocation, and supporter-reward behavior to the GBX custody and
+trust model. It does not claim that the upstream implementations, tests, audits, operating history, or production use
+cover any GBX adaptation. Each adapted file still requires file-level lineage review.
 
 Transitive Euler Fee Flow provenance and licensing blocker
 ----------------------------------------------------------

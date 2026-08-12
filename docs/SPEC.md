@@ -5,23 +5,27 @@ The executable specification is the Solidity under `packages/contracts/src/core`
 
 The required behavior is:
 
-1. USDG contributions route through Fundraiser, ResonanceRouter, and Resonance.
-2. SignalGBX signaling uses incremental absolute per-Strategy amounts. It has no time-based withdrawal lock, and any
-   unallocated balance can be unstaked immediately.
-3. Resonance creates uniform acquisition Strategies through bound factories.
-4. Every Strategy payment becomes a 100% fixed Fund liability. Auction proceeds never fund Bribes, and GBX payments
-   remain unburned until anyone pays the liability and calls Fund's permissionless burn function.
-5. Fund supports registry-free selective in-kind redemption and has no migration or administrative withdrawal path.
-6. GBX creates 20 million genesis-liquidity tokens and permanently reserves the remaining 980 million capacity for
-   Fundraiser's fixed daily four-year-half-life schedule.
-7. LiquidityPosition holds one precommitted single-sided GBX/USDG v4 position permanently at fixed principal.
-   Anyone may harvest fees; USDG routes through ResonanceRouter and GBX is sent to Fund and burned atomically.
-8. Resonance administration passes through OpenZeppelin `TimelockController`. Fund and LiquidityPosition are
-   ownerless.
-9. Each Bribe's append-only reward-token list is permanently capped at eight, bounding signal removal and reward claims.
-10. Revenue and reward floor remainders are retained as explicit scaled carry. Zero-supply reward streams pause,
-    notifications queue, and Fund-bound value is paid through fixed permissionless liabilities rather than inline
-    signal-exit transfers.
+1. GBX creates 20 million genesis-liquidity tokens and permanently assigns all later minting to one immutable Mine.
+2. Mine starts with one hourly reverse-Dutch slot. Timelock governance may only increase capacity, to at most sixteen.
+3. Each mining tenure has a fixed GBX-per-second rate. Checkpoints, cumulative-mining thresholds, redemptions, and capacity
+   increases do not dilute an incumbent; only a new occupant receives current global rate divided by current capacity.
+4. A nonempty-slot replacement checkpoints all accrual, makes 80% of the exact USDG price claimable by the displaced
+   miner, and routes 20% through ResonanceRouter. An empty slot routes 100%; there is no team fee.
+5. Global rates used for future handoffs halve at immutable cumulative-mining thresholds and continue at a positive
+   immutable tail. GBX therefore has no protocol-defined economic maximum; its inherited ERC20Votes accounting still
+   has the `uint208` implementation ceiling.
+6. SignalGBX uses incremental absolute per-Strategy amounts, has no withdrawal lock, and lets users withdraw any
+   unallocated balance immediately.
+7. Resonance creates uniform acquisition Strategies through bound factories. Every Strategy payment becomes a 100%
+   fixed Fund liability; Bribes are funded independently.
+8. Fund checkpoints all Mine slots before every redemption denominator snapshot, then performs registry-free,
+   caller-selected in-kind redemption atomically with the GBX burn.
+9. LiquidityPosition permanently holds one precommitted single-sided GBX/USDG v4 position at fixed principal. Anyone
+   may harvest fees; USDG routes through ResonanceRouter and GBX is burned through Fund atomically.
+10. TimelockController owns Resonance and Mine. Fund and LiquidityPosition are ownerless. No core contract is
+    upgradeable or migratable.
+11. Each Bribe has at most eight append-only reward tokens. Revenue and reward floor remainders remain explicit carry,
+    and broken payout tokens do not block signal removal or unstaking.
 
 Detailed mechanics are in [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md), with risks in
 [THREAT_MODEL.md](THREAT_MODEL.md).

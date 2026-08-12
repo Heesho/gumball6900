@@ -6,9 +6,9 @@
 
 # Function: readSupplyView()
 
-> **readSupplyView**(`client`, `gbx`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `lifetimeBurned`: `bigint`; `lifetimeMinted`: `bigint`; `minter`: `` `0x${string}` ``; `minterLocked`: `boolean`; `remainingMintableSupply`: `bigint`; `totalSupply`: `bigint`; \}\>
+> **readSupplyView**(`client`, `gbx`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `genesisLiquidityAllocation`: `bigint`; `lifetimeBurned`: `bigint`; `lifetimeMinted`: `bigint`; `minter`: `` `0x${string}` ``; `minterLocked`: `boolean`; `totalSupply`: `bigint`; \}\>
 
-Reads the complete GBX lifetime-supply state from one canonical block.
+Reads cumulative GBX issuance, burns, supply, and permanent mining authority from one canonical block.
 
 ## Parameters
 
@@ -20,4 +20,4 @@ Reads the complete GBX lifetime-supply state from one canonical block.
 
 ## Returns
 
-`Promise`\<\{ `blockNumber`: `bigint`; `lifetimeBurned`: `bigint`; `lifetimeMinted`: `bigint`; `minter`: `` `0x${string}` ``; `minterLocked`: `boolean`; `remainingMintableSupply`: `bigint`; `totalSupply`: `bigint`; \}\>
+`Promise`\<\{ `blockNumber`: `bigint`; `genesisLiquidityAllocation`: `bigint`; `lifetimeBurned`: `bigint`; `lifetimeMinted`: `bigint`; `minter`: `` `0x${string}` ``; `minterLocked`: `boolean`; `totalSupply`: `bigint`; \}\>

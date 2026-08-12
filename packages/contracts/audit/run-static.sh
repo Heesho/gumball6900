@@ -95,7 +95,7 @@ fi
 
 : >"$REPORT_DIR/storage-layout.jsonl"
 for contract in \
-    GBX Fundraiser LiquidityPosition SignalGBX ResonanceRouter Resonance Strategy \
+    GBX Mine LiquidityPosition SignalGBX ResonanceRouter Resonance Strategy \
     BribeRouter Bribe StrategyFactory BribeFactory Fund TimelockController; do
     layout="$(forge inspect "$contract" storage-layout --json)"
     jq --compact-output --null-input --arg contract "$contract" --argjson layout "$layout" \

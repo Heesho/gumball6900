@@ -4,14 +4,15 @@ pragma solidity 0.8.26;
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { TimelockController } from "@openzeppelin/contracts/governance/TimelockController.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Test } from "forge-std/Test.sol";
 
 import { Bribe } from "../../src/core/Bribe.sol";
 import { BribeFactory } from "../../src/core/BribeFactory.sol";
 import { BribeRouter } from "../../src/core/BribeRouter.sol";
 import { Fund } from "../../src/core/Fund.sol";
-import { Fundraiser } from "../../src/core/Fundraiser.sol";
 import { GBX } from "../../src/core/GBX.sol";
+import { Mine } from "../../src/core/Mine.sol";
 import { SignalGBX } from "../../src/core/SignalGBX.sol";
 import { Strategy } from "../../src/core/Strategy.sol";
 import { StrategyFactory } from "../../src/core/StrategyFactory.sol";
@@ -73,7 +74,7 @@ contract StartingPointTest is Test {
     CoreTestToken private secondAsset;
     GBX private gbx;
     Fund private fund;
-    Fundraiser private fundraiser;
+    Mine private mine;
     SignalGBX private signalGBX;
     Resonance private resonance;
     ResonanceRouter private resonanceRouter;
@@ -89,7 +90,6 @@ contract StartingPointTest is Test {
         target = new CoreTestToken("Target", "TGT", 18);
         secondAsset = new CoreTestToken("Second Asset", "TWO", 18);
         gbx = new GBX(address(this), address(this));
-        gbx.burn(gbx.GENESIS_LIQUIDITY_ALLOCATION());
         fund = new Fund(gbx);
         signalGBX = new SignalGBX(IERC20(address(gbx)), address(this));
         bribeFactory = new BribeFactory(address(this));
@@ -115,69 +115,63 @@ contract StartingPointTest is Test {
         targetStrategy = Strategy(targetStrategyAddress);
         gbxStrategy = Strategy(gbxStrategyAddress);
 
-        fundraiser = new Fundraiser(gbx, IERC20(address(usdg)), address(resonanceRouter));
-        gbx.setMinter(address(fundraiser));
-        vm.startPrank(address(fundraiser));
-        gbx.mint(ALICE, 200 ether);
-        gbx.mint(BOB, 200 ether);
-        vm.stopPrank();
+        mine = new Mine(
+            gbx,
+            IERC20(address(usdg)),
+            address(resonanceRouter),
+            address(this),
+            Mine.Config({
+                priceMultiplier: 2e18,
+                minimumInitialPrice: 1e6,
+                initialUps: 4 ether,
+                halvingAmount: 490_000_000 ether,
+                tailUps: 0.01 ether
+            })
+        );
+        gbx.setMinter(address(mine));
+        gbx.transfer(ALICE, 200 ether);
+        gbx.transfer(BOB, 200 ether);
     }
 
     function test_SignalGBXUsesSgbxTicker() external view {
         assertEq(signalGBX.symbol(), "sGBX");
     }
 
-    function test_ContributionsRouteAllUSDGThroughResonanceAndClaimsStayProRata() external {
+    function test_MiningRoutesRevenueMintsContinuouslyAndPaysTheDisplacedMiner() external {
         _stakeAndSignal();
-        usdg.mint(ALICE, 60_000_000);
-        usdg.mint(BOB, 40_000_000);
+        uint256 firstPrice = _mine(ALICE, 0);
+        vm.warp(block.timestamp + 30 minutes);
+        uint256 secondPrice = _mine(BOB, 0);
 
-        vm.startPrank(ALICE);
-        usdg.approve(address(fundraiser), 60_000_000);
-        fundraiser.contribute(ALICE, 60_000_000);
-        vm.stopPrank();
-
-        vm.startPrank(BOB);
-        usdg.approve(address(fundraiser), 40_000_000);
-        fundraiser.contribute(BOB, 40_000_000);
-        vm.stopPrank();
-
-        assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
+        assertEq(firstPrice, 1e6);
+        assertEq(secondPrice, 1e6);
+        assertEq(usdg.balanceOf(address(resonance)), 1_200_000);
         assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
-        assertEq(usdg.balanceOf(address(fundraiser)), 0);
+        assertEq(usdg.balanceOf(address(mine)), 800_000);
         assertEq(usdg.balanceOf(address(fund)), 0);
-        assertEq(fundraiser.epochContributions(0), 100_000_000);
+        assertEq(gbx.balanceOf(ALICE), 100 ether + 7_200 ether);
+        assertEq(gbx.balanceOf(BOB), 100 ether);
 
-        vm.warp(fundraiser.startedAt() + 1 days);
-        fundraiser.settleEpochs(1);
-        uint256 aliceReward = fundraiser.claim(ALICE, 0);
-        uint256 bobReward = fundraiser.claim(BOB, 0);
-
-        uint256 initialEmission = fundraiser.INITIAL_DAILY_EMISSION();
-        assertEq(aliceReward, initialEmission * 60 / 100);
-        assertEq(bobReward, initialEmission * 40 / 100);
-        assertEq(gbx.balanceOf(ALICE), 100 ether + aliceReward);
-        assertEq(gbx.balanceOf(BOB), 100 ether + bobReward);
+        mine.claim(ALICE);
+        assertEq(usdg.balanceOf(ALICE), 800_000);
     }
 
-    function test_FundraiserPreservesExactSequentialDailyDecayAndForfeitsEmptyEpochs() external {
-        _contributeRevenue(1_000_000);
-        vm.warp(fundraiser.startedAt() + 31 days);
+    function test_MiningCapacityIncreasePreservesIncumbentAndDividesNewSlotRate() external {
+        _mine(ALICE, 0);
+        mine.increaseCapacity(2);
+        _mine(BOB, 1);
 
-        assertEq(fundraiser.settleEpochs(2), 2);
-        assertEq(fundraiser.epochEmission(0), 465_152_749_681_042_811_702_004);
-        assertEq(fundraiser.epochEmission(1), 0);
-        assertEq(fundraiser.currentScheduledEmission(), 464_711_289_004_129_249_641_614);
+        assertEq(mine.capacity(), 2);
+        assertEq(mine.getSlot(0).ups, 4 ether);
+        assertEq(mine.getSlot(1).ups, 2 ether);
 
-        assertEq(fundraiser.settleEpochs(29), 29);
-        assertEq(fundraiser.epochEmission(30), 0);
-        assertEq(fundraiser.currentScheduledEmission(), 458_356_991_058_072_529_276_656);
-        assertEq(fundraiser.nextEpochToSettle(), 31);
+        vm.warp(block.timestamp + 1 hours);
+        assertEq(mine.pendingEmission(), 21_600 ether);
     }
 
     function test_AcquisitionSendsCompletePaymentTowardFund() external {
         _stakeAndSignal();
-        _contributeRevenue(100_000_000);
+        _routeRevenue(100_000_000);
         resonance.distribute(address(targetStrategy));
 
         target.mint(CAROL, STRATEGY_PRICE);
@@ -211,7 +205,7 @@ contract StartingPointTest is Test {
     }
 
     function test_RevenueWithoutSignalsBecomesFundBacking() external {
-        _contributeRevenue(100_000_000);
+        _routeRevenue(100_000_000);
 
         assertEq(resonance.fundRevenueLiability(), 100_000_000);
         assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
@@ -220,7 +214,7 @@ contract StartingPointTest is Test {
 
     function test_GBXPaymentRequiresSeparateFundDeliveryAndBurn() external {
         _stakeAndSignal();
-        _contributeRevenue(100_000_000);
+        _routeRevenue(100_000_000);
         resonance.distribute(address(gbxStrategy));
 
         uint256 supplyBefore = gbx.totalSupply();
@@ -242,7 +236,7 @@ contract StartingPointTest is Test {
 
         fund.burnGBX(STRATEGY_PRICE);
         assertEq(gbx.totalSupply(), supplyBefore - STRATEGY_PRICE);
-        assertEq(gbx.lifetimeBurned(), gbx.GENESIS_LIQUIDITY_ALLOCATION() + STRATEGY_PRICE);
+        assertEq(gbx.lifetimeBurned(), STRATEGY_PRICE);
     }
 
     function test_SignalsCanBeAdjustedAndUnstakedWithoutTimeLock() external {
@@ -270,6 +264,9 @@ contract StartingPointTest is Test {
     function test_FundRedeemsCallerSelectedAssetsAgainstPreBurnSupply() external {
         target.mint(address(fund), 400 ether);
         secondAsset.mint(address(fund), 200 ether);
+        uint256 supplyBefore = gbx.totalSupply();
+        uint256 expectedTarget = Math.mulDiv(400 ether, 100 ether, supplyBefore);
+        uint256 expectedSecond = Math.mulDiv(200 ether, 100 ether, supplyBefore);
 
         address[] memory tokens = new address[](2);
         tokens[0] = address(secondAsset);
@@ -280,23 +277,24 @@ contract StartingPointTest is Test {
         fund.redeem(100 ether, ALICE, tokens);
         vm.stopPrank();
 
-        assertEq(target.balanceOf(ALICE), 100 ether);
-        assertEq(secondAsset.balanceOf(ALICE), 50 ether);
-        assertEq(target.balanceOf(address(fund)), 300 ether);
-        assertEq(secondAsset.balanceOf(address(fund)), 150 ether);
-        assertEq(gbx.totalSupply(), 300 ether);
+        assertEq(target.balanceOf(ALICE), expectedTarget);
+        assertEq(secondAsset.balanceOf(ALICE), expectedSecond);
+        assertEq(target.balanceOf(address(fund)), 400 ether - expectedTarget);
+        assertEq(secondAsset.balanceOf(address(fund)), 200 ether - expectedSecond);
+        assertEq(gbx.totalSupply(), supplyBefore - 100 ether);
     }
 
     function test_FundAllowsOmissionsAndRejectsDuplicateOrGBXEntries() external {
         target.mint(address(fund), 400 ether);
         secondAsset.mint(address(fund), 200 ether);
+        uint256 expectedTarget = Math.mulDiv(400 ether, 100 ether, gbx.totalSupply());
 
         vm.startPrank(ALICE);
         gbx.approve(address(fund), 100 ether);
         fund.redeem(100 ether, ALICE, _singleAddress(address(target)));
         vm.stopPrank();
 
-        assertEq(target.balanceOf(ALICE), 100 ether);
+        assertEq(target.balanceOf(ALICE), expectedTarget);
         assertEq(secondAsset.balanceOf(address(fund)), 200 ether);
 
         address[] memory duplicates = new address[](2);
@@ -335,14 +333,17 @@ contract StartingPointTest is Test {
     function test_TransientDuplicateMarksAreClearedBetweenCallsInOneTransaction() external {
         RedemptionBatcher batcher = new RedemptionBatcher();
         target.mint(address(fund), 400 ether);
+        uint256 supplyBefore = gbx.totalSupply();
+        uint256 firstPayout = Math.mulDiv(400 ether, 10 ether, supplyBefore);
+        uint256 secondPayout = Math.mulDiv(400 ether - firstPayout, 10 ether, supplyBefore - 10 ether);
 
         vm.startPrank(ALICE);
         gbx.approve(address(batcher), 20 ether);
         batcher.redeemTwice(gbx, fund, 10 ether, ALICE, _singleAddress(address(target)));
         vm.stopPrank();
 
-        assertEq(target.balanceOf(ALICE), 20 ether);
-        assertEq(gbx.totalSupply(), 380 ether);
+        assertEq(target.balanceOf(ALICE), firstPayout + secondPayout);
+        assertEq(gbx.totalSupply(), supplyBefore - 20 ether);
     }
 
     function test_FundHoldsAssetsPermanentlyWithRedemptionAndBurnAsItsOnlyExits() external {
@@ -379,22 +380,24 @@ contract StartingPointTest is Test {
         );
     }
 
-    /// @dev Resonance holds the entire remaining administrative surface. Fund and LiquidityPosition are ownerless,
-    ///      so the timelock has nothing to execute against them.
+    /// @dev Resonance administration and the Mine's bounded capacity increase are held by the timelock.
     function test_TheRemainingAdministrationExecutesThroughOpenZeppelinTimelock() external {
         TimelockController timelock =
             new TimelockController(7 days, _singleAddress(address(this)), _singleAddress(address(0)), address(0));
         bytes32 salt = keccak256("CORE_ADMINISTRATION");
-        address[] memory targets = new address[](2);
-        uint256[] memory values = new uint256[](2);
-        bytes[] memory payloads = new bytes[](2);
+        address[] memory targets = new address[](3);
+        uint256[] memory values = new uint256[](3);
+        bytes[] memory payloads = new bytes[](3);
 
         targets[0] = address(resonance);
         payloads[0] = abi.encodeCall(Resonance.addStrategy, (IERC20(address(secondAsset)), _strategyConfig()));
         targets[1] = address(resonance);
         payloads[1] = abi.encodeCall(Resonance.killStrategy, (address(gbxStrategy)));
+        targets[2] = address(mine);
+        payloads[2] = abi.encodeCall(Mine.increaseCapacity, (2));
 
         resonance.transferOwnership(address(timelock));
+        mine.transferOwnership(address(timelock));
 
         timelock.scheduleBatch(targets, values, payloads, bytes32(0), salt, timelock.getMinDelay());
 
@@ -407,17 +410,20 @@ contract StartingPointTest is Test {
 
         assertTrue(resonance.isStrategy(newStrategy));
         assertFalse(resonance.isStrategyAlive(address(gbxStrategy)));
+        assertEq(mine.capacity(), 2);
     }
 
-    function test_GBXLifetimeCapDoesNotReopenAfterBurns() external {
-        uint256 lifetimeMintedBefore = gbx.GENESIS_LIQUIDITY_ALLOCATION() + 400 ether;
-        assertEq(gbx.lifetimeMinted(), lifetimeMintedBefore);
+    function test_GBXSupplyReconcilesContinuousIssuanceAndBurns() external {
+        _mine(ALICE, 0);
+        vm.warp(block.timestamp + 10);
+        mine.checkpointAll();
+        uint256 supplyBefore = gbx.totalSupply();
         vm.prank(ALICE);
         gbx.burn(50 ether);
 
-        assertEq(gbx.remainingMintableSupply(), gbx.MAX_LIFETIME_MINT() - lifetimeMintedBefore);
-        assertEq(gbx.totalSupply(), 350 ether);
-        assertEq(gbx.lifetimeBurned(), gbx.GENESIS_LIQUIDITY_ALLOCATION() + 50 ether);
+        assertEq(gbx.totalSupply(), supplyBefore - 50 ether);
+        assertEq(gbx.totalSupply(), gbx.lifetimeMinted() - gbx.lifetimeBurned());
+        assertEq(gbx.lifetimeBurned(), 50 ether);
     }
 
     function _stakeAndSignal() private {
@@ -434,11 +440,19 @@ contract StartingPointTest is Test {
         vm.stopPrank();
     }
 
-    function _contributeRevenue(uint256 amount) private {
-        usdg.mint(CAROL, amount);
-        vm.startPrank(CAROL);
-        usdg.approve(address(fundraiser), amount);
-        fundraiser.contribute(CAROL, amount);
+    function _routeRevenue(uint256 amount) private {
+        usdg.mint(address(resonanceRouter), amount);
+        resonanceRouter.route();
+    }
+
+    function _mine(address account, uint256 index) private returns (uint256 paid) {
+        Mine.Slot memory slot = mine.getSlot(index);
+        paid = mine.price(index);
+        if (paid != 0) usdg.mint(account, paid);
+
+        vm.startPrank(account);
+        if (paid != 0) usdg.approve(address(mine), paid);
+        mine.mine(account, index, slot.epochId, block.timestamp, paid);
         vm.stopPrank();
     }
 

@@ -29,10 +29,10 @@ contract FundTest is ProtocolFixture {
 
     function setUp() external {
         _deployProtocol();
-        _mintGBX(ALICE, 300 ether);
-        _mintGBX(BOB, 100 ether);
+        _mintTestGBX(ALICE, 300 ether);
+        _mintTestGBX(BOB, 100 ether);
 
-        // Retire the genesis allocation so the redemption denominator is exactly 400 GBX.
+        // Isolate Fund arithmetic from the genesis allocation while dedicated Mine tests cover pending emissions.
         uint256 genesisBalance = gbx.balanceOf(GENESIS);
         vm.prank(GENESIS);
         gbx.burn(genesisBalance);
@@ -277,14 +277,13 @@ contract FundTest is ProtocolFixture {
 
     function test_RedeemingTheEntireSupplyDrainsTheSelectedAssets() external {
         target.mint(address(fund), 400 ether);
-        _mintGBX(ALICE, 100 ether); // Alice now holds the full 400 supply alongside Bob's 100
 
         vm.prank(BOB);
         gbx.transfer(ALICE, 100 ether);
 
         vm.startPrank(ALICE);
-        gbx.approve(address(fund), 500 ether);
-        fund.redeem(500 ether, ALICE, _addresses(address(target)));
+        gbx.approve(address(fund), 400 ether);
+        fund.redeem(400 ether, ALICE, _addresses(address(target)));
         vm.stopPrank();
 
         assertEq(target.balanceOf(address(fund)), 0);

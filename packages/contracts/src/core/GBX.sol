@@ -6,60 +6,38 @@ import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 import { ERC20Votes } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
 
-/// @title GumBall6900 Capped Governance and Redemption Token
+/// @title GUM BALL 6900 Governance, Mining, and Redemption Token
 /// @author Heesho
-/// @notice Governance and redemption token for the GUM BALL 6900 protocol.
-/// @dev Adapted from the give.fun Coin contract. Minting authority can be handed over once, while the lifetime mint
-///      ceiling counts every token ever minted and is never reopened by burns.
+/// @notice Transferable token used for liquidity, signaling, mining rewards, and Fund redemption.
+/// @dev Creates only the 20 million genesis-liquidity allocation. Deployment may permanently hand mint authority to
+///      one Mine exactly once; no caller can replace that Mine afterward. Burns never reopen or alter mint authority.
 /// @custom:version 1.0.0
 contract GBX is ERC20, ERC20Permit, ERC20Votes {
-    /// @notice Maximum number of GBX that may ever be minted.
-    uint256 public constant MAX_LIFETIME_MINT = 1_000_000_000 ether;
-    /// @notice GBX created once for the canonical single-sided Uniswap v4 position.
+    /// @notice GBX created once for the canonical genesis-liquidity position.
     uint256 public constant GENESIS_LIQUIDITY_ALLOCATION = 20_000_000 ether;
-    /// @notice Remaining lifetime mint capacity reserved for Fundraiser rewards.
-    uint256 public constant FUNDRAISER_ALLOCATION = 980_000_000 ether;
 
-    /// @notice Address currently authorized to mint GBX.
+    /// @notice Current mint authority; permanently becomes the canonical Mine after setup.
     address public minter;
-    /// @notice Whether the one-time minter handover has been used.
+    /// @notice Whether the one-time Mine handoff has permanently completed.
     bool public minterLocked;
-    /// @notice Total GBX minted over the lifetime of the contract, including tokens later burned.
+    /// @notice Cumulative GBX created, including the genesis allocation.
     uint256 public lifetimeMinted;
-    /// @notice Total GBX permanently burned.
+    /// @notice Cumulative GBX permanently destroyed.
     uint256 public lifetimeBurned;
 
-    /// @notice Emitted when GBX is permanently removed from circulation.
-    /// @param account Account whose GBX was burned.
-    /// @param amount Amount burned.
     event Burned(address indexed account, uint256 amount);
-    /// @notice Emitted when the authorized minter creates GBX.
-    /// @param account Account that received the newly minted GBX.
-    /// @param amount Amount minted.
     event Minted(address indexed account, uint256 amount);
-    /// @notice Emitted when the one-time minting authority handover completes.
-    /// @param previousMinter Address that previously controlled minting.
-    /// @param newMinter Address that now controls minting.
     event MinterSet(address indexed previousMinter, address indexed newMinter);
 
-    /// @notice A mint would exceed the cumulative one-billion-token ceiling.
-    error LifetimeMintCapExceeded(uint256 requested, uint256 remaining);
-    /// @notice A Fundraiser mint was requested before permanent minter handover.
-    error MinterNotLocked();
-    /// @notice The one-time minter handover has already completed.
+    error AddressHasNoCode(address account);
     error MinterAlreadyLocked();
-    /// @notice A caller other than the current minter requested minting or handover.
+    error MinterNotLocked();
     error NotMinter(address caller);
-    /// @notice A minter handover selected the already-authorized minter.
     error SameMinter();
-    /// @notice A required receiver or minter address is zero.
     error ZeroAddress();
-    /// @notice A mint or burn amount is zero.
     error ZeroAmount();
 
-    /// @notice Creates the fixed genesis allocation and assigns deployment-time minting authority.
-    /// @param genesisLiquidityRecipient Recipient of the 20 million GBX liquidity allocation.
-    /// @param initialMinter Deployment coordinator that must permanently hand minting to Fundraiser.
+    /// @notice Creates the genesis-liquidity allocation and temporary deployment-time mint authority.
     constructor(address genesisLiquidityRecipient, address initialMinter)
         ERC20("GUM BALL 6900", "GBX")
         ERC20Permit("GUM BALL 6900")
@@ -71,74 +49,49 @@ contract GBX is ERC20, ERC20Permit, ERC20Votes {
         minter = initialMinter;
         lifetimeMinted = GENESIS_LIQUIDITY_ALLOCATION;
         _mint(genesisLiquidityRecipient, GENESIS_LIQUIDITY_ALLOCATION);
-
         emit Minted(genesisLiquidityRecipient, GENESIS_LIQUIDITY_ALLOCATION);
     }
 
-    /// @notice Permanently hands minting authority to `newMinter`.
-    /// @dev The current minter may perform this handover exactly once. This supports deployment-time wiring to the
-    ///      Fundraiser without leaving a mutable governance-controlled minter.
-    /// @param newMinter Address that will permanently receive minting authority.
+    /// @notice Permanently hands mint authority to the canonical Mine.
     function setMinter(address newMinter) external {
         if (msg.sender != minter) revert NotMinter(msg.sender);
         if (minterLocked) revert MinterAlreadyLocked();
         if (newMinter == address(0)) revert ZeroAddress();
         if (newMinter == minter) revert SameMinter();
+        if (newMinter.code.length == 0) revert AddressHasNoCode(newMinter);
 
         address previousMinter = minter;
         minter = newMinter;
         minterLocked = true;
-
         emit MinterSet(previousMinter, newMinter);
     }
 
-    /// @notice Mints GBX to `account` without exceeding the lifetime ceiling.
-    /// @param account Address that receives the newly minted GBX.
-    /// @param amount Amount of GBX to mint.
+    /// @notice Mints GBX through the permanently selected Mine.
     function mint(address account, uint256 amount) external {
         if (msg.sender != minter) revert NotMinter(msg.sender);
         if (!minterLocked) revert MinterNotLocked();
         if (account == address(0)) revert ZeroAddress();
         if (amount == 0) revert ZeroAmount();
 
-        uint256 remaining = remainingMintableSupply();
-        if (amount > remaining) revert LifetimeMintCapExceeded(amount, remaining);
-
         lifetimeMinted += amount;
         _mint(account, amount);
-
         emit Minted(account, amount);
     }
 
     /// @notice Permanently burns GBX held by the caller.
-    /// @param amount Amount of GBX to burn.
     function burn(uint256 amount) external {
         if (amount == 0) revert ZeroAmount();
 
         lifetimeBurned += amount;
         _burn(msg.sender, amount);
-
         emit Burned(msg.sender, amount);
     }
 
-    /// @notice Returns how much GBX can still be minted over the contract's lifetime.
-    /// @return amount Remaining lifetime mint capacity.
-    function remainingMintableSupply() public view returns (uint256 amount) {
-        return MAX_LIFETIME_MINT - lifetimeMinted;
-    }
-
-    /// @notice Returns the current ERC-2612 permit nonce for `owner`.
-    /// @param owner Account whose nonce is queried.
-    /// @return nonce Current permit nonce.
+    /// @notice Returns the current permit nonce for an account.
     function nonces(address owner) public view override(ERC20Permit, Nonces) returns (uint256 nonce) {
         return super.nonces(owner);
     }
 
-    /// @notice Applies token and signal-checkpoint accounting for a balance update.
-    /// @dev Resolves ERC20 and ERC20Votes accounting for every mint, burn, or transfer.
-    /// @param from Address tokens move from, or zero during minting.
-    /// @param to Address tokens move to, or zero during burning.
-    /// @param value Amount moved.
     function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Votes) {
         super._update(from, to, value);
     }

@@ -24,23 +24,23 @@ function pinnedClient(values: Readonly<Record<string, unknown>>): PublicClient {
 }
 
 describe('minimal SDK reads and deployment metadata', () => {
-  it('pins and revalidates cumulative supply reads', async () => {
+  it('pins and revalidates mined supply reads', async () => {
     const client = pinnedClient({
+      GENESIS_LIQUIDITY_ALLOCATION: 20n,
       lifetimeBurned: 5n,
-      lifetimeMinted: 20n,
+      lifetimeMinted: 1_000n,
       minter: address(2),
       minterLocked: true,
-      remainingMintableSupply: 980n,
-      totalSupply: 15n,
+      totalSupply: 995n,
     });
     await expect(readSupplyView(client, address(1))).resolves.toEqual({
       blockNumber: 100n,
+      genesisLiquidityAllocation: 20n,
       lifetimeBurned: 5n,
-      lifetimeMinted: 20n,
+      lifetimeMinted: 1_000n,
       minter: address(2),
       minterLocked: true,
-      remainingMintableSupply: 980n,
-      totalSupply: 15n,
+      totalSupply: 995n,
     });
     expect(client.getBlock).toHaveBeenCalledTimes(2);
   });
@@ -72,9 +72,9 @@ describe('minimal SDK reads and deployment metadata', () => {
     const keys = [
       'bribeFactory',
       'fund',
-      'fundraiser',
       'gbx',
       'liquidityPosition',
+      'mine',
       'signalGBX',
       'strategyFactory',
       'timelockController',

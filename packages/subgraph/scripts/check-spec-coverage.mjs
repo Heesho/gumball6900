@@ -7,30 +7,27 @@ import { fileURLToPath } from 'node:url';
 const scriptDirectory = path.dirname(fileURLToPath(import.meta.url));
 const packageDirectory = path.resolve(scriptDirectory, '..');
 
-export const REQUIRED_ENTITIES = Object.freeze([
-  'ProtocolState',
-  'Account',
-  'FundraiserEpoch',
-  'Strategy',
-  'ProtocolEvent',
-]);
+export const REQUIRED_ENTITIES = Object.freeze(['ProtocolState', 'Account', 'MiningSlot', 'Strategy', 'ProtocolEvent']);
 
 export const ACCOUNTING_EXTENSION_ENTITIES = Object.freeze([]);
 
 export const REQUIRED_HANDLERS = Object.freeze([
   'handleBribeRewardAdded',
   'handleBurned',
+  'handleCapacityIncreased',
   'handleCallExecuted',
   'handleCallSalt',
   'handleCallScheduled',
   'handleCancelled',
   'handleClaimed',
-  'handleContributed',
-  'handleEpochSettled',
+  'handleEmissionCheckpointed',
   'handleFeesHarvested',
   'handleFundGBXBurned',
-  'handleMinted',
+  'handleMined',
+  'handleMinerPaymentAccrued',
   'handleMinterSet',
+  'handleMinted',
+  'handleMiningRevenueRouted',
   'handleMinDelayChange',
   'handlePositionRecorded',
   'handleRedeemed',

@@ -1,5 +1,8 @@
 # Production-hardening baseline
 
+> Historical evidence only. ADR 0024 also replaced the distribution contract and supply model with Mine; the
+> inventory, sizes, constants, and results below are not current release evidence.
+
 > Historical snapshot only. ADR 0022 later superseded the captured LiquidityPosition compounding API and A-06/A-07
 > dispositions with fixed-principal fee routing. The inventory below is intentionally preserved as baseline evidence.
 
@@ -192,10 +195,10 @@ for c in GBX Fundraiser SignalGBX ResonanceRouter Resonance StrategyFactory Stra
 Captured callable signatures, excluding inherited event/error ABI entries:
 
 ```text
-GBX: CLOCK_MODE, DOMAIN_SEPARATOR, FUNDRAISER_ALLOCATION, GENESIS_LIQUIDITY_ALLOCATION, MAX_LIFETIME_MINT,
-allowance, approve, balanceOf, burn, checkpoints, clock, decimals, delegate, delegateBySig, delegates, eip712Domain,
-getPastTotalSupply, getPastVotes, getVotes, lifetimeBurned, lifetimeMinted, mint, minter, minterLocked, name, nonces,
-numCheckpoints, permit, remainingMintableSupply, setMinter, symbol, totalSupply, transfer, transferFrom
+GBX: CLOCK_MODE, DOMAIN_SEPARATOR, FUNDRAISER_ALLOCATION, GENESIS_LIQUIDITY_ALLOCATION, MAX_SUPPLY, allowance,
+approve, balanceOf, burn, checkpoints, clock, decimals, delegate, delegateBySig, delegates, eip712Domain,
+getPastTotalSupply, getPastVotes, getVotes, lifetimeBurned, name, nonces, numCheckpoints, permit, symbol, totalSupply,
+transfer, transferFrom
 Fundraiser: DAILY_DECAY, DISTRIBUTION_ALLOCATION, DISTRIBUTION_EPOCHS, EPOCH_DURATION, INITIAL_DAILY_EMISSION,
 MIN_CONTRIBUTION, WAD, accountContributions, accountHasClaimed, claim, contribute, currentEpoch,
 currentScheduledEmission, epochContributions, epochEmission, epochSettled, gbx, nextEpochToSettle, pendingReward,
@@ -205,8 +208,9 @@ delegateBySig, delegates, eip712Domain, gbx, getPastTotalSupply, getPastVotes, g
 owner, permit, renounceOwnership, resonance, setResonance, stake, symbol, totalSupply, transfer, transferFrom,
 transferOwnership, unstake
 ResonanceRouter: pendingRevenue, resonance, route, usdg
-The following inventory records the pre-ADR-0021 baseline API and is intentionally historical. Current ABI evidence is
-generated from the source tree; ADR 0021 removes Strategy kinds, the payment split, and `setBribeBps`.
+The following inventory records the pre-ADR-0021 baseline API and is intentionally historical except for the GBX line,
+which is reconciled to ADR 0023 to avoid describing a nonexistent mint authority. Current ABI evidence is generated
+from the source tree; ADR 0021 removes Strategy kinds, the payment split, and `setBribeBps`.
 
 Resonance: BPS_SCALE, DEFAULT_BRIBE_BPS, INDEX_PRECISION, MAX_BRIBE_BPS, accountSignalWeight, accountSignals,
 accountStrategies, addBribeReward, addSignal, addSignalMany, addStrategy, bribeBps, bribeFactory, bribeFor,

@@ -9,9 +9,9 @@ export const protocolAddressesSchema = z
   .object({
     bribeFactory: addressSchema,
     fund: addressSchema,
-    fundraiser: addressSchema,
     gbx: addressSchema,
     liquidityPosition: addressSchema,
+    mine: addressSchema,
     signalGBX: addressSchema,
     strategyFactory: addressSchema,
     timelockController: addressSchema,

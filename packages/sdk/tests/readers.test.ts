@@ -1,7 +1,7 @@
 import { type Address, type Hex, type PublicClient } from 'viem';
 import { describe, expect, it, vi } from 'vitest';
 
-import { readFundraiserEpochView, readLiquidityPositionView, readStrategyView } from '../src/index.js';
+import { readLiquidityPositionView, readMineSlotView, readStrategyView } from '../src/index.js';
 
 const address = (value: number): Address => `0x${value.toString(16).padStart(40, '0')}`;
 const BLOCK_NUMBER = 777n;
@@ -38,18 +38,18 @@ describe('Strategy reads', () => {
   });
 });
 
-describe('Fundraiser and liquidity reads', () => {
-  it('reads settled Fundraiser state instead of recomputing sequential emissions', async () => {
+describe('Mine and liquidity reads', () => {
+  it('reads a tenure-locked Mine slot and global accounting at one block', async () => {
     const values: Readonly<Record<string, unknown>> = {
-      accountContributions: 25n,
-      accountHasClaimed: false,
-      currentEpoch: 8n,
-      currentScheduledEmission: 90n,
-      epochContributions: 100n,
-      epochEmission: 80n,
-      epochSettled: true,
-      nextEpochToSettle: 8n,
-      pendingReward: 20n,
+      capacity: 2n,
+      claimable: 80n,
+      effectiveTotalSupply: 1_020n,
+      getSlot: [7n, 100n, 1_000n, 1_500n, 4n, address(2)],
+      nextGlobalUps: 2n,
+      pendingEmission: 20n,
+      price: 50n,
+      totalClaimable: 80n,
+      totalMined: 1_000n,
     };
     const readContract = vi.fn(
       async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
@@ -57,18 +57,24 @@ describe('Fundraiser and liquidity reads', () => {
     const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
     const client = { getBlock, readContract } as unknown as PublicClient;
 
-    await expect(readFundraiserEpochView(client, address(1), 7n, address(2))).resolves.toEqual({
-      accountContribution: 25n,
-      accountHasClaimed: false,
+    await expect(readMineSlotView(client, address(1), 0n, address(2))).resolves.toEqual({
+      auctionStartedAt: 1_000n,
       blockNumber: BLOCK_NUMBER,
-      currentEpoch: 8n,
-      emission: 80n,
-      epoch: 7n,
-      epochSettled: true,
-      nextEpochToSettle: 8n,
-      nextScheduledEmission: 90n,
-      pendingReward: 20n,
-      totalContributions: 100n,
+      capacity: 2n,
+      claimablePayment: 80n,
+      currentPrice: 50n,
+      effectiveTotalSupply: 1_020n,
+      epochId: 7n,
+      index: 0n,
+      initialPrice: 100n,
+      lastAccruedAt: 1_500n,
+      mine: address(1),
+      nextGlobalUps: 2n,
+      pendingEmission: 20n,
+      slotMiner: address(2),
+      totalClaimable: 80n,
+      totalMined: 1_000n,
+      ups: 4n,
     });
   });
 

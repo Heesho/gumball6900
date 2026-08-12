@@ -6,14 +6,14 @@
 
 # Function: projectTotalSupply()
 
-> **projectTotalSupply**(`currentSupply`, `newEmission`, `gbxBurned`): `bigint`
+> **projectTotalSupply**(`currentSupply`, `gbxMined`, `gbxBurned`): `bigint`
 
 ## Parameters
 
 | Parameter       | Type     |
 | --------------- | -------- |
 | `currentSupply` | `bigint` |
-| `newEmission`   | `bigint` |
+| `gbxMined`      | `bigint` |
 | `gbxBurned`     | `bigint` |
 
 ## Returns

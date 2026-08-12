@@ -9,8 +9,8 @@ import { StdUtils } from "forge-std/StdUtils.sol";
 import { Bribe } from "../../../src/core/Bribe.sol";
 import { BribeRouter } from "../../../src/core/BribeRouter.sol";
 import { Fund } from "../../../src/core/Fund.sol";
-import { Fundraiser } from "../../../src/core/Fundraiser.sol";
 import { GBX } from "../../../src/core/GBX.sol";
+import { Mine } from "../../../src/core/Mine.sol";
 import { Resonance } from "../../../src/core/Resonance.sol";
 import { ResonanceRouter } from "../../../src/core/ResonanceRouter.sol";
 import { SignalGBX } from "../../../src/core/SignalGBX.sol";
@@ -31,7 +31,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     SignalGBX public immutable signalGBX;
     Resonance public immutable resonance;
     ResonanceRouter public immutable resonanceRouter;
-    Fundraiser public immutable fundraiser;
+    Mine public immutable mineContract;
 
     address[ACTOR_COUNT] public actors;
     address[] public strategies;
@@ -51,7 +51,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         SignalGBX signalGBX_,
         Resonance resonance_,
         ResonanceRouter resonanceRouter_,
-        Fundraiser fundraiser_,
+        Mine mine_,
         address[] memory strategies_
     ) {
         gbx = gbx_;
@@ -61,7 +61,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         signalGBX = signalGBX_;
         resonance = resonance_;
         resonanceRouter = resonanceRouter_;
-        fundraiser = fundraiser_;
+        mineContract = mine_;
 
         actors[0] = address(0xA11CE);
         actors[1] = address(0xB0B);
@@ -183,19 +183,19 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
                             REVENUE ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function contribute(uint256 actorSeed, uint256 amount) external {
-        if (fundraiser.currentEpoch() >= fundraiser.DISTRIBUTION_EPOCHS()) return;
-
+    function mine(uint256 actorSeed, uint256 slotSeed) external {
         address actor = _actor(actorSeed);
-        uint256 contribution = _bound(amount, fundraiser.MIN_CONTRIBUTION(), 1_000_000e6);
-        _mintUSDG(actor, contribution);
+        uint256 index = _bound(slotSeed, 0, mineContract.capacity() - 1);
+        Mine.Slot memory slot = mineContract.getSlot(index);
+        uint256 payment = mineContract.price(index);
+        if (payment != 0) _mintUSDG(actor, payment);
 
         vm.startPrank(actor);
-        usdg.approve(address(fundraiser), contribution);
-        fundraiser.contribute(actor, contribution);
+        if (payment != 0) usdg.approve(address(mineContract), payment);
+        mineContract.mine(actor, index, slot.epochId, block.timestamp, payment);
         vm.stopPrank();
 
-        ghostCalls["contribute"] += 1;
+        ghostCalls["mine"] += 1;
     }
 
     function donateRevenue(uint256 amount) external {
@@ -316,29 +316,32 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          FUNDRAISER ACTIONS
+                            MINING ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function settleEpochs(uint256 limit) external {
-        fundraiser.settleEpochs(_bound(limit, 1, 30));
-        ghostCalls["settleEpochs"] += 1;
+    function checkpointMining() external {
+        mineContract.checkpointAll();
+        ghostCalls["checkpointMining"] += 1;
     }
 
-    function claimEmission(uint256 actorSeed, uint256 epochSeed) external {
+    function claimMiningPayment(uint256 actorSeed) external {
         address actor = _actor(actorSeed);
-        uint256 current = fundraiser.currentEpoch();
-        if (current == 0) return;
+        if (mineContract.claimable(actor) == 0) return;
 
-        uint256 epoch = _bound(epochSeed, 0, current - 1);
-        if (!fundraiser.epochSettled(epoch)) return;
-        if (fundraiser.accountHasClaimed(epoch, actor)) return;
-        if (fundraiser.accountContributions(epoch, actor) == 0) return;
+        mineContract.claim(actor);
+        ghostCalls["claimMiningPayment"] += 1;
+    }
 
-        uint256 reward = fundraiser.pendingReward(epoch, actor);
-        if (reward > gbx.remainingMintableSupply()) return;
+    function increaseMiningCapacity(uint256 capacitySeed) external {
+        uint256 current = mineContract.capacity();
+        uint256 maximum = mineContract.MAX_CAPACITY();
+        if (current == maximum) return;
 
-        fundraiser.claim(actor, epoch);
-        ghostCalls["claimEmission"] += 1;
+        uint256 next = _bound(capacitySeed, current + 1, maximum);
+        vm.prank(mineContract.owner());
+        mineContract.increaseCapacity(next);
+
+        ghostCalls["increaseMiningCapacity"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -432,15 +435,13 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         }
     }
 
-    /// @notice Tops an actor up to `amount` GBX, reporting whether the lifetime ceiling allowed it.
+    /// @notice Creates test-only GBX without waiting for elapsed mining time.
     function _supplyGBX(address account, uint256 amount) private returns (bool supplied) {
         uint256 balance = gbx.balanceOf(account);
         if (balance >= amount) return true;
 
         uint256 shortfall = amount - balance;
-        if (shortfall > gbx.remainingMintableSupply()) return false;
-
-        vm.prank(address(fundraiser));
+        vm.prank(address(mineContract));
         gbx.mint(account, shortfall);
         return true;
     }

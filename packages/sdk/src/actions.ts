@@ -4,9 +4,9 @@ import {
   bribeAbi,
   bribeRouterAbi,
   fundAbi,
-  fundraiserAbi,
   gbxAbi,
   liquidityPositionAbi,
+  mineAbi,
   signalGbxAbi,
   strategyAbi,
   resonanceAbi,
@@ -47,7 +47,7 @@ function uniqueAddresses(values: readonly Address[], name: string): Address[] {
   return normalized;
 }
 
-/** Encodes an ERC-20 allowance for staking, contribution, payment, or redemption. */
+/** Encodes an ERC-20 allowance for staking, mining, Strategy payment, or redemption. */
 export function buildApproval(token: Address, spender: Address, amount: bigint): ContractTransaction {
   uint256(amount, 'amount');
   return transaction(
@@ -62,31 +62,51 @@ export function buildGBXBurn(gbx: Address, amount: bigint): ContractTransaction 
   return transaction(gbx, encodeFunctionData({ abi: gbxAbi, functionName: 'burn', args: [amount] }));
 }
 
-/** Contributes USDG to the active Fundraiser epoch for a beneficiary. */
-export function buildContribution(fundraiser: Address, beneficiary: Address, amount: bigint): ContractTransaction {
-  positiveUint256(amount, 'amount');
+export interface MineParameters {
+  readonly mine: Address;
+  readonly beneficiary: Address;
+  readonly slotIndex: bigint;
+  readonly expectedEpochId: bigint;
+  readonly deadline: bigint;
+  readonly maximumPrice: bigint;
+}
+
+/** Replaces one Mine slot with caller-bounded epoch, deadline, and USDG price protection. */
+export function buildMine(parameters: MineParameters): ContractTransaction {
+  uint256(parameters.slotIndex, 'slotIndex');
+  uint256(parameters.expectedEpochId, 'expectedEpochId');
+  uint256(parameters.deadline, 'deadline');
+  uint256(parameters.maximumPrice, 'maximumPrice');
   return transaction(
-    fundraiser,
-    encodeFunctionData({ abi: fundraiserAbi, functionName: 'contribute', args: [getAddress(beneficiary), amount] }),
+    parameters.mine,
+    encodeFunctionData({
+      abi: mineAbi,
+      functionName: 'mine',
+      args: [
+        getAddress(parameters.beneficiary),
+        parameters.slotIndex,
+        parameters.expectedEpochId,
+        parameters.deadline,
+        parameters.maximumPrice,
+      ],
+    }),
   );
 }
 
-/** Claims one beneficiary's completed Fundraiser epoch. */
-export function buildFundraiserClaim(fundraiser: Address, account: Address, epoch: bigint): ContractTransaction {
-  uint256(epoch, 'epoch');
-  return transaction(
-    fundraiser,
-    encodeFunctionData({ abi: fundraiserAbi, functionName: 'claim', args: [getAddress(account), epoch] }),
-  );
+/** Claims a displaced miner's complete accumulated USDG payment to that same account. */
+export function buildClaimMiningPayment(mine: Address, account: Address): ContractTransaction {
+  return transaction(mine, encodeFunctionData({ abi: mineAbi, functionName: 'claim', args: [getAddress(account)] }));
 }
 
-/** Advances a bounded number of ended Fundraiser epochs through the sequential decay schedule. */
-export function buildSettleFundraiserEpochs(fundraiser: Address, maximumEpochs: bigint): ContractTransaction {
-  positiveUint256(maximumEpochs, 'maximumEpochs');
-  return transaction(
-    fundraiser,
-    encodeFunctionData({ abi: fundraiserAbi, functionName: 'settleEpochs', args: [maximumEpochs] }),
-  );
+/** Crystallizes all live slots' accrued GBX without changing their tenure rates or auction clocks. */
+export function buildCheckpointMining(mine: Address): ContractTransaction {
+  return transaction(mine, encodeFunctionData({ abi: mineAbi, functionName: 'checkpointAll' }));
+}
+
+/** Encodes the timelock-controlled, increase-only Mine capacity operation. */
+export function buildIncreaseMiningCapacity(mine: Address, newCapacity: bigint): ContractTransaction {
+  positiveUint256(newCapacity, 'newCapacity');
+  return transaction(mine, encodeFunctionData({ abi: mineAbi, functionName: 'increaseCapacity', args: [newCapacity] }));
 }
 
 /** Collects canonical LP fees, routes USDG through ResonanceRouter, and burns GBX through Fund. */

@@ -1,211 +1,93 @@
 # GumBall6900
 
-## The community-directed onchain index fund
+GumBall6900 is an experimental, governance-minimized onchain index protocol for Robinhood Chain. GBX miners supply
+recurring USDG revenue, staked GBX holders continuously signal which assets the protocol should acquire, and GBX can be
+burned for caller-selected Fund assets.
 
-**Mine GBX. Signal acquisitions. Build a shared treasury. Redeem onchain.**
+> Development status: not deployed, audited, or authorized for user funds. Independent review, legal/provenance
+> clearance, final economic parameters, and signed deployment evidence remain release blockers.
 
-GumBall6900 is an experimental index protocol designed for Robinhood Chain. At launch, anyone will be able to mine GBX
-by contributing USDG through the Fundraiser. Those contributions build a growing basket of
-onchain assets chosen by GBX holders.
+## Protocol loop
 
-Think of it as a community-built onchain index: approved acquisition Strategies compete for signal-directed capital,
-the assets they acquire accumulate in a shared Fund, and GBX can be burned to redeem a proportional share of selected
-Fund holdings. There is no synthetic price peg, NAV oracle, or offchain redemption desk in the core protocol.
-
-> **Development status:** this repository is internally hardened and ready for independent security review. The
-> protocol is not deployed and is not authorized for user funds.
->
-> **Release note:** independent audit, pinned security campaigns, legal/provenance clearance, and signed deployment
-> evidence remain blockers; see the [release checklist](packages/contracts/audit/RELEASE-CHECKLIST.md).
-
-Read the accessible protocol paper in [`docs/WHITEPAPER.md`](docs/WHITEPAPER.md), or open the designed
-[`GumBall6900 whitepaper`](output/pdf/GumBall6900-the-index-fund-that-chooses-itself.pdf).
-
-## The idea
-
-Traditional indices are assembled by a committee. Onchain treasuries are often controlled by a small group of
-signers. GumBall6900 explores a different model: fair-launch the coin through public Fundraiser mining, let holders
-continuously direct new capital toward the assets they believe should become part of the treasury, then make the
-resulting holdings redeemable onchain.
-
-The result is a simple flywheel:
-
-1. **Mine** — users contribute USDG through the Fundraiser and mine GBX from a fixed public distribution schedule.
-2. **Signal** — GBX can be staked one-for-one into SignalGBX (`sGBX`) and allocated among approved Strategies without a
-   time lock or signal cooldown. Each signal is an absolute per-Strategy amount changed incrementally.
-3. **Acquire** — USDG follows current signals. Each acquisition Strategy runs a reverse Dutch auction in which a buyer
-   receives the accumulated USDG and pays with the asset that Strategy is acquiring.
-4. **Build the Fund** — every Strategy payment becomes an immutable Fund liability and can be delivered by any caller.
-5. **Redeem** — a holder can burn GBX for a proportional share of any caller-selected Fund assets.
-6. **Maintain supply** — GBX held by Fund can be burned permissionlessly before redemptions.
+1. A user replaces an hourly Mine slot. If a miner is displaced, 80% of the USDG payment becomes their claim and 20%
+   routes to Resonance. An empty slot routes 100% to Resonance.
+2. The slot miner continuously accrues GBX at a rate fixed for that complete tenure.
+3. GBX holders stake one-for-one into non-transferable SignalGBX and direct Resonance revenue among active Strategies.
+4. A Strategy buyer receives its USDG and pays the asset that Strategy acquires; the complete payment becomes a Fund
+   liability.
+5. A GBX holder burns tokens to redeem a proportional share of caller-selected Fund assets.
 
 ```text
-USDG contribution
-       |
-       v
-  Fundraiser ---> GBX public mining
-       |
-       v
-  Resonance <--- sGBX allocations
-       |
-       v
-   Strategies
-       |
- complete asset payment
-       |
-       v
- BribeRouter ---> Fund
-    |
-    v
-selective GBX redemption
+replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance -> Strategies
+                         \--80%--> displaced miner
+Mine -> continuous GBX
+SignalGBX ---------------------------> allocation weights
+Strategy payment -> BribeRouter -> Fund
+GBX burn -> Fund selected assets
 ```
 
-## One loop, four participants
+## Mining and supply
 
-| Participant       | Incentive                                                                                       |
-| ----------------- | ----------------------------------------------------------------------------------------------- |
-| GBX miners        | Contribute USDG to mine GBX from the fixed public distribution curve.                           |
-| GBX holders       | Direct new acquisitions, may receive independently funded Bribes, and retain redemption rights. |
-| Asset communities | Compete for allocation and Fund inclusion after a Strategy is admitted.                         |
-| Auction buyers    | Receive a Strategy's accumulated USDG when the declining price reaches their target.            |
+GBX creates only 20 million tokens for the permanent, one-sided genesis liquidity position. Deployment then binds its
+sole mint authority permanently to Mine. There is no protocol-defined economic supply cap or replacement minter;
+the inherited ERC20Votes representation retains its unreachable-in-practice `uint208` safety ceiling.
 
-## Why it is different
+Mine starts with one slot. Timelock governance may only increase capacity, up to 16. Every slot's USDG replacement
+price decays linearly to zero over one hour and can be filled at any time.
 
-### Holder-directed index formation
+An occupied slot's GBX-per-second rate cannot be changed mid-tenure. Capacity expansion and later mining halvings apply
+only when a slot is newly occupied or replaced. This protects miners from governance dilution, while accepting that
+aggregate issuance can temporarily rise as old-rate and new-rate slots coexist. Constructor-fixed cumulative-mining
+halvings end in a positive tail so mining and revenue can continue indefinitely.
 
-GBX holders decide how new USDG revenue is allocated among active Strategies. Signaling is deliberately liquid: an
-account can add or remove absolute amounts one Strategy at a time, use caller-bounded batches, and withdraw any
-unallocated staked GBX immediately. Idle `sGBX` earns nothing and does not dilute active signalers.
+## Redemption
 
-### Signal what the Fund should accumulate
-
-If an active Strategy acquires an onchain representation of NVIDIA shares (`NVDA`), an `sGBX` holder can signal that
-Strategy to direct more USDG toward it. The same mechanism applies to Apple (`AAPL`), a SpaceX-linked asset, or any
-other eligible onchain asset. Every completed Strategy payment is Fund-bound. Bribes are separate, independently
-funded reward streams across the same signal balances; auction proceeds never fund them automatically.
-
-### Assets instead of price exposure
-
-Acquisition Strategies deliver tokens to the Fund rather than tracking their prices synthetically. GBX holders can
-burn tokens and redeem their proportional share of selected Fund balances directly.
-
-### Selective, registry-free redemption
-
-The Fund does not maintain an enumerable asset registry. A redeemer supplies the assets they want to receive and can
-omit broken, unwanted, or unknown tokens. One malformed token therefore cannot block redemption of every other Fund
-asset.
-
-### Permissionless execution
-
-Revenue routing, Strategy distribution, Fundraiser settlement, liquidity-fee harvesting, reward claims, and committed
-Fund burns can all be executed permissionlessly. Holders govern capital direction through continuous signals; the
-target final design leaves management only the four explicit actions listed below.
-
-### A deliberately small core
-
-The active contracts are direct, non-upgradeable deployments adapted from the simple boundaries used by give.fun and
-Liquid Signal Governance. The protocol avoids a conventional DAO, generic vault calls, an asset registry, and onchain
-NAV or price oracles.
-
-## GBX fair launch and mining
-
-GBX is designed for a fair launch. There is no reserved allocation for the team, founders, investors, advisors, a
-private sale, or a presale. Everyone participates on the same Fundraiser terms: contribute USDG and mine GBX from the
-fixed curve. Here, "mining" means earning GBX through Fundraiser contributions, not proof-of-work.
-
-GBX has a cumulative lifetime mint limit of **1 billion tokens**. Burning GBX never restores mint capacity.
-
-| Allocation                   | GBX               |    Share |
-| ---------------------------- | ----------------- | -------: |
-| Genesis Uniswap v4 liquidity | 20,000,000        |       2% |
-| Public Fundraiser mining     | 980,000,000       |      98% |
-| **Lifetime maximum**         | **1,000,000,000** | **100%** |
-
-The 20 million genesis allocation is committed to the canonical liquidity position rather than assigned to a person
-or team. The remaining 980 million lifetime mint capacity is permanently assigned to Fundraiser mining.
-
-The Fundraiser uses a fixed daily distribution curve:
-
-- initial daily emission: `465,152.749681042811702004 GBX`;
-- daily multiplier: `0.999525354337060160`;
-- emission half-life: 1,460 days, or four years; and
-- empty days advance the schedule and forfeit that day's emission rather than carrying it forward.
-
-Sequential integer rounding leaves less than one millionth of one GBX unminted across the complete curve.
-
-## Liquidity and protocol revenue
-
-The canonical market is one hookless GBX/USDG Uniswap v4 position. It begins outside the active price range with the
-20 million GBX genesis allocation on one side.
-
-The position stays inside `LiquidityPosition` permanently; there is no NFT withdrawal at all and principal liquidity
-never changes. Anyone may harvest the accrued fees without receiving a bounty: USDG is routed through
-`ResonanceRouter` into Resonance, while GBX is sent to Fund and burned in the same transaction.
-
-In the target final design, the deployed position cannot be withdrawn, migrated, or upgraded.
-
-## Fund backing and redemption
-
-For each asset selected by a redeemer, the Fund pays:
+Fund checkpoints all mining slots before taking its supply snapshot, then pays each selected token as:
 
 ```text
-floor(Fund asset balance * GBX burned / GBX total supply before the burn)
+floor(Fund token balance * GBX burned / GBX total supply before burn)
 ```
 
-Every selected balance is snapshotted before the GBX burn, and the burn plus all transfers are atomic. If one selected
-token fails, the entire redemption reverts. Assets omitted by the redeemer stay in the Fund for the remaining GBX
-supply.
+The checkpoint includes accrued unminted mining rewards in supply. Omitted assets stay in Fund. A failed selected-token
+transfer reverts the complete redemption and burn.
 
-In the target final design, the Fund has no administrative withdrawal, recovery path, migration path, or upgrade path.
-Assets leave only through the protocol's fixed redemption and acquisition mechanics.
+## Governance-minimized core
 
-## Protocol map
+All core contracts are direct and non-upgradeable. Fund and LiquidityPosition are ownerless. OpenZeppelin TimelockController
+owns only the narrow remaining administration:
 
-| Contract            | Role                                                                                                |
-| ------------------- | --------------------------------------------------------------------------------------------------- |
-| `GBX`               | Transferable protocol token, burns, signal checkpoints, and the one-billion lifetime mint ceiling.  |
-| `Fundraiser`        | USDG contributions and the fixed 980-million-GBX contributor distribution.                          |
-| `SignalGBX`         | Non-transferable, one-for-one staked GBX; any unallocated balance is immediately withdrawable.      |
-| `ResonanceRouter`   | Permissionlessly moves accumulated USDG into Resonance.                                             |
-| `Resonance`         | Tracks allocations, distributes USDG, and controls Strategy and Bribe creation.                     |
-| `StrategyFactory`   | Resonance-only factory for Strategies and their dedicated BribeRouters.                             |
-| `Strategy`          | Reverse Dutch auction that accepts one configured payment asset.                                    |
-| `BribeFactory`      | Resonance-only factory for one Bribe per Strategy.                                                  |
-| `BribeRouter`       | Records each complete Strategy payment as a permissionless fixed Fund liability.                    |
-| `Bribe`             | Streams at most eight independently funded reward tokens across Strategy signal balances.           |
-| `Fund`              | Registry-free asset backing, selective redemption, and GBX burning.                                 |
-| `LiquidityPosition` | Permanent fixed-principal custody and permissionless protocol routing of canonical Uniswap v4 fees. |
+- add or kill a Strategy;
+- add a Bribe reward token within the fixed cap of eight; and
+- increase Mine capacity, never decrease it, up to 16.
 
-The Solidity source of truth is [`packages/contracts/src/core`](packages/contracts/src/core). Foundry and Hardhat
-compile the same source tree.
+There is no proxy, pause switch, treasury sweep, arbitrary call path, successor, or migration routine.
 
-## Governance-minimized final surface
+## Contracts
 
-The intended final system is deployed once as direct, non-upgradeable contracts. `sGBX` signals govern where protocol
-capital flows. A designated manager has exactly three actions:
-
-- add a Strategy;
-- kill a Strategy;
-- add Bribe rewards within each Bribe's immutable eight-token cap.
-
-There is no general call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, pause
-function, or other mutable protocol parameter. Fund and LiquidityPosition are ownerless. Successor binding and
-migration were removed outright; see ADR 0017. Exact carry and deferred fixed-destination liabilities are recorded in
-ADR 0020. Deployment remains blocked by the release checklist and independent review requirements.
+| Contract            | Role                                                                                              |
+| ------------------- | ------------------------------------------------------------------------------------------------- |
+| `GBX`               | Genesis allocation, permanent Mine authority, cumulative mint/burn accounting, permits, votes.    |
+| `Mine`              | Hourly multislot handoffs, continuous tenure-locked GBX accrual, 80/20 USDG split, positive tail. |
+| `SignalGBX`         | Non-transferable one-for-one staked GBX with immediately withdrawable unallocated balance.        |
+| `ResonanceRouter`   | Permissionless USDG pass-through into Resonance.                                                  |
+| `Resonance`         | Signal accounting, revenue distribution, Strategy and Bribe administration.                       |
+| `Strategy`          | Reverse Dutch acquisition auction.                                                                |
+| `BribeRouter`       | Fixed complete Strategy-payment liability to Fund.                                                |
+| `Bribe`             | Up to eight independently funded reward streams for signalers.                                    |
+| `Fund`              | Registry-free backing, selective redemption, and permissionless Fund-held GBX burn.               |
+| `LiquidityPosition` | Permanent fixed-principal Uniswap v4 position and permissionless fee routing.                     |
 
 ## Repository
 
 ```text
-packages/contracts    Solidity contracts, Foundry tests, and Hardhat parity tests
-packages/sdk          TypeScript ABIs, actions, readers, and protocol math
-packages/subgraph     Protocol indexing and Matchstick tests
-packages/simulations  Independent TypeScript and Python economic models
+packages/contracts    Solidity, Foundry invariants, Hardhat parity, audit harnesses
+packages/sdk          Generated ABIs, transaction builders, readers, exact integer math
+packages/subgraph     Mine and protocol event indexing with Matchstick tests
+packages/simulations  Independent TypeScript/Python economic fixtures and charts
 packages/config       Chain metadata and provisional deployment evidence
-apps/web              Protocol interface
-docs                  Architecture, economics, access control, and threat model
+apps/web              Development status interface
+docs                  Architecture, economics, security, ADRs, and release evidence
 ```
-
-### Local development
 
 The repository requires Node.js 22.23.1, pnpm 10.14.0, Foundry, and Solidity 0.8.26.
 
@@ -215,29 +97,17 @@ pnpm contracts:test
 pnpm contracts:test:hardhat
 pnpm sdk:test
 pnpm subgraph:test
+pnpm simulations:test
 pnpm build
 ```
 
-Start with:
+Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
+[emissions](docs/EMISSIONS.md), [access control](docs/ACCESS_CONTROL.md), and
+[ADR 0024](docs/adr/0024-immutable-multislot-mine.md).
 
-- [`docs/STARTING_CONTRACTS.md`](docs/STARTING_CONTRACTS.md) for contract behavior;
-- [`docs/ECONOMICS.md`](docs/ECONOMICS.md) for the value flows;
-- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for system boundaries;
-- [`docs/ACCESS_CONTROL.md`](docs/ACCESS_CONTROL.md) for the current development access-control surface;
-- [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) for known risks; and
-- [`AGENTS.md`](AGENTS.md) for repository execution rules.
+## Provenance
 
-## Acknowledgements
-
-The starting mechanics are minimally adapted from
-[give.fun](https://github.com/Heesho/givedotfun-monorepo) and
-[Liquid Signal Governance](https://github.com/Heesho/liquid-signal-governance). The reverse Dutch Strategy design also
-credits [Euler Fee Flow](https://github.com/euler-xyz/fee-flow). Exact source revisions and unresolved provenance notes
-are recorded in [`NOTICE`](NOTICE).
-
-## Current status
-
-This codebase is under active development. Local tests are engineering evidence only; they are not an independent
-audit or production-readiness claim. Before any deployment, the project still requires finalized network parameters,
-deployment rehearsals, independent security review, complete pinned fuzzing and mutation evidence, a signed manifest,
-and resolution of the repository's licensing and provenance questions.
+The signaling and acquisition graph adapts pinned give.fun and Liquid Signal Governance sources. Mine adapts the
+Farplace MineRig mechanics, with protocol-specific changes for a strict 80/20 split, bounded multislot capacity,
+tenure-locked rates, permanent GBX mint authority, and redemption checkpointing. Exact pins and unresolved licensing
+clearance are recorded in [NOTICE](NOTICE).

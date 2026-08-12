@@ -1,14 +1,17 @@
 type ProtocolState @entity(immutable: false) {
   id: ID!
   chainId: BigInt!
-  minter: Bytes
   resonance: Bytes
   resonanceRouter: Bytes
+  initialSupplyRaw: BigInt!
   lifetimeMintedRaw: BigInt!
   lifetimeBurnedRaw: BigInt!
   totalSupplyRaw: BigInt!
-  fundraiserContributionsRaw: BigInt!
-  fundraiserClaimsRaw: BigInt!
+  minedGBXRaw: BigInt!
+  miningPaymentsRaw: BigInt!
+  previousMinerPaymentsRaw: BigInt!
+  miningRevenueRoutedRaw: BigInt!
+  miningCapacity: BigInt!
   liquidityPrincipalRaw: BigInt!
   liquidityFeeHarvestCount: BigInt!
   liquidityUSDGRoutedRaw: BigInt!
@@ -32,10 +35,11 @@ type ProtocolState @entity(immutable: false) {
 type Account @entity(immutable: false) {
   id: ID!
   address: Bytes!
-  gbxMintedRaw: BigInt!
+  gbxInitialAllocationRaw: BigInt!
+  gbxMinedRaw: BigInt!
   gbxBurnedRaw: BigInt!
-  contributedUSDGRaw: BigInt!
-  claimedGBXRaw: BigInt!
+  miningPaymentAccruedRaw: BigInt!
+  miningUSDGClaimedRaw: BigInt!
   stakedGBXRaw: BigInt!
   signalWeightRaw: BigInt!
   redeemedGBXRaw: BigInt!
@@ -43,15 +47,18 @@ type Account @entity(immutable: false) {
   lastTimestamp: BigInt!
 }
 
-type FundraiserEpoch @entity(immutable: false) {
+type MiningSlot @entity(immutable: false) {
   id: ID!
-  fundraiser: Bytes!
+  mineContract: Bytes!
+  index: BigInt!
   epoch: BigInt!
-  totalContributionsRaw: BigInt!
-  totalClaimedGBXRaw: BigInt!
-  settled: Boolean!
-  scheduledEmissionRaw: BigInt!
-  contributorEmissionRaw: BigInt!
+  currentMiner: Bytes!
+  initialPriceRaw: BigInt!
+  auctionStartedAt: BigInt!
+  upsRaw: BigInt!
+  totalMinedRaw: BigInt!
+  totalReplacementPaidRaw: BigInt!
+  lastPriceRaw: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
 }

@@ -1,18 +1,22 @@
 import { Address, BigInt, Bytes, ethereum } from '@graphprotocol/graph-ts';
-import { Account, FundraiserEpoch, ProtocolEvent, ProtocolState, Strategy } from '../generated/schema';
+import { Account, MiningSlot, ProtocolEvent, ProtocolState, Strategy } from '../generated/schema';
 import { CHAIN_ID, CHAIN_ID_TEXT, ZERO } from './constants';
-import { addressId, epochId, eventId } from './ids';
+import { addressId, eventId, slotId } from './ids';
 
 export function getProtocol(event: ethereum.Event): ProtocolState {
   let protocol = ProtocolState.load(CHAIN_ID_TEXT);
   if (protocol == null) {
     protocol = new ProtocolState(CHAIN_ID_TEXT);
     protocol.chainId = CHAIN_ID;
+    protocol.initialSupplyRaw = ZERO;
     protocol.lifetimeMintedRaw = ZERO;
     protocol.lifetimeBurnedRaw = ZERO;
     protocol.totalSupplyRaw = ZERO;
-    protocol.fundraiserContributionsRaw = ZERO;
-    protocol.fundraiserClaimsRaw = ZERO;
+    protocol.minedGBXRaw = ZERO;
+    protocol.miningPaymentsRaw = ZERO;
+    protocol.previousMinerPaymentsRaw = ZERO;
+    protocol.miningRevenueRoutedRaw = ZERO;
+    protocol.miningCapacity = BigInt.fromI32(1);
     protocol.liquidityPrincipalRaw = ZERO;
     protocol.liquidityFeeHarvestCount = ZERO;
     protocol.liquidityUSDGRoutedRaw = ZERO;
@@ -41,10 +45,11 @@ export function getAccount(address: Address, event: ethereum.Event): Account {
   if (account == null) {
     account = new Account(id);
     account.address = address;
-    account.gbxMintedRaw = ZERO;
+    account.gbxInitialAllocationRaw = ZERO;
+    account.gbxMinedRaw = ZERO;
     account.gbxBurnedRaw = ZERO;
-    account.contributedUSDGRaw = ZERO;
-    account.claimedGBXRaw = ZERO;
+    account.miningPaymentAccruedRaw = ZERO;
+    account.miningUSDGClaimedRaw = ZERO;
     account.stakedGBXRaw = ZERO;
     account.signalWeightRaw = ZERO;
     account.redeemedGBXRaw = ZERO;
@@ -54,18 +59,21 @@ export function getAccount(address: Address, event: ethereum.Event): Account {
   return account;
 }
 
-export function getFundraiserEpoch(fundraiser: Address, epoch: BigInt, event: ethereum.Event): FundraiserEpoch {
-  const id = epochId(fundraiser, epoch);
-  let entity = FundraiserEpoch.load(id);
+export function getMiningSlot(mine: Address, index: BigInt, event: ethereum.Event): MiningSlot {
+  const id = slotId(mine, index);
+  let entity = MiningSlot.load(id);
   if (entity == null) {
-    entity = new FundraiserEpoch(id);
-    entity.fundraiser = fundraiser;
-    entity.epoch = epoch;
-    entity.totalContributionsRaw = ZERO;
-    entity.totalClaimedGBXRaw = ZERO;
-    entity.settled = false;
-    entity.scheduledEmissionRaw = ZERO;
-    entity.contributorEmissionRaw = ZERO;
+    entity = new MiningSlot(id);
+    entity.mineContract = mine;
+    entity.index = index;
+    entity.epoch = ZERO;
+    entity.currentMiner = Address.zero();
+    entity.initialPriceRaw = ZERO;
+    entity.auctionStartedAt = ZERO;
+    entity.upsRaw = ZERO;
+    entity.totalMinedRaw = ZERO;
+    entity.totalReplacementPaidRaw = ZERO;
+    entity.lastPriceRaw = ZERO;
   }
   entity.lastBlockNumber = event.block.number;
   entity.lastTimestamp = event.block.timestamp;

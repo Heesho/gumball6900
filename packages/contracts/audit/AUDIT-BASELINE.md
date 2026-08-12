@@ -1,5 +1,8 @@
 # Adversarial-audit baseline
 
+> Historical evidence only. ADR 0024 replaced the distribution contract and supply model with Mine; counts,
+> inventory, gas, coverage, and conclusions below do not review the current development graph.
+
 Date: 2026-08-09
 
 This file records the immutable starting point for the internal adversarial review. It is engineering evidence only,
