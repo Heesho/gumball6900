@@ -67,6 +67,10 @@ contract RevertingToken is MockERC20 {
         blocked[account] = value;
     }
 
+    function wipe(address account) external {
+        _burn(account, balanceOf(account));
+    }
+
     function _update(address from, address to, uint256 value) internal override {
         if (from != address(0)) {
             if (transfersRevert) revert("TRANSFER_REVERTED");
@@ -106,6 +110,20 @@ contract ZeroApprovalRevertingToken is MockERC20 {
     function approve(address spender, uint256 amount) public override returns (bool) {
         if (amount == 0) revert("ZERO_APPROVAL");
         return super.approve(spender, amount);
+    }
+}
+
+/// @title StickyAllowanceToken
+/// @notice ERC-20 whose transferFrom deliberately leaves allowance unchanged after validating it.
+/// @dev Exercises protocol cleanup of a nonstandard residual approval without granting an unbounded allowance.
+contract StickyAllowanceToken is MockERC20 {
+    constructor(uint8 decimals_) MockERC20("Sticky Allowance", "STICKY", decimals_) { }
+
+    function _spendAllowance(address owner, address spender, uint256 value) internal view override {
+        uint256 currentAllowance = allowance(owner, spender);
+        if (currentAllowance < value) {
+            revert ERC20InsufficientAllowance(spender, currentAllowance, value);
+        }
     }
 }
 

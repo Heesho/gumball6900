@@ -29,6 +29,63 @@ contract RedemptionBatcher {
     }
 }
 
+/// @notice Two deliberately asymmetric token views used to prove Fund's final cross-token balance pass is necessary.
+contract AsymmetricAliasLedger {
+    mapping(address account => uint256 balance) public balanceA;
+    mapping(address account => uint256 balance) public balanceB;
+
+    function mint(address receiver, uint256 amount) external {
+        balanceA[receiver] += amount;
+        balanceB[receiver] += amount;
+    }
+
+    function moveA(address from, address to, uint256 amount) external {
+        balanceA[from] -= amount;
+        balanceA[to] += amount;
+    }
+
+    function moveBAndA(address from, address to, uint256 amount) external {
+        balanceB[from] -= amount;
+        balanceB[to] += amount;
+        balanceA[from] -= amount;
+        balanceA[to] += amount;
+    }
+}
+
+contract AsymmetricAliasA {
+    AsymmetricAliasLedger private immutable _ledger;
+
+    constructor(AsymmetricAliasLedger ledger_) {
+        _ledger = ledger_;
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return _ledger.balanceA(account);
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        _ledger.moveA(msg.sender, to, amount);
+        return true;
+    }
+}
+
+contract AsymmetricAliasB {
+    AsymmetricAliasLedger private immutable _ledger;
+
+    constructor(AsymmetricAliasLedger ledger_) {
+        _ledger = ledger_;
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return _ledger.balanceB(account);
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        _ledger.moveBAndA(msg.sender, to, amount);
+        return true;
+    }
+}
+
 /// @title FundTest
 /// @notice Exhaustive coverage of the ownerless treasury: registry-free redemption and the permissionless burn path.
 contract FundTest is ProtocolFixture {
@@ -175,6 +232,40 @@ contract FundTest is ProtocolFixture {
         assertEq(gbx.totalSupply(), 400 ether, "the burn rolls back with the shared-ledger alias transfer");
         assertEq(ledger.balanceOf(address(fund)), 400 ether);
         assertEq(ledger.balanceOf(ALICE), 0);
+    }
+
+    function test_RedeemFinalPassRejectsAnAsymmetricAliasSideEffect() external {
+        AsymmetricAliasLedger ledger = new AsymmetricAliasLedger();
+        AsymmetricAliasA aliasA = new AsymmetricAliasA(ledger);
+        AsymmetricAliasB aliasB = new AsymmetricAliasB(ledger);
+        ledger.mint(address(fund), 400 ether);
+
+        address[] memory tokens = new address[](2);
+        tokens[0] = address(aliasA);
+        tokens[1] = address(aliasB);
+
+        vm.startPrank(ALICE);
+        gbx.approve(address(fund), 100 ether);
+        vm.expectRevert(
+            abi.encodeWithSelector(Fund.SelectedBalanceDecreased.selector, address(aliasA), 300 ether, 200 ether)
+        );
+        fund.redeem(100 ether, ALICE, tokens);
+        vm.stopPrank();
+
+        assertEq(gbx.totalSupply(), 400 ether, "the burn must roll back with the asymmetric alias transfers");
+        assertEq(ledger.balanceA(address(fund)), 400 ether);
+        assertEq(ledger.balanceB(address(fund)), 400 ether);
+        assertEq(ledger.balanceA(ALICE), 0);
+        assertEq(ledger.balanceB(ALICE), 0);
+    }
+
+    function test_RedeemRequiresAFinalizedReciprocalMineIdentity() external {
+        GBX unboundGBX = new GBX(ALICE, address(this));
+        Fund unboundFund = new Fund(unboundGBX);
+        target.mint(address(unboundFund), 1 ether);
+
+        vm.expectRevert(abi.encodeWithSelector(Fund.InvalidMine.selector, address(this)));
+        unboundFund.redeem(1 ether, ALICE, _addresses(address(target)));
     }
 
     function test_RedeemRequiresTheCallerToActuallyHoldTheGBX() external {

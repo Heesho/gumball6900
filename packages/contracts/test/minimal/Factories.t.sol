@@ -54,6 +54,10 @@ contract FactoriesTest is ProtocolFixture {
         vm.expectRevert(abi.encodeWithSelector(BribeFactory.InvalidResonance.selector, address(resonance)));
         factory.setResonance(address(resonance));
 
+        // A code-bearing target that does not implement the identity selector must fail closed through the catch path.
+        vm.expectRevert(abi.encodeWithSelector(BribeFactory.InvalidResonance.selector, address(fund)));
+        factory.setResonance(address(fund));
+
         FactoryResonanceIdentityHarness identity =
             new FactoryResonanceIdentityHarness(address(fund), factory, StrategyFactory(address(0)));
 
@@ -117,6 +121,10 @@ contract FactoriesTest is ProtocolFixture {
 
         vm.expectRevert(abi.encodeWithSelector(StrategyFactory.InvalidResonance.selector, address(resonance)));
         factory.setResonance(address(resonance));
+
+        // A code-bearing target that does not implement the identity selector must fail closed through the catch path.
+        vm.expectRevert(abi.encodeWithSelector(StrategyFactory.InvalidResonance.selector, address(fund)));
+        factory.setResonance(address(fund));
 
         FactoryResonanceIdentityHarness identity =
             new FactoryResonanceIdentityHarness(address(fund), BribeFactory(address(0)), factory);

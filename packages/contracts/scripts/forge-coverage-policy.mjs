@@ -6,13 +6,13 @@
  * instrumentation denominator and catches empty, stale, or truncated records.
  */
 export const FORGE_COVERAGE_POLICY = Object.freeze([
-  policy('src/core/Bribe.sol', [90_00, 34], [70_00, 61], [90_00, 288]),
+  policy('src/core/Bribe.sol', [90_00, 34], [70_00, 60], [90_00, 288]),
   policy('src/core/BribeFactory.sol', [95_00, 2], [95_00, 3], [95_00, 10]),
   policy('src/core/BribeRouter.sol', [95_00, 5], [70_00, 7], [95_00, 43]),
   policy('src/core/Fund.sol', [95_00, 8], [95_00, 9], [95_00, 46]),
   // Mine is the new distribution boundary. Final thresholds remain a release gate until the current report is recorded.
   policy('src/core/Mine.sol', [85_00, 12], [75_00, 25], [90_00, 120]),
-  policy('src/core/GBX.sol', [95_00, 7], [95_00, 11], [95_00, 37]),
+  policy('src/core/GBX.sol', [95_00, 6], [95_00, 11], [95_00, 37]),
   // Genuine PositionManager integration is measured separately; this floor covers the default mock/deep suite.
   policy('src/core/LiquidityPosition.sol', [50_00, 8], [50_00, 24], [55_00, 102]),
   policy('src/core/Resonance.sol', [95_00, 30], [80_00, 49], [95_00, 238]),

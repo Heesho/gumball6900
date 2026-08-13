@@ -21,6 +21,10 @@ contract GBXMinterHarness {
     function mint(address account, uint256 amount) external {
         _gbx.mint(account, amount);
     }
+
+    function handover(address newMinter) external {
+        _gbx.setMinter(newMinter);
+    }
 }
 
 /// @title GBXTest
@@ -62,6 +66,12 @@ contract GBXTest is Test {
     }
 
     function test_MinterHandoverIsOneTimeAndRequiresDeployedCode() external {
+        vm.expectRevert(GBX.ZeroAddress.selector);
+        gbx.setMinter(address(0));
+
+        vm.expectRevert(GBX.SameMinter.selector);
+        gbx.setMinter(address(this));
+
         vm.expectRevert(abi.encodeWithSelector(GBX.AddressHasNoCode.selector, ALICE));
         gbx.setMinter(ALICE);
 
@@ -69,12 +79,19 @@ contract GBXTest is Test {
         vm.expectRevert(abi.encodeWithSelector(GBX.InvalidMine.selector, address(unrelatedCode)));
         gbx.setMinter(address(unrelatedCode));
 
+        GBXMinterHarness wrongIdentity = new GBXMinterHarness(unrelatedCode);
+        vm.expectRevert(abi.encodeWithSelector(GBX.InvalidMine.selector, address(wrongIdentity)));
+        gbx.setMinter(address(wrongIdentity));
+
         vm.expectEmit(true, true, false, true);
         emit MinterSet(address(this), address(minter));
         gbx.setMinter(address(minter));
 
         assertEq(gbx.minter(), address(minter));
         assertTrue(gbx.minterLocked());
+
+        vm.expectRevert(GBX.MinterAlreadyLocked.selector);
+        minter.handover(address(this));
 
         vm.expectRevert(abi.encodeWithSelector(GBX.NotMinter.selector, address(this)));
         gbx.setMinter(address(this));

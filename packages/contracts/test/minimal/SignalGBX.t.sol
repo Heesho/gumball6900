@@ -314,12 +314,47 @@ contract SignalGBXTest is ProtocolFixture {
         vm.expectRevert(abi.encodeWithSelector(SignalGBX.InvalidResonance.selector, address(resonance)));
         unbound.setResonance(address(resonance));
 
+        vm.expectRevert(abi.encodeWithSelector(SignalGBX.InvalidResonance.selector, address(fund)));
+        unbound.setResonance(address(fund));
+
         vm.expectEmit(true, false, false, false);
         emit ResonanceSet(address(identity));
         unbound.setResonance(address(identity));
 
         vm.expectRevert(abi.encodeWithSelector(SignalGBX.ResonanceAlreadySet.selector, address(identity)));
         unbound.setResonance(address(fund));
+    }
+
+    function test_PermitCannotBypassReceiptNonTransferability() external {
+        (address owner, uint256 ownerKey) = makeAddrAndKey("signal-permit-owner");
+        _mintTestGBX(owner, 10 ether);
+
+        vm.startPrank(owner);
+        gbx.approve(address(signalGBX), 10 ether);
+        signalGBX.stake(10 ether);
+        vm.stopPrank();
+
+        uint256 deadline = block.timestamp + 1 hours;
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                owner,
+                BOB,
+                10 ether,
+                signalGBX.nonces(owner),
+                deadline
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", signalGBX.DOMAIN_SEPARATOR(), structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerKey, digest);
+
+        signalGBX.permit(owner, BOB, 10 ether, deadline, v, r, s);
+        assertEq(signalGBX.allowance(owner, BOB), 10 ether);
+        assertEq(signalGBX.nonces(owner), 1);
+
+        vm.prank(BOB);
+        vm.expectRevert(SignalGBX.TransferDisabled.selector);
+        signalGBX.transferFrom(owner, BOB, 1 ether);
     }
 
     /*//////////////////////////////////////////////////////////////

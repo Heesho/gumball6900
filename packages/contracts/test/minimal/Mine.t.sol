@@ -7,6 +7,42 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { GBX } from "../../src/core/GBX.sol";
 import { Mine } from "../../src/core/Mine.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
+import { FeeOnTransferToken, MockERC20 } from "./utils/Tokens.sol";
+
+contract MineRouterIdentityHarness {
+    IERC20 public immutable usdg;
+
+    constructor(IERC20 usdg_) {
+        usdg = usdg_;
+    }
+
+    function route() external pure returns (uint256 amount) {
+        return 0;
+    }
+}
+
+contract SenderFeeToken is MockERC20 {
+    address public feeSender;
+    uint256 public feeBps;
+
+    constructor() MockERC20("Sender Fee", "SFEE", 6) { }
+
+    function configureFee(address sender, uint256 bps) external {
+        feeSender = sender;
+        feeBps = bps;
+    }
+
+    function _update(address from, address to, uint256 value) internal override {
+        if (from != feeSender || from == address(0) || to == address(0) || feeBps == 0) {
+            super._update(from, to, value);
+            return;
+        }
+
+        uint256 fee = value * feeBps / 10_000;
+        super._update(from, to, value - fee);
+        if (fee != 0) super._update(from, address(0xFEE5), fee);
+    }
+}
 
 /// @title MineTest
 /// @notice Covers Farplace-shaped slot replacement, emissions, payment conservation, capacity, and redemption supply.
@@ -27,6 +63,197 @@ contract MineTest is ProtocolFixture {
         assertEq(slot.initialPrice, 1e6);
         assertEq(slot.miner, address(0));
         assertEq(slot.ups, 0);
+    }
+
+    function test_ConstructorRejectsInvalidDependenciesAndEconomicBounds() external {
+        Mine.Config memory config = defaultMineConfig();
+
+        vm.expectRevert(Mine.ZeroAddress.selector);
+        new Mine(GBX(address(0)), IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        vm.expectRevert(Mine.ZeroAddress.selector);
+        new Mine(gbx, IERC20(address(0)), address(resonanceRouter), address(this), config);
+
+        vm.expectRevert(Mine.ZeroAddress.selector);
+        new Mine(gbx, IERC20(address(usdg)), address(0), address(this), config);
+
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, address(0)));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(0), config);
+
+        config.priceMultiplier = mine.MIN_PRICE_MULTIPLIER() - 1;
+        vm.expectRevert(abi.encodeWithSelector(Mine.PriceMultiplierOutOfRange.selector, config.priceMultiplier));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        config = defaultMineConfig();
+        config.priceMultiplier = mine.MAX_PRICE_MULTIPLIER() + 1;
+        vm.expectRevert(abi.encodeWithSelector(Mine.PriceMultiplierOutOfRange.selector, config.priceMultiplier));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        config = defaultMineConfig();
+        config.minimumInitialPrice = mine.MIN_INITIAL_PRICE() - 1;
+        vm.expectRevert(abi.encodeWithSelector(Mine.InitialPriceOutOfRange.selector, config.minimumInitialPrice));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        config = defaultMineConfig();
+        config.minimumInitialPrice = mine.MAX_INITIAL_PRICE() + 1;
+        vm.expectRevert(abi.encodeWithSelector(Mine.InitialPriceOutOfRange.selector, config.minimumInitialPrice));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        config = defaultMineConfig();
+        config.initialUps = 0;
+        vm.expectRevert(abi.encodeWithSelector(Mine.InitialUpsOutOfRange.selector, 0));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        config = defaultMineConfig();
+        config.initialUps = mine.MAX_INITIAL_UPS() + 1;
+        vm.expectRevert(abi.encodeWithSelector(Mine.InitialUpsOutOfRange.selector, config.initialUps));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        config = defaultMineConfig();
+        config.tailUps = mine.MIN_TAIL_UPS() - 1;
+        vm.expectRevert(abi.encodeWithSelector(Mine.TailUpsOutOfRange.selector, config.tailUps));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        config = defaultMineConfig();
+        config.tailUps = config.initialUps + 1;
+        vm.expectRevert(abi.encodeWithSelector(Mine.TailUpsOutOfRange.selector, config.tailUps));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        config = defaultMineConfig();
+        config.halvingAmount = mine.MIN_HALVING_AMOUNT() - 1;
+        vm.expectRevert(abi.encodeWithSelector(Mine.HalvingAmountOutOfRange.selector, config.halvingAmount));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        config = defaultMineConfig();
+        config.halvingAmount = mine.MAX_HALVING_AMOUNT() + 1;
+        vm.expectRevert(abi.encodeWithSelector(Mine.HalvingAmountOutOfRange.selector, config.halvingAmount));
+        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), config);
+
+        MineRouterIdentityHarness wrongRouter = new MineRouterIdentityHarness(IERC20(address(target)));
+        config = defaultMineConfig();
+        vm.expectRevert(abi.encodeWithSelector(Mine.UnexpectedRevenueToken.selector, address(usdg), address(target)));
+        new Mine(gbx, IERC20(address(usdg)), address(wrongRouter), address(this), config);
+    }
+
+    function test_MineAndSlotViewsRejectInvalidInputs() external {
+        Mine.Slot memory slot = mine.getSlot(0);
+
+        vm.expectRevert(Mine.ZeroAddress.selector);
+        mine.mine(address(0), 0, slot.epochId, block.timestamp, type(uint256).max);
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.IndexOutOfBounds.selector, 1));
+        mine.mine(ALICE, 1, slot.epochId, block.timestamp, type(uint256).max);
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.IndexOutOfBounds.selector, 1));
+        mine.price(1);
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.IndexOutOfBounds.selector, 1));
+        mine.getSlot(1);
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.IndexOutOfBounds.selector, 1));
+        mine.pendingEmission(1);
+
+        assertEq(mine.pendingEmission(0), 0, "an empty slot cannot accrue emission");
+    }
+
+    function test_ClaimRejectsZeroAndAccountsWithoutLiability() external {
+        vm.expectRevert(Mine.ZeroAddress.selector);
+        mine.claim(address(0));
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.NothingToClaim.selector, ALICE));
+        mine.claim(ALICE);
+    }
+
+    function test_MiningRequiresThePermanentGBXHandover() external {
+        MockERC20 payment = new MockERC20("Payment", "PAY", 6);
+        MineRouterIdentityHarness router = new MineRouterIdentityHarness(IERC20(address(payment)));
+        GBX unboundGBX = new GBX(GENESIS, address(this));
+        Mine unboundMine =
+            new Mine(unboundGBX, IERC20(address(payment)), address(router), address(this), defaultMineConfig());
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.MiningAuthorityNotFinalized.selector, address(this), false));
+        unboundMine.mine(ALICE, 0, 1, block.timestamp, type(uint256).max);
+    }
+
+    function test_NextStartingPriceCapsAtTheAbsoluteMaximum() external {
+        MockERC20 payment = new MockERC20("Payment", "PAY", 6);
+        Mine.Config memory config = defaultMineConfig();
+        config.minimumInitialPrice = mine.MAX_INITIAL_PRICE();
+        config.priceMultiplier = mine.MAX_PRICE_MULTIPLIER();
+        (GBX cappedGBX, Mine cappedMine,) = _deployIsolatedMine(payment, config);
+        cappedGBX.setMinter(address(cappedMine));
+
+        uint256 paid = cappedMine.price(0);
+        payment.mint(ALICE, paid);
+        vm.startPrank(ALICE);
+        payment.approve(address(cappedMine), paid);
+        cappedMine.mine(ALICE, 0, 1, block.timestamp, paid);
+        vm.stopPrank();
+
+        assertEq(cappedMine.getSlot(0).initialPrice, cappedMine.MAX_INITIAL_PRICE());
+    }
+
+    function test_GlobalRateUsesTheTailWhenTheInitialRateAlreadyEqualsIt() external {
+        MockERC20 payment = new MockERC20("Payment", "PAY", 6);
+        Mine.Config memory config = defaultMineConfig();
+        config.initialUps = mine.MIN_TAIL_UPS();
+        config.tailUps = mine.MIN_TAIL_UPS();
+        (GBX tailGBX, Mine tailMine,) = _deployIsolatedMine(payment, config);
+        tailGBX.setMinter(address(tailMine));
+
+        assertEq(tailMine.nextGlobalUps(), tailMine.MIN_TAIL_UPS());
+    }
+
+    function test_MineRejectsAnInexactIncomingPayment() external {
+        FeeOnTransferToken payment = new FeeOnTransferToken(6);
+        (GBX feeGBX, Mine feeMine,) = _deployIsolatedMine(payment, defaultMineConfig());
+        feeGBX.setMinter(address(feeMine));
+        uint256 paid = feeMine.price(0);
+        payment.mint(ALICE, paid);
+        payment.setFeeBps(100);
+
+        vm.startPrank(ALICE);
+        payment.approve(address(feeMine), paid);
+        vm.expectRevert(abi.encodeWithSelector(Mine.InexactTransfer.selector, paid, paid, paid * 9_900 / 10_000));
+        feeMine.mine(ALICE, 0, 1, block.timestamp, paid);
+        vm.stopPrank();
+    }
+
+    function test_MineRejectsAnInexactRouterCredit() external {
+        SenderFeeToken payment = new SenderFeeToken();
+        (GBX feeGBX, Mine feeMine,) = _deployIsolatedMine(payment, defaultMineConfig());
+        feeGBX.setMinter(address(feeMine));
+        uint256 paid = feeMine.price(0);
+        payment.mint(ALICE, paid);
+        payment.configureFee(address(feeMine), 100);
+
+        vm.startPrank(ALICE);
+        payment.approve(address(feeMine), paid);
+        vm.expectRevert(abi.encodeWithSelector(Mine.InexactTransfer.selector, paid, paid, paid * 9_900 / 10_000));
+        feeMine.mine(ALICE, 0, 1, block.timestamp, paid);
+        vm.stopPrank();
+    }
+
+    function test_ClaimRejectsAnInexactRecipientCreditAndRestoresLiability() external {
+        SenderFeeToken payment = new SenderFeeToken();
+        (GBX feeGBX, Mine feeMine,) = _deployIsolatedMine(payment, defaultMineConfig());
+        feeGBX.setMinter(address(feeMine));
+
+        _mineIsolated(feeMine, payment, ALICE);
+        vm.warp(block.timestamp + 30 minutes);
+        _mineIsolated(feeMine, payment, BOB);
+
+        uint256 liability = feeMine.claimable(ALICE);
+        payment.configureFee(address(feeMine), 100);
+        vm.expectRevert(
+            abi.encodeWithSelector(Mine.InexactTransfer.selector, liability, liability, liability * 9_900 / 10_000)
+        );
+        feeMine.claim(ALICE);
+
+        assertEq(feeMine.claimable(ALICE), liability);
+        assertEq(feeMine.totalClaimable(), liability);
+        assertEq(payment.balanceOf(address(feeMine)), liability);
+        assertEq(payment.balanceOf(ALICE), 0);
     }
 
     function test_FirstMinerRoutesTheCompletePaymentBecauseNoMinerIsDisplaced() external {
@@ -271,6 +498,26 @@ contract MineTest is ProtocolFixture {
         vm.startPrank(account);
         if (paid != 0) usdg.approve(address(mine), paid);
         mine.mine(account, index, slot.epochId, block.timestamp, paid);
+        vm.stopPrank();
+    }
+
+    function _deployIsolatedMine(MockERC20 payment, Mine.Config memory config)
+        private
+        returns (GBX isolatedGBX, Mine isolatedMine, MineRouterIdentityHarness router)
+    {
+        isolatedGBX = new GBX(GENESIS, address(this));
+        router = new MineRouterIdentityHarness(IERC20(address(payment)));
+        isolatedMine = new Mine(isolatedGBX, IERC20(address(payment)), address(router), address(this), config);
+    }
+
+    function _mineIsolated(Mine isolatedMine, MockERC20 payment, address account) private returns (uint256 paid) {
+        Mine.Slot memory slot = isolatedMine.getSlot(0);
+        paid = isolatedMine.price(0);
+        payment.mint(account, paid);
+
+        vm.startPrank(account);
+        payment.approve(address(isolatedMine), paid);
+        isolatedMine.mine(account, 0, slot.epochId, block.timestamp, paid);
         vm.stopPrank();
     }
 }
