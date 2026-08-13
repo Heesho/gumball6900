@@ -208,7 +208,7 @@ contract Strategy is ReentrancyGuard {
 
         paymentToken.forceApprove(router, paymentAmount);
         BribeRouter(router).routePayment(paymentAmount);
-        paymentToken.forceApprove(router, 0);
+        if (paymentToken.allowance(address(this), router) != 0) paymentToken.forceApprove(router, 0);
     }
 
     /// @notice Transfers a supported token only when Strategy debit and receiver credit both equal `amount`.

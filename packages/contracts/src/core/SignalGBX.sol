@@ -11,6 +11,7 @@ import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
+import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 
 /// @title GumBall6900 Non-Transferable Signal Receipt
 /// @author Heesho
@@ -46,10 +47,14 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
     /// @param senderDebit Amount removed from the sender.
     /// @param receiverCredit Amount credited to the receiver.
     error InexactUnderlyingTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
+    /// @notice A candidate Resonance does not point back to this SignalGBX receipt.
+    error InvalidResonance(address resonance);
     /// @notice A transfer other than minting or burning was attempted.
     error TransferDisabled();
     /// @notice The one-time Resonance binding has already completed.
     error ResonanceAlreadySet(address resonance);
+    /// @notice Staking was attempted before the immutable Resonance graph was validated.
+    error ResonanceNotSet();
     /// @notice A required deployment or binding address is zero.
     error ZeroAddress();
     /// @notice A stake or unstake amount is zero.
@@ -69,10 +74,11 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
         gbx = gbx_;
     }
 
-    /// @notice Stakes GBX and mints the same amount of non-transferable SignalGBX.
+    /// @notice Stakes GBX after Resonance setup and mints the same amount of non-transferable SignalGBX.
     /// @param amount Amount of GBX to stake.
     function stake(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
+        if (resonance == address(0)) revert ResonanceNotSet();
 
         uint256 senderBalanceBefore = gbx.balanceOf(msg.sender);
         uint256 receiptBalanceBefore = gbx.balanceOf(address(this));
@@ -118,11 +124,16 @@ contract SignalGBX is ERC20, ERC20Permit, ERC20Votes, ReentrancyGuard, Ownable {
         emit Unstaked(msg.sender, amount);
     }
 
-    /// @notice Binds the Resonance dependency once during deployment.
+    /// @notice Binds the Resonance dependency once after reciprocal SignalGBX identity validation.
     /// @param resonance_ Resonance address to bind permanently.
     function setResonance(address resonance_) external onlyOwner {
         if (resonance != address(0)) revert ResonanceAlreadySet(resonance);
         if (resonance_ == address(0) || resonance_.code.length == 0) revert ZeroAddress();
+        try IResonanceIdentity(resonance_).signalGBX() returns (address configuredSignalGBX) {
+            if (configuredSignalGBX != address(this)) revert InvalidResonance(resonance_);
+        } catch {
+            revert InvalidResonance(resonance_);
+        }
 
         resonance = resonance_;
 

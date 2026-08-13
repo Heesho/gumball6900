@@ -1,7 +1,7 @@
 # Security invariants
 
-This file defines the accounting identities used by the hardening tests. `P` is `1e18`; quantities named `Scaled`
-already include their precision unit.
+This file defines the accounting identities used by the hardening tests. For Resonance, `P = 1e36`; for Bribe rewards,
+`P = 1e18`. Quantities named `Scaled` already include their subsystem's precision unit.
 
 ## Supply and mining
 
@@ -49,30 +49,33 @@ fixed payout or reward token is blocked.
 ```text
 accountedRevenueBalance * P
   = revenueStreamRemainingScaled
+  + queuedRevenue * P
   + pendingRevenueScaled
   + indexedRevenueScaled
   + sum(strategyRevenueRemainder)
   + (totalClaimableRevenue + fundRevenueLiability) * P
+  + fundRevenueRemainderScaled
 ```
 
 `syncRevenue` moves only actual unaccounted surplus into this identity. Exact payouts reduce both balance and the
-matching whole liability. This proves conservation, not perfect historical attribution; A-09 documents the carry
-boundary limitation.
+matching whole liability. Before any signal denominator change, pending carry that cannot be indexed under the old
+weights is assigned to the Fund remainder; it cannot cross into later weights.
 
 For every active stream:
 
 ```text
 revenueStreamRateScaled > 0
 revenueStreamFinish - revenueStreamLastUpdate <= 7 days
-newRateScaled = ceil((oldRemainingScaled + topUp * P) / 7 days)
-topUp >= 604800
-topUp > floor(oldRemainingScaled / P)
+revenueStreamRemainingScaled = exact unreleased active amount
+queuedRevenue = sum(nonzero notifications received during the active period)
+active rate and finish are unchanged by a top-up
+releasedScaled(duration) = scheduledRaw * P exactly
 ```
 
 Elapsed revenue is checkpointed before a signal weight changes. `Strategy.buy` checkpoints and transfers its released
 allocation before it snapshots auction inventory. In one block, newly notified revenue has zero elapsed stream time.
-The two top-up inequalities are checked before ResonanceRouter transfers anything; an insufficient complete router
-balance stays available for a later permissionless attempt.
+ResonanceRouter transfers every nonzero complete balance, and a Resonance checkpoint processes at most the active
+stream and one successor.
 
 ## Bribe reward-token conservation
 
@@ -88,8 +91,9 @@ accountedRewardBalance[token] * P
   + fundRewardRemainder[token]
 ```
 
-Zero supply pauses stream boundaries. A live top-up queues instead of resetting the stream. Claims clear only selected
-token liabilities.
+Zero supply pauses stream boundaries. A live top-up queues instead of resetting the stream. Before virtual supply
+changes, unindexable old-supply carry moves to the fixed Fund classification; a fully exiting account's sub-token
+remainder does likewise. Claims clear only selected token liabilities.
 
 ## BribeRouter conservation
 
@@ -107,7 +111,16 @@ Fund first checkpoints Mine, then every selected payout uses the same post-check
 payout(token) = floor(balanceBefore(token) * gbxAmount / totalSupplyBeforeBurn)
 ```
 
-The checkpoint, GBX burn, and every selected transfer are atomic. Every successful liquidity fee harvest satisfies:
+The checkpoint, GBX burn, and every selected transfer are atomic. Every successful redemption also satisfies:
+
+```text
+finalBalance(token) >= balanceBefore(token) - payout(token)
+```
+
+This basket-wide postcondition prevents distinct selected token addresses backed by one shared ledger from consuming
+the same backing twice.
+
+Every successful liquidity fee harvest satisfies:
 
 ```text
 liquidityAfter = liquidityBefore

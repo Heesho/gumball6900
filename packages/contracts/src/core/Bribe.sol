@@ -122,7 +122,12 @@ contract Bribe is ReentrancyGuard {
     /// @param rewardToken Token paid.
     /// @param amount Exact amount paid.
     event RewardPaid(address indexed account, address indexed rewardToken, uint256 amount);
-    /// @notice Emitted when aggregate sub-unit carry becomes a fixed Fund entitlement after supply reaches zero.
+    /// @notice Emitted when old-denominator or exiting-account precision becomes fixed Fund classification.
+    /// @param rewardToken Token whose carry is reclassified.
+    /// @param amountScaled Scaled precision assigned by this operation.
+    /// @param remainderScaled Complete sub-token Fund remainder afterward.
+    event RewardCarryFunded(address indexed rewardToken, uint256 amountScaled, uint256 remainderScaled);
+    /// @notice Emitted when aggregate sub-unit carry becomes a fixed Fund entitlement.
     /// @param rewardToken Token owed to Fund.
     /// @param amount Newly payable whole-token amount.
     /// @param totalLiability Complete whole-token Fund liability.
@@ -291,14 +296,13 @@ contract Bribe is ReentrancyGuard {
 
         bool wasZero = totalSupply == 0;
         _checkpointAll(account);
+        _fundAllPendingRewards();
 
         totalSupply += amount;
         balanceOf[account] += amount;
 
         if (wasZero) {
             _resumeAllStreams();
-        } else {
-            _indexAllPendingRewards();
         }
 
         emit SignalWeightDeposited(account, amount);
@@ -312,6 +316,7 @@ contract Bribe is ReentrancyGuard {
         if (account == address(0)) revert ZeroAddress();
 
         _checkpointAll(account);
+        _fundAllPendingRewards();
 
         totalSupply -= amount;
         balanceOf[account] -= amount;
@@ -320,7 +325,7 @@ contract Bribe is ReentrancyGuard {
         if (balanceOf[account] == 0) {
             for (uint256 i; i < count; ++i) {
                 address token = _rewardTokens[i];
-                pendingRewardScaled[token] += userRewardRemainder[account][token];
+                _accrueFundScaled(token, userRewardRemainder[account][token]);
                 delete userRewardRemainder[account][token];
             }
         }
@@ -331,8 +336,6 @@ contract Bribe is ReentrancyGuard {
                 _movePendingToFund(token);
                 _pauseStream(token);
             }
-        } else {
-            _indexAllPendingRewards();
         }
 
         emit SignalWeightWithdrawn(account, amount);
@@ -558,11 +561,11 @@ contract Bribe is ReentrancyGuard {
         rewardData[rewardToken].rewardPerTokenStored += delta;
     }
 
-    /// @notice Re-indexes bounded carry after a virtual-supply increase or decrease.
-    function _indexAllPendingRewards() private {
+    /// @notice Fixes all old-denominator carry to Fund before virtual signal supply changes.
+    function _fundAllPendingRewards() private {
         uint256 count = _rewardTokens.length;
         for (uint256 i; i < count; ++i) {
-            _indexPendingReward(_rewardTokens[i]);
+            _movePendingToFund(_rewardTokens[i]);
         }
     }
 
@@ -599,14 +602,26 @@ contract Bribe is ReentrancyGuard {
         }
     }
 
-    /// @notice Converts unattributable aggregate sub-unit carry into a fixed Fund destination when supply is zero.
+    /// @notice Converts unattributable aggregate sub-unit carry into a fixed Fund destination.
     /// @param rewardToken Token whose carry is reclassified.
     function _movePendingToFund(address rewardToken) private {
-        uint256 scaled = fundRewardRemainder[rewardToken] + pendingRewardScaled[rewardToken];
+        uint256 scaled = pendingRewardScaled[rewardToken];
         pendingRewardScaled[rewardToken] = 0;
+
+        _accrueFundScaled(rewardToken, scaled);
+    }
+
+    /// @notice Adds scaled precision to the Fund's fixed reward classification.
+    /// @param rewardToken Token whose Fund entitlement increases.
+    /// @param scaledAmount Scaled precision to classify.
+    function _accrueFundScaled(address rewardToken, uint256 scaledAmount) private {
+        uint256 scaled = fundRewardRemainder[rewardToken] + scaledAmount;
 
         uint256 whole = scaled / REWARD_PRECISION;
         fundRewardRemainder[rewardToken] = scaled % REWARD_PRECISION;
+        if (scaledAmount != 0) {
+            emit RewardCarryFunded(rewardToken, scaledAmount, fundRewardRemainder[rewardToken]);
+        }
         if (whole != 0) {
             fundRewardLiability[rewardToken] += whole;
             emit FundRewardAccrued(rewardToken, whole, fundRewardLiability[rewardToken]);

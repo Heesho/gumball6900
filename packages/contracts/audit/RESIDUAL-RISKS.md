@@ -13,10 +13,13 @@
   pending emission for effective-supply displays.
 - Every handoff, capacity increase, and redemption checkpoints up to sixteen slots. Work is bounded but linear.
 - The permanent GBX minter handoff and immutable dependencies cannot be repaired after an incorrect deployment.
+  Reciprocal identity checks reject crossed GBX/Mine, Resonance/SignalGBX/factory, and Resonance/router graphs, but a
+  malicious lookalike contract or incorrect immutable parameter still requires signed bytecode and manifest review.
 
 ## Existing protocol and economic risk
 
-- A-09 remains open: sub-index carry can be shared with signal weight that arrives after the value.
+- Low-decimal Bribe rewards or very large signal denominators can classify economically meaningful carry to Fund when
+  signal supply changes. The value remains conserved, but is no longer attributed to incumbent signalers.
 - Permissionless LP fee harvesting has no bounty and may be delayed until someone volunteers gas.
 - Signal timing can redirect a lumpy revenue notification because signaling has no cooldown.
 - Strategy price may fall to zero. Fund has no curated asset list, recovery, or migration.

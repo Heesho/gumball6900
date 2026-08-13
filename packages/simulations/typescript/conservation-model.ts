@@ -1,13 +1,9 @@
-const DEFAULT_PRECISION = 10n ** 18n;
+const DEFAULT_REVENUE_PRECISION = 10n ** 36n;
+const DEFAULT_REWARD_PRECISION = 10n ** 18n;
 const DEFAULT_STREAM_DURATION = 7n * 24n * 60n * 60n;
-const MIN_REVENUE_AMOUNT = DEFAULT_STREAM_DURATION;
 
 function requireNonNegative(value: bigint, label: string): void {
   if (value < 0n) throw new RangeError(`${label} must be non-negative`);
-}
-
-function ceilDiv(value: bigint, divisor: bigint): bigint {
-  return value === 0n ? 0n : (value - 1n) / divisor + 1n;
 }
 
 /** Independent integer model of Resonance's scaled-carry revenue allocator. */
@@ -23,14 +19,17 @@ export class RevenueConservationModel {
   pendingScaled = 0n;
   indexedScaled = 0n;
   fundLiability = 0n;
+  fundRemainderScaled = 0n;
   accounted = 0n;
   now = 0n;
+  queuedRevenue = 0n;
   streamRateScaled = 0n;
+  streamRemainderFinish = 0n;
   streamRemainingScaled = 0n;
   streamLastUpdate = 0n;
   streamFinish = 0n;
 
-  constructor(strategyCount: number, precision = DEFAULT_PRECISION) {
+  constructor(strategyCount: number, precision = DEFAULT_REVENUE_PRECISION) {
     if (!Number.isSafeInteger(strategyCount) || strategyCount <= 0) throw new RangeError('invalid strategyCount');
     if (precision <= 0n) throw new RangeError('precision must be positive');
     this.precision = precision;
@@ -42,23 +41,12 @@ export class RevenueConservationModel {
   }
 
   notify(amount: bigint): void {
-    requireNonNegative(amount, 'amount');
-    if (amount < MIN_REVENUE_AMOUNT) throw new RangeError('amount is below the stream-duration minimum');
-    const remaining = this.leftRevenue();
-    if (amount <= remaining) throw new RangeError('amount does not exceed the active stream remainder');
+    if (amount <= 0n) throw new RangeError('amount must be positive');
 
     this.checkpointRevenue();
     this.accounted += amount;
-    const combinedScaled = this.streamRemainingScaled + amount * this.precision;
-    this.startStream(combinedScaled, this.now);
-  }
-
-  leftRevenue(): bigint {
-    return (this.streamRemainingScaled - this.releasableScaled()) / this.precision;
-  }
-
-  canNotify(amount: bigint): boolean {
-    return amount >= MIN_REVENUE_AMOUNT && amount > this.leftRevenue();
+    if (this.streamRemainingScaled === 0n) this.startStream(amount * this.precision, this.now);
+    else this.queuedRevenue += amount;
   }
 
   advance(seconds: bigint): void {
@@ -67,31 +55,48 @@ export class RevenueConservationModel {
   }
 
   checkpointRevenue(): void {
-    const released = this.releasableScaled();
-    if (released !== 0n) {
-      this.streamRemainingScaled -= released;
-      this.streamLastUpdate = this.now;
-      this.pendingScaled += released;
-      if (this.streamRemainingScaled === 0n) this.clearStream();
+    if (this.streamRemainingScaled !== 0n) {
+      const firstFinish = this.streamFinish;
+      this.accrueUntil(this.now < firstFinish ? this.now : firstFinish);
+      if (this.now >= firstFinish) {
+        this.clearStream();
+        if (this.queuedRevenue !== 0n) {
+          const queued = this.queuedRevenue;
+          this.queuedRevenue = 0n;
+          this.startStream(queued * this.precision, firstFinish);
+          this.accrueUntil(this.now < this.streamFinish ? this.now : this.streamFinish);
+          if (this.now >= this.streamFinish) this.clearStream();
+        }
+      }
     }
     this.indexPending();
   }
 
   private startStream(amountScaled: bigint, startedAt: bigint): void {
-    this.streamRateScaled = ceilDiv(amountScaled, DEFAULT_STREAM_DURATION);
+    const rateRemainder = amountScaled % DEFAULT_STREAM_DURATION;
+    this.streamRateScaled = amountScaled / DEFAULT_STREAM_DURATION;
+    this.streamRemainderFinish = startedAt + rateRemainder;
     this.streamRemainingScaled = amountScaled;
     this.streamLastUpdate = startedAt;
     this.streamFinish = startedAt + DEFAULT_STREAM_DURATION;
   }
 
-  private releasableScaled(): bigint {
-    if (this.streamRemainingScaled === 0n || this.now <= this.streamLastUpdate) return 0n;
-    if (this.now >= this.streamFinish) return this.streamRemainingScaled;
-    return this.streamRateScaled * (this.now - this.streamLastUpdate);
+  private accrueUntil(timestamp: bigint): void {
+    const from = this.streamLastUpdate;
+    if (timestamp <= from) return;
+    let released = (timestamp - from) * this.streamRateScaled;
+    if (from < this.streamRemainderFinish) {
+      const remainderEnd = timestamp < this.streamRemainderFinish ? timestamp : this.streamRemainderFinish;
+      released += remainderEnd - from;
+    }
+    this.streamRemainingScaled -= released;
+    this.streamLastUpdate = timestamp;
+    this.pendingScaled += released;
   }
 
   private clearStream(): void {
     this.streamRateScaled = 0n;
+    this.streamRemainderFinish = 0n;
     this.streamRemainingScaled = 0n;
     this.streamLastUpdate = 0n;
     this.streamFinish = 0n;
@@ -99,8 +104,8 @@ export class RevenueConservationModel {
 
   indexPending(): void {
     if (this.totalWeight === 0n) {
-      this.fundLiability += this.pendingScaled / this.precision;
-      this.pendingScaled %= this.precision;
+      this.accrueFundScaled(this.pendingScaled);
+      this.pendingScaled = 0n;
       return;
     }
     const delta = this.pendingScaled / this.totalWeight;
@@ -131,14 +136,15 @@ export class RevenueConservationModel {
     requireNonNegative(weight, 'weight');
     this.checkpointRevenue();
     this.updateStrategy(strategy);
+    this.accrueFundScaled(this.pendingScaled);
+    this.pendingScaled = 0n;
     const prior = this.weights[strategy]!;
     this.weights[strategy] = weight;
     this.totalWeight += weight - prior;
     if (weight === 0n) {
-      this.pendingScaled += this.remainders[strategy]!;
+      this.accrueFundScaled(this.remainders[strategy]!);
       this.remainders[strategy] = 0n;
     }
-    this.indexPending();
   }
 
   kill(strategy: number): void {
@@ -155,9 +161,17 @@ export class RevenueConservationModel {
       this.pendingScaled +
       this.indexedScaled +
       this.streamRemainingScaled +
+      this.queuedRevenue * this.precision +
+      this.fundRemainderScaled +
       this.remainders.reduce((sum, value) => sum + value, 0n) +
       whole * this.precision
     );
+  }
+
+  private accrueFundScaled(amountScaled: bigint): void {
+    const combined = this.fundRemainderScaled + amountScaled;
+    this.fundLiability += combined / this.precision;
+    this.fundRemainderScaled = combined % this.precision;
   }
 }
 
@@ -181,9 +195,11 @@ export class RewardConservationModel {
   rewardIndex = 0n;
   pendingScaled = 0n;
   indexedScaled = 0n;
+  fundLiability = 0n;
+  fundRemainderScaled = 0n;
   accounted = 0n;
 
-  constructor(weights: bigint[], precision = DEFAULT_PRECISION) {
+  constructor(weights: bigint[], precision = DEFAULT_REWARD_PRECISION) {
     if (precision <= 0n) throw new RangeError('precision must be positive');
     weights.forEach((weight) => requireNonNegative(weight, 'weight'));
     this.precision = precision;
@@ -219,12 +235,33 @@ export class RewardConservationModel {
     this.userRemainders[user] = accrued % this.precision;
   }
 
+  setWeight(user: number, weight: bigint): void {
+    requireNonNegative(weight, 'weight');
+    this.checkpoint(user);
+    this.accrueFundScaled(this.pendingScaled);
+    this.pendingScaled = 0n;
+    const prior = this.weights[user]!;
+    this.weights[user] = weight;
+    this.totalWeight += weight - prior;
+    if (weight === 0n) {
+      this.accrueFundScaled(this.userRemainders[user]!);
+      this.userRemainders[user] = 0n;
+    }
+  }
+
   classifiedScaled(): bigint {
     return (
       this.pendingScaled +
       this.indexedScaled +
+      this.fundRemainderScaled +
       this.userRemainders.reduce((sum, value) => sum + value, 0n) +
-      this.liabilities.reduce((sum, value) => sum + value, 0n) * this.precision
+      (this.liabilities.reduce((sum, value) => sum + value, 0n) + this.fundLiability) * this.precision
     );
+  }
+
+  private accrueFundScaled(amountScaled: bigint): void {
+    const combined = this.fundRemainderScaled + amountScaled;
+    this.fundLiability += combined / this.precision;
+    this.fundRemainderScaled = combined % this.precision;
   }
 }

@@ -18,7 +18,7 @@ describe('GBX mining authority integrity', function () {
     expect(await token.getFunction('minterLocked')()).to.equal(false);
   });
 
-  it('requires deployed code for the permanent minter handover and forbids premature minting', async function () {
+  it('requires the reciprocal Mine identity for the permanent minter handover', async function () {
     const [deployer, account] = await ethers.getSigners();
     if (deployer === undefined || account === undefined) throw new Error('Hardhat signers unavailable');
 
@@ -35,9 +35,29 @@ describe('GBX mining authority integrity', function () {
     );
 
     const tokenAddress = await token.getAddress();
-    await token.getFunction('setMinter')(tokenAddress);
-    expect(await token.getFunction('minter')()).to.equal(tokenAddress);
+    await expect(token.getFunction('setMinter')(tokenAddress)).to.be.revertedWithCustomError(token, 'InvalidMine');
+
+    const router = await ethers.deployContract('ResonanceRouter', [tokenAddress, tokenAddress]);
+    await router.waitForDeployment();
+    const mine = await ethers.deployContract('Mine', [
+      tokenAddress,
+      tokenAddress,
+      await router.getAddress(),
+      deployer.address,
+      {
+        priceMultiplier: ethers.parseEther('1.1'),
+        minimumInitialPrice: 1_000_000n,
+        initialUps: 16n,
+        halvingAmount: ethers.parseEther('1000'),
+        tailUps: 16n,
+      },
+    ]);
+    await mine.waitForDeployment();
+
+    const mineAddress = await mine.getAddress();
+    await token.getFunction('setMinter')(mineAddress);
+    expect(await token.getFunction('minter')()).to.equal(mineAddress);
     expect(await token.getFunction('minterLocked')()).to.equal(true);
-    await expect(token.getFunction('setMinter')(tokenAddress)).to.be.revertedWithCustomError(token, 'NotMinter');
+    await expect(token.getFunction('setMinter')(mineAddress)).to.be.revertedWithCustomError(token, 'NotMinter');
   });
 });

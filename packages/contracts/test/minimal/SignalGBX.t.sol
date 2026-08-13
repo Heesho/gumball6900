@@ -10,6 +10,18 @@ import { SignalGBX } from "../../src/core/SignalGBX.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 import { FeeOnTransferToken } from "./utils/Tokens.sol";
 
+contract SignalResonanceIdentityHarness {
+    address public immutable signalGBX;
+
+    constructor(SignalGBX signalGBX_) {
+        signalGBX = address(signalGBX_);
+    }
+
+    function accountSignalWeight(address) external pure returns (uint256) {
+        return 0;
+    }
+}
+
 /// @title SignalGBXTest
 /// @notice Covers the one-for-one staking receipt, non-transferability, and withdrawal of unallocated balances.
 contract SignalGBXTest is ProtocolFixture {
@@ -79,6 +91,7 @@ contract SignalGBXTest is ProtocolFixture {
     function test_StakeRejectsFeeOnTransferUnderlying() external {
         FeeOnTransferToken token = new FeeOnTransferToken(18);
         SignalGBX receipt = new SignalGBX(IERC20(address(token)), address(this));
+        receipt.setResonance(address(new SignalResonanceIdentityHarness(receipt)));
         token.mint(ALICE, 100 ether);
         token.setFeeBps(100);
 
@@ -181,6 +194,7 @@ contract SignalGBXTest is ProtocolFixture {
     function test_UnstakeRejectsFeeOnTransferUnderlyingAndRestoresReceipt() external {
         FeeOnTransferToken token = new FeeOnTransferToken(18);
         SignalGBX receipt = new SignalGBX(IERC20(address(token)), address(this));
+        receipt.setResonance(address(new SignalResonanceIdentityHarness(receipt)));
         token.mint(ALICE, 100 ether);
 
         vm.startPrank(ALICE);
@@ -258,14 +272,14 @@ contract SignalGBXTest is ProtocolFixture {
         signalGBX.unstake(1);
     }
 
-    function test_UnstakeWorksBeforeResonanceIsBound() external {
+    function test_StakeWaitsUntilResonanceIsBound() external {
         SignalGBX unbound = new SignalGBX(IERC20(address(gbx)), address(this));
         _mintTestGBX(CAROL, 10 ether);
 
         vm.startPrank(CAROL);
         gbx.approve(address(unbound), 10 ether);
+        vm.expectRevert(SignalGBX.ResonanceNotSet.selector);
         unbound.stake(10 ether);
-        unbound.unstake(10 ether);
         vm.stopPrank();
 
         assertEq(gbx.balanceOf(CAROL), 10 ether);
@@ -295,12 +309,16 @@ contract SignalGBXTest is ProtocolFixture {
 
     function test_SetResonanceBindsExactlyOnce() external {
         SignalGBX unbound = new SignalGBX(IERC20(address(gbx)), address(this));
+        SignalResonanceIdentityHarness identity = new SignalResonanceIdentityHarness(unbound);
 
-        vm.expectEmit(true, false, false, false);
-        emit ResonanceSet(address(resonance));
+        vm.expectRevert(abi.encodeWithSelector(SignalGBX.InvalidResonance.selector, address(resonance)));
         unbound.setResonance(address(resonance));
 
-        vm.expectRevert(abi.encodeWithSelector(SignalGBX.ResonanceAlreadySet.selector, address(resonance)));
+        vm.expectEmit(true, false, false, false);
+        emit ResonanceSet(address(identity));
+        unbound.setResonance(address(identity));
+
+        vm.expectRevert(abi.encodeWithSelector(SignalGBX.ResonanceAlreadySet.selector, address(identity)));
         unbound.setResonance(address(fund));
     }
 

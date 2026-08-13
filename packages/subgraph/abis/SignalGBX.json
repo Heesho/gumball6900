@@ -1029,6 +1029,17 @@
   },
   {
     "type": "error",
+    "name": "InvalidResonance",
+    "inputs": [
+      {
+        "name": "resonance",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "InvalidShortString",
     "inputs": []
   },
@@ -1069,6 +1080,11 @@
         "internalType": "address"
       }
     ]
+  },
+  {
+    "type": "error",
+    "name": "ResonanceNotSet",
+    "inputs": []
   },
   {
     "type": "error",

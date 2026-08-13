@@ -48,7 +48,6 @@ the global rate that a future handoff will divide by current capacity; it must n
 Every composed reader pins its RPC calls to one block and revalidates that block before returning. Generated ABIs and
 API docs are updated by repository scripts and must not be edited by hand.
 
-`readResonanceView` includes the scaled live rate, scheduled remainder, whole-unit remainder, notification minimum,
-finish, last checkpoint, and currently releasable amount. Strategy raw balances alone omit
-released-but-not-yet-transferred stream revenue. `buildRouteRevenue` may succeed with a zero return while an
-insufficient balance remains in ResonanceRouter.
+`readResonanceView` includes the `1e36` index precision, active scaled rate and remainder schedule, aggregate successor,
+Fund carry remainder, finish, last checkpoint, and currently releasable amount. Strategy raw balances alone omit
+released-but-not-yet-transferred stream revenue. `buildRouteRevenue` forwards every nonzero complete router balance.

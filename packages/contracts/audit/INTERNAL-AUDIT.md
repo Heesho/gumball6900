@@ -1,7 +1,8 @@
 # Internal adversarial audit
 
-> Historical evidence only. ADR 0024 replaced the distribution contract and supply model with Mine; this report is
-> not an audit of the current development graph.
+> Historical evidence only. ADR 0024 replaced the distribution contract and supply model with Mine, ADR 0026
+> replaced Resonance routing, streaming, and carry behavior, and ADR 0027 later resolved the A-09 Bribe boundary
+> disposition below. This report is not an audit of the current development graph.
 
 Date: 2026-08-09
 

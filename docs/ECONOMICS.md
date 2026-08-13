@@ -52,11 +52,12 @@ balance through a reverse Dutch auction. The complete payment becomes a Fund lia
 funded.
 
 Streaming is lazy accounting: no keeper transaction is required each second. A later signal change, distribution,
-purchase, notification, or Fund-revenue payment materializes the elapsed amount. New notifications merge into the live
-schedule and reset a fresh seven-day period only when the complete ResonanceRouter balance is at least 604,800 raw
-units (`0.6048 USDG`) and strictly greater than the whole USDG remaining in the current stream. Smaller balances wait
-in the router; elapsed time can clear the declining remainder gate but never the absolute minimum. The `1e18` scaled
-rate preserves smooth behavior for six-decimal USDG.
+purchase, notification, or Fund-revenue payment materializes the elapsed amount. ResonanceRouter forwards every
+nonzero complete balance. A live notification aggregates into one successor and cannot change the active seven-day
+stream's rate or finish. A checkpoint catches up at most the active stream and that successor. The `1e36` scaled rate
+and quotient-plus-remainder schedule release even one raw six-decimal USDG unit exactly. Before signal weights change,
+otherwise unindexable old-weight carry becomes an explicit Fund remainder rather than crossing the denominator.
+Bribe applies the same Fund classification to independently funded reward carry before its virtual supply changes.
 
 Before redemption, Fund checkpoints every mining slot. For each selected token it then pays:
 
@@ -64,4 +65,6 @@ Before redemption, Fund checkpoints every mining slot. For each selected token i
 floor(Fund balance * GBX burned / totalSupply after checkpoint and before burn)
 ```
 
-Omitted assets remain for the post-redemption supply. Pending Fund-held GBX should be burned before quoting redemption.
+Omitted assets remain for the post-redemption supply. A basket also reverts if one selected token transfer reduces
+another selected address below its own snapshot less payout, preventing shared-ledger double counting. Pending
+Fund-held GBX should be burned before quoting redemption.

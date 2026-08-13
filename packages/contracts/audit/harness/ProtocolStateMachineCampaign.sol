@@ -507,15 +507,17 @@ contract ProtocolStateMachineCampaign {
 
     /// @notice Every accounted USDG unit remains in exactly one whole-token or scaled accounting category.
     function echidna_resonanceAccountingIsExact() public view returns (bool holds) {
+        uint256 precision = resonance.INDEX_PRECISION();
         uint256 strategyRemainders;
         for (uint256 i; i < strategies.length; ++i) {
             strategyRemainders += resonance.strategyRevenueRemainder(strategies[i]);
         }
 
-        uint256 right = resonance.revenueStreamRemainingScaled() + resonance.pendingRevenueScaled()
-            + resonance.indexedRevenueScaled() + strategyRemainders
-            + (resonance.totalClaimableRevenue() + resonance.fundRevenueLiability()) * 1e18;
-        return resonance.accountedRevenueBalance() * 1e18 == right;
+        uint256 right = resonance.revenueStreamRemainingScaled() + resonance.queuedRevenue() * precision
+            + resonance.pendingRevenueScaled() + resonance.indexedRevenueScaled() + strategyRemainders
+            + resonance.fundRevenueRemainderScaled()
+            + (resonance.totalClaimableRevenue() + resonance.fundRevenueLiability()) * precision;
+        return resonance.accountedRevenueBalance() * precision == right;
     }
 
     /// @notice A scheduled Resonance stream has a live rate and an exact rolling seven-day boundary.
@@ -523,12 +525,14 @@ contract ProtocolStateMachineCampaign {
         uint256 remainingScaled = resonance.revenueStreamRemainingScaled();
         if (remainingScaled == 0) {
             return resonance.revenueStreamRateScaled() == 0 && resonance.revenueStreamLastUpdate() == 0
-                && resonance.revenueStreamFinish() == 0;
+                && resonance.revenueStreamFinish() == 0 && resonance.revenueStreamRemainderFinish() == 0
+                && resonance.queuedRevenue() == 0;
         }
 
         uint256 lastUpdate = resonance.revenueStreamLastUpdate();
         uint256 finish = resonance.revenueStreamFinish();
         return resonance.revenueStreamRateScaled() != 0 && finish > lastUpdate
+            && resonance.revenueStreamRemainderFinish() <= finish
             && finish - lastUpdate <= resonance.REVENUE_STREAM_DURATION();
     }
 
@@ -601,7 +605,7 @@ contract ProtocolStateMachineCampaign {
         return true;
     }
 
-    /// @notice Every USDG unit retained by the anti-grief gates remains visible as pending router revenue.
+    /// @notice The router never conceals or misreports any balance awaiting a permissionless route call.
     function echidna_routerRetentionIsFullyVisible() public view returns (bool holds) {
         return resonanceRouter.pendingRevenue() == usdg.balanceOf(address(resonanceRouter));
     }

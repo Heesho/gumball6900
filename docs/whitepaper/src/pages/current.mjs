@@ -115,7 +115,7 @@ export const currentPages = [
                 'A participant takes a mining slot at its current hourly decaying USDG price.',
                 'The incumbent accrues GBX continuously at the fixed rate assigned on entry.',
                 'Twenty percent of a nonempty-slot handoff routes through Resonance; eighty percent becomes a displaced-miner claim.',
-                'ResonanceRouter holds sub-threshold USDG; a qualifying balance restarts a seven-day stream under live signals.',
+                'ResonanceRouter forwards every nonzero balance; live arrivals aggregate into the next seven-day stream without resetting the active one.',
                 'Strategies pull released USDG and exchange it for assets whose complete payments become Fund liabilities.',
                 'A GBX holder may burn GBX for a selected pro-rata basket of raw Fund assets.',
               ])}

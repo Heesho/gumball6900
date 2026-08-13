@@ -7,7 +7,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { BribeRouter } from "../../src/core/BribeRouter.sol";
 import { Strategy } from "../../src/core/Strategy.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
-import { FeeOnTransferToken, MockERC20 } from "./utils/Tokens.sol";
+import { FeeOnTransferToken, MockERC20, ZeroApprovalRevertingToken } from "./utils/Tokens.sol";
 
 /// @notice Minimal Resonance stand-in used to reach branches the wired protocol cannot produce.
 contract StubResonance {
@@ -241,6 +241,21 @@ contract StrategyTest is ProtocolFixture {
         );
         feeStrategy.buy(CAROL, 0, block.timestamp, type(uint256).max);
         vm.stopPrank();
+    }
+
+    function test_BuySupportsAPaymentTokenThatRejectsZeroApprovals() external {
+        ZeroApprovalRevertingToken payment = new ZeroApprovalRevertingToken(18);
+        (address strategyAddress,, address routerAddress) =
+            resonance.addStrategy(IERC20(address(payment)), defaultConfig());
+        Strategy strategy = Strategy(strategyAddress);
+        usdg.mint(strategyAddress, 50_000_000);
+
+        uint256 paid = _buyTarget(CAROL, strategy, payment);
+
+        assertEq(paid, DEFAULT_INITIAL_PRICE);
+        assertEq(payment.allowance(strategyAddress, routerAddress), 0);
+        assertEq(payment.balanceOf(routerAddress), paid);
+        assertEq(usdg.balanceOf(CAROL), 50_000_000);
     }
 
     function test_RevenueReceiverEqualToStrategyFailsAtomically() external {

@@ -14,6 +14,10 @@ contract GBXMinterHarness {
         _gbx = gbx_;
     }
 
+    function gbx() external view returns (address token) {
+        return address(_gbx);
+    }
+
     function mint(address account, uint256 amount) external {
         _gbx.mint(account, amount);
     }
@@ -60,6 +64,10 @@ contract GBXTest is Test {
     function test_MinterHandoverIsOneTimeAndRequiresDeployedCode() external {
         vm.expectRevert(abi.encodeWithSelector(GBX.AddressHasNoCode.selector, ALICE));
         gbx.setMinter(ALICE);
+
+        GBX unrelatedCode = new GBX(GENESIS, address(this));
+        vm.expectRevert(abi.encodeWithSelector(GBX.InvalidMine.selector, address(unrelatedCode)));
+        gbx.setMinter(address(unrelatedCode));
 
         vm.expectEmit(true, true, false, true);
         emit MinterSet(address(this), address(minter));

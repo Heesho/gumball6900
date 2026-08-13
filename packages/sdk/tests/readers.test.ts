@@ -108,17 +108,19 @@ describe('Resonance reads', () => {
   it('returns the complete scheduled and released revenue state at one block', async () => {
     const values: Readonly<Record<string, unknown>> = {
       accountedRevenueBalance: 700n,
+      fundRevenueRemainderScaled: 3n,
       fundRevenueLiability: 0n,
+      INDEX_PRECISION: 10n ** 36n,
       indexedRevenueScaled: 20n,
-      leftRevenue: 560n,
-      MIN_REVENUE_AMOUNT: 604_800n,
       pendingRevenueScaled: 30n,
+      queuedRevenue: 100n,
       releasableRevenueScaled: 40n,
       revenueIndex: 5n,
       REVENUE_STREAM_DURATION: 604_800n,
       revenueStreamFinish: 2_600n,
       revenueStreamLastUpdate: 2_000n,
       revenueStreamRateScaled: 7n,
+      revenueStreamRemainderFinish: 2_100n,
       revenueStreamRemainingScaled: 600n,
       strategies: [address(2)],
       totalClaimableRevenue: 10n,
@@ -130,16 +132,12 @@ describe('Resonance reads', () => {
     );
     const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
     const client = { getBlock, readContract } as unknown as PublicClient;
-    const {
-      MIN_REVENUE_AMOUNT: minRevenueAmount,
-      REVENUE_STREAM_DURATION: revenueStreamDuration,
-      ...expected
-    } = values;
+    const { INDEX_PRECISION: indexPrecision, REVENUE_STREAM_DURATION: revenueStreamDuration, ...expected } = values;
 
     await expect(readResonanceView(client, address(1))).resolves.toEqual({
       ...expected,
       blockNumber: BLOCK_NUMBER,
-      minRevenueAmount,
+      indexPrecision,
       revenueStreamDuration,
     });
     expect(getBlock).toHaveBeenCalledTimes(2);

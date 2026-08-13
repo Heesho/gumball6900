@@ -1,8 +1,9 @@
 # ADR 0025: Global seven-day Resonance revenue stream
 
-- Status: accepted for development; not approved for deployment or user funds
+- Status: superseded by ADR 0026; never approved for deployment or user funds
 - Date: 2026-08-12
 - Supersedes: immediate routed-revenue allocation in ADR 0013 and ADR 0020
+- Superseded by: [ADR 0026](0026-exact-successor-revenue-stream.md), which replaces the routing thresholds and reset behavior
 
 ## Context
 

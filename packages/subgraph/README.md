@@ -3,7 +3,7 @@
 Minimal read model for the provisional core. It indexes `GBX`, `Mine`, `LiquidityPosition`, `SignalGBX`,
 `ResonanceRouter`, `Resonance`, `Fund`, and OpenZeppelin `TimelockController` data sources.
 
-The subgraph tracks minted and burned supply, mining slots and claims, staking, ResonanceRouter hold attempts, the
+The subgraph tracks minted and burned supply, mining slots and claims, staking, ResonanceRouter routes, the
 Resonance stream, Strategies, signals, redemptions, and timelock state. `ProtocolEvent` records handled events
 positionally. This is a convenience index, not authoritative protocol accounting: pending Mine accrual, current router
 balances, and releasable Resonance revenue must be read or computed live between events.

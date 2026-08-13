@@ -323,27 +323,10 @@ contract AdversarialTest is ProtocolFixture {
         assertEq(resonance.totalSignalWeight(), 0);
     }
 
-    /// @notice A Strategy priced in the non-transferable receipt is permanently unfillable.
-    /// @dev Governance can create one, which bricks that Strategy's revenue share until it is retired.
-    function test_AStrategyPricedInTheNonTransferableReceiptIsBricked() external {
-        (address bricked,,) = resonance.addStrategy(IERC20(address(signalGBX)), defaultConfig());
-
-        _stake(ALICE, 100 ether);
-        _signalOne(ALICE, bricked);
-        usdg.mint(bricked, 100_000_000);
-        assertEq(usdg.balanceOf(bricked), 100_000_000);
-
-        _stake(ATTACKER, 100 ether);
-        vm.startPrank(ATTACKER);
-        signalGBX.approve(bricked, type(uint256).max);
-        vm.expectRevert(SignalGBX.TransferDisabled.selector);
-        Strategy(bricked).buy(ATTACKER, 0, block.timestamp, type(uint256).max);
-        vm.stopPrank();
-
-        // Retiring it returns the trapped revenue path to Fund for future notifications.
-        resonance.killStrategy(bricked);
-        assertFalse(resonance.isStrategyAlive(bricked));
-        assertEq(usdg.balanceOf(bricked), 100_000_000, "already delivered revenue stays stranded in the Strategy");
+    /// @notice The non-transferable protocol receipt cannot consume an append-only Strategy slot.
+    function test_NonTransferableSignalGBXCannotBeAStrategyPaymentToken() external {
+        vm.expectRevert(abi.encodeWithSelector(Resonance.ForbiddenPaymentToken.selector, address(signalGBX)));
+        resonance.addStrategy(IERC20(address(signalGBX)), defaultConfig());
     }
 
     /*//////////////////////////////////////////////////////////////

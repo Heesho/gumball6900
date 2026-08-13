@@ -18,14 +18,13 @@
 - Resonance streaming is lazy. USDG entitlement accrues with time, but token balances move to Strategies only when a
   caller triggers a signal change, notification, distribution, purchase, or other checkpointing path. Interfaces must
   preview released revenue rather than treating the Strategy's raw balance as its complete executable inventory.
-- A qualifying stream top-up can reduce the live rate because it combines the remainder and restarts seven days. The
-  anti-grief gates require at least 604,800 raw units and more new USDG than whole USDG remaining, so cheaply repeated
-  dust cannot keep resetting the stream. Pending balances below either gate remain in ResonanceRouter. Timestamp
-  ordering near a block boundary can change eligibility and one interval of attribution, although it cannot make
-  same-block time elapse.
-- Sub-index Resonance and Bribe carry is conserved but indexed against the signal supply present when the threshold is
-  crossed. A late signal can therefore share value received or emitted before entry (A-09), especially for
-  low-decimal supported tokens.
+- A live stream top-up cannot reduce, increase, reset, or extend the active rate: every nonzero amount aggregates into
+  one successor. Repeated dust notifications increase storage only in that single aggregate and checkpoint work remains
+  bounded to the active stream plus one successor. An attacker may economically influence the next period's total rate
+  by supplying revenue, but cannot delay already scheduled release or create terminal router dust.
+- Sub-index Resonance and Bribe carry is conserved and assigned to Fund before a signal denominator changes, so a late
+  signal cannot receive value emitted before entry. A fully exiting Bribe account's sub-token remainder also becomes
+  fixed Fund precision rather than being reallocated to remaining signalers.
 - A broken or blocklisting token can prevent its own deferred Fund or user payout. The fixed liability remains
   observable and retryable, while signal removal and unstaking remain available because neither path transfers it.
 - A malformed caller-selected token can revert that redemption, but cannot block redemptions that omit

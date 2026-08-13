@@ -215,6 +215,27 @@
   },
   {
     "type": "error",
+    "name": "SelectedBalanceDecreased",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "expectedMinimum",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "currentBalance",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "ZeroAmount",
     "inputs": []
   }

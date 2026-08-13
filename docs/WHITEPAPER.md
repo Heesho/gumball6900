@@ -116,18 +116,19 @@ claim is permanently left for remaining GBX holders.
 Staking GBX mints sGBX one-for-one. sGBX is non-transferable. A holder may add or remove absolute signal amounts for
 individual active Strategies at any time and immediately withdraw any unallocated sGBX balance.
 
-Resonance schedules routed USDG into one global stream with rolling seven-day periods. Each signal mutation first
+Resonance schedules routed USDG into one global active seven-day stream and one aggregated successor. Each signal mutation first
 checkpoints the elapsed interval under the old weights, so a signal moved now affects later flow without a lock,
 cooldown, or voting epoch. A Strategy purchase checkpoints and pulls its released share before reading auction
 inventory. Consequently, signaling a thin Strategy, routing new mining USDG, and filling its stale cheap auction in one
 transaction cannot capture that new USDG: no stream time has elapsed.
 
-The stream uses `1e18` scaled USDG-per-second accounting, which keeps six-decimal USDG smooth. New revenue may be
-notified at any time, but ResonanceRouter holds its complete balance until it is at least 604,800 raw units (`0.6048
-USDG`) and strictly greater than the whole USDG left in the current stream. Once eligible, it combines with the
-remainder and resets a fresh seven-day period. Time can clear the declining remainder gate; only added USDG can clear
-the absolute minimum. Settlement is lazy—ordinary signal, distribution, purchase, notification, and Fund-payment calls
-materialize elapsed flow—so the protocol needs no per-second keeper.
+The stream uses `1e36` scaled USDG-per-second accounting and exact quotient-plus-remainder release, so every six-decimal
+raw unit can stream without a minimum notification. ResonanceRouter forwards every nonzero complete balance. Revenue
+arriving during a live stream aggregates into one successor without changing the active rate or finish; after promotion,
+later arrivals aggregate into the next successor. Settlement is lazy—ordinary signal, distribution, purchase,
+notification, and Fund-payment calls materialize at most the active stream and one successor—so the protocol needs no
+per-second keeper. Any unindexable scaled carry is assigned to an explicit Fund remainder before a signal-weight change,
+preventing value released under old weights from crossing into a new denominator.
 
 Signals steer future flow; they do not force Fund to sell past holdings or maintain a target portfolio. A Strategy's
 complete payment becomes a fixed Fund liability. Independently funded Bribes may reward signalers, with at most eight

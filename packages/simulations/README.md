@@ -12,8 +12,11 @@ price promises, deployment configurations, or investment projections.
 - A new slot receives `globalUps(totalMined) / capacity`; division residue is unissued.
 - A nonempty-slot replacement pays `floor(price * 80%)` to the displaced miner and routes the residue to Resonance.
   An empty slot routes 100%.
-- Resonance uses a `1e18`-scaled global USDG stream with rolling seven-day periods. Weight changes checkpoint prior
-  elapsed flow. A top-up resets the period only when it is at least 604,800 raw units and exceeds the live remainder.
+- Resonance uses a `1e36`-scaled global USDG stream with exact quotient-plus-remainder release. Weight changes checkpoint
+  prior elapsed flow and assign any unindexable old-weight carry to Fund. A live top-up aggregates into one successor
+  without changing the active seven-day rate or finish.
+- Bribe uses `1e18` reward precision and assigns unindexable old-supply carry plus fully exiting user remainders to
+  Fund before changing virtual signal supply.
 - Slot price is `initialPrice - floor(initialPrice * elapsed / 3600)` during the hour and zero afterward.
 - The next initial price floors the paid-price multiplier before applying its minimum and maximum.
 - All committed financial JSON values are decimal strings; neither implementation uses floating point arithmetic.
@@ -28,9 +31,9 @@ price promises, deployment configurations, or investment projections.
 - a threshold crossing where the incumbent retains its rate and only the next replacement receives the lower rate;
 - genesis-position budgeting, Strategy auctions, Bribe rewards, Fund-held GBX burns, and raw-basket redemptions.
 
-Separate TypeScript and Python conservation models cover low-decimal Resonance streams, router-held anti-grief
-thresholds, rolling resets, and signal entry after part of a stream has elapsed. These state-machine tests are
-independent of the Solidity suite.
+Separate TypeScript and Python conservation models cover one-raw-unit Resonance streams, active-plus-successor
+catch-up, repeated tiny top-ups, exact conservation, signal entry after part of a stream has elapsed, and Bribe carry
+classification across entry and exit boundaries. These state-machine tests are independent of the Solidity suite.
 
 The smaller `fixtures/reference-results.json` is the SDK formula-vector fixture. Both fixtures are checked across
 TypeScript and Python, and both languages assert the fixed-tenure fairness rule independently.

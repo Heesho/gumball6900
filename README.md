@@ -71,8 +71,8 @@ There is no proxy, pause switch, treasury sweep, arbitrary call path, successor,
 | `GBX`               | Genesis allocation, permanent Mine authority, cumulative mint/burn accounting, permits, votes.    |
 | `Mine`              | Hourly multislot handoffs, continuous tenure-locked GBX accrual, 80/20 USDG split, positive tail. |
 | `SignalGBX`         | Non-transferable one-for-one staked GBX with immediately withdrawable unallocated balance.        |
-| `ResonanceRouter`   | Holds USDG until the anti-grief thresholds permit a permissionless stream reset.                  |
-| `Resonance`         | Signal accounting, seven-day USDG streaming, Strategy and Bribe administration.                   |
+| `ResonanceRouter`   | Permissionlessly forwards every nonzero complete USDG balance into Resonance.                     |
+| `Resonance`         | Signal accounting, exact active-plus-successor USDG streaming, Strategy and Bribe administration. |
 | `Strategy`          | Reverse Dutch acquisition auction.                                                                |
 | `BribeRouter`       | Fixed complete Strategy-payment liability to Fund.                                                |
 | `Bribe`             | Up to eight independently funded reward streams for signalers.                                    |

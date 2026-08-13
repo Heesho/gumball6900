@@ -722,6 +722,31 @@ export const bribeAbi = [
   },
   {
     type: 'event',
+    name: 'RewardCarryFunded',
+    inputs: [
+      {
+        name: 'rewardToken',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'amountScaled',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'remainderScaled',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'RewardNotified',
     inputs: [
       {
@@ -1214,6 +1239,17 @@ export const bribeFactoryAbi = [
       },
     ],
     anonymous: false,
+  },
+  {
+    type: 'error',
+    name: 'InvalidResonance',
+    inputs: [
+      {
+        name: 'resonance',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
   },
   {
     type: 'error',
@@ -1777,6 +1813,27 @@ export const fundAbi = [
         name: 'token',
         type: 'address',
         internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'SelectedBalanceDecreased',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'expectedMinimum',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'currentBalance',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
   },
@@ -2784,6 +2841,17 @@ export const gbxAbi = [
         name: 'currentNonce',
         type: 'uint256',
         internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'InvalidMine',
+    inputs: [
+      {
+        name: 'mine',
+        type: 'address',
+        internalType: 'address',
       },
     ],
   },
@@ -6756,6 +6824,17 @@ export const signalGbxAbi = [
   },
   {
     type: 'error',
+    name: 'InvalidResonance',
+    inputs: [
+      {
+        name: 'resonance',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'InvalidShortString',
     inputs: [],
   },
@@ -6796,6 +6875,11 @@ export const signalGbxAbi = [
         internalType: 'address',
       },
     ],
+  },
+  {
+    type: 'error',
+    name: 'ResonanceNotSet',
+    inputs: [],
   },
   {
     type: 'error',
@@ -7591,6 +7675,17 @@ export const strategyFactoryAbi = [
   },
   {
     type: 'error',
+    name: 'InvalidResonance',
+    inputs: [
+      {
+        name: 'resonance',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'NotResonance',
     inputs: [
       {
@@ -7679,19 +7774,6 @@ export const resonanceAbi = [
   {
     type: 'function',
     name: 'INDEX_PRECISION',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MIN_REVENUE_AMOUNT',
     inputs: [],
     outputs: [
       {
@@ -7953,25 +8035,6 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
-    name: 'canNotifyRevenue',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [
-      {
-        name: 'ready',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'claimRewards',
     inputs: [
       {
@@ -8074,6 +8137,19 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'fundRevenueRemainderScaled',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'indexPendingRevenue',
     inputs: [],
     outputs: [
@@ -8148,19 +8224,6 @@ export const resonanceAbi = [
     ],
     outputs: [],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'leftRevenue',
-    inputs: [],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -8242,6 +8305,19 @@ export const resonanceAbi = [
   {
     type: 'function',
     name: 'pendingRevenueScaled',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'queuedRevenue',
     inputs: [],
     outputs: [
       {
@@ -8363,6 +8439,19 @@ export const resonanceAbi = [
   {
     type: 'function',
     name: 'revenueStreamRateScaled',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'revenueStreamRemainderFinish',
     inputs: [],
     outputs: [
       {
@@ -8689,6 +8778,25 @@ export const resonanceAbi = [
   },
   {
     type: 'event',
+    name: 'RevenueCarryFunded',
+    inputs: [
+      {
+        name: 'amountScaled',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'remainderScaled',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'RevenueDistributed',
     inputs: [
       {
@@ -8733,6 +8841,25 @@ export const resonanceAbi = [
   },
   {
     type: 'event',
+    name: 'RevenueQueued',
+    inputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'totalQueued',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'RevenueStreamCheckpointed',
     inputs: [
       {
@@ -8761,7 +8888,19 @@ export const resonanceAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'remainingScaled',
+        name: 'amountScaled',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'startedAt',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'finish',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -8773,7 +8912,7 @@ export const resonanceAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'finish',
+        name: 'rateRemainder',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -8907,6 +9046,28 @@ export const resonanceAbi = [
   },
   {
     type: 'error',
+    name: 'ForbiddenPaymentToken',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'ForbiddenRewardToken',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'InexactRevenuePayout',
     inputs: [
       {
@@ -8986,6 +9147,17 @@ export const resonanceAbi = [
   },
   {
     type: 'error',
+    name: 'InvalidResonanceRouter',
+    inputs: [
+      {
+        name: 'resonanceRouter',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'LengthMismatch',
     inputs: [],
   },
@@ -9038,38 +9210,6 @@ export const resonanceAbi = [
       },
       {
         name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'RevenueBelowMinimum',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'minimum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'RevenueBelowRemaining',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'remaining',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -9209,31 +9349,6 @@ export const resonanceRouterAbi = [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    name: 'RevenueHeld',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'remaining',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
   },
   {
     type: 'event',

@@ -23,7 +23,7 @@ describe('independent exact conservation models', () => {
     expect(model.classifiedScaled()).toBe(model.accounted * model.precision);
   });
 
-  it('holds an insufficient top-up, then rolls it into a fresh seven-day period once eligible', () => {
+  it('queues a live top-up without changing the active stream', () => {
     const model = new RevenueConservationModel(2);
     model.setWeight(0, 1n * model.precision);
     model.notify(1_209_600n);
@@ -31,17 +31,16 @@ describe('independent exact conservation models', () => {
     const firstFinish = model.streamFinish;
 
     model.advance(86_400n);
-    expect(model.leftRevenue()).toBe(1_036_800n);
-    expect(model.canNotify(700_000n)).toBe(false);
-    expect(() => model.notify(700_000n)).toThrow(/active stream remainder/);
-    expect(model.streamFinish).toBe(firstFinish);
-
-    model.advance(172_800n);
-    expect(model.leftRevenue()).toBe(691_200n);
-    expect(model.canNotify(700_000n)).toBe(true);
     model.notify(700_000n);
-    expect(model.streamRemainingScaled).toBe(1_391_200n * model.precision);
-    expect(model.streamFinish).toBe(model.now + 604_800n);
+    expect(model.queuedRevenue).toBe(700_000n);
+    expect(model.streamFinish).toBe(firstFinish);
+    expect(model.streamRateScaled).toBe(2n * model.precision);
+
+    model.advance(518_400n);
+    model.checkpointRevenue();
+    expect(model.queuedRevenue).toBe(0n);
+    expect(model.streamRemainingScaled).toBe(700_000n * model.precision);
+    expect(model.streamFinish).toBe(firstFinish + 604_800n);
 
     model.advance(604_800n);
     model.checkpoint(0);
@@ -55,10 +54,27 @@ describe('independent exact conservation models', () => {
     expect(model.classifiedScaled()).toBe(model.accounted * model.precision);
   });
 
-  it('retains amounts below the raw seven-day anti-grief minimum regardless of elapsed time', () => {
+  it('streams a single raw revenue unit and leaves no terminal router dust', () => {
     const model = new RevenueConservationModel(1);
-    expect(model.canNotify(604_799n)).toBe(false);
-    expect(() => model.notify(604_799n)).toThrow(/stream-duration minimum/);
+    model.setWeight(0, 1n);
+    model.notify(1n);
+    model.advance(604_800n);
+    model.checkpoint(0);
+    expect(model.claimable[0]).toBe(1n);
+    expect(model.classifiedScaled()).toBe(model.precision);
+  });
+
+  it('catches up one queued successor in bounded work', () => {
+    const model = new RevenueConservationModel(1);
+    model.setWeight(0, 1n);
+    model.notify(100_000_000n);
+    model.advance(86_400n);
+    model.notify(10_000_000n);
+    model.advance(13n * 86_400n);
+    model.checkpoint(0);
+    expect(model.claimable[0]).toBe(110_000_000n);
+    expect(model.streamRemainingScaled).toBe(0n);
+    expect(model.queuedRevenue).toBe(0n);
   });
 
   it('attributes only post-entry stream time to a new signal', () => {
@@ -72,6 +88,21 @@ describe('independent exact conservation models', () => {
     model.checkpoint(1);
 
     expect(model.claimable).toEqual([345_600n, 259_200n]);
+  });
+
+  it('moves unindexable old-weight carry to Fund before the denominator changes', () => {
+    const model = new RevenueConservationModel(2, 10n);
+    model.setWeight(0, 20n);
+    model.notify(1n);
+    model.advance(604_800n);
+    model.checkpointRevenue();
+    expect(model.pendingScaled).toBe(10n);
+
+    model.setWeight(1, 1n);
+    expect(model.pendingScaled).toBe(0n);
+    expect(model.fundLiability).toBe(1n);
+    expect(model.claimable).toEqual([0n, 0n]);
+    expect(model.classifiedScaled()).toBe(model.accounted * model.precision);
   });
 
   it('emits low-decimal and sub-duration streams exactly and ignores paused wall time', () => {
@@ -95,5 +126,20 @@ describe('independent exact conservation models', () => {
     model.checkpoint(1);
     expect(model.liabilities[0]! + model.liabilities[1]!).toBe(100n);
     expect(model.classifiedScaled()).toBe(1_000n);
+  });
+
+  it('moves reward carry to Fund before a new signaler enters', () => {
+    const model = new RewardConservationModel([50n, 50n, 0n], 10n);
+    model.emit(9n);
+    expect(model.pendingScaled).toBe(90n);
+
+    model.setWeight(2, 100n);
+    expect(model.pendingScaled).toBe(0n);
+    expect(model.fundLiability).toBe(9n);
+
+    model.emit(20n);
+    model.checkpoint(2);
+    expect(model.liabilities[2]).toBe(10n);
+    expect(model.classifiedScaled()).toBe(model.accounted * model.precision);
   });
 });

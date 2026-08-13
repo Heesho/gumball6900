@@ -1,7 +1,8 @@
 # Adversarial-audit test campaign
 
-> Historical evidence only. ADR 0024 changed the source graph. Counts and campaign conclusions below do not apply to
-> the current Mine development candidate until rerun and recorded.
+> Historical evidence only. ADR 0024 changed the Mine graph, ADR 0026 changed Resonance streaming and carry, and ADR
+> 0027 later resolved the A-09 Bribe boundary behavior demonstrated below. Counts and campaign conclusions below do
+> not apply to the current development candidate until rerun and recorded.
 
 Date: 2026-08-09
 

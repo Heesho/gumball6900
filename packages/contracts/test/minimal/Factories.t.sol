@@ -11,6 +11,18 @@ import { Strategy } from "../../src/core/Strategy.sol";
 import { StrategyFactory } from "../../src/core/StrategyFactory.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 
+contract FactoryResonanceIdentityHarness {
+    address public immutable fund;
+    address public immutable bribeFactory;
+    address public immutable strategyFactory;
+
+    constructor(address fund_, BribeFactory bribeFactory_, StrategyFactory strategyFactory_) {
+        fund = fund_;
+        bribeFactory = address(bribeFactory_);
+        strategyFactory = address(strategyFactory_);
+    }
+}
+
 /// @title FactoriesTest
 /// @notice Confirms both factories are permanently bound to one Resonance and are never publicly callable.
 contract FactoriesTest is ProtocolFixture {
@@ -39,11 +51,17 @@ contract FactoriesTest is ProtocolFixture {
         vm.expectRevert(BribeFactory.ZeroAddress.selector);
         factory.setResonance(ALICE);
 
-        vm.expectEmit(true, false, false, false);
-        emit ResonanceSet(address(resonance));
+        vm.expectRevert(abi.encodeWithSelector(BribeFactory.InvalidResonance.selector, address(resonance)));
         factory.setResonance(address(resonance));
 
-        vm.expectRevert(abi.encodeWithSelector(BribeFactory.ResonanceAlreadySet.selector, address(resonance)));
+        FactoryResonanceIdentityHarness identity =
+            new FactoryResonanceIdentityHarness(address(fund), factory, StrategyFactory(address(0)));
+
+        vm.expectEmit(true, false, false, false);
+        emit ResonanceSet(address(identity));
+        factory.setResonance(address(identity));
+
+        vm.expectRevert(abi.encodeWithSelector(BribeFactory.ResonanceAlreadySet.selector, address(identity)));
         factory.setResonance(address(fund));
     }
 
@@ -65,14 +83,16 @@ contract FactoriesTest is ProtocolFixture {
 
     function test_ACreatedBribeIsControlledByTheBoundResonance() external {
         BribeFactory factory = new BribeFactory(address(this));
-        factory.setResonance(address(resonance));
+        FactoryResonanceIdentityHarness identity =
+            new FactoryResonanceIdentityHarness(address(fund), factory, StrategyFactory(address(0)));
+        factory.setResonance(address(identity));
 
         vm.expectEmit(false, true, false, false);
-        emit BribeCreated(address(0), address(resonance));
-        vm.prank(address(resonance));
+        emit BribeCreated(address(0), address(identity));
+        vm.prank(address(identity));
         Bribe created = factory.createBribe();
 
-        assertEq(created.resonance(), address(resonance));
+        assertEq(created.resonance(), address(identity));
         assertEq(created.fund(), address(fund));
         assertEq(created.totalSupply(), 0);
         assertEq(created.rewardTokens().length, 0);
@@ -95,8 +115,13 @@ contract FactoriesTest is ProtocolFixture {
         vm.expectRevert(StrategyFactory.ZeroAddress.selector);
         factory.setResonance(ALICE);
 
+        vm.expectRevert(abi.encodeWithSelector(StrategyFactory.InvalidResonance.selector, address(resonance)));
         factory.setResonance(address(resonance));
-        vm.expectRevert(abi.encodeWithSelector(StrategyFactory.ResonanceAlreadySet.selector, address(resonance)));
+
+        FactoryResonanceIdentityHarness identity =
+            new FactoryResonanceIdentityHarness(address(fund), BribeFactory(address(0)), factory);
+        factory.setResonance(address(identity));
+        vm.expectRevert(abi.encodeWithSelector(StrategyFactory.ResonanceAlreadySet.selector, address(identity)));
         factory.setResonance(address(fund));
     }
 
@@ -115,13 +140,16 @@ contract FactoriesTest is ProtocolFixture {
 
     function test_ACreatedStrategyIsPairedWithItsOwnRouter() external {
         StrategyFactory factory = new StrategyFactory(address(this));
-        factory.setResonance(address(this));
+        FactoryResonanceIdentityHarness identity =
+            new FactoryResonanceIdentityHarness(address(fund), BribeFactory(address(0)), factory);
+        factory.setResonance(address(identity));
 
+        vm.prank(address(identity));
         (Strategy strategy, BribeRouter router) = factory.createStrategy(
             IERC20(address(usdg)), IERC20(address(target)), address(fund), targetBribe, defaultConfig()
         );
 
-        assertEq(strategy.resonance(), address(this));
+        assertEq(strategy.resonance(), address(identity));
         assertEq(address(strategy.revenueToken()), address(usdg));
         assertEq(address(strategy.paymentToken()), address(target));
         assertEq(strategy.fund(), address(fund));

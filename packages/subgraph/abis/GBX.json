@@ -1001,6 +1001,17 @@
   },
   {
     "type": "error",
+    "name": "InvalidMine",
+    "inputs": [
+      {
+        "name": "mine",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "InvalidShortString",
     "inputs": []
   },

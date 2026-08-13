@@ -15,9 +15,14 @@ Core mining payment, receipt, reward, revenue, redemption, and liquidity-fee-rou
 atomically on inexact movement. This is fail-closed evidence, not support for fee-on-transfer, rebasing, ERC-777-style,
 blocklisting, pausable, or otherwise adversarial tokens.
 
-Token decimals also affect the economic size of A-09 carry-boundary reallocation. At maximum signal supply, one
-pending bucket can approach one billion base units: negligible for an 18-decimal token but up to 1,000 whole units for
-a six-decimal token. Standard transfer behavior alone does not eliminate that allocation risk.
+Token decimals affect the economic size of precision classified to Fund at a signal boundary. Resonance uses `1e36`
+precision and Bribes use `1e18`; both assign unindexable old-denominator carry to Fund before changing signal supply.
+Low-decimal Bribe rewards can therefore create a larger whole-token Fund liability at a boundary, but cannot transfer
+pre-entry carry to a later signaler.
+
+SignalGBX is explicitly forbidden as a Strategy payment or Bribe reward token because its transfers are permanently
+disabled. Tokens that reject zero approvals remain usable when the exact allowance is fully consumed; if a token
+under-consumes an allowance, the protocol still attempts fail-closed cleanup and may reject that token.
 
 ## Failure isolation
 
@@ -29,7 +34,8 @@ reward token.
 Fund is intentionally different: it is a permissionless raw-token treasury. Any ERC-20 can be sent to it, but that
 does not make the token supported or official. A redeemer chooses which unique non-GBX addresses to include. A broken
 selected token reverts the complete redemption, while omitted assets remain permanently for the post-redemption GBX
-supply.
+supply. Every selected address must also retain at least its own snapshotted balance less its payout after the complete
+basket transfer, preventing two token facades backed by one shared ledger from consuming the same backing twice.
 
 Mine USDG is also isolated through pull accounting. Exact USDG receipt is required at replacement, exact routed
 revenue must reach ResonanceRouter, and the contract retains only displaced-miner claims. A blocked claim recipient

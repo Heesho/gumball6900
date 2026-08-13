@@ -59,8 +59,9 @@ contract MineTest is ProtocolFixture {
         assertEq(mine.claimable(ALICE), 800_000);
         assertEq(mine.totalClaimable(), 800_000);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
-        assertEq(usdg.balanceOf(address(resonance)), 1_000_000);
-        assertEq(usdg.balanceOf(address(resonanceRouter)), 200_000, "sub-minimum share waits in the router");
+        assertEq(usdg.balanceOf(address(resonance)), 1_200_000);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
+        assertEq(resonance.queuedRevenue(), 200_000, "replacement share queues behind the active stream");
     }
 
     function test_ClaimIsPermissionlessButAlwaysPaysTheDisplacedMiner() external {

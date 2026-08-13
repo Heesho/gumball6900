@@ -2,6 +2,7 @@ import { dataSource } from '@graphprotocol/graph-ts';
 import {
   FundRewardAccrued,
   FundRewardPaid,
+  RewardCarryFunded,
   RewardNotified,
   RewardPaid,
 } from '../generated/templates/BribeTemplate/Bribe';
@@ -37,6 +38,13 @@ export function handleRewardPaid(event: RewardPaid): void {
   const record = recordEvent(event, 'BRIBE_REWARD_PAID');
   record.addresses = [event.params.account, event.params.rewardToken];
   record.values = [event.params.amount];
+  record.save();
+}
+
+export function handleRewardCarryFunded(event: RewardCarryFunded): void {
+  const record = recordEvent(event, 'BRIBE_REWARD_CARRY_FUNDED');
+  record.addresses = [event.params.rewardToken];
+  record.values = [event.params.amountScaled, event.params.remainderScaled];
   record.save();
 }
 

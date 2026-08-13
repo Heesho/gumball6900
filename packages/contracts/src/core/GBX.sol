@@ -6,6 +6,8 @@ import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 import { ERC20Votes } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
 
+import { IMine } from "./interfaces/IMine.sol";
+
 /// @title GUM BALL 6900 Governance, Mining, and Redemption Token
 /// @author Heesho
 /// @notice Transferable token used for liquidity, signaling, mining rewards, and Fund redemption.
@@ -31,6 +33,7 @@ contract GBX is ERC20, ERC20Permit, ERC20Votes {
 
     error AddressHasNoCode(address account);
     error MinterAlreadyLocked();
+    error InvalidMine(address mine);
     error MinterNotLocked();
     error NotMinter(address caller);
     error SameMinter();
@@ -52,13 +55,18 @@ contract GBX is ERC20, ERC20Permit, ERC20Votes {
         emit Minted(genesisLiquidityRecipient, GENESIS_LIQUIDITY_ALLOCATION);
     }
 
-    /// @notice Permanently hands mint authority to the canonical Mine.
+    /// @notice Permanently hands mint authority to the canonical Mine after reciprocal GBX identity validation.
     function setMinter(address newMinter) external {
         if (msg.sender != minter) revert NotMinter(msg.sender);
         if (minterLocked) revert MinterAlreadyLocked();
         if (newMinter == address(0)) revert ZeroAddress();
         if (newMinter == minter) revert SameMinter();
         if (newMinter.code.length == 0) revert AddressHasNoCode(newMinter);
+        try IMine(newMinter).gbx() returns (address mineGBX) {
+            if (mineGBX != address(this)) revert InvalidMine(newMinter);
+        } catch {
+            revert InvalidMine(newMinter);
+        }
 
         address previousMinter = minter;
         minter = newMinter;

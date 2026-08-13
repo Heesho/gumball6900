@@ -9,9 +9,9 @@ import { BribeRouter } from "../../src/core/BribeRouter.sol";
 import { Resonance } from "../../src/core/Resonance.sol";
 import { ResonanceRouter } from "../../src/core/ResonanceRouter.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
-import { FeeOnTransferToken, MockERC20 } from "./utils/Tokens.sol";
+import { FeeOnTransferToken, MockERC20, ZeroApprovalRevertingToken } from "./utils/Tokens.sol";
 
-/// @notice Resonance stand-in that can under-consume the router's approval, reaching the retained-revenue guard.
+/// @notice Resonance stand-in that can under-consume the router's approval, reaching the exact-pull guard.
 contract PartialPullResonance {
     IERC20 public immutable usdg;
     uint256 public pullBps = 10_000;
@@ -22,14 +22,6 @@ contract PartialPullResonance {
 
     function setPullBps(uint256 value) external {
         pullBps = value;
-    }
-
-    function canNotifyRevenue(uint256) external pure returns (bool ready) {
-        return true;
-    }
-
-    function leftRevenue() external pure returns (uint256 amount) {
-        return 0;
     }
 
     function notifyRevenue(uint256 amount) external {
@@ -173,10 +165,9 @@ contract BribeRouterTest is Test {
 }
 
 /// @title ResonanceRouterTest
-/// @notice Covers permissionless USDG forwarding and the retained-revenue guard.
+/// @notice Covers permissionless exact USDG forwarding.
 contract ResonanceRouterTest is ProtocolFixture {
     event RevenueRouted(address indexed caller, uint256 amount);
-    event RevenueHeld(address indexed caller, uint256 amount, uint256 remaining);
 
     function setUp() external {
         _deployProtocol();
@@ -217,21 +208,31 @@ contract ResonanceRouterTest is ProtocolFixture {
         assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
     }
 
-    function test_SubMinimumRevenueWaitsUntilTheRouterBalanceReachesTheThreshold() external {
+    function test_RouteSupportsARevenueTokenThatRejectsZeroApprovals() external {
+        ZeroApprovalRevertingToken revenue = new ZeroApprovalRevertingToken(6);
+        PartialPullResonance receiver = new PartialPullResonance(IERC20(address(revenue)));
+        ResonanceRouter router = new ResonanceRouter(IERC20(address(revenue)), address(receiver));
+        revenue.mint(address(router), 100_000_000);
+
+        assertEq(router.route(), 100_000_000);
+
+        assertEq(revenue.allowance(address(router), address(receiver)), 0);
+        assertEq(revenue.balanceOf(address(receiver)), 100_000_000);
+    }
+
+    function test_OneRawRevenueUnitRoutesWithoutTerminalDust() external {
         usdg.mint(address(resonanceRouter), 100_000); // 0.10 USDG
 
-        vm.expectEmit(true, false, false, true);
-        emit RevenueHeld(KEEPER, 100_000, 0);
         vm.prank(KEEPER);
-        assertEq(resonanceRouter.route(), 0);
-        assertEq(resonanceRouter.pendingRevenue(), 100_000);
-        assertEq(usdg.balanceOf(address(resonance)), 0);
-
-        usdg.mint(address(resonanceRouter), 504_800);
-        vm.prank(DAVE);
-        assertEq(resonanceRouter.route(), 604_800);
+        assertEq(resonanceRouter.route(), 100_000);
         assertEq(resonanceRouter.pendingRevenue(), 0);
-        assertEq(resonance.revenueStreamRemainingScaled(), 604_800 * resonance.INDEX_PRECISION());
+        assertEq(usdg.balanceOf(address(resonance)), 100_000);
+
+        usdg.mint(address(resonanceRouter), 1);
+        vm.prank(DAVE);
+        assertEq(resonanceRouter.route(), 1);
+        assertEq(resonanceRouter.pendingRevenue(), 0);
+        assertEq(resonance.queuedRevenue(), 1);
     }
 
     function test_DirectlyTransferredRevenueIsNeverStuck() external {

@@ -14,7 +14,8 @@ This is the review target for the ADR 0024 and ADR 0025 development candidate. I
 
 ## GBX and Mine
 
-- GBX mints `20_000_000 ether` at construction, then permanently binds its only issuer to one deployed Mine.
+- GBX mints `20_000_000 ether` at construction, then permanently binds its only issuer to one deployed Mine whose
+  reciprocal `gbx()` identity matches.
 - Supply reconciles as `lifetimeMinted - lifetimeBurned` and has no protocol-defined economic maximum; inherited
   ERC20Votes accounting retains its `uint208` safety ceiling.
 - Capacity begins at one, only increases, and never exceeds sixteen.
@@ -27,23 +28,27 @@ This is the review target for the ADR 0024 and ADR 0025 development candidate. I
 
 ## Signals, Strategies, and Bribes
 
-- SignalGBX is one-for-one, non-transferable, and immediately withdrawable to the extent unallocated.
+- SignalGBX is one-for-one, non-transferable, accepts stakes only after reciprocal Resonance binding, and is
+  immediately withdrawable to the extent unallocated.
 - Signals are incremental absolute amounts. Account, Strategy, total, and Bribe virtual-supply identities remain equal.
 - Every exact Resonance USDG unit is represented by scheduled stream balance, carry, a Strategy liability, or fixed
   Fund liability.
-- Resonance streams revenue globally through rolling seven-day periods at a `1e18`-scaled rate. Signal changes
-  checkpoint old weights first, same-transaction notifications release zero new revenue, and ResonanceRouter holds a
-  top-up until it is at least 604,800 raw units and exceeds the live whole-unit remainder.
+- Resonance streams revenue globally through one active seven-day period and one aggregate successor at `1e36`
+  precision with exact quotient-plus-remainder release. Signal changes checkpoint old weights first, same-transaction
+  notifications release zero new revenue, and ResonanceRouter forwards every nonzero complete balance. A live top-up
+  cannot change the active rate or finish; unindexable carry moves to Fund before a signal denominator changes.
 - One uniform Strategy type checkpoints and pulls released revenue before auctioning its complete USDG lot. Its
   complete payment becomes a fixed Fund liability.
 - Bribes are independently funded, have at most eight reward tokens, pause at zero supply, and isolate broken-token
-  claims from signal exit. A-09 remains the known historical carry-attribution limitation.
+  claims from signal exit. Old-denominator Bribe carry and a fully exiting account's sub-token remainder move to the
+  fixed Fund classification before virtual supply changes.
 
 ## Fund and liquidity
 
 - Fund is registry-free and ownerless. Before redemption it validates and checkpoints the permanent Mine.
 - Every selected token uses one post-checkpoint, pre-burn supply and raw balance snapshot. The checkpoint, burn, and
-  all exact transfers are atomic. Zero, GBX, and duplicates are rejected with EIP-1153 marks.
+  all exact transfers are atomic. Zero, GBX, and duplicates are rejected with EIP-1153 marks. A basket-wide final
+  balance check rejects distinct selected addresses whose transfers consume the same snapshotted backing.
 - LiquidityPosition permanently holds one exact hookless GBX/USDG v4 NFT. Harvesting removes zero principal, routes
   complete USDG through ResonanceRouter, burns complete GBX through Fund, and reverts on any failure.
 
@@ -51,7 +56,7 @@ This is the review target for the ADR 0024 and ADR 0025 development candidate. I
 
 - Foundry and Hardhat compile the same Solidity tree; SDK/subgraph ABIs come from current artifacts.
 - TypeScript and Python independently assert fixed-tenure expansion, future-handoff halvings, 80/20 payments, the
-  no-economic-cap issuance model, checkpointed redemption, scaled streaming, and anti-grief reset thresholds.
+  no-economic-cap issuance model, checkpointed redemption, exact successor streaming, and boundary-carry Fund routing.
 - No consumer may display pending Mine accrual as already minted supply or the 80% handoff as guaranteed.
 - A green local campaign does not clear independent audit, parameter, monitored testnet, manifest, licensing, or legal
   review gates.

@@ -133,8 +133,6 @@ dataSources:
         - name: ResonanceRouter
           file: ./abis/ResonanceRouter.json
       eventHandlers:
-        - event: RevenueHeld(indexed address,uint256,uint256)
-          handler: handleRevenueHeld
         - event: RevenueRouted(indexed address,uint256)
           handler: handleRevenueRouted
       file: ./src/resonance-router.ts
@@ -168,8 +166,12 @@ dataSources:
           handler: handleRevenueSynced
         - event: RevenueStreamCheckpointed(uint256,uint256)
           handler: handleRevenueStreamCheckpointed
-        - event: RevenueStreamScheduled(uint256,uint256,uint256,uint256)
+        - event: RevenueStreamScheduled(uint256,uint256,uint256,uint256,uint256,uint256)
           handler: handleRevenueStreamScheduled
+        - event: RevenueQueued(uint256,uint256)
+          handler: handleRevenueQueued
+        - event: RevenueCarryFunded(uint256,uint256)
+          handler: handleRevenueCarryFunded
         - event: FundRevenueAccrued(uint256,uint256)
           handler: handleFundRevenueAccrued
         - event: FundRevenuePaid(indexed address,indexed address,uint256)
@@ -260,6 +262,8 @@ templates:
           handler: handleRewardNotified
         - event: RewardPaid(indexed address,indexed address,uint256)
           handler: handleRewardPaid
+        - event: RewardCarryFunded(indexed address,uint256,uint256)
+          handler: handleRewardCarryFunded
         - event: FundRewardAccrued(indexed address,uint256,uint256)
           handler: handleBribeFundRewardAccrued
         - event: FundRewardPaid(indexed address,indexed address,indexed address,uint256)

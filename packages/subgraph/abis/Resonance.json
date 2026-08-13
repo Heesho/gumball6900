@@ -50,19 +50,6 @@
   },
   {
     "type": "function",
-    "name": "MIN_REVENUE_AMOUNT",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "REVENUE_STREAM_DURATION",
     "inputs": [],
     "outputs": [
@@ -312,25 +299,6 @@
   },
   {
     "type": "function",
-    "name": "canNotifyRevenue",
-    "inputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "ready",
-        "type": "bool",
-        "internalType": "bool"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "claimRewards",
     "inputs": [
       {
@@ -433,6 +401,19 @@
   },
   {
     "type": "function",
+    "name": "fundRevenueRemainderScaled",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "indexPendingRevenue",
     "inputs": [],
     "outputs": [
@@ -507,19 +488,6 @@
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "leftRevenue",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",
@@ -601,6 +569,19 @@
   {
     "type": "function",
     "name": "pendingRevenueScaled",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "queuedRevenue",
     "inputs": [],
     "outputs": [
       {
@@ -722,6 +703,19 @@
   {
     "type": "function",
     "name": "revenueStreamRateScaled",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "revenueStreamRemainderFinish",
     "inputs": [],
     "outputs": [
       {
@@ -1048,6 +1042,25 @@
   },
   {
     "type": "event",
+    "name": "RevenueCarryFunded",
+    "inputs": [
+      {
+        "name": "amountScaled",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "remainderScaled",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "RevenueDistributed",
     "inputs": [
       {
@@ -1092,6 +1105,25 @@
   },
   {
     "type": "event",
+    "name": "RevenueQueued",
+    "inputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "totalQueued",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "RevenueStreamCheckpointed",
     "inputs": [
       {
@@ -1120,7 +1152,19 @@
         "internalType": "uint256"
       },
       {
-        "name": "remainingScaled",
+        "name": "amountScaled",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "startedAt",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      },
+      {
+        "name": "finish",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1132,7 +1176,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "finish",
+        "name": "rateRemainder",
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
@@ -1266,6 +1310,28 @@
   },
   {
     "type": "error",
+    "name": "ForbiddenPaymentToken",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "ForbiddenRewardToken",
+    "inputs": [
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "InexactRevenuePayout",
     "inputs": [
       {
@@ -1345,6 +1411,17 @@
   },
   {
     "type": "error",
+    "name": "InvalidResonanceRouter",
+    "inputs": [
+      {
+        "name": "resonanceRouter",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "LengthMismatch",
     "inputs": []
   },
@@ -1397,38 +1474,6 @@
       },
       {
         "name": "actual",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "RevenueBelowMinimum",
-    "inputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "minimum",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "RevenueBelowRemaining",
-    "inputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "remaining",
         "type": "uint256",
         "internalType": "uint256"
       }

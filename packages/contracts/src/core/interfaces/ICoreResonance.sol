@@ -6,15 +6,6 @@ pragma solidity 0.8.26;
 /// @notice Minimal Resonance surface used by the other core contracts.
 /// @custom:version 1.0.0
 interface ICoreResonance {
-    /// @notice Returns whether a pending router balance may currently reset the revenue stream.
-    /// @param amount Pending raw USDG amount.
-    /// @return ready Whether the amount clears the minimum and remaining-revenue thresholds.
-    function canNotifyRevenue(uint256 amount) external view returns (bool ready);
-
-    /// @notice Returns whole USDG still unreleased by the current stream.
-    /// @return amount Remaining raw USDG units.
-    function leftRevenue() external view returns (uint256 amount);
-
     /// @notice Pulls and schedules newly routed USDG revenue.
     /// @param amount Amount of USDG to pull from the caller.
     function notifyRevenue(uint256 amount) external;

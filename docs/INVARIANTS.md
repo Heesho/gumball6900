@@ -27,15 +27,15 @@
 - Account signals sum to `accountSignalWeight`, Strategy signals sum to `strategySignalWeight`, and Strategy weights
   sum to `totalSignalWeight`.
 - Each Bribe account balance mirrors its Strategy signal, and each Bribe supply mirrors its Strategy weight.
-- Every accounted Resonance USDG unit is represented by scheduled stream balance, carry, a live Strategy liability,
-  or a fixed Fund liability.
-- An active Resonance stream has a positive scaled rate and is scheduled for no more than seven days from its latest
-  qualifying notification. A reset combines every unreleased scaled unit with the newly routed amount.
-- ResonanceRouter retains its complete balance unless it is at least 604,800 raw units and strictly greater than the
-  whole USDG left in the active stream. Retention never loses or prematurely classifies the pending balance.
+- Every accounted Resonance USDG unit is represented by active stream balance, queued successor balance, allocation
+  carry, a live Strategy liability, or a whole/scaled fixed Fund liability.
+- An active Resonance stream has a positive scaled rate and an immutable seven-day finish. Notifications aggregate in
+  one successor without changing the active rate or finish; one checkpoint processes at most those two streams.
+- ResonanceRouter forwards every nonzero complete balance and retains no threshold dust after a successful route.
 - Every signal mutation checkpoints elapsed stream revenue before changing weights, and every Strategy purchase
   checkpoints and pulls released revenue before reading inventory.
-- Pending carry conservation does not prove historical attribution; A-09 remains an explicit documented limitation.
+- Before each signal-weight change, pending Resonance and Bribe carry that cannot be indexed under the old weights
+  moves to the applicable explicit Fund remainder. A fully exiting Bribe account's sub-token remainder does likewise.
 - Every accounted Bribe reward unit is represented by a live schedule, queue, carry, user liability, or Fund liability.
 - Zero Bribe supply pauses rather than consumes stream time, and a live stream is never reset by a top-up.
 - A Bribe has at most eight append-only reward tokens.

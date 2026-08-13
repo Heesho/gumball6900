@@ -145,8 +145,9 @@ contract StartingPointTest is Test {
 
         assertEq(firstPrice, 1e6);
         assertEq(secondPrice, 1e6);
-        assertEq(usdg.balanceOf(address(resonance)), 1_000_000);
-        assertEq(usdg.balanceOf(address(resonanceRouter)), 200_000);
+        assertEq(usdg.balanceOf(address(resonance)), 1_200_000);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
+        assertEq(resonance.queuedRevenue(), 200_000);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
         assertEq(usdg.balanceOf(address(fund)), 0);
         assertEq(gbx.balanceOf(ALICE), 100 ether + 7_200 ether);

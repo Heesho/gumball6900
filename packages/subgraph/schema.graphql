@@ -17,17 +17,17 @@ type ProtocolState @entity(immutable: false) {
   liquidityUSDGRoutedRaw: BigInt!
   liquidityGBXBurnedRaw: BigInt!
   routedRevenueRaw: BigInt!
-  heldRevenueAttemptCount: BigInt!
-  lastHeldRevenueRaw: BigInt!
-  lastHeldStreamRemainingRaw: BigInt!
   notifiedRevenueRaw: BigInt!
   syncedRevenueRaw: BigInt!
   distributedRevenueRaw: BigInt!
+  queuedRevenueRaw: BigInt!
   revenueStreamReleasedScaled: BigInt!
   revenueStreamRemainingScaled: BigInt!
   revenueStreamRateScaled: BigInt!
   revenueStreamLastUpdate: BigInt!
   revenueStreamFinish: BigInt!
+  revenueStreamRemainderFinish: BigInt!
+  fundRevenueRemainderScaled: BigInt!
   fundRevenueAccruedRaw: BigInt!
   fundRevenuePaidRaw: BigInt!
   pendingFundRevenueRaw: BigInt!

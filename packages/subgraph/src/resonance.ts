@@ -2,7 +2,9 @@ import { DataSourceContext } from '@graphprotocol/graph-ts';
 import {
   BribeRewardAdded,
   RevenueDistributed,
+  RevenueCarryFunded,
   RevenueNotified,
+  RevenueQueued,
   RevenueSynced,
   RevenueStreamCheckpointed,
   RevenueStreamScheduled,
@@ -69,6 +71,7 @@ export function handleRevenueStreamCheckpointed(event: RevenueStreamCheckpointed
     protocol.revenueStreamRateScaled = ZERO;
     protocol.revenueStreamLastUpdate = ZERO;
     protocol.revenueStreamFinish = ZERO;
+    protocol.revenueStreamRemainderFinish = ZERO;
   } else {
     protocol.revenueStreamLastUpdate = event.block.timestamp;
   }
@@ -81,14 +84,43 @@ export function handleRevenueStreamCheckpointed(event: RevenueStreamCheckpointed
 
 export function handleRevenueStreamScheduled(event: RevenueStreamScheduled): void {
   const protocol = getProtocol(event);
-  protocol.revenueStreamRemainingScaled = event.params.remainingScaled;
+  protocol.queuedRevenueRaw = ZERO;
+  protocol.revenueStreamRemainingScaled = event.params.amountScaled;
   protocol.revenueStreamRateScaled = event.params.rateScaled;
-  protocol.revenueStreamLastUpdate = event.block.timestamp;
+  protocol.revenueStreamLastUpdate = event.params.startedAt;
   protocol.revenueStreamFinish = event.params.finish;
+  protocol.revenueStreamRemainderFinish = event.params.startedAt.plus(event.params.rateRemainder);
   protocol.save();
 
   const record = recordEvent(event, 'RESONANCE_REVENUE_STREAM_SCHEDULED');
-  record.values = [event.params.amount, event.params.remainingScaled, event.params.rateScaled, event.params.finish];
+  record.values = [
+    event.params.amount,
+    event.params.amountScaled,
+    event.params.startedAt,
+    event.params.finish,
+    event.params.rateScaled,
+    event.params.rateRemainder,
+  ];
+  record.save();
+}
+
+export function handleRevenueQueued(event: RevenueQueued): void {
+  const protocol = getProtocol(event);
+  protocol.queuedRevenueRaw = event.params.totalQueued;
+  protocol.save();
+
+  const record = recordEvent(event, 'RESONANCE_REVENUE_QUEUED');
+  record.values = [event.params.amount, event.params.totalQueued];
+  record.save();
+}
+
+export function handleRevenueCarryFunded(event: RevenueCarryFunded): void {
+  const protocol = getProtocol(event);
+  protocol.fundRevenueRemainderScaled = event.params.remainderScaled;
+  protocol.save();
+
+  const record = recordEvent(event, 'RESONANCE_REVENUE_CARRY_FUNDED');
+  record.values = [event.params.amountScaled, event.params.remainderScaled];
   record.save();
 }
 

@@ -9,7 +9,15 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Fund } from "../../src/core/Fund.sol";
 import { GBX } from "../../src/core/GBX.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
-import { FeeOnTransferToken, MissingReturnToken, MockERC20, ReentrantToken, RevertingToken } from "./utils/Tokens.sol";
+import {
+    FeeOnTransferToken,
+    MissingReturnToken,
+    MockERC20,
+    ReentrantToken,
+    RevertingToken,
+    SharedERC20Ledger,
+    SharedLedgerTokenAlias
+} from "./utils/Tokens.sol";
 
 /// @notice Performs two redemptions inside one transaction to exercise transient duplicate marks.
 contract RedemptionBatcher {
@@ -144,6 +152,29 @@ contract FundTest is ProtocolFixture {
         vm.expectRevert(abi.encodeWithSelector(Fund.DuplicateToken.selector, address(target)));
         fund.redeem(1 ether, ALICE, tokens);
         vm.stopPrank();
+    }
+
+    function test_RedeemRejectsDifferentAddressesThatDebitOneSharedLedger() external {
+        SharedERC20Ledger ledger = new SharedERC20Ledger();
+        SharedLedgerTokenAlias aliasA = new SharedLedgerTokenAlias(ledger);
+        SharedLedgerTokenAlias aliasB = new SharedLedgerTokenAlias(ledger);
+        ledger.mint(address(fund), 400 ether);
+
+        address[] memory tokens = new address[](2);
+        tokens[0] = address(aliasA);
+        tokens[1] = address(aliasB);
+
+        vm.startPrank(ALICE);
+        gbx.approve(address(fund), 100 ether);
+        vm.expectRevert(
+            abi.encodeWithSelector(Fund.SelectedBalanceDecreased.selector, address(aliasB), 400 ether, 300 ether)
+        );
+        fund.redeem(100 ether, ALICE, tokens);
+        vm.stopPrank();
+
+        assertEq(gbx.totalSupply(), 400 ether, "the burn rolls back with the shared-ledger alias transfer");
+        assertEq(ledger.balanceOf(address(fund)), 400 ether);
+        assertEq(ledger.balanceOf(ALICE), 0);
     }
 
     function test_RedeemRequiresTheCallerToActuallyHoldTheGBX() external {

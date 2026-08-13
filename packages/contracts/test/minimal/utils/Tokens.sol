@@ -98,6 +98,17 @@ contract ReturnsFalseToken is MockERC20 {
     }
 }
 
+/// @title ZeroApprovalRevertingToken
+/// @notice BNB-style ERC-20 that rejects zero approvals while otherwise transferring conventionally.
+contract ZeroApprovalRevertingToken is MockERC20 {
+    constructor(uint8 decimals_) MockERC20("Zero Approval Reverter", "ZAR", decimals_) { }
+
+    function approve(address spender, uint256 amount) public override returns (bool) {
+        if (amount == 0) revert("ZERO_APPROVAL");
+        return super.approve(spender, amount);
+    }
+}
+
 /// @title MissingReturnToken
 /// @notice USDT-style token whose transfer functions return no data at all.
 /// @dev Written without OpenZeppelin so the ABI genuinely omits the boolean return value.
@@ -186,5 +197,70 @@ contract ReentrantToken is MockERC20 {
             lastReturnData = returnData;
         }
         super._update(from, to, value);
+    }
+}
+
+/// @title SharedERC20Ledger
+/// @notice Adversarial balance ledger exposed through multiple ERC-20 facade addresses.
+contract SharedERC20Ledger {
+    uint256 public totalSupply;
+    mapping(address account => uint256 balance) public balanceOf;
+
+    function mint(address receiver, uint256 amount) external {
+        totalSupply += amount;
+        balanceOf[receiver] += amount;
+    }
+
+    function move(address from, address to, uint256 amount) external {
+        require(balanceOf[from] >= amount, "BALANCE");
+        unchecked {
+            balanceOf[from] -= amount;
+            balanceOf[to] += amount;
+        }
+    }
+}
+
+/// @title SharedLedgerTokenAlias
+/// @notice ERC-20 facade whose transfers mutate a ledger shared with sibling facade addresses.
+contract SharedLedgerTokenAlias {
+    SharedERC20Ledger public immutable ledger;
+    mapping(address owner => mapping(address spender => uint256 amount)) public allowance;
+
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event Transfer(address indexed from, address indexed to, uint256 value);
+
+    constructor(SharedERC20Ledger ledger_) {
+        ledger = ledger_;
+    }
+
+    function totalSupply() external view returns (uint256) {
+        return ledger.totalSupply();
+    }
+
+    function balanceOf(address account) external view returns (uint256) {
+        return ledger.balanceOf(account);
+    }
+
+    function approve(address spender, uint256 amount) external returns (bool) {
+        allowance[msg.sender][spender] = amount;
+        emit Approval(msg.sender, spender, amount);
+        return true;
+    }
+
+    function transfer(address to, uint256 amount) external returns (bool) {
+        ledger.move(msg.sender, to, amount);
+        emit Transfer(msg.sender, to, amount);
+        return true;
+    }
+
+    function transferFrom(address from, address to, uint256 amount) external returns (bool) {
+        uint256 allowed = allowance[from][msg.sender];
+        if (allowed != type(uint256).max) {
+            require(allowed >= amount, "ALLOWANCE");
+            allowance[from][msg.sender] = allowed - amount;
+        }
+        ledger.move(from, to, amount);
+        emit Transfer(from, to, amount);
+        return true;
     }
 }

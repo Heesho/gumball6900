@@ -69,7 +69,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         assertEq(total, handler.ghostUSDGMinted());
     }
 
-    /// @notice Every USDG unit retained by the anti-grief gates remains visible as pending router revenue.
+    /// @notice The router never conceals or misreports any balance awaiting a permissionless route call.
     function invariant_RevenueRouterRetentionIsFullyVisible() external view {
         assertEq(resonanceRouter.pendingRevenue(), usdg.balanceOf(address(resonanceRouter)));
     }
@@ -192,9 +192,10 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @notice Every accounted USDG unit is exactly scheduled, carried, indexed, claimable, or Fund-bound.
     function invariant_ResonanceAccountingIdentityIsExact() external view {
         uint256 precision = resonance.INDEX_PRECISION();
-        uint256 classifiedScaled = resonance.revenueStreamRemainingScaled() + resonance.pendingRevenueScaled()
-            + resonance.indexedRevenueScaled() + (resonance.totalClaimableRevenue() + resonance.fundRevenueLiability())
-            * precision;
+        uint256 classifiedScaled = resonance.revenueStreamRemainingScaled() + resonance.queuedRevenue() * precision
+            + resonance.pendingRevenueScaled() + resonance.indexedRevenueScaled()
+            + resonance.fundRevenueRemainderScaled()
+            + (resonance.totalClaimableRevenue() + resonance.fundRevenueLiability()) * precision;
 
         uint256 summedClaimable;
         for (uint256 i; i < allStrategies.length; ++i) {
@@ -207,18 +208,21 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         assertLe(resonance.accountedRevenueBalance(), usdg.balanceOf(address(resonance)));
     }
 
-    /// @notice An active stream has a positive rate and an exact rolling seven-day boundary.
+    /// @notice An active stream and its optional aggregate successor have coherent bounded state.
     function invariant_RevenueStreamStateIsCoherent() external view {
         uint256 remainingScaled = resonance.revenueStreamRemainingScaled();
         if (remainingScaled == 0) {
             assertEq(resonance.revenueStreamRateScaled(), 0);
             assertEq(resonance.revenueStreamLastUpdate(), 0);
             assertEq(resonance.revenueStreamFinish(), 0);
+            assertEq(resonance.revenueStreamRemainderFinish(), 0);
+            assertEq(resonance.queuedRevenue(), 0);
             return;
         }
 
         assertGt(resonance.revenueStreamRateScaled(), 0);
         assertGt(resonance.revenueStreamFinish(), resonance.revenueStreamLastUpdate());
+        assertLe(resonance.revenueStreamRemainderFinish(), resonance.revenueStreamFinish());
         assertLe(
             resonance.revenueStreamFinish() - resonance.revenueStreamLastUpdate(), resonance.REVENUE_STREAM_DURATION()
         );

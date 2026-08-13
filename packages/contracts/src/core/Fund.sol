@@ -43,6 +43,8 @@ contract Fund is ReentrancyGuard {
     error ForbiddenToken(address token);
     /// @notice A selected asset did not debit Fund and credit the receiver by the exact payout.
     error InexactTransfer(address token, uint256 expected, uint256 fundDebit, uint256 receiverCredit);
+    /// @notice Another selected-token transfer reduced this token below its own post-payout backing floor.
+    error SelectedBalanceDecreased(address token, uint256 expectedMinimum, uint256 currentBalance);
     /// @notice A redemption receiver is the zero address or Fund itself.
     error InvalidReceiver(address receiver);
     /// @notice GBX mining authority is not permanently bound to the expected deployed Mine shape.
@@ -90,13 +92,16 @@ contract Fund is ReentrancyGuard {
         // a redemption snapshot.
         IMine(mine).checkpointAll();
         uint256 supplyBeforeBurn = gbx.totalSupply();
+        uint256[] memory balancesBefore = new uint256[](tokenCount);
         uint256[] memory payouts = new uint256[](tokenCount);
 
         // Snapshot all balances before moving or burning GBX so every selected asset uses one consistent denominator.
         for (uint256 i; i < tokenCount; ++i) {
             address token = tokens[i];
             _markToken(REDEMPTION_NAMESPACE, token);
-            payouts[i] = Math.mulDiv(IERC20(token).balanceOf(address(this)), gbxAmount, supplyBeforeBurn);
+            uint256 balance = IERC20(token).balanceOf(address(this));
+            balancesBefore[i] = balance;
+            payouts[i] = Math.mulDiv(balance, gbxAmount, supplyBeforeBurn);
         }
 
         IERC20(address(gbx)).safeTransferFrom(msg.sender, address(this), gbxAmount);
@@ -105,10 +110,25 @@ contract Fund is ReentrancyGuard {
         for (uint256 i; i < tokenCount; ++i) {
             address token = tokens[i];
             uint256 payout = payouts[i];
+            uint256 currentBalance = IERC20(token).balanceOf(address(this));
+            if (currentBalance < balancesBefore[i]) {
+                revert SelectedBalanceDecreased(token, balancesBefore[i], currentBalance);
+            }
 
             if (payout != 0) _transferExact(token, receiver, payout);
 
             _clearToken(REDEMPTION_NAMESPACE, token);
+        }
+
+        // A selected transfer must not consume another selected address's backing. This final pass also catches
+        // asymmetric alias facades where only the later transfer mutates an earlier address's reported balance.
+        for (uint256 i; i < tokenCount; ++i) {
+            address token = tokens[i];
+            uint256 expectedMinimum = balancesBefore[i] - payouts[i];
+            uint256 currentBalance = IERC20(token).balanceOf(address(this));
+            if (currentBalance < expectedMinimum) {
+                revert SelectedBalanceDecreased(token, expectedMinimum, currentBalance);
+            }
         }
 
         emit Redeemed(msg.sender, receiver, gbxAmount, tokenCount);

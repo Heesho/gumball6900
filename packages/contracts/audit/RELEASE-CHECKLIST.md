@@ -1,6 +1,6 @@
 # Release checklist
 
-Current description: **ADR 0024 development candidate; independent review required**. This is not production-ready or
+Current description: **ADR 0024/0026 development candidate; independent review required**. This is not production-ready or
 deployment-authorized.
 
 ## Internal engineering
@@ -16,7 +16,7 @@ deployment-authorized.
 - [ ] Current-tree coverage thresholds recorded for Mine.
 - [ ] Current-tree mutation, Medusa, and pinned Echidna campaigns complete.
 - [ ] Compatible symbolic analysis or explicit independent disposition complete.
-- [ ] A-09 resolved or explicitly accepted with a supported-token policy.
+- [x] Bribe A-09 carry is fixed to Fund before signal-supply changes, with entry, exit, and remainder regressions.
 
 ## Economic and independent review
 

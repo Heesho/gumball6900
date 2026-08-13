@@ -34,11 +34,16 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - `Resonance` holds received USDG in one global seven-day stream and allocates each elapsed interval among active
   Strategies according to the SignalGBX weights active during that interval. Every signal change checkpoints elapsed
   revenue before changing weights, and every Strategy purchase checkpoints and pulls that Strategy's released USDG.
-  ResonanceRouter holds USDG until its complete balance is at least 604,800 raw units and strictly exceeds the whole
-  USDG left in the active stream. A qualifying notification combines with the remaining stream and resets a fresh
-  seven-day period. Strategy and Bribe deployment follows the Liquid Signal shape: Resonance uses `StrategyFactory`
-  and `BribeFactory`, and each Strategy has a corresponding `BribeRouter` and `Bribe`.
+  ResonanceRouter forwards every nonzero complete balance. A notification never changes the active stream's rate or
+  finish; it aggregates into one successor that begins when the active seven-day period ends. A checkpoint processes
+  at most the active stream and that successor. Revenue uses `1e36` fixed-point precision with exact quotient-plus-
+  remainder release. Before a signal-weight change, any scaled carry that cannot be indexed under the old weights is
+  assigned to an explicit Fund remainder so it cannot cross the denominator boundary. Strategy and Bribe deployment
+  follows the Liquid Signal shape: Resonance uses `StrategyFactory` and `BribeFactory`, and each Strategy has a
+  corresponding `BribeRouter` and `Bribe`.
 - Each Bribe may register at most eight append-only reward tokens. The cap is fixed in code and is not governable.
+- Before a Bribe signal-supply change, classify unindexable old-supply reward carry to its fixed Fund remainder. When
+  an account fully exits, classify its sub-token user remainder to Fund rather than reallocating it to other signalers.
 - Every Strategy is the same bounded reverse Dutch acquisition mechanism. Its complete payment, regardless of token,
   becomes a fixed `Fund` liability through the paired `BribeRouter`; auction proceeds never fund `Bribe` rewards.
   Bribes are funded independently by explicit reward notifications.
