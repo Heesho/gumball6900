@@ -145,8 +145,8 @@ contract StartingPointTest is Test {
 
         assertEq(firstPrice, 1e6);
         assertEq(secondPrice, 1e6);
-        assertEq(usdg.balanceOf(address(resonance)), 1_200_000);
-        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
+        assertEq(usdg.balanceOf(address(resonance)), 1_000_000);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 200_000);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
         assertEq(usdg.balanceOf(address(fund)), 0);
         assertEq(gbx.balanceOf(ALICE), 100 ether + 7_200 ether);
@@ -171,8 +171,7 @@ contract StartingPointTest is Test {
 
     function test_AcquisitionSendsCompletePaymentTowardFund() external {
         _stakeAndSignal();
-        _routeRevenue(100_000_000);
-        resonance.distribute(address(targetStrategy));
+        usdg.mint(address(targetStrategy), 50_000_000);
 
         target.mint(CAROL, STRATEGY_PRICE);
         vm.startPrank(CAROL);
@@ -206,6 +205,8 @@ contract StartingPointTest is Test {
 
     function test_RevenueWithoutSignalsBecomesFundBacking() external {
         _routeRevenue(100_000_000);
+        vm.warp(block.timestamp + resonance.REVENUE_STREAM_DURATION());
+        resonance.indexPendingRevenue();
 
         assertEq(resonance.fundRevenueLiability(), 100_000_000);
         assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
@@ -214,8 +215,7 @@ contract StartingPointTest is Test {
 
     function test_GBXPaymentRequiresSeparateFundDeliveryAndBurn() external {
         _stakeAndSignal();
-        _routeRevenue(100_000_000);
-        resonance.distribute(address(gbxStrategy));
+        usdg.mint(address(gbxStrategy), 50_000_000);
 
         uint256 supplyBefore = gbx.totalSupply();
         vm.startPrank(BOB);

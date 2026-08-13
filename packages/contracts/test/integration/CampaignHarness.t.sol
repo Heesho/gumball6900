@@ -48,6 +48,8 @@ contract CampaignHarnessTest is Test {
         _assertAllProperties();
 
         campaign.donateRevenue(250_000_000);
+        vm.warp(block.timestamp + 45 minutes);
+        campaign.indexPendingRevenue();
         assertGt(campaign.resonance().revenueIndex(), 0, "donated revenue must reach the index");
         _assertAllProperties();
 
@@ -58,7 +60,6 @@ contract CampaignHarnessTest is Test {
         campaign.buy(2, 0);
         _assertAllProperties();
 
-        vm.warp(block.timestamp + 30 minutes);
         campaign.mine(2, 0);
         assertGt(campaign.mineContract().claimable(address(campaign.actors(1))), 0, "replacement must accrue a claim");
         _assertAllProperties();
@@ -94,6 +95,7 @@ contract CampaignHarnessTest is Test {
         campaign.stake(0, 1_000_000 ether);
         campaign.addSignalMany(0, 2);
         campaign.donateRevenue(500_000_000);
+        vm.warp(block.timestamp + 30 minutes);
         campaign.distributeAll();
 
         uint256 supplyBefore = campaign.gbx().totalSupply();
@@ -151,10 +153,11 @@ contract CampaignHarnessTest is Test {
         assertTrue(campaign.echidna_rewardTokenLoopsStayBounded(), "bounded reward-token loops");
         assertTrue(campaign.echidna_bribeAccountingMirrorsResonance(), "bribe mirroring");
         assertTrue(campaign.echidna_resonanceIsSolventAgainstClaimableRevenue(), "resonance solvency");
+        assertTrue(campaign.echidna_revenueStreamStateIsCoherent(), "revenue stream state");
         assertTrue(campaign.echidna_deadStrategiesHoldNoClaims(), "dead strategy claims");
         assertTrue(campaign.echidna_checkpointsNeverLeadTheGlobalIndex(), "checkpoint ordering");
         assertTrue(campaign.echidna_bribesAreSolventAgainstAccruedRewards(), "bribe solvency");
-        assertTrue(campaign.echidna_revenueIsNeverParkedInARouter(), "router pass-through");
+        assertTrue(campaign.echidna_routerRetentionIsFullyVisible(), "visible router retention");
         assertTrue(campaign.echidna_auctionPricesStayWithinTheirBounds(), "auction bounds");
         assertTrue(campaign.echidna_gbxPaymentsLeaveStrategy(), "GBX payment leaves Strategy");
         assertTrue(campaign.echidna_miningAccountingStaysBoundedAndSolvent(), "mining accounting");

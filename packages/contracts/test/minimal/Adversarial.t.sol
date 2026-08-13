@@ -42,8 +42,7 @@ contract AdversarialTest is ProtocolFixture {
     function test_OneLateFillCollapsesTheAuctionToItsFloor() external {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
-        _routeRevenue(100_000_000);
-        resonance.distribute(address(targetStrategy));
+        usdg.mint(address(targetStrategy), 100_000_000);
 
         assertEq(targetStrategy.initialPrice(), 10 ether);
 
@@ -57,8 +56,7 @@ contract AdversarialTest is ProtocolFixture {
         assertEq(targetStrategy.initialPrice(), DEFAULT_MINIMUM_PRICE, "and the next auction starts at dust");
 
         // The very next epoch is now purchasable for one millionth of a token unit.
-        _routeRevenue(100_000_000);
-        resonance.distribute(address(targetStrategy));
+        usdg.mint(address(targetStrategy), 100_000_000);
         uint256 nextPrice = targetStrategy.currentPrice();
         assertEq(nextPrice, DEFAULT_MINIMUM_PRICE);
 
@@ -95,10 +93,9 @@ contract AdversarialTest is ProtocolFixture {
                      SIGNAL CAPTURE AND FLASH WEIGHT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Temporary signal weight redirects the very next revenue notification, with no lock or cooldown.
-    /// @dev Signaling is deliberately unrestricted, so a large holder can enter, capture the routing of one
-    ///      notification, and leave in the same block. Revenue follows the weight held at notification time.
-    function test_FlashSignalWeightRedirectsTheNextNotification() external {
+    /// @notice Temporary same-block signal weight cannot redirect a new revenue notification.
+    /// @dev Signaling is unrestricted, but revenue follows weights held over elapsed stream time.
+    function test_FlashSignalWeightCannotRedirectANewNotification() external {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
 
@@ -106,19 +103,20 @@ contract AdversarialTest is ProtocolFixture {
         _signalOne(WHALE, address(gbxStrategy));
 
         _routeRevenue(100_000_000);
-        resonance.distributeAll();
 
-        assertEq(usdg.balanceOf(address(targetStrategy)), 10_000_000, "Alice keeps only a tenth");
-        assertEq(usdg.balanceOf(address(gbxStrategy)), 90_000_000, "the whale captured the routing");
-
-        // The whale exits immediately: there is no cooldown, no epoch gate, and no penalty.
+        // The whale exits immediately: there is no cooldown, but zero elapsed time earns zero flow.
         vm.startPrank(WHALE);
         resonance.removeSignal(address(gbxStrategy), 900 ether);
         signalGBX.unstake(900 ether);
         vm.stopPrank();
 
+        _finishRevenueStream();
+        resonance.distributeAll();
+
         assertEq(gbx.balanceOf(WHALE), 900 ether);
         assertEq(resonance.totalSignalWeight(), 100 ether);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 100_000_000);
+        assertEq(usdg.balanceOf(address(gbxStrategy)), 0);
     }
 
     /// @notice Flash weight cannot steal already-streaming Bribe rewards, because accrual needs elapsed time.
@@ -167,6 +165,7 @@ contract AdversarialTest is ProtocolFixture {
 
         freezableUSDG.mint(address(hostileRouter), 100_000_000);
         hostileRouter.route();
+        vm.warp(block.timestamp + hostileResonance.REVENUE_STREAM_DURATION());
 
         // Retiring the Strategy flushes what it had already accrued, but leaves its weight in the denominator.
         hostileResonance.killStrategy(hostileStrategy);
@@ -175,6 +174,7 @@ contract AdversarialTest is ProtocolFixture {
         // Fresh revenue therefore still advances the index against the dead Strategy's share.
         freezableUSDG.mint(address(hostileRouter), 100_000_000);
         hostileRouter.route();
+        vm.warp(block.timestamp + hostileResonance.REVENUE_STREAM_DURATION());
 
         freezableUSDG.setBlocked(address(fund), true);
 
@@ -330,8 +330,7 @@ contract AdversarialTest is ProtocolFixture {
 
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, bricked);
-        _routeRevenue(100_000_000);
-        resonance.distribute(bricked);
+        usdg.mint(bricked, 100_000_000);
         assertEq(usdg.balanceOf(bricked), 100_000_000);
 
         _stake(ATTACKER, 100 ether);
@@ -352,8 +351,8 @@ contract AdversarialTest is ProtocolFixture {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice A hostile payment token cannot corrupt settlement by re-entering Resonance mid-purchase.
-    /// @dev `Strategy.buy` snapshots the revenue balance before pulling payment, so revenue distributed by a
-    ///      reentrant call is carried into the next epoch rather than handed to the current buyer.
+    /// @dev `Strategy.buy` checkpoints before its inventory snapshot. A payment-token callback cannot make a
+    ///      same-block stream release appear after that snapshot.
     function test_AHostilePaymentTokenCannotSkimTheCurrentEpoch() external {
         ReentrantToken hostile = new ReentrantToken(18);
         (address hostileStrategy,,) = resonance.addStrategy(IERC20(address(hostile)), defaultConfig());
@@ -363,11 +362,10 @@ contract AdversarialTest is ProtocolFixture {
         _signalOne(ALICE, hostileStrategy);
         _signalOne(BOB, address(gbxStrategy));
 
-        _routeRevenue(100_000_000);
-        resonance.distribute(hostileStrategy);
+        usdg.mint(hostileStrategy, 50_000_000);
         assertEq(usdg.balanceOf(hostileStrategy), 50_000_000);
 
-        // More revenue is waiting, and the token tries to pull it in during settlement.
+        // More revenue is scheduled, and the token tries to pull it in during settlement.
         _routeRevenue(100_000_000);
         hostile.arm(address(resonance), abi.encodeCall(Resonance.distribute, (hostileStrategy)));
 
@@ -381,7 +379,8 @@ contract AdversarialTest is ProtocolFixture {
         assertEq(hostile.callCount(), 1, "the reentrant call must actually have happened");
         assertTrue(hostile.lastCallSucceeded(), "a cross-contract call is not blocked, only harmless");
         assertEq(usdg.balanceOf(ATTACKER), 50_000_000, "the buyer receives only the pre-purchase snapshot");
-        assertEq(usdg.balanceOf(hostileStrategy), 50_000_000, "the injected revenue funds the next epoch instead");
+        assertEq(usdg.balanceOf(hostileStrategy), 0, "same-block scheduled revenue has not released");
+        assertEq(resonance.revenueStreamRemainingScaled(), 100_000_000 * resonance.INDEX_PRECISION());
     }
 
     /// @notice Re-entering the same Strategy during settlement is rejected by its own guard.
@@ -506,12 +505,14 @@ contract AdversarialTest is ProtocolFixture {
 
         vm.prank(KEEPER);
         assertEq(resonance.syncRevenue(), 500_000_000);
+        _finishRevenueStream();
         resonance.distributeAll();
         assertEq(usdg.balanceOf(address(targetStrategy)), 500_000_000);
         assertEq(usdg.balanceOf(address(resonance)), 0);
 
         // Legitimate revenue still flows correctly around the stranded balance.
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
         resonance.distributeAll();
         assertEq(usdg.balanceOf(address(targetStrategy)), 600_000_000);
         assertEq(usdg.balanceOf(address(resonance)), 0);

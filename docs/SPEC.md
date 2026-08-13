@@ -16,8 +16,11 @@ The required behavior is:
    has the `uint208` implementation ceiling.
 6. SignalGBX uses incremental absolute per-Strategy amounts, has no withdrawal lock, and lets users withdraw any
    unallocated balance immediately.
-7. Resonance creates uniform acquisition Strategies through bound factories. Every Strategy payment becomes a 100%
-   fixed Fund liability; Bribes are funded independently.
+7. Resonance streams routed USDG globally over rolling seven-day periods using `1e18` scaled rates. Signal changes
+   checkpoint prior elapsed flow and Strategy purchases atomically pull released USDG. ResonanceRouter holds balances
+   below 604,800 raw units or not strictly greater than the whole live remainder; a qualifying balance combines with
+   the remainder and resets seven days. Resonance creates uniform acquisition Strategies through bound factories.
+   Every Strategy payment becomes a 100% fixed Fund liability; Bribes are funded independently.
 8. Fund checkpoints all Mine slots before every redemption denominator snapshot, then performs registry-free,
    caller-selected in-kind redemption atomically with the GBX burn.
 9. LiquidityPosition permanently holds one precommitted single-sided GBX/USDG v4 position at fixed principal. Anyone

@@ -189,8 +189,7 @@ contract SignalGasTest is ProtocolFixture {
         _stake(ALICE, 100 ether);
         vm.prank(ALICE);
         resonance.addSignal(address(targetStrategy), 100 ether);
-        _routeRevenue(100_000_000);
-        resonance.distribute(address(targetStrategy));
+        usdg.mint(address(targetStrategy), 100_000_000);
 
         uint256 price = targetStrategy.currentPrice();
         target.mint(CAROL, price);

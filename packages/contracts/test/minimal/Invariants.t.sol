@@ -69,10 +69,9 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         assertEq(total, handler.ghostUSDGMinted());
     }
 
-    /// @notice The revenue router is a pass-through and never holds a balance between transactions.
-    function invariant_RevenueRouterNeverRetainsRevenue() external view {
-        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
-        assertEq(resonanceRouter.pendingRevenue(), 0);
+    /// @notice Every USDG unit retained by the anti-grief gates remains visible as pending router revenue.
+    function invariant_RevenueRouterRetentionIsFullyVisible() external view {
+        assertEq(resonanceRouter.pendingRevenue(), usdg.balanceOf(address(resonanceRouter)));
     }
 
     /// @notice Mine USDG custody is exactly the sum of displaced-miner pull claims.
@@ -190,11 +189,12 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         assertLe(owed, usdg.balanceOf(address(resonance)));
     }
 
-    /// @notice Every accounted USDG unit is exactly classified as carry, indexed allocation, or a fixed liability.
+    /// @notice Every accounted USDG unit is exactly scheduled, carried, indexed, claimable, or Fund-bound.
     function invariant_ResonanceAccountingIdentityIsExact() external view {
         uint256 precision = resonance.INDEX_PRECISION();
-        uint256 classifiedScaled = resonance.pendingRevenueScaled() + resonance.indexedRevenueScaled()
-            + (resonance.totalClaimableRevenue() + resonance.fundRevenueLiability()) * precision;
+        uint256 classifiedScaled = resonance.revenueStreamRemainingScaled() + resonance.pendingRevenueScaled()
+            + resonance.indexedRevenueScaled() + (resonance.totalClaimableRevenue() + resonance.fundRevenueLiability())
+            * precision;
 
         uint256 summedClaimable;
         for (uint256 i; i < allStrategies.length; ++i) {
@@ -205,6 +205,23 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         assertEq(summedClaimable, resonance.totalClaimableRevenue());
         assertEq(classifiedScaled, resonance.accountedRevenueBalance() * precision);
         assertLe(resonance.accountedRevenueBalance(), usdg.balanceOf(address(resonance)));
+    }
+
+    /// @notice An active stream has a positive rate and an exact rolling seven-day boundary.
+    function invariant_RevenueStreamStateIsCoherent() external view {
+        uint256 remainingScaled = resonance.revenueStreamRemainingScaled();
+        if (remainingScaled == 0) {
+            assertEq(resonance.revenueStreamRateScaled(), 0);
+            assertEq(resonance.revenueStreamLastUpdate(), 0);
+            assertEq(resonance.revenueStreamFinish(), 0);
+            return;
+        }
+
+        assertGt(resonance.revenueStreamRateScaled(), 0);
+        assertGt(resonance.revenueStreamFinish(), resonance.revenueStreamLastUpdate());
+        assertLe(
+            resonance.revenueStreamFinish() - resonance.revenueStreamLastUpdate(), resonance.REVENUE_STREAM_DURATION()
+        );
     }
 
     /// @notice A retired Strategy can never accumulate a new claim.

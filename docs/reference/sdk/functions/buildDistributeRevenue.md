@@ -8,7 +8,7 @@
 
 > **buildDistributeRevenue**(`resonance`, `strategy`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Sends one Strategy its currently indexed USDG allocation.
+Checkpoints elapsed stream revenue and sends one Strategy its currently released USDG allocation.
 
 ## Parameters
 

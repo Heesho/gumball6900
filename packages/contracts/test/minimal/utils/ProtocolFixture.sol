@@ -197,6 +197,12 @@ abstract contract ProtocolFixture is Test {
         resonanceRouter.route();
     }
 
+    /// @notice Advances through the complete global revenue stream and checkpoints its final release.
+    function _finishRevenueStream() internal {
+        vm.warp(block.timestamp + resonance.REVENUE_STREAM_DURATION());
+        resonance.indexPendingRevenue();
+    }
+
     /// @notice Fills one acquisition epoch at the current price.
     function _buyTarget(address buyer, Strategy strategy, MockERC20 payment) internal returns (uint256 paid) {
         uint256 price = strategy.currentPrice();

@@ -107,7 +107,7 @@ export const currentPages = [
             eyebrow: 'Part I',
             number: '01',
             title: 'The economic loop',
-            deck: 'Mining brings USDG in; sGBX signals decide where the next dollar goes.',
+            deck: 'Mining brings USDG in; sGBX signals direct each interval of a seven-day stream.',
           })}
           <div class="spread">
             <div class="col-main">
@@ -115,7 +115,8 @@ export const currentPages = [
                 'A participant takes a mining slot at its current hourly decaying USDG price.',
                 'The incumbent accrues GBX continuously at the fixed rate assigned on entry.',
                 'Twenty percent of a nonempty-slot handoff routes through Resonance; eighty percent becomes a displaced-miner claim.',
-                'Strategies exchange routed USDG for configured assets whose complete payments become Fund liabilities.',
+                'ResonanceRouter holds sub-threshold USDG; a qualifying balance restarts a seven-day stream under live signals.',
+                'Strategies pull released USDG and exchange it for assets whose complete payments become Fund liabilities.',
                 'A GBX holder may burn GBX for a selected pro-rata basket of raw Fund assets.',
               ])}
             </div>
@@ -235,10 +236,10 @@ export const currentPages = [
           <div class="spread">
             <div class="col-main">
               <p>
-                GBX begins with ${contractConstants.gbx.genesisLiquidityTokens} million genesis tokens. Its only later
-                issuer is the permanently bound Mine. Global rates offered to future occupants halve at immutable
-                cumulative-mining thresholds, then continue at a positive tail on every modeled horizon. ERC20Votes'
-                uint208 ceiling remains the remote implementation bound.
+                GBX begins with ${Number(contractConstants.gbx.genesisLiquidityTokens).toLocaleString('en-US')} genesis
+                tokens. Its only later issuer is the permanently bound Mine. Global rates offered to future occupants
+                halve at immutable cumulative-mining thresholds, then continue at a positive tail on every modeled
+                horizon. ERC20Votes' uint208 ceiling remains the remote implementation bound.
               </p>
               <p>
                 Rewards accrue continuously but mint at checkpoints. Fund calls <code>checkpointAll</code> before every

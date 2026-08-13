@@ -48,7 +48,8 @@ fixed payout or reward token is blocked.
 
 ```text
 accountedRevenueBalance * P
-  = pendingRevenueScaled
+  = revenueStreamRemainingScaled
+  + pendingRevenueScaled
   + indexedRevenueScaled
   + sum(strategyRevenueRemainder)
   + (totalClaimableRevenue + fundRevenueLiability) * P
@@ -57,6 +58,21 @@ accountedRevenueBalance * P
 `syncRevenue` moves only actual unaccounted surplus into this identity. Exact payouts reduce both balance and the
 matching whole liability. This proves conservation, not perfect historical attribution; A-09 documents the carry
 boundary limitation.
+
+For every active stream:
+
+```text
+revenueStreamRateScaled > 0
+revenueStreamFinish - revenueStreamLastUpdate <= 7 days
+newRateScaled = ceil((oldRemainingScaled + topUp * P) / 7 days)
+topUp >= 604800
+topUp > floor(oldRemainingScaled / P)
+```
+
+Elapsed revenue is checkpointed before a signal weight changes. `Strategy.buy` checkpoints and transfers its released
+allocation before it snapshots auction inventory. In one block, newly notified revenue has zero elapsed stream time.
+The two top-up inequalities are checked before ResonanceRouter transfers anything; an insufficient complete router
+balance stays available for a later permissionless attempt.
 
 ## Bribe reward-token conservation
 

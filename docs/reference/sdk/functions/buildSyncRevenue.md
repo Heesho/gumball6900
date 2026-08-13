@@ -8,7 +8,7 @@
 
 > **buildSyncRevenue**(`resonance`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Synchronizes direct USDG donations already held by Resonance into explicit accounting.
+Synchronizes direct USDG donations already held by Resonance into the global stream.
 
 ## Parameters
 

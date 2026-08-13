@@ -101,7 +101,7 @@ export const story = {
  * it out. Splitting this across a "signal" strip and a separate "basket" chart hid the
  * causal chain; they are one section because they are one mechanism.
  *
- * Untouched by ADR 0024: signals decide where routed dollars go, whatever brought them in.
+ * ADR 0025 makes the routing claim time-weighted: signals decide where each released interval goes.
  *
  * The tickers are eligible assets named in `packages/config/assets/robinhood.ts`, not
  * holdings. The split and the four rounds are invented.
@@ -112,7 +112,7 @@ export const signal = {
     'Stake GBX for sGBX, then point it at the assets you want the fund to own. What it ' +
     'buys backs your GBX, and you can take your share of it out.',
   splitLabel: "This round's signal",
-  splitNote: "Every holder's sGBX is pooled, so the next dollar in splits the same way. Move yours any time.",
+  splitNote: "Every holder's sGBX is pooled, so the next dollar released splits the same way. Move yours any time.",
   segments: [
     { token: 'NVDA', share: 50 },
     { token: 'QQQ', share: 30 },

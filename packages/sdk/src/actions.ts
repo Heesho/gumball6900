@@ -248,12 +248,12 @@ export function buildClaimSelectedBribeRewards(
   );
 }
 
-/** Routes all USDG currently held by ResonanceRouter into Resonance. */
+/** Attempts to route all USDG held by ResonanceRouter; insufficient balances remain held without reverting. */
 export function buildRouteRevenue(resonanceRouter: Address): ContractTransaction {
   return transaction(resonanceRouter, encodeFunctionData({ abi: resonanceRouterAbi, functionName: 'route' }));
 }
 
-/** Sends one Strategy its currently indexed USDG allocation. */
+/** Checkpoints elapsed stream revenue and sends one Strategy its currently released USDG allocation. */
 export function buildDistributeRevenue(resonance: Address, strategy: Address): ContractTransaction {
   return transaction(
     resonance,
@@ -261,12 +261,12 @@ export function buildDistributeRevenue(resonance: Address, strategy: Address): C
   );
 }
 
-/** Synchronizes direct USDG donations already held by Resonance into explicit accounting. */
+/** Synchronizes direct USDG donations already held by Resonance into the global stream. */
 export function buildSyncRevenue(resonance: Address): ContractTransaction {
   return transaction(resonance, encodeFunctionData({ abi: resonanceAbi, functionName: 'syncRevenue' }));
 }
 
-/** Attempts to advance Resonance's sub-index carry without requiring another notification. */
+/** Checkpoints elapsed stream revenue and attempts to advance Resonance's sub-index carry. */
 export function buildIndexPendingRevenue(resonance: Address): ContractTransaction {
   return transaction(resonance, encodeFunctionData({ abi: resonanceAbi, functionName: 'indexPendingRevenue' }));
 }

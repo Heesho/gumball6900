@@ -7691,6 +7691,32 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'MIN_REVENUE_AMOUNT',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'REVENUE_STREAM_DURATION',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'accountSignalWeight',
     inputs: [
       {
@@ -7927,6 +7953,25 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'canNotifyRevenue',
+    inputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [
+      {
+        name: 'ready',
+        type: 'bool',
+        internalType: 'bool',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'claimRewards',
     inputs: [
       {
@@ -8106,6 +8151,19 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'leftRevenue',
+    inputs: [],
+    outputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'notifyRevenue',
     inputs: [
       {
@@ -8196,6 +8254,19 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'releasableRevenueScaled',
+    inputs: [],
+    outputs: [
+      {
+        name: 'releasedScaled',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'removeSignal',
     inputs: [
       {
@@ -8253,6 +8324,58 @@ export const resonanceAbi = [
   {
     type: 'function',
     name: 'revenueIndex',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'revenueStreamFinish',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'revenueStreamLastUpdate',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'revenueStreamRateScaled',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'revenueStreamRemainingScaled',
     inputs: [],
     outputs: [
       {
@@ -8610,6 +8733,56 @@ export const resonanceAbi = [
   },
   {
     type: 'event',
+    name: 'RevenueStreamCheckpointed',
+    inputs: [
+      {
+        name: 'releasedScaled',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'remainingScaled',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'RevenueStreamScheduled',
+    inputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'remainingScaled',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'rateScaled',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'finish',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'RevenueSynced',
     inputs: [
       {
@@ -8872,6 +9045,38 @@ export const resonanceAbi = [
   },
   {
     type: 'error',
+    name: 'RevenueBelowMinimum',
+    inputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'minimum',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'RevenueBelowRemaining',
+    inputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'remaining',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'RevenueScaleOverflow',
     inputs: [
       {
@@ -9004,6 +9209,31 @@ export const resonanceRouterAbi = [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    name: 'RevenueHeld',
+    inputs: [
+      {
+        name: 'caller',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'remaining',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
   },
   {
     type: 'event',

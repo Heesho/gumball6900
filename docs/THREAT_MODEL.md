@@ -13,7 +13,16 @@
 - Mine handoffs and redemptions checkpoint up to sixteen slots. The loop is bounded, but gas rises linearly with
   capacity and a failure in any required GBX mint reverts the whole operation.
 - Unrestricted signaling permits rapid allocation movement and wallet-splitting; it deliberately provides no
-  epoch-level stability or anti-churn guarantee.
+  epoch-level stability or anti-churn guarantee. Elapsed revenue is checkpointed before each weight change, so a
+  same-block flash signal earns no newly notified USDG, but a signal held over real time earns that interval's flow.
+- Resonance streaming is lazy. USDG entitlement accrues with time, but token balances move to Strategies only when a
+  caller triggers a signal change, notification, distribution, purchase, or other checkpointing path. Interfaces must
+  preview released revenue rather than treating the Strategy's raw balance as its complete executable inventory.
+- A qualifying stream top-up can reduce the live rate because it combines the remainder and restarts seven days. The
+  anti-grief gates require at least 604,800 raw units and more new USDG than whole USDG remaining, so cheaply repeated
+  dust cannot keep resetting the stream. Pending balances below either gate remain in ResonanceRouter. Timestamp
+  ordering near a block boundary can change eligibility and one interval of attribution, although it cannot make
+  same-block time elapse.
 - Sub-index Resonance and Bribe carry is conserved but indexed against the signal supply present when the threshold is
   crossed. A late signal can therefore share value received or emitted before entry (A-09), especially for
   low-decimal supported tokens.

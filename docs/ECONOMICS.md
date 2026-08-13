@@ -45,9 +45,18 @@ handoff. Exact deployment parameters remain release inputs and must be recorded 
 
 ## Revenue, acquisitions, and redemption
 
-Mining and liquidity USDG route through Resonance and follow current SignalGBX weights. A Strategy sells its complete
-USDG balance through a reverse Dutch auction; the complete payment becomes a Fund liability. Bribes are independently
+Mining and liquidity USDG route into Resonance's global seven-day stream. Each elapsed interval follows the SignalGBX
+weights active during that interval; moving a signal checkpoints the old interval first and affects only later flow.
+A Strategy purchase atomically pulls all revenue released to it through that timestamp, then sells its complete USDG
+balance through a reverse Dutch auction. The complete payment becomes a Fund liability. Bribes are independently
 funded.
+
+Streaming is lazy accounting: no keeper transaction is required each second. A later signal change, distribution,
+purchase, notification, or Fund-revenue payment materializes the elapsed amount. New notifications merge into the live
+schedule and reset a fresh seven-day period only when the complete ResonanceRouter balance is at least 604,800 raw
+units (`0.6048 USDG`) and strictly greater than the whole USDG remaining in the current stream. Smaller balances wait
+in the router; elapsed time can clear the declining remainder gate but never the absolute minimum. The `1e18` scaled
+rate preserves smooth behavior for six-decimal USDG.
 
 Before redemption, Fund checkpoints every mining slot. For each selected token it then pays:
 

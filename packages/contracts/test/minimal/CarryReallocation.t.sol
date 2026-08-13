@@ -14,32 +14,34 @@ contract CarryReallocationTest is ProtocolFixture {
 
     /// @notice Revenue received under the old weights can be partially assigned to a Strategy signaled only later.
     function test_KnownRisk_NewStrategySignalCanReceivePreEntryRevenueCarry() external {
-        _stake(ALICE, 50 ether);
-        _stake(CAROL, 50 ether);
+        _stake(ALICE, 500_000 ether);
+        _stake(CAROL, 500_000 ether);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(CAROL, address(targetStrategy));
 
-        // At 100 ether of total weight, 99 USDG base units cannot advance the 1e18-scaled index.
-        _routeRevenue(99);
+        // At 1,000,000 ether of total weight, the minimum routable notification cannot advance the scaled index.
+        _routeRevenue(604_800);
+        _finishRevenueStream();
         assertEq(resonance.revenueIndex(), 0);
-        assertEq(resonance.pendingRevenueScaled(), 99 ether);
+        assertEq(resonance.pendingRevenueScaled(), 604_800 ether);
 
-        // BOB enters a different Strategy only after those 99 units were received.
-        _stake(BOB, 100 ether);
+        // BOB enters a different Strategy only after those 604,800 units were received.
+        _stake(BOB, 1_000_000 ether);
         _signalOne(BOB, address(gbxStrategy));
 
-        // Another 101 units crosses the index threshold under the new 200 ether denominator.
-        _routeRevenue(101);
+        // Another 1,395,200 units crosses the index threshold under the new 2,000,000 ether denominator.
+        _routeRevenue(1_395_200);
+        _finishRevenueStream();
         assertEq(resonance.revenueIndex(), 1);
 
         resonance.distribute(address(targetStrategy));
         resonance.distribute(address(gbxStrategy));
 
-        assertEq(usdg.balanceOf(address(targetStrategy)), 100);
-        assertEq(usdg.balanceOf(address(gbxStrategy)), 100);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 1_000_000);
+        assertEq(usdg.balanceOf(address(gbxStrategy)), 1_000_000);
         assertGt(
             usdg.balanceOf(address(gbxStrategy)),
-            51,
+            697_600,
             "the late Strategy receives more than its maximum pro-rata share of post-entry revenue"
         );
     }

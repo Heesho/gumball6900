@@ -22,9 +22,17 @@ export function getProtocol(event: ethereum.Event): ProtocolState {
     protocol.liquidityUSDGRoutedRaw = ZERO;
     protocol.liquidityGBXBurnedRaw = ZERO;
     protocol.routedRevenueRaw = ZERO;
+    protocol.heldRevenueAttemptCount = ZERO;
+    protocol.lastHeldRevenueRaw = ZERO;
+    protocol.lastHeldStreamRemainingRaw = ZERO;
     protocol.notifiedRevenueRaw = ZERO;
     protocol.syncedRevenueRaw = ZERO;
     protocol.distributedRevenueRaw = ZERO;
+    protocol.revenueStreamReleasedScaled = ZERO;
+    protocol.revenueStreamRemainingScaled = ZERO;
+    protocol.revenueStreamRateScaled = ZERO;
+    protocol.revenueStreamLastUpdate = ZERO;
+    protocol.revenueStreamFinish = ZERO;
     protocol.fundRevenueAccruedRaw = ZERO;
     protocol.fundRevenuePaidRaw = ZERO;
     protocol.pendingFundRevenueRaw = ZERO;

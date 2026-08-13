@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 19. Documented ABI entries: 517. Documented public ABI functions: 271.
+Documented source surfaces: 19. Documented ABI entries: 534. Documented public ABI functions: 283.
 
 ## Bribe
 
@@ -1648,11 +1648,11 @@ Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive en
 function route() external returns (uint256 amount);
 ```
 
-Routes the complete pending USDG balance to Resonance.
+Routes the complete pending USDG balance once it clears Resonance's anti-grief thresholds.
 
 **Returns**
 
-- `amount`: Amount of USDG delivered to Resonance.
+- `amount`: Amount delivered to Resonance, or zero while the router retains an insufficient balance.
 
 ### `usdg()`
 
@@ -2069,11 +2069,11 @@ Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive en
 function route() external returns (uint256 amount);
 ```
 
-Routes the complete pending USDG balance to Resonance.
+Routes the complete pending USDG balance once it clears Resonance's anti-grief thresholds.
 
 **Returns**
 
-- `amount`: Amount of USDG delivered to Resonance.
+- `amount`: Amount delivered to Resonance, or zero while the router retains an insufficient balance.
 
 ### `usdg()`
 
@@ -2659,7 +2659,7 @@ Source: [`src/core/Resonance.sol`](../../packages/contracts/src/core/Resonance.s
 
 Artifact: `out/Resonance.sol/Resonance.json`
 
-Public ABI: 49 functions, 12 events, 18 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 58 functions, 14 events, 20 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address,address,address)`
 
@@ -2685,6 +2685,22 @@ function INDEX_PRECISION() external view returns (uint256 arg0);
 ```
 
 Fixed-point precision for indexed USDG revenue.
+
+### `MIN_REVENUE_AMOUNT()`
+
+```solidity
+function MIN_REVENUE_AMOUNT() external view returns (uint256 arg0);
+```
+
+Smallest raw USDG amount that may reset the stream, matching the legacy Bribe duration guard.
+
+### `REVENUE_STREAM_DURATION()`
+
+```solidity
+function REVENUE_STREAM_DURATION() external view returns (uint256 arg0);
+```
+
+Exact duration of each USDG revenue period.
 
 ### `accountSignalWeight(address)`
 
@@ -2810,6 +2826,23 @@ function bribeRouterFor(address strategy) external view returns (address router)
 
 BribeRouter associated with each Strategy.
 
+### `canNotifyRevenue(uint256)`
+
+```solidity
+function canNotifyRevenue(uint256 amount) external view returns (bool ready);
+```
+
+Returns whether `amount` may currently reset the stream.
+ResonanceRouter uses this view to retain insufficient USDG without reverting Mine or fee-harvest calls.
+
+**Parameters**
+
+- `amount`: Candidate raw USDG amount.
+
+**Returns**
+
+- `ready`: Whether the candidate clears both anti-grief thresholds.
+
 ### `claimRewards(address[])`
 
 ```solidity
@@ -2933,17 +2966,31 @@ Existing signal weights remain until their owners remove them incrementally. The
 
 - `strategy`: Strategy to disable permanently.
 
+### `leftRevenue()`
+
+```solidity
+function leftRevenue() external view returns (uint256 amount);
+```
+
+Returns whole USDG still unreleased by the live stream at the current timestamp.
+Floors sub-base-unit scaled carry, matching the legacy Bribe `left()` comparison.
+
+**Returns**
+
+- `amount`: Whole USDG still unreleased.
+
 ### `notifyRevenue(uint256)`
 
 ```solidity
 function notifyRevenue(uint256 amount) external;
 ```
 
-Pulls USDG from ResonanceRouter and adds it to the global revenue index.
+Pulls qualifying USDG from ResonanceRouter and starts or resets the rolling seven-day stream.
+The router retains amounts that are below the minimum or do not exceed currently unreleased revenue.
 
 **Parameters**
 
-- `amount`: Amount of USDG to pull and index.
+- `amount`: Amount of USDG to pull and schedule.
 
 ### `owner()`
 
@@ -2998,6 +3045,18 @@ function pendingRevenueScaled() external view returns (uint256 arg0);
 
 Received USDG represented in revenue precision but not yet large enough for another index increment.
 
+### `releasableRevenueScaled()`
+
+```solidity
+function releasableRevenueScaled() external view returns (uint256 releasedScaled);
+```
+
+Returns the scaled USDG that a checkpoint at the current timestamp would release.
+
+**Returns**
+
+- `releasedScaled`: Releasable amount expressed in `INDEX_PRECISION`.
+
 ### `removeSignal(address,uint256)`
 
 ```solidity
@@ -3049,6 +3108,38 @@ function revenueIndex() external view returns (uint256 arg0);
 ```
 
 Cumulative USDG revenue per unit of signal weight.
+
+### `revenueStreamFinish()`
+
+```solidity
+function revenueStreamFinish() external view returns (uint256 arg0);
+```
+
+Timestamp by which the current scheduled balance will be fully released.
+
+### `revenueStreamLastUpdate()`
+
+```solidity
+function revenueStreamLastUpdate() external view returns (uint256 arg0);
+```
+
+Timestamp through which the current stream has been checkpointed.
+
+### `revenueStreamRateScaled()`
+
+```solidity
+function revenueStreamRateScaled() external view returns (uint256 arg0);
+```
+
+Current USDG release rate, expressed as scaled USDG units per second.
+
+### `revenueStreamRemainingScaled()`
+
+```solidity
+function revenueStreamRemainingScaled() external view returns (uint256 arg0);
+```
+
+Scaled USDG received but not yet released into signal-weight accounting.
 
 ### `setResonanceRouter(address)`
 
@@ -3120,7 +3211,7 @@ Total SignalGBX weight allocated to each Strategy.
 function syncRevenue() external returns (uint256 amount);
 ```
 
-Incorporates direct USDG donations into the same carry-forward accounting used by routed revenue.
+Incorporates direct USDG donations into the same seven-day stream used by routed revenue.
 A negative balance delta is unsupported and fails visibly instead of corrupting stored liabilities.
 
 **Returns**
@@ -3237,6 +3328,22 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 event RevenueNotified(address indexed resonanceRouter, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RevenueStreamCheckpointed(uint256,uint256)`
+
+```solidity
+event RevenueStreamCheckpointed(uint256 releasedScaled, uint256 remainingScaled);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RevenueStreamScheduled(uint256,uint256,uint256,uint256)`
+
+```solidity
+event RevenueStreamScheduled(uint256 amount, uint256 remainingScaled, uint256 rateScaled, uint256 finish);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3371,6 +3478,22 @@ error RevenueBalanceDeficit(uint256 accounted, uint256 actual);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `RevenueBelowMinimum(uint256,uint256)`
+
+```solidity
+error RevenueBelowMinimum(uint256 amount, uint256 minimum);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RevenueBelowRemaining(uint256,uint256)`
+
+```solidity
+error RevenueBelowRemaining(uint256 amount, uint256 remaining);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `RevenueScaleOverflow(uint256)`
 
 ```solidity
@@ -3433,7 +3556,7 @@ Source: [`src/core/ResonanceRouter.sol`](../../packages/contracts/src/core/Reson
 
 Artifact: `out/ResonanceRouter.sol/ResonanceRouter.json`
 
-Public ABI: 4 functions, 1 event, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 4 functions, 2 events, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -3474,11 +3597,11 @@ Resonance that receives and indexes routed USDG.
 function route() external returns (uint256 amount);
 ```
 
-Routes the complete USDG balance to Resonance.
+Routes the complete USDG balance when it clears Resonance's anti-grief thresholds.
 
 **Returns**
 
-- `amount`: Amount delivered to Resonance in this call.
+- `amount`: Amount delivered, or zero while an insufficient balance remains held.
 
 ### `usdg()`
 
@@ -3489,6 +3612,14 @@ function usdg() external view returns (contract IERC20 arg0);
 USDG revenue token forwarded by this router.
 
 ### Events
+
+#### `RevenueHeld(address,uint256,uint256)`
+
+```solidity
+event RevenueHeld(address indexed caller, uint256 amount, uint256 remaining);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
 
 #### `RevenueRouted(address,uint256)`
 
@@ -4673,7 +4804,7 @@ Source: [`src/core/interfaces/ICoreResonance.sol`](../../packages/contracts/src/
 
 Artifact: `out/ICoreResonance.sol/ICoreResonance.json`
 
-Public ABI: 4 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+Public ABI: 7 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
 ### `accountSignalWeight(address)`
 
@@ -4707,6 +4838,38 @@ Returns the reward router paired with a Strategy.
 
 - `router`: BribeRouter paired with `strategy`.
 
+### `canNotifyRevenue(uint256)`
+
+```solidity
+function canNotifyRevenue(uint256 amount) external view returns (bool ready);
+```
+
+Returns whether a pending router balance may currently reset the revenue stream.
+
+**Parameters**
+
+- `amount`: Pending raw USDG amount.
+
+**Returns**
+
+- `ready`: Whether the amount clears the minimum and remaining-revenue thresholds.
+
+### `distribute(address)`
+
+```solidity
+function distribute(address strategy) external returns (uint256 amount);
+```
+
+Checkpoints and transfers one Strategy's currently released USDG.
+
+**Parameters**
+
+- `strategy`: Strategy whose allocation should be transferred.
+
+**Returns**
+
+- `amount`: Amount transferred.
+
 ### `fund()`
 
 ```solidity
@@ -4719,13 +4882,25 @@ Returns the immutable Fund used by Resonance and its reward graph.
 
 - `fundAddress`: Fixed Fund destination.
 
+### `leftRevenue()`
+
+```solidity
+function leftRevenue() external view returns (uint256 amount);
+```
+
+Returns whole USDG still unreleased by the current stream.
+
+**Returns**
+
+- `amount`: Remaining raw USDG units.
+
 ### `notifyRevenue(uint256)`
 
 ```solidity
 function notifyRevenue(uint256 amount) external;
 ```
 
-Pulls and indexes newly routed USDG revenue.
+Pulls and schedules newly routed USDG revenue.
 
 **Parameters**
 
@@ -4821,8 +4996,8 @@ Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive ent
 function route() external returns (uint256 amount);
 ```
 
-Routes the complete pending USDG balance to Resonance.
+Routes the complete pending USDG balance once it clears Resonance's anti-grief thresholds.
 
 **Returns**
 
-- `amount`: Amount of USDG delivered to Resonance.
+- `amount`: Amount delivered to Resonance, or zero while the router retains an insufficient balance.

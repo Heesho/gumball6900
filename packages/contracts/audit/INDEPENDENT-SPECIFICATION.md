@@ -2,7 +2,7 @@
 
 Date: 2026-08-12
 
-This is the review target for the ADR 0024 development candidate. It is not an independent audit result.
+This is the review target for the ADR 0024 and ADR 0025 development candidate. It is not an independent audit result.
 
 ## Authority model
 
@@ -29,8 +29,13 @@ This is the review target for the ADR 0024 development candidate. It is not an i
 
 - SignalGBX is one-for-one, non-transferable, and immediately withdrawable to the extent unallocated.
 - Signals are incremental absolute amounts. Account, Strategy, total, and Bribe virtual-supply identities remain equal.
-- Every exact Resonance USDG unit is represented by carry, a Strategy liability, or fixed Fund liability.
-- One uniform Strategy type auctions its complete USDG lot. Its complete payment becomes a fixed Fund liability.
+- Every exact Resonance USDG unit is represented by scheduled stream balance, carry, a Strategy liability, or fixed
+  Fund liability.
+- Resonance streams revenue globally through rolling seven-day periods at a `1e18`-scaled rate. Signal changes
+  checkpoint old weights first, same-transaction notifications release zero new revenue, and ResonanceRouter holds a
+  top-up until it is at least 604,800 raw units and exceeds the live whole-unit remainder.
+- One uniform Strategy type checkpoints and pulls released revenue before auctioning its complete USDG lot. Its
+  complete payment becomes a fixed Fund liability.
 - Bribes are independently funded, have at most eight reward tokens, pause at zero supply, and isolate broken-token
   claims from signal exit. A-09 remains the known historical carry-attribution limitation.
 
@@ -46,7 +51,7 @@ This is the review target for the ADR 0024 development candidate. It is not an i
 
 - Foundry and Hardhat compile the same Solidity tree; SDK/subgraph ABIs come from current artifacts.
 - TypeScript and Python independently assert fixed-tenure expansion, future-handoff halvings, 80/20 payments, the
-  no-economic-cap issuance model, and checkpointed redemption.
+  no-economic-cap issuance model, checkpointed redemption, scaled streaming, and anti-grief reset thresholds.
 - No consumer may display pending Mine accrual as already minted supply or the 80% handoff as guaranteed.
 - A green local campaign does not clear independent audit, parameter, monitored testnet, manifest, licensing, or legal
   review gates.

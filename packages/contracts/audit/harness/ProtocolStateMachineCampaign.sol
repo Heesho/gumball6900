@@ -512,9 +512,24 @@ contract ProtocolStateMachineCampaign {
             strategyRemainders += resonance.strategyRevenueRemainder(strategies[i]);
         }
 
-        uint256 right = resonance.pendingRevenueScaled() + resonance.indexedRevenueScaled() + strategyRemainders
+        uint256 right = resonance.revenueStreamRemainingScaled() + resonance.pendingRevenueScaled()
+            + resonance.indexedRevenueScaled() + strategyRemainders
             + (resonance.totalClaimableRevenue() + resonance.fundRevenueLiability()) * 1e18;
         return resonance.accountedRevenueBalance() * 1e18 == right;
+    }
+
+    /// @notice A scheduled Resonance stream has a live rate and an exact rolling seven-day boundary.
+    function echidna_revenueStreamStateIsCoherent() public view returns (bool holds) {
+        uint256 remainingScaled = resonance.revenueStreamRemainingScaled();
+        if (remainingScaled == 0) {
+            return resonance.revenueStreamRateScaled() == 0 && resonance.revenueStreamLastUpdate() == 0
+                && resonance.revenueStreamFinish() == 0;
+        }
+
+        uint256 lastUpdate = resonance.revenueStreamLastUpdate();
+        uint256 finish = resonance.revenueStreamFinish();
+        return resonance.revenueStreamRateScaled() != 0 && finish > lastUpdate
+            && finish - lastUpdate <= resonance.REVENUE_STREAM_DURATION();
     }
 
     /// @notice A retired Strategy never accumulates a new claim.
@@ -565,11 +580,12 @@ contract ProtocolStateMachineCampaign {
                     userRemainders += bribe.userRewardRemainder(address(actors[j]), token);
                 }
 
-                uint256 right = (
-                    bribe.scheduledRewards(token) + bribe.queuedRewards(token) + bribe.accruedRewardLiability(token)
-                        + bribe.fundRewardLiability(token)
-                ) * 1e18 + bribe.pendingRewardScaled(token) + bribe.indexedRewardScaled(token) + userRemainders
-                    + bribe.fundRewardRemainder(token);
+                uint256 right =
+                    (bribe.scheduledRewards(token)
+                            + bribe.queuedRewards(token)
+                            + bribe.accruedRewardLiability(token)
+                            + bribe.fundRewardLiability(token)) * 1e18 + bribe.pendingRewardScaled(token)
+                        + bribe.indexedRewardScaled(token) + userRemainders + bribe.fundRewardRemainder(token);
                 if (bribe.accountedRewardBalance(token) * 1e18 != right) return false;
             }
         }
@@ -585,9 +601,9 @@ contract ProtocolStateMachineCampaign {
         return true;
     }
 
-    /// @notice The revenue router never custodies revenue between transactions.
-    function echidna_revenueIsNeverParkedInARouter() public view returns (bool holds) {
-        return usdg.balanceOf(address(resonanceRouter)) == 0;
+    /// @notice Every USDG unit retained by the anti-grief gates remains visible as pending router revenue.
+    function echidna_routerRetentionIsFullyVisible() public view returns (bool holds) {
+        return resonanceRouter.pendingRevenue() == usdg.balanceOf(address(resonanceRouter));
     }
 
     /// @notice Every auction's starting price stays inside its immutable configured bounds.
@@ -620,13 +636,16 @@ contract ProtocolStateMachineCampaign {
             if (slot.ups > mineContract.initialUps()) return false;
             combinedUps += slot.ups;
         }
-        return combinedUps <= mineContract.initialUps() * slotCount && mineContract.nextGlobalUps() >= mineContract.tailUps();
+        return
+            combinedUps <= mineContract.initialUps() * slotCount
+                && mineContract.nextGlobalUps() >= mineContract.tailUps();
     }
 
     /// @notice USDG is only ever moved between accounts, never created or destroyed by the protocol.
     function echidna_usdgIsConserved() public view returns (bool holds) {
         uint256 total = usdg.balanceOf(address(this)) + usdg.balanceOf(address(resonance))
-            + usdg.balanceOf(address(resonanceRouter)) + usdg.balanceOf(address(fund)) + usdg.balanceOf(address(mineContract));
+            + usdg.balanceOf(address(resonanceRouter)) + usdg.balanceOf(address(fund))
+            + usdg.balanceOf(address(mineContract));
 
         for (uint256 i; i < strategies.length; ++i) {
             total += usdg.balanceOf(strategies[i]);

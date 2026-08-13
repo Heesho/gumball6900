@@ -4,6 +4,8 @@ import {
   RevenueDistributed,
   RevenueNotified,
   RevenueSynced,
+  RevenueStreamCheckpointed,
+  RevenueStreamScheduled,
   FundRevenueAccrued,
   FundRevenuePaid,
   StrategyAdded,
@@ -13,6 +15,7 @@ import {
   ResonanceRouterSet,
 } from '../generated/Resonance/Resonance';
 import { BribeTemplate, BribeRouterTemplate } from '../generated/templates';
+import { ZERO } from './constants';
 import { getAccount, getProtocol, getStrategy, recordEvent } from './entities';
 
 export function handleBribeRewardAdded(event: BribeRewardAdded): void {
@@ -55,6 +58,37 @@ export function handleRevenueSynced(event: RevenueSynced): void {
   const record = recordEvent(event, 'RESONANCE_REVENUE_SYNCED');
   record.addresses = [event.params.caller];
   record.values = [event.params.amount];
+  record.save();
+}
+
+export function handleRevenueStreamCheckpointed(event: RevenueStreamCheckpointed): void {
+  const protocol = getProtocol(event);
+  protocol.revenueStreamReleasedScaled = protocol.revenueStreamReleasedScaled.plus(event.params.releasedScaled);
+  protocol.revenueStreamRemainingScaled = event.params.remainingScaled;
+  if (event.params.remainingScaled.equals(ZERO)) {
+    protocol.revenueStreamRateScaled = ZERO;
+    protocol.revenueStreamLastUpdate = ZERO;
+    protocol.revenueStreamFinish = ZERO;
+  } else {
+    protocol.revenueStreamLastUpdate = event.block.timestamp;
+  }
+  protocol.save();
+
+  const record = recordEvent(event, 'RESONANCE_REVENUE_STREAM_CHECKPOINTED');
+  record.values = [event.params.releasedScaled, event.params.remainingScaled];
+  record.save();
+}
+
+export function handleRevenueStreamScheduled(event: RevenueStreamScheduled): void {
+  const protocol = getProtocol(event);
+  protocol.revenueStreamRemainingScaled = event.params.remainingScaled;
+  protocol.revenueStreamRateScaled = event.params.rateScaled;
+  protocol.revenueStreamLastUpdate = event.block.timestamp;
+  protocol.revenueStreamFinish = event.params.finish;
+  protocol.save();
+
+  const record = recordEvent(event, 'RESONANCE_REVENUE_STREAM_SCHEDULED');
+  record.values = [event.params.amount, event.params.remainingScaled, event.params.rateScaled, event.params.finish];
   record.save();
 }
 

@@ -229,7 +229,10 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
         address actor = _actor(actorSeed);
         Strategy strategy = Strategy(strategies[_bound(strategySeed, 0, strategies.length - 1)]);
-        if (strategy.availableRevenue() == 0) return;
+        if (strategy.availableRevenue() == 0) {
+            if (!resonance.isStrategyAlive(address(strategy))) return;
+            if (resonance.pendingRevenue(address(strategy)) == 0) return;
+        }
 
         uint256 price = strategy.currentPrice();
         IERC20 payment = strategy.paymentToken();

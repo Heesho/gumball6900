@@ -13,6 +13,10 @@ import { FeeOnTransferToken, MockERC20 } from "./utils/Tokens.sol";
 contract StubResonance {
     mapping(address strategy => address router) public bribeRouterFor;
 
+    function distribute(address) external pure returns (uint256 amount) {
+        return 0;
+    }
+
     function setBribeRouter(address strategy, address router) external {
         bribeRouterFor[strategy] = router;
     }
@@ -285,7 +289,24 @@ contract StrategyTest is ProtocolFixture {
         assertEq(resonance.unaccountedRevenue(), 50_000_000);
         resonance.syncRevenue();
         assertEq(resonance.unaccountedRevenue(), 0);
+        assertEq(resonance.revenueStreamRemainingScaled(), 50_000_000 * resonance.INDEX_PRECISION());
+
+        _finishRevenueStream();
         assertEq(resonance.fundRevenueLiability(), 50_000_000);
+    }
+
+    function test_BuyAtomicallyIncludesRevenueReleasedThroughTheCurrentTimestamp() external {
+        _stake(ALICE, 100 ether);
+        _signalOne(ALICE, address(targetStrategy));
+        _routeRevenue(604_800);
+
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(CAROL);
+        targetStrategy.buy(CAROL, 0, block.timestamp, type(uint256).max);
+
+        assertEq(usdg.balanceOf(CAROL), 86_400);
+        assertEq(resonance.revenueStreamRemainingScaled(), 518_400 * resonance.INDEX_PRECISION());
+        assertEq(targetStrategy.epochId(), 1);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -25,13 +25,14 @@ The protocol has five recurring actions:
 
 1. A participant takes a mining slot at its current USDG price.
 2. The incumbent accrues GBX continuously at the rate fixed when that tenure began.
-3. Mining revenue routes through Resonance according to current sGBX signals.
-4. Strategies exchange accumulated USDG for their configured payment assets, which become Fund liabilities.
+3. Mining revenue enters a seven-day Resonance stream whose elapsed flow follows current sGBX signals.
+4. Strategies atomically pull released USDG and exchange their accumulated balance for configured payment assets,
+   which become Fund liabilities.
 5. A GBX holder may burn GBX for selected Fund assets in kind.
 
 ```text
 slot replacement -> 80% displaced miner
-                -> 20% ResonanceRouter -> Resonance -> Strategies -> Fund
+                -> 20% ResonanceRouter -> Resonance stream -> Strategies -> Fund
 
 GBX -> sGBX -> live signals ------------------------------^
 GBX burn -> selected Fund assets -> redeemer
@@ -115,10 +116,22 @@ claim is permanently left for remaining GBX holders.
 Staking GBX mints sGBX one-for-one. sGBX is non-transferable. A holder may add or remove absolute signal amounts for
 individual active Strategies at any time and immediately withdraw any unallocated sGBX balance.
 
-Resonance distributes routed USDG according to current signals. Signals steer future flow; they do not force Fund to
-sell past holdings or maintain a target portfolio. A Strategy's complete payment becomes a fixed Fund liability.
-Independently funded Bribes may reward signalers, with at most eight append-only reward tokens per Bribe. Strategy
-auction proceeds never fund Bribes.
+Resonance schedules routed USDG into one global stream with rolling seven-day periods. Each signal mutation first
+checkpoints the elapsed interval under the old weights, so a signal moved now affects later flow without a lock,
+cooldown, or voting epoch. A Strategy purchase checkpoints and pulls its released share before reading auction
+inventory. Consequently, signaling a thin Strategy, routing new mining USDG, and filling its stale cheap auction in one
+transaction cannot capture that new USDG: no stream time has elapsed.
+
+The stream uses `1e18` scaled USDG-per-second accounting, which keeps six-decimal USDG smooth. New revenue may be
+notified at any time, but ResonanceRouter holds its complete balance until it is at least 604,800 raw units (`0.6048
+USDG`) and strictly greater than the whole USDG left in the current stream. Once eligible, it combines with the
+remainder and resets a fresh seven-day period. Time can clear the declining remainder gate; only added USDG can clear
+the absolute minimum. Settlement is lazy—ordinary signal, distribution, purchase, notification, and Fund-payment calls
+materialize elapsed flow—so the protocol needs no per-second keeper.
+
+Signals steer future flow; they do not force Fund to sell past holdings or maintain a target portfolio. A Strategy's
+complete payment becomes a fixed Fund liability. Independently funded Bribes may reward signalers, with at most eight
+append-only reward tokens per Bribe. Strategy auction proceeds never fund Bribes.
 
 ## 7. Genesis liquidity
 
@@ -147,7 +160,8 @@ contract has a proxy, general executor, pause switch, rescue function, emission 
 - A miner can be replaced at any time and is not guaranteed an 80% successor payment.
 - Capacity expansion temporarily raises aggregate issuance under the fixed-tenure fairness rule.
 - A bad immutable deployment or token dependency cannot be repaired by governance.
-- Permissionless signaling permits rapid allocation movement and timing strategies.
+- Permissionless signaling permits rapid allocation movement, but only stream time held at a weight earns new flow;
+  existing Strategy inventory and sub-index carry still have timing considerations.
 - Broken or blocklisting tokens can block their own payout paths.
 - Fund assets omitted from redemption remain permanently for the post-redemption supply.
 - The protocol has not received an independent audit, and Farplace/give.fun/Liquid Signal provenance remains legally

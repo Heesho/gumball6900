@@ -8,7 +8,7 @@
 
 > **buildIndexPendingRevenue**(`resonance`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Attempts to advance Resonance's sub-index carry without requiring another notification.
+Checkpoints elapsed stream revenue and attempts to advance Resonance's sub-index carry.
 
 ## Parameters
 

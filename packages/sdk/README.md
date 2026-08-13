@@ -17,12 +17,14 @@ import {
   buildRedemption,
   buildStrategyBuy,
   readMineSlotView,
+  readResonanceView,
   readRedemptionPreview,
   readSupplyView,
 } from '@gumball-6900/sdk';
 
 const supply = await readSupplyView(publicClient, gbx);
 const slot = await readMineSlotView(publicClient, mine, 0n, beneficiary);
+const resonanceState = await readResonanceView(publicClient, resonance);
 const occupy = buildMine({
   mine,
   beneficiary,
@@ -45,3 +47,8 @@ the global rate that a future handoff will divide by current capacity; it must n
 
 Every composed reader pins its RPC calls to one block and revalidates that block before returning. Generated ABIs and
 API docs are updated by repository scripts and must not be edited by hand.
+
+`readResonanceView` includes the scaled live rate, scheduled remainder, whole-unit remainder, notification minimum,
+finish, last checkpoint, and currently releasable amount. Strategy raw balances alone omit
+released-but-not-yet-transferred stream revenue. `buildRouteRevenue` may succeed with a zero return while an
+insufficient balance remains in ResonanceRouter.

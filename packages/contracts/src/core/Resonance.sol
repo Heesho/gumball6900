@@ -4,6 +4,7 @@ pragma solidity 0.8.26;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { Bribe } from "./Bribe.sol";
@@ -14,15 +15,21 @@ import { StrategyFactory } from "./StrategyFactory.sol";
 
 /// @title GumBall6900 Signal-Directed Revenue Allocator
 /// @author Heesho
-/// @notice Lets SignalGBX holders direct USDG revenue to Strategies and receive independently funded Bribe rewards.
-/// @dev Adapted from Liquid Signal Governance. Explicit scaled carry preserves every received USDG unit without a
-///      global Strategy loop, while fixed-destination Fund liabilities keep signal exits independent of token transfers.
+/// @notice Streams USDG to Strategies according to live SignalGBX allocations and accounts for independent Bribes.
+/// @dev Adapted from Liquid Signal Governance. Revenue is released lazily over rolling seven-day periods, and every
+///      signal mutation first checkpoints elapsed revenue at the prior weights. A qualifying notification combines with
+///      unreleased revenue and resets the period. Scaled carry preserves every received USDG unit without a global
+///      Strategy loop, while fixed-destination Fund liabilities keep signal exits independent of transfers.
 /// @custom:version 1.0.0
 contract Resonance is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
     /// @notice Fixed-point precision for indexed USDG revenue.
     uint256 public constant INDEX_PRECISION = 1e18;
+    /// @notice Exact duration of each USDG revenue period.
+    uint256 public constant REVENUE_STREAM_DURATION = 7 days;
+    /// @notice Smallest raw USDG amount that may reset the stream, matching the legacy Bribe duration guard.
+    uint256 public constant MIN_REVENUE_AMOUNT = REVENUE_STREAM_DURATION;
     /// @notice Non-transferable staking receipt used as current signal power.
     IERC20 public immutable signalGBX;
     /// @notice Revenue token distributed among Strategies.
@@ -78,6 +85,16 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @notice Total signal weight currently allocated by an account.
     mapping(address account => uint256 signalWeight) public accountSignalWeight;
 
+    // Appended after the account mappings to preserve their pinned storage slots in deployment tooling and tests.
+    /// @notice Current USDG release rate, expressed as scaled USDG units per second.
+    uint256 public revenueStreamRateScaled;
+    /// @notice Scaled USDG received but not yet released into signal-weight accounting.
+    uint256 public revenueStreamRemainingScaled;
+    /// @notice Timestamp through which the current stream has been checkpointed.
+    uint256 public revenueStreamLastUpdate;
+    /// @notice Timestamp by which the current scheduled balance will be fully released.
+    uint256 public revenueStreamFinish;
+
     /// @notice Emitted when governance registers another reward token on a Strategy's Bribe.
     /// @param strategy Strategy whose Bribe was updated.
     /// @param bribe Bribe that accepted the reward token.
@@ -88,14 +105,24 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @param strategy Strategy that received USDG.
     /// @param amount Amount distributed.
     event RevenueDistributed(address indexed caller, address indexed strategy, uint256 amount);
-    /// @notice Emitted when ResonanceRouter supplies newly routed USDG.
+    /// @notice Emitted when ResonanceRouter supplies newly routed USDG for streaming.
     /// @param resonanceRouter Authorized router that supplied USDG.
-    /// @param amount Amount received and indexed.
+    /// @param amount Amount received and scheduled.
     event RevenueNotified(address indexed resonanceRouter, uint256 amount);
     /// @notice Emitted when direct USDG already held by Resonance is incorporated into protocol accounting.
     /// @param caller Account that triggered synchronization.
     /// @param amount Previously unaccounted USDG incorporated.
     event RevenueSynced(address indexed caller, uint256 amount);
+    /// @notice Emitted when elapsed stream revenue enters signal-weight accounting.
+    /// @param releasedScaled Revenue released, expressed in `INDEX_PRECISION`.
+    /// @param remainingScaled Revenue still scheduled, expressed in `INDEX_PRECISION`.
+    event RevenueStreamCheckpointed(uint256 releasedScaled, uint256 remainingScaled);
+    /// @notice Emitted whenever a qualifying notification starts or resets the seven-day revenue period.
+    /// @param amount Whole USDG units newly added.
+    /// @param remainingScaled Total unreleased revenue after the reset, expressed in `INDEX_PRECISION`.
+    /// @param rateScaled Release rate for the period, expressed as scaled USDG units per second.
+    /// @param finish Timestamp at which the period completes.
+    event RevenueStreamScheduled(uint256 amount, uint256 remainingScaled, uint256 rateScaled, uint256 finish);
     /// @notice Emitted when whole-token revenue becomes irrevocably payable to Fund.
     /// @param amount Newly accrued Fund entitlement.
     /// @param totalLiability Complete Fund entitlement after accrual.
@@ -154,6 +181,10 @@ contract Resonance is ReentrancyGuard, Ownable {
     error RevenueBalanceDeficit(uint256 accounted, uint256 actual);
     /// @notice Scaling an observed USDG balance would overflow internal accounting precision.
     error RevenueScaleOverflow(uint256 balance);
+    /// @notice A notification is too small to clear the legacy raw-unit stream threshold.
+    error RevenueBelowMinimum(uint256 amount, uint256 minimum);
+    /// @notice A notification does not exceed the whole USDG still unreleased by the active stream.
+    error RevenueBelowRemaining(uint256 amount, uint256 remaining);
     /// @notice A required deployment or binding address is zero.
     error ZeroAddress();
     /// @notice A requested signal or revenue amount is zero.
@@ -244,11 +275,13 @@ contract Resonance is ReentrancyGuard, Ownable {
         }
     }
 
-    /// @notice Pulls USDG from ResonanceRouter and adds it to the global revenue index.
-    /// @param amount Amount of USDG to pull and index.
+    /// @notice Pulls qualifying USDG from ResonanceRouter and starts or resets the rolling seven-day stream.
+    /// @dev The router retains amounts that are below the minimum or do not exceed currently unreleased revenue.
+    /// @param amount Amount of USDG to pull and schedule.
     function notifyRevenue(uint256 amount) external nonReentrant {
         if (msg.sender != resonanceRouter) revert UnauthorizedRevenueSource(msg.sender);
         if (amount == 0) revert ZeroAmount();
+        _requireRevenueReady(amount);
 
         uint256 balanceBefore = usdg.balanceOf(address(this));
         usdg.safeTransferFrom(msg.sender, address(this), amount);
@@ -257,12 +290,12 @@ contract Resonance is ReentrancyGuard, Ownable {
 
         accountedRevenueBalance += amount;
         _requireScalableBalance();
-        _classifyRevenue(amount);
+        _scheduleRevenue(amount);
 
         emit RevenueNotified(msg.sender, amount);
     }
 
-    /// @notice Incorporates direct USDG donations into the same carry-forward accounting used by routed revenue.
+    /// @notice Incorporates direct USDG donations into the same seven-day stream used by routed revenue.
     /// @dev A negative balance delta is unsupported and fails visibly instead of corrupting stored liabilities.
     /// @return amount Newly synchronized USDG.
     function syncRevenue() external nonReentrant returns (uint256 amount) {
@@ -270,12 +303,13 @@ contract Resonance is ReentrancyGuard, Ownable {
         uint256 accounted = accountedRevenueBalance;
         if (actualBalance < accounted) revert RevenueBalanceDeficit(accounted, actualBalance);
 
-        amount = actualBalance - accounted;
-        if (amount == 0) return 0;
+        uint256 candidate = actualBalance - accounted;
+        if (candidate == 0 || !canNotifyRevenue(candidate)) return 0;
+        amount = candidate;
 
         accountedRevenueBalance = actualBalance;
         _requireScalableBalance();
-        _classifyRevenue(amount);
+        _scheduleRevenue(amount);
 
         emit RevenueSynced(msg.sender, amount);
     }
@@ -284,7 +318,7 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @dev Permissionless progress lets carried revenue become reachable without waiting for another notification.
     /// @return indexDelta Increment added to `revenueIndex`, or zero while the carry remains sub-threshold.
     function indexPendingRevenue() external returns (uint256 indexDelta) {
-        indexDelta = _indexPendingRevenue();
+        indexDelta = _checkpointRevenue();
     }
 
     /// @notice Distributes currently claimable revenue to every Strategy.
@@ -296,7 +330,7 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @param strategy Strategy whose index checkpoint should advance.
     function updateStrategy(address strategy) external {
         if (!isStrategy[strategy]) revert StrategyNotFound(strategy);
-        _indexPendingRevenue();
+        _checkpointRevenue();
         _updateStrategy(strategy);
     }
 
@@ -357,7 +391,7 @@ contract Resonance is ReentrancyGuard, Ownable {
         if (!isStrategy[strategy]) revert StrategyNotFound(strategy);
         if (!isStrategyAlive[strategy]) revert StrategyAlreadyDead(strategy);
 
-        _indexPendingRevenue();
+        _checkpointRevenue();
         _updateStrategy(strategy);
 
         uint256 amount = claimableRevenue[strategy];
@@ -406,12 +440,41 @@ contract Resonance is ReentrancyGuard, Ownable {
 
         uint256 previewIndex = revenueIndex;
         uint256 weightTotal = totalSignalWeight;
-        if (weightTotal != 0) previewIndex += pendingRevenueScaled / weightTotal;
+        if (weightTotal != 0) {
+            uint256 previewPendingScaled = pendingRevenueScaled + releasableRevenueScaled();
+            previewIndex += previewPendingScaled / weightTotal;
+        }
 
         uint256 weight = strategySignalWeight[strategy];
         uint256 scaled = strategyRevenueRemainder[strategy];
         if (weight != 0) scaled += weight * (previewIndex - strategyRevenueIndex[strategy]);
         return scaled / INDEX_PRECISION;
+    }
+
+    /// @notice Returns the scaled USDG that a checkpoint at the current timestamp would release.
+    /// @return releasedScaled Releasable amount expressed in `INDEX_PRECISION`.
+    function releasableRevenueScaled() public view returns (uint256 releasedScaled) {
+        uint256 remainingScaled = revenueStreamRemainingScaled;
+        uint256 lastUpdate = revenueStreamLastUpdate;
+        if (remainingScaled == 0 || block.timestamp <= lastUpdate) return 0;
+        if (block.timestamp >= revenueStreamFinish) return remainingScaled;
+        return revenueStreamRateScaled * (block.timestamp - lastUpdate);
+    }
+
+    /// @notice Returns whole USDG still unreleased by the live stream at the current timestamp.
+    /// @dev Floors sub-base-unit scaled carry, matching the legacy Bribe `left()` comparison.
+    /// @return amount Whole USDG still unreleased.
+    function leftRevenue() public view returns (uint256 amount) {
+        uint256 remainingScaled = revenueStreamRemainingScaled - releasableRevenueScaled();
+        return remainingScaled / INDEX_PRECISION;
+    }
+
+    /// @notice Returns whether `amount` may currently reset the stream.
+    /// @dev ResonanceRouter uses this view to retain insufficient USDG without reverting Mine or fee-harvest calls.
+    /// @param amount Candidate raw USDG amount.
+    /// @return ready Whether the candidate clears both anti-grief thresholds.
+    function canNotifyRevenue(uint256 amount) public view returns (bool ready) {
+        return amount >= MIN_REVENUE_AMOUNT && amount > leftRevenue();
     }
 
     /// @notice Transfers a Strategy's indexed USDG allocation to that Strategy.
@@ -420,7 +483,7 @@ contract Resonance is ReentrancyGuard, Ownable {
     function distribute(address strategy) public nonReentrant returns (uint256 amount) {
         if (!isStrategy[strategy]) revert StrategyNotFound(strategy);
 
-        _indexPendingRevenue();
+        _checkpointRevenue();
         _updateStrategy(strategy);
         amount = claimableRevenue[strategy];
         if (amount == 0) return 0;
@@ -437,7 +500,7 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @dev State is cleared before interaction; a transfer failure atomically restores the full liability.
     /// @return amount USDG paid to Fund.
     function payFundRevenue() external nonReentrant returns (uint256 amount) {
-        _indexPendingRevenue();
+        _checkpointRevenue();
         amount = fundRevenueLiability;
         if (amount == 0) return 0;
 
@@ -482,7 +545,7 @@ contract Resonance is ReentrancyGuard, Ownable {
         uint256 available = signalGBX.balanceOf(account) - allocated;
         if (amount > available) revert InsufficientUnallocatedSignal(available, amount);
 
-        _indexPendingRevenue();
+        _checkpointRevenue();
         _updateStrategy(strategy);
 
         uint256 previousSignal = accountSignals[account][strategy];
@@ -511,7 +574,7 @@ contract Resonance is ReentrancyGuard, Ownable {
         uint256 previousSignal = accountSignals[account][strategy];
         if (amount > previousSignal) revert InsufficientSignal(strategy, previousSignal, amount);
 
-        _indexPendingRevenue();
+        _checkpointRevenue();
         _updateStrategy(strategy);
 
         uint256 remainingSignal = previousSignal - amount;
@@ -571,16 +634,53 @@ contract Resonance is ReentrancyGuard, Ownable {
         }
     }
 
-    /// @notice Classifies newly accounted whole USDG as Fund-bound or as scaled index carry.
+    /// @notice Combines newly received USDG with unreleased revenue and resets the period to seven days.
+    /// @dev ResonanceRouter only calls after its balance clears the minimum and remaining-revenue guards.
     /// @param amount Whole USDG units newly entering accounting.
-    function _classifyRevenue(uint256 amount) private {
-        if (totalSignalWeight == 0) {
-            _accrueFundRevenue(amount);
-            return;
+    function _scheduleRevenue(uint256 amount) private {
+        _checkpointRevenue();
+
+        uint256 remainingScaled = revenueStreamRemainingScaled + (amount * INDEX_PRECISION);
+        uint256 rateScaled = Math.ceilDiv(remainingScaled, REVENUE_STREAM_DURATION);
+
+        revenueStreamRateScaled = rateScaled;
+        revenueStreamRemainingScaled = remainingScaled;
+        revenueStreamLastUpdate = block.timestamp;
+        revenueStreamFinish = block.timestamp + REVENUE_STREAM_DURATION;
+
+        emit RevenueStreamScheduled(amount, remainingScaled, rateScaled, revenueStreamFinish);
+    }
+
+    /// @notice Releases elapsed stream revenue and indexes it against the signal weights active during that interval.
+    /// @return indexDelta Increment applied to the global revenue index.
+    function _checkpointRevenue() private returns (uint256 indexDelta) {
+        uint256 releasedScaled = releasableRevenueScaled();
+        if (releasedScaled != 0) {
+            uint256 remainingScaled = revenueStreamRemainingScaled - releasedScaled;
+            revenueStreamRemainingScaled = remainingScaled;
+            revenueStreamLastUpdate = block.timestamp;
+            pendingRevenueScaled += releasedScaled;
+
+            if (remainingScaled == 0) {
+                revenueStreamRateScaled = 0;
+                revenueStreamLastUpdate = 0;
+                revenueStreamFinish = 0;
+            }
+
+            emit RevenueStreamCheckpointed(releasedScaled, remainingScaled);
         }
 
-        pendingRevenueScaled += amount * INDEX_PRECISION;
-        _indexPendingRevenue();
+        indexDelta = _indexPendingRevenue();
+    }
+
+    /// @notice Reverts unless a notification clears both legacy anti-grief thresholds.
+    /// @param amount Candidate raw USDG amount.
+    function _requireRevenueReady(uint256 amount) private view {
+        uint256 minimum = MIN_REVENUE_AMOUNT;
+        if (amount < minimum) revert RevenueBelowMinimum(amount, minimum);
+
+        uint256 remaining = leftRevenue();
+        if (amount <= remaining) revert RevenueBelowRemaining(amount, remaining);
     }
 
     /// @notice Converts as much scaled carry as possible into the current weight index without looping Strategies.

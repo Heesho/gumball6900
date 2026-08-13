@@ -12,13 +12,15 @@ burned for caller-selected Fund assets.
 1. A user replaces an hourly Mine slot. If a miner is displaced, 80% of the USDG payment becomes their claim and 20%
    routes to Resonance. An empty slot routes 100% to Resonance.
 2. The slot miner continuously accrues GBX at a rate fixed for that complete tenure.
-3. GBX holders stake one-for-one into non-transferable SignalGBX and direct Resonance revenue among active Strategies.
-4. A Strategy buyer receives its USDG and pays the asset that Strategy acquires; the complete payment becomes a Fund
+3. GBX holders stake one-for-one into non-transferable SignalGBX and direct Resonance's seven-day USDG stream among
+   active Strategies. Signal changes checkpoint elapsed flow first; there is no signal lock or epoch.
+4. A Strategy buyer atomically pulls its released USDG, receives the complete Strategy balance, and pays the asset that
+   Strategy acquires; the complete payment becomes a Fund
    liability.
 5. A GBX holder burns tokens to redeem a proportional share of caller-selected Fund assets.
 
 ```text
-replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance -> Strategies
+replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance --7-day stream--> Strategies
                          \--80%--> displaced miner
 Mine -> continuous GBX
 SignalGBX ---------------------------> allocation weights
@@ -69,8 +71,8 @@ There is no proxy, pause switch, treasury sweep, arbitrary call path, successor,
 | `GBX`               | Genesis allocation, permanent Mine authority, cumulative mint/burn accounting, permits, votes.    |
 | `Mine`              | Hourly multislot handoffs, continuous tenure-locked GBX accrual, 80/20 USDG split, positive tail. |
 | `SignalGBX`         | Non-transferable one-for-one staked GBX with immediately withdrawable unallocated balance.        |
-| `ResonanceRouter`   | Permissionless USDG pass-through into Resonance.                                                  |
-| `Resonance`         | Signal accounting, revenue distribution, Strategy and Bribe administration.                       |
+| `ResonanceRouter`   | Holds USDG until the anti-grief thresholds permit a permissionless stream reset.                  |
+| `Resonance`         | Signal accounting, seven-day USDG streaming, Strategy and Bribe administration.                   |
 | `Strategy`          | Reverse Dutch acquisition auction.                                                                |
 | `BribeRouter`       | Fixed complete Strategy-payment liability to Fund.                                                |
 | `Bribe`             | Up to eight independently funded reward streams for signalers.                                    |
@@ -103,7 +105,8 @@ pnpm build
 
 Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
 [emissions](docs/EMISSIONS.md), [access control](docs/ACCESS_CONTROL.md), and
-[ADR 0024](docs/adr/0024-immutable-multislot-mine.md).
+[ADR 0024](docs/adr/0024-immutable-multislot-mine.md), and
+[ADR 0025](docs/adr/0025-global-revenue-stream.md).
 
 ## Provenance
 

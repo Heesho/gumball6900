@@ -10,9 +10,10 @@ import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
 
 /// @title GumBall6900 Permissionless Revenue Router
 /// @author Heesho
-/// @notice Collects USDG revenue and forwards it to Resonance for allocation among Strategies.
-/// @dev Adapted from Liquid Signal Governance's RevenueRouter. Routing is permissionless so directly transferred USDG
-///      cannot become stuck or depend on a privileged keeper.
+/// @notice Collects USDG revenue and forwards qualifying balances into Resonance's global
+///         Strategy-allocation stream.
+/// @dev Adapted from Liquid Signal Governance's RevenueRouter. Insufficient balances remain here until more USDG arrives
+///      or the live stream's remaining revenue decays below the pending balance. Any caller may retry permissionlessly.
 /// @custom:version 1.0.0
 contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -26,6 +27,11 @@ contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
     /// @param caller Account that triggered routing.
     /// @param amount Amount of USDG routed.
     event RevenueRouted(address indexed caller, uint256 amount);
+    /// @notice Emitted when the complete router balance remains below Resonance's current notification thresholds.
+    /// @param caller Account that attempted routing.
+    /// @param amount USDG retained for a later attempt.
+    /// @param remaining Whole USDG still unreleased by Resonance's active stream.
+    event RevenueHeld(address indexed caller, uint256 amount, uint256 remaining);
 
     /// @notice Routing was requested while no USDG was held.
     error NoRevenue();
@@ -47,14 +53,22 @@ contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
         resonance = resonance_;
     }
 
-    /// @notice Routes the complete USDG balance to Resonance.
-    /// @return amount Amount delivered to Resonance in this call.
+    /// @notice Routes the complete USDG balance when it clears Resonance's anti-grief thresholds.
+    /// @return amount Amount delivered, or zero while an insufficient balance remains held.
     function route() external override nonReentrant returns (uint256 amount) {
-        amount = usdg.balanceOf(address(this));
-        if (amount == 0) revert NoRevenue();
+        uint256 pending = usdg.balanceOf(address(this));
+        if (pending == 0) revert NoRevenue();
+
+        ICoreResonance target = ICoreResonance(resonance);
+        if (!target.canNotifyRevenue(pending)) {
+            emit RevenueHeld(msg.sender, pending, target.leftRevenue());
+            return 0;
+        }
+
+        amount = pending;
 
         usdg.forceApprove(resonance, amount);
-        ICoreResonance(resonance).notifyRevenue(amount);
+        target.notifyRevenue(amount);
         usdg.forceApprove(resonance, 0);
 
         uint256 retained = usdg.balanceOf(address(this));

@@ -37,7 +37,8 @@ contract MineTest is ProtocolFixture {
         assertEq(mine.totalClaimable(), 0);
         assertEq(usdg.balanceOf(address(mine)), 0);
         assertEq(usdg.balanceOf(address(resonance)), paid);
-        assertEq(resonance.fundRevenueLiability(), paid);
+        assertEq(resonance.fundRevenueLiability(), 0);
+        assertEq(resonance.revenueStreamRemainingScaled(), paid * resonance.INDEX_PRECISION());
 
         Mine.Slot memory slot = mine.getSlot(0);
         assertEq(slot.miner, ALICE);
@@ -58,7 +59,8 @@ contract MineTest is ProtocolFixture {
         assertEq(mine.claimable(ALICE), 800_000);
         assertEq(mine.totalClaimable(), 800_000);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
-        assertEq(usdg.balanceOf(address(resonance)), 1_200_000);
+        assertEq(usdg.balanceOf(address(resonance)), 1_000_000);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 200_000, "sub-minimum share waits in the router");
     }
 
     function test_ClaimIsPermissionlessButAlwaysPaysTheDisplacedMiner() external {
@@ -252,7 +254,11 @@ contract MineTest is ProtocolFixture {
         uint256 price = mine.price(0);
         _mine(BOB, 0);
 
-        assertEq(mine.claimable(ALICE) + (usdg.balanceOf(address(resonance)) - 1e6), price);
+        assertEq(
+            mine.claimable(ALICE) + (usdg.balanceOf(address(resonance)) - 1e6)
+                + usdg.balanceOf(address(resonanceRouter)),
+            price
+        );
         assertEq(mine.claimable(ALICE), price * 8_000 / 10_000);
     }
 

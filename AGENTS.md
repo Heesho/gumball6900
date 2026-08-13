@@ -15,7 +15,7 @@ authorized for user funds. A green local build is engineering evidence, never a 
 
 ## Revenue, signaling, and acquisitions
 
-- Mining revenue follows `Mine -> ResonanceRouter -> Resonance -> Strategy`. On a nonempty-slot replacement, 80% of
+- Mining revenue follows `Mine -> ResonanceRouter -> Resonance seven-day stream -> Strategy`. On a nonempty-slot replacement, 80% of
   the USDG payment becomes a pull claim for the displaced miner and 20% routes to Resonance. The first occupation of
   an empty slot routes 100% to Resonance. There is no team fee.
 - GBX creates only 20 million tokens for the genesis-liquidity recipient. Deployment permanently hands its sole mint
@@ -31,9 +31,13 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - `SignalGBX` represents staked GBX. There is no staking withdrawal lock, signal cooldown, epoch restriction, or
   once-per-period allocation rule. Signals are absolute per-Strategy amounts changed by incremental deltas; a signaler
   may add or remove them at any time and may immediately withdraw any unallocated SignalGBX balance.
-- `Resonance` distributes received USDG among active Strategies according to current SignalGBX allocations. Strategy and
-  Bribe deployment follows the Liquid Signal shape: Resonance uses `StrategyFactory` and `BribeFactory`, and each Strategy
-  has a corresponding `BribeRouter` and `Bribe`.
+- `Resonance` holds received USDG in one global seven-day stream and allocates each elapsed interval among active
+  Strategies according to the SignalGBX weights active during that interval. Every signal change checkpoints elapsed
+  revenue before changing weights, and every Strategy purchase checkpoints and pulls that Strategy's released USDG.
+  ResonanceRouter holds USDG until its complete balance is at least 604,800 raw units and strictly exceeds the whole
+  USDG left in the active stream. A qualifying notification combines with the remaining stream and resets a fresh
+  seven-day period. Strategy and Bribe deployment follows the Liquid Signal shape: Resonance uses `StrategyFactory`
+  and `BribeFactory`, and each Strategy has a corresponding `BribeRouter` and `Bribe`.
 - Each Bribe may register at most eight append-only reward tokens. The cap is fixed in code and is not governable.
 - Every Strategy is the same bounded reverse Dutch acquisition mechanism. Its complete payment, regardless of token,
   becomes a fixed `Fund` liability through the paired `BribeRouter`; auction proceeds never fund `Bribe` rewards.
@@ -73,7 +77,7 @@ authorized for user funds. A green local build is engineering evidence, never a 
   through a zero-liquidity PositionManager decrease, verifies principal is unchanged, routes USDG through
   `ResonanceRouter`, and sends GBX to `Fund` for an atomic burn. Do not add caller funding, Permit2 approvals, a keeper
   role, an oracle, a swap, a fee split, a caller bounty, or a governance parameter to this mechanism.
-- Position fees are protocol revenue. Harvested USDG follows the normal `ResonanceRouter -> Resonance -> Strategy`
+- Position fees are protocol revenue. Harvested USDG follows the normal `ResonanceRouter -> Resonance stream -> Strategy`
   route, while harvested GBX is burned from Fund in the same harvest transaction.
 - The position NFT can never be withdrawn, to any receiver, by any caller. `LiquidityPosition` is ownerless and has no
   successor or migration path: once the precommitted NFT is accepted it stays there permanently.

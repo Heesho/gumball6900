@@ -8,7 +8,7 @@
 
 > **buildRouteRevenue**(`resonanceRouter`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Routes all USDG currently held by ResonanceRouter into Resonance.
+Attempts to route all USDG held by ResonanceRouter; insufficient balances remain held without reverting.
 
 ## Parameters
 

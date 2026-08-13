@@ -1,7 +1,7 @@
 import { type Address, type Hex, type PublicClient } from 'viem';
 import { describe, expect, it, vi } from 'vitest';
 
-import { readLiquidityPositionView, readMineSlotView, readStrategyView } from '../src/index.js';
+import { readLiquidityPositionView, readMineSlotView, readResonanceView, readStrategyView } from '../src/index.js';
 
 const address = (value: number): Address => `0x${value.toString(16).padStart(40, '0')}`;
 const BLOCK_NUMBER = 777n;
@@ -101,5 +101,48 @@ describe('Mine and liquidity reads', () => {
       ...values,
       blockNumber: BLOCK_NUMBER,
     });
+  });
+});
+
+describe('Resonance reads', () => {
+  it('returns the complete scheduled and released revenue state at one block', async () => {
+    const values: Readonly<Record<string, unknown>> = {
+      accountedRevenueBalance: 700n,
+      fundRevenueLiability: 0n,
+      indexedRevenueScaled: 20n,
+      leftRevenue: 560n,
+      MIN_REVENUE_AMOUNT: 604_800n,
+      pendingRevenueScaled: 30n,
+      releasableRevenueScaled: 40n,
+      revenueIndex: 5n,
+      REVENUE_STREAM_DURATION: 604_800n,
+      revenueStreamFinish: 2_600n,
+      revenueStreamLastUpdate: 2_000n,
+      revenueStreamRateScaled: 7n,
+      revenueStreamRemainingScaled: 600n,
+      strategies: [address(2)],
+      totalClaimableRevenue: 10n,
+      totalSignalWeight: 100n,
+      unaccountedRevenue: 0n,
+    };
+    const readContract = vi.fn(
+      async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
+    );
+    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
+    const client = { getBlock, readContract } as unknown as PublicClient;
+    const {
+      MIN_REVENUE_AMOUNT: minRevenueAmount,
+      REVENUE_STREAM_DURATION: revenueStreamDuration,
+      ...expected
+    } = values;
+
+    await expect(readResonanceView(client, address(1))).resolves.toEqual({
+      ...expected,
+      blockNumber: BLOCK_NUMBER,
+      minRevenueAmount,
+      revenueStreamDuration,
+    });
+    expect(getBlock).toHaveBeenCalledTimes(2);
+    for (const [request] of readContract.mock.calls) expect(request.blockNumber).toBe(BLOCK_NUMBER);
   });
 });

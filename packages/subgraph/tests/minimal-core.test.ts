@@ -3,10 +3,13 @@ import { assert, beforeEach, clearStore, describe, newMockEvent, test } from 'ma
 import { Burned, Minted } from '../generated/GBX/GBX';
 import { FeesHarvested } from '../generated/LiquidityPosition/LiquidityPosition';
 import { Claimed, EmissionCheckpointed, Mined, MinerPaymentAccrued } from '../generated/Mine/Mine';
+import { RevenueHeld } from '../generated/ResonanceRouter/ResonanceRouter';
 import {
   FundRevenueAccrued,
   FundRevenuePaid,
   RevenueSynced,
+  RevenueStreamCheckpointed,
+  RevenueStreamScheduled,
   SignalAdded,
   SignalRemoved,
   StrategyAdded,
@@ -15,10 +18,13 @@ import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
 import { handleFeesHarvested } from '../src/liquidity-position';
 import { handleClaimed, handleEmissionCheckpointed, handleMined, handleMinerPaymentAccrued } from '../src/mine';
+import { handleRevenueHeld } from '../src/resonance-router';
 import {
   handleFundRevenueAccrued,
   handleFundRevenuePaid,
   handleRevenueSynced,
+  handleRevenueStreamCheckpointed,
+  handleRevenueStreamScheduled,
   handleSignalAdded,
   handleSignalRemoved,
   handleStrategyAdded,
@@ -33,8 +39,11 @@ export {
   handleMined,
   handleMinerPaymentAccrued,
   handleMinted,
+  handleRevenueHeld,
   handleStrategyAdded,
   handleRevenueSynced,
+  handleRevenueStreamCheckpointed,
+  handleRevenueStreamScheduled,
   handleFundRevenueAccrued,
   handleFundRevenuePaid,
   handleSignalAdded,
@@ -180,6 +189,21 @@ describe('core protocol mappings', () => {
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'signalWeightRaw', '0');
   });
 
+  test('tracks router balances retained by the anti-grief thresholds', () => {
+    const held = changetype<RevenueHeld>(newMockEvent());
+    configureEvent(held, CONTRACT, 1);
+    held.parameters = new Array<ethereum.EventParam>();
+    held.parameters.push(addressParam('caller', USER));
+    held.parameters.push(uintParam('amount', 700_000));
+    held.parameters.push(uintParam('remaining', 1_036_800));
+    handleRevenueHeld(held);
+
+    assert.fieldEquals('ProtocolState', '4663', 'heldRevenueAttemptCount', '1');
+    assert.fieldEquals('ProtocolState', '4663', 'lastHeldRevenueRaw', '700000');
+    assert.fieldEquals('ProtocolState', '4663', 'lastHeldStreamRemainingRaw', '1036800');
+    assert.fieldEquals('ProtocolEvent', eventId(held), 'eventType', 'RESONANCE_REVENUE_HELD');
+  });
+
   test('tracks synchronized revenue and the retryable fixed Fund liability', () => {
     const synced = changetype<RevenueSynced>(newMockEvent());
     configureEvent(synced, CONTRACT, 1);
@@ -188,15 +212,31 @@ describe('core protocol mappings', () => {
     synced.parameters.push(uintParam('amount', 100));
     handleRevenueSynced(synced);
 
+    const scheduled = changetype<RevenueStreamScheduled>(newMockEvent());
+    configureEvent(scheduled, CONTRACT, 2);
+    scheduled.parameters = new Array<ethereum.EventParam>();
+    scheduled.parameters.push(uintParam('amount', 100));
+    scheduled.parameters.push(uintParam('remainingScaled', 1_000));
+    scheduled.parameters.push(uintParam('rateScaled', 10));
+    scheduled.parameters.push(uintParam('finish', 604_800));
+    handleRevenueStreamScheduled(scheduled);
+
+    const checkpointed = changetype<RevenueStreamCheckpointed>(newMockEvent());
+    configureEvent(checkpointed, CONTRACT, 3);
+    checkpointed.parameters = new Array<ethereum.EventParam>();
+    checkpointed.parameters.push(uintParam('releasedScaled', 400));
+    checkpointed.parameters.push(uintParam('remainingScaled', 600));
+    handleRevenueStreamCheckpointed(checkpointed);
+
     const accrued = changetype<FundRevenueAccrued>(newMockEvent());
-    configureEvent(accrued, CONTRACT, 2);
+    configureEvent(accrued, CONTRACT, 4);
     accrued.parameters = new Array<ethereum.EventParam>();
     accrued.parameters.push(uintParam('amount', 40));
     accrued.parameters.push(uintParam('totalLiability', 40));
     handleFundRevenueAccrued(accrued);
 
     const paid = changetype<FundRevenuePaid>(newMockEvent());
-    configureEvent(paid, CONTRACT, 3);
+    configureEvent(paid, CONTRACT, 5);
     paid.parameters = new Array<ethereum.EventParam>();
     paid.parameters.push(addressParam('caller', USER));
     paid.parameters.push(addressParam('fund', ASSET));
@@ -204,6 +244,11 @@ describe('core protocol mappings', () => {
     handleFundRevenuePaid(paid);
 
     assert.fieldEquals('ProtocolState', '4663', 'syncedRevenueRaw', '100');
+    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamReleasedScaled', '400');
+    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamRemainingScaled', '600');
+    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamRateScaled', '10');
+    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamLastUpdate', '1700000003');
+    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamFinish', '604800');
     assert.fieldEquals('ProtocolState', '4663', 'fundRevenueAccruedRaw', '40');
     assert.fieldEquals('ProtocolState', '4663', 'fundRevenuePaidRaw', '40');
     assert.fieldEquals('ProtocolState', '4663', 'pendingFundRevenueRaw', '0');

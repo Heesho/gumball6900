@@ -24,6 +24,14 @@ contract PartialPullResonance {
         pullBps = value;
     }
 
+    function canNotifyRevenue(uint256) external pure returns (bool ready) {
+        return true;
+    }
+
+    function leftRevenue() external pure returns (uint256 amount) {
+        return 0;
+    }
+
     function notifyRevenue(uint256 amount) external {
         uint256 pulled = (amount * pullBps) / 10_000;
         if (pulled != 0) usdg.transferFrom(msg.sender, address(this), pulled);
@@ -168,6 +176,7 @@ contract BribeRouterTest is Test {
 /// @notice Covers permissionless USDG forwarding and the retained-revenue guard.
 contract ResonanceRouterTest is ProtocolFixture {
     event RevenueRouted(address indexed caller, uint256 amount);
+    event RevenueHeld(address indexed caller, uint256 amount, uint256 remaining);
 
     function setUp() external {
         _deployProtocol();
@@ -208,13 +217,33 @@ contract ResonanceRouterTest is ProtocolFixture {
         assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
     }
 
+    function test_SubMinimumRevenueWaitsUntilTheRouterBalanceReachesTheThreshold() external {
+        usdg.mint(address(resonanceRouter), 100_000); // 0.10 USDG
+
+        vm.expectEmit(true, false, false, true);
+        emit RevenueHeld(KEEPER, 100_000, 0);
+        vm.prank(KEEPER);
+        assertEq(resonanceRouter.route(), 0);
+        assertEq(resonanceRouter.pendingRevenue(), 100_000);
+        assertEq(usdg.balanceOf(address(resonance)), 0);
+
+        usdg.mint(address(resonanceRouter), 504_800);
+        vm.prank(DAVE);
+        assertEq(resonanceRouter.route(), 604_800);
+        assertEq(resonanceRouter.pendingRevenue(), 0);
+        assertEq(resonance.revenueStreamRemainingScaled(), 604_800 * resonance.INDEX_PRECISION());
+    }
+
     function test_DirectlyTransferredRevenueIsNeverStuck() external {
         // Anyone can donate USDG to the router and anyone can flush it, with no keeper role involved.
         usdg.mint(address(resonanceRouter), 42_000_000);
         vm.prank(DAVE);
         resonanceRouter.route();
 
-        assertEq(resonance.fundRevenueLiability(), 42_000_000, "with no signals it becomes Fund backing");
+        assertEq(resonance.fundRevenueLiability(), 0, "new revenue starts scheduled");
+        vm.warp(block.timestamp + resonance.REVENUE_STREAM_DURATION());
+        resonance.indexPendingRevenue();
+        assertEq(resonance.fundRevenueLiability(), 42_000_000, "released zero-signal revenue becomes Fund backing");
     }
 
     function test_RouteRevertsIfResonanceLeavesRevenueBehind() external {
@@ -240,7 +269,9 @@ contract ResonanceRouterTest is ProtocolFixture {
         vm.prank(KEEPER);
         resonanceRouter.route();
 
-        assertEq(resonanceRouter.pendingRevenue(), 0);
-        assertEq(usdg.balanceOf(address(resonance)) + usdg.balanceOf(address(fund)), revenue);
+        assertEq(
+            resonanceRouter.pendingRevenue() + usdg.balanceOf(address(resonance)) + usdg.balanceOf(address(fund)),
+            revenue
+        );
     }
 }

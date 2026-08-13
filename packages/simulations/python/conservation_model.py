@@ -3,6 +3,14 @@
 from dataclasses import dataclass, field
 
 
+STREAM_DURATION = 7 * 24 * 60 * 60
+MIN_REVENUE_AMOUNT = STREAM_DURATION
+
+
+def ceil_div(value: int, divisor: int) -> int:
+    return 0 if value == 0 else (value - 1) // divisor + 1
+
+
 def exact_stream_emission(amount: int, duration: int, elapsed: int) -> int:
     if amount < 0 or elapsed < 0 or duration <= 0:
         raise ValueError("invalid stream input")
@@ -25,6 +33,11 @@ class RevenueConservationModel:
     indexed_scaled: int = 0
     fund_liability: int = 0
     accounted: int = 0
+    now: int = 0
+    stream_rate_scaled: int = 0
+    stream_remaining_scaled: int = 0
+    stream_last_update: int = 0
+    stream_finish: int = 0
 
     def __post_init__(self) -> None:
         if self.strategy_count <= 0 or self.precision <= 0:
@@ -49,14 +62,62 @@ class RevenueConservationModel:
     def notify(self, amount: int) -> None:
         if amount < 0:
             raise ValueError("amount must be non-negative")
+        if amount < MIN_REVENUE_AMOUNT:
+            raise ValueError("amount is below the stream-duration minimum")
+        remaining = self.left_revenue()
+        if amount <= remaining:
+            raise ValueError("amount does not exceed the active stream remainder")
+
+        self.checkpoint_revenue()
         self.accounted += amount
-        if self.total_weight == 0:
-            self.fund_liability += amount
-        else:
-            self.pending_scaled += amount * self.precision
+        combined_scaled = self.stream_remaining_scaled + amount * self.precision
+        self._start_stream(combined_scaled, self.now)
+
+    def left_revenue(self) -> int:
+        return (self.stream_remaining_scaled - self._releasable_scaled()) // self.precision
+
+    def can_notify(self, amount: int) -> bool:
+        return amount >= MIN_REVENUE_AMOUNT and amount > self.left_revenue()
+
+    def advance(self, seconds: int) -> None:
+        if seconds < 0:
+            raise ValueError("seconds must be non-negative")
+        self.now += seconds
+
+    def checkpoint_revenue(self) -> None:
+        released = self._releasable_scaled()
+        if released:
+            self.stream_remaining_scaled -= released
+            self.stream_last_update = self.now
+            self.pending_scaled += released
+            if self.stream_remaining_scaled == 0:
+                self._clear_stream()
         self.index_pending()
 
+    def _start_stream(self, amount_scaled: int, started_at: int) -> None:
+        self.stream_rate_scaled = ceil_div(amount_scaled, STREAM_DURATION)
+        self.stream_remaining_scaled = amount_scaled
+        self.stream_last_update = started_at
+        self.stream_finish = started_at + STREAM_DURATION
+
+    def _releasable_scaled(self) -> int:
+        if not self.stream_remaining_scaled or self.now <= self.stream_last_update:
+            return 0
+        if self.now >= self.stream_finish:
+            return self.stream_remaining_scaled
+        return self.stream_rate_scaled * (self.now - self.stream_last_update)
+
+    def _clear_stream(self) -> None:
+        self.stream_rate_scaled = 0
+        self.stream_remaining_scaled = 0
+        self.stream_last_update = 0
+        self.stream_finish = 0
+
     def checkpoint(self, strategy: int) -> None:
+        self.checkpoint_revenue()
+        self._update_strategy(strategy)
+
+    def _update_strategy(self, strategy: int) -> None:
         delta = self.revenue_index - self.strategy_index[strategy]
         self.strategy_index[strategy] = self.revenue_index
         newly_indexed = self.weights[strategy] * delta
@@ -71,8 +132,8 @@ class RevenueConservationModel:
     def set_weight(self, strategy: int, weight: int) -> None:
         if weight < 0:
             raise ValueError("weight must be non-negative")
-        self.index_pending()
-        self.checkpoint(strategy)
+        self.checkpoint_revenue()
+        self._update_strategy(strategy)
         prior = self.weights[strategy]
         self.weights[strategy] = weight
         self.total_weight += weight - prior
@@ -82,8 +143,8 @@ class RevenueConservationModel:
         self.index_pending()
 
     def kill(self, strategy: int) -> None:
-        self.index_pending()
-        self.checkpoint(strategy)
+        self.checkpoint_revenue()
+        self._update_strategy(strategy)
         self.fund_liability += self.claimable[strategy]
         self.claimable[strategy] = 0
         self.alive[strategy] = False
@@ -92,6 +153,7 @@ class RevenueConservationModel:
         return (
             self.pending_scaled
             + self.indexed_scaled
+            + self.stream_remaining_scaled
             + sum(self.remainders)
             + (sum(self.claimable) + self.fund_liability) * self.precision
         )

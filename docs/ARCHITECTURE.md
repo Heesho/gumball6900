@@ -3,7 +3,7 @@
 The active graph is direct, immutable, and deliberately small.
 
 ```text
-slot replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance -> Strategy
+slot replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance --7-day stream--> Strategy
                               \--80%--> displaced miner pull claim
 
 Mine --continuous GBX--> current slot miners
@@ -21,11 +21,16 @@ incumbents; newly filled slots divide the current global rate by current capacit
 Fund checkpoints all Mine slots before its redemption supply snapshot. This crystallizes pending GBX so a miner's
 earned but unminted balance cannot be excluded from the denominator. The complete checkpoint is bounded by 16 slots.
 
-Resonance distributes routed USDG using unrestricted absolute SignalGBX allocations. StrategyFactory and BribeFactory
-are bound once to Resonance. Each Strategy has a dedicated Bribe and BribeRouter; complete auction payments are fixed
-Fund liabilities, while Bribes receive only independently notified rewards.
+Resonance holds routed USDG in one global seven-day stream and uses unrestricted absolute SignalGBX allocations for
+each elapsed interval. Signal mutations checkpoint elapsed revenue before changing weights. A Strategy purchase also
+checkpoints and pulls its released allocation before reading the auction inventory. ResonanceRouter retains USDG until
+its balance is at least 604,800 raw units and strictly exceeds the whole USDG left in the active stream. A qualifying
+balance combines with that remainder and resets a fresh seven-day period. StrategyFactory and BribeFactory are bound
+once to Resonance. Each Strategy has a dedicated Bribe and BribeRouter; complete auction payments are fixed Fund
+liabilities, while Bribes receive only independently notified rewards.
 
 Fund is an ownerless raw-token treasury with caller-selected redemption arrays and no registry or migration path.
 LiquidityPosition permanently holds the precommitted, fixed-principal Uniswap v4 NFT.
 
-See [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md) and [ADR 0024](adr/0024-immutable-multislot-mine.md).
+See [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md), [ADR 0024](adr/0024-immutable-multislot-mine.md), and
+[ADR 0025](adr/0025-global-revenue-stream.md).

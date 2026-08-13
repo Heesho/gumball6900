@@ -2,9 +2,10 @@
 
 Date: 2026-08-12
 
-Status: the ADR 0024 Mine redesign is an uncommitted development candidate. Its current unit, invariant, integration,
-Hardhat, SDK, subgraph, simulation, and frontend campaigns pass, but it has not received the independent audit, full
-static re-disposition, mutation campaign, symbolic analysis, or release review required for deployment.
+Status: the ADR 0024 Mine redesign and ADR 0025 Resonance stream are an uncommitted development candidate. Their
+current unit, invariant, integration, Hardhat, SDK, subgraph, simulation, and frontend campaigns pass, but they have
+not received the independent audit, full static re-disposition, mutation campaign, symbolic analysis, or release
+review required for deployment.
 
 ## Current dispositions
 
@@ -17,6 +18,7 @@ static re-disposition, mutation campaign, symbolic analysis, or release review r
 | A-08 | Medium   | Liveness resolved; bounded cost retained                      | Bribe work remains capped at eight reward tokens.                                                                                 |
 | A-09 | Medium   | Open                                                          | Conserved scaled carry can cross a later signal-supply boundary.                                                                  |
 | A-10 | High     | Superseded design; current mechanism mitigates the same class | Fund checkpoints all Mine accrual before every redemption denominator snapshot.                                                   |
+| A-11 | High     | Resolved in development by ADR 0025                           | A same-transaction signal shift cannot buy newly routed USDG at a stale Strategy price.                                           |
 | M-01 | Economic | Accepted by ADR 0024                                          | Fixed-tenure fairness temporarily allows aggregate issuance above the current global rate after expansion or threshold crossings. |
 | M-02 | Economic | Accepted by ADR 0024                                          | A miner receives the 80% handoff amount only if a successor pays a nonzero replacement price.                                     |
 | M-03 | High     | Open release gate                                             | Incorrect permanent GBX minter handoff or immutable Mine configuration is unrecoverable.                                          |
@@ -42,6 +44,27 @@ the work is bounded.
 
 Disposition: mitigated in the current development candidate. Reopen if Fund stops checkpointing, a second issuer is
 introduced, pending accrual can be omitted, or checkpoint work becomes unbounded.
+
+## A-11 — atomic signal redirection into a stale cheap Strategy auction
+
+The prior immediate allocator let an account add a dominant signal to a thin Strategy, route fresh Mine revenue under
+that new weight, and fill the Strategy's already-decayed auction in one transaction. The new money could therefore be
+bought at a price established while the Strategy held almost no inventory.
+
+ADR 0025 places received USDG in one global seven-day stream. Signal mutations checkpoint elapsed revenue before
+changing weights, and `Strategy.buy` checkpoints released revenue before reading inventory. No stream time elapses
+between same-transaction operations, so the fill can acquire only inventory that predated the routed payment. The
+deterministic regression test is `test_SameTransactionSignalAndPurchaseCannotCaptureNewlyNotifiedRevenue`.
+
+The router also restores the historical Liquid Signal anti-grief boundary: its complete balance must be at least
+604,800 raw units and strictly exceed the active stream's whole-unit remainder. Insufficient USDG remains visible in
+ResonanceRouter and can be retried permissionlessly after more revenue arrives or the remainder decays. The relevant
+regressions are `test_SubMinimumRevenueWaitsUntilTheRouterBalanceReachesTheThreshold` and
+`test_RouterHoldsATopUpUntilItExceedsTheDecayingLiveBalance`.
+
+Disposition: resolved in the development candidate. Existing Strategy inventory can still be bought at its current
+price, and a signal held over real elapsed time earns future flow. Reopen if notification becomes immediately
+distributable, signal mutations stop checkpointing, or Strategy stops synchronizing before its inventory snapshot.
 
 ## M-01 — fixed-tenure fairness raises transitional aggregate issuance
 
@@ -84,7 +107,7 @@ capacity expansion, threshold timing, tail dilution, MEV, and thin GBX liquidity
 
 ## Evidence status
 
-- The current default Foundry campaign passes 303 tests. Its stateful suite passes 1,000 runs of 500 calls (500,000
+- The current default Foundry campaign passes 314 tests. Its stateful suite passes 1,000 runs of 500 calls (500,000
   transitions) with zero handler reverts. The integration profile passes 17 tests, including 256 randomized action
   sequences and real Uniswap v4 fee harvesting.
 - Hardhat parity, SDK, subgraph, independent TypeScript/Python simulations, frontend, formatting, lint, typecheck,

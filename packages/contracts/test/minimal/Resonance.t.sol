@@ -33,8 +33,14 @@ contract ResonanceTest is ProtocolFixture {
 
     function test_InitialStateMatchesTheDocumentedDefaults() external view {
         assertEq(resonance.INDEX_PRECISION(), 1e18);
+        assertEq(resonance.REVENUE_STREAM_DURATION(), 7 days);
+        assertEq(resonance.MIN_REVENUE_AMOUNT(), 604_800);
         assertEq(resonance.totalSignalWeight(), 0);
         assertEq(resonance.revenueIndex(), 0);
+        assertEq(resonance.revenueStreamRemainingScaled(), 0);
+        assertEq(resonance.revenueStreamRateScaled(), 0);
+        assertEq(resonance.revenueStreamLastUpdate(), 0);
+        assertEq(resonance.revenueStreamFinish(), 0);
         assertEq(resonance.strategies().length, 2);
     }
 
@@ -118,6 +124,7 @@ contract ResonanceTest is ProtocolFixture {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
 
         uint256 indexAtCreation = resonance.revenueIndex();
         assertGt(indexAtCreation, 0);
@@ -388,8 +395,150 @@ contract ResonanceTest is ProtocolFixture {
         resonance.notifyRevenue(0);
     }
 
+    function test_NotifyRevenueRejectsAnAmountBelowTheAntiGriefMinimum() external {
+        vm.prank(address(resonanceRouter));
+        vm.expectRevert(
+            abi.encodeWithSelector(Resonance.RevenueBelowMinimum.selector, uint256(604_799), uint256(604_800))
+        );
+        resonance.notifyRevenue(604_799);
+    }
+
+    function test_NotifyRevenueRejectsAnAmountThatDoesNotExceedTheLiveRemainder() external {
+        _routeRevenue(1_209_600);
+        vm.warp(block.timestamp + 1 days);
+
+        vm.prank(address(resonanceRouter));
+        vm.expectRevert(
+            abi.encodeWithSelector(Resonance.RevenueBelowRemaining.selector, uint256(700_000), uint256(1_036_800))
+        );
+        resonance.notifyRevenue(700_000);
+    }
+
+    function test_DirectDonationWaitsUnaccountedUntilItClearsTheMinimum() external {
+        usdg.mint(address(resonance), 100_000);
+        assertEq(resonance.syncRevenue(), 0);
+        assertEq(resonance.unaccountedRevenue(), 100_000);
+
+        usdg.mint(address(resonance), 504_800);
+        assertEq(resonance.syncRevenue(), 604_800);
+        assertEq(resonance.unaccountedRevenue(), 0);
+        assertEq(resonance.revenueStreamRemainingScaled(), 604_800 * resonance.INDEX_PRECISION());
+    }
+
+    function test_SixDecimalRevenueStreamsSmoothlyAndExactly() external {
+        _stake(ALICE, 100 ether);
+        _signalOne(ALICE, address(targetStrategy));
+
+        _routeRevenue(700_000); // 0.70 USDG clears the 0.6048 USDG notification minimum.
+        assertEq(resonance.pendingRevenue(address(targetStrategy)), 0);
+        assertEq(resonance.revenueStreamRemainingScaled(), 700_000 * resonance.INDEX_PRECISION());
+
+        vm.warp(block.timestamp + 3.5 days);
+        assertEq(resonance.distribute(address(targetStrategy)), 350_000);
+
+        vm.warp(block.timestamp + 3.5 days);
+        assertEq(resonance.distribute(address(targetStrategy)), 350_000);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 700_000);
+        assertEq(resonance.revenueStreamRemainingScaled(), 0);
+        assertEq(resonance.revenueStreamRateScaled(), 0);
+        assertEq(resonance.revenueStreamLastUpdate(), 0);
+        assertEq(resonance.accountedRevenueBalance(), 0);
+    }
+
+    function test_SignalMutationOnlyRedirectsRevenueReleasedAfterTheMutation() external {
+        _stake(ALICE, 100 ether);
+        _signalOne(ALICE, address(targetStrategy));
+
+        // An exact one-base-unit-per-second stream makes the interval split unambiguous.
+        _routeRevenue(604_800);
+        vm.warp(block.timestamp + 1 days);
+
+        _stake(BOB, 100 ether);
+        _signalOne(BOB, address(gbxStrategy));
+
+        vm.warp(block.timestamp + 6 days);
+        resonance.distributeAll();
+
+        assertEq(usdg.balanceOf(address(targetStrategy)), 345_600, "one day alone plus half of six days");
+        assertEq(usdg.balanceOf(address(gbxStrategy)), 259_200, "only half of the post-entry flow");
+    }
+
+    function test_RouterHoldsATopUpUntilItExceedsTheDecayingLiveBalance() external {
+        _stake(ALICE, 1 ether);
+        _signalOne(ALICE, address(targetStrategy));
+
+        _routeRevenue(1_209_600); // Exactly two raw USDG units per second.
+        assertEq(resonance.revenueStreamRateScaled(), 2 * resonance.INDEX_PRECISION());
+        uint256 firstFinish = resonance.revenueStreamFinish();
+
+        vm.warp(block.timestamp + 1 days);
+        usdg.mint(address(resonanceRouter), 700_000);
+        assertEq(resonanceRouter.route(), 0, "top-up remains below the live stream's 1.0368 USDG left");
+        assertEq(resonanceRouter.pendingRevenue(), 700_000);
+        assertEq(resonance.leftRevenue(), 1_036_800);
+        assertEq(resonance.revenueStreamFinish(), firstFinish);
+
+        vm.warp(block.timestamp + 2 days);
+        assertEq(resonance.leftRevenue(), 691_200);
+        assertEq(resonanceRouter.route(), 700_000, "the same balance qualifies after more stream decay");
+
+        uint256 combined = 1_391_200;
+        assertEq(resonanceRouter.pendingRevenue(), 0);
+        assertEq(resonance.revenueStreamRemainingScaled(), combined * resonance.INDEX_PRECISION());
+        assertEq(resonance.revenueStreamFinish(), block.timestamp + resonance.REVENUE_STREAM_DURATION());
+        assertEq(
+            resonance.revenueStreamRateScaled(),
+            Math.ceilDiv(combined * resonance.INDEX_PRECISION(), resonance.REVENUE_STREAM_DURATION())
+        );
+    }
+
+    function test_SameTransactionSignalAndPurchaseCannotCaptureNewlyNotifiedRevenue() external {
+        _stake(ALICE, 1 ether);
+        _signalOne(ALICE, address(gbxStrategy));
+        usdg.mint(address(targetStrategy), 100_000); // The pre-existing cheap-auction inventory.
+
+        vm.warp(DEPLOYED_AT + DEFAULT_EPOCH_DURATION);
+        assertEq(targetStrategy.currentPrice(), 0);
+
+        // Models the atomic attack: redirect signal, route a Mine payment, then fill the stale cheap auction.
+        _stake(BOB, 1_000_000 ether);
+        _signalOne(BOB, address(targetStrategy));
+        _routeRevenue(604_800);
+
+        vm.prank(BOB);
+        targetStrategy.buy(BOB, 0, block.timestamp, 0);
+
+        assertEq(usdg.balanceOf(BOB), 100_000, "the buyer receives only inventory held before the attack");
+        assertEq(resonance.revenueStreamRemainingScaled(), 604_800 * resonance.INDEX_PRECISION());
+        assertEq(usdg.balanceOf(address(resonance)), 604_800, "all newly routed revenue remains scheduled");
+    }
+
+    function testFuzz_QualifyingNotificationRollsLeftoverIntoAFreshSevenDays(
+        uint256 firstAmount,
+        uint256 topUp,
+        uint256 elapsed
+    ) external {
+        uint256 first = bound(firstAmount, resonance.MIN_REVENUE_AMOUNT(), 1e12);
+
+        _routeRevenue(first);
+        uint256 secondsElapsed = bound(elapsed, 1, resonance.REVENUE_STREAM_DURATION() - 1);
+        vm.warp(block.timestamp + secondsElapsed);
+
+        uint256 left = resonance.leftRevenue();
+        uint256 lower = left + 1 > resonance.MIN_REVENUE_AMOUNT() ? left + 1 : resonance.MIN_REVENUE_AMOUNT();
+        uint256 added = bound(topUp, lower, 1e15);
+        uint256 remainingScaled = resonance.revenueStreamRemainingScaled() - resonance.releasableRevenueScaled();
+        _routeRevenue(added);
+
+        uint256 combinedScaled = remainingScaled + added * resonance.INDEX_PRECISION();
+        assertEq(resonance.revenueStreamRemainingScaled(), combinedScaled);
+        assertEq(resonance.revenueStreamFinish(), block.timestamp + resonance.REVENUE_STREAM_DURATION());
+        assertEq(resonance.revenueStreamRateScaled(), Math.ceilDiv(combinedScaled, resonance.REVENUE_STREAM_DURATION()));
+    }
+
     function test_RevenueWithNoAllocationsBecomesAPullBasedFundLiability() external {
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
 
         assertEq(usdg.balanceOf(address(fund)), 0);
         assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
@@ -406,6 +555,7 @@ contract ResonanceTest is ProtocolFixture {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
 
         _stake(BOB, 100 ether);
         vm.prank(BOB);
@@ -415,6 +565,7 @@ contract ResonanceTest is ProtocolFixture {
         assertEq(resonance.strategyRevenueIndex(address(targetStrategy)), resonance.revenueIndex());
 
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
         resonance.distribute(address(targetStrategy));
         assertEq(usdg.balanceOf(address(targetStrategy)), 200_000_000);
     }
@@ -430,6 +581,7 @@ contract ResonanceTest is ProtocolFixture {
         emit RevenueNotified(address(resonanceRouter), 100_000_000);
         vm.prank(KEEPER);
         resonanceRouter.route();
+        _finishRevenueStream();
 
         assertEq(resonance.pendingRevenue(address(targetStrategy)), 75_000_000);
         assertEq(resonance.pendingRevenue(address(gbxStrategy)), 25_000_000);
@@ -461,6 +613,7 @@ contract ResonanceTest is ProtocolFixture {
         assertEq(threshold, 100_000_000);
 
         _routeRevenue(threshold - 1);
+        _finishRevenueStream();
 
         assertEq(resonance.revenueIndex(), 0, "the index never moved");
         assertEq(resonance.pendingRevenue(address(targetStrategy)), 0);
@@ -470,6 +623,7 @@ contract ResonanceTest is ProtocolFixture {
 
         // One unit more is the first amount that registers at all, and it registers as the minimum tick.
         _routeRevenue(threshold);
+        _finishRevenueStream();
         assertEq(resonance.revenueIndex(), 1);
         assertEq(resonance.pendingRevenue(address(targetStrategy)), threshold);
     }
@@ -480,6 +634,7 @@ contract ResonanceTest is ProtocolFixture {
 
         for (uint256 i; i < 20; ++i) {
             _routeRevenue(50_000_000); // 50 USDG, half the resolution threshold
+            _finishRevenueStream();
         }
 
         assertEq(resonance.revenueIndex(), 10);
@@ -508,6 +663,7 @@ contract ResonanceTest is ProtocolFixture {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
 
         vm.expectEmit(true, true, false, true);
         emit RevenueDistributed(address(this), address(targetStrategy), 100_000_000);
@@ -519,6 +675,7 @@ contract ResonanceTest is ProtocolFixture {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
 
         resonance.updateStrategy(address(targetStrategy));
 
@@ -534,6 +691,7 @@ contract ResonanceTest is ProtocolFixture {
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(BOB, address(gbxStrategy));
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
 
         resonance.distributeRange(0, 1);
         assertEq(usdg.balanceOf(address(targetStrategy)), 50_000_000);
@@ -558,6 +716,7 @@ contract ResonanceTest is ProtocolFixture {
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(BOB, address(gbxStrategy));
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
 
         vm.prank(KEEPER);
         resonance.distributeAll();
@@ -591,6 +750,7 @@ contract ResonanceTest is ProtocolFixture {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
 
         resonance.killStrategy(address(targetStrategy));
 
@@ -614,6 +774,7 @@ contract ResonanceTest is ProtocolFixture {
         assertEq(resonance.totalSignalWeight(), 100 ether, "dead weight still counts toward the denominator");
 
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
         resonance.distributeAll();
 
         // The dead half becomes a fixed Fund liability; only the live half reaches its Strategy.
@@ -626,6 +787,7 @@ contract ResonanceTest is ProtocolFixture {
         assertEq(resonance.totalSignalWeight(), 50 ether);
 
         _routeRevenue(100_000_000);
+        _finishRevenueStream();
         resonance.distributeAll();
         assertEq(usdg.balanceOf(address(gbxStrategy)), 150_000_000, "the survivor now takes the whole flow");
     }
@@ -714,13 +876,14 @@ contract ResonanceTest is ProtocolFixture {
         _signalOne(BOB, address(targetStrategy));
 
         _routeRevenue(amount);
+        _finishRevenueStream();
         resonance.distributeAll();
 
         uint256 delivered = usdg.balanceOf(address(targetStrategy)) + usdg.balanceOf(address(gbxStrategy));
-        uint256 retained = usdg.balanceOf(address(resonance));
+        uint256 retained = usdg.balanceOf(address(resonance)) + usdg.balanceOf(address(resonanceRouter));
 
         assertLe(delivered, amount, "Resonance can never hand out more than it took in");
-        assertEq(delivered + retained, amount, "every unit is either delivered or still held");
+        assertEq(delivered + retained, amount, "every unit is either delivered or still held by the stream router");
     }
 
     /// @notice Whatever the allocation, an account's mirrored Bribe balance matches its recorded signal.

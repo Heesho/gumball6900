@@ -153,6 +153,8 @@ contract Strategy is ReentrancyGuard {
         if (block.timestamp > deadline) revert DeadlinePassed(deadline);
         if (expectedEpochId != epochId) revert EpochIdMismatch(expectedEpochId, epochId);
 
+        // Make the purchase include every USDG unit released to this Strategy through the execution timestamp.
+        ICoreResonance(resonance).distribute(address(this));
         uint256 revenueAmount = revenueToken.balanceOf(address(this));
         if (revenueAmount == 0) revert EmptyRevenue();
 
