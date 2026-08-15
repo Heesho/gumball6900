@@ -29,10 +29,21 @@ export const releaseManifestSignerRoles = Object.freeze([
   'release',
 ]);
 
+export const currentReleaseToolingBlocker =
+  'Current ProtocolGovernor deployment/release tooling is unavailable: the retained schema-v3 and Safe validators ' +
+  'describe the removed AllocationVoter graph. A separately reviewed current manifest and evidence schema is ' +
+  'required before deployment or subgraph outputs can be derived.';
+
+/** Fails closed until the ProtocolGovernor graph has a reviewed manifest/evidence format. */
+export function assertCurrentReleaseToolingAvailable() {
+  throw new Error(currentReleaseToolingBlocker);
+}
+
 export const releaseTagPattern =
   /^v(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*)|(?:[A-Za-z-][0-9A-Za-z-]*))(?:\.(?:(?:0|[1-9]\d*)|(?:[A-Za-z-][0-9A-Za-z-]*)))*)?$/;
 
-export const subgraphContractNames = [
+/** Historical subgraph graph retained only for inspecting superseded release fixtures. */
+export const archivedSubgraphContractNames = [
   'GBXToken',
   'GenesisBootstrap',
   'GenesisClaims',
@@ -1378,10 +1389,11 @@ export function validateManifestBinding(manifest, { signaturePolicy, sourceCommi
   return manifest;
 }
 
-export function deriveSubgraphNetworks(manifest) {
+/** Derives the removed pre-rebuild graph for archival fixture validation only. */
+export function deriveArchivedSubgraphNetworks(manifest) {
   const contracts = new Map((manifest.deployedContracts ?? []).map((contract) => [contract.name, contract]));
   const network = {};
-  for (const name of subgraphContractNames) {
+  for (const name of archivedSubgraphContractNames) {
     const contract = contracts.get(name);
     if (contract === undefined) throw new Error(`Release manifest lacks subgraph contract ${name}`);
     const startBlock = Number(contract.blockNumber);
@@ -1394,6 +1406,15 @@ export function deriveSubgraphNetworks(manifest) {
     network[name] = { address: contract.address, startBlock };
   }
   return { robinhood: network };
+}
+
+/**
+ * Current subgraph deployment derivation deliberately has no fallback to the
+ * archived manifest graph.
+ */
+export function deriveSubgraphNetworks(_manifest) {
+  void _manifest;
+  assertCurrentReleaseToolingAvailable();
 }
 
 export async function readJson(filePath) {
@@ -1629,7 +1650,9 @@ export function evaluateReleaseReadiness({
   robinhoodTestnetForkEvidence,
   security,
 }) {
-  const blockers = [];
+  // The checks below validate retained Safe-era evidence only. They cannot authorize
+  // the current ProtocolGovernor graph until that graph has its own reviewed schema.
+  const blockers = [currentReleaseToolingBlocker];
   try {
     validateSafeControlPlanePolicyShape(safeControlPlanePolicy);
   } catch (error) {

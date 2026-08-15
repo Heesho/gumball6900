@@ -10,6 +10,7 @@ import { Mine } from "../../src/core/Mine.sol";
 import { Strategy } from "../../src/core/Strategy.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 import { ProtocolHandler } from "./utils/ProtocolHandler.sol";
+import { ProtocolWorkflowHandler } from "./utils/ProtocolWorkflowHandler.sol";
 
 /// @title ProtocolInvariantsTest
 /// @notice Stateful invariant suite driving the whole protocol through a bounded, revert-free handler.
@@ -17,6 +18,7 @@ import { ProtocolHandler } from "./utils/ProtocolHandler.sol";
 ///      `fail_on_revert = true` turns that into a failure rather than a silently discarded call.
 contract ProtocolInvariantsTest is ProtocolFixture {
     ProtocolHandler internal handler;
+    ProtocolWorkflowHandler internal workflowHandler;
 
     address[] internal allStrategies;
 
@@ -32,9 +34,11 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
         handler =
             new ProtocolHandler(gbx, usdg, target, fund, signalGBX, resonance, resonanceRouter, mine, allStrategies);
+        workflowHandler = new ProtocolWorkflowHandler(gbx, signalGBX, resonance, mine, allStrategies);
 
         resonance.transferOwnership(address(this));
         targetContract(address(handler));
+        targetContract(address(workflowHandler));
         excludeSender(address(0));
     }
 
@@ -42,9 +46,9 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                             TOKEN SOLVENCY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Every staking receipt is backed one-for-one by escrowed GBX.
+    /// @notice Every staking receipt is fully backed; unsolicited GBX can only create stranded surplus.
     function invariant_StakingReceiptIsFullyCollateralized() external view {
-        assertEq(gbx.balanceOf(address(signalGBX)), signalGBX.totalSupply());
+        assertGe(gbx.balanceOf(address(signalGBX)), signalGBX.totalSupply());
     }
 
     /// @notice GBX supply always reconciles cumulative issuance and burns exactly.
@@ -83,22 +87,29 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                            SIGNAL ACCOUNTING
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Per-Strategy weights always sum exactly to the global signal weight.
+    /// @notice Only live Strategy weights contribute to the active global denominator.
     function invariant_StrategyWeightsSumToTheGlobalTotal() external view {
         uint256 summed;
         for (uint256 i; i < allStrategies.length; ++i) {
-            summed += resonance.strategySignalWeight(allStrategies[i]);
+            if (resonance.isStrategyAlive(allStrategies[i])) {
+                summed += resonance.strategySignalWeight(allStrategies[i]);
+            }
         }
         assertEq(summed, resonance.totalSignalWeight());
     }
 
-    /// @notice Per-account weights also sum exactly to the global signal weight.
-    function invariant_AccountWeightsSumToTheGlobalTotal() external view {
-        uint256 summed;
+    /// @notice Per-account weights sum to all recorded Strategy weight, including removable dead-Strategy signal.
+    function invariant_AccountWeightsSumToAllRecordedStrategyWeight() external view {
+        uint256 accountTotal;
         for (uint256 i; i < handler.actorCount(); ++i) {
-            summed += resonance.accountSignalWeight(handler.actors(i));
+            accountTotal += resonance.accountSignalWeight(handler.actors(i));
         }
-        assertEq(summed, resonance.totalSignalWeight());
+
+        uint256 strategyTotal;
+        for (uint256 i; i < allStrategies.length; ++i) {
+            strategyTotal += resonance.strategySignalWeight(allStrategies[i]);
+        }
+        assertEq(accountTotal, strategyTotal);
     }
 
     /// @notice No account can ever signal with more weight than the receipts it holds.
@@ -139,11 +150,11 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
         for (uint256 i; i < handler.actorCount(); ++i) {
             address actor = handler.actors(i);
-            address[] memory selected = resonance.accountStrategies(actor);
-            for (uint256 j; j < selected.length; ++j) {
-                uint256 amount = resonance.accountSignals(actor, selected[j]);
+            for (uint256 j; j < allStrategies.length; ++j) {
+                uint256 amount = resonance.accountSignals(actor, allStrategies[j]);
+                if (amount == 0) continue;
                 vm.prank(actor);
-                resonance.removeSignal(selected[j], amount);
+                signalGBX.removeSignal(allStrategies[j], amount);
             }
 
             uint256 balance = signalGBX.balanceOf(actor);
@@ -184,68 +195,50 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     function invariant_ResonanceIsSolventAgainstClaimableRevenue() external view {
         uint256 owed;
         for (uint256 i; i < allStrategies.length; ++i) {
-            owed += resonance.claimableRevenue(allStrategies[i]);
+            owed += resonance.earned(allStrategies[i], address(usdg));
         }
         assertLe(owed, usdg.balanceOf(address(resonance)));
     }
 
-    /// @notice Every accounted USDG unit is exactly scheduled, carried, indexed, claimable, or Fund-bound.
-    function invariant_ResonanceAccountingIdentityIsExact() external view {
-        uint256 precision = resonance.INDEX_PRECISION();
-        uint256 classifiedScaled = resonance.revenueStreamRemainingScaled() + resonance.queuedRevenue() * precision
-            + resonance.pendingRevenueScaled() + resonance.indexedRevenueScaled()
-            + resonance.fundRevenueRemainderScaled()
-            + (resonance.totalClaimableRevenue() + resonance.fundRevenueLiability()) * precision;
-
-        uint256 summedClaimable;
+    /// @notice Scheduled and already-earned USDG never exceed Resonance's balance; rounding may leave surplus.
+    function invariant_ResonanceScheduledAndEarnedRevenueIsSolvent() external view {
+        uint256 owed = resonance.left(address(usdg));
         for (uint256 i; i < allStrategies.length; ++i) {
-            classifiedScaled += resonance.strategyRevenueRemainder(allStrategies[i]);
-            summedClaimable += resonance.claimableRevenue(allStrategies[i]);
+            owed += resonance.earned(allStrategies[i], address(usdg));
         }
-
-        assertEq(summedClaimable, resonance.totalClaimableRevenue());
-        assertEq(classifiedScaled, resonance.accountedRevenueBalance() * precision);
-        assertLe(resonance.accountedRevenueBalance(), usdg.balanceOf(address(resonance)));
+        assertLe(owed, usdg.balanceOf(address(resonance)));
     }
 
-    /// @notice An active stream and its optional aggregate successor have coherent bounded state.
+    /// @notice The single reward period has coherent bounded timestamps and a fully backed remainder.
     function invariant_RevenueStreamStateIsCoherent() external view {
-        uint256 remainingScaled = resonance.revenueStreamRemainingScaled();
-        if (remainingScaled == 0) {
-            assertEq(resonance.revenueStreamRateScaled(), 0);
-            assertEq(resonance.revenueStreamLastUpdate(), 0);
-            assertEq(resonance.revenueStreamFinish(), 0);
-            assertEq(resonance.revenueStreamRemainderFinish(), 0);
-            assertEq(resonance.queuedRevenue(), 0);
+        (uint256 periodFinish, uint256 remainderFinish, uint256 rewardRate, uint256 lastUpdateTime,) =
+            resonance.token_RewardData(address(usdg));
+        if (periodFinish == 0) {
+            assertEq(remainderFinish, 0);
+            assertEq(rewardRate, 0);
+            assertEq(lastUpdateTime, 0);
             return;
         }
 
-        assertGt(resonance.revenueStreamRateScaled(), 0);
-        assertGt(resonance.revenueStreamFinish(), resonance.revenueStreamLastUpdate());
-        assertLe(resonance.revenueStreamRemainderFinish(), resonance.revenueStreamFinish());
-        assertLe(
-            resonance.revenueStreamFinish() - resonance.revenueStreamLastUpdate(), resonance.REVENUE_STREAM_DURATION()
-        );
+        assertLe(remainderFinish, periodFinish);
+        assertLe(lastUpdateTime, periodFinish);
+        assertLe(resonance.left(address(usdg)), usdg.balanceOf(address(resonance)));
     }
 
-    /// @notice A retired Strategy can never accumulate a new claim.
-    function invariant_DeadStrategiesNeverAccrueClaims() external view {
+    /// @notice A killed Strategy's recorded signal is excluded from the active reward denominator.
+    function invariant_DeadStrategiesAreExcludedFromActiveWeight() external view {
+        uint256 activeWeight;
         for (uint256 i; i < allStrategies.length; ++i) {
-            if (resonance.isStrategyAlive(allStrategies[i])) continue;
-            assertEq(resonance.claimableRevenue(allStrategies[i]), 0);
+            if (resonance.isStrategyAlive(allStrategies[i])) {
+                activeWeight += resonance.strategySignalWeight(allStrategies[i]);
+            }
         }
+        assertEq(activeWeight, resonance.totalSignalWeight());
     }
 
     /// @notice The revenue index only ever moves forward.
     function invariant_RevenueIndexIsMonotonic() external view {
-        assertGe(resonance.revenueIndex(), handler.ghostHighestRevenueIndex());
-    }
-
-    /// @notice A Strategy's checkpoint can never run ahead of the global index.
-    function invariant_StrategyCheckpointsNeverLeadTheGlobalIndex() external view {
-        for (uint256 i; i < allStrategies.length; ++i) {
-            assertLe(resonance.strategyRevenueIndex(allStrategies[i]), resonance.revenueIndex());
-        }
+        assertGe(resonance.rewardPerToken(address(usdg)), handler.ghostHighestRevenueIndex());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -380,14 +373,21 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         for (uint256 i; i < actions.length; ++i) {
             console.log(actions[i], handler.ghostCalls(bytes32(bytes(actions[i]))));
         }
+        string[3] memory workflows = _workflowActionNames();
+        for (uint256 i; i < workflows.length; ++i) {
+            console.log(workflows[i], workflowHandler.ghostCalls(bytes32(bytes(workflows[i]))));
+        }
     }
 
     /// @notice Proves no handler action is dead code that always short-circuits on its own guards.
     /// @dev Without this, every invariant above could pass vacuously against a handler that never does anything.
     function test_EveryHandlerActionIsReachable() external {
         handler.stake(0, 1_000 ether);
+        workflowHandler.stakeAndSignal(1, 0, 100 ether);
         handler.addSignal(0, 0, 100 ether);
         handler.addSignalMany(0, 2);
+        workflowHandler.moveSignal(0, 0, 1, 1 ether);
+        workflowHandler.removeSignalAndUnstake(1, 0, 1 ether);
         handler.removeSignal(0, 0, 1 ether);
         handler.removeSignalMany(0, 1);
         handler.mine(0, 0);
@@ -424,6 +424,14 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                 string.concat("handler action is unreachable: ", actions[i])
             );
         }
+        string[3] memory workflows = _workflowActionNames();
+        for (uint256 i; i < workflows.length; ++i) {
+            assertGt(
+                workflowHandler.ghostCalls(bytes32(bytes(workflows[i]))),
+                0,
+                string.concat("workflow action is unreachable: ", workflows[i])
+            );
+        }
     }
 
     function _actionNames() private pure returns (string[22] memory actions) {
@@ -451,5 +459,9 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             "killStrategy",
             "advanceTime"
         ];
+    }
+
+    function _workflowActionNames() private pure returns (string[3] memory actions) {
+        return ["stakeAndSignal", "moveSignal", "removeSignalAndUnstake"];
     }
 }

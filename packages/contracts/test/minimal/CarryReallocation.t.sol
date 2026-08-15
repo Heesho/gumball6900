@@ -4,14 +4,14 @@ pragma solidity 0.8.26;
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 
 /// @title CarryReallocationTest
-/// @notice Minimal proofs that conserved sub-index carry cannot cross a later signal-supply boundary.
+/// @notice Covers Resonance's accepted rounding surplus and Bribe's exact carry classification.
 contract CarryReallocationTest is ProtocolFixture {
     function setUp() external {
         _deployProtocol();
     }
 
-    /// @notice Revenue received under old weights is assigned to Fund before a later Strategy enters.
-    function test_NewStrategySignalCannotReceivePreEntryRevenueCarry() external {
+    /// @notice Revenue rounded away under old weights remains surplus and cannot be captured by a later Strategy.
+    function test_NewStrategySignalCannotReceivePreEntryRoundedSurplus() external {
         _stake(ALICE, 1e36);
         _stake(CAROL, 1e36);
         _signalOne(ALICE, address(targetStrategy));
@@ -20,14 +20,10 @@ contract CarryReallocationTest is ProtocolFixture {
         // The total weight is deliberately larger than one raw USDG expressed at index precision.
         _routeRevenue(1);
         _finishRevenueStream();
-        assertEq(resonance.revenueIndex(), 0);
-        assertEq(resonance.pendingRevenueScaled(), resonance.INDEX_PRECISION());
+        assertEq(resonance.rewardPerToken(address(usdg)), 0);
 
         _stake(BOB, 2e36);
         _signalOne(BOB, address(gbxStrategy));
-
-        assertEq(resonance.pendingRevenueScaled(), 0);
-        assertEq(resonance.fundRevenueLiability(), 1);
 
         _routeRevenue(4);
         _finishRevenueStream();
@@ -37,6 +33,7 @@ contract CarryReallocationTest is ProtocolFixture {
 
         assertEq(usdg.balanceOf(address(targetStrategy)), 2);
         assertEq(usdg.balanceOf(address(gbxStrategy)), 2);
+        assertEq(usdg.balanceOf(address(resonance)), 1, "the rounded unit remains unallocated surplus");
     }
 
     /// @notice Bribe carry emitted under old weights is fixed to Fund before a later signaler enters.
@@ -83,7 +80,7 @@ contract CarryReallocationTest is ProtocolFixture {
 
         vm.warp(DEPLOYED_AT + 99);
         vm.prank(ALICE);
-        resonance.removeSignal(address(targetStrategy), 50 ether);
+        signalGBX.removeSignal(address(targetStrategy), 50 ether);
         assertEq(targetBribe.fundRewardLiability(address(target)), 99);
 
         vm.warp(DEPLOYED_AT + 300);
@@ -108,7 +105,7 @@ contract CarryReallocationTest is ProtocolFixture {
 
         vm.warp(DEPLOYED_AT + 1);
         vm.prank(ALICE);
-        resonance.removeSignal(address(targetStrategy), 3);
+        signalGBX.removeSignal(address(targetStrategy), 3);
 
         assertEq(targetBribe.userRewardRemainder(ALICE, address(target)), 0);
         assertEq(targetBribe.fundRewardRemainder(address(target)), 3e17);

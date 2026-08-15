@@ -15,11 +15,12 @@ const contracts = [
   'BribeRouter',
   'Bribe',
   'Fund',
+  'ProtocolGovernor',
 ] as const;
 
 const deploymentInputs = [
   'USDG, Uniswap v4, genesis price, and single-sided range inputs',
-  'Timelock delay, multisig proposer/canceller, and permissionless executor roles',
+  'Timelock delay and immutable block-clock voting delay, period, threshold, and quorum',
   'Mine multiplier, minimum USDG price, initial GBX/second, halving amount, and positive tail',
   'Initial Strategy payment tokens and bounded auction parameters',
   'Independent security review of the immutable final bytecode',
@@ -37,9 +38,9 @@ export default function HomePage() {
           The governance-minimized GBX protocol.
         </h1>
         <p className="mt-6 max-w-3xl text-sm leading-7 text-[#a5b3b2] sm:text-base">
-          Point sGBX at the active Strategy for an asset you want Fund to accumulate. Every completed Strategy payment
-          is Fund-bound, independently funded Bribes may reward signalers, and holders can redeem a caller-selected
-          pro-rata basket without an asset registry.
+          Stake GBX into non-transferable sGBX to signal which assets Fund should accumulate and vote on four bounded
+          protocol actions. Every completed Strategy payment is Fund-bound, independently funded Bribes may reward
+          signalers, and holders can redeem a caller-selected pro-rata basket without an asset registry.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Metric label="Genesis GBX supply" value="20,000,000 GBX" />
@@ -49,7 +50,7 @@ export default function HomePage() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
-        <Panel eyebrow="Architecture" title="Twelve direct, non-upgradeable contracts">
+        <Panel eyebrow="Architecture" title="Thirteen direct, non-upgradeable contracts">
           <div className="grid gap-2 sm:grid-cols-2">
             {contracts.map((contract, index) => (
               <div
@@ -70,6 +71,7 @@ export default function HomePage() {
             <Definition label="Strategy payment" value="100% fixed Fund liability" />
             <Definition label="GBX payment" value="Fund receipt · optional later burn" />
             <Definition label="Signal" value="Replaceable at any time" />
+            <Definition label="Combined workflow" value="stakeAndSignal() · removeSignalAndUnstake()" />
             <Definition label="Signal reward" value="Pro-rata independently funded Bribe stream" />
             <Definition label="Redemption" value="Selected raw balances ÷ pre-burn GBX supply" />
           </dl>
@@ -84,7 +86,8 @@ export default function HomePage() {
             <li>Redemption always uses pre-burn supply and caller-selected Fund balances.</li>
             <li>Fund has no asset registry or protocol-wide token loop.</li>
             <li>GBX payments remain supply-neutral until a permissionless Fund burn.</li>
-            <li>SignalGBX (sGBX) withdrawals have no time lock after allocations are reset.</li>
+            <li>SignalGBX is the sole signal coordinator; idle sGBX remains usable for governance.</li>
+            <li>GBX supports permit approvals; non-transferable sGBX supports votes but no approval permit.</li>
             <li>Mine capacity starts at one, can only increase, and is capped at sixteen.</li>
             <li>The deployed core has no proxy, upgrade path, treasury recovery, or successor migration.</li>
             <li>Supported token movements fail closed unless sender debit and receiver credit are both exact.</li>
@@ -99,19 +102,21 @@ export default function HomePage() {
             <li>Increase Mine capacity, without repricing incumbent slots.</li>
           </ul>
           <p className="mt-5 text-xs leading-5 text-[#778786]">
-            Everything else is fixed in code or directed continuously through sGBX signals.
+            SignalGBX voting power operates an immutable ProtocolGovernor, the Timelock&apos;s sole proposer. Its
+            targets, block-clock voting configuration, and four zero-value selectors cannot change. Execution is
+            permissionless after the delay, with no multisig bypass, guardian, or queued-proposal veto.
           </p>
         </Panel>
       </section>
 
-      <Panel eyebrow="Settlement observability" title="Fixed liabilities stay visible and retryable">
+      <Panel eyebrow="Settlement observability" title="Streams, claims, and fixed liabilities stay visible">
         <p className="max-w-4xl text-sm leading-6 text-[#a8b5b4]">
-          A blocked Fund or reward token cannot strand signal removal or unstaking. Settlement records the immutable
-          destination first; any caller can retry the exact transfer later. Reward holders can claim one token or a
+          A blocked Strategy, Fund, or reward token cannot strand signal removal or unstaking. Revenue and settlement
+          claims keep immutable receivers and remain permissionlessly retryable. Reward holders can claim one token or a
           unique selected set so a broken token does not block healthy rewards.
         </p>
         <dl className="mt-5 grid gap-4 sm:grid-cols-3">
-          <Definition label="Revenue state" value="fundRevenueLiability → payFundRevenue()" />
+          <Definition label="Revenue stream" value="left(USDG) · distribute(strategy)" />
           <Definition label="Acquisition state" value="fundPaymentLiability → payFundPayment()" />
           <Definition label="Reward claims" value="claimReward() · claimRewards(account, tokens)" />
         </dl>

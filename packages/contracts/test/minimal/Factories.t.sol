@@ -177,6 +177,11 @@ contract FactoriesTest is ProtocolFixture {
         assertTrue(firstStrategy != secondStrategy);
         assertTrue(firstBribe != secondBribe);
         assertTrue(firstRouter != secondRouter);
-        assertEq(resonance.strategies().length, 4);
+        assertTrue(resonance.isStrategy(firstStrategy));
+        assertTrue(resonance.isStrategy(secondStrategy));
+        assertEq(resonance.bribeFor(firstStrategy), firstBribe);
+        assertEq(resonance.bribeFor(secondStrategy), secondBribe);
+        assertEq(resonance.bribeRouterFor(firstStrategy), firstRouter);
+        assertEq(resonance.bribeRouterFor(secondStrategy), secondRouter);
     }
 }

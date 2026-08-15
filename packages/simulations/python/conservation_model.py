@@ -1,4 +1,4 @@
-"""Independent integer models for exact Resonance and Bribe accounting."""
+"""Independent integer models for Resonance reward surplus and exact Bribe accounting."""
 
 from dataclasses import dataclass, field
 
@@ -15,25 +15,24 @@ def exact_stream_emission(amount: int, duration: int, elapsed: int) -> int:
 
 @dataclass
 class RevenueConservationModel:
+    """Bribe-shaped Resonance model with explicit unallocated-balance surplus."""
+
     strategy_count: int
     precision: int = 10**36
     weights: list[int] = field(init=False)
     strategy_index: list[int] = field(init=False)
-    remainders: list[int] = field(init=False)
     claimable: list[int] = field(init=False)
     alive: list[bool] = field(init=False)
     total_weight: int = 0
     revenue_index: int = 0
-    pending_scaled: int = 0
-    indexed_scaled: int = 0
-    fund_liability: int = 0
-    fund_remainder_scaled: int = 0
     accounted: int = 0
+    donations: int = 0
+    paid: int = 0
+    balance: int = 0
+    router_balance: int = 0
     now: int = 0
-    queued_revenue: int = 0
-    stream_rate_scaled: int = 0
+    stream_rate: int = 0
     stream_remainder_finish: int = 0
-    stream_remaining_scaled: int = 0
     stream_last_update: int = 0
     stream_finish: int = 0
 
@@ -42,31 +41,44 @@ class RevenueConservationModel:
             raise ValueError("invalid model dimensions")
         self.weights = [0] * self.strategy_count
         self.strategy_index = [0] * self.strategy_count
-        self.remainders = [0] * self.strategy_count
         self.claimable = [0] * self.strategy_count
         self.alive = [True] * self.strategy_count
 
-    def index_pending(self) -> None:
-        if self.total_weight == 0:
-            self._accrue_fund_scaled(self.pending_scaled)
-            self.pending_scaled = 0
-            return
-        delta = self.pending_scaled // self.total_weight
-        indexed = delta * self.total_weight
-        self.pending_scaled -= indexed
-        self.indexed_scaled += indexed
-        self.revenue_index += delta
-
     def notify(self, amount: int) -> None:
+        """Model an exact Router pull and qualifying live-period reset."""
         if amount <= 0:
             raise ValueError("amount must be positive")
 
+        remaining = self.left()
+        if amount < remaining:
+            raise ValueError("reward smaller than left")
+
         self.checkpoint_revenue()
         self.accounted += amount
-        if self.stream_remaining_scaled == 0:
-            self._start_stream(amount * self.precision, self.now)
-        else:
-            self.queued_revenue += amount
+        self.balance += amount
+        self._start_stream(amount + remaining)
+
+    def route(self, amount: int) -> int:
+        """Add Router revenue and route its complete balance once it qualifies."""
+        if amount < 0:
+            raise ValueError("amount must be non-negative")
+        self.router_balance += amount
+        if self.router_balance == 0:
+            raise ValueError("no revenue")
+        if self.router_balance < self.left():
+            return 0
+
+        delivered = self.router_balance
+        self.notify(delivered)
+        self.router_balance = 0
+        return delivered
+
+    def donate(self, amount: int) -> None:
+        """Model a direct USDG transfer that is never scheduled by Resonance."""
+        if amount < 0:
+            raise ValueError("amount must be non-negative")
+        self.donations += amount
+        self.balance += amount
 
     def advance(self, seconds: int) -> None:
         if seconds < 0:
@@ -74,97 +86,96 @@ class RevenueConservationModel:
         self.now += seconds
 
     def checkpoint_revenue(self) -> None:
-        if self.stream_remaining_scaled:
-            first_finish = self.stream_finish
-            self._accrue_until(min(self.now, first_finish))
-            if self.now >= first_finish:
-                self._clear_stream()
-                if self.queued_revenue:
-                    queued = self.queued_revenue
-                    self.queued_revenue = 0
-                    self._start_stream(queued * self.precision, first_finish)
-                    self._accrue_until(min(self.now, self.stream_finish))
-                    if self.now >= self.stream_finish:
-                        self._clear_stream()
-        self.index_pending()
-
-    def _start_stream(self, amount_scaled: int, started_at: int) -> None:
-        self.stream_rate_scaled, rate_remainder = divmod(amount_scaled, STREAM_DURATION)
-        self.stream_remainder_finish = started_at + rate_remainder
-        self.stream_remaining_scaled = amount_scaled
-        self.stream_last_update = started_at
-        self.stream_finish = started_at + STREAM_DURATION
-
-    def _accrue_until(self, timestamp: int) -> None:
-        start = self.stream_last_update
-        if timestamp <= start:
-            return
-        released = (timestamp - start) * self.stream_rate_scaled
-        if start < self.stream_remainder_finish:
-            released += min(timestamp, self.stream_remainder_finish) - start
-        self.stream_remaining_scaled -= released
-        self.stream_last_update = timestamp
-        self.pending_scaled += released
-
-    def _clear_stream(self) -> None:
-        self.stream_rate_scaled = 0
-        self.stream_remainder_finish = 0
-        self.stream_remaining_scaled = 0
-        self.stream_last_update = 0
-        self.stream_finish = 0
+        self.revenue_index = self.reward_per_token()
+        self.stream_last_update = self.last_time_reward_applicable()
 
     def checkpoint(self, strategy: int) -> None:
+        self._require_strategy(strategy)
         self.checkpoint_revenue()
-        self._update_strategy(strategy)
-
-    def _update_strategy(self, strategy: int) -> None:
+        active_weight = self.weights[strategy] if self.alive[strategy] else 0
         delta = self.revenue_index - self.strategy_index[strategy]
+        self.claimable[strategy] += active_weight * delta // self.precision
         self.strategy_index[strategy] = self.revenue_index
-        newly_indexed = self.weights[strategy] * delta
-        self.indexed_scaled -= newly_indexed
-        accrued = self.remainders[strategy] + newly_indexed
-        whole, self.remainders[strategy] = divmod(accrued, self.precision)
-        if self.alive[strategy]:
-            self.claimable[strategy] += whole
-        else:
-            self.fund_liability += whole
 
     def set_weight(self, strategy: int, weight: int) -> None:
+        self._require_strategy(strategy)
         if weight < 0:
             raise ValueError("weight must be non-negative")
-        self.checkpoint_revenue()
-        self._update_strategy(strategy)
-        self._accrue_fund_scaled(self.pending_scaled)
-        self.pending_scaled = 0
         prior = self.weights[strategy]
+        if not self.alive[strategy] and weight > prior:
+            raise ValueError("strategy is dead")
+
+        self.checkpoint(strategy)
         self.weights[strategy] = weight
-        self.total_weight += weight - prior
-        if weight == 0:
-            self._accrue_fund_scaled(self.remainders[strategy])
-            self.remainders[strategy] = 0
+        if self.alive[strategy]:
+            self.total_weight += weight - prior
 
     def kill(self, strategy: int) -> None:
-        self.checkpoint_revenue()
-        self._update_strategy(strategy)
-        self.fund_liability += self.claimable[strategy]
-        self.claimable[strategy] = 0
+        self._require_strategy(strategy)
+        if not self.alive[strategy]:
+            raise ValueError("strategy is dead")
+
+        self.checkpoint(strategy)
         self.alive[strategy] = False
+        self.total_weight -= self.weights[strategy]
 
-    def classified_scaled(self) -> int:
-        return (
-            self.pending_scaled
-            + self.indexed_scaled
-            + self.stream_remaining_scaled
-            + self.queued_revenue * self.precision
-            + self.fund_remainder_scaled
-            + sum(self.remainders)
-            + (sum(self.claimable) + self.fund_liability) * self.precision
-        )
+    def claim(self, strategy: int) -> int:
+        self.checkpoint(strategy)
+        amount = self.claimable[strategy]
+        self.claimable[strategy] = 0
+        self.paid += amount
+        self.balance -= amount
+        return amount
 
-    def _accrue_fund_scaled(self, amount_scaled: int) -> None:
-        combined = self.fund_remainder_scaled + amount_scaled
-        whole, self.fund_remainder_scaled = divmod(combined, self.precision)
-        self.fund_liability += whole
+    def last_time_reward_applicable(self) -> int:
+        return min(self.now, self.stream_finish)
+
+    def reward_per_token(self) -> int:
+        if self.total_weight == 0:
+            return self.revenue_index
+        applicable = self.last_time_reward_applicable()
+        if applicable <= self.stream_last_update:
+            return self.revenue_index
+        emitted = self._emission_between(self.stream_last_update, applicable)
+        return self.revenue_index + emitted * self.precision // self.total_weight
+
+    def earned(self, strategy: int) -> int:
+        self._require_strategy(strategy)
+        active_weight = self.weights[strategy] if self.alive[strategy] else 0
+        delta = self.reward_per_token() - self.strategy_index[strategy]
+        return self.claimable[strategy] + active_weight * delta // self.precision
+
+    def left(self) -> int:
+        """Return exact raw reward units not yet emitted by the active period."""
+        if self.now >= self.stream_finish:
+            return 0
+        return self._emission_between(self.now, self.stream_finish)
+
+    def surplus(self) -> int:
+        """Return balance outside the active schedule and whole Strategy entitlements."""
+        obligations = self.left() + sum(self.earned(index) for index in range(self.strategy_count))
+        amount = self.balance - obligations
+        if amount < 0:
+            raise ValueError("model is insolvent")
+        return amount
+
+    def _start_stream(self, amount: int) -> None:
+        self.stream_rate, rate_remainder = divmod(amount, STREAM_DURATION)
+        self.stream_remainder_finish = self.now + rate_remainder
+        self.stream_last_update = self.now
+        self.stream_finish = self.now + STREAM_DURATION
+
+    def _emission_between(self, start: int, end: int) -> int:
+        if end <= start:
+            return 0
+        amount = (end - start) * self.stream_rate
+        if start < self.stream_remainder_finish:
+            amount += min(end, self.stream_remainder_finish) - start
+        return amount
+
+    def _require_strategy(self, strategy: int) -> None:
+        if strategy < 0 or strategy >= self.strategy_count:
+            raise ValueError("invalid strategy")
 
 
 @dataclass

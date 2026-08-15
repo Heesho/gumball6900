@@ -2,9 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-  ACCOUNTING_EXTENSION_ENTITIES,
   REQUIRED_ENTITIES,
   REQUIRED_HANDLERS,
+  REVIEWED_EXTENSION_ENTITIES,
   evaluateSpecCoverage,
 } from './check-spec-coverage.mjs';
 
@@ -14,13 +14,13 @@ function completeFixture() {
     manifest: REQUIRED_HANDLERS.map(
       (handler, index) => `      - event: Event${index}()\n        handler: ${handler}`,
     ).join('\n'),
-    schema: [...REQUIRED_ENTITIES, ...ACCOUNTING_EXTENSION_ENTITIES]
+    schema: [...REQUIRED_ENTITIES, ...REVIEWED_EXTENSION_ENTITIES]
       .map((entity) => `type ${entity} @entity(immutable: true) { id: ID! }`)
       .join('\n'),
   };
 }
 
-test('accepts the exact minimal entity and handler surface', () => {
+test('accepts the exact reviewed entity and handler surface', () => {
   assert.deepEqual(evaluateSpecCoverage(completeFixture()), []);
 });
 

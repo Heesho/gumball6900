@@ -2,7 +2,8 @@
 
 - Status: accepted for development; not approved for deployment or user funds
 - Date: 2026-08-13
-- Builds on: ADR 0020 exact reward carry and ADR 0026 fixed Resonance carry
+- Builds on: ADR 0020's Bribe exact-reward accounting
+- Historical comparison: ADR 0026's Resonance carry policy, superseded by ADR 0029
 
 ## Context
 

@@ -116,6 +116,20 @@ function sourceSpecialEntryDocumentation(source, type) {
   };
 }
 
+function sourceDefinesCallable(source, item) {
+  if (item.type === 'constructor') return /\bconstructor\s*\(/u.test(source);
+  if (item.type === 'receive' || item.type === 'fallback') {
+    return new RegExp(`\\b${item.type}\\s*\\(`, 'u').test(source);
+  }
+  if (item.type !== 'function') return false;
+
+  const escapedName = item.name.replaceAll(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+  if (new RegExp(`\\bfunction\\s+${escapedName}\\s*\\(`, 'u').test(source)) return true;
+
+  // A public state declaration creates an ABI getter without an explicit function declaration.
+  return new RegExp(`^[^\\n;{}]*\\bpublic\\b[^\\n;{}]*\\b${escapedName}\\b[^\\n;{}]*;`, 'mu').test(source);
+}
+
 function itemDocumentation(artifact, item, source) {
   const itemSignature = item.type === 'constructor' ? 'constructor' : signature(item);
   const collection = item.type === 'event' ? 'events' : item.type === 'error' ? 'errors' : 'methods';
@@ -142,7 +156,10 @@ function documentationLines(artifact, item, source) {
   if (documentation.details !== null && documentation.details !== documentation.notice)
     lines.push(documentation.details);
   if (lines.length === 0 && ['constructor', 'fallback', 'function', 'receive'].includes(item.type)) {
-    throw new Error(`Missing callable NatSpec for ${item.type}:${signature(item)}.`);
+    if (sourceDefinesCallable(source, item)) {
+      throw new Error(`Missing callable NatSpec for ${item.type}:${signature(item)}.`);
+    }
+    lines.push('_Inherited callable; the compiled artifact contains no additional NatSpec for this ABI entry._');
   }
   if (lines.length === 0) lines.push('_No additional NatSpec notice is present in the compiled artifact._');
 

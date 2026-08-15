@@ -41,8 +41,8 @@ structure.
    the band below.
 
 3. **How signaling works** - the section that closes the loop, and the reason anyone signals at
-   all: stake GBX for sGBX, point it at the assets you want the fund to own, and what it buys
-   backs your GBX. Two rows share one label gutter so the chain reads down the left edge -
+   all: stake GBX for voting sGBX, point some at the assets you want the fund to own, and what it
+   buys backs your GBX. Idle sGBX remains usable for bounded governance. Two rows share one label gutter so the chain reads down the left edge -
    this round's pooled signal, then what a run of rounds accumulates into. Signalling and the
    basket chart used to be separate sections; splitting them hid that they are one mechanism,
    and left the sheet stating that signalling happens without ever saying what a signaler gets

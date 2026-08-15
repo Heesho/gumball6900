@@ -6,19 +6,19 @@
 
 # Function: readSignalView()
 
-> **readSignalView**(`client`, `contracts`, `account`, `options?`): `Promise`\<\{ `accountSignalWeight`: `bigint`; `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; `unallocatedSignalBalance`: `bigint`; \}\>
+> **readSignalView**(`client`, `signalGBX`, `account`, `options?`): `Promise`\<\{ `allocatedSignalBalance`: `bigint`; `blockNumber`: `bigint`; `currentVotes`: `bigint`; `delegate`: `` `0x${string}` ``; `signalBalance`: `bigint`; `unallocatedSignalBalance`: `bigint`; \}\>
 
-Reads an account's SignalGBX balance, absolute allocation, and immediately withdrawable remainder.
+Reads an account's SignalGBX receipt, allocation, delegation, votes, and immediately withdrawable remainder.
 
 ## Parameters
 
-| Parameter   | Type                                                                |
-| ----------- | ------------------------------------------------------------------- |
-| `client`    | \{ \}                                                               |
-| `contracts` | `Readonly`\<\{ `resonance`: `Address`; `signalGBX`: `Address`; \}\> |
-| `account`   | `` `0x${string}` ``                                                 |
-| `options`   | [`ReadOptions`](../interfaces/ReadOptions.md)                       |
+| Parameter   | Type                                          |
+| ----------- | --------------------------------------------- |
+| `client`    | \{ \}                                         |
+| `signalGBX` | `` `0x${string}` ``                           |
+| `account`   | `` `0x${string}` ``                           |
+| `options`   | [`ReadOptions`](../interfaces/ReadOptions.md) |
 
 ## Returns
 
-`Promise`\<\{ `accountSignalWeight`: `bigint`; `accountStrategies`: `` `0x${string}` ``[]; `blockNumber`: `bigint`; `signalBalance`: `bigint`; `unallocatedSignalBalance`: `bigint`; \}\>
+`Promise`\<\{ `allocatedSignalBalance`: `bigint`; `blockNumber`: `bigint`; `currentVotes`: `bigint`; `delegate`: `` `0x${string}` ``; `signalBalance`: `bigint`; `unallocatedSignalBalance`: `bigint`; \}\>

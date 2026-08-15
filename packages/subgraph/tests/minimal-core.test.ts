@@ -5,16 +5,12 @@ import { FeesHarvested } from '../generated/LiquidityPosition/LiquidityPosition'
 import { Claimed, EmissionCheckpointed, Mined, MinerPaymentAccrued } from '../generated/Mine/Mine';
 import { RewardCarryFunded } from '../generated/templates/BribeTemplate/Bribe';
 import {
-  FundRevenueAccrued,
-  FundRevenuePaid,
-  RevenueCarryFunded,
-  RevenueQueued,
-  RevenueSynced,
-  RevenueStreamCheckpointed,
-  RevenueStreamScheduled,
+  RevenueDistributed,
+  RevenueNotified,
   SignalAdded,
   SignalRemoved,
   StrategyAdded,
+  StrategyKilled,
 } from '../generated/Resonance/Resonance';
 import { handleRewardCarryFunded } from '../src/bribe';
 import { handleBurned, handleMinted } from '../src/gbx';
@@ -22,16 +18,12 @@ import { eventId } from '../src/ids';
 import { handleFeesHarvested } from '../src/liquidity-position';
 import { handleClaimed, handleEmissionCheckpointed, handleMined, handleMinerPaymentAccrued } from '../src/mine';
 import {
-  handleFundRevenueAccrued,
-  handleFundRevenuePaid,
-  handleRevenueCarryFunded,
-  handleRevenueQueued,
-  handleRevenueSynced,
-  handleRevenueStreamCheckpointed,
-  handleRevenueStreamScheduled,
+  handleRevenueDistributed,
+  handleRevenueNotified,
   handleSignalAdded,
   handleSignalRemoved,
   handleStrategyAdded,
+  handleStrategyKilled,
 } from '../src/resonance';
 import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, configureEvent, uintParam } from './helpers';
 
@@ -43,15 +35,11 @@ export {
   handleMined,
   handleMinerPaymentAccrued,
   handleMinted,
-  handleRevenueCarryFunded,
+  handleRevenueDistributed,
+  handleRevenueNotified,
   handleRewardCarryFunded,
-  handleRevenueQueued,
   handleStrategyAdded,
-  handleRevenueSynced,
-  handleRevenueStreamCheckpointed,
-  handleRevenueStreamScheduled,
-  handleFundRevenueAccrued,
-  handleFundRevenuePaid,
+  handleStrategyKilled,
   handleSignalAdded,
   handleSignalRemoved,
 };
@@ -180,88 +168,72 @@ describe('core protocol mappings', () => {
     cast.parameters.push(uintParam('amount', 100));
     handleSignalAdded(cast);
 
+    const killed = changetype<StrategyKilled>(newMockEvent());
+    configureEvent(killed, CONTRACT, 3);
+    killed.parameters = new Array<ethereum.EventParam>();
+    killed.parameters.push(addressParam('strategy', STRATEGY));
+    handleStrategyKilled(killed);
+
+    const strategyId = '4663-' + STRATEGY.toHexString();
+    assert.fieldEquals('Strategy', strategyId, 'live', 'false');
+    assert.fieldEquals('Strategy', strategyId, 'totalSignalWeightRaw', '100');
+
     const removed = changetype<SignalRemoved>(newMockEvent());
-    configureEvent(removed, CONTRACT, 3);
+    configureEvent(removed, CONTRACT, 4);
     removed.parameters = new Array<ethereum.EventParam>();
     removed.parameters.push(addressParam('account', USER));
     removed.parameters.push(addressParam('strategy', STRATEGY));
     removed.parameters.push(uintParam('amount', 100));
     handleSignalRemoved(removed);
 
-    const strategyId = '4663-' + STRATEGY.toHexString();
     assert.fieldEquals('ProtocolState', '4663', 'strategyCount', '1');
     assert.fieldEquals('Strategy', strategyId, 'paymentToken', ASSET.toHexString());
     assert.fieldEquals('Strategy', strategyId, 'totalSignalWeightRaw', '0');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'signalWeightRaw', '0');
   });
 
-  test('tracks exact streams, their aggregate successor, and fixed Fund carry', () => {
-    const synced = changetype<RevenueSynced>(newMockEvent());
-    configureEvent(synced, CONTRACT, 1);
-    synced.parameters = new Array<ethereum.EventParam>();
-    synced.parameters.push(addressParam('caller', USER));
-    synced.parameters.push(uintParam('amount', 100));
-    handleRevenueSynced(synced);
+  test('tracks observable Resonance resets and distributions without inferring schedule state', () => {
+    const added = changetype<StrategyAdded>(newMockEvent());
+    configureEvent(added, CONTRACT, 1);
+    added.parameters = new Array<ethereum.EventParam>();
+    added.parameters.push(addressParam('strategy', STRATEGY));
+    added.parameters.push(addressParam('bribe', REWARDS));
+    added.parameters.push(addressParam('bribeRouter', USER_TWO));
+    added.parameters.push(addressParam('paymentToken', ASSET));
+    handleStrategyAdded(added);
 
-    const scheduled = changetype<RevenueStreamScheduled>(newMockEvent());
-    configureEvent(scheduled, CONTRACT, 2);
-    scheduled.parameters = new Array<ethereum.EventParam>();
-    scheduled.parameters.push(uintParam('amount', 100));
-    scheduled.parameters.push(uintParam('amountScaled', 1_000));
-    scheduled.parameters.push(uintParam('startedAt', 1_000));
-    scheduled.parameters.push(uintParam('finish', 605_800));
-    scheduled.parameters.push(uintParam('rateScaled', 10));
-    scheduled.parameters.push(uintParam('rateRemainder', 25));
-    handleRevenueStreamScheduled(scheduled);
+    const firstReset = changetype<RevenueNotified>(newMockEvent());
+    configureEvent(firstReset, CONTRACT, 2);
+    firstReset.parameters = new Array<ethereum.EventParam>();
+    firstReset.parameters.push(addressParam('resonanceRouter', USER));
+    firstReset.parameters.push(uintParam('amount', 100));
+    handleRevenueNotified(firstReset);
 
-    const queued = changetype<RevenueQueued>(newMockEvent());
-    configureEvent(queued, CONTRACT, 3);
-    queued.parameters = new Array<ethereum.EventParam>();
-    queued.parameters.push(uintParam('amount', 7));
-    queued.parameters.push(uintParam('totalQueued', 7));
-    handleRevenueQueued(queued);
+    const secondReset = changetype<RevenueNotified>(newMockEvent());
+    configureEvent(secondReset, CONTRACT, 3);
+    secondReset.parameters = new Array<ethereum.EventParam>();
+    secondReset.parameters.push(addressParam('resonanceRouter', USER));
+    secondReset.parameters.push(uintParam('amount', 75));
+    handleRevenueNotified(secondReset);
 
-    const checkpointed = changetype<RevenueStreamCheckpointed>(newMockEvent());
-    configureEvent(checkpointed, CONTRACT, 4);
-    checkpointed.parameters = new Array<ethereum.EventParam>();
-    checkpointed.parameters.push(uintParam('releasedScaled', 400));
-    checkpointed.parameters.push(uintParam('remainingScaled', 600));
-    handleRevenueStreamCheckpointed(checkpointed);
+    const distributed = changetype<RevenueDistributed>(newMockEvent());
+    configureEvent(distributed, CONTRACT, 4);
+    distributed.parameters = new Array<ethereum.EventParam>();
+    distributed.parameters.push(addressParam('caller', USER_TWO));
+    distributed.parameters.push(addressParam('strategy', STRATEGY));
+    distributed.parameters.push(uintParam('amount', 40));
+    handleRevenueDistributed(distributed);
 
-    const carryFunded = changetype<RevenueCarryFunded>(newMockEvent());
-    configureEvent(carryFunded, CONTRACT, 5);
-    carryFunded.parameters = new Array<ethereum.EventParam>();
-    carryFunded.parameters.push(uintParam('amountScaled', 13));
-    carryFunded.parameters.push(uintParam('remainderScaled', 13));
-    handleRevenueCarryFunded(carryFunded);
-
-    const accrued = changetype<FundRevenueAccrued>(newMockEvent());
-    configureEvent(accrued, CONTRACT, 6);
-    accrued.parameters = new Array<ethereum.EventParam>();
-    accrued.parameters.push(uintParam('amount', 40));
-    accrued.parameters.push(uintParam('totalLiability', 40));
-    handleFundRevenueAccrued(accrued);
-
-    const paid = changetype<FundRevenuePaid>(newMockEvent());
-    configureEvent(paid, CONTRACT, 7);
-    paid.parameters = new Array<ethereum.EventParam>();
-    paid.parameters.push(addressParam('caller', USER));
-    paid.parameters.push(addressParam('fund', ASSET));
-    paid.parameters.push(uintParam('amount', 40));
-    handleFundRevenuePaid(paid);
-
-    assert.fieldEquals('ProtocolState', '4663', 'syncedRevenueRaw', '100');
-    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamReleasedScaled', '400');
-    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamRemainingScaled', '600');
-    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamRateScaled', '10');
-    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamLastUpdate', '1700000004');
-    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamFinish', '605800');
-    assert.fieldEquals('ProtocolState', '4663', 'revenueStreamRemainderFinish', '1025');
-    assert.fieldEquals('ProtocolState', '4663', 'queuedRevenueRaw', '7');
-    assert.fieldEquals('ProtocolState', '4663', 'fundRevenueRemainderScaled', '13');
-    assert.fieldEquals('ProtocolState', '4663', 'fundRevenueAccruedRaw', '40');
-    assert.fieldEquals('ProtocolState', '4663', 'fundRevenuePaidRaw', '40');
-    assert.fieldEquals('ProtocolState', '4663', 'pendingFundRevenueRaw', '0');
+    const strategyId = '4663-' + STRATEGY.toHexString();
+    assert.fieldEquals('ProtocolState', '4663', 'notifiedRevenueRaw', '175');
+    assert.fieldEquals('ProtocolState', '4663', 'revenueNotificationCount', '2');
+    assert.fieldEquals('ProtocolState', '4663', 'latestRevenueNotificationRaw', '75');
+    assert.fieldEquals('ProtocolState', '4663', 'latestRevenueNotificationAt', '1700000003');
+    assert.fieldEquals('ProtocolState', '4663', 'distributedRevenueRaw', '40');
+    assert.fieldEquals('Strategy', strategyId, 'distributedRevenueRaw', '40');
+    assert.fieldEquals('ProtocolEvent', eventId(secondReset), 'eventType', 'RESONANCE_REVENUE_NOTIFIED');
+    assert.fieldEquals('ProtocolEvent', eventId(secondReset), 'values', '[75]');
+    assert.fieldEquals('ProtocolEvent', eventId(distributed), 'eventType', 'RESONANCE_REVENUE_DISTRIBUTED');
   });
 
   test('records Bribe sub-token carry classified to Fund', () => {

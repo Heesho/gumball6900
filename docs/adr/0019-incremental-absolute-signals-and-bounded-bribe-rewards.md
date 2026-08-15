@@ -1,12 +1,20 @@
 # ADR 0019: Incremental absolute signals and bounded Bribe rewards
 
-- Status: accepted
+- Status: accepted for scalar signal deltas and bounded Bribe rewards; Resonance batch and account-enumeration
+  convenience APIs are superseded by ADR 0029, and direct Resonance signal entrypoints and aggregate state are
+  superseded by ADR 0030
 - Date: 2026-08-09
 - Supersedes the signaling provisions of
   [ADR 0013](0013-upstream-shaped-core-starting-point.md)
 - Builds on [ADR 0015](0015-resonance-terminology.md),
   [ADR 0016](0016-governance-minimized-final-surface.md), and
   [ADR 0017](0017-remove-successor-migration.md)
+
+[ADR 0029](0029-bribe-based-resonance.md) preserved scalar signal additions and removals, killed-Strategy exits,
+`accountSignalWeight` reservation, and the fixed Bribe reward-token cap. It removed the Resonance-only
+`addSignalMany`, `removeSignalMany`, and `accountStrategies` convenience surfaces. Their descriptions below are
+retained as historical context. ADR 0030 later moved the scalar entrypoints and aggregate reservation to SignalGBX;
+the Bribe decisions remain active.
 
 ## Context
 

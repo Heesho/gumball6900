@@ -88,6 +88,49 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(gbx.balanceOf(ALICE), 900 ether);
     }
 
+    function test_DirectGBXDonationIsStrandedSurplusAndDoesNotMintVotes() external {
+        vm.prank(ALICE);
+        assertTrue(gbx.transfer(address(signalGBX), 10 ether));
+
+        _stake(BOB, 100 ether);
+        vm.prank(BOB);
+        signalGBX.unstake(100 ether);
+
+        assertEq(signalGBX.totalSupply(), 0);
+        assertEq(signalGBX.balanceOf(BOB), 0);
+        assertEq(signalGBX.getVotes(BOB), 0);
+        assertEq(gbx.balanceOf(address(signalGBX)), 10 ether);
+    }
+
+    function test_StakeAndSignalAtomicallyCreatesTheReceiptAndAllocation() external {
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.stakeAndSignal(address(targetStrategy), 100 ether);
+        vm.stopPrank();
+
+        assertEq(gbx.balanceOf(address(signalGBX)), 100 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
+        assertEq(signalGBX.allocatedBalance(ALICE), 100 ether);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 100 ether);
+        assertEq(targetBribe.balanceOf(ALICE), 100 ether);
+        assertEq(resonance.totalSignalWeight(), 100 ether);
+        assertEq(signalGBX.getVotes(ALICE), 100 ether);
+    }
+
+    function test_StakeAndSignalRollsBackCustodyAndVotesWhenTheStrategyIsInvalid() external {
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, BOB));
+        signalGBX.stakeAndSignal(BOB, 100 ether);
+        vm.stopPrank();
+
+        assertEq(gbx.balanceOf(ALICE), 1_000 ether);
+        assertEq(gbx.balanceOf(address(signalGBX)), 0);
+        assertEq(signalGBX.balanceOf(ALICE), 0);
+        assertEq(signalGBX.allocatedBalance(ALICE), 0);
+        assertEq(signalGBX.getVotes(ALICE), 0);
+    }
+
     function test_StakeRejectsFeeOnTransferUnderlying() external {
         FeeOnTransferToken token = new FeeOnTransferToken(18);
         SignalGBX receipt = new SignalGBX(IERC20(address(token)), address(this));
@@ -107,7 +150,7 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(token.balanceOf(ALICE), 100 ether);
     }
 
-    function test_StakeSelfDelegatesOnFirstDepositOnly() external {
+    function test_StakePreservesAnExistingDelegateOnLaterDeposits() external {
         _stake(ALICE, 100 ether);
         assertEq(signalGBX.delegates(ALICE), ALICE);
         assertEq(signalGBX.getVotes(ALICE), 100 ether);
@@ -225,7 +268,7 @@ contract SignalGBXTest is ProtocolFixture {
         _signalOne(ALICE, address(targetStrategy));
 
         vm.startPrank(ALICE);
-        resonance.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         vm.expectEmit(true, false, false, true);
         emit Unstaked(ALICE, 100 ether);
         signalGBX.unstake(100 ether);
@@ -237,15 +280,64 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(gbx.balanceOf(address(signalGBX)), 0);
     }
 
+    function test_RemoveSignalAndUnstakeAtomicallyClosesPartOfThePosition() external {
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.stakeAndSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignalAndUnstake(address(targetStrategy), 40 ether);
+        vm.stopPrank();
+
+        assertEq(gbx.balanceOf(ALICE), 940 ether);
+        assertEq(gbx.balanceOf(address(signalGBX)), 60 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 60 ether);
+        assertEq(signalGBX.allocatedBalance(ALICE), 60 ether);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 60 ether);
+        assertEq(resonance.totalSignalWeight(), 60 ether);
+        assertEq(signalGBX.getVotes(ALICE), 60 ether);
+    }
+
+    function test_MoveSignalPreservesStakeVotesAndAggregateAllocation() external {
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.stakeAndSignal(address(targetStrategy), 100 ether);
+        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
+        vm.stopPrank();
+
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 60 ether);
+        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 40 ether);
+        assertEq(signalGBX.allocatedBalance(ALICE), 100 ether);
+        assertEq(resonance.totalSignalWeight(), 100 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
+        assertEq(signalGBX.getVotes(ALICE), 100 ether);
+    }
+
+    function test_MoveSignalFromAKilledStrategyReentersTheLiveDenominatorOnce() external {
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.stakeAndSignal(address(targetStrategy), 100 ether);
+        vm.stopPrank();
+
+        resonance.killStrategy(address(targetStrategy));
+        assertEq(resonance.totalSignalWeight(), 0);
+
+        vm.prank(ALICE);
+        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 100 ether);
+
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 0);
+        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 100 ether);
+        assertEq(signalGBX.allocatedBalance(ALICE), 100 ether);
+        assertEq(resonance.totalSignalWeight(), 100 ether);
+    }
+
     function test_RemoveUnstakeAndAddSignalCanBeCombinedInOneTransaction() external {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
 
         // No epoch gate exists, so removal, exit, and a new signal are legal in the allocation block.
         vm.startPrank(ALICE);
-        resonance.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         signalGBX.unstake(40 ether);
-        resonance.addSignal(address(gbxStrategy), 60 ether);
+        signalGBX.signal(address(gbxStrategy), 60 ether);
         vm.stopPrank();
 
         assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 60 ether);
@@ -325,8 +417,8 @@ contract SignalGBXTest is ProtocolFixture {
         unbound.setResonance(address(fund));
     }
 
-    function test_PermitCannotBypassReceiptNonTransferability() external {
-        (address owner, uint256 ownerKey) = makeAddrAndKey("signal-permit-owner");
+    function test_DelegateBySigWorksWithoutReceiptPermit() external {
+        (address owner, uint256 ownerKey) = makeAddrAndKey("signal-delegation-owner");
         _mintTestGBX(owner, 10 ether);
 
         vm.startPrank(owner);
@@ -334,27 +426,115 @@ contract SignalGBXTest is ProtocolFixture {
         signalGBX.stake(10 ether);
         vm.stopPrank();
 
-        uint256 deadline = block.timestamp + 1 hours;
+        uint256 expiry = block.timestamp + 1 hours;
         bytes32 structHash = keccak256(
             abi.encode(
-                keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
-                owner,
+                keccak256("Delegation(address delegatee,uint256 nonce,uint256 expiry)"),
                 BOB,
-                10 ether,
                 signalGBX.nonces(owner),
-                deadline
+                expiry
             )
         );
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", signalGBX.DOMAIN_SEPARATOR(), structHash));
+        bytes32 domainSeparator = keccak256(
+            abi.encode(
+                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                keccak256(bytes("Signal GUM BALL 6900")),
+                keccak256(bytes("1")),
+                block.chainid,
+                address(signalGBX)
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", domainSeparator, structHash));
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerKey, digest);
 
-        signalGBX.permit(owner, BOB, 10 ether, deadline, v, r, s);
-        assertEq(signalGBX.allowance(owner, BOB), 10 ether);
+        signalGBX.delegateBySig(BOB, signalGBX.nonces(owner), expiry, v, r, s);
+        assertEq(signalGBX.delegates(owner), BOB);
+        assertEq(signalGBX.getVotes(BOB), 10 ether);
         assertEq(signalGBX.nonces(owner), 1);
+    }
 
-        vm.prank(BOB);
-        vm.expectRevert(SignalGBX.TransferDisabled.selector);
-        signalGBX.transferFrom(owner, BOB, 1 ether);
+    function test_ReceiptHasNoERC20PermitEntrypoint() external {
+        (bool success,) = address(signalGBX)
+            .call(
+                abi.encodeWithSignature(
+                    "permit(address,address,uint256,uint256,uint8,bytes32,bytes32)",
+                    ALICE,
+                    BOB,
+                    1,
+                    block.timestamp + 1 hours,
+                    uint8(27),
+                    bytes32(0),
+                    bytes32(0)
+                )
+            );
+
+        assertFalse(success);
+        assertEq(signalGBX.allowance(ALICE, BOB), 0);
+    }
+
+    function test_StakeAndSignalWithUnderlyingPermitNeedsNoPriorApproval() external {
+        (address owner, uint256 ownerKey) = makeAddrAndKey("underlying-permit-owner");
+        _mintTestGBX(owner, 10 ether);
+
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signUnderlyingPermit(ownerKey, owner, 10 ether, gbx.nonces(owner), deadline);
+
+        vm.prank(owner);
+        signalGBX.stakeAndSignalWithPermit(address(targetStrategy), 10 ether, deadline, v, r, s);
+
+        assertEq(gbx.allowance(owner, address(signalGBX)), 0);
+        assertEq(gbx.balanceOf(address(signalGBX)), 10 ether);
+        assertEq(signalGBX.balanceOf(owner), 10 ether);
+        assertEq(signalGBX.allocatedBalance(owner), 10 ether);
+        assertEq(resonance.accountSignals(owner, address(targetStrategy)), 10 ether);
+        assertEq(signalGBX.getVotes(owner), 10 ether);
+    }
+
+    function test_StakeAndSignalWithPermitToleratesAPreConsumedSignature() external {
+        (address owner, uint256 ownerKey) = makeAddrAndKey("front-run-underlying-permit-owner");
+        _mintTestGBX(owner, 10 ether);
+
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signUnderlyingPermit(ownerKey, owner, 10 ether, 0, deadline);
+
+        vm.prank(CAROL);
+        gbx.permit(owner, address(signalGBX), 10 ether, deadline, v, r, s);
+        assertEq(gbx.nonces(owner), 1);
+        assertEq(gbx.allowance(owner, address(signalGBX)), 10 ether);
+
+        vm.prank(owner);
+        signalGBX.stakeAndSignalWithPermit(address(targetStrategy), 10 ether, deadline, v, r, s);
+
+        assertEq(gbx.nonces(owner), 1);
+        assertEq(gbx.allowance(owner, address(signalGBX)), 0);
+        assertEq(gbx.balanceOf(address(signalGBX)), 10 ether);
+        assertEq(signalGBX.balanceOf(owner), 10 ether);
+        assertEq(signalGBX.allocatedBalance(owner), 10 ether);
+        assertEq(resonance.accountSignals(owner, address(targetStrategy)), 10 ether);
+        assertEq(signalGBX.getVotes(owner), 10 ether);
+    }
+
+    function test_StakeAndSignalWithPermitRollsBackPermitAndCustodyWhenTheStrategyIsInvalid() external {
+        (address owner, uint256 ownerKey) = makeAddrAndKey("reverting-underlying-permit-owner");
+        _mintTestGBX(owner, 10 ether);
+
+        uint256 deadline = block.timestamp + 1 hours;
+        (uint8 v, bytes32 r, bytes32 s) = _signUnderlyingPermit(ownerKey, owner, 10 ether, 0, deadline);
+
+        vm.startPrank(owner);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, BOB));
+        signalGBX.stakeAndSignalWithPermit(BOB, 10 ether, deadline, v, r, s);
+        vm.stopPrank();
+
+        assertEq(gbx.nonces(owner), 0);
+        assertEq(gbx.allowance(owner, address(signalGBX)), 0);
+        assertEq(gbx.balanceOf(owner), 10 ether);
+        assertEq(gbx.balanceOf(address(signalGBX)), 0);
+        assertEq(signalGBX.totalSupply(), 0);
+        assertEq(signalGBX.balanceOf(owner), 0);
+        assertEq(signalGBX.allocatedBalance(owner), 0);
+        assertEq(resonance.accountSignals(owner, BOB), 0);
+        assertEq(signalGBX.getVotes(owner), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -398,20 +578,18 @@ contract SignalGBXTest is ProtocolFixture {
         uint256 stakeAmount = bound(amount, 2, 1_000 ether);
         _stake(ALICE, stakeAmount);
 
-        address[] memory strategies = new address[](2);
-        strategies[0] = address(targetStrategy);
-        strategies[1] = address(gbxStrategy);
+        uint256 firstAmount = bound(amountA, 1, stakeAmount - 1);
+        uint256 secondAmount = bound(amountB, 1, stakeAmount - firstAmount);
 
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = bound(amountA, 1, stakeAmount - 1);
-        amounts[1] = bound(amountB, 1, stakeAmount - amounts[0]);
-
-        vm.prank(ALICE);
-        resonance.addSignalMany(strategies, amounts);
+        vm.startPrank(ALICE);
+        signalGBX.signal(address(targetStrategy), firstAmount);
+        signalGBX.signal(address(gbxStrategy), secondAmount);
+        vm.stopPrank();
 
         assertLe(resonance.accountSignalWeight(ALICE), signalGBX.balanceOf(ALICE));
         assertEq(
-            resonance.accountSignals(ALICE, strategies[0]) + resonance.accountSignals(ALICE, strategies[1]),
+            resonance.accountSignals(ALICE, address(targetStrategy))
+                + resonance.accountSignals(ALICE, address(gbxStrategy)),
             resonance.accountSignalWeight(ALICE)
         );
     }
@@ -420,19 +598,32 @@ contract SignalGBXTest is ProtocolFixture {
     function test_AbsoluteSignalsDoNotRoundAwaySmallAllocations() external {
         _stake(ALICE, 1_000);
 
-        address[] memory strategies = new address[](2);
-        strategies[0] = address(targetStrategy);
-        strategies[1] = address(gbxStrategy);
-
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = 1;
-        amounts[1] = 999;
-
-        vm.prank(ALICE);
-        resonance.addSignalMany(strategies, amounts);
+        vm.startPrank(ALICE);
+        signalGBX.signal(address(targetStrategy), 1);
+        signalGBX.signal(address(gbxStrategy), 999);
+        vm.stopPrank();
 
         assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 1);
         assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 999);
         assertEq(resonance.accountSignalWeight(ALICE), 1_000);
+    }
+
+    function _signUnderlyingPermit(uint256 ownerKey, address owner, uint256 amount, uint256 nonce, uint256 deadline)
+        private
+        view
+        returns (uint8 v, bytes32 r, bytes32 s)
+    {
+        bytes32 structHash = keccak256(
+            abi.encode(
+                keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                owner,
+                address(signalGBX),
+                amount,
+                nonce,
+                deadline
+            )
+        );
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", gbx.DOMAIN_SEPARATOR(), structHash));
+        return vm.sign(ownerKey, digest);
     }
 }

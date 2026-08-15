@@ -2,11 +2,11 @@
 
 ---
 
-[GUM BALL 6900 TypeScript SDK](../README.md) / buildAddSignal
+[GUM BALL 6900 TypeScript SDK](../README.md) / buildSignal
 
-# Function: buildAddSignal()
+# Function: buildSignal()
 
-> **buildAddSignal**(`resonance`, `strategy`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildSignal**(`signalGBX`, `strategy`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
 Adds an absolute amount to the caller's existing signal for one Strategy. The amount is a delta, not a target.
 
@@ -14,7 +14,7 @@ Adds an absolute amount to the caller's existing signal for one Strategy. The am
 
 | Parameter   | Type                |
 | ----------- | ------------------- |
-| `resonance` | `` `0x${string}` `` |
+| `signalGBX` | `` `0x${string}` `` |
 | `strategy`  | `` `0x${string}` `` |
 | `amount`    | `bigint`            |
 

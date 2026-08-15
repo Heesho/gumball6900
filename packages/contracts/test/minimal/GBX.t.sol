@@ -28,7 +28,7 @@ contract GBXMinterHarness {
 }
 
 /// @title GBXTest
-/// @notice Covers the genesis premint, permanent Mine handover, issuance, burns, votes, and permits.
+/// @notice Covers the genesis premint, permanent Mine handover, issuance, burns, transfers, and permits.
 contract GBXTest is Test {
     address private constant GENESIS = address(0x6E4E515);
     address private constant ALICE = address(0xA11CE);
@@ -148,42 +148,6 @@ contract GBXTest is Test {
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, ALICE, 0, 1));
         gbx.burn(1);
-    }
-
-    function test_VotingPowerTracksMiningTransfersAndBurns() external {
-        gbx.setMinter(address(minter));
-        minter.mint(ALICE, 10 ether);
-
-        vm.prank(ALICE);
-        gbx.delegate(ALICE);
-        assertEq(gbx.getVotes(ALICE), 10 ether);
-
-        vm.prank(ALICE);
-        gbx.transfer(BOB, 4 ether);
-        assertEq(gbx.getVotes(ALICE), 6 ether);
-
-        vm.prank(ALICE);
-        gbx.burn(1 ether);
-        assertEq(gbx.getVotes(ALICE), 5 ether);
-    }
-
-    function test_PastVotesAreCheckpointedPerBlock() external {
-        vm.prank(GENESIS);
-        gbx.delegate(GENESIS);
-        uint256 delegationBlock = block.number;
-
-        vm.roll(block.number + 1);
-        vm.prank(GENESIS);
-        gbx.transfer(ALICE, 20_000_000 ether);
-
-        vm.roll(block.number + 1);
-        assertEq(gbx.getPastVotes(GENESIS, delegationBlock), 20_000_000 ether);
-        assertEq(gbx.getPastVotes(GENESIS, block.number - 1), 0);
-    }
-
-    function test_ClockUsesBlockNumbers() external view {
-        assertEq(gbx.clock(), uint48(block.number));
-        assertEq(gbx.CLOCK_MODE(), "mode=blocknumber&from=default");
     }
 
     function test_PermitGrantsAllowanceAndCannotBeReplayed() external {

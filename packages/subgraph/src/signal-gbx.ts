@@ -1,5 +1,32 @@
-import { Staked, Unstaked, ResonanceSet } from '../generated/SignalGBX/SignalGBX';
+import {
+  DelegateChanged,
+  DelegateVotesChanged,
+  Staked,
+  Unstaked,
+  ResonanceSet,
+} from '../generated/SignalGBX/SignalGBX';
 import { getAccount, getProtocol, recordEvent } from './entities';
+
+export function handleDelegateChanged(event: DelegateChanged): void {
+  const account = getAccount(event.params.delegator, event);
+  account.currentDelegate = event.params.toDelegate;
+  account.save();
+
+  const record = recordEvent(event, 'SIGNAL_GBX_DELEGATE_CHANGED');
+  record.addresses = [event.params.delegator, event.params.fromDelegate, event.params.toDelegate];
+  record.save();
+}
+
+export function handleDelegateVotesChanged(event: DelegateVotesChanged): void {
+  const account = getAccount(event.params.delegate, event);
+  account.delegatedVotesRaw = event.params.newVotes;
+  account.save();
+
+  const record = recordEvent(event, 'SIGNAL_GBX_DELEGATE_VOTES_CHANGED');
+  record.addresses = [event.params.delegate];
+  record.values = [event.params.previousVotes, event.params.newVotes];
+  record.save();
+}
 
 export function handleStaked(event: Staked): void {
   const protocol = getProtocol(event);

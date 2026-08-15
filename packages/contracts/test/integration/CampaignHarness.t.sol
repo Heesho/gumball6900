@@ -49,12 +49,14 @@ contract CampaignHarnessTest is Test {
 
         campaign.donateRevenue(250_000_000);
         vm.warp(block.timestamp + 45 minutes);
-        campaign.indexPendingRevenue();
-        assertGt(campaign.resonance().revenueIndex(), 0, "donated revenue must reach the index");
+        campaign.recordRevenueIndex();
+        assertGt(
+            campaign.resonance().rewardPerToken(address(campaign.usdg())), 0, "donated revenue must reach the index"
+        );
         _assertAllProperties();
 
         campaign.distributeAll();
-        campaign.updateStrategy(0);
+        campaign.distributeOne(0);
         _assertAllProperties();
 
         campaign.buy(2, 0);
@@ -153,8 +155,9 @@ contract CampaignHarnessTest is Test {
         assertTrue(campaign.echidna_rewardTokenLoopsStayBounded(), "bounded reward-token loops");
         assertTrue(campaign.echidna_bribeAccountingMirrorsResonance(), "bribe mirroring");
         assertTrue(campaign.echidna_resonanceIsSolventAgainstClaimableRevenue(), "resonance solvency");
+        assertTrue(campaign.echidna_resonanceIsSolventIncludingScheduled(), "resonance scheduled and earned solvency");
         assertTrue(campaign.echidna_revenueStreamStateIsCoherent(), "revenue stream state");
-        assertTrue(campaign.echidna_deadStrategiesHoldNoClaims(), "dead strategy claims");
+        assertTrue(campaign.echidna_deadStrategiesAreExcludedFromActiveWeight(), "dead strategy weight exclusion");
         assertTrue(campaign.echidna_checkpointsNeverLeadTheGlobalIndex(), "checkpoint ordering");
         assertTrue(campaign.echidna_bribesAreSolventAgainstAccruedRewards(), "bribe solvency");
         assertTrue(campaign.echidna_routerRetentionIsFullyVisible(), "visible router retention");

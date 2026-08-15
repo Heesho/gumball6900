@@ -9,6 +9,7 @@ pnpm docs:whitepaper
 
 The current edition describes the immutable multislot Mine introduced by ADR 0024: 20M genesis GBX, permanent Mine
 authority, one-to-sixteen slots, hourly price decay, 80/20 nonempty handoffs, tenure-locked slot rates, future-handoff
-halvings, a positive infinite tail, and Fund checkpointing before redemption.
+halvings, a positive infinite tail, and Fund checkpointing before redemption. It also reflects ADR 0030's
+non-transferable sGBX voting and signaling coordinator plus the four-selector ProtocolGovernor/Timelock boundary.
 
 The output remains development documentation. Building it does not authorize distribution, deployment, or user funds.

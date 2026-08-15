@@ -1,7 +1,15 @@
 import { type Address, type Hex, type PublicClient } from 'viem';
 import { describe, expect, it, vi } from 'vitest';
 
-import { readLiquidityPositionView, readMineSlotView, readResonanceView, readStrategyView } from '../src/index.js';
+import {
+  readLiquidityPositionView,
+  readMineSlotView,
+  readProtocolGovernorView,
+  readProtocolProposalView,
+  readResonanceView,
+  readSignalView,
+  readStrategyView,
+} from '../src/index.js';
 
 const address = (value: number): Address => `0x${value.toString(16).padStart(40, '0')}`;
 const BLOCK_NUMBER = 777n;
@@ -105,42 +113,138 @@ describe('Mine and liquidity reads', () => {
 });
 
 describe('Resonance reads', () => {
-  it('returns the complete scheduled and released revenue state at one block', async () => {
+  it('returns the Bribe-style schedule and live allocation state at one block', async () => {
     const values: Readonly<Record<string, unknown>> = {
-      accountedRevenueBalance: 700n,
-      fundRevenueRemainderScaled: 3n,
-      fundRevenueLiability: 0n,
-      INDEX_PRECISION: 10n ** 36n,
-      indexedRevenueScaled: 20n,
-      pendingRevenueScaled: 30n,
-      queuedRevenue: 100n,
-      releasableRevenueScaled: 40n,
-      revenueIndex: 5n,
-      REVENUE_STREAM_DURATION: 604_800n,
-      revenueStreamFinish: 2_600n,
-      revenueStreamLastUpdate: 2_000n,
-      revenueStreamRateScaled: 7n,
-      revenueStreamRemainderFinish: 2_100n,
-      revenueStreamRemainingScaled: 600n,
-      strategies: [address(2)],
-      totalClaimableRevenue: 10n,
+      balanceOf: 700n,
+      DURATION: 604_800n,
+      left: 600n,
+      REWARD_PRECISION: 10n ** 36n,
+      resonanceRouter: address(2),
+      token_RewardData: [2_600n, 2_100n, 7n, 2_000n, 5n],
       totalSignalWeight: 100n,
-      unaccountedRevenue: 0n,
+      usdg: address(3),
     };
     const readContract = vi.fn(
       async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
     );
     const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
     const client = { getBlock, readContract } as unknown as PublicClient;
-    const { INDEX_PRECISION: indexPrecision, REVENUE_STREAM_DURATION: revenueStreamDuration, ...expected } = values;
 
     await expect(readResonanceView(client, address(1))).resolves.toEqual({
-      ...expected,
       blockNumber: BLOCK_NUMBER,
-      indexPrecision,
-      revenueStreamDuration,
+      duration: 604_800n,
+      lastUpdateTime: 2_000n,
+      left: 600n,
+      periodFinish: 2_600n,
+      remainderFinish: 2_100n,
+      resonanceRouter: address(2),
+      rewardPerTokenStored: 5n,
+      rewardPrecision: 10n ** 36n,
+      rewardRate: 7n,
+      totalSignalWeight: 100n,
+      usdg: address(3),
+      usdgBalance: 700n,
     });
     expect(getBlock).toHaveBeenCalledTimes(2);
     for (const [request] of readContract.mock.calls) expect(request.blockNumber).toBe(BLOCK_NUMBER);
+  });
+});
+
+describe('SignalGBX and protocol governance reads', () => {
+  it('reads canonical SignalGBX allocation and voting state', async () => {
+    const values: Readonly<Record<string, unknown>> = {
+      allocatedBalance: 60n,
+      balanceOf: 100n,
+      delegates: address(2),
+      getVotes: 100n,
+    };
+    const readContract = vi.fn(
+      async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
+    );
+    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
+    const client = { getBlock, readContract } as unknown as PublicClient;
+
+    await expect(readSignalView(client, address(1), address(2))).resolves.toEqual({
+      allocatedSignalBalance: 60n,
+      blockNumber: BLOCK_NUMBER,
+      currentVotes: 100n,
+      delegate: address(2),
+      signalBalance: 100n,
+      unallocatedSignalBalance: 40n,
+    });
+    for (const [request] of readContract.mock.calls) expect(request.blockNumber).toBe(BLOCK_NUMBER);
+  });
+
+  it('reads the fixed Governor graph, parameters, and Timelock delay', async () => {
+    const values: Readonly<Record<string, unknown>> = {
+      getMinDelay: 86_400n,
+      mine: address(2),
+      name: 'GumBall6900 Protocol Governor',
+      proposalThreshold: 10n,
+      quorumDenominator: 100n,
+      quorumNumerator: 4n,
+      resonance: address(3),
+      timelock: address(5),
+      token: address(4),
+      votingDelay: 7_200n,
+      votingPeriod: 50_400n,
+    };
+    const readContract = vi.fn(
+      async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
+    );
+    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
+    const client = { getBlock, readContract } as unknown as PublicClient;
+
+    await expect(readProtocolGovernorView(client, address(1))).resolves.toEqual({
+      blockNumber: BLOCK_NUMBER,
+      mine: address(2),
+      name: 'GumBall6900 Protocol Governor',
+      proposalThreshold: 10n,
+      quorumDenominator: 100n,
+      quorumNumerator: 4n,
+      resonance: address(3),
+      signalGBX: address(4),
+      timelock: address(5),
+      timelockMinDelay: 86_400n,
+      votingDelay: 7_200n,
+      votingPeriod: 50_400n,
+    });
+  });
+
+  it('reads one proposal lifecycle and snapshot-based vote totals', async () => {
+    const values: Readonly<Record<string, unknown>> = {
+      clock: 778,
+      hasVoted: true,
+      proposalDeadline: 900n,
+      proposalEta: 1_000n,
+      proposalNeedsQueuing: true,
+      proposalProposer: address(2),
+      proposalSnapshot: 700n,
+      proposalVotes: [3n, 20n, 2n],
+      quorum: 15n,
+      state: 1,
+    };
+    const readContract = vi.fn(
+      async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
+    );
+    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
+    const client = { getBlock, readContract } as unknown as PublicClient;
+
+    await expect(readProtocolProposalView(client, address(1), 9n, { voter: address(3) })).resolves.toEqual({
+      abstainVotes: 2n,
+      againstVotes: 3n,
+      blockNumber: BLOCK_NUMBER,
+      clock: 778n,
+      deadline: 900n,
+      eta: 1_000n,
+      forVotes: 20n,
+      hasVoted: true,
+      needsQueuing: true,
+      proposalId: 9n,
+      proposer: address(2),
+      quorum: 15n,
+      snapshot: 700n,
+      state: 1,
+    });
   });
 });

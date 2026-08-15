@@ -13,12 +13,14 @@ import { MockERC20 } from "./utils/Tokens.sol";
 contract SignalGasTest is ProtocolFixture {
     uint256 private constant STREAM_AMOUNT = 10 ether;
 
-    function test_RemoveSignalCostsNoMoreThanAddSignalInTheShippedConfiguration() external {
+    function test_ScalarSignalEntryAndExitRemainCheapInTheShippedConfiguration() external {
         (uint256 addGas, uint256 removeGas) = _measureAddAndRemove(0);
 
         console.log("addSignal gas, one reward token", addGas);
         console.log("removeSignal gas, one reward token", removeGas);
-        assertLe(removeGas, addGas, "the shipped exit must not cost more than entry");
+        assertLt(addGas, 300_000, "scalar entry gas changed materially");
+        assertLt(removeGas, 300_000, "scalar exit gas changed materially");
+        assertLe(removeGas, addGas + 75_000, "exit overhead changed materially");
     }
 
     function test_RewardTokenGasSlopeIsRecordedAndBounded() external {
@@ -105,7 +107,7 @@ contract SignalGasTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         uint256 gasBefore = gasleft();
-        resonance.addSignal(address(targetStrategy), 100 ether);
+        signalGBX.signal(address(targetStrategy), 100 ether);
         addGas = gasBefore - gasleft();
         vm.stopPrank();
 
@@ -114,7 +116,7 @@ contract SignalGasTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         gasBefore = gasleft();
-        resonance.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         removeGas = gasBefore - gasleft();
         vm.stopPrank();
     }
@@ -123,7 +125,7 @@ contract SignalGasTest is ProtocolFixture {
         _deployProtocol();
         _stake(ALICE, 100 ether);
         vm.prank(ALICE);
-        resonance.addSignal(address(targetStrategy), 100 ether);
+        signalGBX.signal(address(targetStrategy), 100 ether);
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 1);
         _startEveryRewardStream();
         vm.warp(block.timestamp + 1 days);
@@ -131,7 +133,7 @@ contract SignalGasTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         uint256 gasBefore = gasleft();
-        resonance.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         gasUsed = gasBefore - gasleft();
         vm.stopPrank();
     }
@@ -143,7 +145,7 @@ contract SignalGasTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         uint256 gasBefore = gasleft();
-        resonance.addSignal(address(targetStrategy), 100 ether);
+        signalGBX.signal(address(targetStrategy), 100 ether);
         gasUsed = gasBefore - gasleft();
         vm.stopPrank();
     }
@@ -153,7 +155,7 @@ contract SignalGasTest is ProtocolFixture {
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 1);
         _stake(ALICE, 100 ether);
         vm.prank(ALICE);
-        resonance.addSignal(address(targetStrategy), 100 ether);
+        signalGBX.signal(address(targetStrategy), 100 ether);
         _startEveryRewardStream();
         vm.warp(block.timestamp + 1 days);
 
@@ -172,15 +174,13 @@ contract SignalGasTest is ProtocolFixture {
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 1);
         _stake(ALICE, 100 ether);
         vm.prank(ALICE);
-        resonance.addSignal(address(targetStrategy), 100 ether);
+        signalGBX.signal(address(targetStrategy), 100 ether);
         _startEveryRewardStream();
         vm.warp(block.timestamp + 1 days);
 
-        vm.startPrank(ALICE);
         uint256 gasBefore = gasleft();
-        resonance.claimRewards(_addresses(address(targetStrategy)));
+        targetBribe.claimRewards(ALICE);
         gasUsed = gasBefore - gasleft();
-        vm.stopPrank();
     }
 
     function _measureMaximumBuy() private returns (uint256 gasUsed) {
@@ -188,7 +188,7 @@ contract SignalGasTest is ProtocolFixture {
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 1);
         _stake(ALICE, 100 ether);
         vm.prank(ALICE);
-        resonance.addSignal(address(targetStrategy), 100 ether);
+        signalGBX.signal(address(targetStrategy), 100 ether);
         usdg.mint(address(targetStrategy), 100_000_000);
 
         uint256 price = targetStrategy.currentPrice();

@@ -1,8 +1,8 @@
 # Internal security finding register
 
-Date: 2026-08-13
+Date: 2026-08-15
 
-Status: the ADR 0024 Mine redesign and ADR 0026 Resonance stream are an uncommitted development candidate. Their
+Status: the ADR 0024 Mine redesign and ADR 0029 Bribe-based Resonance are an uncommitted development candidate. Their
 current unit, invariant, integration, Hardhat, SDK, subgraph, simulation, and frontend campaigns pass, but they have
 not received the independent audit, full static re-disposition, mutation campaign, symbolic analysis, or release
 review required for deployment.
@@ -11,14 +11,15 @@ review required for deployment.
 
 | ID   | Severity | Status                                                        | Summary                                                                                                                           |
 | ---- | -------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| A-02 | High     | Previously resolved; regression coverage retained             | Resonance uses exact carried USDG accounting.                                                                                     |
+| A-02 | High     | Accepted by ADR 0029                                          | Resonance can retain explicit rounding, zero-signal, and direct-donation USDG surplus.                                            |
 | A-03 | High     | Previously resolved; regression coverage retained             | Bribe retains exact rate/index carry, zero-supply time, queues, and selective claims.                                             |
 | A-04 | High     | Previously resolved; regression coverage retained             | Fixed Fund liabilities isolate signal exit from failing transfers.                                                                |
 | A-06 | Medium   | Resolved by ADR 0022                                          | Liquidity fee harvesting preserves fixed principal and fixed destinations.                                                        |
 | A-08 | Medium   | Liveness resolved; bounded cost retained                      | Bribe work remains capped at eight reward tokens.                                                                                 |
-| A-09 | Medium   | Resolved in development by ADRs 0026 and 0027                 | Resonance and Bribe fix old-denominator carry to Fund before signal supply changes.                                               |
+| A-09 | Medium   | Resonance accepted by ADR 0029; Bribe resolved by ADR 0027    | Resonance accepts flooring surplus; Bribe fixes old-denominator carry to Fund before signal-supply changes.                       |
 | A-10 | High     | Superseded design; current mechanism mitigates the same class | Fund checkpoints all Mine accrual before every redemption denominator snapshot.                                                   |
-| A-11 | High     | Resolved in development by ADR 0025                           | A same-transaction signal shift cannot buy newly routed USDG at a stale Strategy price.                                           |
+| A-11 | High     | Resolved in development by ADR 0029                           | Checkpoint-first signals prevent same-transaction capture; qualifying top-ups reset behind a Router threshold.                    |
+| BR-1 | Medium   | Accepted by ADR 0028                                          | A killed Strategy's Bribe remains a closed reward pool for incumbent signalers; final exit can permanently abandon rewards.       |
 | M-01 | Economic | Accepted by ADR 0024                                          | Fixed-tenure fairness temporarily allows aggregate issuance above the current global rate after expansion or threshold crossings. |
 | M-02 | Economic | Accepted by ADR 0024                                          | A miner receives the 80% handoff amount only if a successor pays a nonzero replacement price.                                     |
 | E-01 | High     | Resolved in development                                       | Fund rejects selected-token transfers that reduce another selected address's snapshotted backing.                                 |
@@ -28,8 +29,34 @@ review required for deployment.
 | E-05 | Low      | Resolved in development                                       | The subgraph records Bribe carry classified to Fund even when no whole-token liability accrues.                                   |
 | M-03 | High     | Mitigated; open release gate                                  | Reciprocal identity checks prevent crossed graphs, but incorrect parameters or malicious lookalikes remain unrecoverable.         |
 | M-04 | High     | Open release gate                                             | Exact initial rate, thresholds, tail, multiplier, and minimum price have not been selected or independently reviewed.             |
+| G-01 | High     | Accepted by ADR 0030; independent review required             | Snapshot voting does not lock sGBX, so short-lived or borrowed GBX can retain historical voting power after unstaking.            |
+| G-02 | Medium   | Accepted by ADR 0030                                          | A successful proposal has no public cancellation path after it is queued in the Timelock.                                         |
+| G-03 | High     | Open deployment and parameter gate                            | Idle or undelegated sGBX increases quorum without voting and can deadlock every remaining maintenance action.                     |
 
 No production-safety conclusion applies to the Mine redesign.
+
+## G-01 through G-03 — SignalGBX governance boundaries
+
+ProtocolGovernor accepts only exact zero-value calls to the three Resonance maintenance selectors and Mine capacity
+increase. The Governor is intended to be the Timelock's sole proposer, generic relay and Timelock replacement always
+revert, and Resonance/Mine ownership provides no direct caller bypass after setup.
+
+SignalGBX uses block snapshots without a staking or withdrawal lock. An account may hold or borrow GBX through the
+snapshot, then unstake and still vote with historical weight. This is especially material because Strategy death is
+irreversible. A percentage quorum uses historical sGBX total supply, including idle and undelegated receipts; enough
+inactive stake can make all four maintenance paths unreachable. Conversely, low staked participation lowers the
+absolute amount needed for capture. Exact voting delay, period, threshold, quorum, and chain block-time assumptions
+remain unresolved production parameters.
+
+OpenZeppelin Governor cancellation is proposer-only while Pending. After queueing, the Governor contract has no public
+function that calls Timelock cancellation even though it holds `CANCELLER_ROLE`; there is intentionally no guardian.
+A stale or conflicting operation can therefore remain queued forever and revert on execution, but it cannot block a
+differently described replacement proposal.
+
+Disposition: the no-lock and no-guardian choices are accepted for development by ADR 0030. Production remains blocked
+until independent review accepts the capture/liveness model and deployment evidence proves the initial Strategy set,
+immutable parameters, sole proposer/canceller, open executor, absence of external default admin, and absence of
+pre-scheduled operations.
 
 ## A-09 — reward carry across signal-supply boundaries
 
@@ -37,14 +64,13 @@ The prior Bribe implementation conserved sub-index reward carry but allowed it t
 A later signal could therefore receive part of a reward emitted before entry, and remaining signalers could receive
 carry accumulated before another account exited.
 
-ADR 0026 resolves the Resonance portion by moving pending scaled revenue to a fixed Fund remainder before every signal-
-weight change. A late Strategy signal cannot receive that carry, and the exact accounting identity includes the Fund
-remainder. ADR 0027 applies that bounded policy to Bribe: pending carry moves to Fund before every supply change, and a
-fully exiting account's sub-token remainder moves to Fund instead of returning to global carry. Entry, withdrawal,
-and full-exit regressions live in `CarryReallocation.t.sol`, with matching independent Python and TypeScript models.
+ADR 0029 supersedes the Resonance remedy. Resonance now uses a Bribe-shaped `1e36` index without global or per-Strategy
+carry: any allocation floored away remains USDG surplus in Resonance and cannot cross into a later denominator. ADR
+0027 still applies the exact bounded policy to Bribe: pending carry moves to Fund before every supply change, and a
+fully exiting account's sub-token remainder moves to Fund instead of returning to global carry.
 
-Disposition: resolved in development. Reopen if pending or exiting-account carry can cross a supply boundary, or if
-the fixed Fund classification policy changes.
+Disposition: Resonance flooring is accepted by ADR 0029; Bribe carry remains resolved by ADR 0027. Reopen if rounded
+Resonance value becomes capturable by a later signaler or Bribe carry can cross a supply boundary.
 
 ## E-01 through E-05 — EthSkills-guided review remediations
 
@@ -82,20 +108,42 @@ The prior immediate allocator let an account add a dominant signal to a thin Str
 that new weight, and fill the Strategy's already-decayed auction in one transaction. The new money could therefore be
 bought at a price established while the Strategy held almost no inventory.
 
-ADR 0026 places received USDG in one global active-plus-successor seven-day stream. Signal mutations checkpoint elapsed revenue before
-changing weights, and `Strategy.buy` checkpoints released revenue before reading inventory. No stream time elapses
+ADR 0029 places received USDG in one Bribe-shaped seven-day reward period. Signal mutations checkpoint elapsed revenue
+before changing weights, and `Strategy.buy` checkpoints released revenue before reading inventory. No stream time elapses
 between same-transaction operations, so the fill can acquire only inventory that predated the routed payment. The
 deterministic regression test is `test_SameTransactionSignalAndPurchaseCannotCaptureNewlyNotifiedRevenue`.
 
-The router forwards every nonzero complete balance. A live top-up aggregates into one successor and cannot change the
-active rate or finish, so repeated tiny notifications cannot reset or indefinitely extend active release. The relevant
-regressions include `test_OneRawRevenueUnitRoutesWithoutTerminalDust`,
-`test_RepeatedOneRawTopUpsOnlyAggregateTheSuccessor`, and
-`test_LiveTopUpQueuesWithoutChangingTheActiveRateOrFinish`.
+The Router holds a nonzero balance below the active period's exact remaining reward. Once the complete balance
+qualifies, Resonance checkpoints and restarts seven days with the new reward plus the old remainder. This deliberately
+permits qualifying reset/top-up behavior while preventing sub-threshold Mine and liquidity revenue from reverting.
+The regressions include `test_SubThresholdRevenueWaitsUntilTheRouterBalanceQualifies`,
+`test_TopUpBelowLeftRevertsAtomicallyAtResonance`, and
+`test_QualifyingTopUpCheckpointsAndRestartsWithRewardPlusLeft`.
 
 Disposition: resolved in the development candidate. Existing Strategy inventory can still be bought at its current
 price, and a signal held over real elapsed time earns future flow. Reopen if notification becomes immediately
 distributable, signal mutations stop checkpointing, or Strategy stops synchronizing before its inventory snapshot.
+
+## BR-1 — closed Bribe reward pool after Strategy death
+
+Killing a Strategy permanently rejects every new signal increase, including an increase by an existing signaler. It
+does not remove existing signal weight or retire the paired Bribe. Incumbent signalers may remain for any duration,
+continue earning independently notified Bribe rewards, claim, and reduce or fully remove their signal at any time.
+The dead Strategy receives no future Resonance USDG; its whole-unit claim checkpointed at death remains payable to the
+Strategy, while any floored fraction remains Resonance surplus.
+
+The Bribe remains permissionlessly fundable after Strategy death. If its final signaler exits while an active stream
+or queued rewards remain, the active stream pauses and the queue has no possible future entrant to restart it. Those
+tokens remain accounted in Bribe but are permanently unclaimable and do not become a Fund liability. The abandoned
+amount is not bounded to dust: it may include the complete unvested stream and any later notification made with zero
+signal supply.
+
+Disposition: accepted protocol behavior in ADR 0028. Strategy death deliberately creates a closed reward pool for
+incumbent signalers without adding a retirement state, refund, rescue, sweep, or Fund reclassification. Interfaces
+must identify dead Strategies, warn the final signaler that an exit can abandon remaining rewards, and must not imply
+that a direct reward notification to a dead zero-supply Bribe is recoverable. The deterministic regression
+`test_KnownRisk_DeadStrategyBribeCanPauseAndQueueRewardsForever` remains evidence of the accepted terminal state.
+Reopen if Strategy-death signaling rules, Bribe notification rules, or the protocol's no-recovery policy changes.
 
 ## M-01 — fixed-tenure fairness raises transitional aggregate issuance
 

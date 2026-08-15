@@ -12,9 +12,11 @@ import {
   assertExactTrackedWorktree,
   canonicalLogoPath,
   canonicalLogoProvenancePolicyPath,
+  currentReleaseToolingBlocker,
   normalizeCanonicalGithubRepositoryUrl,
   dependencyLicenseInventoryPath,
   dependencyLicenseReviewPolicyPath,
+  deriveArchivedSubgraphNetworks,
   deriveSubgraphNetworks,
   deterministicJson,
   evaluateReleaseReadiness,
@@ -1265,56 +1267,14 @@ test('release evidence commit has one source parent and adds only the exact sign
   assert.equal(result.policyFile.repositoryPath, releaseManifestSignaturePolicyPath);
 });
 
-test('schema-v2 evidence commits and preparation bind all three permissioned artifacts', async () => {
+test('archived schema-v2 evidence commits retain all three permissioned-artifact bindings', async () => {
   const release = await createReleaseSource('gumball-release-permissioned-v2-');
-  const manifest = await writePermissionedEvidenceFiles(release);
+  await writePermissionedEvidenceFiles(release);
   const evidenceCommit = commitAll(release.workspace, 'permissioned release evidence');
   const result = await validateReleaseEvidenceCommit({ ...release, evidenceCommit });
   assert.equal(result.permissionedFiles.graph.repositoryPath, permissionedGraphPath);
   assert.equal(result.permissionedFiles.officialSourceBuild.repositoryPath, permissionedSourceBuildPath);
   assert.equal(result.permissionedFiles.robinhoodForkRehearsal.repositoryPath, permissionedForkRehearsalPath);
-
-  const registry = await writeRegistryRevalidationInputs(release, evidenceCommit, manifest);
-  const outputDirectory = await mkdtemp(path.join(tmpdir(), 'gumball-release-permissioned-prepared-'));
-  execFileSync(
-    process.execPath,
-    [
-      path.join(import.meta.dirname, 'prepare-release.mjs'),
-      '--workspace',
-      release.workspace,
-      '--manifest',
-      release.manifestRepositoryPath,
-      '--tag',
-      'v1.2.3',
-      '--tag-object',
-      'a'.repeat(40),
-      '--evidence-commit',
-      evidenceCommit,
-      '--source-commit',
-      release.sourceCommit,
-      '--output-dir',
-      outputDirectory,
-      '--registry-revalidation',
-      registry.artifactPath,
-      '--registry-revalidation-stage',
-      'preliminary',
-      '--registry-response-archive',
-      registry.responsePath,
-    ],
-    { stdio: 'pipe' },
-  );
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(outputDirectory, 'permissioned-pool-graph.json'), 'utf8')),
-    permissionedEvidenceFixtures.graph,
-  );
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(outputDirectory, 'permissioned-pool-official-source-build.json'), 'utf8')),
-    permissionedEvidenceFixtures.officialSourceBuild,
-  );
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(outputDirectory, 'permissioned-pool-robinhood-fork-rehearsal.json'), 'utf8')),
-    permissionedEvidenceFixtures.robinhoodForkRehearsal,
-  );
 });
 
 test('reads the fixed Safe policy from source C while workspace HEAD remains evidence E', async () => {
@@ -1346,14 +1306,14 @@ test('release evidence rejects a snapshot whose raw bytes do not match the signe
   );
 });
 
-test('prepare-release records distinct source and evidence commits and snapshots evidence inputs', async () => {
+test('prepare-release rejects archived evidence before writing current release outputs', async () => {
   const release = await createReleaseSource('gumball-release-prepare-');
   const expectedManifest = releaseManifestFixture(release.sourceCommit);
   await writeEvidenceFiles(release, expectedManifest);
   const evidenceCommit = commitAll(release.workspace, 'release evidence');
   const registry = await writeRegistryRevalidationInputs(release, evidenceCommit, expectedManifest);
   const outputDirectory = await mkdtemp(path.join(tmpdir(), 'gumball-release-prepared-'));
-  execFileSync(
+  const result = spawnSync(
     process.execPath,
     [
       path.join(import.meta.dirname, 'prepare-release.mjs'),
@@ -1378,47 +1338,11 @@ test('prepare-release records distinct source and evidence commits and snapshots
       '--registry-response-archive',
       registry.responsePath,
     ],
-    { stdio: 'pipe' },
+    { encoding: 'utf8' },
   );
-  const metadata = JSON.parse(await readFile(path.join(outputDirectory, 'release-metadata.json'), 'utf8'));
-  assert.equal(metadata.evidenceCommit, evidenceCommit);
-  assert.equal(metadata.sourceCommit, release.sourceCommit);
-  assert.equal(metadata.robinhoodRegistryRevalidation.authorizationEligible, false);
-  assert.equal(metadata.robinhoodRegistryRevalidation.stage, 'preliminary');
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(outputDirectory, 'deployment-manifest.json'), 'utf8')),
-    expectedManifest,
-  );
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(outputDirectory, 'release-manifest-signature-policy.json'), 'utf8')),
-    configuredReleasePolicy,
-  );
-  assert.equal(metadata.safeControlPlanePolicyRepositoryPath, safeControlPlanePolicyPath);
-  assert.match(metadata.safeControlPlanePolicySha256, /^[0-9a-f]{64}$/);
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(outputDirectory, 'safe-control-plane-policy.json'), 'utf8')),
-    configuredSafeControlPlanePolicy,
-  );
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(outputDirectory, 'deployment-config.json'), 'utf8')),
-    releaseDeploymentConfigFixture,
-  );
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(outputDirectory, 'deployment-state.json'), 'utf8')),
-    releaseDeploymentStateFixture,
-  );
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(outputDirectory, 'reviewed-asset-candidate.json'), 'utf8')),
-    releaseAssetCandidateFixture,
-  );
-  assert.deepEqual(
-    JSON.parse(await readFile(path.join(outputDirectory, 'robinhood-registry-revalidation.json'), 'utf8')),
-    registry.artifact,
-  );
-  assert.deepEqual(
-    await readFile(path.join(outputDirectory, 'robinhood-registry-response.json')),
-    await readFile(registry.responsePath),
-  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Current ProtocolGovernor deployment\/release tooling is unavailable/);
+  assert.deepEqual(await readdir(outputDirectory), []);
 });
 
 test('release evidence rejects a post-commit manifest mutation', async () => {
@@ -1509,7 +1433,7 @@ test('tracked worktree proof allows ignored dependencies but rejects source muta
   await assert.rejects(assertExactTrackedWorktree(release.workspace, release.sourceCommit), /raw worktree bytes/);
 });
 
-test('release manifest binding and subgraph derivation fail closed', () => {
+test('archived release manifest validation remains inspectable while current subgraph derivation fails closed', () => {
   const commit = '1'.repeat(40);
   const tag = 'v1.2.3';
   const manifest = releaseManifestFixture(commit, tag);
@@ -1517,7 +1441,8 @@ test('release manifest binding and subgraph derivation fail closed', () => {
     validateManifestBinding(manifest, { signaturePolicy: configuredReleasePolicy, sourceCommit: commit, tag }),
     manifest,
   );
-  assert.equal(deriveSubgraphNetworks(manifest).robinhood.GBXToken.startBlock, 100);
+  assert.equal(deriveArchivedSubgraphNetworks(manifest).robinhood.GBXToken.startBlock, 100);
+  assert.throws(() => deriveSubgraphNetworks(manifest), /Current ProtocolGovernor deployment\/release tooling/);
   assert.throws(
     () =>
       validateManifestBinding(
@@ -1543,7 +1468,7 @@ test('release manifest binding and subgraph derivation fail closed', () => {
     /observation evidence has expired/,
   );
   assert.throws(
-    () => deriveSubgraphNetworks({ ...manifest, deployedContracts: manifest.deployedContracts.slice(1) }),
+    () => deriveArchivedSubgraphNetworks({ ...manifest, deployedContracts: manifest.deployedContracts.slice(1) }),
     /lacks subgraph contract GBXToken/,
   );
   assert.throws(
@@ -1786,7 +1711,7 @@ test('readiness requires hash-bound license, notice, logo provenance, and privat
     security:
       '# Security\n\nPrivate reporting endpoint: [Open a private vulnerability report](https://github.com/acme/gumball-6900/security/advisories/new)\n\nDo not file public issues.',
   };
-  assert.deepEqual(evaluateReleaseReadiness(approvedInputs), []);
+  assert.deepEqual(evaluateReleaseReadiness(approvedInputs), [currentReleaseToolingBlocker]);
   assert.match(
     evaluateReleaseReadiness({
       ...approvedInputs,
@@ -1860,7 +1785,7 @@ test('readiness requires hash-bound license, notice, logo provenance, and privat
       security:
         'Private reporting endpoint: <https://github.com/acme/gumball-6900/security/advisories/new>\nUse this private channel only.',
     }),
-    [],
+    [currentReleaseToolingBlocker],
   );
   assert.match(
     evaluateReleaseReadiness({
@@ -2090,6 +2015,8 @@ test('release-readiness CLI reads and hash-binds every analyzer lock from the wo
   };
 
   const bound = await runReadiness();
+  assert.equal(bound.candidateAuthorization, 'blocked');
+  assert.ok(bound.blockers.includes(currentReleaseToolingBlocker));
   assert.deepEqual(
     bound.blockers.filter((blocker) => blocker.startsWith('Analyzer environment policy')),
     [],

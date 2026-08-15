@@ -1,6 +1,7 @@
 # ADR 0016: Governance-minimized immutable final surface
 
-- Status: accepted; terminology and implementation details superseded by ADRs 0017, 0019, 0020, and 0021
+- Status: accepted for the minimized four-action principle; terminology and implementation details are superseded by
+  ADRs 0017, 0019, 0020, 0021, 0029, and 0030
 - Date: 2026-08-08
 - Superseded terminology: every reference below to a "management fee" means the bounded acquisition
   signal-reward share implemented as `bribeBps`; there is no separate management fee
@@ -30,9 +31,8 @@ After one-time setup, Resonance exposes exactly four ongoing owner-authorized ac
 
 There is no generic call executor, proxy upgrade, successor migration, arbitrary treasury withdrawal, pause function,
 or general protocol parameter setter. Strategy weights and revenue direction remain exclusively controlled by current
-`sGBX` signals. OpenZeppelin TimelockController owns Resonance in the intended deployment and separately retains its
-standard delayed role and delay administration; this ADR does not claim the timelock itself can schedule only four
-selectors.
+`sGBX` signals. ADR 0030 replaces this ADR's designated-manager assumption with a selector-bounded ProtocolGovernor,
+which is the Timelock's sole proposer and can schedule only the four final administrative calls.
 
 The final implementation encodes the signal-reward share and its 50% ceiling directly. Strategy death and Bribe reward
 registration semantics are specified and tested, and the owner path is intended to terminate at the documented
@@ -54,5 +54,5 @@ binding, and removal of meaningful deployer authority.
   and unforeseen failures permanent.
 - A compromised manager remains able to misuse the four listed actions. It cannot gain additional powers through the
   protocol.
-- Incorrect timelock role setup or an unsafe proposer/canceller key lifecycle remains a deployment risk and must be
-  verified from signed external evidence.
+- Incorrect Governor parameters, target binding, Timelock role setup, or temporary-authority removal remains a
+  deployment risk and must be verified from signed external evidence.

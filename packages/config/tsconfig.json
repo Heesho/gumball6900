@@ -4,7 +4,7 @@
     "rootDir": "."
   },
   "include": [
-    "index.ts",
+    "*.ts",
     "assets/**/*.ts",
     "chains/**/*.ts",
     "deployments/**/*.ts",

@@ -31,6 +31,7 @@ export const REQUIRED_MYTHRIL_TARGETS = Object.freeze(
     ['SignalGBX', 'out/SignalGBX.sol/SignalGBX.json'],
     ['ResonanceRouter', 'out/ResonanceRouter.sol/ResonanceRouter.json'],
     ['Resonance', 'out/Resonance.sol/Resonance.json'],
+    ['ProtocolGovernor', 'out/ProtocolGovernor.sol/ProtocolGovernor.json'],
     ['StrategyFactory', 'out/StrategyFactory.sol/StrategyFactory.json'],
     ['Strategy', 'out/Strategy.sol/Strategy.json'],
     ['BribeFactory', 'out/BribeFactory.sol/BribeFactory.json'],

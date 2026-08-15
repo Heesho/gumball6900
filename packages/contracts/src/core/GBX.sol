@@ -3,18 +3,16 @@ pragma solidity 0.8.26;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
-import { ERC20Votes } from "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
-import { Nonces } from "@openzeppelin/contracts/utils/Nonces.sol";
 
 import { IMine } from "./interfaces/IMine.sol";
 
-/// @title GUM BALL 6900 Governance, Mining, and Redemption Token
+/// @title GUM BALL 6900 Mining, Staking, and Redemption Token
 /// @author Heesho
-/// @notice Transferable token used for liquidity, signaling, mining rewards, and Fund redemption.
+/// @notice Transferable token used for liquidity, mining rewards, SignalGBX staking, and Fund redemption.
 /// @dev Creates only the 20 million genesis-liquidity allocation. Deployment may permanently hand mint authority to
 ///      one Mine exactly once; no caller can replace that Mine afterward. Burns never reopen or alter mint authority.
 /// @custom:version 1.0.0
-contract GBX is ERC20, ERC20Permit, ERC20Votes {
+contract GBX is ERC20, ERC20Permit {
     /// @notice GBX created once for the canonical genesis-liquidity position.
     uint256 public constant GENESIS_LIQUIDITY_ALLOCATION = 20_000_000 ether;
 
@@ -93,14 +91,5 @@ contract GBX is ERC20, ERC20Permit, ERC20Votes {
         lifetimeBurned += amount;
         _burn(msg.sender, amount);
         emit Burned(msg.sender, amount);
-    }
-
-    /// @notice Returns the current permit nonce for an account.
-    function nonces(address owner) public view override(ERC20Permit, Nonces) returns (uint256 nonce) {
-        return super.nonces(owner);
-    }
-
-    function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Votes) {
-        super._update(from, to, value);
     }
 }

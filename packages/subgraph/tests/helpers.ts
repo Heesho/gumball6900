@@ -43,3 +43,23 @@ export function boolParam(name: string, value: boolean): ethereum.EventParam {
 export function bytesParam(name: string, value: Bytes): ethereum.EventParam {
   return new ethereum.EventParam(name, ethereum.Value.fromBytes(value));
 }
+
+export function stringParam(name: string, value: string): ethereum.EventParam {
+  return new ethereum.EventParam(name, ethereum.Value.fromString(value));
+}
+
+export function addressArrayParam(name: string, values: Array<Address>): ethereum.EventParam {
+  return new ethereum.EventParam(name, ethereum.Value.fromAddressArray(values));
+}
+
+export function uintArrayParam(name: string, values: Array<BigInt>): ethereum.EventParam {
+  return new ethereum.EventParam(name, ethereum.Value.fromUnsignedBigIntArray(values));
+}
+
+export function stringArrayParam(name: string, values: Array<string>): ethereum.EventParam {
+  return new ethereum.EventParam(name, ethereum.Value.fromStringArray(values));
+}
+
+export function bytesArrayParam(name: string, values: Array<Bytes>): ethereum.EventParam {
+  return new ethereum.EventParam(name, ethereum.Value.fromBytesArray(values));
+}

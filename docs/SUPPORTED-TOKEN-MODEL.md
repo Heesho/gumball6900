@@ -15,21 +15,28 @@ Core mining payment, receipt, reward, revenue, redemption, and liquidity-fee-rou
 atomically on inexact movement. This is fail-closed evidence, not support for fee-on-transfer, rebasing, ERC-777-style,
 blocklisting, pausable, or otherwise adversarial tokens.
 
-Token decimals affect the economic size of precision classified to Fund at a signal boundary. Resonance uses `1e36`
-precision and Bribes use `1e18`; both assign unindexable old-denominator carry to Fund before changing signal supply.
-Low-decimal Bribe rewards can therefore create a larger whole-token Fund liability at a boundary, but cannot transfer
-pre-entry carry to a later signaler.
+Token decimals affect the economic size of accounting floors. Resonance's six-decimal USDG index uses `1e36` precision,
+but its global-index and per-Strategy remainders are accepted surplus rather than Fund liabilities. Bribes use `1e18`
+precision and still assign unindexable old-denominator carry to Fund before changing virtual signal supply. Low-decimal
+Bribe rewards can therefore create a larger whole-token Fund liability at a boundary, but cannot transfer pre-entry
+carry to a later signaler.
 
 SignalGBX is explicitly forbidden as a Strategy payment or Bribe reward token because its transfers are permanently
 disabled. Tokens that reject zero approvals remain usable when the exact allowance is fully consumed; if a token
 under-consumes an allowance, the protocol still attempts fail-closed cleanup and may reject that token.
 
+GBX supports ERC-2612 permit approvals, including the permit attempted by SignalGBX's atomic
+`stakeAndSignalWithPermit` workflow. That workflow tolerates a permit signature already consumed by an observer and
+still relies on the exact GBX `transferFrom` as its authorization and custody check. SignalGBX deliberately has no ERC-2612 approval permit because it is
+non-transferable; its signature-based delegation belongs to ERC20Votes governance rather than token spending.
+
 ## Failure isolation
 
 A token that rejects a payout can leave its fixed Fund or user liability unpaid. It cannot change the destination.
-Revenue, reward, and Router Fund liabilities are visible and permissionlessly retryable. Signal removal and unstaking
-do not perform those payouts. Bribe users can claim one token or a selected unique list, allowing them to omit a broken
-reward token.
+Accrued Resonance Strategy rewards and Bribe or BribeRouter Fund liabilities are visible and permissionlessly
+retryable. Signal removal and unstaking do not perform those payouts. Bribe users can claim one token or a selected
+unique list, allowing them to omit a broken reward token. Direct USDG donations and zero-active-signal Resonance
+emission are surplus, not retryable liabilities.
 
 Fund is intentionally different: it is a permissionless raw-token treasury. Any ERC-20 can be sent to it, but that
 does not make the token supported or official. A redeemer chooses which unique non-GBX addresses to include. A broken

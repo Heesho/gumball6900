@@ -306,7 +306,7 @@ contract StrategyTest is ProtocolFixture {
         assertEq(usdg.balanceOf(address(fund)), 50_000_000);
     }
 
-    function test_RevenueReceiverEqualToResonanceCreatesSynchronizableDonation() external {
+    function test_RevenueReceiverEqualToResonanceCreatesUnscheduledSurplus() external {
         _fundStrategy(targetStrategy, 50_000_000);
         uint256 price = targetStrategy.currentPrice();
         target.mint(CAROL, price);
@@ -316,13 +316,8 @@ contract StrategyTest is ProtocolFixture {
         targetStrategy.buy(address(resonance), 0, block.timestamp, price);
         vm.stopPrank();
 
-        assertEq(resonance.unaccountedRevenue(), 50_000_000);
-        resonance.syncRevenue();
-        assertEq(resonance.unaccountedRevenue(), 0);
-        assertEq(resonance.revenueStreamRemainingScaled(), 50_000_000 * resonance.INDEX_PRECISION());
-
-        _finishRevenueStream();
-        assertEq(resonance.fundRevenueLiability(), 50_000_000);
+        assertEq(usdg.balanceOf(address(resonance)), 50_000_000);
+        assertEq(resonance.left(address(usdg)), 0, "direct donations do not enter the reward schedule");
     }
 
     function test_BuyAtomicallyIncludesRevenueReleasedThroughTheCurrentTimestamp() external {
@@ -335,7 +330,7 @@ contract StrategyTest is ProtocolFixture {
         targetStrategy.buy(CAROL, 0, block.timestamp, type(uint256).max);
 
         assertEq(usdg.balanceOf(CAROL), 86_400);
-        assertEq(resonance.revenueStreamRemainingScaled(), 518_400 * resonance.INDEX_PRECISION());
+        assertEq(resonance.left(address(usdg)), 518_400);
         assertEq(targetStrategy.epochId(), 1);
     }
 

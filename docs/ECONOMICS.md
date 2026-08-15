@@ -3,8 +3,8 @@
 ## Supply
 
 GBX creates 20 million tokens for genesis liquidity, then permanently assigns mint authority to Mine. There is no
-protocol-defined economic maximum supply; ERC20Votes retains its `uint208` implementation ceiling. Supply is exact
-cumulative accounting:
+protocol-defined economic maximum supply. GBX supports ERC-2612 approvals but has no voting checkpoints; governance
+power is minted one-for-one only when GBX is staked as SignalGBX. Supply is exact cumulative accounting:
 
 ```text
 totalSupply = lifetimeMinted - lifetimeBurned
@@ -19,7 +19,7 @@ slot changes hands:
 
 - the displaced miner receives an 80% USDG pull claim;
 - 20% routes through ResonanceRouter; and
-- the first occupation of an empty slot routes 100% to Resonance because nobody was displaced.
+- the first occupation of an empty slot routes 100% to ResonanceRouter because nobody was displaced.
 
 There is no team fee. A miner accepts rollover risk: if no successor pays to replace them, they receive GBX but no 80%
 handoff payment.
@@ -47,17 +47,23 @@ handoff. Exact deployment parameters remain release inputs and must be recorded 
 
 Mining and liquidity USDG route into Resonance's global seven-day stream. Each elapsed interval follows the SignalGBX
 weights active during that interval; moving a signal checkpoints the old interval first and affects only later flow.
+A holder may keep sGBX idle for governance without directing revenue or Bribe rewards. SignalGBX coordinates every
+change; it stores the account aggregate, paired Bribes store per-Strategy positions and supply, and Resonance stores
+only the active total across live Strategies.
 A Strategy purchase atomically pulls all revenue released to it through that timestamp, then sells its complete USDG
 balance through a reverse Dutch auction. The complete payment becomes a Fund liability. Bribes are independently
 funded.
 
 Streaming is lazy accounting: no keeper transaction is required each second. A later signal change, distribution,
-purchase, notification, or Fund-revenue payment materializes the elapsed amount. ResonanceRouter forwards every
-nonzero complete balance. A live notification aggregates into one successor and cannot change the active seven-day
-stream's rate or finish. A checkpoint catches up at most the active stream and that successor. The `1e36` scaled rate
-and quotient-plus-remainder schedule release even one raw six-decimal USDG unit exactly. Before signal weights change,
-otherwise unindexable old-weight carry becomes an explicit Fund remainder rather than crossing the denominator.
-Bribe applies the same Fund classification to independently funded reward carry before its virtual supply changes.
+purchase, or qualifying notification materializes the elapsed amount. During an active schedule ResonanceRouter holds
+its balance while it is below the exact amount left. A qualifying complete balance checkpoints the stream and restarts
+seven days with `reward + left`; this can raise or lower the rate and move the finish.
+
+The raw quotient plus front-loaded remainder releases every scheduled six-decimal USDG unit, including a one-raw-unit
+schedule. The global reward-per-signal index uses `1e36` precision, but global-index and per-Strategy floors are accepted
+surplus rather than explicit carry. Stream time continues at zero active signal weight, making that interval's USDG
+unclaimable, and direct Resonance donations are unscheduled surplus. Neither category is assigned to Fund or later
+signalers. Bribe separately retains its explicit carry and Fund classification before its virtual supply changes.
 
 Before redemption, Fund checkpoints every mining slot. For each selected token it then pays:
 

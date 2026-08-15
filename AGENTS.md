@@ -8,7 +8,7 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - Build the core contracts as a minimal adaptation of the pinned give.fun and Liquid Signal Governance contracts.
   Preserve their simple contract boundaries and behavior unless this file or a recorded ADR explicitly changes them.
 - Use these protocol names consistently: `GBX`, `Mine`, `LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`,
-  `StrategyFactory`, `Strategy`, `BribeFactory`, `BribeRouter`, `Bribe`, and `Fund`.
+  `StrategyFactory`, `Strategy`, `BribeFactory`, `BribeRouter`, `Bribe`, `Fund`, and `ProtocolGovernor`.
 - `packages/contracts/src` is the single Solidity source tree shared by Foundry and Hardhat. Core contracts use direct,
   non-upgradeable deployments. `StrategyFactory` and `BribeFactory` are allowed only as Resonance-controlled factories;
   do not add generic public factories, arbitrary vault calls, NAV/price oracles, or a conventional DAO.
@@ -21,6 +21,7 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - GBX creates only 20 million tokens for the genesis-liquidity recipient. Deployment permanently hands its sole mint
   authority to one deployed `Mine`; the handover is one-time and cannot be replaced or reopened. There is no
   protocol-defined economic supply cap, and supply reconciles as `totalSupply == lifetimeMinted - lifetimeBurned`.
+  GBX retains ERC-2612 permit approvals but does not carry ERC20Votes checkpoints or governance weight.
 - Mine starts with one slot. Timelock governance may only increase capacity, never decrease it, up to the hard cap of 16. Each slot uses an hourly reverse Dutch replacement auction and may change hands at any time.
 - A slot's assigned GBX-per-second rate is locked for that miner's complete tenure. Checkpoints, redemptions, capacity
   increases, and cumulative-mining threshold crossings must not reprice or dilute an occupied slot. Only a newly occupied or
@@ -28,19 +29,32 @@ authorized for user funds. A green local build is engineering evidence, never a 
   increase aggregate issuance while legacy-rate miners remain.
 - Global rates use constructor-immutable cumulative-mining halvings and a strictly positive tail rate. Do not add a
   rate setter, emissions controller, migration authority, oracle, entropy source, team fee, or claim redirection.
-- `SignalGBX` represents staked GBX. There is no staking withdrawal lock, signal cooldown, epoch restriction, or
-  once-per-period allocation rule. Signals are absolute per-Strategy amounts changed by incremental deltas; a signaler
-  may add or remove them at any time and may immediately withdraw any unallocated SignalGBX balance.
-- `Resonance` holds received USDG in one global seven-day stream and allocates each elapsed interval among active
-  Strategies according to the SignalGBX weights active during that interval. Every signal change checkpoints elapsed
-  revenue before changing weights, and every Strategy purchase checkpoints and pulls that Strategy's released USDG.
-  ResonanceRouter forwards every nonzero complete balance. A notification never changes the active stream's rate or
-  finish; it aggregates into one successor that begins when the active seven-day period ends. A checkpoint processes
-  at most the active stream and that successor. Revenue uses `1e36` fixed-point precision with exact quotient-plus-
-  remainder release. Before a signal-weight change, any scaled carry that cannot be indexed under the old weights is
-  assigned to an explicit Fund remainder so it cannot cross the denominator boundary. Strategy and Bribe deployment
-  follows the Liquid Signal shape: Resonance uses `StrategyFactory` and `BribeFactory`, and each Strategy has a
-  corresponding `BribeRouter` and `Bribe`.
+- `SignalGBX` is the non-transferable, one-for-one staked-GBX governance token and the sole external signal
+  coordinator. It retains ERC20Votes on the default block-number clock, self-delegates any stake made while the holder
+  has no current delegate, and has
+  no ERC-2612 permit. Idle sGBX directs no revenue or Bribe rewards but retains governance voting power. There is no
+  staking withdrawal lock, signal cooldown, epoch restriction, or once-per-period allocation rule. Signals are absolute
+  per-Strategy amounts changed by incremental deltas through `signal`, `removeSignal`, and `moveSignal`; combined
+  `stakeAndSignal`, underlying-GBX-permit `stakeAndSignalWithPermit`, and `removeSignalAndUnstake` flows stay atomic.
+  A signaler may immediately withdraw any unallocated SignalGBX balance.
+- `Resonance` holds received USDG in one global seven-day Bribe-style stream and allocates each elapsed interval among
+  live Strategies according to the SignalGBX weights active during that interval. Every signal change checkpoints
+  elapsed revenue before changing weights, and every Strategy purchase checkpoints and pulls that Strategy's released
+  USDG. During an active period, ResonanceRouter retains its balance while it is smaller than the exact scheduled USDG
+  left. Once the Router balance is at least that amount, it forwards its complete balance; Resonance checkpoints the
+  elapsed interval, combines the notification with the amount left, and restarts the combined schedule for seven days.
+  The raw USDG schedule uses quotient-plus-front-loaded-remainder release, while the global reward-per-signal index uses
+  `1e36` precision. Global-index and per-Strategy floors are accepted surplus rather than explicit carry. Revenue that
+  elapses while active signal supply is zero, and direct USDG donations, also remain unscheduled or unclaimable surplus
+  in Resonance. Strategy and Bribe deployment follows the Liquid Signal shape: Resonance uses `StrategyFactory` and
+  `BribeFactory`, and each Strategy has a corresponding `BribeRouter` and `Bribe`.
+- Signal state has one canonical owner at each level: SignalGBX stores each account's aggregate allocated balance, each
+  Strategy's paired Bribe stores account-by-Strategy balances and its complete signal supply, and Resonance stores only
+  the active live-Strategy total. Resonance's `addSignalFor`, `removeSignalFor`, and `moveSignalFor` hooks are callable
+  only by SignalGBX; do not restore direct user signaling on Resonance or duplicate these ledgers.
+- Killing a Strategy is irreversible. The kill checkpoints and preserves its accrued Resonance claim, excludes its
+  complete weight from active reward supply, rejects later signal additions, and lets existing signalers remove their
+  allocations without subtracting the excluded weight again. The killed Strategy earns no later Resonance revenue.
 - Each Bribe may register at most eight append-only reward tokens. The cap is fixed in code and is not governable.
 - Before a Bribe signal-supply change, classify unindexable old-supply reward carry to its fixed Fund remainder. When
   an account fully exits, classify its sub-token user remainder to Fund rather than reallocating it to other signalers.
@@ -98,9 +112,15 @@ authorized for user funds. A green local build is engineering evidence, never a 
   `Fund` is burnable by anyone through the dedicated burn function.
 - The remaining administrative surface is `Resonance.addStrategy`, `Resonance.killStrategy`,
   `Resonance.addBribeReward`, and `Mine.increaseCapacity`. Nothing else is owner-gated after one-time setup.
-- Resonance and Mine ownership remain behind OpenZeppelin `TimelockController`, with the project multisig holding proposer and
-  canceller roles. The timelock should own Resonance, use a documented minimum delay, have no external default admin
-  after setup, and may grant the executor role to the zero address for permissionless execution.
+- `ProtocolGovernor` uses SignalGBX ERC20Votes checkpoints and immutable, constructor-selected block-clock voting delay,
+  period, proposal threshold, quorum percentage, Timelock, Resonance, and Mine dependencies. It may propose only exact
+  zero-value calls for the four continuing administrative selectors. It is the Timelock's sole proposer and sole
+  canceller-role holder; there is no multisig bypass, guardian, or queued-proposal veto. Standard Governor cancellation
+  remains available only to the proposer while a proposal is pending.
+- The Timelock should own Resonance and Mine, use a documented minimum delay, have no external default admin after
+  setup, and grant the executor role to the zero address for permissionless execution. Create every reviewed initial
+  Strategy while the temporary setup owner still controls Resonance, then transfer Resonance and Mine to the Timelock
+  and renounce setup authority. Do not leave a deployer, multisig, or alternate proposer path.
 - CI must never broadcast mainnet transactions.
 
 ## Source and generated artifacts

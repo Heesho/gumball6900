@@ -43,6 +43,10 @@ contract FeeRevenueReceiverMock {
         frozen = frozen_;
     }
 
+    function left(address) external pure returns (uint256) {
+        return 0;
+    }
+
     function notifyRevenue(uint256 amount) external {
         require(!frozen, "FEE_REVENUE_FROZEN");
         usdg.safeTransferFrom(msg.sender, address(this), amount);

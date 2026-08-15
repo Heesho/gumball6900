@@ -12,8 +12,9 @@ burned for caller-selected Fund assets.
 1. A user replaces an hourly Mine slot. If a miner is displaced, 80% of the USDG payment becomes their claim and 20%
    routes to Resonance. An empty slot routes 100% to Resonance.
 2. The slot miner continuously accrues GBX at a rate fixed for that complete tenure.
-3. GBX holders stake one-for-one into non-transferable SignalGBX and direct Resonance's seven-day USDG stream among
-   active Strategies. Signal changes checkpoint elapsed flow first; there is no signal lock or epoch.
+3. GBX holders stake one-for-one into non-transferable SignalGBX (`sGBX`), the governance token and sole signal
+   coordinator. They may stake and signal atomically, move absolute allocations, or remove a signal and unstake in one
+   call. Signal changes checkpoint elapsed flow first; idle sGBX can govern but directs no revenue or Bribe rewards.
 4. A Strategy buyer atomically pulls its released USDG, receives the complete Strategy balance, and pays the asset that
    Strategy acquires; the complete payment becomes a Fund
    liability.
@@ -23,16 +24,22 @@ burned for caller-selected Fund assets.
 replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance --7-day stream--> Strategies
                          \--80%--> displaced miner
 Mine -> continuous GBX
-SignalGBX ---------------------------> allocation weights
+SignalGBX --signal coordination------> Resonance allocation weights
+SignalGBX --block-clock votes--------> ProtocolGovernor -> Timelock
 Strategy payment -> BribeRouter -> Fund
 GBX burn -> Fund selected assets
 ```
 
+ResonanceRouter waits while its USDG balance is below the exact amount left in the active stream. A qualifying balance
+checkpoints elapsed revenue and restarts seven days with the new reward plus that remainder. Resonance uses a `1e36`
+reward index; index and Strategy floors, zero-active-signal intervals, and direct donations are accepted surplus.
+
 ## Mining and supply
 
 GBX creates only 20 million tokens for the permanent, one-sided genesis liquidity position. Deployment then binds its
-sole mint authority permanently to Mine. There is no protocol-defined economic supply cap or replacement minter;
-the inherited ERC20Votes representation retains its unreachable-in-practice `uint208` safety ceiling.
+sole mint authority permanently to Mine. There is no protocol-defined economic supply cap or replacement minter. GBX
+retains ERC-2612 permit approvals but carries no governance checkpoints; voting power exists only after staking into
+sGBX.
 
 Mine starts with one slot. Timelock governance may only increase capacity, up to 16. Every slot's USDG replacement
 price decays linearly to zero over one hour and can be filled at any time.
@@ -55,29 +62,34 @@ transfer reverts the complete redemption and burn.
 
 ## Governance-minimized core
 
-All core contracts are direct and non-upgradeable. Fund and LiquidityPosition are ownerless. OpenZeppelin TimelockController
-owns only the narrow remaining administration:
+All core contracts are direct and non-upgradeable. Fund and LiquidityPosition are ownerless. SignalGBX voting power
+operates an immutable, selector-bounded ProtocolGovernor. It is the TimelockController's sole proposer, and the
+Timelock owns only the narrow remaining administration:
 
 - add or kill a Strategy;
 - add a Bribe reward token within the fixed cap of eight; and
 - increase Mine capacity, never decrease it, up to 16.
 
-There is no proxy, pause switch, treasury sweep, arbitrary call path, successor, or migration routine.
+Governor proposals contain only those four exact zero-value calls at immutable Resonance and Mine targets. Voting
+delay, voting period, proposal threshold, and quorum percentage use sGBX's block-number clock and are fixed at
+construction. Execution is permissionless after the Timelock delay. There is no multisig bypass, guardian, queued
+proposal veto, proxy, pause switch, treasury sweep, arbitrary call path, successor, or migration routine.
 
 ## Contracts
 
 | Contract            | Role                                                                                              |
 | ------------------- | ------------------------------------------------------------------------------------------------- |
-| `GBX`               | Genesis allocation, permanent Mine authority, cumulative mint/burn accounting, permits, votes.    |
+| `GBX`               | Genesis allocation, permanent Mine authority, cumulative mint/burn accounting, ERC-2612 permits.  |
 | `Mine`              | Hourly multislot handoffs, continuous tenure-locked GBX accrual, 80/20 USDG split, positive tail. |
-| `SignalGBX`         | Non-transferable one-for-one staked GBX with immediately withdrawable unallocated balance.        |
-| `ResonanceRouter`   | Permissionlessly forwards every nonzero complete USDG balance into Resonance.                     |
-| `Resonance`         | Signal accounting, exact active-plus-successor USDG streaming, Strategy and Bribe administration. |
+| `SignalGBX`         | Non-transferable staked GBX, ERC20Votes governance power, and the sole signal coordinator.        |
+| `ResonanceRouter`   | Holds USDG below the active amount left, then permissionlessly forwards a qualifying balance.     |
+| `Resonance`         | Bribe-shaped seven-day USDG rewards, active signal totals, and Strategy/Bribe administration.     |
 | `Strategy`          | Reverse Dutch acquisition auction.                                                                |
 | `BribeRouter`       | Fixed complete Strategy-payment liability to Fund.                                                |
 | `Bribe`             | Up to eight independently funded reward streams for signalers.                                    |
 | `Fund`              | Registry-free backing, selective redemption, and permissionless Fund-held GBX burn.               |
 | `LiquidityPosition` | Permanent fixed-principal Uniswap v4 position and permissionless fee routing.                     |
+| `ProtocolGovernor`  | Immutable four-selector sGBX governance over Timelock-owned Resonance and Mine.                   |
 
 ## Repository
 
@@ -106,7 +118,8 @@ pnpm build
 Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
 [emissions](docs/EMISSIONS.md), [access control](docs/ACCESS_CONTROL.md), and
 [ADR 0024](docs/adr/0024-immutable-multislot-mine.md), and
-[ADR 0025](docs/adr/0025-global-revenue-stream.md).
+[ADR 0029](docs/adr/0029-bribe-based-resonance.md), and
+[ADR 0030](docs/adr/0030-signalgbx-coordination-and-token-governance.md).
 
 ## Provenance
 

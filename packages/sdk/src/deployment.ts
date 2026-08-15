@@ -12,6 +12,7 @@ export const protocolAddressesSchema = z
     gbx: addressSchema,
     liquidityPosition: addressSchema,
     mine: addressSchema,
+    protocolGovernor: addressSchema,
     signalGBX: addressSchema,
     strategyFactory: addressSchema,
     timelockController: addressSchema,

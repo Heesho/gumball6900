@@ -1,5 +1,5 @@
 /**
- * Source-only Forge coverage policy for the current direct core.
+ * Source-only Forge coverage policy for the current direct core and bounded governance.
  *
  * Percentages are integer basis points so policy evaluation never depends on
  * floating-point rounding. `minimumTotal` pins the smallest acceptable
@@ -12,14 +12,15 @@ export const FORGE_COVERAGE_POLICY = Object.freeze([
   policy('src/core/Fund.sol', [95_00, 8], [95_00, 9], [95_00, 46]),
   // Mine is the new distribution boundary. Final thresholds remain a release gate until the current report is recorded.
   policy('src/core/Mine.sol', [85_00, 12], [75_00, 25], [90_00, 120]),
-  policy('src/core/GBX.sol', [95_00, 6], [95_00, 11], [95_00, 37]),
+  policy('src/core/GBX.sol', [95_00, 4], [95_00, 14], [95_00, 34]),
   // Genuine PositionManager integration is measured separately; this floor covers the default mock/deep suite.
   policy('src/core/LiquidityPosition.sol', [50_00, 8], [50_00, 24], [55_00, 102]),
-  policy('src/core/Resonance.sol', [95_00, 30], [80_00, 49], [95_00, 238]),
+  policy('src/core/Resonance.sol', [95_00, 27], [80_00, 51], [95_00, 197]),
   policy('src/core/ResonanceRouter.sol', [95_00, 3], [95_00, 3], [95_00, 17]),
-  policy('src/core/SignalGBX.sol', [80_00, 6], [95_00, 11], [90_00, 43]),
+  policy('src/core/SignalGBX.sol', [95_00, 17], [95_00, 16], [95_00, 96]),
   policy('src/core/Strategy.sol', [95_00, 7], [95_00, 17], [95_00, 69]),
   policy('src/core/StrategyFactory.sol', [95_00, 2], [95_00, 3], [95_00, 11]),
+  policy('src/governance/ProtocolGovernor.sol', [95_00, 18], [95_00, 7], [95_00, 64]),
 ]);
 
 function policy(path, functions, branches, lines) {

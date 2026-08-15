@@ -6,7 +6,20 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../../..');
 
 export const contractConstants = {
-  gbx: { source: 'packages/contracts/src/core/GBX.sol', genesisLiquidityTokens: 20_000_000, unlimitedSupply: true },
+  gbx: {
+    source: 'packages/contracts/src/core/GBX.sol',
+    genesisLiquidityTokens: 20_000_000,
+    unlimitedSupply: true,
+    supportsPermit: true,
+    supportsVotes: false,
+  },
+  signalGbx: {
+    source: 'packages/contracts/src/core/SignalGBX.sol',
+    nonTransferable: true,
+    supportsPermit: false,
+    supportsVotes: true,
+    soleSignalCoordinator: true,
+  },
   mine: {
     source: 'packages/contracts/src/core/Mine.sol',
     priceDecaySeconds: 3_600,
@@ -19,8 +32,8 @@ export const contractConstants = {
 };
 
 export const status = {
-  editionVersion: 'v0.4',
-  editionDate: '12 August 2026',
+  editionVersion: 'v0.5',
+  editionDate: '15 August 2026',
   contractsCommit: 'working tree — not release pinned',
   contractsCommitShort: 'uncommitted',
   auditCandidateCommit: 'none for the Mine redesign',

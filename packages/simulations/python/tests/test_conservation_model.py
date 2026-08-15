@@ -1,3 +1,5 @@
+import pytest
+
 from python.conservation_model import (
     RevenueConservationModel,
     RewardConservationModel,
@@ -5,122 +7,120 @@ from python.conservation_model import (
 )
 
 
-def test_revenue_atoms_survive_weight_churn_and_retirement() -> None:
-    model = RevenueConservationModel(3, precision=10)
-    model.set_weight(0, 3)
-    model.set_weight(1, 7)
-    for amount in range(1, 98):
-        model.notify(604_800 + amount)
-        model.advance(604_800)
-        if amount % 5 == 0:
-            model.checkpoint(0)
-        if amount % 7 == 0:
-            model.checkpoint(1)
-        if amount == 41:
-            model.kill(1)
-        assert model.classified_scaled() == model.accounted * model.precision
-    model.advance(604_800)
-    model.checkpoint(0)
-    model.checkpoint(1)
-    model.set_weight(0, 0)
-    model.set_weight(1, 0)
-    assert model.classified_scaled() == model.accounted * model.precision
-
-
-def test_live_top_up_queues_without_changing_the_active_stream() -> None:
-    model = RevenueConservationModel(2)
-    model.set_weight(0, model.precision)
+def test_qualifying_live_top_up_checkpoints_and_restarts_with_reward_plus_left() -> None:
+    model = RevenueConservationModel(1)
+    model.set_weight(0, 1)
     model.notify(1_209_600)
-    assert model.stream_rate_scaled == 2 * model.precision
     first_finish = model.stream_finish
 
     model.advance(86_400)
-    model.notify(700_000)
-    assert model.queued_revenue == 700_000
+    assert model.left() == 1_036_800
+    model.notify(1_036_800)
+
+    assert model.earned(0) == 172_800
+    assert model.left() == 2_073_600
+    assert model.stream_finish == 86_400 + 604_800
+    assert model.stream_finish > first_finish
+    assert model.surplus() == 0
+
+
+def test_subthreshold_notification_rejects_and_router_holds_until_qualifying() -> None:
+    model = RevenueConservationModel(1)
+    model.set_weight(0, 1)
+    assert model.route(1_209_600) == 1_209_600
+    first_finish = model.stream_finish
+
+    model.advance(86_400)
+    minimum = model.left()
+    with pytest.raises(ValueError, match="reward smaller than left"):
+        model.notify(minimum - 1)
     assert model.stream_finish == first_finish
-    assert model.stream_rate_scaled == 2 * model.precision
 
-    model.advance(518_400)
-    model.checkpoint_revenue()
-    assert model.queued_revenue == 0
-    assert model.stream_remaining_scaled == 700_000 * model.precision
-    assert model.stream_finish == first_finish + 604_800
+    assert model.route(700_000) == 0
+    assert model.router_balance == 700_000
+    assert model.stream_finish == first_finish
 
-    model.advance(604_800)
-    model.checkpoint(0)
-    assert model.claimable[0] == 1_909_600
-    assert (
-        model.stream_rate_scaled,
-        model.stream_remaining_scaled,
-        model.stream_last_update,
-        model.stream_finish,
-    ) == (0, 0, 0, 0)
-    assert model.classified_scaled() == model.accounted * model.precision
+    assert model.route(minimum - 700_000) == minimum
+    assert model.router_balance == 0
+    assert model.left() == 2 * minimum
 
 
-def test_single_raw_revenue_unit_streams_without_terminal_router_dust() -> None:
+def test_one_raw_unit_is_front_loaded_into_the_first_second() -> None:
     model = RevenueConservationModel(1)
     model.set_weight(0, 1)
     model.notify(1)
-    model.advance(604_800)
-    model.checkpoint(0)
-    assert model.claimable[0] == 1
-    assert model.classified_scaled() == model.precision
+
+    assert model.left() == 1
+    model.advance(1)
+    assert model.left() == 0
+    assert model.claim(0) == 1
+    assert model.balance == 0
+
+    assert exact_stream_emission(1, 604_800, 0) == 0
+    assert exact_stream_emission(1, 604_800, 1) == 1
 
 
-def test_one_queued_successor_catches_up_in_bounded_work() -> None:
+def test_zero_supply_emission_and_direct_donations_are_surplus() -> None:
     model = RevenueConservationModel(1)
+    model.notify(7)
+    model.advance(3)
+    model.checkpoint_revenue()
+    assert model.left() == 4
+    assert model.surplus() == 3
+
     model.set_weight(0, 1)
-    model.notify(100_000_000)
-    model.advance(86_400)
-    model.notify(10_000_000)
-    model.advance(13 * 86_400)
-    model.checkpoint(0)
-    assert model.claimable[0] == 110_000_000
-    assert model.stream_remaining_scaled == 0
-    assert model.queued_revenue == 0
+    model.advance(1)
+    assert model.earned(0) == 1
+    assert model.surplus() == 3
+
+    model.donate(5)
+    assert model.donations == 5
+    assert model.surplus() == 8
 
 
-def test_new_signal_receives_only_post_entry_stream_time() -> None:
+def test_strategy_flooring_remains_surplus_instead_of_carrying_fractions() -> None:
     model = RevenueConservationModel(2)
     model.set_weight(0, 1)
-    model.notify(604_800)
-    model.advance(86_400)
     model.set_weight(1, 1)
-    model.advance(518_400)
+    model.notify(2)
+
+    model.advance(1)
     model.checkpoint(0)
     model.checkpoint(1)
-
-    assert model.claimable == [345_600, 259_200]
-
-
-def test_unindexable_old_weight_carry_moves_to_fund_before_denominator_change() -> None:
-    model = RevenueConservationModel(2, precision=10)
-    model.set_weight(0, 20)
-    model.notify(1)
-    model.advance(604_800)
-    model.checkpoint_revenue()
-    assert model.pending_scaled == 10
-
-    model.set_weight(1, 1)
-    assert model.pending_scaled == 0
-    assert model.fund_liability == 1
     assert model.claimable == [0, 0]
-    assert model.classified_scaled() == model.accounted * model.precision
+    assert model.surplus() == 1
+
+    model.advance(1)
+    model.checkpoint(0)
+    model.checkpoint(1)
+    assert model.claimable == [0, 0]
+    assert model.surplus() == 2
 
 
-def test_exact_low_decimal_stream_and_zero_supply_pause() -> None:
-    duration = 604_800
-    assert exact_stream_emission(1, duration, 0) == 0
-    assert exact_stream_emission(1, duration, 1) == 1
-    assert exact_stream_emission(7, duration, 3) == 3
-    assert exact_stream_emission(7, duration, duration) == 7
-    active_before_pause = 4
-    active_after_resume = 5
-    assert exact_stream_emission(11, duration, active_before_pause + active_after_resume) == 9
+def test_kill_uses_old_denominator_preserves_stored_reward_and_excludes_future_earnings() -> None:
+    model = RevenueConservationModel(1)
+    model.set_weight(0, 5)
+    model.notify(604_800)
+    model.advance(10)
+
+    model.kill(0)
+    assert model.claimable[0] == 10
+    assert model.total_weight == 0
+    assert model.weights[0] == 5
+
+    model.advance(10)
+    model.checkpoint_revenue()
+    assert model.earned(0) == 10
+    assert model.surplus() == 10
+    assert model.claim(0) == 10
+
+    model.set_weight(0, 0)
+    assert model.total_weight == 0
+    with pytest.raises(ValueError, match="strategy is dead"):
+        model.set_weight(0, 1)
 
 
-def test_repeated_tiny_rewards_are_carried_until_attributable() -> None:
+def test_repeated_tiny_bribe_rewards_are_carried_until_attributable() -> None:
     model = RewardConservationModel([3, 7], precision=10)
     for index in range(100):
         model.emit(1)
@@ -132,7 +132,7 @@ def test_repeated_tiny_rewards_are_carried_until_attributable() -> None:
     assert model.classified_scaled() == 1_000
 
 
-def test_reward_carry_moves_to_fund_before_a_new_signaler_enters() -> None:
+def test_bribe_reward_carry_moves_to_fund_before_a_new_signaler_enters() -> None:
     model = RewardConservationModel([50, 50, 0], precision=10)
     model.emit(9)
     assert model.pending_scaled == 90

@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 21. Documented ABI entries: 546. Documented public ABI functions: 286.
+Documented source surfaces: 23. Documented ABI entries: 594. Documented public ABI functions: 314.
 
 ## Bribe
 
@@ -1116,7 +1116,7 @@ Source: [`src/core/GBX.sol`](../../packages/contracts/src/core/GBX.sol)
 
 Artifact: `out/GBX.sol/GBX.json`
 
-Public ABI: 31 functions, 8 events, 28 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 21 functions, 6 events, 22 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -1125,14 +1125,6 @@ constructor(address genesisLiquidityRecipient, address initialMinter);
 ```
 
 Creates the genesis-liquidity allocation and temporary deployment-time mint authority.
-
-### `CLOCK_MODE()`
-
-```solidity
-function CLOCK_MODE() external view returns (string arg0);
-```
-
-Machine-readable description of the clock as specified in ERC-6372.
 
 ### `DOMAIN_SEPARATOR()`
 
@@ -1182,22 +1174,6 @@ function burn(uint256 amount) external;
 
 Permanently burns GBX held by the caller.
 
-### `checkpoints(address,uint32)`
-
-```solidity
-function checkpoints(address account, uint32 pos) external view returns (struct Checkpoints.Checkpoint208 arg0);
-```
-
-Get the `pos`-th checkpoint for `account`.
-
-### `clock()`
-
-```solidity
-function clock() external view returns (uint48 arg0);
-```
-
-Clock used for flagging checkpoints. Can be overridden to implement timestamp based checkpoints (and voting), in which case {CLOCK_MODE} should be overridden as well to match.
-
 ### `decimals()`
 
 ```solidity
@@ -1206,30 +1182,6 @@ function decimals() external view returns (uint8 arg0);
 
 Returns the number of decimals used to get its user representation. For example, if `decimals` equals `2`, a balance of `505` tokens should be displayed to a user as `5.05` (`505 / 10 ** 2`). Tokens usually opt for a value of 18, imitating the relationship between Ether and Wei. This is the default value returned by this function, unless it's overridden. NOTE: This information is only used for _display_ purposes: it in no way affects any of the arithmetic of the contract, including {IERC20-balanceOf} and {IERC20-transfer}.
 
-### `delegate(address)`
-
-```solidity
-function delegate(address delegatee) external;
-```
-
-Delegates votes from the sender to `delegatee`.
-
-### `delegateBySig(address,uint256,uint256,uint8,bytes32,bytes32)`
-
-```solidity
-function delegateBySig(address delegatee, uint256 nonce, uint256 expiry, uint8 v, bytes32 r, bytes32 s) external;
-```
-
-Delegates votes from signer to `delegatee`.
-
-### `delegates(address)`
-
-```solidity
-function delegates(address account) external view returns (address arg0);
-```
-
-Returns the delegate that `account` has chosen.
-
 ### `eip712Domain()`
 
 ```solidity
@@ -1237,30 +1189,6 @@ function eip712Domain() external view returns (bytes1 fields, string name, strin
 ```
 
 returns the fields and values that describe the domain separator used by this contract for EIP-712 signature.
-
-### `getPastTotalSupply(uint256)`
-
-```solidity
-function getPastTotalSupply(uint256 timepoint) external view returns (uint256 arg0);
-```
-
-Returns the total supply of votes available at a specific moment in the past. If the `clock()` is configured to use block numbers, this will return the value at the end of the corresponding block. NOTE: This value is the sum of all available votes, which is not necessarily the sum of all delegated votes. Votes that have not been delegated are still part of total supply, even though they would not participate in a vote. Requirements: - `timepoint` must be in the past. If operating using block numbers, the block must be already mined.
-
-### `getPastVotes(address,uint256)`
-
-```solidity
-function getPastVotes(address account, uint256 timepoint) external view returns (uint256 arg0);
-```
-
-Returns the amount of votes that `account` had at a specific moment in the past. If the `clock()` is configured to use block numbers, this will return the value at the end of the corresponding block. Requirements: - `timepoint` must be in the past. If operating using block numbers, the block must be already mined.
-
-### `getVotes(address)`
-
-```solidity
-function getVotes(address account) external view returns (uint256 arg0);
-```
-
-Returns the current amount of votes that `account` has.
 
 ### `lifetimeBurned()`
 
@@ -1313,18 +1241,10 @@ Returns the name of the token.
 ### `nonces(address)`
 
 ```solidity
-function nonces(address owner) external view returns (uint256 nonce);
+function nonces(address owner) external view returns (uint256 arg0);
 ```
 
-Returns the current permit nonce for an account.
-
-### `numCheckpoints(address)`
-
-```solidity
-function numCheckpoints(address account) external view returns (uint32 arg0);
-```
-
-Get number of checkpoints for `account`.
+Returns the current nonce for `owner`. This value must be included whenever a signature is generated for {permit}. Every successful call to {permit} increases `owner`'s nonce by one. This prevents a signature from being used multiple times.
 
 ### `permit(address,address,uint256,uint256,uint8,bytes32,bytes32)`
 
@@ -1392,22 +1312,6 @@ event Burned(address indexed account, uint256 amount);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `DelegateChanged(address,address,address)`
-
-```solidity
-event DelegateChanged(address indexed delegator, address indexed fromDelegate, address indexed toDelegate);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `DelegateVotesChanged(address,uint256,uint256)`
-
-```solidity
-event DelegateVotesChanged(address indexed delegate, uint256 previousVotes, uint256 newVotes);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `EIP712DomainChanged()`
 
 ```solidity
@@ -1450,14 +1354,6 @@ error AddressHasNoCode(address account);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `CheckpointUnorderedInsertion()`
-
-```solidity
-error CheckpointUnorderedInsertion();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `ECDSAInvalidSignature()`
 
 ```solidity
@@ -1478,14 +1374,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error ECDSAInvalidSignatureS(bytes32 s);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC20ExceededSafeSupply(uint256,uint256)`
-
-```solidity
-error ERC20ExceededSafeSupply(uint256 increasedSupply, uint256 cap);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1554,22 +1442,6 @@ error ERC2612InvalidSigner(address signer, address owner);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `ERC5805FutureLookup(uint256,uint48)`
-
-```solidity
-error ERC5805FutureLookup(uint256 timepoint, uint48 clock);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC6372InconsistentClock()`
-
-```solidity
-error ERC6372InconsistentClock();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `InvalidAccountNonce(address,uint256)`
 
 ```solidity
@@ -1618,14 +1490,6 @@ error NotMinter(address caller);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `SafeCastOverflowedUintDowncast(uint8,uint256)`
-
-```solidity
-error SafeCastOverflowedUintDowncast(uint8 bits, uint256 value);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `SameMinter()`
 
 ```solidity
@@ -1638,14 +1502,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error StringTooLong(string str);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `VotesExpiredSignature(uint256)`
-
-```solidity
-error VotesExpiredSignature(uint256 expiry);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2691,7 +2547,7 @@ Source: [`src/core/Resonance.sol`](../../packages/contracts/src/core/Resonance.s
 
 Artifact: `out/Resonance.sol/Resonance.json`
 
-Public ABI: 58 functions, 16 events, 21 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 40 functions, 9 events, 21 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address,address,address)`
 
@@ -2699,72 +2555,57 @@ Public ABI: 58 functions, 16 events, 21 custom errors, 1 constructor, 0 receive 
 constructor(contract IERC20 signalGBX_, contract IERC20 usdg_, address fund_, contract BribeFactory bribeFactory_, contract StrategyFactory strategyFactory_, address initialOwner);
 ```
 
-Creates the allocation system with immutable token, Fund, and factory dependencies.
+Creates the rewarder with immutable token, Fund, and factory dependencies.
 
-**Parameters**
-
-- `bribeFactory_`: Factory used to deploy one Bribe per Strategy.
-- `fund_`: Treasury receiving unallocated or disabled-Strategy revenue.
-- `initialOwner`: Typed timelock authorized to administer the system.
-- `signalGBX_`: Non-transferable staking receipt used as signal power.
-- `strategyFactory_`: Factory used to deploy Strategies and BribeRouters.
-- `usdg_`: Revenue token allocated among Strategies.
-
-### `INDEX_PRECISION()`
+### `DURATION()`
 
 ```solidity
-function INDEX_PRECISION() external view returns (uint256 arg0);
+function DURATION() external view returns (uint256 arg0);
 ```
 
-Fixed-point precision for indexed USDG revenue.
+Fixed duration of every USDG reward period.
 
-### `REVENUE_STREAM_DURATION()`
+### `REWARD_PRECISION()`
 
 ```solidity
-function REVENUE_STREAM_DURATION() external view returns (uint256 arg0);
+function REWARD_PRECISION() external view returns (uint256 arg0);
 ```
 
-Exact duration of each USDG revenue period.
+Fixed-point precision for allocating six-decimal USDG across eighteen-decimal SignalGBX.
 
 ### `accountSignalWeight(address)`
 
 ```solidity
-function accountSignalWeight(address account) external view returns (uint256 signalWeight);
+function accountSignalWeight(address account) external view returns (uint256 amount);
 ```
 
-Total signal weight currently allocated by an account.
+Returns an account's complete allocation across live and killed Strategies.
+SignalGBX owns the canonical aggregate used to reserve allocated stake.
 
 ### `accountSignals(address,address)`
 
 ```solidity
-function accountSignals(address account, address strategy) external view returns (uint256 signals);
+function accountSignals(address account, address strategy) external view returns (uint256 amount);
 ```
 
-Signal weight an account assigned to a Strategy.
+Returns the SignalGBX one account has assigned to one Strategy.
+The paired Bribe is the canonical account-by-Strategy signal ledger.
 
-### `accountStrategies(address)`
+### `account_Token_RewardPerTokenPaid(address,address)`
 
 ```solidity
-function accountStrategies(address account) external view returns (address[] strategyList);
+function account_Token_RewardPerTokenPaid(address strategy, address token) external view returns (uint256 paid);
 ```
 
-Returns the Strategies currently selected by `account`.
+Strategy => token => cumulative reward-per-signal already incorporated.
 
-**Parameters**
-
-- `account`: Signal account to inspect.
-
-**Returns**
-
-- `strategyList`: Strategies currently selected by `account`.
-
-### `accountedRevenueBalance()`
+### `account_Token_Rewards(address,address)`
 
 ```solidity
-function accountedRevenueBalance() external view returns (uint256 arg0);
+function account_Token_Rewards(address strategy, address token) external view returns (uint256 reward);
 ```
 
-Exact supported-token balance pulled or synchronized minus completed Strategy and Fund payouts.
+Strategy => token => accrued whole raw reward units.
 
 ### `addBribeReward(address,address)`
 
@@ -2772,40 +2613,15 @@ Exact supported-token balance pulled or synchronized minus completed Strategy an
 function addBribeReward(address strategy, address rewardToken) external;
 ```
 
-Registers an additional reward token on a Strategy's Bribe.
+Registers an additional independently funded reward token on one Strategy's Bribe.
 
-**Parameters**
-
-- `rewardToken`: Token to register.
-- `strategy`: Strategy whose Bribe should accept the token.
-
-### `addSignal(address,uint256)`
+### `addSignalFor(address,address,uint256)`
 
 ```solidity
-function addSignal(address strategy, uint256 amount) external;
+function addSignalFor(address account, address strategy, uint256 amount) external;
 ```
 
-Adds an absolute SignalGBX amount to the caller's existing signal for one Strategy.
-`amount` is a delta, not a target: repeated calls increase rather than replace the existing allocation.
-
-**Parameters**
-
-- `amount`: Absolute SignalGBX amount to add to the existing signal.
-- `strategy`: Strategy whose signal should increase.
-
-### `addSignalMany(address[],uint256[])`
-
-```solidity
-function addSignalMany(address[] requestedStrategies, uint256[] amounts) external;
-```
-
-Adds absolute SignalGBX amounts to the caller's existing signals for several Strategies.
-Every amount is a delta, not a target. The caller controls the batch size, so no unbounded batch is forced.
-
-**Parameters**
-
-- `amounts`: Absolute SignalGBX amounts to add to the corresponding existing signals.
-- `requestedStrategies`: Strategies whose signals should increase.
+Adds an absolute SignalGBX delta for an account through the bound SignalGBX coordinator.
 
 ### `addStrategy(address,(uint256,uint256,uint256,uint256))`
 
@@ -2815,24 +2631,13 @@ function addStrategy(contract IERC20 paymentToken, struct Strategy.Config config
 
 Creates a Strategy, its Bribe, and its BribeRouter as one Resonance-controlled graph.
 
-**Parameters**
-
-- `config`: Immutable auction configuration.
-- `paymentToken`: Asset buyers pay to fill the Strategy.
-
-**Returns**
-
-- `bribeAddress`: Bribe paired with the Strategy.
-- `bribeRouterAddress`: BribeRouter paired with the Strategy and Bribe.
-- `strategyAddress`: Newly deployed Strategy.
-
 ### `bribeFactory()`
 
 ```solidity
 function bribeFactory() external view returns (contract BribeFactory arg0);
 ```
 
-Factory used to create one Bribe per Strategy.
+Resonance-bound factory used to create one Bribe per Strategy.
 
 ### `bribeFor(address)`
 
@@ -2850,62 +2655,21 @@ function bribeRouterFor(address strategy) external view returns (address router)
 
 BribeRouter associated with each Strategy.
 
-### `claimRewards(address[])`
-
-```solidity
-function claimRewards(address[] requestedStrategies) external;
-```
-
-Claims rewards from the Bribes associated with `strategies` for the caller.
-
-**Parameters**
-
-- `requestedStrategies`: Strategies whose Bribes should pay the caller.
-
-### `claimableRevenue(address)`
-
-```solidity
-function claimableRevenue(address strategy) external view returns (uint256 amount);
-```
-
-Indexed USDG available to distribute to each Strategy.
-
 ### `distribute(address)`
 
 ```solidity
 function distribute(address strategy) external returns (uint256 amount);
 ```
 
-Transfers a Strategy's indexed USDG allocation to that Strategy.
+Pays one Strategy's accrued USDG. Anyone may trigger payment to the fixed entitled Strategy.
 
-**Parameters**
-
-- `strategy`: Strategy whose indexed revenue should be transferred.
-
-**Returns**
-
-- `amount`: Amount of USDG distributed.
-
-### `distributeAll()`
+### `earned(address,address)`
 
 ```solidity
-function distributeAll() external;
+function earned(address strategy, address rewardToken) external view returns (uint256 reward);
 ```
 
-Distributes currently claimable revenue to every Strategy.
-
-### `distributeRange(uint256,uint256)`
-
-```solidity
-function distributeRange(uint256 start, uint256 end) external;
-```
-
-Distributes revenue to a bounded half-open range of Strategies: `[start, end)`.
-
-**Parameters**
-
-- `end`: Exclusive index, capped at the current Strategy count.
-- `start`: Inclusive index in the Strategy list.
+Returns one Strategy's stored plus elapsed USDG reward.
 
 ### `fund()`
 
@@ -2913,49 +2677,28 @@ Distributes revenue to a bounded half-open range of Strategies: `[start, end)`.
 function fund() external view returns (address arg0);
 ```
 
-Treasury that receives zero-weight and disabled-Strategy revenue.
+Treasury exposed to the paired Bribe graph and Strategy settlement.
 
-### `fundRevenueLiability()`
-
-```solidity
-function fundRevenueLiability() external view returns (uint256 arg0);
-```
-
-Whole USDG units irrevocably owed to the immutable Fund and payable by any caller.
-
-### `fundRevenueRemainderScaled()`
+### `getRewardForDuration(address)`
 
 ```solidity
-function fundRevenueRemainderScaled() external view returns (uint256 arg0);
+function getRewardForDuration(address rewardToken) external view returns (uint256 reward);
 ```
 
-Sub-USDG precision irrevocably assigned to Fund when an allocation boundary cannot retain it safely.
+Returns the complete amount represented by the current seven-day schedule.
 
-### `indexPendingRevenue()`
+### `getRewardTokens()`
 
 ```solidity
-function indexPendingRevenue() external returns (uint256 indexDelta);
+function getRewardTokens() external view returns (address[] tokens);
 ```
 
-Attempts to convert carried scaled revenue into another global index increment.
-Permissionless progress lets carried revenue become reachable without waiting for another notification.
-
-**Returns**
-
-- `indexDelta`: Increment added to `revenueIndex`, or zero while scaled carry is below one index step.
-
-### `indexedRevenueScaled()`
-
-```solidity
-function indexedRevenueScaled() external view returns (uint256 arg0);
-```
-
-Revenue precision already added to the global index but not yet checkpointed by Strategies.
+Returns the permanently single-element reward-token registry.
 
 ### `isStrategy(address)`
 
 ```solidity
-function isStrategy(address strategy) external view returns (bool isValid);
+function isStrategy(address strategy) external view returns (bool valid);
 ```
 
 Whether an address is a Resonance-created Strategy.
@@ -2963,10 +2706,10 @@ Whether an address is a Resonance-created Strategy.
 ### `isStrategyAlive(address)`
 
 ```solidity
-function isStrategyAlive(address strategy) external view returns (bool isAlive);
+function isStrategyAlive(address strategy) external view returns (bool alive);
 ```
 
-Whether a Strategy remains eligible for future USDG.
+Whether a Strategy can receive new signal and future Resonance rewards.
 
 ### `killStrategy(address)`
 
@@ -2974,25 +2717,42 @@ Whether a Strategy remains eligible for future USDG.
 function killStrategy(address strategy) external;
 ```
 
-Stops a Strategy from receiving future USDG; its already indexed revenue is returned to Fund.
-Existing signal weights remain until their owners remove them incrementally. Their dead-Strategy revenue share is routed to Fund whenever that Strategy's index is updated.
+Permanently stops a Strategy from receiving new signal or future Resonance rewards.
+Rewards accrued through this checkpoint remain claimable. Existing signal remains recorded and removable.
 
-**Parameters**
+### `lastTimeRewardApplicable(address)`
 
-- `strategy`: Strategy to disable permanently.
+```solidity
+function lastTimeRewardApplicable(address rewardToken) external view returns (uint256 timestamp);
+```
+
+Returns the final timestamp applicable to the active reward period.
+
+### `left(address)`
+
+```solidity
+function left(address rewardToken) external view returns (uint256 reward);
+```
+
+Returns exact raw reward units left in the active period.
+
+### `moveSignalFor(address,address,address,uint256)`
+
+```solidity
+function moveSignalFor(address account, address fromStrategy, address toStrategy, uint256 amount) external;
+```
+
+Atomically moves signal for an account from one Strategy to another through SignalGBX.
+A killed Strategy may be the source, but only a live Strategy may receive the moved signal.
 
 ### `notifyRevenue(uint256)`
 
 ```solidity
-function notifyRevenue(uint256 amount) external;
+function notifyRevenue(uint256 reward) external;
 ```
 
-Pulls USDG from ResonanceRouter and starts a stream or aggregates one queued successor.
-The active stream is checkpointed before the pull and is never reset or extended by a live top-up.
-
-**Parameters**
-
-- `amount`: Amount of USDG to pull and schedule.
+Pulls qualifying USDG from ResonanceRouter and restarts the seven-day reward period.
+During an active period, the new reward must be at least the exact reward left in that period. The restarted schedule contains the new reward plus that remainder. Raw-unit division remainder is emitted during the first seconds of the new period, so every scheduled USDG unit is represented.
 
 ### `owner()`
 
@@ -3002,19 +2762,6 @@ function owner() external view returns (address arg0);
 
 Returns the address of the current owner.
 
-### `payFundRevenue()`
-
-```solidity
-function payFundRevenue() external returns (uint256 amount);
-```
-
-Pays the complete accumulated dead/zero-signal USDG entitlement to the immutable Fund.
-State is cleared before interaction; a transfer failure atomically restores the full liability.
-
-**Returns**
-
-- `amount`: USDG paid to Fund.
-
 ### `paymentTokenFor(address)`
 
 ```solidity
@@ -3023,78 +2770,14 @@ function paymentTokenFor(address strategy) external view returns (address paymen
 
 Payment token required by each Strategy.
 
-### `pendingRevenue(address)`
+### `removeSignalFor(address,address,uint256)`
 
 ```solidity
-function pendingRevenue(address strategy) external view returns (uint256 amount);
+function removeSignalFor(address account, address strategy, uint256 amount) external;
 ```
 
-Returns revenue accrued since `strategy` was last updated.
-
-**Parameters**
-
-- `strategy`: Strategy whose uncheckpointed revenue is queried.
-
-**Returns**
-
-- `amount`: Revenue accrued since the Strategy's last index update.
-
-### `pendingRevenueScaled()`
-
-```solidity
-function pendingRevenueScaled() external view returns (uint256 arg0);
-```
-
-Received USDG represented in revenue precision but not yet large enough for another index increment.
-
-### `queuedRevenue()`
-
-```solidity
-function queuedRevenue() external view returns (uint256 arg0);
-```
-
-Whole USDG notifications aggregated behind the active stream.
-
-### `releasableRevenueScaled()`
-
-```solidity
-function releasableRevenueScaled() external view returns (uint256 releasedScaled);
-```
-
-Returns the scaled USDG that a checkpoint at the current timestamp would release.
-Previews at most the active stream and its single aggregate queued successor.
-
-**Returns**
-
-- `releasedScaled`: Releasable amount expressed in `INDEX_PRECISION`.
-
-### `removeSignal(address,uint256)`
-
-```solidity
-function removeSignal(address strategy, uint256 amount) external;
-```
-
-Removes an absolute SignalGBX amount from the caller's existing signal for one Strategy.
-`amount` is a delta, not a target. Removal remains available after a Strategy is killed.
-
-**Parameters**
-
-- `amount`: Absolute SignalGBX amount to remove from the existing signal.
-- `strategy`: Strategy whose signal should decrease.
-
-### `removeSignalMany(address[],uint256[])`
-
-```solidity
-function removeSignalMany(address[] requestedStrategies, uint256[] amounts) external;
-```
-
-Removes absolute SignalGBX amounts from the caller's existing signals for several Strategies.
-Every amount is a delta, not a target. The caller controls the batch size, so no unbounded batch is forced.
-
-**Parameters**
-
-- `amounts`: Absolute SignalGBX amounts to remove from the corresponding existing signals.
-- `requestedStrategies`: Strategies whose signals should decrease.
+Removes an absolute SignalGBX delta for an account through the bound SignalGBX coordinator.
+Exits remain available after a Strategy is killed and do not decrement active weight a second time.
 
 ### `renounceOwnership()`
 
@@ -3110,55 +2793,23 @@ Leaves the contract without owner. It will not be possible to call `onlyOwner` f
 function resonanceRouter() external view returns (address arg0);
 ```
 
-Sole router authorized to notify USDG revenue.
+Sole validated Router authorized to pull USDG into Resonance and notify rewards.
 
-### `revenueIndex()`
-
-```solidity
-function revenueIndex() external view returns (uint256 arg0);
-```
-
-Cumulative USDG revenue per unit of signal weight.
-
-### `revenueStreamFinish()`
+### `rewardPerToken(address)`
 
 ```solidity
-function revenueStreamFinish() external view returns (uint256 arg0);
+function rewardPerToken(address rewardToken) external view returns (uint256 accumulatedReward);
 ```
 
-Timestamp by which the current scheduled balance will be fully released.
+Returns cumulative scaled USDG allocated per unit of active SignalGBX.
 
-### `revenueStreamLastUpdate()`
+### `rewardTokens(uint256)`
 
 ```solidity
-function revenueStreamLastUpdate() external view returns (uint256 arg0);
+function rewardTokens(uint256 arg0) external view returns (address arg0);
 ```
 
-Timestamp through which the current stream has been checkpointed.
-
-### `revenueStreamRateScaled()`
-
-```solidity
-function revenueStreamRateScaled() external view returns (uint256 arg0);
-```
-
-Current USDG release rate, expressed as scaled USDG units per second.
-
-### `revenueStreamRemainderFinish()`
-
-```solidity
-function revenueStreamRemainderFinish() external view returns (uint256 arg0);
-```
-
-Exclusive timestamp through which the active stream emits one scaled unit above its base rate.
-
-### `revenueStreamRemainingScaled()`
-
-```solidity
-function revenueStreamRemainingScaled() external view returns (uint256 arg0);
-```
-
-Scaled USDG received but not yet released into signal-weight accounting.
+Registered Resonance reward tokens; permanently contains only USDG.
 
 ### `setResonanceRouter(address)`
 
@@ -3168,29 +2819,13 @@ function setResonanceRouter(address resonanceRouter_) external;
 
 Binds the sole ResonanceRouter after reciprocal Resonance and USDG identity validation.
 
-**Parameters**
-
-- `resonanceRouter_`: ResonanceRouter address to bind permanently.
-
 ### `signalGBX()`
 
 ```solidity
 function signalGBX() external view returns (contract IERC20 arg0);
 ```
 
-Non-transferable staking receipt used as current signal power.
-
-### `strategies()`
-
-```solidity
-function strategies() external view returns (address[] strategyList);
-```
-
-Returns all protocol Strategies in creation order.
-
-**Returns**
-
-- `strategyList`: Strategy addresses in creation order.
+Non-transferable staking receipt used as signal power.
 
 ### `strategyFactory()`
 
@@ -3198,52 +2833,32 @@ Returns all protocol Strategies in creation order.
 function strategyFactory() external view returns (contract StrategyFactory arg0);
 ```
 
-Factory used to create Strategies and their BribeRouters.
-
-### `strategyRevenueIndex(address)`
-
-```solidity
-function strategyRevenueIndex(address strategy) external view returns (uint256 index);
-```
-
-Global revenue index last accounted for each Strategy.
-
-### `strategyRevenueRemainder(address)`
-
-```solidity
-function strategyRevenueRemainder(address strategy) external view returns (uint256 scaledRemainder);
-```
-
-Sub-USDG precision retained for each Strategy across checkpoints instead of being rounded away.
+Resonance-bound factory used to create Strategies and their BribeRouters.
 
 ### `strategySignalWeight(address)`
 
 ```solidity
-function strategySignalWeight(address strategy) external view returns (uint256 signalWeight);
+function strategySignalWeight(address strategy) external view returns (uint256 amount);
 ```
 
-Total SignalGBX weight allocated to each Strategy.
+Returns the complete SignalGBX weight recorded for one Strategy.
+The paired Bribe is the canonical per-Strategy signal-supply ledger.
 
-### `syncRevenue()`
+### `token_IsReward(address)`
 
 ```solidity
-function syncRevenue() external returns (uint256 amount);
+function token_IsReward(address token) external view returns (bool isReward);
 ```
 
-Incorporates direct USDG donations into the active stream or its aggregate successor.
-A negative balance delta is unsupported and fails visibly instead of corrupting stored liabilities.
+Whether a token is registered for Resonance rewards; permanently true only for USDG.
 
-**Returns**
-
-- `amount`: Newly synchronized USDG.
-
-### `totalClaimableRevenue()`
+### `token_RewardData(address)`
 
 ```solidity
-function totalClaimableRevenue() external view returns (uint256 arg0);
+function token_RewardData(address token) external view returns (uint256 periodFinish, uint256 remainderFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerTokenStored);
 ```
 
-Sum of whole-token live-Strategy liabilities represented by `claimableRevenue`.
+Reward schedule and cumulative-index state for a registered token.
 
 ### `totalSignalWeight()`
 
@@ -3251,7 +2866,7 @@ Sum of whole-token live-Strategy liabilities represented by `claimableRevenue`.
 function totalSignalWeight() external view returns (uint256 arg0);
 ```
 
-Total SignalGBX weight currently allocated across all Strategies.
+Total active SignalGBX weight eligible for Resonance rewards.
 
 ### `transferOwnership(address)`
 
@@ -3261,37 +2876,13 @@ function transferOwnership(address newOwner) external;
 
 Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
 
-### `unaccountedRevenue()`
-
-```solidity
-function unaccountedRevenue() external view returns (uint256 amount);
-```
-
-Returns USDG held outside the explicit accounting identity, normally a direct unsynchronized donation.
-
-**Returns**
-
-- `amount`: Unaccounted supported-token balance.
-
-### `updateStrategy(address)`
-
-```solidity
-function updateStrategy(address strategy) external;
-```
-
-Updates one Strategy's stored revenue without transferring it.
-
-**Parameters**
-
-- `strategy`: Strategy whose index checkpoint should advance.
-
 ### `usdg()`
 
 ```solidity
 function usdg() external view returns (contract IERC20 arg0);
 ```
 
-Revenue token distributed among Strategies.
+Six-decimal reward token streamed to Strategies.
 
 ### Events
 
@@ -3299,22 +2890,6 @@ Revenue token distributed among Strategies.
 
 ```solidity
 event BribeRewardAdded(address indexed strategy, address indexed bribe, address indexed rewardToken);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `FundRevenueAccrued(uint256,uint256)`
-
-```solidity
-event FundRevenueAccrued(uint256 amount, uint256 totalLiability);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `FundRevenuePaid(address,address,uint256)`
-
-```solidity
-event FundRevenuePaid(address indexed caller, address indexed fund, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3335,14 +2910,6 @@ event ResonanceRouterSet(address indexed resonanceRouter);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `RevenueCarryFunded(uint256,uint256)`
-
-```solidity
-event RevenueCarryFunded(uint256 amountScaled, uint256 remainderScaled);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `RevenueDistributed(address,address,uint256)`
 
 ```solidity
@@ -3355,38 +2922,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 event RevenueNotified(address indexed resonanceRouter, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RevenueQueued(uint256,uint256)`
-
-```solidity
-event RevenueQueued(uint256 amount, uint256 totalQueued);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RevenueStreamCheckpointed(uint256,uint256)`
-
-```solidity
-event RevenueStreamCheckpointed(uint256 releasedScaled, uint256 remainingScaled);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RevenueStreamScheduled(uint256,uint256,uint256,uint256,uint256,uint256)`
-
-```solidity
-event RevenueStreamScheduled(uint256 amount, uint256 amountScaled, uint256 startedAt, uint256 finish, uint256 rateScaled, uint256 rateRemainder);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RevenueSynced(address,uint256)`
-
-```solidity
-event RevenueSynced(address indexed caller, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3457,10 +2992,10 @@ error InexactRevenuePayout(address receiver, uint256 expected, uint256 senderDeb
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InexactRevenueTransfer(uint256,uint256)`
+#### `InexactRevenueTransfer(uint256,uint256,uint256)`
 
 ```solidity
-error InexactRevenueTransfer(uint256 expected, uint256 received);
+error InexactRevenueTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3473,14 +3008,6 @@ error InsufficientSignal(address strategy, uint256 available, uint256 requested)
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InsufficientUnallocatedSignal(uint256,uint256)`
-
-```solidity
-error InsufficientUnallocatedSignal(uint256 available, uint256 requested);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `InvalidResonanceRouter(address)`
 
 ```solidity
@@ -3489,10 +3016,10 @@ error InvalidResonanceRouter(address resonanceRouter);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `LengthMismatch()`
+#### `NotRewardToken(address)`
 
 ```solidity
-error LengthMismatch();
+error NotRewardToken(address token);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3529,18 +3056,10 @@ error ResonanceRouterAlreadySet(address resonanceRouter);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `RevenueBalanceDeficit(uint256,uint256)`
+#### `RewardSmallerThanLeft(uint256,uint256)`
 
 ```solidity
-error RevenueBalanceDeficit(uint256 accounted, uint256 actual);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RevenueScaleOverflow(uint256)`
-
-```solidity
-error RevenueScaleOverflow(uint256 balance);
+error RewardSmallerThanLeft(uint256 reward, uint256 left);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3549,6 +3068,14 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error SafeERC20FailedOperation(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SameStrategy(address)`
+
+```solidity
+error SameStrategy(address strategy);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3577,6 +3104,14 @@ error UnauthorizedRevenueSource(address caller);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `UnauthorizedSignalSource(address)`
+
+```solidity
+error UnauthorizedSignalSource(address caller);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `ZeroAddress()`
 
 ```solidity
@@ -3599,7 +3134,7 @@ Source: [`src/core/ResonanceRouter.sol`](../../packages/contracts/src/core/Reson
 
 Artifact: `out/ResonanceRouter.sol/ResonanceRouter.json`
 
-Public ABI: 4 functions, 1 event, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 4 functions, 2 events, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -3640,11 +3175,11 @@ Resonance that receives and indexes routed USDG.
 function route() external returns (uint256 amount);
 ```
 
-Routes the complete nonzero USDG balance into Resonance.
+Routes the complete nonzero USDG balance once it qualifies for a new reward period.
 
 **Returns**
 
-- `amount`: Amount delivered.
+- `amount`: Amount delivered, or zero when the nonzero balance remains below the live-period threshold.
 
 ### `usdg()`
 
@@ -3655,6 +3190,14 @@ function usdg() external view returns (contract IERC20 arg0);
 USDG revenue token forwarded by this router.
 
 ### Events
+
+#### `RevenueHeld(address,uint256,uint256)`
+
+```solidity
+event RevenueHeld(address indexed caller, uint256 pending, uint256 minimum);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
 
 #### `RevenueRouted(address,uint256)`
 
@@ -3712,7 +3255,7 @@ Source: [`src/core/SignalGBX.sol`](../../packages/contracts/src/core/SignalGBX.s
 
 Artifact: `out/SignalGBX.sol/SignalGBX.json`
 
-Public ABI: 31 functions, 9 events, 32 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 36 functions, 9 events, 32 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -3735,13 +3278,13 @@ function CLOCK_MODE() external view returns (string arg0);
 
 Machine-readable description of the clock as specified in ERC-6372.
 
-### `DOMAIN_SEPARATOR()`
+### `allocatedBalance(address)`
 
 ```solidity
-function DOMAIN_SEPARATOR() external view returns (bytes32 arg0);
+function allocatedBalance(address account) external view returns (uint256 amount);
 ```
 
-Returns the domain separator used in the encoding of the signature for {permit}, as defined by {EIP712}.
+SignalGBX allocated by each account across all live and killed Strategies.
 
 ### `allowance(address,address)`
 
@@ -3829,7 +3372,7 @@ returns the fields and values that describe the domain separator used by this co
 function gbx() external view returns (contract IERC20 arg0);
 ```
 
-Underlying GBX held one-for-one against the SignalGBX supply.
+Underlying GBX that backs the SignalGBX supply at least one-for-one.
 
 ### `getPastTotalSupply(uint256)`
 
@@ -3855,6 +3398,20 @@ function getVotes(address account) external view returns (uint256 arg0);
 
 Returns the current amount of votes that `account` has.
 
+### `moveSignal(address,address,uint256)`
+
+```solidity
+function moveSignal(address fromStrategy, address toStrategy, uint256 amount) external;
+```
+
+Atomically moves signal from one Strategy to another without moving GBX or minting SignalGBX.
+
+**Parameters**
+
+- `amount`: Absolute SignalGBX delta moved.
+- `fromStrategy`: Strategy losing signal; may be killed.
+- `toStrategy`: Live Strategy receiving signal.
+
 ### `name()`
 
 ```solidity
@@ -3866,18 +3423,10 @@ Returns the name of the token.
 ### `nonces(address)`
 
 ```solidity
-function nonces(address owner) external view returns (uint256 nonce);
+function nonces(address owner) external view returns (uint256 arg0);
 ```
 
-Returns the current ERC-2612 permit nonce for `owner`.
-
-**Parameters**
-
-- `owner`: Account whose nonce is queried.
-
-**Returns**
-
-- `nonce`: Current permit nonce.
+Returns the next unused nonce for an address.
 
 ### `numCheckpoints(address)`
 
@@ -3895,13 +3444,31 @@ function owner() external view returns (address arg0);
 
 Returns the address of the current owner.
 
-### `permit(address,address,uint256,uint256,uint8,bytes32,bytes32)`
+### `removeSignal(address,uint256)`
 
 ```solidity
-function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
+function removeSignal(address strategy, uint256 amount) external;
 ```
 
-Sets `value` as the allowance of `spender` over `owner`'s tokens, given `owner`'s signed approval. IMPORTANT: The same issues {IERC20-approve} has related to transaction ordering also applies here. Emits an {Approval} event. Requirements: - `spender` cannot be the zero address. - `deadline` must be a timestamp in the future. - `v`, `r` and `s` must be a valid `secp256k1` signature from `owner` over the EIP712-formatted function arguments. - the signature must use `owner`'s current nonce (see {nonces}). For more information on the signature format, see the https://eips.ethereum.org/EIPS/eip-2612#specification[relevant EIP section]. CAUTION: See Security Considerations above.
+Removes signal from one Strategy while leaving the SignalGBX idle and immediately reusable.
+
+**Parameters**
+
+- `amount`: Absolute SignalGBX delta removed.
+- `strategy`: Strategy losing signal; exits remain available after kill.
+
+### `removeSignalAndUnstake(address,uint256)`
+
+```solidity
+function removeSignalAndUnstake(address strategy, uint256 amount) external;
+```
+
+Atomically removes signal, burns the released SignalGBX, and returns the same amount of GBX.
+
+**Parameters**
+
+- `amount`: Amount of signal removed, SignalGBX burned, and GBX returned.
+- `strategy`: Strategy losing signal; exits remain available after kill.
 
 ### `renounceOwnership()`
 
@@ -3917,7 +3484,7 @@ Leaves the contract without owner. It will not be possible to call `onlyOwner` f
 function resonance() external view returns (address arg0);
 ```
 
-Resonance that tracks whether an account still has active allocations.
+Resonance that applies this coordinator's per-Strategy signal changes.
 
 ### `setResonance(address)`
 
@@ -3931,6 +3498,19 @@ Binds the Resonance dependency once after reciprocal SignalGBX identity validati
 
 - `resonance_`: Resonance address to bind permanently.
 
+### `signal(address,uint256)`
+
+```solidity
+function signal(address strategy, uint256 amount) external;
+```
+
+Allocates existing unallocated SignalGBX to one live Strategy.
+
+**Parameters**
+
+- `amount`: Absolute SignalGBX delta added.
+- `strategy`: Live Strategy receiving signal.
+
 ### `stake(uint256)`
 
 ```solidity
@@ -3942,6 +3522,37 @@ Stakes GBX after Resonance setup and mints the same amount of non-transferable S
 **Parameters**
 
 - `amount`: Amount of GBX to stake.
+
+### `stakeAndSignal(address,uint256)`
+
+```solidity
+function stakeAndSignal(address strategy, uint256 amount) external;
+```
+
+Atomically stakes GBX and allocates the minted SignalGBX to one live Strategy.
+
+**Parameters**
+
+- `amount`: Amount of GBX staked and SignalGBX allocated.
+- `strategy`: Live Strategy receiving signal.
+
+### `stakeAndSignalWithPermit(address,uint256,uint256,uint8,bytes32,bytes32)`
+
+```solidity
+function stakeAndSignalWithPermit(address strategy, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
+```
+
+Attempts an underlying GBX permit, then atomically stakes and signals the requested amount.
+A pre-consumed permit may fail harmlessly because the exact underlying transfer remains authoritative.
+
+**Parameters**
+
+- `amount`: Amount of GBX requested, staked, and SignalGBX allocated.
+- `deadline`: Permit expiry timestamp.
+- `r`: Permit signature `r` component.
+- `s`: Permit signature `s` component.
+- `strategy`: Live Strategy receiving signal.
+- `v`: Permit recovery identifier.
 
 ### `symbol()`
 
@@ -4168,22 +3779,6 @@ error ERC20InvalidSpender(address spender);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `ERC2612ExpiredSignature(uint256)`
-
-```solidity
-error ERC2612ExpiredSignature(uint256 deadline);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ERC2612InvalidSigner(address,address)`
-
-```solidity
-error ERC2612InvalidSigner(address signer, address owner);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `ERC5805FutureLookup(uint256,uint48)`
 
 ```solidity
@@ -4204,6 +3799,22 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error InexactUnderlyingTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InsufficientAllocatedSignal(uint256,uint256)`
+
+```solidity
+error InsufficientAllocatedSignal(uint256 available, uint256 requested);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InsufficientUnallocatedSignal(uint256,uint256)`
+
+```solidity
+error InsufficientUnallocatedSignal(uint256 available, uint256 requested);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -4863,7 +4474,7 @@ Source: [`src/core/interfaces/ICoreResonance.sol`](../../packages/contracts/src/
 
 Artifact: `out/ICoreResonance.sol/ICoreResonance.json`
 
-Public ABI: 5 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+Public ABI: 9 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
 ### `accountSignalWeight(address)`
 
@@ -4880,6 +4491,20 @@ Returns signal weight currently allocated by an account.
 **Returns**
 
 - `signalWeight`: Signal weight currently assigned by `account`.
+
+### `addSignalFor(address,address,uint256)`
+
+```solidity
+function addSignalFor(address account, address strategy, uint256 amount) external;
+```
+
+Adds signal on behalf of an account through the permanently bound SignalGBX coordinator.
+
+**Parameters**
+
+- `account`: Account whose allocation increases.
+- `amount`: Absolute SignalGBX delta added.
+- `strategy`: Live Strategy receiving signal.
 
 ### `bribeRouterFor(address)`
 
@@ -4925,6 +4550,37 @@ Returns the immutable Fund used by Resonance and its reward graph.
 
 - `fundAddress`: Fixed Fund destination.
 
+### `left(address)`
+
+```solidity
+function left(address rewardToken) external view returns (uint256 amount);
+```
+
+Returns exact raw reward units left in one active reward period.
+
+**Parameters**
+
+- `rewardToken`: Token whose active period is queried.
+
+**Returns**
+
+- `amount`: Reward units not yet emitted by the active period.
+
+### `moveSignalFor(address,address,address,uint256)`
+
+```solidity
+function moveSignalFor(address account, address fromStrategy, address toStrategy, uint256 amount) external;
+```
+
+Atomically moves signal between Strategies through the permanently bound SignalGBX coordinator.
+
+**Parameters**
+
+- `account`: Account whose allocation moves.
+- `amount`: Absolute SignalGBX delta moved.
+- `fromStrategy`: Strategy losing signal.
+- `toStrategy`: Live Strategy receiving signal.
+
 ### `notifyRevenue(uint256)`
 
 ```solidity
@@ -4936,6 +4592,20 @@ Pulls and schedules newly routed USDG revenue.
 **Parameters**
 
 - `amount`: Amount of USDG to pull from the caller.
+
+### `removeSignalFor(address,address,uint256)`
+
+```solidity
+function removeSignalFor(address account, address strategy, uint256 amount) external;
+```
+
+Removes signal on behalf of an account through the permanently bound SignalGBX coordinator.
+
+**Parameters**
+
+- `account`: Account whose allocation decreases.
+- `amount`: Absolute SignalGBX delta removed.
+- `strategy`: Strategy losing signal; exits remain available after kill.
 
 ## IFund
 
@@ -5088,3 +4758,733 @@ Routes the complete nonzero pending USDG balance into Resonance.
 **Returns**
 
 - `amount`: Amount delivered to Resonance.
+
+## ISignalGBXAllocation
+
+Source: [`src/core/interfaces/ISignalGBXAllocation.sol`](../../packages/contracts/src/core/interfaces/ISignalGBXAllocation.sol)
+
+Artifact: `out/ISignalGBXAllocation.sol/ISignalGBXAllocation.json`
+
+Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `allocatedBalance(address)`
+
+```solidity
+function allocatedBalance(address account) external view returns (uint256 amount);
+```
+
+Returns the SignalGBX balance one account has allocated across all live and killed Strategies.
+
+**Parameters**
+
+- `account`: Account whose aggregate allocation is queried.
+
+**Returns**
+
+- `amount`: Complete allocated SignalGBX balance.
+
+## ProtocolGovernor
+
+Source: [`src/governance/ProtocolGovernor.sol`](../../packages/contracts/src/governance/ProtocolGovernor.sol)
+
+Artifact: `out/ProtocolGovernor.sol/ProtocolGovernor.json`
+
+Public ABI: 46 functions, 8 events, 24 custom errors, 1 constructor, 1 receive entry, 0 fallback entries.
+
+### `constructor(address,address,address,address,uint48,uint32,uint256,uint256)`
+
+```solidity
+constructor(contract IVotes votingToken, contract TimelockController timelockController, contract Resonance resonance_, contract Mine mine_, uint48 votingDelayBlocks, uint32 votingPeriodBlocks, uint256 proposalThresholdVotes, uint256 quorumNumerator_);
+```
+
+Creates a selector-bounded Governor using deployed SignalGBX vote checkpoints.
+
+**Parameters**
+
+- `mine_`: Immutable Mine maintenance target.
+- `proposalThresholdVotes`: Historical SignalGBX votes required to submit a proposal.
+- `quorumNumerator_`: Required participation percentage, from one through one hundred.
+- `resonance_`: Immutable Resonance maintenance target.
+- `timelockController`: Timelock that will own Resonance and Mine.
+- `votingDelayBlocks`: Delay from proposal creation to snapshot in SignalGBX clock blocks.
+- `votingPeriodBlocks`: Voting duration in SignalGBX clock blocks.
+- `votingToken`: SignalGBX contract used as the immutable IVotes source.
+
+### `receive()`
+
+```solidity
+receive() external payable;
+```
+
+Rejects direct ETH because every permitted protocol maintenance call has zero native value.
+
+### `BALLOT_TYPEHASH()`
+
+```solidity
+function BALLOT_TYPEHASH() external view returns (bytes32 arg0);
+```
+
+_Inherited callable; the compiled artifact contains no additional NatSpec for this ABI entry._
+
+### `CLOCK_MODE()`
+
+```solidity
+function CLOCK_MODE() external view returns (string arg0);
+```
+
+Machine-readable description of the clock as specified in ERC-6372.
+
+### `COUNTING_MODE()`
+
+```solidity
+function COUNTING_MODE() external pure returns (string arg0);
+```
+
+module:voting
+A description of the possible `support` values for {castVote} and the way these votes are counted, meant to be consumed by UIs to show correct vote options and interpret the results. The string is a URL-encoded sequence of key-value pairs that each describe one aspect, for example `support=bravo&quorum=for,abstain`. There are 2 standard keys: `support` and `quorum`. - `support=bravo` refers to the vote options 0 = Against, 1 = For, 2 = Abstain, as in `GovernorBravo`. - `quorum=bravo` means that only For votes are counted towards quorum. - `quorum=for,abstain` means that both For and Abstain votes are counted towards quorum. If a counting module makes use of encoded `params`, it should include this under a `params` key with a unique name that describes the behavior. For example: - `params=fractional` might refer to a scheme where votes are divided fractionally between for/against/abstain. - `params=erc721` might refer to a scheme where specific NFTs are delegated to vote. NOTE: The string can be decoded by the standard https://developer.mozilla.org/en-US/docs/Web/API/URLSearchParams[`URLSearchParams`] JavaScript class.
+
+### `EXTENDED_BALLOT_TYPEHASH()`
+
+```solidity
+function EXTENDED_BALLOT_TYPEHASH() external view returns (bytes32 arg0);
+```
+
+_Inherited callable; the compiled artifact contains no additional NatSpec for this ABI entry._
+
+### `cancel(address[],uint256[],bytes[],bytes32)`
+
+```solidity
+function cancel(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) external returns (uint256 arg0);
+```
+
+Cancel a proposal. A proposal is cancellable by the proposer, but only while it is Pending state, i.e. before the vote starts. Emits a {ProposalCanceled} event.
+
+### `castVote(uint256,uint8)`
+
+```solidity
+function castVote(uint256 proposalId, uint8 support) external returns (uint256 arg0);
+```
+
+Cast a vote Emits a {VoteCast} event.
+
+### `castVoteBySig(uint256,uint8,address,bytes)`
+
+```solidity
+function castVoteBySig(uint256 proposalId, uint8 support, address voter, bytes signature) external returns (uint256 arg0);
+```
+
+Cast a vote using the voter's signature, including ERC-1271 signature support. Emits a {VoteCast} event.
+
+### `castVoteWithReason(uint256,uint8,string)`
+
+```solidity
+function castVoteWithReason(uint256 proposalId, uint8 support, string reason) external returns (uint256 arg0);
+```
+
+Cast a vote with a reason Emits a {VoteCast} event.
+
+### `castVoteWithReasonAndParams(uint256,uint8,string,bytes)`
+
+```solidity
+function castVoteWithReasonAndParams(uint256 proposalId, uint8 support, string reason, bytes params) external returns (uint256 arg0);
+```
+
+Cast a vote with a reason and additional encoded parameters Emits a {VoteCast} or {VoteCastWithParams} event depending on the length of params.
+
+### `castVoteWithReasonAndParamsBySig(uint256,uint8,address,string,bytes,bytes)`
+
+```solidity
+function castVoteWithReasonAndParamsBySig(uint256 proposalId, uint8 support, address voter, string reason, bytes params, bytes signature) external returns (uint256 arg0);
+```
+
+Cast a vote with a reason and additional encoded parameters using the voter's signature, including ERC-1271 signature support. Emits a {VoteCast} or {VoteCastWithParams} event depending on the length of params.
+
+### `clock()`
+
+```solidity
+function clock() external view returns (uint48 arg0);
+```
+
+Clock (as specified in ERC-6372) is set to match the token's clock. Fallback to block numbers if the token does not implement ERC-6372.
+
+### `eip712Domain()`
+
+```solidity
+function eip712Domain() external view returns (bytes1 fields, string name, string version, uint256 chainId, address verifyingContract, bytes32 salt, uint256[] extensions);
+```
+
+returns the fields and values that describe the domain separator used by this contract for EIP-712 signature.
+
+### `execute(address[],uint256[],bytes[],bytes32)`
+
+```solidity
+function execute(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) external payable returns (uint256 proposalId);
+```
+
+Executes an approved zero-value proposal without accepting native currency from the executor.
+GovernorTimelockControl forwards `msg.value` to its Timelock independently of proposal call values. Rejecting it here prevents accidental ETH from becoming stranded while preserving permissionless execution.
+
+**Parameters**
+
+- `calldatas`: Exact selector-bounded proposal payloads.
+- `descriptionHash`: Hash of the proposal description used in its identifier.
+- `targets`: Immutable-target proposal call destinations.
+- `values`: Zero-value proposal call amounts.
+
+**Returns**
+
+- `proposalId`: Identifier of the executed proposal.
+
+### `getProposalId(address[],uint256[],bytes[],bytes32)`
+
+```solidity
+function getProposalId(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) external view returns (uint256 arg0);
+```
+
+module:core
+Function used to get the proposal id from the proposal details.
+
+### `getVotes(address,uint256)`
+
+```solidity
+function getVotes(address account, uint256 timepoint) external view returns (uint256 arg0);
+```
+
+module:reputation
+Voting power of an `account` at a specific `timepoint`. Note: this can be implemented in a number of ways, for example by reading the delegated balance from one (or multiple), {ERC20Votes} tokens.
+
+### `getVotesWithParams(address,uint256,bytes)`
+
+```solidity
+function getVotesWithParams(address account, uint256 timepoint, bytes params) external view returns (uint256 arg0);
+```
+
+module:reputation
+Voting power of an `account` at a specific `timepoint` given additional encoded parameters.
+
+### `hasVoted(uint256,address)`
+
+```solidity
+function hasVoted(uint256 proposalId, address account) external view returns (bool arg0);
+```
+
+module:voting
+Returns whether `account` has cast a vote on `proposalId`.
+
+### `hashProposal(address[],uint256[],bytes[],bytes32)`
+
+```solidity
+function hashProposal(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) external pure returns (uint256 arg0);
+```
+
+See {IGovernor-hashProposal}. The proposal id is produced by hashing the ABI encoded `targets` array, the `values` array, the `calldatas` array and the descriptionHash (bytes32 which itself is the keccak256 hash of the description string). This proposal id can be produced from the proposal data which is part of the {ProposalCreated} event. It can even be computed in advance, before the proposal is submitted. Note that the chainId and the governor address are not part of the proposal id computation. Consequently, the same proposal (with same operation and same description) will have the same id if submitted on multiple governors across multiple networks. This also means that in order to execute the same operation twice (on the same governor) the proposer will have to change the description in order to avoid proposal id conflicts.
+
+### `mine()`
+
+```solidity
+function mine() external view returns (contract Mine arg0);
+```
+
+The sole Mine whose bounded capacity increase may be proposed.
+
+### `name()`
+
+```solidity
+function name() external view returns (string arg0);
+```
+
+module:core
+Name of the governor instance (used in building the EIP-712 domain separator).
+
+### `nonces(address)`
+
+```solidity
+function nonces(address owner) external view returns (uint256 arg0);
+```
+
+Returns the next unused nonce for an address.
+
+### `onERC1155BatchReceived(address,address,uint256[],uint256[],bytes)`
+
+```solidity
+function onERC1155BatchReceived(address arg0, address arg1, uint256[] arg2, uint256[] arg3, bytes arg4) external returns (bytes4 arg0);
+```
+
+See {IERC1155Receiver-onERC1155BatchReceived}. Receiving tokens is disabled if the governance executor is other than the governor itself (eg. when using with a timelock).
+
+### `onERC1155Received(address,address,uint256,uint256,bytes)`
+
+```solidity
+function onERC1155Received(address arg0, address arg1, uint256 arg2, uint256 arg3, bytes arg4) external returns (bytes4 arg0);
+```
+
+See {IERC1155Receiver-onERC1155Received}. Receiving tokens is disabled if the governance executor is other than the governor itself (eg. when using with a timelock).
+
+### `onERC721Received(address,address,uint256,bytes)`
+
+```solidity
+function onERC721Received(address arg0, address arg1, uint256 arg2, bytes arg3) external returns (bytes4 arg0);
+```
+
+See {IERC721Receiver-onERC721Received}. Receiving tokens is disabled if the governance executor is other than the governor itself (eg. when using with a timelock).
+
+### `proposalDeadline(uint256)`
+
+```solidity
+function proposalDeadline(uint256 proposalId) external view returns (uint256 arg0);
+```
+
+module:core
+Timepoint at which votes close. If using block number, votes close at the end of this block, so it is possible to cast a vote during this block.
+
+### `proposalEta(uint256)`
+
+```solidity
+function proposalEta(uint256 proposalId) external view returns (uint256 arg0);
+```
+
+module:core
+The time when a queued proposal becomes executable ("ETA"). Unlike {proposalSnapshot} and {proposalDeadline}, this doesn't use the governor clock, and instead relies on the executor's clock which may be different. In most cases this will be a timestamp.
+
+### `proposalNeedsQueuing(uint256)`
+
+```solidity
+function proposalNeedsQueuing(uint256 proposalId) external view returns (bool needsQueuing);
+```
+
+Returns whether a successful proposal must be queued in the immutable Timelock.
+
+**Parameters**
+
+- `proposalId`: Proposal identifier returned by propose.
+
+**Returns**
+
+- `needsQueuing`: True when the proposal must pass through the Timelock queue before execution.
+
+### `proposalProposer(uint256)`
+
+```solidity
+function proposalProposer(uint256 proposalId) external view returns (address arg0);
+```
+
+module:core
+The account that created a proposal.
+
+### `proposalSnapshot(uint256)`
+
+```solidity
+function proposalSnapshot(uint256 proposalId) external view returns (uint256 arg0);
+```
+
+module:core
+Timepoint used to retrieve user's votes and quorum. If using block number (as per Compound's Comp), the snapshot is performed at the end of this block. Hence, voting for this proposal starts at the beginning of the following block.
+
+### `proposalThreshold()`
+
+```solidity
+function proposalThreshold() external view returns (uint256 arg0);
+```
+
+module:core
+The number of votes required in order for a voter to become a proposer.
+
+### `proposalVotes(uint256)`
+
+```solidity
+function proposalVotes(uint256 proposalId) external view returns (uint256 againstVotes, uint256 forVotes, uint256 abstainVotes);
+```
+
+Accessor to the internal vote counts.
+
+### `propose(address[],uint256[],bytes[],string)`
+
+```solidity
+function propose(address[] targets, uint256[] values, bytes[] calldatas, string description) external returns (uint256 arg0);
+```
+
+See {IGovernor-propose}. This function has opt-in frontrunning protection, described in {\_isValidDescriptionForProposer}.
+
+### `queue(address[],uint256[],bytes[],bytes32)`
+
+```solidity
+function queue(address[] targets, uint256[] values, bytes[] calldatas, bytes32 descriptionHash) external returns (uint256 arg0);
+```
+
+Queue a proposal. Some governors require this step to be performed before execution can happen. If queuing is not necessary, this function may revert. Queuing a proposal requires the quorum to be reached, the vote to be successful, and the deadline to be reached. Emits a {ProposalQueued} event.
+
+### `quorum(uint256)`
+
+```solidity
+function quorum(uint256 timepoint) external view returns (uint256 arg0);
+```
+
+module:user-config
+Minimum number of cast voted required for a proposal to be successful. NOTE: The `timepoint` parameter corresponds to the snapshot used for counting vote. This allows to scale the quorum depending on values such as the totalSupply of a token at this timepoint (see {ERC20Votes}).
+
+### `quorumDenominator()`
+
+```solidity
+function quorumDenominator() external pure returns (uint256 arg0);
+```
+
+Returns the fixed quorum percentage denominator.
+
+### `quorumNumerator()`
+
+```solidity
+function quorumNumerator() external view returns (uint256 arg0);
+```
+
+Returns the immutable quorum percentage numerator.
+
+### `relay(address,uint256,bytes)`
+
+```solidity
+function relay(address arg0, uint256 arg1, bytes arg2) external payable;
+```
+
+Generic Governor relay is incompatible with the immutable four-selector surface.
+
+### `resonance()`
+
+```solidity
+function resonance() external view returns (contract Resonance arg0);
+```
+
+The sole Resonance whose bounded maintenance calls may be proposed.
+
+### `state(uint256)`
+
+```solidity
+function state(uint256 proposalId) external view returns (enum IGovernor.ProposalState proposalState);
+```
+
+Returns the current OpenZeppelin lifecycle state for a proposal.
+
+**Parameters**
+
+- `proposalId`: Proposal identifier returned by propose.
+
+**Returns**
+
+- `proposalState`: Current proposal lifecycle state.
+
+### `supportsInterface(bytes4)`
+
+```solidity
+function supportsInterface(bytes4 interfaceId) external view returns (bool arg0);
+```
+
+Returns true if this contract implements the interface defined by `interfaceId`. See the corresponding https://eips.ethereum.org/EIPS/eip-165#how-interfaces-are-identified[ERC section] to learn more about how these ids are created. This function call must use less than 30 000 gas.
+
+### `timelock()`
+
+```solidity
+function timelock() external view returns (address arg0);
+```
+
+Public accessor to check the address of the timelock
+
+### `token()`
+
+```solidity
+function token() external view returns (contract IERC5805 arg0);
+```
+
+The token that voting power is sourced from.
+
+### `updateTimelock(address)`
+
+```solidity
+function updateTimelock(contract TimelockController arg0) external pure;
+```
+
+The Timelock cannot be replaced after deployment.
+
+### `version()`
+
+```solidity
+function version() external view returns (string arg0);
+```
+
+module:core
+Version of the governor instance (used in building the EIP-712 domain separator). Default: "1"
+
+### `votingDelay()`
+
+```solidity
+function votingDelay() external view returns (uint256 arg0);
+```
+
+module:user-config
+Delay, between the proposal is created and the vote starts. The unit this duration is expressed in depends on the clock (see ERC-6372) this contract uses. This can be increased to leave time for users to buy voting power, or delegate it, before the voting of a proposal starts. NOTE: While this interface returns a uint256, timepoints are stored as uint48 following the ERC-6372 clock type. Consequently this value must fit in a uint48 (when added to the current clock). See {IERC6372-clock}.
+
+### `votingPeriod()`
+
+```solidity
+function votingPeriod() external view returns (uint256 arg0);
+```
+
+module:user-config
+Delay between the vote start and vote end. The unit this duration is expressed in depends on the clock (see ERC-6372) this contract uses. NOTE: The {votingDelay} can delay the start of the vote. This must be considered when setting the voting duration compared to the voting delay. NOTE: This value is stored when the proposal is submitted so that possible changes to the value do not affect proposals that have already been submitted. The type used to save it is a uint32. Consequently, while this interface returns a uint256, the value it returns should fit in a uint32.
+
+### Events
+
+#### `EIP712DomainChanged()`
+
+```solidity
+event EIP712DomainChanged();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ProposalCanceled(uint256)`
+
+```solidity
+event ProposalCanceled(uint256 proposalId);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ProposalCreated(uint256,address,address[],uint256[],string[],bytes[],uint256,uint256,string)`
+
+```solidity
+event ProposalCreated(uint256 proposalId, address proposer, address[] targets, uint256[] values, string[] signatures, bytes[] calldatas, uint256 voteStart, uint256 voteEnd, string description);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ProposalExecuted(uint256)`
+
+```solidity
+event ProposalExecuted(uint256 proposalId);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ProposalQueued(uint256,uint256)`
+
+```solidity
+event ProposalQueued(uint256 proposalId, uint256 etaSeconds);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `TimelockChange(address,address)`
+
+```solidity
+event TimelockChange(address oldTimelock, address newTimelock);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `VoteCast(address,uint256,uint8,uint256,string)`
+
+```solidity
+event VoteCast(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `VoteCastWithParams(address,uint256,uint8,uint256,string,bytes)`
+
+```solidity
+event VoteCastWithParams(address indexed voter, uint256 proposalId, uint8 support, uint256 weight, string reason, bytes params);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `GovernorAlreadyCastVote(address)`
+
+```solidity
+error GovernorAlreadyCastVote(address voter);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorAlreadyQueuedProposal(uint256)`
+
+```solidity
+error GovernorAlreadyQueuedProposal(uint256 proposalId);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorDisabledDeposit()`
+
+```solidity
+error GovernorDisabledDeposit();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorInsufficientProposerVotes(address,uint256,uint256)`
+
+```solidity
+error GovernorInsufficientProposerVotes(address proposer, uint256 votes, uint256 threshold);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorInvalidProposalLength(uint256,uint256,uint256)`
+
+```solidity
+error GovernorInvalidProposalLength(uint256 targets, uint256 calldatas, uint256 values);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorInvalidSignature(address)`
+
+```solidity
+error GovernorInvalidSignature(address voter);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorInvalidVoteParams()`
+
+```solidity
+error GovernorInvalidVoteParams();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorInvalidVoteType()`
+
+```solidity
+error GovernorInvalidVoteType();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorInvalidVotingPeriod(uint256)`
+
+```solidity
+error GovernorInvalidVotingPeriod(uint256 votingPeriod);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorNonexistentProposal(uint256)`
+
+```solidity
+error GovernorNonexistentProposal(uint256 proposalId);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorNotQueuedProposal(uint256)`
+
+```solidity
+error GovernorNotQueuedProposal(uint256 proposalId);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorOnlyExecutor(address)`
+
+```solidity
+error GovernorOnlyExecutor(address account);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorQueueNotImplemented()`
+
+```solidity
+error GovernorQueueNotImplemented();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorRestrictedProposer(address)`
+
+```solidity
+error GovernorRestrictedProposer(address proposer);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorUnableToCancel(uint256,address)`
+
+```solidity
+error GovernorUnableToCancel(uint256 proposalId, address account);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GovernorUnexpectedProposalState(uint256,uint8,bytes32)`
+
+```solidity
+error GovernorUnexpectedProposalState(uint256 proposalId, enum IGovernor.ProposalState current, bytes32 expectedStates);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ImmutableGovernanceSurface()`
+
+```solidity
+error ImmutableGovernanceSurface();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidAccountNonce(address,uint256)`
+
+```solidity
+error InvalidAccountNonce(address account, uint256 currentNonce);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidDependency(address)`
+
+```solidity
+error InvalidDependency(address dependency);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidGovernanceParameter()`
+
+```solidity
+error InvalidGovernanceParameter();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidShortString()`
+
+```solidity
+error InvalidShortString();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SafeCastOverflowedUintDowncast(uint8,uint256)`
+
+```solidity
+error SafeCastOverflowedUintDowncast(uint8 bits, uint256 value);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `StringTooLong(string)`
+
+```solidity
+error StringTooLong(string str);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `UnsupportedProposalCall(address,uint256,bytes4,uint256)`
+
+```solidity
+error UnsupportedProposalCall(address target, uint256 value, bytes4 selector, uint256 calldataLength);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._

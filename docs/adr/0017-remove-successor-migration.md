@@ -41,7 +41,8 @@ and the `initialOwner` field of its `Dependencies` struct. The `ILiquidityPositi
 a successor candidate and is deleted. Once the precommitted NFT is accepted it can never be transferred out.
 Permissionless fee processing is unaffected and continues for the life of the contract.
 
-`Resonance` is now the only contract in the protocol with an owner. ADR 0021 later removed `setBribeBps`; the remaining
+At this decision point, `Resonance` was the only contract in the protocol with an owner. ADR 0024 later introduced
+timelock-owned Mine administration for increase-only capacity. ADR 0021 removed `setBribeBps`; Resonance's remaining
 surface is `addStrategy`, `killStrategy`, and `addBribeReward`.
 
 ## Consequences
@@ -54,12 +55,12 @@ surface is `addStrategy`, `killStrategy`, and `addBribeReward`.
 - Assets sent to `Fund` that redeemers omit remain there for the remaining GBX supply indefinitely. There is no
   sweep, rescue, or administrative withdrawal, by design.
 - The redemption-versus-migration race is gone, because migration is gone.
-- Two failure modes previously mitigated by migration are now unmitigated by design, and are tracked as open items in
-  `packages/contracts/audit/FINDINGS.md`: a frozen or blocklisting revenue token that cannot transfer to `Fund` blocks
-  `reset`, `distributeAll`, and `updateStrategy` while a retired Strategy still holds signal weight; and revenue
-  notifications below the index resolution were absorbed by `Resonance` with no claim created. Both historical risks
-  are superseded by the exact-carry and deferred-liability design in
-  [ADR 0020](0020-exact-carry-and-deferred-fixed-liabilities.md).
+- Two failure modes previously mitigated by migration were tracked at this decision point: a frozen or blocklisting
+  revenue token could block the then-current `reset`, `distributeAll`, and `updateStrategy` paths, and notifications
+  below the then-current index resolution could enter Resonance without creating a claim. These selectors and risk
+  descriptions are historical. [ADR 0020](0020-exact-carry-and-deferred-fixed-liabilities.md) replaced the transfer
+  coupling with fixed pull liabilities; [ADR 0029](0029-bribe-based-resonance.md) later replaced the Resonance carry
+  remedy with explicitly accepted flooring, zero-signal, and direct-donation surplus.
 - Generated artifacts follow the contracts: SDK ABIs and the `buildMigrateLiquidityPosition` action, the
   `LiquidityPositionView.successor` reader field, subgraph handlers, manifest entries, spec coverage list, and schema
   fields for `fundSuccessor` and `liquidityPositionSuccessor` are all removed.

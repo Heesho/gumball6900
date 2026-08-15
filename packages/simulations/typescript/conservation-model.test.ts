@@ -2,119 +2,120 @@ import { describe, expect, it } from 'vitest';
 
 import { exactStreamEmission, RevenueConservationModel, RewardConservationModel } from './conservation-model.js';
 
-describe('independent exact conservation models', () => {
-  it('preserves every revenue atom across weight churn and retirement', () => {
-    const model = new RevenueConservationModel(3, 10n);
-    model.setWeight(0, 3n);
-    model.setWeight(1, 7n);
-    for (let amount = 1n; amount <= 97n; amount += 1n) {
-      model.notify(604_800n + amount);
-      model.advance(604_800n);
-      if (amount % 5n === 0n) model.checkpoint(0);
-      if (amount % 7n === 0n) model.checkpoint(1);
-      if (amount === 41n) model.kill(1);
-      expect(model.classifiedScaled()).toBe(model.accounted * model.precision);
-    }
-    model.advance(604_800n);
-    model.checkpoint(0);
-    model.checkpoint(1);
-    model.setWeight(0, 0n);
-    model.setWeight(1, 0n);
-    expect(model.classifiedScaled()).toBe(model.accounted * model.precision);
-  });
-
-  it('queues a live top-up without changing the active stream', () => {
-    const model = new RevenueConservationModel(2);
-    model.setWeight(0, 1n * model.precision);
+describe('independent Resonance reward model', () => {
+  it('checkpoints and restarts a qualifying live top-up with reward plus exact left', () => {
+    const model = new RevenueConservationModel(1);
+    model.setWeight(0, 1n);
     model.notify(1_209_600n);
-    expect(model.streamRateScaled).toBe(2n * model.precision);
     const firstFinish = model.streamFinish;
 
     model.advance(86_400n);
-    model.notify(700_000n);
-    expect(model.queuedRevenue).toBe(700_000n);
-    expect(model.streamFinish).toBe(firstFinish);
-    expect(model.streamRateScaled).toBe(2n * model.precision);
+    expect(model.left()).toBe(1_036_800n);
+    model.notify(1_036_800n);
 
-    model.advance(518_400n);
-    model.checkpointRevenue();
-    expect(model.queuedRevenue).toBe(0n);
-    expect(model.streamRemainingScaled).toBe(700_000n * model.precision);
-    expect(model.streamFinish).toBe(firstFinish + 604_800n);
-
-    model.advance(604_800n);
-    model.checkpoint(0);
-    expect(model.claimable[0]).toBe(1_909_600n);
-    expect([model.streamRateScaled, model.streamRemainingScaled, model.streamLastUpdate, model.streamFinish]).toEqual([
-      0n,
-      0n,
-      0n,
-      0n,
-    ]);
-    expect(model.classifiedScaled()).toBe(model.accounted * model.precision);
+    expect(model.earned(0)).toBe(172_800n);
+    expect(model.left()).toBe(2_073_600n);
+    expect(model.streamFinish).toBe(86_400n + 604_800n);
+    expect(model.streamFinish).toBeGreaterThan(firstFinish);
+    expect(model.surplus()).toBe(0n);
   });
 
-  it('streams a single raw revenue unit and leaves no terminal router dust', () => {
+  it('rejects a sub-threshold notification and lets the modeled Router hold until qualifying', () => {
+    const model = new RevenueConservationModel(1);
+    model.setWeight(0, 1n);
+    expect(model.route(1_209_600n)).toBe(1_209_600n);
+    const firstFinish = model.streamFinish;
+
+    model.advance(86_400n);
+    const minimum = model.left();
+    expect(() => model.notify(minimum - 1n)).toThrow('reward smaller than left');
+    expect(model.streamFinish).toBe(firstFinish);
+
+    expect(model.route(700_000n)).toBe(0n);
+    expect(model.routerBalance).toBe(700_000n);
+    expect(model.streamFinish).toBe(firstFinish);
+
+    expect(model.route(minimum - 700_000n)).toBe(minimum);
+    expect(model.routerBalance).toBe(0n);
+    expect(model.left()).toBe(2n * minimum);
+  });
+
+  it('front-loads a one-raw-unit stream into its first second', () => {
     const model = new RevenueConservationModel(1);
     model.setWeight(0, 1n);
     model.notify(1n);
-    model.advance(604_800n);
-    model.checkpoint(0);
-    expect(model.claimable[0]).toBe(1n);
-    expect(model.classifiedScaled()).toBe(model.precision);
+
+    expect(model.left()).toBe(1n);
+    model.advance(1n);
+    expect(model.left()).toBe(0n);
+    expect(model.claim(0)).toBe(1n);
+    expect(model.balance).toBe(0n);
+
+    expect(exactStreamEmission(1n, 604_800n, 0n)).toBe(0n);
+    expect(exactStreamEmission(1n, 604_800n, 1n)).toBe(1n);
   });
 
-  it('catches up one queued successor in bounded work', () => {
+  it('classifies zero-supply emission and direct donations as surplus', () => {
     const model = new RevenueConservationModel(1);
+    model.notify(7n);
+    model.advance(3n);
+    model.checkpointRevenue();
+    expect(model.left()).toBe(4n);
+    expect(model.surplus()).toBe(3n);
+
     model.setWeight(0, 1n);
-    model.notify(100_000_000n);
-    model.advance(86_400n);
-    model.notify(10_000_000n);
-    model.advance(13n * 86_400n);
-    model.checkpoint(0);
-    expect(model.claimable[0]).toBe(110_000_000n);
-    expect(model.streamRemainingScaled).toBe(0n);
-    expect(model.queuedRevenue).toBe(0n);
+    model.advance(1n);
+    expect(model.earned(0)).toBe(1n);
+    expect(model.surplus()).toBe(3n);
+
+    model.donate(5n);
+    expect(model.donations).toBe(5n);
+    expect(model.surplus()).toBe(8n);
   });
 
-  it('attributes only post-entry stream time to a new signal', () => {
+  it('leaves per-Strategy flooring in surplus instead of carrying fractions', () => {
     const model = new RevenueConservationModel(2);
     model.setWeight(0, 1n);
-    model.notify(604_800n);
-    model.advance(86_400n);
     model.setWeight(1, 1n);
-    model.advance(518_400n);
+    model.notify(2n);
+
+    model.advance(1n);
     model.checkpoint(0);
     model.checkpoint(1);
-
-    expect(model.claimable).toEqual([345_600n, 259_200n]);
-  });
-
-  it('moves unindexable old-weight carry to Fund before the denominator changes', () => {
-    const model = new RevenueConservationModel(2, 10n);
-    model.setWeight(0, 20n);
-    model.notify(1n);
-    model.advance(604_800n);
-    model.checkpointRevenue();
-    expect(model.pendingScaled).toBe(10n);
-
-    model.setWeight(1, 1n);
-    expect(model.pendingScaled).toBe(0n);
-    expect(model.fundLiability).toBe(1n);
     expect(model.claimable).toEqual([0n, 0n]);
-    expect(model.classifiedScaled()).toBe(model.accounted * model.precision);
+    expect(model.surplus()).toBe(1n);
+
+    model.advance(1n);
+    model.checkpoint(0);
+    model.checkpoint(1);
+    expect(model.claimable).toEqual([0n, 0n]);
+    expect(model.surplus()).toBe(2n);
   });
 
-  it('emits low-decimal and sub-duration streams exactly and ignores paused wall time', () => {
-    const duration = 604_800n;
-    expect(exactStreamEmission(1n, duration, 0n)).toBe(0n);
-    expect(exactStreamEmission(1n, duration, 1n)).toBe(1n);
-    expect(exactStreamEmission(7n, duration, 3n)).toBe(3n);
-    expect(exactStreamEmission(7n, duration, duration)).toBe(7n);
-    // A week paused at zero supply contributes no active seconds.
-    expect(exactStreamEmission(11n, duration, 9n)).toBe(exactStreamEmission(11n, duration, 9n));
-  });
+  it('kills against the old denominator, preserves stored reward, and excludes future earnings', () => {
+    const model = new RevenueConservationModel(1);
+    model.setWeight(0, 5n);
+    model.notify(604_800n);
+    model.advance(10n);
 
+    model.kill(0);
+    expect(model.claimable[0]).toBe(10n);
+    expect(model.totalWeight).toBe(0n);
+    expect(model.weights[0]).toBe(5n);
+
+    model.advance(10n);
+    model.checkpointRevenue();
+    expect(model.earned(0)).toBe(10n);
+    expect(model.surplus()).toBe(10n);
+    expect(model.claim(0)).toBe(10n);
+
+    model.setWeight(0, 0n);
+    expect(model.totalWeight).toBe(0n);
+    expect(() => model.setWeight(0, 1n)).toThrow('strategy is dead');
+  });
+});
+
+describe('independent Bribe carry model', () => {
   it('carries repeated tiny rewards until every atom becomes attributable', () => {
     const model = new RewardConservationModel([3n, 7n], 10n);
     for (let i = 0; i < 100; i += 1) {

@@ -26,21 +26,23 @@ position liquidity is unchanged.
 
 The complete canonical-token balances held after collection have fixed destinations:
 
-- USDG is transferred exactly to `ResonanceRouter`, which routes it into Resonance in the same transaction; and
+- USDG is transferred exactly to `ResonanceRouter`, which attempts permissionless routing in the same transaction; a
+  sub-threshold balance remains in the Router until it qualifies under ADR 0029; and
 - GBX is transferred exactly to Fund and the harvested amount is burned from Fund in the same transaction.
 
 Direct GBX or USDG donations to `LiquidityPosition` follow the same destinations on the next harvest. Collection,
-routing, and burn are atomic. A failure leaves the fee entitlement on the position and changes no principal.
+the Router transfer and route attempt, and the burn are atomic. A failure leaves the fee entitlement on the position
+and changes no principal.
 
 No caller bounty, keeper role, swap, oracle, fee split, governance parameter, rescue path, or NFT migration is added.
 
 ## Consequences
 
 - The genesis position never grows and can never shrink or leave `LiquidityPosition`.
-- LP USDG becomes a second protocol-revenue source alongside Fundraiser contributions.
+- LP USDG becomes a second protocol-revenue source alongside Mine handoff payments.
 - LP GBX is burned atomically at harvest; this is distinct from ADR 0021 Strategy payments, which remain deferred
   fixed Fund liabilities and are not automatically burned during auction settlement.
 - Permissionless harvest has no direct caller reward. Fees may remain accrued until a user, interface, or bot performs
   maintenance; this delays revenue but cannot block signal exits, redemption, or position custody.
-- The caller-funded composition/timing risk recorded as A-06 is removed. Signal-timing and scaled-carry allocation
-  behavior still apply when harvested USDG reaches Resonance.
+- The caller-funded composition/timing risk recorded as A-06 is removed. Signal timing, qualifying-reset timing, and
+  accepted-surplus behavior still apply when harvested USDG reaches Resonance.

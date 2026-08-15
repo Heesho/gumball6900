@@ -157,37 +157,33 @@ abstract contract ProtocolFixture is Test {
     function _signalOne(address account, address strategy) internal {
         uint256 amount = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
         vm.prank(account);
-        resonance.addSignal(strategy, amount);
+        signalGBX.signal(strategy, amount);
     }
 
     /// @notice Allocates the account's currently unallocated signal power between two Strategies.
     function _signalTwo(address account, address first, address second, uint256 firstWeight, uint256 secondWeight)
         internal
     {
-        address[] memory strategies = new address[](2);
-        strategies[0] = first;
-        strategies[1] = second;
-
         uint256 available = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
         uint256 totalRelativeWeight = firstWeight + secondWeight;
-        uint256[] memory amounts = new uint256[](2);
-        amounts[0] = Math.mulDiv(available, firstWeight, totalRelativeWeight);
-        amounts[1] = Math.mulDiv(available, secondWeight, totalRelativeWeight);
+        uint256 firstAmount = Math.mulDiv(available, firstWeight, totalRelativeWeight);
+        uint256 secondAmount = Math.mulDiv(available, secondWeight, totalRelativeWeight);
 
-        vm.prank(account);
-        resonance.addSignalMany(strategies, amounts);
+        vm.startPrank(account);
+        if (firstAmount != 0) signalGBX.signal(first, firstAmount);
+        if (secondAmount != 0) signalGBX.signal(second, secondAmount);
+        vm.stopPrank();
     }
 
-    /// @notice Removes every signal currently recorded for `account` through the bounded caller-selected batch API.
+    /// @notice Removes every signal assigned to either Strategy in the fixed test graph.
     function _removeAllSignals(address account) internal {
-        address[] memory selected = resonance.accountStrategies(account);
-        uint256[] memory amounts = new uint256[](selected.length);
-        for (uint256 i; i < selected.length; ++i) {
-            amounts[i] = resonance.accountSignals(account, selected[i]);
-        }
+        uint256 targetAmount = resonance.accountSignals(account, address(targetStrategy));
+        uint256 gbxAmount = resonance.accountSignals(account, address(gbxStrategy));
 
-        vm.prank(account);
-        resonance.removeSignalMany(selected, amounts);
+        vm.startPrank(account);
+        if (targetAmount != 0) signalGBX.removeSignal(address(targetStrategy), targetAmount);
+        if (gbxAmount != 0) signalGBX.removeSignal(address(gbxStrategy), gbxAmount);
+        vm.stopPrank();
     }
 
     /// @notice Delivers USDG revenue straight through the router.
@@ -199,8 +195,8 @@ abstract contract ProtocolFixture is Test {
 
     /// @notice Advances through the complete global revenue stream and checkpoints its final release.
     function _finishRevenueStream() internal {
-        vm.warp(block.timestamp + resonance.REVENUE_STREAM_DURATION());
-        resonance.indexPendingRevenue();
+        vm.warp(block.timestamp + resonance.DURATION());
+        resonance.distribute(address(targetStrategy));
     }
 
     /// @notice Fills one acquisition epoch at the current price.

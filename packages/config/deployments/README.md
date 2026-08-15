@@ -36,11 +36,16 @@ and the residual burn, and confirms mining started only after initialization.
 Validate a local draft or candidate with:
 
 ```bash
-pnpm --filter @gumball-6900/config manifest:validate --file path/to/manifest.json
+pnpm --filter @gumball-6900/config manifest:archive:validate --file path/to/manifest.json
 ```
+
+The unqualified `manifest:validate` and `authorization:validate` commands intentionally fail closed. The package's
+active root export exposes only the current blocked release status; historical manifest, deployment-config, and Safe
+validators are available from the explicit `@gumball-6900/config/archival-release` entrypoint. This prevents an
+archived validation success from being mistaken for current deployment eligibility.
 
 The Acquisition/Buyback distinction, legacy mining graph, and atomic Buyback burn in this schema are incompatible with
 ADR 0024's immutable multislot Mine and the current uniform Strategy settlement. Current deployment tooling must be
-rebuilt against the direct core described in `docs/DEPLOYMENT.md`. The examples and policy files here remain
-provisional or archival inputs; they do not supply canonical addresses, Mine parameters, approvals, or deployment
-authorization.
+rebuilt against the ProtocolGovernor core described in `docs/DEPLOYMENT.md`. The examples and policy files here remain
+provisional or archival inputs; they do not supply canonical addresses, Mine or Governor parameters, approvals, or
+deployment authorization.

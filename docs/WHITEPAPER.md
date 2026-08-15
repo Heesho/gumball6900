@@ -2,7 +2,7 @@
 
 ## The index fund that chooses itself
 
-Whitepaper v0.4 — 12 August 2026 — by Heesho
+Whitepaper v0.5 — 15 August 2026 — by Heesho
 
 > Development status: experimental, not deployed, not independently audited, and not authorized for user funds.
 > Exact mining economics, deployment parameters, third-party provenance, and independent security review remain open
@@ -10,10 +10,10 @@ Whitepaper v0.4 — 12 August 2026 — by Heesho
 
 ## Abstract
 
-GumBall6900 is a proposed signal-directed onchain fund. GBX holders stake into non-transferable SignalGBX (`sGBX`) and
-continuously direct new USDG toward acquisition Strategies. Each Strategy exchanges USDG for one configured asset
-through a reverse Dutch auction. Its complete payment is owed to an ownerless Fund. GBX holders may burn GBX to redeem
-a caller-selected pro-rata share of raw Fund assets.
+GumBall6900 is a proposed signal-directed onchain fund. GBX holders stake into non-transferable SignalGBX (`sGBX`),
+which supplies block-clock governance votes and continuously directs new USDG toward acquisition Strategies. Each
+Strategy exchanges USDG for one configured asset through a reverse Dutch auction. Its complete payment is owed to an
+ownerless Fund. GBX holders may burn GBX to redeem a caller-selected pro-rata share of raw Fund assets.
 
 GBX distribution uses an immutable multislot Mine adapted from Farplace MineRig. A slot can change hands at any time.
 Its USDG price decays to zero over one hour, creating a continuously clearing market rather than a pooled daily round.
@@ -35,6 +35,7 @@ slot replacement -> 80% displaced miner
                 -> 20% ResonanceRouter -> Resonance stream -> Strategies -> Fund
 
 GBX -> sGBX -> live signals ------------------------------^
+           \-> ProtocolGovernor -> Timelock -> four bounded actions
 GBX burn -> selected Fund assets -> redeemer
 ```
 
@@ -49,8 +50,8 @@ reopened.
 
 There is no protocol-defined economic maximum GBX supply. The global issuance rate used for future handoffs halves at
 immutable cumulative-mining thresholds and eventually reaches a strictly positive tail. The tail allows mining—and
-therefore potential USDG inflow—to continue indefinitely. ERC20Votes retains its `uint208` safety ceiling, far beyond
-any modeled issuance horizon. Exact production rates and thresholds are not selected in this paper.
+therefore potential USDG inflow—to continue indefinitely. GBX retains ERC-2612 permit approvals but does not carry
+governance checkpoints. Exact production rates and thresholds are not selected in this paper.
 
 The supply identity is simple:
 
@@ -113,22 +114,37 @@ claim is permanently left for remaining GBX holders.
 
 ## 6. Signals and acquisitions
 
-Staking GBX mints sGBX one-for-one. sGBX is non-transferable. A holder may add or remove absolute signal amounts for
-individual active Strategies at any time and immediately withdraw any unallocated sGBX balance.
+Staking GBX mints sGBX one-for-one. sGBX is non-transferable, retains ERC20Votes, and is the only user-facing signal
+coordinator. A stake made with no current delegate self-delegates voting power. A holder may add or remove absolute signal amounts for
+individual active Strategies at any time and immediately withdraw any unallocated sGBX balance. Idle sGBX directs no
+revenue or Bribe rewards but remains available for governance.
 
-Resonance schedules routed USDG into one global active seven-day stream and one aggregated successor. Each signal mutation first
-checkpoints the elapsed interval under the old weights, so a signal moved now affects later flow without a lock,
-cooldown, or voting epoch. A Strategy purchase checkpoints and pulls its released share before reading auction
-inventory. Consequently, signaling a thin Strategy, routing new mining USDG, and filling its stale cheap auction in one
-transaction cannot capture that new USDG: no stream time has elapsed.
+Standalone calls support staking, signaling, moving a signal, removing it, and unstaking. Combined calls can stake and
+signal or remove a signal and unstake atomically. `stakeAndSignalWithPermit` tolerantly attempts an underlying GBX
+permit and relies on the exact GBX transfer; sGBX itself has no ERC-2612 approval permit.
 
-The stream uses `1e36` scaled USDG-per-second accounting and exact quotient-plus-remainder release, so every six-decimal
-raw unit can stream without a minimum notification. ResonanceRouter forwards every nonzero complete balance. Revenue
-arriving during a live stream aggregates into one successor without changing the active rate or finish; after promotion,
-later arrivals aggregate into the next successor. Settlement is lazy—ordinary signal, distribution, purchase,
-notification, and Fund-payment calls materialize at most the active stream and one successor—so the protocol needs no
-per-second keeper. Any unindexable scaled carry is assigned to an explicit Fund remainder before a signal-weight change,
-preventing value released under old weights from crossing into a new denominator.
+Signal state has one canonical owner at each layer. SignalGBX stores the account's complete allocated amount. Each
+Strategy's paired Bribe stores account-by-Strategy balances and that Strategy's complete signal supply. Resonance stores
+only the active total across live Strategies and accepts signal mutation hooks only from SignalGBX.
+
+Resonance schedules routed USDG in one active seven-day stream. Each signal mutation first checkpoints the elapsed
+interval under the old weights, so a signal moved now affects later flow without a lock, cooldown, or voting epoch. A
+Strategy purchase checkpoints and pulls its released share before reading auction inventory. Consequently, signaling a
+thin Strategy, routing new mining USDG, and filling its stale cheap auction in one transaction cannot capture that new
+USDG: no stream time has elapsed.
+
+The raw schedule uses a quotient plus a front-loaded remainder, so every scheduled six-decimal USDG unit is released,
+including a one-raw-unit schedule. Its global reward-per-signal index uses `1e36` precision. During an active period,
+ResonanceRouter waits while its complete balance is below the exact amount left. Once the balance is at least `left`, a
+notification checkpoints elapsed revenue and restarts seven days with `reward + left`. The reset may raise or lower the
+rate and move the prior finish; there is no separate absolute minimum.
+
+Settlement remains lazy—ordinary signal, distribution, purchase, and qualifying-notification calls materialize elapsed
+revenue—so the protocol needs no per-second keeper. Global-index and per-Strategy floors are accepted surplus rather
+than explicit carry. Stream time continues when active signal weight is zero, making that interval's emission
+unclaimable, and direct USDG donations to Resonance are unscheduled surplus. Neither category is assigned to Fund or
+later signalers. Killing a Strategy checkpoints and preserves its pre-kill claim, removes its complete weight from later
+rewards, forbids additions, and leaves incumbent signalers free to exit.
 
 Signals steer future flow; they do not force Fund to sell past holdings or maintain a target portfolio. A Strategy's
 complete payment becomes a fixed Fund liability. Independently funded Bribes may reward signalers, with at most eight
@@ -145,15 +161,23 @@ atomically. There is no keeper, bounty, oracle, swap, migration, or NFT withdraw
 
 ## 8. Governance and immutability
 
-TimelockController owns only Resonance and Mine. The continuing administrative surface is:
+TimelockController owns only Resonance and Mine. SignalGBX holders operate ProtocolGovernor, which is the Timelock's
+sole proposer. The continuing administrative surface is:
 
 - add a Strategy;
 - permanently kill a Strategy;
 - register a Bribe reward token, subject to the immutable eight-token cap; and
 - increase Mine capacity, from one to at most sixteen.
 
+ProtocolGovernor accepts only those exact zero-value calls at immutable Resonance and Mine addresses. Its voting delay,
+period, proposal threshold, and quorum percentage are immutable constructor inputs and use SignalGBX's block-number
+clock. Execution is permissionless after the Timelock delay but rejects nonzero executor `msg.value`. The proposer may
+cancel only while a proposal is Pending; there is no multisig bypass, guardian, or queued-proposal veto.
+
 Capacity cannot decrease, and expansion cannot reprice an incumbent. Fund and LiquidityPosition are ownerless. No
 contract has a proxy, general executor, pause switch, rescue function, emission setter, successor, or migration path.
+Deployment bootstraps reviewed initial Strategies before transferring Resonance and Mine to the Timelock and removing
+the temporary setup authority.
 
 ## 9. Important risks
 
@@ -161,8 +185,12 @@ contract has a proxy, general executor, pause switch, rescue function, emission 
 - A miner can be replaced at any time and is not guaranteed an 80% successor payment.
 - Capacity expansion temporarily raises aggregate issuance under the fixed-tenure fairness rule.
 - A bad immutable deployment or token dependency cannot be repaired by governance.
+- A holder can unstake after a proposal snapshot and retain its historical voting weight. Low sGBX participation also
+  lowers the absolute voting weight represented by a percentage quorum.
+- A queued proposal cannot be canceled; the Timelock delay is an observation and exit window rather than a guardian
+  veto.
 - Permissionless signaling permits rapid allocation movement, but only stream time held at a weight earns new flow;
-  existing Strategy inventory and sub-index carry still have timing considerations.
+  existing Strategy inventory, qualifying-reset timing, and accepted rounding surplus still have timing considerations.
 - Broken or blocklisting tokens can block their own payout paths.
 - Fund assets omitted from redemption remain permanently for the post-redemption supply.
 - The protocol has not received an independent audit, and Farplace/give.fun/Liquid Signal provenance remains legally

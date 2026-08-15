@@ -116,20 +116,20 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
         address strategy = alive[_bound(strategySeed, 0, alive.length - 1)];
         vm.prank(actor);
-        resonance.addSignal(strategy, _bound(amount, 1, available));
+        signalGBX.signal(strategy, _bound(amount, 1, available));
 
         ghostCalls["addSignal"] += 1;
     }
 
     function removeSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
         address actor = _actor(actorSeed);
-        address[] memory selected = resonance.accountStrategies(actor);
+        address[] memory selected = _accountStrategies(actor);
         if (selected.length == 0) return;
 
         address strategy = selected[_bound(strategySeed, 0, selected.length - 1)];
         uint256 held = resonance.accountSignals(actor, strategy);
         vm.prank(actor);
-        resonance.removeSignal(strategy, _bound(amount, 1, held));
+        signalGBX.removeSignal(strategy, _bound(amount, 1, held));
 
         ghostCalls["removeSignal"] += 1;
     }
@@ -154,15 +154,18 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         }
         amounts[0] += available - (share * count);
 
-        vm.prank(actor);
-        resonance.addSignalMany(selected, amounts);
+        vm.startPrank(actor);
+        for (uint256 i; i < count; ++i) {
+            signalGBX.signal(selected[i], amounts[i]);
+        }
+        vm.stopPrank();
 
         ghostCalls["addSignalMany"] += 1;
     }
 
     function removeSignalMany(uint256 actorSeed, uint256 countSeed) external {
         address actor = _actor(actorSeed);
-        address[] memory current = resonance.accountStrategies(actor);
+        address[] memory current = _accountStrategies(actor);
         if (current.length == 0) return;
 
         uint256 count = _bound(countSeed, 1, current.length);
@@ -173,8 +176,11 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
             amounts[i] = resonance.accountSignals(actor, current[i]);
         }
 
-        vm.prank(actor);
-        resonance.removeSignalMany(selected, amounts);
+        vm.startPrank(actor);
+        for (uint256 i; i < count; ++i) {
+            signalGBX.removeSignal(selected[i], amounts[i]);
+        }
+        vm.stopPrank();
 
         ghostCalls["removeSignalMany"] += 1;
     }
@@ -210,13 +216,14 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     function donateDirectRevenue(uint256 amount) external {
         uint256 donation = _bound(amount, 1, 1_000_000e6);
         _mintUSDG(address(resonance), donation);
-        resonance.syncRevenue();
 
         ghostCalls["donateDirectRevenue"] += 1;
     }
 
     function distributeAll() external {
-        resonance.distributeAll();
+        for (uint256 i; i < strategies.length; ++i) {
+            resonance.distribute(strategies[i]);
+        }
         ghostCalls["distributeAll"] += 1;
     }
 
@@ -231,7 +238,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         Strategy strategy = Strategy(strategies[_bound(strategySeed, 0, strategies.length - 1)]);
         if (strategy.availableRevenue() == 0) {
             if (!resonance.isStrategyAlive(address(strategy))) return;
-            if (resonance.pendingRevenue(address(strategy)) == 0) return;
+            if (resonance.earned(address(strategy), address(usdg)) == 0) return;
         }
 
         uint256 price = strategy.currentPrice();
@@ -259,11 +266,10 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         if (strategies.length == 0) return;
 
         address actor = _actor(actorSeed);
-        address[] memory selected = new address[](1);
-        selected[0] = strategies[_bound(strategySeed, 0, strategies.length - 1)];
+        address strategy = strategies[_bound(strategySeed, 0, strategies.length - 1)];
+        Bribe bribe = Bribe(resonance.bribeFor(strategy));
 
-        vm.prank(actor);
-        resonance.claimRewards(selected);
+        bribe.claimRewards(actor);
 
         ghostCalls["claimRewards"] += 1;
     }
@@ -305,7 +311,6 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function payFixedLiabilities() external {
-        resonance.payFundRevenue();
         for (uint256 i; i < strategies.length; ++i) {
             BribeRouter(resonance.bribeRouterFor(strategies[i])).payFundPayment();
             Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
@@ -417,7 +422,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
     /// @notice Records the highest revenue index seen so far so monotonicity can be asserted between calls.
     function recordRevenueIndex() external {
-        uint256 current = resonance.revenueIndex();
+        uint256 current = resonance.rewardPerToken(address(usdg));
         if (current > ghostHighestRevenueIndex) ghostHighestRevenueIndex = current;
     }
 
@@ -435,6 +440,19 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         uint256 cursor;
         for (uint256 i; i < strategies.length; ++i) {
             if (resonance.isStrategyAlive(strategies[i])) alive[cursor++] = strategies[i];
+        }
+    }
+
+    function _accountStrategies(address account) private view returns (address[] memory selected) {
+        uint256 count;
+        for (uint256 i; i < strategies.length; ++i) {
+            if (resonance.accountSignals(account, strategies[i]) != 0) ++count;
+        }
+
+        selected = new address[](count);
+        uint256 cursor;
+        for (uint256 i; i < strategies.length; ++i) {
+            if (resonance.accountSignals(account, strategies[i]) != 0) selected[cursor++] = strategies[i];
         }
     }
 

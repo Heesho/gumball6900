@@ -3,7 +3,6 @@ pragma solidity 0.8.26;
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { TimelockController } from "@openzeppelin/contracts/governance/TimelockController.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { Test } from "forge-std/Test.sol";
 
@@ -145,9 +144,9 @@ contract StartingPointTest is Test {
 
         assertEq(firstPrice, 1e6);
         assertEq(secondPrice, 1e6);
-        assertEq(usdg.balanceOf(address(resonance)), 1_200_000);
-        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
-        assertEq(resonance.queuedRevenue(), 200_000);
+        assertEq(usdg.balanceOf(address(resonance)), 1_000_000);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 200_000);
+        assertEq(resonance.left(address(usdg)), 996_400);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
         assertEq(usdg.balanceOf(address(fund)), 0);
         assertEq(gbx.balanceOf(ALICE), 100 ether + 7_200 ether);
@@ -204,12 +203,12 @@ contract StartingPointTest is Test {
         assertEq(target.balanceOf(resonance.bribeRouterFor(address(targetStrategy))), STRATEGY_PRICE);
     }
 
-    function test_RevenueWithoutSignalsBecomesFundBacking() external {
+    function test_RevenueWithoutSignalsBecomesUnallocatedResonanceSurplus() external {
         _routeRevenue(100_000_000);
-        vm.warp(block.timestamp + resonance.REVENUE_STREAM_DURATION());
-        resonance.indexPendingRevenue();
+        vm.warp(block.timestamp + resonance.DURATION());
 
-        assertEq(resonance.fundRevenueLiability(), 100_000_000);
+        assertEq(resonance.left(address(usdg)), 0);
+        assertEq(resonance.earned(address(targetStrategy), address(usdg)), 0);
         assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
         assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
     }
@@ -245,16 +244,16 @@ contract StartingPointTest is Test {
         gbx.approve(address(signalGBX), 100 ether);
         signalGBX.stake(100 ether);
 
-        resonance.addSignal(address(targetStrategy), 60 ether);
+        signalGBX.signal(address(targetStrategy), 60 ether);
         vm.expectRevert(abi.encodeWithSelector(SignalGBX.ActiveSignals.selector, ALICE, 60 ether));
         signalGBX.unstake(100 ether);
 
-        resonance.addSignal(address(gbxStrategy), 40 ether);
-        resonance.removeSignal(address(targetStrategy), 60 ether);
+        signalGBX.signal(address(gbxStrategy), 40 ether);
+        signalGBX.removeSignal(address(targetStrategy), 60 ether);
         assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 0);
         assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 40 ether);
 
-        resonance.removeSignal(address(gbxStrategy), 40 ether);
+        signalGBX.removeSignal(address(gbxStrategy), 40 ether);
         signalGBX.unstake(100 ether);
         vm.stopPrank();
 
@@ -381,39 +380,6 @@ contract StartingPointTest is Test {
         );
     }
 
-    /// @dev Resonance administration and the Mine's bounded capacity increase are held by the timelock.
-    function test_TheRemainingAdministrationExecutesThroughOpenZeppelinTimelock() external {
-        TimelockController timelock =
-            new TimelockController(7 days, _singleAddress(address(this)), _singleAddress(address(0)), address(0));
-        bytes32 salt = keccak256("CORE_ADMINISTRATION");
-        address[] memory targets = new address[](3);
-        uint256[] memory values = new uint256[](3);
-        bytes[] memory payloads = new bytes[](3);
-
-        targets[0] = address(resonance);
-        payloads[0] = abi.encodeCall(Resonance.addStrategy, (IERC20(address(secondAsset)), _strategyConfig()));
-        targets[1] = address(resonance);
-        payloads[1] = abi.encodeCall(Resonance.killStrategy, (address(gbxStrategy)));
-        targets[2] = address(mine);
-        payloads[2] = abi.encodeCall(Mine.increaseCapacity, (2));
-
-        resonance.transferOwnership(address(timelock));
-        mine.transferOwnership(address(timelock));
-
-        timelock.scheduleBatch(targets, values, payloads, bytes32(0), salt, timelock.getMinDelay());
-
-        vm.warp(block.timestamp + timelock.getMinDelay());
-        vm.prank(CAROL);
-        timelock.executeBatch(targets, values, payloads, bytes32(0), salt);
-
-        address[] memory strategies = resonance.strategies();
-        address newStrategy = strategies[strategies.length - 1];
-
-        assertTrue(resonance.isStrategy(newStrategy));
-        assertFalse(resonance.isStrategyAlive(address(gbxStrategy)));
-        assertEq(mine.capacity(), 2);
-    }
-
     function test_GBXSupplyReconcilesContinuousIssuanceAndBurns() external {
         _mine(ALICE, 0);
         vm.warp(block.timestamp + 10);
@@ -431,13 +397,13 @@ contract StartingPointTest is Test {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
         signalGBX.stake(100 ether);
-        resonance.addSignal(address(targetStrategy), 100 ether);
+        signalGBX.signal(address(targetStrategy), 100 ether);
         vm.stopPrank();
 
         vm.startPrank(BOB);
         gbx.approve(address(signalGBX), 100 ether);
         signalGBX.stake(100 ether);
-        resonance.addSignal(address(gbxStrategy), 100 ether);
+        signalGBX.signal(address(gbxStrategy), 100 ether);
         vm.stopPrank();
     }
 

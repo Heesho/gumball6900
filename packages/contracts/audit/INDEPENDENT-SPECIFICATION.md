@@ -1,14 +1,17 @@
 # Independent adversarial specification
 
-Date: 2026-08-12
+Date: 2026-08-15
 
-This is the review target for the ADR 0024 and ADR 0025 development candidate. It is not an independent audit result.
+This is the review target for the ADR 0024, ADR 0027, ADR 0028, ADR 0029, and ADR 0030 development candidate. It is
+not an independent audit result.
 
 ## Authority model
 
 - Deployments are direct and non-upgradeable. Fund and LiquidityPosition are ownerless.
-- TimelockController owns Resonance and Mine.
-- Resonance may add/kill Strategies and register Bribe rewards. Mine ownership may only increase capacity.
+- TimelockController owns Resonance and Mine. ProtocolGovernor is its sole proposer and accepts only exact zero-value
+  calls to add/kill Strategies, register Bribe rewards, or increase Mine capacity.
+- SignalGBX votes govern those four calls. The Governor and Timelock are immutable, execution is permissionless after
+  the delay, and no public path can cancel an operation after it has been queued.
 - No authority can reduce capacity, reprice an occupied slot, replace the GBX minter, set emissions, migrate, pause,
   rescue, sweep, move Fund assets, or withdraw the liquidity NFT.
 
@@ -16,8 +19,8 @@ This is the review target for the ADR 0024 and ADR 0025 development candidate. I
 
 - GBX mints `20_000_000 ether` at construction, then permanently binds its only issuer to one deployed Mine whose
   reciprocal `gbx()` identity matches.
-- Supply reconciles as `lifetimeMinted - lifetimeBurned` and has no protocol-defined economic maximum; inherited
-  ERC20Votes accounting retains its `uint208` safety ceiling.
+- Supply reconciles as `lifetimeMinted - lifetimeBurned` and has no protocol-defined economic maximum. GBX retains
+  ERC20Permit for approval-based staking but has no voting checkpoints; SignalGBX is the sole protocol vote token.
 - Capacity begins at one, only increases, and never exceeds sixteen.
 - Each slot price decays linearly to zero over one hour. Epoch ID, deadline, and maximum price protect handoffs.
 - A handoff checkpoints every occupied slot. Each receives `elapsed * slot.ups`, and `slot.ups` is never recomputed.
@@ -28,15 +31,25 @@ This is the review target for the ADR 0024 and ADR 0025 development candidate. I
 
 ## Signals, Strategies, and Bribes
 
-- SignalGBX is one-for-one, non-transferable, accepts stakes only after reciprocal Resonance binding, and is
-  immediately withdrawable to the extent unallocated.
-- Signals are incremental absolute amounts. Account, Strategy, total, and Bribe virtual-supply identities remain equal.
-- Every exact Resonance USDG unit is represented by scheduled stream balance, carry, a Strategy liability, or fixed
-  Fund liability.
-- Resonance streams revenue globally through one active seven-day period and one aggregate successor at `1e36`
-  precision with exact quotient-plus-remainder release. Signal changes checkpoint old weights first, same-transaction
-  notifications release zero new revenue, and ResonanceRouter forwards every nonzero complete balance. A live top-up
-  cannot change the active rate or finish; unindexable carry moves to Fund before a signal denominator changes.
+- SignalGBX mints and burns one-for-one, is non-transferable, accepts stakes only after reciprocal Resonance binding,
+  and is immediately withdrawable to the extent unallocated. Its supply is fully backed; unsolicited GBX is stranded
+  surplus rather than receipt issuance. It retains ERC20Votes but not ERC20Permit; the optional
+  `stakeAndSignalWithPermit` signature authorizes the underlying GBX transfer only.
+- SignalGBX is the sole user-facing signal coordinator. It owns each account's aggregate allocation and supports
+  scalar add/remove, live-to-live or killed-to-live moves, stake-and-signal, and remove-and-unstake atomically.
+- Each paired Bribe owns account-by-Strategy balances and raw Strategy supply. Resonance owns only the active global
+  denominator; compatibility views forward to those canonical ledgers. A killed Strategy is excluded immediately
+  while its Bribe balances remain recorded for exit.
+- Resonance remains solvent for its scheduled balance and Strategy claims. Per-index and per-Strategy floors,
+  zero-active-signal emission, and direct donations are intentionally unclassified surplus rather than Fund
+  liabilities.
+- Resonance streams revenue through one active seven-day period at `1e36` index precision. Raw USDG rate remainder is
+  front-loaded so the complete scheduled amount emits. Signal changes checkpoint old weights first, and
+  same-transaction notifications release zero new revenue. A live top-up qualifies only when Router revenue is at
+  least the exact active `left`; qualifying revenue restarts seven days with `reward + left`, while smaller balances
+  remain in ResonanceRouter for a later permissionless attempt.
+- Killing a Strategy checkpoints and preserves its accrued claim, excludes its full weight from future rewards, blocks
+  later additions, and leaves incumbent signalers free to exit without decrementing the active total twice.
 - One uniform Strategy type checkpoints and pulls released revenue before auctioning its complete USDG lot. Its
   complete payment becomes a fixed Fund liability.
 - Bribes are independently funded, have at most eight reward tokens, pause at zero supply, and isolate broken-token
@@ -56,7 +69,10 @@ This is the review target for the ADR 0024 and ADR 0025 development candidate. I
 
 - Foundry and Hardhat compile the same Solidity tree; SDK/subgraph ABIs come from current artifacts.
 - TypeScript and Python independently assert fixed-tenure expansion, future-handoff halvings, 80/20 payments, the
-  no-economic-cap issuance model, checkpointed redemption, exact successor streaming, and boundary-carry Fund routing.
+  no-economic-cap issuance model, checkpointed redemption, qualifying Resonance resets and surplus solvency, and
+  boundary-carry Fund routing in Bribe.
+- Foundry separately proves the four-selector Governor filter, sole-proposer Timelock closure, snapshot quorum,
+  coordinator rollback, move semantics, and the accepted absence of queued cancellation.
 - No consumer may display pending Mine accrual as already minted supply or the 80% handoff as guaranteed.
 - A green local campaign does not clear independent audit, parameter, monitored testnet, manifest, licensing, or legal
   review gates.

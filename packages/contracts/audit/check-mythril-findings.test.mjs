@@ -111,13 +111,13 @@ async function fixture(t) {
   return { contractsDirectory, policy: zeroFindingsPolicy(), reportDirectory, root };
 }
 
-test('runs and validates all twelve clean Mythril targets while preserving stdout, stderr, and exit codes', async (t) => {
+test('runs and validates all thirteen clean Mythril targets while preserving stdout, stderr, and exit codes', async (t) => {
   const current = await fixture(t);
   const mythExecutable = await makeFakeMyth(current.root, { exitCode: 0, report: cleanReport() });
   const summary = await runMythrilCampaign({ ...current, mythExecutable });
 
   assert.equal(summary.success, true);
-  assert.equal(summary.targetCount, 12);
+  assert.equal(summary.targetCount, 13);
   assert.deepEqual(
     summary.targets.map((target) => target.contract),
     REQUIRED_MYTHRIL_TARGETS.map((target) => target.contract),
@@ -226,7 +226,7 @@ test('rejects Mythril error JSONV2 even when the analyzer exits zero and preserv
   await assert.rejects(runMythrilCampaign({ ...current, mythExecutable }), /contains Mythril error log/);
 
   const manifest = JSON.parse(await readFile(resolve(current.reportDirectory, 'mythril-run-manifest.json'), 'utf8'));
-  assert.equal(manifest.targets.length, 12);
+  assert.equal(manifest.targets.length, 13);
   assert.ok(manifest.targets.every((target) => target.exitCode === 0));
   const summary = JSON.parse(await readFile(resolve(current.reportDirectory, 'mythril-summary.json'), 'utf8'));
   assert.equal(summary.success, false);
@@ -272,7 +272,7 @@ test('rejects missing targets, stale bytecode hashes, and malformed archived JSO
   missing.targets.pop();
   await assert.rejects(
     evaluateMythrilRun({ ...current, manifest: missing }),
-    /must contain exactly 12 expected targets/,
+    /must contain exactly 13 expected targets/,
   );
 
   const staleHash = structuredClone(manifest);
@@ -290,7 +290,7 @@ test('zero-findings policy schema cannot silently add an accepted finding or rem
 
   const incomplete = zeroFindingsPolicy();
   incomplete.expectedTargets.pop();
-  assert.throws(() => validateMythrilPolicy(incomplete), /exactly 12 expected targets/);
+  assert.throws(() => validateMythrilPolicy(incomplete), /exactly 13 expected targets/);
 
   const wrongInputMode = zeroFindingsPolicy();
   wrongInputMode.analysis.inputMode = 'creation-bytecode';
@@ -309,7 +309,7 @@ test('zero-findings policy schema cannot silently add an accepted finding or rem
   assert.throws(() => validateMythrilPolicy(weakenedCompatibility), /opcodeCompatibility must equal/);
 });
 
-test('checked-in Mythril policy remains the exact twelve-target zero-findings policy', async () => {
+test('checked-in Mythril policy remains the exact thirteen-target zero-findings policy', async () => {
   const policy = JSON.parse(await readFile(resolve(auditDirectory, 'mythril-policy.json'), 'utf8'));
   assert.equal(validateMythrilPolicy(policy), policy);
 });

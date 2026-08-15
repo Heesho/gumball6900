@@ -6,7 +6,7 @@
 
 # Function: readResonanceView()
 
-> **readResonanceView**(`client`, `resonance`, `options?`): `Promise`\<\{ `accountedRevenueBalance`: `bigint`; `blockNumber`: `bigint`; `fundRevenueLiability`: `bigint`; `fundRevenueRemainderScaled`: `bigint`; `indexedRevenueScaled`: `bigint`; `indexPrecision`: `bigint`; `pendingRevenueScaled`: `bigint`; `queuedRevenue`: `bigint`; `releasableRevenueScaled`: `bigint`; `revenueIndex`: `bigint`; `revenueStreamDuration`: `bigint`; `revenueStreamFinish`: `bigint`; `revenueStreamLastUpdate`: `bigint`; `revenueStreamRateScaled`: `bigint`; `revenueStreamRemainderFinish`: `bigint`; `revenueStreamRemainingScaled`: `bigint`; `strategies`: `` `0x${string}` ``[]; `totalClaimableRevenue`: `bigint`; `totalSignalWeight`: `bigint`; `unaccountedRevenue`: `bigint`; \}\>
+> **readResonanceView**(`client`, `resonance`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `duration`: `bigint`; `lastUpdateTime`: `bigint`; `left`: `bigint`; `periodFinish`: `bigint`; `remainderFinish`: `bigint`; `resonanceRouter`: `` `0x${string}` ``; `rewardPerTokenStored`: `bigint`; `rewardPrecision`: `bigint`; `rewardRate`: `bigint`; `totalSignalWeight`: `bigint`; `usdg`: `` `0x${string}` ``; `usdgBalance`: `bigint`; \}\>
 
 Reads Resonance's global allocation and revenue state.
 
@@ -20,4 +20,4 @@ Reads Resonance's global allocation and revenue state.
 
 ## Returns
 
-`Promise`\<\{ `accountedRevenueBalance`: `bigint`; `blockNumber`: `bigint`; `fundRevenueLiability`: `bigint`; `fundRevenueRemainderScaled`: `bigint`; `indexedRevenueScaled`: `bigint`; `indexPrecision`: `bigint`; `pendingRevenueScaled`: `bigint`; `queuedRevenue`: `bigint`; `releasableRevenueScaled`: `bigint`; `revenueIndex`: `bigint`; `revenueStreamDuration`: `bigint`; `revenueStreamFinish`: `bigint`; `revenueStreamLastUpdate`: `bigint`; `revenueStreamRateScaled`: `bigint`; `revenueStreamRemainderFinish`: `bigint`; `revenueStreamRemainingScaled`: `bigint`; `strategies`: `` `0x${string}` ``[]; `totalClaimableRevenue`: `bigint`; `totalSignalWeight`: `bigint`; `unaccountedRevenue`: `bigint`; \}\>
+`Promise`\<\{ `blockNumber`: `bigint`; `duration`: `bigint`; `lastUpdateTime`: `bigint`; `left`: `bigint`; `periodFinish`: `bigint`; `remainderFinish`: `bigint`; `resonanceRouter`: `` `0x${string}` ``; `rewardPerTokenStored`: `bigint`; `rewardPrecision`: `bigint`; `rewardRate`: `bigint`; `totalSignalWeight`: `bigint`; `usdg`: `` `0x${string}` ``; `usdgBalance`: `bigint`; \}\>

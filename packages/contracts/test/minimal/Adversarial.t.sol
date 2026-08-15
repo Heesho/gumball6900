@@ -106,12 +106,13 @@ contract AdversarialTest is ProtocolFixture {
 
         // The whale exits immediately: there is no cooldown, but zero elapsed time earns zero flow.
         vm.startPrank(WHALE);
-        resonance.removeSignal(address(gbxStrategy), 900 ether);
+        signalGBX.removeSignal(address(gbxStrategy), 900 ether);
         signalGBX.unstake(900 ether);
         vm.stopPrank();
 
         _finishRevenueStream();
-        resonance.distributeAll();
+        resonance.distribute(address(targetStrategy));
+        resonance.distribute(address(gbxStrategy));
 
         assertEq(gbx.balanceOf(WHALE), 900 ether);
         assertEq(resonance.totalSignalWeight(), 100 ether);
@@ -132,14 +133,11 @@ contract AdversarialTest is ProtocolFixture {
         _stake(ATTACKER, 1_000 ether);
         _signalOne(ATTACKER, address(targetStrategy));
 
-        address[] memory selected = _addresses(address(targetStrategy));
-        vm.prank(ATTACKER);
-        resonance.claimRewards(selected);
+        targetBribe.claimRewards(ATTACKER);
 
         assertEq(target.balanceOf(ATTACKER), 0, "zero elapsed time means zero accrual");
 
-        vm.prank(ALICE);
-        resonance.claimRewards(selected);
+        targetBribe.claimRewards(ALICE);
         assertApproxEqRel(target.balanceOf(ALICE), (uint256(1 ether) * 6) / 7, 1e15, "Alice keeps her six days");
     }
 
@@ -147,7 +145,7 @@ contract AdversarialTest is ProtocolFixture {
                         LIVENESS AND EXIT SAFETY
     //////////////////////////////////////////////////////////////*/
 
-    function test_AFrozenFundCannotBlockRetiredStrategyExit() external {
+    function test_AFrozenFundCannotBlockKilledStrategyExitOrItsPreservedClaim() external {
         RevertingToken freezableUSDG = new RevertingToken(6);
         (
             Resonance hostileResonance,
@@ -160,27 +158,29 @@ contract AdversarialTest is ProtocolFixture {
         vm.startPrank(ALICE);
         gbx.approve(address(hostileSignalGBX), 100 ether);
         hostileSignalGBX.stake(100 ether);
-        hostileResonance.addSignal(hostileStrategy, 75 ether);
+        hostileSignalGBX.signal(hostileStrategy, 75 ether);
         vm.stopPrank();
 
         freezableUSDG.mint(address(hostileRouter), 100_000_000);
         hostileRouter.route();
-        vm.warp(block.timestamp + hostileResonance.REVENUE_STREAM_DURATION());
+        vm.warp(block.timestamp + hostileResonance.DURATION());
 
-        // Retiring the Strategy flushes what it had already accrued, but leaves its weight in the denominator.
+        // Killing checkpoints the Strategy, preserves its accrued claim, and removes its weight from the denominator.
         hostileResonance.killStrategy(hostileStrategy);
         assertEq(hostileResonance.strategySignalWeight(hostileStrategy), 75 ether);
+        assertEq(hostileResonance.totalSignalWeight(), 0);
+        assertEq(hostileResonance.earned(hostileStrategy, address(freezableUSDG)), 99_999_999);
 
-        // Fresh revenue therefore still advances the index against the dead Strategy's share.
+        // Fresh zero-signal revenue is scheduled but never assigned to the dead Strategy.
         freezableUSDG.mint(address(hostileRouter), 100_000_000);
         hostileRouter.route();
-        vm.warp(block.timestamp + hostileResonance.REVENUE_STREAM_DURATION());
+        vm.warp(block.timestamp + hostileResonance.DURATION());
 
         freezableUSDG.setBlocked(address(fund), true);
 
         // Removal performs accounting only and never calls the frozen token or Fund.
         vm.prank(ALICE);
-        hostileResonance.removeSignal(hostileStrategy, 75 ether);
+        hostileSignalGBX.removeSignal(hostileStrategy, 75 ether);
         assertEq(hostileResonance.accountSignalWeight(ALICE), 0);
 
         // Every staked unit is now unallocated and immediately withdrawable.
@@ -188,19 +188,14 @@ contract AdversarialTest is ProtocolFixture {
         hostileSignalGBX.unstake(100 ether);
         assertEq(gbx.balanceOf(ALICE), 100 ether, "all GBX remains live");
 
-        // Checkpointing and distribution remain accounting-only for the dead Strategy.
-        hostileResonance.distributeAll();
-        hostileResonance.updateStrategy(hostileStrategy);
-
-        uint256 liability = hostileResonance.fundRevenueLiability();
-        assertEq(liability, 200_000_000);
-        vm.expectRevert("BLOCKED");
-        hostileResonance.payFundRevenue();
-        assertEq(hostileResonance.fundRevenueLiability(), liability, "failed payout preserves the liability");
-
-        freezableUSDG.setBlocked(address(fund), false);
-        hostileResonance.payFundRevenue();
-        assertEq(hostileResonance.fundRevenueLiability(), 0);
+        hostileResonance.distribute(hostileStrategy);
+        assertEq(freezableUSDG.balanceOf(hostileStrategy), 99_999_999);
+        assertEq(freezableUSDG.balanceOf(address(fund)), 0);
+        assertEq(
+            freezableUSDG.balanceOf(address(hostileResonance)),
+            100_000_001,
+            "one rounded unit plus the zero-signal stream remain surplus"
+        );
     }
 
     function test_AFrozenFundCannotBlockANoSignalAcquisitionSettlement() external {
@@ -240,9 +235,9 @@ contract AdversarialTest is ProtocolFixture {
         resonance.killStrategy(address(targetStrategy));
 
         vm.warp(block.timestamp + 4 days);
+        targetBribe.claimRewards(ALICE);
         vm.startPrank(ALICE);
-        resonance.claimRewards(_addresses(address(targetStrategy)));
-        resonance.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         signalGBX.unstake(100 ether);
         vm.stopPrank();
 
@@ -250,30 +245,32 @@ contract AdversarialTest is ProtocolFixture {
         assertEq(gbx.balanceOf(ALICE), 100 ether, "and the stake still exits");
     }
 
-    /// @notice Removing entries in hostile orders cannot leave a stale swap-and-pop index behind.
-    function test_AdversarialRemovalOrdersCannotCorruptAccountStrategies() external {
+    /// @notice Interleaved scalar removals keep every per-Strategy and aggregate balance coherent.
+    function test_AdversarialRemovalOrdersCannotCorruptSignalBalances() external {
         (address third,,) = resonance.addStrategy(IERC20(address(secondAsset)), defaultConfig());
         _stake(ALICE, 300 ether);
 
         vm.startPrank(ALICE);
-        resonance.addSignal(address(targetStrategy), 100 ether);
-        resonance.addSignal(address(gbxStrategy), 100 ether);
-        resonance.addSignal(third, 100 ether);
+        signalGBX.signal(address(targetStrategy), 100 ether);
+        signalGBX.signal(address(gbxStrategy), 100 ether);
+        signalGBX.signal(third, 100 ether);
 
         // Remove the middle entry, then the entry moved into its slot.
-        resonance.removeSignal(address(gbxStrategy), 100 ether);
-        address[] memory afterMiddle = resonance.accountStrategies(ALICE);
-        assertEq(afterMiddle.length, 2);
-        assertEq(afterMiddle[0], address(targetStrategy));
-        assertEq(afterMiddle[1], third);
+        signalGBX.removeSignal(address(gbxStrategy), 100 ether);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 100 ether);
+        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 0);
+        assertEq(resonance.accountSignals(ALICE, third), 100 ether);
+        assertEq(resonance.accountSignalWeight(ALICE), 200 ether);
 
-        resonance.removeSignal(third, 100 ether);
-        resonance.addSignal(address(gbxStrategy), 100 ether);
-        resonance.removeSignal(address(targetStrategy), 100 ether);
-        resonance.removeSignal(address(gbxStrategy), 100 ether);
+        signalGBX.removeSignal(third, 100 ether);
+        signalGBX.signal(address(gbxStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(gbxStrategy), 100 ether);
         vm.stopPrank();
 
-        assertEq(resonance.accountStrategies(ALICE).length, 0);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 0);
+        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 0);
+        assertEq(resonance.accountSignals(ALICE, third), 0);
         assertEq(resonance.accountSignalWeight(ALICE), 0);
         assertEq(resonance.totalSignalWeight(), 0);
     }
@@ -285,11 +282,9 @@ contract AdversarialTest is ProtocolFixture {
 
         vm.prank(ATTACKER);
         vm.expectRevert(
-            abi.encodeWithSelector(
-                Resonance.InsufficientSignal.selector, address(targetStrategy), uint256(0), uint256(100 ether)
-            )
+            abi.encodeWithSelector(SignalGBX.InsufficientAllocatedSignal.selector, uint256(0), uint256(100 ether))
         );
-        resonance.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
 
         assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 100 ether);
         assertEq(targetBribe.balanceOf(ALICE), 100 ether);
@@ -300,24 +295,20 @@ contract AdversarialTest is ProtocolFixture {
         _stake(ALICE, 100 ether);
 
         vm.startPrank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(Resonance.InsufficientUnallocatedSignal.selector, 100 ether, 101 ether));
-        resonance.addSignal(address(targetStrategy), 101 ether);
+        vm.expectRevert(abi.encodeWithSelector(SignalGBX.InsufficientUnallocatedSignal.selector, 100 ether, 101 ether));
+        signalGBX.signal(address(targetStrategy), 101 ether);
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Resonance.InsufficientSignal.selector, address(targetStrategy), uint256(0), uint256(1)
-            )
-        );
-        resonance.removeSignal(address(targetStrategy), 1);
+        vm.expectRevert(abi.encodeWithSelector(SignalGBX.InsufficientAllocatedSignal.selector, uint256(0), uint256(1)));
+        signalGBX.removeSignal(address(targetStrategy), 1);
 
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, ATTACKER));
-        resonance.addSignal(ATTACKER, 1);
+        signalGBX.signal(ATTACKER, 1);
         vm.stopPrank();
 
         resonance.killStrategy(address(targetStrategy));
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(targetStrategy)));
-        resonance.addSignal(address(targetStrategy), 1);
+        signalGBX.signal(address(targetStrategy), 1);
 
         assertEq(resonance.accountSignalWeight(ALICE), 0);
         assertEq(resonance.totalSignalWeight(), 0);
@@ -363,7 +354,7 @@ contract AdversarialTest is ProtocolFixture {
         assertTrue(hostile.lastCallSucceeded(), "a cross-contract call is not blocked, only harmless");
         assertEq(usdg.balanceOf(ATTACKER), 50_000_000, "the buyer receives only the pre-purchase snapshot");
         assertEq(usdg.balanceOf(hostileStrategy), 0, "same-block scheduled revenue has not released");
-        assertEq(resonance.revenueStreamRemainingScaled(), 100_000_000 * resonance.INDEX_PRECISION());
+        assertEq(resonance.left(address(usdg)), 100_000_000);
     }
 
     /// @notice Re-entering the same Strategy during settlement is rejected by its own guard.
@@ -395,12 +386,14 @@ contract AdversarialTest is ProtocolFixture {
     function test_AHostileRewardTokenCannotReenterSignalChanges() external {
         ReentrantToken hostile = new ReentrantToken(18);
         resonance.addBribeReward(address(targetStrategy), address(hostile));
-        hostile.arm(address(resonance), abi.encodeCall(Resonance.addSignal, (address(targetStrategy), uint256(1))));
+        hostile.arm(
+            address(resonance), abi.encodeCall(Resonance.addSignalFor, (ALICE, address(targetStrategy), uint256(1)))
+        );
 
         _stake(ALICE, 100 ether);
         vm.startPrank(ALICE);
-        resonance.addSignal(address(targetStrategy), 100 ether);
-        resonance.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.signal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         vm.stopPrank();
 
         assertEq(hostile.callCount(), 0, "signal accounting never transfers a reward token");
@@ -421,7 +414,7 @@ contract AdversarialTest is ProtocolFixture {
         vm.startPrank(ALICE);
         gbx.approve(address(hostileSignalGBX), 100 ether);
         hostileSignalGBX.stake(100 ether);
-        hostileResonance.addSignal(hostileStrategy, 100 ether);
+        hostileSignalGBX.signal(hostileStrategy, 100 ether);
         vm.stopPrank();
 
         hostileUSDG.mint(address(hostileRouter), 100_000_000);
@@ -431,45 +424,12 @@ contract AdversarialTest is ProtocolFixture {
         hostileRouter.route();
 
         hostileUSDG.arm(
-            address(hostileResonance), abi.encodeCall(Resonance.removeSignal, (hostileStrategy, uint256(1)))
+            address(hostileResonance), abi.encodeCall(Resonance.removeSignalFor, (ALICE, hostileStrategy, uint256(1)))
         );
         vm.prank(ALICE);
-        hostileResonance.removeSignal(hostileStrategy, 100 ether);
+        hostileSignalGBX.removeSignal(hostileStrategy, 100 ether);
 
         assertEq(hostileUSDG.callCount(), 0, "signal removal makes no USDG call");
-        assertEq(hostileResonance.accountSignalWeight(ALICE), 0);
-    }
-
-    /// @notice The caller-selected batch removal surface has the same reentrancy boundary as scalar removal.
-    function test_AHostileRevenueTokenCannotReenterRemoveSignalMany() external {
-        ReentrantToken hostileUSDG = new ReentrantToken(6);
-        (
-            Resonance hostileResonance,
-            ResonanceRouter hostileRouter,
-            SignalGBX hostileSignalGBX,
-            address hostileStrategy
-        ) = _deployWith(hostileUSDG);
-
-        _mintTestGBX(ALICE, 100 ether);
-        vm.startPrank(ALICE);
-        gbx.approve(address(hostileSignalGBX), 100 ether);
-        hostileSignalGBX.stake(100 ether);
-        hostileResonance.addSignal(hostileStrategy, 100 ether);
-        vm.stopPrank();
-
-        hostileUSDG.mint(address(hostileRouter), 100_000_000);
-        hostileRouter.route();
-        hostileResonance.killStrategy(hostileStrategy);
-        hostileUSDG.mint(address(hostileRouter), 100_000_000);
-        hostileRouter.route();
-
-        address[] memory strategies = _addresses(hostileStrategy);
-        uint256[] memory amounts = _uints(100 ether);
-        hostileUSDG.arm(address(hostileResonance), abi.encodeCall(Resonance.removeSignalMany, (strategies, _uints(1))));
-        vm.prank(ALICE);
-        hostileResonance.removeSignalMany(strategies, amounts);
-
-        assertEq(hostileUSDG.callCount(), 0, "batch signal removal makes no USDG call");
         assertEq(hostileResonance.accountSignalWeight(ALICE), 0);
     }
 
@@ -477,28 +437,21 @@ contract AdversarialTest is ProtocolFixture {
                           DONATION STRANDING
     //////////////////////////////////////////////////////////////*/
 
-    function test_USDGDonatedDirectlyToResonanceCanBePermissionlesslySynchronized() external {
+    function test_USDGDonatedDirectlyToResonanceRemainsUnscheduledSurplus() external {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
 
         usdg.mint(address(resonance), 500_000_000);
 
-        assertEq(resonance.revenueIndex(), 0, "a raw transfer cannot move the index");
-        assertEq(resonance.pendingRevenue(address(targetStrategy)), 0);
+        assertEq(resonance.rewardPerToken(address(usdg)), 0, "a raw transfer cannot move the index");
+        assertEq(resonance.earned(address(targetStrategy), address(usdg)), 0);
 
-        vm.prank(KEEPER);
-        assertEq(resonance.syncRevenue(), 500_000_000);
-        _finishRevenueStream();
-        resonance.distributeAll();
-        assertEq(usdg.balanceOf(address(targetStrategy)), 500_000_000);
-        assertEq(usdg.balanceOf(address(resonance)), 0);
-
-        // Legitimate revenue still flows correctly around the stranded balance.
+        // Legitimate routed revenue still flows correctly around the surplus.
         _routeRevenue(100_000_000);
         _finishRevenueStream();
-        resonance.distributeAll();
-        assertEq(usdg.balanceOf(address(targetStrategy)), 600_000_000);
-        assertEq(usdg.balanceOf(address(resonance)), 0);
+        resonance.distribute(address(targetStrategy));
+        assertEq(usdg.balanceOf(address(targetStrategy)), 100_000_000);
+        assertEq(usdg.balanceOf(address(resonance)), 500_000_000);
     }
 
     /// @notice Reward tokens sent straight to a Bribe are never scheduled into a stream.
@@ -509,8 +462,7 @@ contract AdversarialTest is ProtocolFixture {
         target.mint(address(targetBribe), 1_000 ether);
         vm.warp(block.timestamp + 30 days);
 
-        vm.prank(ALICE);
-        resonance.claimRewards(_addresses(address(targetStrategy)));
+        targetBribe.claimRewards(ALICE);
 
         assertEq(target.balanceOf(ALICE), 0, "no stream exists to accrue against");
         assertEq(target.balanceOf(address(targetBribe)), 1_000 ether);

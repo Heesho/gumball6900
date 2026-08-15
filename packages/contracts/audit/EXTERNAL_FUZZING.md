@@ -1,20 +1,25 @@
 # External state-machine fuzzing
 
 `harness/ProtocolStateMachineCampaign.sol` deploys and wires the current core graph without Forge cheatcodes. Three
-distinct actor contracts drive staking, partial unstaking, scalar and bounded-batch signal deltas, fundraising,
-routing, Strategy purchases, claims, redemption, Strategy killing, and the bounded Resonance governance surface.
+distinct actor contracts drive staking, partial unstaking, scalar and bounded-batch signal deltas, mining, routing,
+Strategy purchases, claims, redemption, Strategy killing, and the bounded maintenance surface.
 Echidna and Medusa share the `echidna_` property surface.
 
 The accounting properties reconcile account, Strategy, Resonance, Bribe, staking, emission, revenue, and supply state.
 The liveness/boundedness properties additionally prove that every represented account's complete exit remains within
 the configured three-Strategy/eight-reward-token graph and that reward-token loops cannot grow beyond Bribe's immutable
-cap. A later production-hardening change resolves A-04 by recording a fixed Fund liability, so hostile USDG cannot block removal of the affected dead-Strategy
-signal, although unallocated `sGBX` and signals on unaffected Strategies remain independently removable.
+cap. Killing a Strategy preserves its checkpointed Resonance claim at the fixed Strategy receiver while allowing every
+incumbent signaler to remove their position without another active-denominator decrement or an inline USDG transfer.
+Hostile USDG therefore cannot block dead-Strategy signal exit, and unallocated `sGBX` and signals on unaffected
+Strategies remain independently removable.
 
 The 2026-08-09 adversarial rerun completed 101,840 Medusa calls, 3,632 branches, corpus 101, and 62/62 passing
-property/assertion surfaces. That run predates ADRs 0026 and 0027. Current deterministic tests assign unindexable
-Resonance and Bribe carry to Fund at denominator changes, but the external campaigns have not been rerun against that
-policy.
+property/assertion surfaces. That run predates ADRs 0026 through 0029 and does not validate the current Resonance
+architecture. The harness now checks Resonance solvency under qualifying stream resets, accepted rounding and
+zero-signal surplus, and irreversible Strategy death; the pinned external campaigns still need to be rerun before
+those checks become external-fuzzer evidence. The harness does not model ProtocolGovernor proposal lifecycles; their
+selector, snapshot, role, queue, and execution properties are covered by Foundry tests and still require an external
+review. Bribe's separate exact carry-to-Fund policy remains covered by current deterministic tests.
 
 Run the pinned campaign with:
 

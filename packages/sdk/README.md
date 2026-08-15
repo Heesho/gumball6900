@@ -4,19 +4,24 @@ Typed ABIs, transaction builders, canonical-block readers, validation, and indep
 6900 development core.
 
 The generated ABI set covers `GBX`, `Mine`, `LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`, both
-factories, `Strategy`, `BribeRouter`, `Bribe`, `Fund`, and OpenZeppelin `TimelockController`.
+factories, `Strategy`, `BribeRouter`, `Bribe`, `Fund`, `ProtocolGovernor`, and OpenZeppelin `TimelockController`.
 
 ```ts
 import {
-  buildAddSignal,
+  buildAddStrategyProposalCall,
   buildCheckpointMining,
   buildClaimMiningPayment,
   buildHarvestLiquidityFees,
-  buildIncreaseMiningCapacity,
+  buildIncreaseMiningCapacityProposalCall,
   buildMine,
+  buildProtocolProposal,
   buildRedemption,
+  buildSignal,
+  buildStakeAndSignalWithPermit,
   buildStrategyBuy,
   readMineSlotView,
+  readProtocolGovernorView,
+  readProtocolProposalView,
   readResonanceView,
   readRedemptionPreview,
   readSupplyView,
@@ -35,11 +40,27 @@ const occupy = buildMine({
 });
 const checkpoint = buildCheckpointMining(mine);
 const claim = buildClaimMiningPayment(mine, displacedMiner);
-const expand = buildIncreaseMiningCapacity(mine, 3n);
-const signal = buildAddSignal(resonance, strategy, 1_000n * 10n ** 18n);
+const signal = buildSignal(signalGBX, strategy, 1_000n * 10n ** 18n);
+const stakeAndSignal = buildStakeAndSignalWithPermit({
+  signalGBX,
+  strategy,
+  amount,
+  deadline,
+  v,
+  r,
+  s,
+}); // Uses the underlying GBX permit; SignalGBX itself has no ERC-20 Permit.
 const harvest = buildHarvestLiquidityFees(liquidityPosition);
 const redemption = buildRedemption(fund, gbxAmount, receiver, selectedTokens);
 const purchase = buildStrategyBuy({ strategy, revenueReceiver: receiver, expectedEpochId, deadline, maximumPayment });
+
+const calls = [
+  buildAddStrategyProposalCall(resonance, paymentToken, strategyConfig),
+  buildIncreaseMiningCapacityProposalCall(mine, 3n),
+];
+const propose = buildProtocolProposal(protocolGovernor, calls, description);
+const governor = await readProtocolGovernorView(publicClient, protocolGovernor);
+const proposal = await readProtocolProposalView(publicClient, protocolGovernor, proposalId, { voter: account });
 ```
 
 `quoteMiningAccrual` accepts explicit per-slot rates because occupied rates are tenure-locked. `miningRateAt` computes
@@ -48,6 +69,22 @@ the global rate that a future handoff will divide by current capacity; it must n
 Every composed reader pins its RPC calls to one block and revalidates that block before returning. Generated ABIs and
 API docs are updated by repository scripts and must not be edited by hand.
 
-`readResonanceView` includes the `1e36` index precision, active scaled rate and remainder schedule, aggregate successor,
-Fund carry remainder, finish, last checkpoint, and currently releasable amount. Strategy raw balances alone omit
-released-but-not-yet-transferred stream revenue. `buildRouteRevenue` forwards every nonzero complete router balance.
+`readResonanceView` includes the seven-day duration, `1e36` reward precision, live signal weight, bound Router and USDG,
+raw quotient-plus-front-loaded-remainder schedule, exact amount left, and Resonance's actual USDG balance. Arithmetic
+floors, zero-active-signal intervals, and direct donations may make the token balance exceed scheduled and claimable
+revenue. Strategy raw balances alone omit released-but-not-yet-transferred stream revenue.
+
+SignalGBX is the user-facing staking, signaling, and vote-delegation boundary. Scalar `buildSignal` and
+`buildRemoveSignal` calls use incremental absolute deltas. Combined builders cover stake-and-signal, the same flow with
+an underlying GBX permit, signal moves, and remove-and-unstake. Idle SignalGBX remains withdrawable and retains voting
+power; direct SignalGBX transfers are disabled.
+
+`buildRouteRevenue` leaves a Router balance below the active amount left in the Router; a qualifying complete balance
+restarts seven days with `reward + left`. `buildNotifyRevenue` encodes that Router-only call.
+
+The four administrative encoders return typed, zero-value `ProtocolProposalCall` values rather than wallet-ready calls:
+add or kill a Strategy, add a Bribe reward token, and increase Mine capacity. Compose them through the
+`ProtocolGovernor` propose, vote, queue, and execute builders. The original proposer may cancel only while a proposal is
+Pending; there is intentionally no guardian or queued-proposal cancellation path. `readProtocolGovernorView` exposes
+the fixed graph, voting parameters, and Timelock delay. `readProtocolProposalView` exposes lifecycle state, vote totals,
+and snapshot quorum once the snapshot is historical.

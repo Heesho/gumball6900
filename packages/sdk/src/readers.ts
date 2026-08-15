@@ -7,9 +7,11 @@ import {
   gbxAbi,
   liquidityPositionAbi,
   mineAbi,
+  protocolGovernorAbi,
   signalGbxAbi,
   strategyAbi,
   resonanceAbi,
+  timelockControllerAbi,
 } from './abis.js';
 import { pinBlockSnapshot, revalidateBlockSnapshot, type BlockSnapshot } from './block-snapshot.js';
 import { addressSchema, unsignedBigIntSchema } from './validation.js';
@@ -225,63 +227,212 @@ export async function readLiquidityPositionView(
 }
 
 export const signalViewSchema = z.object({
-  accountSignalWeight: unsignedBigIntSchema,
-  accountStrategies: z.array(addressSchema),
+  allocatedSignalBalance: unsignedBigIntSchema,
   blockNumber: unsignedBigIntSchema,
+  currentVotes: unsignedBigIntSchema,
+  delegate: addressSchema,
   signalBalance: unsignedBigIntSchema,
   unallocatedSignalBalance: unsignedBigIntSchema,
 });
 export type SignalView = z.infer<typeof signalViewSchema>;
 
-/** Reads an account's SignalGBX balance, absolute allocation, and immediately withdrawable remainder. */
+/** Reads an account's SignalGBX receipt, allocation, delegation, votes, and immediately withdrawable remainder. */
 export async function readSignalView(
   client: PublicClient,
-  contracts: Readonly<{ signalGBX: Address; resonance: Address }>,
+  signalGBX: Address,
   account: Address,
   options: ReadOptions = {},
 ): Promise<SignalView> {
   const signalerAccount = getAddress(account);
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [signalBalance, accountSignalWeight, accountStrategies] = await Promise.all([
-    read(client, blockNumber, contracts.signalGBX, signalGbxAbi, 'balanceOf', [signalerAccount]),
-    read(client, blockNumber, contracts.resonance, resonanceAbi, 'accountSignalWeight', [signalerAccount]),
-    read(client, blockNumber, contracts.resonance, resonanceAbi, 'accountStrategies', [signalerAccount]),
+  const [signalBalance, allocatedSignalBalance, delegate, currentVotes] = await Promise.all([
+    read(client, blockNumber, signalGBX, signalGbxAbi, 'balanceOf', [signalerAccount]),
+    read(client, blockNumber, signalGBX, signalGbxAbi, 'allocatedBalance', [signalerAccount]),
+    read(client, blockNumber, signalGBX, signalGbxAbi, 'delegates', [signalerAccount]),
+    read(client, blockNumber, signalGBX, signalGbxAbi, 'getVotes', [signalerAccount]),
   ]);
   const parsedSignalBalance = unsignedBigIntSchema.parse(signalBalance);
-  const parsedAccountSignalWeight = unsignedBigIntSchema.parse(accountSignalWeight);
+  const parsedAllocatedSignalBalance = unsignedBigIntSchema.parse(allocatedSignalBalance);
+  if (parsedAllocatedSignalBalance > parsedSignalBalance) {
+    throw new RangeError('allocated SignalGBX exceeds the account balance');
+  }
   const result = signalViewSchema.parse({
-    accountSignalWeight: parsedAccountSignalWeight,
-    accountStrategies,
+    allocatedSignalBalance: parsedAllocatedSignalBalance,
     blockNumber,
+    currentVotes,
+    delegate,
     signalBalance: parsedSignalBalance,
-    unallocatedSignalBalance: parsedSignalBalance - parsedAccountSignalWeight,
+    unallocatedSignalBalance: parsedSignalBalance - parsedAllocatedSignalBalance,
+  });
+  await revalidateBlockSnapshot(client, pinned);
+  return result;
+}
+
+export const protocolGovernorViewSchema = z.object({
+  blockNumber: unsignedBigIntSchema,
+  mine: addressSchema,
+  name: z.string().min(1),
+  proposalThreshold: unsignedBigIntSchema,
+  quorumDenominator: unsignedBigIntSchema.positive(),
+  quorumNumerator: unsignedBigIntSchema.positive(),
+  resonance: addressSchema,
+  signalGBX: addressSchema,
+  timelock: addressSchema,
+  timelockMinDelay: unsignedBigIntSchema,
+  votingDelay: unsignedBigIntSchema,
+  votingPeriod: unsignedBigIntSchema.positive(),
+});
+export type ProtocolGovernorView = z.infer<typeof protocolGovernorViewSchema>;
+
+/** Reads ProtocolGovernor's immutable targets, voting parameters, vote token, and Timelock delay. */
+export async function readProtocolGovernorView(
+  client: PublicClient,
+  protocolGovernor: Address,
+  options: ReadOptions = {},
+): Promise<ProtocolGovernorView> {
+  const governor = getAddress(protocolGovernor);
+  const pinned = await snapshot(client, options);
+  const { blockNumber } = pinned;
+  const [
+    mine,
+    name,
+    proposalThreshold,
+    quorumDenominator,
+    quorumNumerator,
+    resonance,
+    signalGBX,
+    timelockRaw,
+    votingDelay,
+    votingPeriod,
+  ] = await Promise.all([
+    read(client, blockNumber, governor, protocolGovernorAbi, 'mine'),
+    read(client, blockNumber, governor, protocolGovernorAbi, 'name'),
+    read(client, blockNumber, governor, protocolGovernorAbi, 'proposalThreshold'),
+    read(client, blockNumber, governor, protocolGovernorAbi, 'quorumDenominator'),
+    read(client, blockNumber, governor, protocolGovernorAbi, 'quorumNumerator'),
+    read(client, blockNumber, governor, protocolGovernorAbi, 'resonance'),
+    read(client, blockNumber, governor, protocolGovernorAbi, 'token'),
+    read(client, blockNumber, governor, protocolGovernorAbi, 'timelock'),
+    read(client, blockNumber, governor, protocolGovernorAbi, 'votingDelay'),
+    read(client, blockNumber, governor, protocolGovernorAbi, 'votingPeriod'),
+  ]);
+  const timelock = addressSchema.parse(timelockRaw);
+  const timelockMinDelay = await read(client, blockNumber, timelock, timelockControllerAbi, 'getMinDelay');
+  const result = protocolGovernorViewSchema.parse({
+    blockNumber,
+    mine,
+    name,
+    proposalThreshold,
+    quorumDenominator,
+    quorumNumerator,
+    resonance,
+    signalGBX,
+    timelock,
+    timelockMinDelay,
+    votingDelay,
+    votingPeriod,
+  });
+  await revalidateBlockSnapshot(client, pinned);
+  return result;
+}
+
+export const protocolProposalStateSchema = z.number().int().min(0).max(7);
+export type ProtocolProposalState = z.infer<typeof protocolProposalStateSchema>;
+
+export interface ProtocolProposalReadOptions extends ReadOptions {
+  /** Optional voter whose participation status should be included. */
+  readonly voter?: Address;
+}
+
+export const protocolProposalViewSchema = z.object({
+  abstainVotes: unsignedBigIntSchema,
+  againstVotes: unsignedBigIntSchema,
+  blockNumber: unsignedBigIntSchema,
+  clock: unsignedBigIntSchema,
+  deadline: unsignedBigIntSchema,
+  eta: unsignedBigIntSchema,
+  forVotes: unsignedBigIntSchema,
+  hasVoted: z.boolean().nullable(),
+  needsQueuing: z.boolean(),
+  proposalId: unsignedBigIntSchema,
+  proposer: addressSchema,
+  quorum: unsignedBigIntSchema.nullable(),
+  snapshot: unsignedBigIntSchema,
+  state: protocolProposalStateSchema,
+});
+export type ProtocolProposalView = z.infer<typeof protocolProposalViewSchema>;
+
+/** Reads proposal lifecycle, vote totals, snapshot quorum, and optional account participation at one block. */
+export async function readProtocolProposalView(
+  client: PublicClient,
+  protocolGovernor: Address,
+  proposalId: bigint,
+  options: ProtocolProposalReadOptions = {},
+): Promise<ProtocolProposalView> {
+  unsignedBigIntSchema.parse(proposalId);
+  const governor = getAddress(protocolGovernor);
+  const voter = options.voter === undefined ? undefined : getAddress(options.voter);
+  const pinned = await snapshot(client, options);
+  const { blockNumber } = pinned;
+  const [clockRaw, deadline, eta, hasVoted, needsQueuing, proposer, snapshotTimepoint, state, proposalVotes] =
+    await Promise.all([
+      read(client, blockNumber, governor, protocolGovernorAbi, 'clock'),
+      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalDeadline', [proposalId]),
+      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalEta', [proposalId]),
+      voter === undefined
+        ? Promise.resolve(null)
+        : read(client, blockNumber, governor, protocolGovernorAbi, 'hasVoted', [proposalId, voter]),
+      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalNeedsQueuing', [proposalId]),
+      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalProposer', [proposalId]),
+      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalSnapshot', [proposalId]),
+      read(client, blockNumber, governor, protocolGovernorAbi, 'state', [proposalId]),
+      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalVotes', [proposalId]),
+    ]);
+  const clock = typeof clockRaw === 'bigint' ? clockRaw : BigInt(clockRaw as number);
+  const snapshotValue = unsignedBigIntSchema.parse(snapshotTimepoint);
+  const quorum =
+    snapshotValue < clock
+      ? await read(client, blockNumber, governor, protocolGovernorAbi, 'quorum', [snapshotValue])
+      : null;
+  const proposalVotesRecord = proposalVotes as Readonly<Record<string, unknown>>;
+  const proposalVoteValues = Array.isArray(proposalVotes)
+    ? proposalVotes
+    : [proposalVotesRecord.againstVotes, proposalVotesRecord.forVotes, proposalVotesRecord.abstainVotes];
+  const result = protocolProposalViewSchema.parse({
+    abstainVotes: proposalVoteValues[2],
+    againstVotes: proposalVoteValues[0],
+    blockNumber,
+    clock,
+    deadline,
+    eta,
+    forVotes: proposalVoteValues[1],
+    hasVoted,
+    needsQueuing,
+    proposalId,
+    proposer,
+    quorum,
+    snapshot: snapshotValue,
+    state,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
 
 export const resonanceViewSchema = z.object({
-  accountedRevenueBalance: unsignedBigIntSchema,
   blockNumber: unsignedBigIntSchema,
-  fundRevenueRemainderScaled: unsignedBigIntSchema,
-  fundRevenueLiability: unsignedBigIntSchema,
-  indexPrecision: unsignedBigIntSchema,
-  indexedRevenueScaled: unsignedBigIntSchema,
-  pendingRevenueScaled: unsignedBigIntSchema,
-  queuedRevenue: unsignedBigIntSchema,
-  releasableRevenueScaled: unsignedBigIntSchema,
-  revenueIndex: unsignedBigIntSchema,
-  revenueStreamDuration: unsignedBigIntSchema,
-  revenueStreamFinish: unsignedBigIntSchema,
-  revenueStreamLastUpdate: unsignedBigIntSchema,
-  revenueStreamRateScaled: unsignedBigIntSchema,
-  revenueStreamRemainderFinish: unsignedBigIntSchema,
-  revenueStreamRemainingScaled: unsignedBigIntSchema,
-  strategies: z.array(addressSchema),
-  totalClaimableRevenue: unsignedBigIntSchema,
+  duration: unsignedBigIntSchema,
+  lastUpdateTime: unsignedBigIntSchema,
+  left: unsignedBigIntSchema,
+  periodFinish: unsignedBigIntSchema,
+  remainderFinish: unsignedBigIntSchema,
+  resonanceRouter: addressSchema,
+  rewardPerTokenStored: unsignedBigIntSchema,
+  rewardPrecision: unsignedBigIntSchema,
+  rewardRate: unsignedBigIntSchema,
   totalSignalWeight: unsignedBigIntSchema,
-  unaccountedRevenue: unsignedBigIntSchema,
+  usdg: addressSchema,
+  usdgBalance: unsignedBigIntSchema,
 });
 export type ResonanceView = z.infer<typeof resonanceViewSchema>;
 
@@ -293,68 +444,44 @@ export async function readResonanceView(
 ): Promise<ResonanceView> {
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [
-    accountedRevenueBalance,
-    fundRevenueRemainderScaled,
-    fundRevenueLiability,
-    indexPrecision,
-    indexedRevenueScaled,
-    pendingRevenueScaled,
-    queuedRevenue,
-    releasableRevenueScaled,
-    revenueIndex,
-    revenueStreamDuration,
-    revenueStreamFinish,
-    revenueStreamLastUpdate,
-    revenueStreamRateScaled,
-    revenueStreamRemainderFinish,
-    revenueStreamRemainingScaled,
-    strategies,
-    totalClaimableRevenue,
-    totalSignalWeight,
-    unaccountedRevenue,
-  ] = await Promise.all([
-    read(client, blockNumber, resonance, resonanceAbi, 'accountedRevenueBalance'),
-    read(client, blockNumber, resonance, resonanceAbi, 'fundRevenueRemainderScaled'),
-    read(client, blockNumber, resonance, resonanceAbi, 'fundRevenueLiability'),
-    read(client, blockNumber, resonance, resonanceAbi, 'INDEX_PRECISION'),
-    read(client, blockNumber, resonance, resonanceAbi, 'indexedRevenueScaled'),
-    read(client, blockNumber, resonance, resonanceAbi, 'pendingRevenueScaled'),
-    read(client, blockNumber, resonance, resonanceAbi, 'queuedRevenue'),
-    read(client, blockNumber, resonance, resonanceAbi, 'releasableRevenueScaled'),
-    read(client, blockNumber, resonance, resonanceAbi, 'revenueIndex'),
-    read(client, blockNumber, resonance, resonanceAbi, 'REVENUE_STREAM_DURATION'),
-    read(client, blockNumber, resonance, resonanceAbi, 'revenueStreamFinish'),
-    read(client, blockNumber, resonance, resonanceAbi, 'revenueStreamLastUpdate'),
-    read(client, blockNumber, resonance, resonanceAbi, 'revenueStreamRateScaled'),
-    read(client, blockNumber, resonance, resonanceAbi, 'revenueStreamRemainderFinish'),
-    read(client, blockNumber, resonance, resonanceAbi, 'revenueStreamRemainingScaled'),
-    read(client, blockNumber, resonance, resonanceAbi, 'strategies'),
-    read(client, blockNumber, resonance, resonanceAbi, 'totalClaimableRevenue'),
-    read(client, blockNumber, resonance, resonanceAbi, 'totalSignalWeight'),
-    read(client, blockNumber, resonance, resonanceAbi, 'unaccountedRevenue'),
+  const normalizedResonance = getAddress(resonance);
+  const [duration, resonanceRouter, rewardPrecision, totalSignalWeight, usdgRaw] = await Promise.all([
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'DURATION'),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'resonanceRouter'),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'REWARD_PRECISION'),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'totalSignalWeight'),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'usdg'),
   ]);
+  const usdg = addressSchema.parse(usdgRaw);
+  const [rewardData, rewardLeft, usdgBalance] = await Promise.all([
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'token_RewardData', [usdg]),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'left', [usdg]),
+    read(client, blockNumber, usdg, gbxAbi, 'balanceOf', [normalizedResonance]),
+  ]);
+  const rewardDataRecord = rewardData as Readonly<Record<string, unknown>>;
+  const rewardDataValues = Array.isArray(rewardData)
+    ? rewardData
+    : [
+        rewardDataRecord.periodFinish,
+        rewardDataRecord.remainderFinish,
+        rewardDataRecord.rewardRate,
+        rewardDataRecord.lastUpdateTime,
+        rewardDataRecord.rewardPerTokenStored,
+      ];
   const result = resonanceViewSchema.parse({
-    accountedRevenueBalance,
     blockNumber,
-    fundRevenueRemainderScaled,
-    fundRevenueLiability,
-    indexPrecision,
-    indexedRevenueScaled,
-    pendingRevenueScaled,
-    queuedRevenue,
-    releasableRevenueScaled,
-    revenueIndex,
-    revenueStreamDuration,
-    revenueStreamFinish,
-    revenueStreamLastUpdate,
-    revenueStreamRateScaled,
-    revenueStreamRemainderFinish,
-    revenueStreamRemainingScaled,
-    strategies,
-    totalClaimableRevenue,
+    duration,
+    lastUpdateTime: rewardDataValues[3],
+    left: rewardLeft,
+    periodFinish: rewardDataValues[0],
+    remainderFinish: rewardDataValues[1],
+    resonanceRouter,
+    rewardPerTokenStored: rewardDataValues[4],
+    rewardPrecision,
+    rewardRate: rewardDataValues[2],
     totalSignalWeight,
-    unaccountedRevenue,
+    usdg,
+    usdgBalance,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;

@@ -7,6 +7,10 @@ test('minimal rebuild status renders without accessibility violations', async ({
   await expect(page.getByText('No deployment configured', { exact: true })).toBeVisible();
   await expect(page.getByText('20,000,000 GBX', { exact: true })).toBeVisible();
   await expect(
+    page.getByRole('heading', { level: 2, name: 'Thirteen direct, non-upgradeable contracts' }),
+  ).toBeVisible();
+  await expect(page.getByText(/ProtocolGovernor, the Timelock's sole proposer/i)).toBeVisible();
+  await expect(
     page.getByText('This page exposes no wallet connection and submits no transaction.', { exact: false }),
   ).toBeVisible();
 

@@ -9,7 +9,11 @@ const packageDirectory = path.resolve(scriptDirectory, '..');
 
 export const REQUIRED_ENTITIES = Object.freeze(['ProtocolState', 'Account', 'MiningSlot', 'Strategy', 'ProtocolEvent']);
 
-export const ACCOUNTING_EXTENSION_ENTITIES = Object.freeze([]);
+export const REVIEWED_EXTENSION_ENTITIES = Object.freeze([
+  'GovernanceProposal',
+  'GovernanceVote',
+  'TimelockRoleMembership',
+]);
 
 export const REQUIRED_HANDLERS = Object.freeze([
   'handleBribeRewardAdded',
@@ -20,9 +24,12 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleCallScheduled',
   'handleCancelled',
   'handleClaimed',
+  'handleDelegateChanged',
+  'handleDelegateVotesChanged',
   'handleEmissionCheckpointed',
   'handleFeesHarvested',
   'handleFundGBXBurned',
+  'handleGovernorTimelockChange',
   'handleMined',
   'handleMinerPaymentAccrued',
   'handleMinterSet',
@@ -30,16 +37,13 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleMiningRevenueRouted',
   'handleMinDelayChange',
   'handlePositionRecorded',
+  'handleProposalCanceled',
+  'handleProposalCreated',
+  'handleProposalExecuted',
+  'handleProposalQueued',
   'handleRedeemed',
-  'handleRevenueQueued',
-  'handleRevenueCarryFunded',
   'handleRevenueDistributed',
   'handleRevenueNotified',
-  'handleRevenueStreamCheckpointed',
-  'handleRevenueStreamScheduled',
-  'handleRevenueSynced',
-  'handleFundRevenueAccrued',
-  'handleFundRevenuePaid',
   'handleRevenueRouted',
   'handleSignalResonanceSet',
   'handleStaked',
@@ -56,6 +60,10 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleBribeFundRewardPaid',
   'handleRouterFundPaymentAccrued',
   'handleRouterFundPaymentPaid',
+  'handleRoleGranted',
+  'handleRoleRevoked',
+  'handleVoteCast',
+  'handleVoteCastWithParams',
 ]);
 
 function matches(text, expression, captureIndex = 1) {
@@ -86,7 +94,7 @@ function setErrors(actual, expected, label) {
 
 export function evaluateSpecCoverage({ mappings, manifest, schema }) {
   const errors = [];
-  const expectedEntities = [...REQUIRED_ENTITIES, ...ACCOUNTING_EXTENSION_ENTITIES];
+  const expectedEntities = [...REQUIRED_ENTITIES, ...REVIEWED_EXTENSION_ENTITIES];
   const entities = matches(schema, /^type\s+([A-Za-z][A-Za-z0-9]*)\s+@entity\b/gmu);
   errors.push(...setErrors(entities, expectedEntities, 'Schema entity set'));
 
@@ -122,7 +130,7 @@ async function main() {
   if (errors.length > 0) throw new Error(`Subgraph specification coverage failed:\n- ${errors.join('\n- ')}`);
   process.stdout.write(
     `Subgraph specification coverage passed for ${REQUIRED_ENTITIES.length} required entities, ` +
-      `${ACCOUNTING_EXTENSION_ENTITIES.length} accounting extensions, and ${REQUIRED_HANDLERS.length} manifest/mapping handlers.\n`,
+      `${REVIEWED_EXTENSION_ENTITIES.length} reviewed extensions, and ${REQUIRED_HANDLERS.length} manifest/mapping handlers.\n`,
   );
 }
 

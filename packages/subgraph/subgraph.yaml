@@ -108,6 +108,10 @@ dataSources:
         - name: SignalGBX
           file: ./abis/SignalGBX.json
       eventHandlers:
+        - event: DelegateChanged(indexed address,indexed address,indexed address)
+          handler: handleDelegateChanged
+        - event: DelegateVotesChanged(indexed address,uint256,uint256)
+          handler: handleDelegateVotesChanged
         - event: Staked(indexed address,uint256)
           handler: handleStaked
         - event: Unstaked(indexed address,uint256)
@@ -162,20 +166,6 @@ dataSources:
           handler: handleRevenueDistributed
         - event: RevenueNotified(indexed address,uint256)
           handler: handleRevenueNotified
-        - event: RevenueSynced(indexed address,uint256)
-          handler: handleRevenueSynced
-        - event: RevenueStreamCheckpointed(uint256,uint256)
-          handler: handleRevenueStreamCheckpointed
-        - event: RevenueStreamScheduled(uint256,uint256,uint256,uint256,uint256,uint256)
-          handler: handleRevenueStreamScheduled
-        - event: RevenueQueued(uint256,uint256)
-          handler: handleRevenueQueued
-        - event: RevenueCarryFunded(uint256,uint256)
-          handler: handleRevenueCarryFunded
-        - event: FundRevenueAccrued(uint256,uint256)
-          handler: handleFundRevenueAccrued
-        - event: FundRevenuePaid(indexed address,indexed address,uint256)
-          handler: handleFundRevenuePaid
         - event: StrategyAdded(indexed address,indexed address,indexed address,address)
           handler: handleStrategyAdded
         - event: StrategyKilled(indexed address)
@@ -187,6 +177,42 @@ dataSources:
         - event: ResonanceRouterSet(indexed address)
           handler: handleResonanceRouterSet
       file: ./src/resonance.ts
+  - kind: ethereum/contract
+    name: ProtocolGovernor
+    network: robinhood
+    source:
+      abi: ProtocolGovernor
+      address: "0x0000000000000000000000000000000000000000"
+      startBlock: 0
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      entities:
+        - ProtocolState
+        - Account
+        - GovernanceProposal
+        - GovernanceVote
+        - ProtocolEvent
+      abis:
+        - name: ProtocolGovernor
+          file: ./abis/ProtocolGovernor.json
+      eventHandlers:
+        - event: TimelockChange(address,address)
+          handler: handleGovernorTimelockChange
+        - event: ProposalCreated(uint256,address,address[],uint256[],string[],bytes[],uint256,uint256,string)
+          handler: handleProposalCreated
+        - event: ProposalQueued(uint256,uint256)
+          handler: handleProposalQueued
+        - event: ProposalCanceled(uint256)
+          handler: handleProposalCanceled
+        - event: ProposalExecuted(uint256)
+          handler: handleProposalExecuted
+        - event: VoteCast(indexed address,uint256,uint8,uint256,string)
+          handler: handleVoteCast
+        - event: VoteCastWithParams(indexed address,uint256,uint8,uint256,string,bytes)
+          handler: handleVoteCastWithParams
+      file: ./src/protocol-governor.ts
   - kind: ethereum/contract
     name: Fund
     network: robinhood
@@ -224,6 +250,7 @@ dataSources:
       language: wasm/assemblyscript
       entities:
         - ProtocolState
+        - TimelockRoleMembership
         - ProtocolEvent
       abis:
         - name: TimelockController
@@ -240,6 +267,10 @@ dataSources:
           handler: handleCancelled
         - event: MinDelayChange(uint256,uint256)
           handler: handleMinDelayChange
+        - event: RoleGranted(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleGranted
+        - event: RoleRevoked(indexed bytes32,indexed address,indexed address)
+          handler: handleRoleRevoked
       file: ./src/timelock-controller.ts
 templates:
   - kind: ethereum/contract

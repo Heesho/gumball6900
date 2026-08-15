@@ -264,8 +264,7 @@ contract MineTest is ProtocolFixture {
         assertEq(mine.totalClaimable(), 0);
         assertEq(usdg.balanceOf(address(mine)), 0);
         assertEq(usdg.balanceOf(address(resonance)), paid);
-        assertEq(resonance.fundRevenueLiability(), 0);
-        assertEq(resonance.revenueStreamRemainingScaled(), paid * resonance.INDEX_PRECISION());
+        assertEq(resonance.left(address(usdg)), paid);
 
         Mine.Slot memory slot = mine.getSlot(0);
         assertEq(slot.miner, ALICE);
@@ -286,9 +285,9 @@ contract MineTest is ProtocolFixture {
         assertEq(mine.claimable(ALICE), 800_000);
         assertEq(mine.totalClaimable(), 800_000);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
-        assertEq(usdg.balanceOf(address(resonance)), 1_200_000);
-        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
-        assertEq(resonance.queuedRevenue(), 200_000, "replacement share queues behind the active stream");
+        assertEq(usdg.balanceOf(address(resonance)), 1_000_000);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 200_000);
+        assertEq(resonance.left(address(usdg)), 996_400, "the active stream continues while the small top-up waits");
     }
 
     function test_ClaimIsPermissionlessButAlwaysPaysTheDisplacedMiner() external {

@@ -2,8 +2,8 @@
 
 ## Status
 
-Accepted as historical starting point; acquisition-split and buyback provisions superseded by ADR 0021. Not approved
-for deployment or user funds.
+Accepted as historical starting point; acquisition-split and buyback provisions are superseded by ADR 0021, and the
+external proposer/canceller model is superseded by ADR 0030. Not approved for deployment or user funds.
 
 ## Context
 
@@ -34,8 +34,9 @@ The system makes the following deliberate choices:
 - duplicate detection uses EIP-1153 transient storage;
 - omitted redemption assets remain for the remaining GBX supply;
 - Fund can bind one same-GBX successor and migrate complete selected balances in permissionless batches; and
-- Resonance and Fund administration use OpenZeppelin `TimelockController`, with the project multisig as proposer and
-  canceller, permissionless delayed execution, and no external default administrator.
+- Resonance and Fund administration use OpenZeppelin `TimelockController`, with a then-proposed external
+  proposer/canceller, permissionless delayed execution, and no external default administrator. ADR 0030 replaces that
+  authority with the selector-bounded ProtocolGovernor and makes it the sole proposer.
 
 The historical cumulative mint ceiling was superseded by ADR 0023's complete fixed-supply construction.
 

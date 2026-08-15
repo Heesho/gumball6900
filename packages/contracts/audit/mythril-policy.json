@@ -33,6 +33,10 @@
       "contract": "Resonance"
     },
     {
+      "artifact": "out/ProtocolGovernor.sol/ProtocolGovernor.json",
+      "contract": "ProtocolGovernor"
+    },
+    {
       "artifact": "out/StrategyFactory.sol/StrategyFactory.json",
       "contract": "StrategyFactory"
     },

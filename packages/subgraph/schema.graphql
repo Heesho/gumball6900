@@ -3,6 +3,7 @@ type ProtocolState @entity(immutable: false) {
   chainId: BigInt!
   resonance: Bytes
   resonanceRouter: Bytes
+  protocolGovernor: Bytes
   initialSupplyRaw: BigInt!
   lifetimeMintedRaw: BigInt!
   lifetimeBurnedRaw: BigInt!
@@ -18,24 +19,17 @@ type ProtocolState @entity(immutable: false) {
   liquidityGBXBurnedRaw: BigInt!
   routedRevenueRaw: BigInt!
   notifiedRevenueRaw: BigInt!
-  syncedRevenueRaw: BigInt!
+  revenueNotificationCount: BigInt!
+  latestRevenueNotificationRaw: BigInt!
+  latestRevenueNotificationAt: BigInt!
   distributedRevenueRaw: BigInt!
-  queuedRevenueRaw: BigInt!
-  revenueStreamReleasedScaled: BigInt!
-  revenueStreamRemainingScaled: BigInt!
-  revenueStreamRateScaled: BigInt!
-  revenueStreamLastUpdate: BigInt!
-  revenueStreamFinish: BigInt!
-  revenueStreamRemainderFinish: BigInt!
-  fundRevenueRemainderScaled: BigInt!
-  fundRevenueAccruedRaw: BigInt!
-  fundRevenuePaidRaw: BigInt!
-  pendingFundRevenueRaw: BigInt!
   stakedGBXRaw: BigInt!
   fundBurnedGBXRaw: BigInt!
   redeemedGBXRaw: BigInt!
   timelockDelay: BigInt!
   strategyCount: Int!
+  governanceProposalCount: BigInt!
+  governanceVoteCount: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
 }
@@ -50,6 +44,9 @@ type Account @entity(immutable: false) {
   miningUSDGClaimedRaw: BigInt!
   stakedGBXRaw: BigInt!
   signalWeightRaw: BigInt!
+  currentDelegate: Bytes!
+  delegatedVotesRaw: BigInt!
+  governanceVotesCast: BigInt!
   redeemedGBXRaw: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
@@ -94,7 +91,72 @@ type Strategy @entity(immutable: false) {
 }
 
 """
-Immutable positional record for each core protocol event handled by this subgraph.
+Event-derived Governor proposal facts. `lastLifecycleEvent` changes only when a Governor lifecycle event is observed;
+it is not a live reconstruction of the Governor state machine between events.
+"""
+type GovernanceProposal @entity(immutable: false) {
+  id: ID!
+  governor: Bytes!
+  proposalId: BigInt!
+  proposer: Bytes
+  targets: [Bytes!]
+  values: [BigInt!]
+  signatures: [String!]
+  calldatas: [Bytes!]
+  voteStart: BigInt
+  voteEnd: BigInt
+  description: String
+  etaSeconds: BigInt
+  lastLifecycleEvent: String!
+  againstVotesRaw: BigInt!
+  forVotesRaw: BigInt!
+  abstainVotesRaw: BigInt!
+  voteCount: BigInt!
+  createdBlockNumber: BigInt
+  createdTimestamp: BigInt
+  lastBlockNumber: BigInt!
+  lastTimestamp: BigInt!
+  votes: [GovernanceVote!]! @derivedFrom(field: "proposal")
+}
+
+"""
+Immutable vote receipt copied from one Governor VoteCast or VoteCastWithParams log.
+"""
+type GovernanceVote @entity(immutable: true) {
+  id: ID!
+  proposal: GovernanceProposal!
+  governor: Bytes!
+  proposalId: BigInt!
+  voter: Bytes!
+  support: Int!
+  weightRaw: BigInt!
+  reason: String!
+  params: Bytes!
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  transactionHash: Bytes!
+  logIndex: BigInt!
+}
+
+"""
+Latest event-derived membership for one Timelock role/account pair. Complete role closure requires indexing from the
+Timelock deployment block so constructor grants are present.
+"""
+type TimelockRoleMembership @entity(immutable: false) {
+  id: ID!
+  timelock: Bytes!
+  role: Bytes!
+  account: Bytes!
+  granted: Boolean!
+  lastSender: Bytes!
+  lastBlockNumber: BigInt!
+  lastTimestamp: BigInt!
+  lastTransactionHash: Bytes!
+  lastLogIndex: BigInt!
+}
+
+"""
+Immutable positional record for each protocol or governance event handled by this subgraph.
 """
 type ProtocolEvent @entity(immutable: true) {
   id: ID!

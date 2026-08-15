@@ -201,18 +201,18 @@ contract ProtocolStateMachineCampaign {
 
         address strategy = alive[uint256(strategySeed) % alive.length];
         uint256 requested = _clamp(amount, 1, available);
-        actor.run(address(resonance), abi.encodeCall(Resonance.addSignal, (strategy, requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.signal, (strategy, requested)));
     }
 
     function removeSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
-        address[] memory selected = resonance.accountStrategies(account);
+        address[] memory selected = _accountStrategies(account);
         if (selected.length == 0) revert("NO_ACCOUNT_STRATEGY");
 
         address strategy = selected[uint256(strategySeed) % selected.length];
         uint256 requested = _clamp(amount, 1, resonance.accountSignals(account, strategy));
-        actor.run(address(resonance), abi.encodeCall(Resonance.removeSignal, (strategy, requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignal, (strategy, requested)));
     }
 
     function addSignalMany(uint8 actorSeed, uint8 countSeed) external {
@@ -233,13 +233,15 @@ contract ProtocolStateMachineCampaign {
         }
         amounts[0] += available - (share * count);
 
-        actor.run(address(resonance), abi.encodeCall(Resonance.addSignalMany, (selected, amounts)));
+        for (uint256 i; i < count; ++i) {
+            actor.run(address(signalGBX), abi.encodeCall(SignalGBX.signal, (selected[i], amounts[i])));
+        }
     }
 
     function removeSignalMany(uint8 actorSeed, uint8 countSeed) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
-        address[] memory current = resonance.accountStrategies(account);
+        address[] memory current = _accountStrategies(account);
         if (current.length == 0) revert("NO_ACCOUNT_STRATEGY");
 
         uint256 count = (uint256(countSeed) % current.length) + 1;
@@ -250,7 +252,9 @@ contract ProtocolStateMachineCampaign {
             amounts[i] = resonance.accountSignals(account, current[i]);
         }
 
-        actor.run(address(resonance), abi.encodeCall(Resonance.removeSignalMany, (selected, amounts)));
+        for (uint256 i; i < count; ++i) {
+            actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignal, (selected[i], amounts[i])));
+        }
     }
 
     function mine(uint8 actorSeed, uint8 slotSeed) external {
@@ -278,19 +282,20 @@ contract ProtocolStateMachineCampaign {
     function donateRevenueDirectly(uint64 amount) external {
         uint256 donation = _clamp(amount, 1, 1_000_000e6);
         _createUSDG(address(resonance), donation);
-        resonance.syncRevenue();
     }
 
-    function indexPendingRevenue() external {
-        resonance.indexPendingRevenue();
+    function recordRevenueIndex() external {
+        _recordRevenueIndex();
     }
 
     function distributeAll() external {
-        resonance.distributeAll();
+        for (uint256 i; i < strategies.length; ++i) {
+            resonance.distribute(strategies[i]);
+        }
     }
 
-    function updateStrategy(uint8 strategySeed) external {
-        resonance.updateStrategy(_strategy(strategySeed));
+    function distributeOne(uint8 strategySeed) external {
+        resonance.distribute(_strategy(strategySeed));
     }
 
     function buy(uint8 actorSeed, uint8 strategySeed) external {
@@ -316,10 +321,8 @@ contract ProtocolStateMachineCampaign {
     }
 
     function claimRewards(uint8 actorSeed, uint8 strategySeed) external {
-        address[] memory selected = new address[](1);
-        selected[0] = _strategy(strategySeed);
-
-        _actor(actorSeed).run(address(resonance), abi.encodeCall(Resonance.claimRewards, (selected)));
+        CampaignActor actor = _actor(actorSeed);
+        Bribe(resonance.bribeFor(_strategy(strategySeed))).claimRewards(address(actor));
     }
 
     function notifySupplementalReward(uint8 actorSeed, uint8 tokenSeed, uint64 amount) external {
@@ -342,7 +345,6 @@ contract ProtocolStateMachineCampaign {
     }
 
     function payFixedLiabilities() external {
-        resonance.payFundRevenue();
         for (uint256 i; i < strategies.length; ++i) {
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
             router.payFundPayment();
@@ -402,9 +404,9 @@ contract ProtocolStateMachineCampaign {
                               PROPERTIES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Every staking receipt is backed one-for-one by escrowed GBX.
+    /// @notice Every staking receipt is fully backed; unsolicited GBX can only create stranded surplus.
     function echidna_stakingReceiptIsFullyCollateralized() public view returns (bool holds) {
-        return gbx.balanceOf(address(signalGBX)) == signalGBX.totalSupply();
+        return gbx.balanceOf(address(signalGBX)) >= signalGBX.totalSupply();
     }
 
     /// @notice GBX supply always reconciles against cumulative issuance and burns.
@@ -422,22 +424,27 @@ contract ProtocolStateMachineCampaign {
         return mineContract.effectiveTotalSupply() == gbx.totalSupply() + mineContract.pendingEmission();
     }
 
-    /// @notice Per-Strategy signal weights sum exactly to the global total.
+    /// @notice Live Strategy signal weights sum exactly to the active global denominator.
     function echidna_strategyWeightsSumToTheGlobalTotal() public view returns (bool holds) {
         uint256 summed;
         for (uint256 i; i < strategies.length; ++i) {
-            summed += resonance.strategySignalWeight(strategies[i]);
+            if (resonance.isStrategyAlive(strategies[i])) summed += resonance.strategySignalWeight(strategies[i]);
         }
         return summed == resonance.totalSignalWeight();
     }
 
-    /// @notice Per-account signal weights also sum exactly to the global total.
+    /// @notice Per-account signal weights sum to all recorded Strategy weight, including dead-Strategy exits.
     function echidna_accountWeightsSumToTheGlobalTotal() public view returns (bool holds) {
-        uint256 summed;
+        uint256 accountTotal;
         for (uint256 i; i < ACTOR_COUNT; ++i) {
-            summed += resonance.accountSignalWeight(address(actors[i]));
+            accountTotal += resonance.accountSignalWeight(address(actors[i]));
         }
-        return summed == resonance.totalSignalWeight();
+
+        uint256 strategyTotal;
+        for (uint256 i; i < strategies.length; ++i) {
+            strategyTotal += resonance.strategySignalWeight(strategies[i]);
+        }
+        return accountTotal == strategyTotal;
     }
 
     /// @notice No account signals with more weight than the receipts it actually holds.
@@ -453,7 +460,7 @@ contract ProtocolStateMachineCampaign {
     function echidna_everyAccountExitRemainsBounded() public view returns (bool holds) {
         for (uint256 i; i < ACTOR_COUNT; ++i) {
             address actor = address(actors[i]);
-            address[] memory selected = resonance.accountStrategies(actor);
+            address[] memory selected = _accountStrategies(actor);
             if (selected.length > strategies.length) return false;
 
             uint256 summed;
@@ -500,55 +507,48 @@ contract ProtocolStateMachineCampaign {
     function echidna_resonanceIsSolventAgainstClaimableRevenue() public view returns (bool holds) {
         uint256 owed;
         for (uint256 i; i < strategies.length; ++i) {
-            owed += resonance.claimableRevenue(strategies[i]);
+            owed += resonance.earned(strategies[i], address(usdg));
         }
         return owed <= usdg.balanceOf(address(resonance));
     }
 
-    /// @notice Every accounted USDG unit remains in exactly one whole-token or scaled accounting category.
-    function echidna_resonanceAccountingIsExact() public view returns (bool holds) {
-        uint256 precision = resonance.INDEX_PRECISION();
-        uint256 strategyRemainders;
+    /// @notice Scheduled and already-earned USDG remain solvent; accepted rounding may leave surplus.
+    function echidna_resonanceIsSolventIncludingScheduled() public view returns (bool holds) {
+        uint256 owed = resonance.left(address(usdg));
         for (uint256 i; i < strategies.length; ++i) {
-            strategyRemainders += resonance.strategyRevenueRemainder(strategies[i]);
+            owed += resonance.earned(strategies[i], address(usdg));
         }
-
-        uint256 right = resonance.revenueStreamRemainingScaled() + resonance.queuedRevenue() * precision
-            + resonance.pendingRevenueScaled() + resonance.indexedRevenueScaled() + strategyRemainders
-            + resonance.fundRevenueRemainderScaled()
-            + (resonance.totalClaimableRevenue() + resonance.fundRevenueLiability()) * precision;
-        return resonance.accountedRevenueBalance() * precision == right;
+        return owed <= usdg.balanceOf(address(resonance));
     }
 
-    /// @notice A scheduled Resonance stream has a live rate and an exact rolling seven-day boundary.
+    /// @notice Resonance's one reward period has coherent timestamps and is fully backed.
     function echidna_revenueStreamStateIsCoherent() public view returns (bool holds) {
-        uint256 remainingScaled = resonance.revenueStreamRemainingScaled();
-        if (remainingScaled == 0) {
-            return resonance.revenueStreamRateScaled() == 0 && resonance.revenueStreamLastUpdate() == 0
-                && resonance.revenueStreamFinish() == 0 && resonance.revenueStreamRemainderFinish() == 0
-                && resonance.queuedRevenue() == 0;
+        (uint256 finish, uint256 remainderFinish, uint256 rewardRate, uint256 lastUpdate,) =
+            resonance.token_RewardData(address(usdg));
+        if (finish == 0) {
+            return remainderFinish == 0 && rewardRate == 0 && lastUpdate == 0;
         }
 
-        uint256 lastUpdate = resonance.revenueStreamLastUpdate();
-        uint256 finish = resonance.revenueStreamFinish();
-        return resonance.revenueStreamRateScaled() != 0 && finish > lastUpdate
-            && resonance.revenueStreamRemainderFinish() <= finish
-            && finish - lastUpdate <= resonance.REVENUE_STREAM_DURATION();
+        return remainderFinish <= finish && lastUpdate <= finish
+            && resonance.left(address(usdg)) <= usdg.balanceOf(address(resonance));
     }
 
-    /// @notice A retired Strategy never accumulates a new claim.
-    function echidna_deadStrategiesHoldNoClaims() public view returns (bool holds) {
+    /// @notice Dead Strategy weights are excluded from the active denominator while remaining removable.
+    function echidna_deadStrategiesAreExcludedFromActiveWeight() public view returns (bool holds) {
+        uint256 activeWeight;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.isStrategyAlive(strategies[i])) continue;
-            if (resonance.claimableRevenue(strategies[i]) != 0) return false;
+            if (resonance.isStrategyAlive(strategies[i])) {
+                activeWeight += resonance.strategySignalWeight(strategies[i]);
+            }
         }
-        return true;
+        return activeWeight == resonance.totalSignalWeight();
     }
 
     /// @notice A Strategy checkpoint never runs ahead of the global revenue index.
     function echidna_checkpointsNeverLeadTheGlobalIndex() public view returns (bool holds) {
+        uint256 current = resonance.rewardPerToken(address(usdg));
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.strategyRevenueIndex(strategies[i]) > resonance.revenueIndex()) return false;
+            if (resonance.account_Token_RewardPerTokenPaid(strategies[i], address(usdg)) > current) return false;
         }
         return true;
     }
@@ -666,7 +666,7 @@ contract ProtocolStateMachineCampaign {
     /// @notice The revenue index never moves backwards.
     /// @dev `highestRevenueIndex` is refreshed by every action through `_recordRevenueIndex`.
     function echidna_revenueIndexIsMonotonic() public view returns (bool holds) {
-        return resonance.revenueIndex() >= highestRevenueIndex;
+        return resonance.rewardPerToken(address(usdg)) >= highestRevenueIndex;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -700,8 +700,21 @@ contract ProtocolStateMachineCampaign {
         }
     }
 
+    function _accountStrategies(address account) private view returns (address[] memory selected) {
+        uint256 count;
+        for (uint256 i; i < strategies.length; ++i) {
+            if (resonance.accountSignals(account, strategies[i]) != 0) ++count;
+        }
+
+        selected = new address[](count);
+        uint256 cursor;
+        for (uint256 i; i < strategies.length; ++i) {
+            if (resonance.accountSignals(account, strategies[i]) != 0) selected[cursor++] = strategies[i];
+        }
+    }
+
     function _recordRevenueIndex() private {
-        uint256 current = resonance.revenueIndex();
+        uint256 current = resonance.rewardPerToken(address(usdg));
         if (current > highestRevenueIndex) highestRevenueIndex = current;
     }
 

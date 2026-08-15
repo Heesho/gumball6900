@@ -6,7 +6,7 @@
 
 # Function: buildRemoveSignal()
 
-> **buildRemoveSignal**(`resonance`, `strategy`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildRemoveSignal**(`signalGBX`, `strategy`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
 Removes an absolute amount from the caller's existing signal for one Strategy.
 
@@ -14,7 +14,7 @@ Removes an absolute amount from the caller's existing signal for one Strategy.
 
 | Parameter   | Type                |
 | ----------- | ------------------- |
-| `resonance` | `` `0x${string}` `` |
+| `signalGBX` | `` `0x${string}` `` |
 | `strategy`  | `` `0x${string}` `` |
 | `amount`    | `bigint`            |
 

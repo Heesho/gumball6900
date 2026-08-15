@@ -7,7 +7,8 @@
 - Miners face rollover risk and may be replaced at zero USDG after one hour. The 80% successor payment is not a refund
   or guarantee.
 - GBX has no protocol-defined economic supply cap. Immutable future-handoff halvings converge to a positive tail, so
-  dilution does not terminate on any modeled horizon; ERC20Votes still imposes its `uint208` implementation ceiling.
+  dilution does not terminate on any modeled horizon. SignalGBX voting checkpoints impose a `uint208` ceiling on the
+  amount that can be staked for governance, even though GBX itself has no such implementation ceiling.
 - Exact production Mine parameters remain unresolved and materially affect demand, dilution, revenue, and MEV.
 - Accrued GBX is unminted between checkpoints. Fund forces a checkpoint before redemption, but indexers must compute
   pending emission for effective-supply displays.
@@ -28,9 +29,21 @@
 
 ## Governance and setup
 
-The timelock can add/kill Strategies, register up to eight Bribe reward tokens, and increase Mine capacity to sixteen.
-It cannot reduce capacity, reprice incumbents, change Mine economics, move Fund assets, recover the liquidity NFT, or
-upgrade/migrate the core. Incorrect immutables, bindings, ownership, PoolKey, ticks, token ID, or roles are permanent.
+SignalGBX voting may propose only four exact actions through ProtocolGovernor: add/kill Strategies, register up to
+eight Bribe reward tokens, and increase Mine capacity to sixteen. The Governor is the Timelock's sole proposer; it
+cannot reduce capacity, reprice incumbents, change Mine economics, move Fund assets, recover the liquidity NFT, relay
+an arbitrary call, replace the Timelock, or upgrade/migrate the core.
+
+Voting uses block snapshots while the Timelock delay uses seconds. Staked GBX has no withdrawal lock, so a voter can
+exit after the snapshot while retaining historical voting weight, and short-lived borrowed GBX can influence a known
+snapshot. Idle and undelegated SignalGBX counts toward historical total supply and therefore quorum but casts no vote;
+large inactive supply can deadlock all four maintenance actions. Once queued, an action has no public cancellation
+path. Stale or conflicting queued operations may remain forever and revert on execution, though they do not block a
+differently described replacement proposal.
+
+Incorrect vote parameters, dependencies, bootstrap Strategies, bindings, ownership, PoolKey, ticks, token ID, or
+Timelock roles are permanent. Deployment evidence must prove the initial Strategy set and that no external proposer,
+canceller, or default administrator survives setup.
 
 ## Evidence gaps
 

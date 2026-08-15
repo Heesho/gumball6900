@@ -44,6 +44,10 @@
 
 > **mine**: `` `0x${string}` `` = `addressSchema`
 
+#### addresses.protocolGovernor
+
+> **protocolGovernor**: `` `0x${string}` `` = `addressSchema`
+
 #### addresses.resonance
 
 > **resonance**: `` `0x${string}` `` = `addressSchema`

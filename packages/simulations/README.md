@@ -12,9 +12,12 @@ price promises, deployment configurations, or investment projections.
 - A new slot receives `globalUps(totalMined) / capacity`; division residue is unissued.
 - A nonempty-slot replacement pays `floor(price * 80%)` to the displaced miner and routes the residue to Resonance.
   An empty slot routes 100%.
-- Resonance uses a `1e36`-scaled global USDG stream with exact quotient-plus-remainder release. Weight changes checkpoint
-  prior elapsed flow and assign any unindexable old-weight carry to Fund. A live top-up aggregates into one successor
-  without changing the active seven-day rate or finish.
+- Resonance uses a `1e36` reward-per-signal index and a seven-day raw-unit stream. Integer division remainder is emitted
+  during the first seconds of the period. A live top-up qualifies when the new amount is at least the exact active
+  reward left; it checkpoints elapsed rewards and restarts seven days with `new reward + left`. Zero-signal emission,
+  direct donations, global-index residue, and per-Strategy flooring remain unallocated Resonance surplus.
+- Killing a Strategy checkpoints it against the old active denominator, preserves its stored whole-unit reward, removes
+  its complete weight from the future denominator, and leaves its recorded signal available for incremental exit.
 - Bribe uses `1e18` reward precision and assigns unindexable old-supply carry plus fully exiting user remainders to
   Fund before changing virtual signal supply.
 - Slot price is `initialPrice - floor(initialPrice * elapsed / 3600)` during the hour and zero afterward.
@@ -31,9 +34,10 @@ price promises, deployment configurations, or investment projections.
 - a threshold crossing where the incumbent retains its rate and only the next replacement receives the lower rate;
 - genesis-position budgeting, Strategy auctions, Bribe rewards, Fund-held GBX burns, and raw-basket redemptions.
 
-Separate TypeScript and Python conservation models cover one-raw-unit Resonance streams, active-plus-successor
-catch-up, repeated tiny top-ups, exact conservation, signal entry after part of a stream has elapsed, and Bribe carry
-classification across entry and exit boundaries. These state-machine tests are independent of the Solidity suite.
+Separate TypeScript and Python conservation models cover one-raw-unit Resonance streams, qualifying live-period resets,
+Router retention below the reset threshold, zero-signal and direct-donation surplus, per-Strategy rounding surplus,
+irreversible Strategy death, and Bribe carry classification across entry and exit boundaries. These state-machine
+tests are independent of the Solidity suite.
 
 The smaller `fixtures/reference-results.json` is the SDK formula-vector fixture. Both fixtures are checked across
 TypeScript and Python, and both languages assert the fixed-tenure fairness rule independently.

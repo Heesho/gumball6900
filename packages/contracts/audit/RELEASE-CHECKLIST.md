@@ -1,7 +1,7 @@
 # Release checklist
 
-Current description: **ADR 0024/0026 development candidate; independent review required**. This is not production-ready or
-deployment-authorized.
+Current description: **ADR 0024/0029/0030 development candidate; independent review required**. This is not
+production-ready or deployment-authorized.
 
 ## Internal engineering
 
@@ -17,6 +17,11 @@ deployment-authorized.
 - [ ] Current-tree mutation, Medusa, and pinned Echidna campaigns complete.
 - [ ] Compatible symbolic analysis or explicit independent disposition complete.
 - [x] Bribe A-09 carry is fixed to Fund before signal-supply changes, with entry, exit, and remainder regressions.
+- [x] SignalGBX coordinates atomic signal workflows, retains ERC20Votes, and omits its unused ERC20Permit surface.
+- [x] ProtocolGovernor restricts proposals to the four exact zero-value maintenance calls.
+- [ ] Current-tree static findings regenerated and manually dispositioned for ProtocolGovernor and coordinator flows.
+- [ ] Governance vote borrowing, quorum liveness, immutable parameters, and absent queued cancellation independently
+      reviewed and accepted.
 
 ## Economic and independent review
 
@@ -32,8 +37,10 @@ deployment-authorized.
 - [ ] Canonical USDG and Uniswap dependencies approved with runtime code hashes.
 - [ ] Signed manifest verifies chain, bytecode, constructor arguments, immutable Mine parameters, and dependencies.
 - [ ] GBX genesis recipient receives exactly 20M and permanent minter handoff resolves to the deployed Mine.
-- [ ] Mine starts at capacity one; Resonance and Mine ownership resolve to the reviewed timelock.
-- [ ] Timelock delay and proposer/canceller/executor/default-admin roles verified.
+- [ ] Reviewed initial Strategies are created and receipt-recorded before governance ownership handoff.
+- [ ] Mine starts at capacity one; Resonance and Mine ownership resolve to the reviewed Timelock.
+- [ ] ProtocolGovernor token, Timelock, Resonance, Mine, immutable settings, and four-selector filter are verified.
+- [ ] Governor is the sole Timelock proposer/canceller, execution is open, and no external default admin survives.
 - [ ] One-time Resonance/factory/router bindings verified.
 - [ ] PoolKey, price, ticks, NFT ID, genesis principal, rounding residual, and permanent custody verified.
 - [ ] Frontend remains read-only until the complete manifest passes.

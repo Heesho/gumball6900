@@ -1,4 +1,4 @@
-import { encodeFunctionData, getAddress, zeroAddress, type Address, type Hex } from 'viem';
+import { encodeFunctionData, getAddress, isHex, keccak256, toBytes, zeroAddress, type Address, type Hex } from 'viem';
 
 import {
   bribeAbi,
@@ -7,12 +7,13 @@ import {
   gbxAbi,
   liquidityPositionAbi,
   mineAbi,
+  protocolGovernorAbi,
   signalGbxAbi,
   strategyAbi,
   resonanceAbi,
   resonanceRouterAbi,
 } from './abis.js';
-import { assertUint, positiveBigIntSchema, unsignedBigIntSchema } from './validation.js';
+import { assertUint, bytes32Schema, positiveBigIntSchema, unsignedBigIntSchema } from './validation.js';
 
 /** Wallet-ready contract call with no native-currency transfer. */
 export interface ContractTransaction {
@@ -21,8 +22,43 @@ export interface ContractTransaction {
   readonly value: 0n;
 }
 
+/** One zero-value call that can be composed into a selector-bounded ProtocolGovernor proposal. */
+export interface ProtocolProposalCall {
+  readonly target: Address;
+  readonly value: 0n;
+  readonly calldata: Hex;
+}
+
+/** OpenZeppelin GovernorCountingSimple vote choices. */
+export type ProtocolVoteSupport = 0 | 1 | 2;
+
 function transaction(to: Address, data: Hex): ContractTransaction {
   return { to: getAddress(to), data, value: 0n };
+}
+
+function proposalCall(target: Address, calldata: Hex): ProtocolProposalCall {
+  return { target: getAddress(target), value: 0n, calldata };
+}
+
+function proposalArguments(calls: readonly ProtocolProposalCall[]): {
+  targets: Address[];
+  values: bigint[];
+  calldatas: Hex[];
+} {
+  if (calls.length === 0) throw new RangeError('calls cannot be empty');
+  const targets: Address[] = [];
+  const values: bigint[] = [];
+  const calldatas: Hex[] = [];
+  for (const [index, call] of calls.entries()) {
+    if (call.value !== 0n) throw new RangeError(`calls[${index}].value must be zero`);
+    if (!isHex(call.calldata, { strict: true }) || call.calldata.length < 10) {
+      throw new RangeError(`calls[${index}].calldata must contain a function selector`);
+    }
+    targets.push(getAddress(call.target));
+    values.push(0n);
+    calldatas.push(call.calldata);
+  }
+  return { targets, values, calldatas };
 }
 
 function uint256(value: bigint, name: string): void {
@@ -103,10 +139,13 @@ export function buildCheckpointMining(mine: Address): ContractTransaction {
   return transaction(mine, encodeFunctionData({ abi: mineAbi, functionName: 'checkpointAll' }));
 }
 
-/** Encodes the timelock-controlled, increase-only Mine capacity operation. */
-export function buildIncreaseMiningCapacity(mine: Address, newCapacity: bigint): ContractTransaction {
+/** Encodes the Governor-bounded, increase-only Mine capacity operation as a proposal call. */
+export function buildIncreaseMiningCapacityProposalCall(mine: Address, newCapacity: bigint): ProtocolProposalCall {
   positiveUint256(newCapacity, 'newCapacity');
-  return transaction(mine, encodeFunctionData({ abi: mineAbi, functionName: 'increaseCapacity', args: [newCapacity] }));
+  return proposalCall(
+    mine,
+    encodeFunctionData({ abi: mineAbi, functionName: 'increaseCapacity', args: [newCapacity] }),
+  );
 }
 
 /** Collects canonical LP fees, routes USDG through ResonanceRouter, and burns GBX through Fund. */
@@ -133,89 +172,113 @@ export function buildUnstake(signalGBX: Address, amount: bigint): ContractTransa
 }
 
 /** Adds an absolute amount to the caller's existing signal for one Strategy. The amount is a delta, not a target. */
-export function buildAddSignal(resonance: Address, strategy: Address, amount: bigint): ContractTransaction {
+export function buildSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
   positiveUint256(amount, 'amount');
   return transaction(
-    resonance,
+    signalGBX,
     encodeFunctionData({
-      abi: resonanceAbi,
-      functionName: 'addSignal',
+      abi: signalGbxAbi,
+      functionName: 'signal',
       args: [getAddress(strategy), amount],
     }),
   );
 }
 
 /** Removes an absolute amount from the caller's existing signal for one Strategy. */
-export function buildRemoveSignal(resonance: Address, strategy: Address, amount: bigint): ContractTransaction {
+export function buildRemoveSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
   positiveUint256(amount, 'amount');
   return transaction(
-    resonance,
+    signalGBX,
     encodeFunctionData({
-      abi: resonanceAbi,
+      abi: signalGbxAbi,
       functionName: 'removeSignal',
       args: [getAddress(strategy), amount],
     }),
   );
 }
 
-/** Adds absolute deltas to the caller's existing signals for a caller-bounded Strategy batch. */
-export function buildAddSignalMany(
-  resonance: Address,
-  strategies: readonly Address[],
-  amounts: readonly bigint[],
-): ContractTransaction {
-  if (strategies.length === 0 || strategies.length !== amounts.length) {
-    throw new RangeError('strategies and amounts must have the same non-zero length');
-  }
-  const normalizedStrategies = strategies.map((strategy) => getAddress(strategy));
-  if (normalizedStrategies.some((strategy) => strategy === zeroAddress)) {
-    throw new RangeError('strategies cannot contain the zero address');
-  }
-  for (const amount of amounts) positiveUint256(amount, 'amount');
+/** Stakes GBX and signals the minted SignalGBX to one Strategy atomically. */
+export function buildStakeAndSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
+  positiveUint256(amount, 'amount');
   return transaction(
-    resonance,
+    signalGBX,
     encodeFunctionData({
-      abi: resonanceAbi,
-      functionName: 'addSignalMany',
-      args: [normalizedStrategies, [...amounts]],
+      abi: signalGbxAbi,
+      functionName: 'stakeAndSignal',
+      args: [getAddress(strategy), amount],
     }),
   );
 }
 
-/** Removes absolute deltas from the caller's existing signals for a caller-bounded Strategy batch. */
-export function buildRemoveSignalMany(
-  resonance: Address,
-  strategies: readonly Address[],
-  amounts: readonly bigint[],
-): ContractTransaction {
-  if (strategies.length === 0 || strategies.length !== amounts.length) {
-    throw new RangeError('strategies and amounts must have the same non-zero length');
+export interface StakeAndSignalWithPermitParameters {
+  readonly signalGBX: Address;
+  readonly strategy: Address;
+  readonly amount: bigint;
+  readonly deadline: bigint;
+  readonly v: number;
+  readonly r: Hex;
+  readonly s: Hex;
+}
+
+/** Uses an underlying GBX permit, then stakes and signals in the same transaction. */
+export function buildStakeAndSignalWithPermit(parameters: StakeAndSignalWithPermitParameters): ContractTransaction {
+  positiveUint256(parameters.amount, 'amount');
+  uint256(parameters.deadline, 'deadline');
+  if (!Number.isInteger(parameters.v) || parameters.v < 0 || parameters.v > 255) {
+    throw new RangeError('v must fit uint8');
   }
-  const normalizedStrategies = strategies.map((strategy) => getAddress(strategy));
-  if (normalizedStrategies.some((strategy) => strategy === zeroAddress)) {
-    throw new RangeError('strategies cannot contain the zero address');
-  }
-  for (const amount of amounts) positiveUint256(amount, 'amount');
+  const r = bytes32Schema.parse(parameters.r) as Hex;
+  const s = bytes32Schema.parse(parameters.s) as Hex;
   return transaction(
-    resonance,
+    parameters.signalGBX,
     encodeFunctionData({
-      abi: resonanceAbi,
-      functionName: 'removeSignalMany',
-      args: [normalizedStrategies, [...amounts]],
+      abi: signalGbxAbi,
+      functionName: 'stakeAndSignalWithPermit',
+      args: [getAddress(parameters.strategy), parameters.amount, parameters.deadline, parameters.v, r, s],
     }),
   );
 }
 
-/** Claims the caller's rewards from the selected Strategies' Bribes. */
-export function buildClaimRewards(resonance: Address, strategies: readonly Address[]): ContractTransaction {
-  if (strategies.length === 0) throw new RangeError('strategies cannot be empty');
+/** Moves an absolute signal amount between Strategies without staking or unstaking. */
+export function buildMoveSignal(
+  signalGBX: Address,
+  fromStrategy: Address,
+  toStrategy: Address,
+  amount: bigint,
+): ContractTransaction {
+  positiveUint256(amount, 'amount');
   return transaction(
-    resonance,
+    signalGBX,
     encodeFunctionData({
-      abi: resonanceAbi,
-      functionName: 'claimRewards',
-      args: [uniqueAddresses(strategies, 'strategies')],
+      abi: signalGbxAbi,
+      functionName: 'moveSignal',
+      args: [getAddress(fromStrategy), getAddress(toStrategy), amount],
     }),
+  );
+}
+
+/** Removes signal, burns the released SignalGBX, and returns underlying GBX atomically. */
+export function buildRemoveSignalAndUnstake(
+  signalGBX: Address,
+  strategy: Address,
+  amount: bigint,
+): ContractTransaction {
+  positiveUint256(amount, 'amount');
+  return transaction(
+    signalGBX,
+    encodeFunctionData({
+      abi: signalGbxAbi,
+      functionName: 'removeSignalAndUnstake',
+      args: [getAddress(strategy), amount],
+    }),
+  );
+}
+
+/** Delegates the caller's SignalGBX voting power. */
+export function buildDelegateSignalVotes(signalGBX: Address, delegatee: Address): ContractTransaction {
+  return transaction(
+    signalGBX,
+    encodeFunctionData({ abi: signalGbxAbi, functionName: 'delegate', args: [getAddress(delegatee)] }),
   );
 }
 
@@ -261,19 +324,154 @@ export function buildDistributeRevenue(resonance: Address, strategy: Address): C
   );
 }
 
-/** Synchronizes direct USDG donations already held by Resonance into the global stream. */
-export function buildSyncRevenue(resonance: Address): ContractTransaction {
-  return transaction(resonance, encodeFunctionData({ abi: resonanceAbi, functionName: 'syncRevenue' }));
+/** Encodes the Router-only notification that restarts Resonance with `reward + left`. */
+export function buildNotifyRevenue(resonance: Address, reward: bigint): ContractTransaction {
+  positiveUint256(reward, 'reward');
+  return transaction(
+    resonance,
+    encodeFunctionData({ abi: resonanceAbi, functionName: 'notifyRevenue', args: [reward] }),
+  );
 }
 
-/** Checkpoints elapsed stream revenue and attempts to advance Resonance's sub-index carry. */
-export function buildIndexPendingRevenue(resonance: Address): ContractTransaction {
-  return transaction(resonance, encodeFunctionData({ abi: resonanceAbi, functionName: 'indexPendingRevenue' }));
+export interface ResonanceStrategyConfig {
+  readonly initialPrice: bigint;
+  readonly epochDuration: bigint;
+  readonly priceMultiplier: bigint;
+  readonly minimumPrice: bigint;
 }
 
-/** Pays Resonance's complete fixed Fund revenue liability to the immutable Fund. */
-export function buildPayFundRevenue(resonance: Address): ContractTransaction {
-  return transaction(resonance, encodeFunctionData({ abi: resonanceAbi, functionName: 'payFundRevenue' }));
+/** Encodes Governor-controlled deployment of a Strategy and its bound Bribe graph as a proposal call. */
+export function buildAddStrategyProposalCall(
+  resonance: Address,
+  paymentToken: Address,
+  config: ResonanceStrategyConfig,
+): ProtocolProposalCall {
+  positiveUint256(config.initialPrice, 'initialPrice');
+  positiveUint256(config.epochDuration, 'epochDuration');
+  positiveUint256(config.priceMultiplier, 'priceMultiplier');
+  positiveUint256(config.minimumPrice, 'minimumPrice');
+  return proposalCall(
+    resonance,
+    encodeFunctionData({
+      abi: resonanceAbi,
+      functionName: 'addStrategy',
+      args: [getAddress(paymentToken), config],
+    }),
+  );
+}
+
+/** Encodes irreversible Governor-controlled removal of a Strategy from live weight as a proposal call. */
+export function buildKillStrategyProposalCall(resonance: Address, strategy: Address): ProtocolProposalCall {
+  return proposalCall(
+    resonance,
+    encodeFunctionData({ abi: resonanceAbi, functionName: 'killStrategy', args: [getAddress(strategy)] }),
+  );
+}
+
+/** Encodes Governor-controlled registration of one Bribe reward token as a proposal call. */
+export function buildAddBribeRewardProposalCall(
+  resonance: Address,
+  strategy: Address,
+  rewardToken: Address,
+): ProtocolProposalCall {
+  return proposalCall(
+    resonance,
+    encodeFunctionData({
+      abi: resonanceAbi,
+      functionName: 'addBribeReward',
+      args: [getAddress(strategy), getAddress(rewardToken)],
+    }),
+  );
+}
+
+/** Returns the bytes32 description hash used by Governor queue, execute, and cancel calls. */
+export function hashProtocolProposalDescription(description: string): Hex {
+  return keccak256(toBytes(description));
+}
+
+/** Submits one or more bounded protocol calls to ProtocolGovernor. */
+export function buildProtocolProposal(
+  protocolGovernor: Address,
+  calls: readonly ProtocolProposalCall[],
+  description: string,
+): ContractTransaction {
+  const { targets, values, calldatas } = proposalArguments(calls);
+  return transaction(
+    protocolGovernor,
+    encodeFunctionData({
+      abi: protocolGovernorAbi,
+      functionName: 'propose',
+      args: [targets, values, calldatas, description],
+    }),
+  );
+}
+
+/** Casts a For (1), Against (0), or Abstain (2) vote on an active proposal. */
+export function buildCastProtocolVote(
+  protocolGovernor: Address,
+  proposalId: bigint,
+  support: ProtocolVoteSupport,
+): ContractTransaction {
+  uint256(proposalId, 'proposalId');
+  if (support !== 0 && support !== 1 && support !== 2) throw new RangeError('support must be 0, 1, or 2');
+  return transaction(
+    protocolGovernor,
+    encodeFunctionData({ abi: protocolGovernorAbi, functionName: 'castVote', args: [proposalId, support] }),
+  );
+}
+
+/** Queues a succeeded proposal in the immutable Timelock. */
+export function buildQueueProtocolProposal(
+  protocolGovernor: Address,
+  calls: readonly ProtocolProposalCall[],
+  descriptionHash: Hex,
+): ContractTransaction {
+  const { targets, values, calldatas } = proposalArguments(calls);
+  const parsedDescriptionHash = bytes32Schema.parse(descriptionHash) as Hex;
+  return transaction(
+    protocolGovernor,
+    encodeFunctionData({
+      abi: protocolGovernorAbi,
+      functionName: 'queue',
+      args: [targets, values, calldatas, parsedDescriptionHash],
+    }),
+  );
+}
+
+/** Executes a queued proposal after the immutable Timelock delay. */
+export function buildExecuteProtocolProposal(
+  protocolGovernor: Address,
+  calls: readonly ProtocolProposalCall[],
+  descriptionHash: Hex,
+): ContractTransaction {
+  const { targets, values, calldatas } = proposalArguments(calls);
+  const parsedDescriptionHash = bytes32Schema.parse(descriptionHash) as Hex;
+  return transaction(
+    protocolGovernor,
+    encodeFunctionData({
+      abi: protocolGovernorAbi,
+      functionName: 'execute',
+      args: [targets, values, calldatas, parsedDescriptionHash],
+    }),
+  );
+}
+
+/** Cancels the proposer's own proposal while it is Pending; queued cancellation is intentionally unavailable. */
+export function buildCancelPendingProtocolProposal(
+  protocolGovernor: Address,
+  calls: readonly ProtocolProposalCall[],
+  descriptionHash: Hex,
+): ContractTransaction {
+  const { targets, values, calldatas } = proposalArguments(calls);
+  const parsedDescriptionHash = bytes32Schema.parse(descriptionHash) as Hex;
+  return transaction(
+    protocolGovernor,
+    encodeFunctionData({
+      abi: protocolGovernorAbi,
+      functionName: 'cancel',
+      args: [targets, values, calldatas, parsedDescriptionHash],
+    }),
+  );
 }
 
 /** Pays a BribeRouter's complete fixed Fund payment-token liability. */

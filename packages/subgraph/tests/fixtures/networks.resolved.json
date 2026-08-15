@@ -3,6 +3,7 @@
     "GBX": { "address": "0x0000000000000000000000000000000000000001", "startBlock": 1 },
     "Mine": { "address": "0x0000000000000000000000000000000000000002", "startBlock": 1 },
     "LiquidityPosition": { "address": "0x0000000000000000000000000000000000000008", "startBlock": 1 },
+    "ProtocolGovernor": { "address": "0x0000000000000000000000000000000000000009", "startBlock": 1 },
     "SignalGBX": { "address": "0x0000000000000000000000000000000000000003", "startBlock": 1 },
     "ResonanceRouter": { "address": "0x0000000000000000000000000000000000000004", "startBlock": 1 },
     "Resonance": { "address": "0x0000000000000000000000000000000000000005", "startBlock": 1 },

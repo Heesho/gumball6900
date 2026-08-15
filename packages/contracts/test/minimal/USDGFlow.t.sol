@@ -31,7 +31,7 @@ contract USDGFlowTest is ProtocolFixture {
         _deployProtocol();
     }
 
-    /// @notice Every USDG unit paid across an initial occupation and replacement reaches its final owner exactly once.
+    /// @notice Mine revenue waiting below the active stream's remainder can be routed after that stream finishes.
     function testFuzz_MineRevenueAndHandoffClaimsReachFinalDestinationsWithoutDust(uint256 rawElapsed) external {
         _stake(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
@@ -44,8 +44,9 @@ contract USDGFlowTest is ProtocolFixture {
         uint256 displacedMinerShare = (replacementPayment * mine.PREVIOUS_MINER_BPS()) / mine.BPS();
         uint256 streamedRevenue = firstPayment + replacementPayment - displacedMinerShare;
 
-        // One checkpoint can consume the initial stream and its aggregate successor after both have ended.
-        vm.warp(DEPLOYED_AT + 15 days);
+        vm.warp(block.timestamp + resonance.DURATION());
+        if (resonanceRouter.pendingRevenue() != 0) resonanceRouter.route();
+        vm.warp(block.timestamp + resonance.DURATION());
         vm.prank(CAROL);
         targetStrategy.buy(CAROL, 0, block.timestamp, 0);
 
@@ -60,9 +61,7 @@ contract USDGFlowTest is ProtocolFixture {
         assertEq(usdg.balanceOf(address(resonance)), 0);
         assertEq(usdg.balanceOf(address(targetStrategy)), 0);
         assertEq(mine.totalClaimable(), 0);
-        assertEq(resonance.accountedRevenueBalance(), 0);
-        assertEq(resonance.revenueStreamRemainingScaled(), 0);
-        assertEq(resonance.queuedRevenue(), 0);
+        assertEq(resonance.left(address(usdg)), 0);
     }
 
     /// @notice A temporary USDG block at Resonance rolls the complete Mine replacement back and remains retryable.
@@ -92,7 +91,7 @@ contract USDGFlowTest is ProtocolFixture {
         assertEq(graph.revenue.balanceOf(address(isolatedMine)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.router)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), 0);
-        assertEq(graph.resonance.accountedRevenueBalance(), 0);
+        assertEq(graph.resonance.left(address(graph.revenue)), 0);
 
         graph.revenue.setBlocked(address(graph.resonance), false);
         vm.prank(DAVE);
@@ -102,7 +101,7 @@ contract USDGFlowTest is ProtocolFixture {
         assertEq(graph.revenue.balanceOf(DAVE), 0);
         assertEq(graph.revenue.balanceOf(address(graph.router)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), payment);
-        assertEq(graph.resonance.accountedRevenueBalance(), payment);
+        assertEq(graph.resonance.left(address(graph.revenue)), payment);
     }
 
     /// @notice A blocked buyer payout restores distribution, payment settlement, and auction state for a clean retry.
@@ -129,7 +128,7 @@ contract USDGFlowTest is ProtocolFixture {
         assertEq(graph.revenue.balanceOf(CAROL), 0);
         assertEq(graph.revenue.balanceOf(address(graph.firstStrategy)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), 604_800);
-        assertEq(graph.resonance.accountedRevenueBalance(), 604_800);
+        assertEq(graph.resonance.left(address(graph.revenue)), 601_200);
         assertEq(paymentRouter.fundPaymentLiability(), 0);
         assertEq(target.balanceOf(CAROL), price);
 
@@ -143,41 +142,38 @@ contract USDGFlowTest is ProtocolFixture {
         assertEq(target.balanceOf(CAROL), 0);
     }
 
-    /// @notice One USDG-blocked Strategy can be skipped and retired without trapping another Strategy's allocation.
-    function test_BlockedStrategyDoesNotBrickUnrelatedDistributionOrFundRecovery() external {
+    /// @notice One USDG-blocked Strategy does not prevent a separate single-Strategy distribution.
+    function test_BlockedStrategyDoesNotBrickUnrelatedDistributionOrItsOwnLaterRetry() external {
         HostileRevenueGraph memory graph = _deployHostileRevenueGraph();
         _stakeAndSignal(graph, ALICE, address(graph.firstStrategy), 50 ether);
         _stakeAndSignal(graph, BOB, address(graph.secondStrategy), 50 ether);
 
         graph.revenue.mint(address(graph.router), 100_000_000);
         graph.router.route();
-        vm.warp(block.timestamp + graph.resonance.REVENUE_STREAM_DURATION());
+        vm.warp(block.timestamp + graph.resonance.DURATION());
         graph.revenue.setBlocked(address(graph.firstStrategy), true);
 
         vm.expectRevert("BLOCKED");
-        graph.resonance.distributeAll();
+        graph.resonance.distribute(address(graph.firstStrategy));
 
         assertEq(graph.revenue.balanceOf(address(graph.firstStrategy)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.secondStrategy)), 0);
-        assertEq(graph.revenue.balanceOf(address(graph.resonance)), 100_000_000, "batch failure is atomic");
-        assertEq(graph.resonance.accountedRevenueBalance(), 100_000_000);
+        assertEq(graph.revenue.balanceOf(address(graph.resonance)), 100_000_000);
 
         // Permissionless single-Strategy distribution isolates the bad destination.
         graph.resonance.distribute(address(graph.secondStrategy));
         assertEq(graph.revenue.balanceOf(address(graph.secondStrategy)), 50_000_000);
 
-        // Governance retirement performs accounting only: the blocked share becomes a pull liability for Fund.
+        // Killing preserves the Strategy's already accrued pull claim while excluding it from future allocation.
         graph.resonance.killStrategy(address(graph.firstStrategy));
-        assertEq(graph.resonance.fundRevenueLiability(), 50_000_000);
-        assertEq(graph.resonance.claimableRevenue(address(graph.firstStrategy)), 0);
+        assertEq(graph.resonance.earned(address(graph.firstStrategy), address(graph.revenue)), 50_000_000);
 
-        graph.resonance.payFundRevenue();
-        graph.resonance.distributeAll();
+        graph.revenue.setBlocked(address(graph.firstStrategy), false);
+        graph.resonance.distribute(address(graph.firstStrategy));
 
-        assertEq(graph.revenue.balanceOf(address(fund)), 50_000_000);
+        assertEq(graph.revenue.balanceOf(address(graph.firstStrategy)), 50_000_000);
         assertEq(graph.revenue.balanceOf(address(graph.secondStrategy)), 50_000_000);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), 0);
-        assertEq(graph.resonance.accountedRevenueBalance(), 0);
     }
 
     /// @notice An issuer wipe is detected as a deficit and cannot silently corrupt USDG accounting.
@@ -192,14 +188,11 @@ contract USDGFlowTest is ProtocolFixture {
 
         graph.revenue.wipe(address(graph.resonance));
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), 0);
-        assertEq(graph.resonance.accountedRevenueBalance(), routed);
 
-        vm.expectRevert(abi.encodeWithSelector(Resonance.RevenueBalanceDeficit.selector, routed, 0));
-        graph.resonance.syncRevenue();
         vm.expectRevert();
         graph.resonance.distribute(address(graph.firstStrategy));
 
-        assertEq(graph.resonance.accountedRevenueBalance(), routed, "failed payout preserves every liability");
+        assertEq(graph.resonance.earned(address(graph.firstStrategy), address(graph.revenue)), 3_600);
         assertEq(graph.revenue.balanceOf(address(graph.firstStrategy)), 0);
 
         // Only replenishing the externally removed USDG can make the accounting solvent again.
@@ -207,7 +200,7 @@ contract USDGFlowTest is ProtocolFixture {
         graph.resonance.distribute(address(graph.firstStrategy));
 
         assertEq(graph.revenue.balanceOf(address(graph.firstStrategy)), 3_600);
-        assertEq(graph.resonance.accountedRevenueBalance(), routed - 3_600);
+        assertEq(graph.revenue.balanceOf(address(graph.resonance)), routed - 3_600);
     }
 
     function _occupyMineSlot(address minerAccount) private returns (uint256 payment) {
@@ -228,7 +221,7 @@ contract USDGFlowTest is ProtocolFixture {
         vm.startPrank(account);
         gbx.approve(address(graph.receipts), amount);
         graph.receipts.stake(amount);
-        graph.resonance.addSignal(strategy, amount);
+        graph.receipts.signal(strategy, amount);
         vm.stopPrank();
     }
 

@@ -5,7 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { deterministicJson } from './release-lib.mjs';
-import { buildMainnetForkContext } from './export-mainnet-fork-context.mjs';
+import { buildArchivedMainnetForkContext, buildMainnetForkContext } from './export-mainnet-fork-context.mjs';
 import { buildRobinhoodRegistryRevalidation } from './robinhood-registry-revalidation.mjs';
 
 const nowMs = Date.parse('2026-08-02T12:00:00Z');
@@ -532,7 +532,7 @@ function preparedInputs(candidate = fixture(), { stage = 'preliminary' } = {}) {
 }
 
 function build(candidate = fixture(), options = {}) {
-  return buildMainnetForkContext(preparedInputs(candidate, options));
+  return buildArchivedMainnetForkContext(preparedInputs(candidate, options));
 }
 
 function permissionedV2Fixture() {
@@ -578,6 +578,13 @@ function permissionedV2Fixture() {
   };
   return candidate;
 }
+
+test('current fork-context export does not fall back to archived Safe bindings', () => {
+  assert.throws(
+    () => buildMainnetForkContext(preparedInputs()),
+    /Current ProtocolGovernor deployment\/release tooling is unavailable/,
+  );
+});
 
 test('exports the complete deterministic signed mainnet dependency context', () => {
   const context = build();
@@ -633,21 +640,24 @@ test('requires the exact fresh late-registry artifact, source archive, stage, an
   const artifact = JSON.parse(artifactDrift.registryRevalidationBytes.toString('utf8'));
   artifact.evidence.selectedRecords[0].tokenName = 'Substituted token';
   artifactDrift.registryRevalidationBytes = Buffer.from(deterministicJson(artifact));
-  assert.throws(() => buildMainnetForkContext(artifactDrift), /selected-record archive digest|selected records differ/);
+  assert.throws(
+    () => buildArchivedMainnetForkContext(artifactDrift),
+    /selected-record archive digest|selected records differ/,
+  );
 
   const archiveDrift = preparedInputs();
   const registryResponse = JSON.parse(archiveDrift.registryResponseBytes.toString('utf8'));
   registryResponse.assets[0].status = 'ASSET_STATUS_INACTIVE';
   archiveDrift.registryResponseBytes = Buffer.from(deterministicJson(registryResponse));
-  assert.throws(() => buildMainnetForkContext(archiveDrift), /source archive bytes do not match/);
+  assert.throws(() => buildArchivedMainnetForkContext(archiveDrift), /source archive bytes do not match/);
 
   const stageDrift = preparedInputs(fixture(), { stage: 'protected-final' });
   stageDrift.registryRevalidationExpected.expectedStage = 'preliminary';
-  assert.throws(() => buildMainnetForkContext(stageDrift), /identity, stage, or eligibility/);
+  assert.throws(() => buildArchivedMainnetForkContext(stageDrift), /identity, stage, or eligibility/);
 
   const linkageDrift = preparedInputs();
   linkageDrift.registryRevalidationExpected.sourceCommit = '4'.repeat(40);
-  assert.throws(() => buildMainnetForkContext(linkageDrift), /release linkage is invalid/);
+  assert.throws(() => buildArchivedMainnetForkContext(linkageDrift), /release linkage is invalid/);
 });
 
 test('rejects drift across every Safe identity surface and observation binding', () => {
@@ -706,13 +716,13 @@ test('rejects malformed, duplicate, and unconfigured Safe trust-root policies', 
   const malformedPolicy = JSON.parse(malformed.safeControlPlanePolicyBytes.toString('utf8'));
   malformedPolicy.approvedSingletons[0].unexpected = true;
   malformed.safeControlPlanePolicyBytes = Buffer.from(deterministicJson(malformedPolicy));
-  assert.throws(() => buildMainnetForkContext(malformed), /invalid approved singleton entry/);
+  assert.throws(() => buildArchivedMainnetForkContext(malformed), /invalid approved singleton entry/);
 
   const duplicate = preparedInputs();
   const duplicatePolicy = JSON.parse(duplicate.safeControlPlanePolicyBytes.toString('utf8'));
   duplicatePolicy.approvedSingletons.push(structuredClone(duplicatePolicy.approvedSingletons[0]));
   duplicate.safeControlPlanePolicyBytes = Buffer.from(deterministicJson(duplicatePolicy));
-  assert.throws(() => buildMainnetForkContext(duplicate), /duplicate approved singleton identity/);
+  assert.throws(() => buildArchivedMainnetForkContext(duplicate), /duplicate approved singleton identity/);
 
   const unconfigured = preparedInputs();
   unconfigured.safeControlPlanePolicyBytes = Buffer.from(
@@ -725,7 +735,7 @@ test('rejects malformed, duplicate, and unconfigured Safe trust-root policies', 
       status: 'unconfigured',
     }),
   );
-  assert.throws(() => buildMainnetForkContext(unconfigured), /explicitly unconfigured/);
+  assert.throws(() => buildArchivedMainnetForkContext(unconfigured), /explicitly unconfigured/);
 });
 
 test('manifest dependency drift changes the exact Forge target and runtime hash', () => {
@@ -838,7 +848,7 @@ test('config, stock UID, observation-block, and raw-byte drift fail closed', () 
   candidate.config.usdGDecimals = 7;
   assert.throws(
     () =>
-      buildMainnetForkContext({
+      buildArchivedMainnetForkContext({
         configBytes: Buffer.from(deterministicJson(candidate.config)),
         manifestBytes: Buffer.from(deterministicJson(candidate.manifest)),
         nowMs,

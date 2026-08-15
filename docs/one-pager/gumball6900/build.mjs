@@ -84,6 +84,11 @@ const STALE_PHRASES = [
   'reset all allocations',
   'all sGBX is automatically allocated',
   'automatically allocated',
+  'resonance.addsignal',
+  'resonance.removesignal',
+  'token that is both her share and her vote',
+  'gbx voting token',
+  'multisig proposer',
   // Superseded distribution: the pooled daily Fundraiser, removed by ADR 0024. These are
   // the phrases the old edition of this sheet actually printed, so they are the ones a
   // careless revert would reintroduce.

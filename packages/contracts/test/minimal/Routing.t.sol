@@ -28,6 +28,10 @@ contract PartialPullResonance {
         uint256 pulled = (amount * pullBps) / 10_000;
         if (pulled != 0) usdg.transferFrom(msg.sender, address(this), pulled);
     }
+
+    function left(address) external pure returns (uint256) {
+        return 0;
+    }
 }
 
 /// @title BribeRouterTest
@@ -220,7 +224,7 @@ contract ResonanceRouterTest is ProtocolFixture {
         assertEq(revenue.balanceOf(address(receiver)), 100_000_000);
     }
 
-    function test_OneRawRevenueUnitRoutesWithoutTerminalDust() external {
+    function test_SubThresholdRevenueWaitsUntilTheRouterBalanceQualifies() external {
         usdg.mint(address(resonanceRouter), 100_000); // 0.10 USDG
 
         vm.prank(KEEPER);
@@ -230,21 +234,25 @@ contract ResonanceRouterTest is ProtocolFixture {
 
         usdg.mint(address(resonanceRouter), 1);
         vm.prank(DAVE);
-        assertEq(resonanceRouter.route(), 1);
+        assertEq(resonanceRouter.route(), 0);
+        assertEq(resonanceRouter.pendingRevenue(), 1);
+
+        usdg.mint(address(resonanceRouter), 99_999);
+        vm.prank(DAVE);
+        assertEq(resonanceRouter.route(), 100_000);
         assertEq(resonanceRouter.pendingRevenue(), 0);
-        assertEq(resonance.queuedRevenue(), 1);
+        assertEq(resonance.left(address(usdg)), 200_000);
     }
 
-    function test_DirectlyTransferredRevenueIsNeverStuck() external {
-        // Anyone can donate USDG to the router and anyone can flush it, with no keeper role involved.
+    function test_ZeroSignalRevenueBecomesUnallocatedResonanceSurplus() external {
         usdg.mint(address(resonanceRouter), 42_000_000);
         vm.prank(DAVE);
         resonanceRouter.route();
 
-        assertEq(resonance.fundRevenueLiability(), 0, "new revenue starts scheduled");
-        vm.warp(block.timestamp + resonance.REVENUE_STREAM_DURATION());
-        resonance.indexPendingRevenue();
-        assertEq(resonance.fundRevenueLiability(), 42_000_000, "released zero-signal revenue becomes Fund backing");
+        vm.warp(block.timestamp + resonance.DURATION());
+        assertEq(resonance.left(address(usdg)), 0);
+        assertEq(resonance.earned(address(targetStrategy), address(usdg)), 0);
+        assertEq(usdg.balanceOf(address(resonance)), 42_000_000);
     }
 
     function test_RouteRevertsIfResonanceLeavesRevenueBehind() external {

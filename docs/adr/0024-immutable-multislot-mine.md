@@ -1,6 +1,7 @@
 # ADR 0024: Immutable multislot Mine with tenure-locked rates
 
-- Status: accepted for development; not approved for deployment or user funds
+- Status: accepted for development; GBX ERC20Votes statement superseded by ADR 0030; not approved for deployment or
+  user funds
 - Date: 2026-08-12
 - Supersedes: ADR 0023 and the Fundraiser/supply portions of ADR 0014
 
@@ -16,8 +17,8 @@ mechanism rather than importing its complete graph.
 ## Decision
 
 GBX creates only 20 million genesis-liquidity tokens. Deployment permanently hands its only mint authority to one
-non-upgradeable Mine. There is no protocol-defined economic maximum supply and no successor minter. The inherited
-ERC20Votes `uint208` safe-supply ceiling remains an implementation bound far beyond any modeled issuance horizon.
+non-upgradeable Mine. There is no protocol-defined economic maximum supply and no successor minter. ADR 0030 removes
+ERC20Votes from GBX and places voting checkpoints on staked SignalGBX instead.
 
 Mine starts with one slot. Each slot can be replaced at any time and has a USDG price that decays linearly to zero
 over one hour. A handoff checkpoints the outgoing miner's accrued GBX, gives 80% of a nonempty-slot payment to the

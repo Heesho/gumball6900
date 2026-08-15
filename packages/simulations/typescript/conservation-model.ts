@@ -6,26 +6,23 @@ function requireNonNegative(value: bigint, label: string): void {
   if (value < 0n) throw new RangeError(`${label} must be non-negative`);
 }
 
-/** Independent integer model of Resonance's scaled-carry revenue allocator. */
+/** Independent integer model of Resonance's Bribe-shaped virtual-Strategy rewarder. */
 export class RevenueConservationModel {
   readonly precision: bigint;
   readonly weights: bigint[];
   readonly strategyIndex: bigint[];
-  readonly remainders: bigint[];
   readonly claimable: bigint[];
-  alive: boolean[];
+  readonly alive: boolean[];
   totalWeight = 0n;
   revenueIndex = 0n;
-  pendingScaled = 0n;
-  indexedScaled = 0n;
-  fundLiability = 0n;
-  fundRemainderScaled = 0n;
   accounted = 0n;
+  donations = 0n;
+  paid = 0n;
+  balance = 0n;
+  routerBalance = 0n;
   now = 0n;
-  queuedRevenue = 0n;
-  streamRateScaled = 0n;
+  streamRate = 0n;
   streamRemainderFinish = 0n;
-  streamRemainingScaled = 0n;
   streamLastUpdate = 0n;
   streamFinish = 0n;
 
@@ -35,18 +32,41 @@ export class RevenueConservationModel {
     this.precision = precision;
     this.weights = Array<bigint>(strategyCount).fill(0n);
     this.strategyIndex = Array<bigint>(strategyCount).fill(0n);
-    this.remainders = Array<bigint>(strategyCount).fill(0n);
     this.claimable = Array<bigint>(strategyCount).fill(0n);
     this.alive = Array<boolean>(strategyCount).fill(true);
   }
 
+  /** Models an exact Router pull and qualifying live-period reset. */
   notify(amount: bigint): void {
     if (amount <= 0n) throw new RangeError('amount must be positive');
 
+    const remaining = this.left();
+    if (amount < remaining) throw new RangeError('reward smaller than left');
+
     this.checkpointRevenue();
     this.accounted += amount;
-    if (this.streamRemainingScaled === 0n) this.startStream(amount * this.precision, this.now);
-    else this.queuedRevenue += amount;
+    this.balance += amount;
+    this.startStream(amount + remaining);
+  }
+
+  /** Adds Router revenue and routes its complete balance once it meets the active-period threshold. */
+  route(amount: bigint): bigint {
+    requireNonNegative(amount, 'amount');
+    this.routerBalance += amount;
+    if (this.routerBalance === 0n) throw new RangeError('no revenue');
+    if (this.routerBalance < this.left()) return 0n;
+
+    const delivered = this.routerBalance;
+    this.notify(delivered);
+    this.routerBalance = 0n;
+    return delivered;
+  }
+
+  /** Models a direct USDG transfer that is never scheduled by Resonance. */
+  donate(amount: bigint): void {
+    requireNonNegative(amount, 'amount');
+    this.donations += amount;
+    this.balance += amount;
   }
 
   advance(seconds: bigint): void {
@@ -54,128 +74,109 @@ export class RevenueConservationModel {
     this.now += seconds;
   }
 
+  /** Checkpoints the global reward index without updating any Strategy. */
   checkpointRevenue(): void {
-    if (this.streamRemainingScaled !== 0n) {
-      const firstFinish = this.streamFinish;
-      this.accrueUntil(this.now < firstFinish ? this.now : firstFinish);
-      if (this.now >= firstFinish) {
-        this.clearStream();
-        if (this.queuedRevenue !== 0n) {
-          const queued = this.queuedRevenue;
-          this.queuedRevenue = 0n;
-          this.startStream(queued * this.precision, firstFinish);
-          this.accrueUntil(this.now < this.streamFinish ? this.now : this.streamFinish);
-          if (this.now >= this.streamFinish) this.clearStream();
-        }
-      }
-    }
-    this.indexPending();
-  }
-
-  private startStream(amountScaled: bigint, startedAt: bigint): void {
-    const rateRemainder = amountScaled % DEFAULT_STREAM_DURATION;
-    this.streamRateScaled = amountScaled / DEFAULT_STREAM_DURATION;
-    this.streamRemainderFinish = startedAt + rateRemainder;
-    this.streamRemainingScaled = amountScaled;
-    this.streamLastUpdate = startedAt;
-    this.streamFinish = startedAt + DEFAULT_STREAM_DURATION;
-  }
-
-  private accrueUntil(timestamp: bigint): void {
-    const from = this.streamLastUpdate;
-    if (timestamp <= from) return;
-    let released = (timestamp - from) * this.streamRateScaled;
-    if (from < this.streamRemainderFinish) {
-      const remainderEnd = timestamp < this.streamRemainderFinish ? timestamp : this.streamRemainderFinish;
-      released += remainderEnd - from;
-    }
-    this.streamRemainingScaled -= released;
-    this.streamLastUpdate = timestamp;
-    this.pendingScaled += released;
-  }
-
-  private clearStream(): void {
-    this.streamRateScaled = 0n;
-    this.streamRemainderFinish = 0n;
-    this.streamRemainingScaled = 0n;
-    this.streamLastUpdate = 0n;
-    this.streamFinish = 0n;
-  }
-
-  indexPending(): void {
-    if (this.totalWeight === 0n) {
-      this.accrueFundScaled(this.pendingScaled);
-      this.pendingScaled = 0n;
-      return;
-    }
-    const delta = this.pendingScaled / this.totalWeight;
-    const indexed = delta * this.totalWeight;
-    this.pendingScaled -= indexed;
-    this.indexedScaled += indexed;
-    this.revenueIndex += delta;
+    this.revenueIndex = this.rewardPerToken();
+    this.streamLastUpdate = this.lastTimeRewardApplicable();
   }
 
   checkpoint(strategy: number): void {
+    this.requireStrategy(strategy);
     this.checkpointRevenue();
-    this.updateStrategy(strategy);
-  }
-
-  private updateStrategy(strategy: number): void {
+    const activeWeight = this.alive[strategy] ? this.weights[strategy]! : 0n;
     const delta = this.revenueIndex - this.strategyIndex[strategy]!;
+    this.claimable[strategy] = this.claimable[strategy]! + (activeWeight * delta) / this.precision;
     this.strategyIndex[strategy] = this.revenueIndex;
-    const newlyIndexed = this.weights[strategy]! * delta;
-    this.indexedScaled -= newlyIndexed;
-    const accrued = this.remainders[strategy]! + newlyIndexed;
-    const whole = accrued / this.precision;
-    this.remainders[strategy] = accrued % this.precision;
-    if (this.alive[strategy]) this.claimable[strategy] = this.claimable[strategy]! + whole;
-    else this.fundLiability += whole;
   }
 
   setWeight(strategy: number, weight: bigint): void {
+    this.requireStrategy(strategy);
     requireNonNegative(weight, 'weight');
-    this.checkpointRevenue();
-    this.updateStrategy(strategy);
-    this.accrueFundScaled(this.pendingScaled);
-    this.pendingScaled = 0n;
     const prior = this.weights[strategy]!;
+    if (!this.alive[strategy] && weight > prior) throw new RangeError('strategy is dead');
+
+    this.checkpoint(strategy);
     this.weights[strategy] = weight;
-    this.totalWeight += weight - prior;
-    if (weight === 0n) {
-      this.accrueFundScaled(this.remainders[strategy]!);
-      this.remainders[strategy] = 0n;
-    }
+    if (this.alive[strategy]) this.totalWeight += weight - prior;
   }
 
   kill(strategy: number): void {
-    this.checkpointRevenue();
-    this.updateStrategy(strategy);
-    this.fundLiability += this.claimable[strategy]!;
-    this.claimable[strategy] = 0n;
+    this.requireStrategy(strategy);
+    if (!this.alive[strategy]) throw new RangeError('strategy is dead');
+
+    this.checkpoint(strategy);
     this.alive[strategy] = false;
+    this.totalWeight -= this.weights[strategy]!;
   }
 
-  classifiedScaled(): bigint {
-    const whole = this.claimable.reduce((sum, value) => sum + value, this.fundLiability);
-    return (
-      this.pendingScaled +
-      this.indexedScaled +
-      this.streamRemainingScaled +
-      this.queuedRevenue * this.precision +
-      this.fundRemainderScaled +
-      this.remainders.reduce((sum, value) => sum + value, 0n) +
-      whole * this.precision
-    );
+  claim(strategy: number): bigint {
+    this.checkpoint(strategy);
+    const amount = this.claimable[strategy]!;
+    this.claimable[strategy] = 0n;
+    this.paid += amount;
+    this.balance -= amount;
+    return amount;
   }
 
-  private accrueFundScaled(amountScaled: bigint): void {
-    const combined = this.fundRemainderScaled + amountScaled;
-    this.fundLiability += combined / this.precision;
-    this.fundRemainderScaled = combined % this.precision;
+  lastTimeRewardApplicable(): bigint {
+    return this.now < this.streamFinish ? this.now : this.streamFinish;
+  }
+
+  rewardPerToken(): bigint {
+    if (this.totalWeight === 0n) return this.revenueIndex;
+    const applicable = this.lastTimeRewardApplicable();
+    if (applicable <= this.streamLastUpdate) return this.revenueIndex;
+    const emitted = this.emissionBetween(this.streamLastUpdate, applicable);
+    return this.revenueIndex + (emitted * this.precision) / this.totalWeight;
+  }
+
+  earned(strategy: number): bigint {
+    this.requireStrategy(strategy);
+    const activeWeight = this.alive[strategy] ? this.weights[strategy]! : 0n;
+    const delta = this.rewardPerToken() - this.strategyIndex[strategy]!;
+    return this.claimable[strategy]! + (activeWeight * delta) / this.precision;
+  }
+
+  /** Exact raw reward units not yet emitted by the active period. */
+  left(): bigint {
+    if (this.now >= this.streamFinish) return 0n;
+    return this.emissionBetween(this.now, this.streamFinish);
+  }
+
+  /** Balance not represented by the active schedule or a whole-unit Strategy entitlement. */
+  surplus(): bigint {
+    const obligations = this.left() + this.alive.reduce((sum, _alive, index) => sum + this.earned(index), 0n);
+    const amount = this.balance - obligations;
+    if (amount < 0n) throw new RangeError('model is insolvent');
+    return amount;
+  }
+
+  private startStream(amount: bigint): void {
+    const rateRemainder = amount % DEFAULT_STREAM_DURATION;
+    this.streamRate = amount / DEFAULT_STREAM_DURATION;
+    this.streamRemainderFinish = this.now + rateRemainder;
+    this.streamLastUpdate = this.now;
+    this.streamFinish = this.now + DEFAULT_STREAM_DURATION;
+  }
+
+  private emissionBetween(from: bigint, to: bigint): bigint {
+    if (to <= from) return 0n;
+    let amount = (to - from) * this.streamRate;
+    if (from < this.streamRemainderFinish) {
+      const remainderEnd = to < this.streamRemainderFinish ? to : this.streamRemainderFinish;
+      amount += remainderEnd - from;
+    }
+    return amount;
+  }
+
+  private requireStrategy(strategy: number): void {
+    if (!Number.isSafeInteger(strategy) || strategy < 0 || strategy >= this.weights.length) {
+      throw new RangeError('invalid strategy');
+    }
   }
 }
 
-/** Exact whole-token emission over the first `elapsed` active seconds of a fixed-duration stream. */
+/** Exact whole-token emission over the first `elapsed` seconds of a fixed-duration stream. */
 export function exactStreamEmission(amount: bigint, duration: bigint, elapsed: bigint): bigint {
   requireNonNegative(amount, 'amount');
   if (duration <= 0n) throw new RangeError('duration must be positive');

@@ -1,7 +1,12 @@
 # ADR 0015: Resonance terminology for holder signaling
 
-- Status: accepted
+- Status: accepted for Resonance and signaling terminology; whole-account action and event examples are superseded by
+  ADR 0019, and the public coordination surface is superseded by ADR 0030
 - Date: 2026-08-08
+
+The `Resonance`, `ResonanceRouter`, signaler, and signal-weight names remain current. ADR 0019 replaced the action and
+event examples below with incremental `SignalAdded` and `SignalRemoved` behavior; ADR 0029 later simplified the
+Resonance reward API, and ADR 0030 made SignalGBX the sole signal coordinator without changing this terminology.
 
 ## Context
 
@@ -24,9 +29,10 @@ signals from conventional DAO voting.
   signal rewards.
 - Retain the `Bribe` and `BribeRouter` contract names because they describe the incentive mechanism rather
   than the holder allocation action.
-- Retain standards-defined or inherited names such as OpenZeppelin `ERC20Votes`, `getVotes`, and `getPastVotes` where
-  changing them would fork a standard interface. Historical upstream provenance and provisional evidence for the
-  removed `AllocationVoter` graph also preserve their original names.
+- Retain standards-defined or inherited names such as OpenZeppelin `ERC20Votes`, `getVotes`, and `getPastVotes` on
+  SignalGBX where changing them would fork a standard interface. GBX itself does not implement that interface.
+  Historical upstream provenance and provisional evidence for the removed `AllocationVoter` graph also preserve their
+  original names.
 
 ## Consequences
 

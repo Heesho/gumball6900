@@ -8,6 +8,10 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
     },
+    "./archival-release": {
+      "types": "./dist/archival-release.d.ts",
+      "import": "./dist/archival-release.js"
+    },
     "./chains": {
       "types": "./dist/chains/robinhood.d.ts",
       "import": "./dist/chains/robinhood.js"
@@ -26,11 +30,13 @@
     "manifest:assets:reviewed:validate": "tsx scripts/validate-reviewed-robinhood-asset-manifest.ts",
     "manifest:wrapped-btc": "tsx scripts/generate-wrapped-btc-candidate.ts",
     "manifest:bytecode": "tsx scripts/verify-canonical-bytecode.ts",
-    "manifest:validate": "tsx scripts/validate-deployment-manifest.ts",
+    "manifest:validate": "tsx scripts/assert-current-release-tooling.ts",
+    "manifest:archive:validate": "tsx scripts/validate-deployment-manifest.ts",
     "permissioned-pool:graph:validate": "tsx scripts/validate-permissioned-pool-graph.ts",
     "fork:evidence:export": "tsx scripts/export-testnet-fork-evidence.ts",
     "fork:evidence:live:verify": "tsx scripts/verify-testnet-fork-observation.ts",
-    "authorization:validate": "tsx scripts/validate-deployment-authorization.ts",
+    "authorization:validate": "tsx scripts/assert-current-release-tooling.ts",
+    "authorization:archive:validate": "tsx scripts/validate-deployment-authorization.ts",
     "authorization:hash-json": "tsx scripts/hash-canonical-json.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

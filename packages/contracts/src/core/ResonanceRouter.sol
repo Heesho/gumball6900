@@ -10,9 +10,9 @@ import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
 
 /// @title GumBall6900 Permissionless Revenue Router
 /// @author Heesho
-/// @notice Collects USDG revenue and forwards every nonzero balance into Resonance's global Strategy-allocation stream.
-/// @dev Adapted from Liquid Signal Governance's RevenueRouter. Resonance queues live-stream top-ups without changing
-///      the active rate or finish, so no router-side amount gate is required to prevent reset griefing.
+/// @notice Collects USDG revenue and forwards every qualifying balance into Resonance's Strategy reward stream.
+/// @dev A live-period top-up qualifies once the Router balance equals the exact reward left in that period. Smaller
+///      nonzero balances remain available for later permissionless routing without reverting upstream revenue flows.
 /// @custom:version 1.0.0
 contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
     using SafeERC20 for IERC20;
@@ -26,6 +26,11 @@ contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
     /// @param caller Account that triggered routing.
     /// @param amount Amount of USDG routed.
     event RevenueRouted(address indexed caller, uint256 amount);
+    /// @notice Emitted when a nonzero balance remains below Resonance's live-period top-up threshold.
+    /// @param caller Account that attempted routing.
+    /// @param pending Current USDG retained by the Router.
+    /// @param minimum Exact minimum that would qualify at this timestamp.
+    event RevenueHeld(address indexed caller, uint256 pending, uint256 minimum);
     /// @notice Routing was requested while no USDG was held.
     error NoRevenue();
     /// @notice Resonance did not pull the complete routed USDG balance.
@@ -46,11 +51,17 @@ contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
         resonance = resonance_;
     }
 
-    /// @notice Routes the complete nonzero USDG balance into Resonance.
-    /// @return amount Amount delivered.
+    /// @notice Routes the complete nonzero USDG balance once it qualifies for a new reward period.
+    /// @return amount Amount delivered, or zero when the nonzero balance remains below the live-period threshold.
     function route() external override nonReentrant returns (uint256 amount) {
         uint256 pending = usdg.balanceOf(address(this));
         if (pending == 0) revert NoRevenue();
+
+        uint256 minimum = ICoreResonance(resonance).left(address(usdg));
+        if (pending < minimum) {
+            emit RevenueHeld(msg.sender, pending, minimum);
+            return 0;
+        }
 
         amount = pending;
 

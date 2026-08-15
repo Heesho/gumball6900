@@ -9,6 +9,7 @@ const requiredDataSources = [
   'GBX',
   'Mine',
   'LiquidityPosition',
+  'ProtocolGovernor',
   'SignalGBX',
   'ResonanceRouter',
   'Resonance',

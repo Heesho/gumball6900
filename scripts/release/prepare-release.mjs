@@ -4,6 +4,7 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
+  assertCurrentReleaseToolingAvailable,
   assertOnlyArguments,
   assertRepositoryHead,
   deriveSubgraphNetworks,
@@ -26,6 +27,7 @@ import {
 } from './robinhood-registry-revalidation.mjs';
 
 async function main() {
+  assertCurrentReleaseToolingAvailable();
   const arguments_ = parseNamedArguments(process.argv.slice(2));
   assertOnlyArguments(arguments_, [
     'evidence-commit',
@@ -72,6 +74,10 @@ async function main() {
     sourceCommit,
     tag,
   });
+  // The retained manifest is archival. This assertion deliberately aborts
+  // before output-directory creation until the ProtocolGovernor graph has a
+  // reviewed current manifest and subgraph derivation.
+  const subgraphNetworks = deriveSubgraphNetworks(manifest);
   const [assetCandidateBytes, configBytes, manifestBytes, registryRevalidationBytes, registryResponseBytes] =
     await Promise.all([
       readFile(assetCandidateFile.absolutePath),
@@ -173,10 +179,7 @@ async function main() {
   await copyFile(registryResponseArchivePath, path.join(outputDirectory, robinhoodRegistryResponseArchiveFileName));
   await copyFile(stateFile.absolutePath, path.join(outputDirectory, 'deployment-state.json'));
   await writeFile(path.join(outputDirectory, 'release-metadata.json'), deterministicJson(metadata));
-  await writeFile(
-    path.join(outputDirectory, 'subgraph-networks.json'),
-    deterministicJson(deriveSubgraphNetworks(manifest)),
-  );
+  await writeFile(path.join(outputDirectory, 'subgraph-networks.json'), deterministicJson(subgraphNetworks));
   process.stdout.write(
     `Prepared ${tag} with ${registryRevalidationStage} late registry evidence; no transaction or external mutation was performed.\n`,
   );

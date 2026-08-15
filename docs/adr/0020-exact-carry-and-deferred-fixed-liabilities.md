@@ -1,9 +1,14 @@
 # ADR 0020: Preserve exact carry and defer fixed-destination payouts
 
-- Status: accepted for the internal hardening candidate; Strategy-routing provision superseded by ADR 0021
+- Status: accepted for Bribe and fixed-liability behavior; Resonance carry, direct-donation synchronization, and
+  Resonance Fund-liability provisions superseded by ADR 0029; Strategy-routing provision superseded by ADR 0021
 - Date: 2026-08-09
 - Builds on [ADR 0019](0019-incremental-absolute-signals-and-bounded-bribe-rewards.md)
 - Supersedes the A-02, A-03, and A-04 risk descriptions in ADRs 0017 and 0019
+
+The Resonance-specific decisions below are retained as historical context only. [ADR 0029](0029-bribe-based-resonance.md)
+replaces them with Bribe-style reward indexing and explicitly accepted surplus. The Bribe, BribeRouter, selective-claim,
+and fixed Strategy-payment liability decisions remain active.
 
 ## Context
 

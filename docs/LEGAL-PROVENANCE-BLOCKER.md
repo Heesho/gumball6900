@@ -26,7 +26,7 @@ declares BUSL-1.1, so the repository-level and file-level terms are not reconcil
 | `Mine.sol`              | Farplace `packages/hardhat/contracts/rigs/mine/MineRig.sol` at `8cf74230...`                    | Adapted; exact upstream SHA-256 is in `NOTICE`; root licensing unresolved.  |
 | `Fund.sol`              | give.fun `packages/hardhat/contracts/Core.sol` at `ef6ee14a...`                                 | Materially redesigned ownerless redemption treasury.                        |
 | `SignalGBX.sol`         | Liquid Signal `contracts/GovernanceToken.sol` at `14b5fbbb...`                                  | Adapted; exact upstream SHA-256 is in `NOTICE`.                             |
-| `Resonance.sol`         | Liquid Signal `contracts/Voter.sol` at `14b5fbbb...`                                            | Materially redesigned exact-carry allocator.                                |
+| `Resonance.sol`         | Liquid Signal `contracts/Voter.sol` at `14b5fbbb...`                                            | Materially redesigned Bribe-shaped reward allocator.                        |
 | `ResonanceRouter.sol`   | Liquid Signal `contracts/RevenueRouter.sol` at `14b5fbbb...`                                    | Adapted; exact upstream SHA-256 is in `NOTICE`.                             |
 | `Strategy.sol`          | Liquid Signal `contracts/Strategy.sol` at `14b5fbbb...`; give.fun `Auction.sol`; Euler Fee Flow | Adapted; transitive GPL question unresolved.                                |
 | `Bribe.sol`             | Liquid Signal `contracts/Bribe.sol` at `14b5fbbb...`; stated Synthetix ancestor                 | Material rewrite; exact Synthetix source unresolved.                        |

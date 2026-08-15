@@ -6,6 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import {
+  assertCurrentReleaseToolingAvailable,
   assertOnlyArguments,
   deterministicJson,
   parseNamedArguments,
@@ -999,7 +1000,8 @@ function addDependency(variables, prefix, record) {
   );
 }
 
-export function buildMainnetForkContext({
+/** Builds the removed Safe/multisig fork context for archival fixture inspection only. */
+export function buildArchivedMainnetForkContext({
   assetCandidateBytes,
   configBytes,
   manifestBytes,
@@ -1314,7 +1316,14 @@ export function buildMainnetForkContext({
   };
 }
 
+/** Current fork-context derivation has no fallback to the archived Safe graph. */
+export function buildMainnetForkContext(_inputs) {
+  void _inputs;
+  assertCurrentReleaseToolingAvailable();
+}
+
 async function main() {
+  assertCurrentReleaseToolingAvailable();
   const arguments_ = parseNamedArguments(process.argv.slice(2));
   assertOnlyArguments(arguments_, [
     'asset-candidate',
@@ -1359,7 +1368,7 @@ async function main() {
     commit: sourceCommit,
     label: 'Safe control-plane policy',
   });
-  const context = buildMainnetForkContext({
+  const context = buildArchivedMainnetForkContext({
     assetCandidateBytes,
     configBytes,
     manifestBytes,

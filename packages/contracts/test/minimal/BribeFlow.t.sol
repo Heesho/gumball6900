@@ -294,7 +294,7 @@ contract BribeRetirementRiskTest is ProtocolFixture {
         resonance.killStrategy(address(targetStrategy));
 
         vm.startPrank(ALICE);
-        resonance.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         signalGBX.unstake(100 ether);
         vm.stopPrank();
         targetBribe.claimReward(ALICE, address(target));
@@ -316,7 +316,7 @@ contract BribeRetirementRiskTest is ProtocolFixture {
         _stake(BOB, 1 ether);
         vm.prank(BOB);
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(targetStrategy)));
-        resonance.addSignal(address(targetStrategy), 1 ether);
+        signalGBX.signal(address(targetStrategy), 1 ether);
 
         vm.warp(block.timestamp + 365 days);
         assertEq(targetBribe.claimReward(ALICE, address(target)), 0);

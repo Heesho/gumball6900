@@ -63,6 +63,11 @@ const STALE_PHRASES = [
   'fundraiser',
   '980,000,000',
   'fixed gbx supply',
+  'gbx erc20votes',
+  'gbx voting token',
+  'multisig proposer',
+  'resonance.addsignal',
+  'resonance.removesignal',
 ];
 
 function scanStaleClaims(documentHtml) {

@@ -18,7 +18,7 @@ any moment, including at zero after one hour.
 
 For an occupied slot, 80% of the paid USDG accrues to the displaced miner and 20% routes to ResonanceRouter. Claims are
 pull-based and permissionless to trigger, but always pay the entitled account. An empty slot has no displaced miner, so
-its complete first payment routes to Resonance.
+its complete first payment routes to ResonanceRouter.
 
 ## GBX accrual
 

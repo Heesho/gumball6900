@@ -4,8 +4,10 @@ import {
   CallScheduled,
   Cancelled,
   MinDelayChange,
+  RoleGranted,
+  RoleRevoked,
 } from '../generated/TimelockController/TimelockController';
-import { getProtocol, recordEvent } from './entities';
+import { getProtocol, getTimelockRoleMembership, recordEvent } from './entities';
 
 export function handleCallScheduled(event: CallScheduled): void {
   const record = recordEvent(event, 'TIMELOCK_CALL_SCHEDULED');
@@ -42,5 +44,29 @@ export function handleMinDelayChange(event: MinDelayChange): void {
 
   const record = recordEvent(event, 'TIMELOCK_MIN_DELAY_CHANGED');
   record.values = [event.params.oldDuration, event.params.newDuration];
+  record.save();
+}
+
+export function handleRoleGranted(event: RoleGranted): void {
+  const membership = getTimelockRoleMembership(event.address, event.params.role, event.params.account, event);
+  membership.granted = true;
+  membership.lastSender = event.params.sender;
+  membership.save();
+
+  const record = recordEvent(event, 'TIMELOCK_ROLE_GRANTED');
+  record.addresses = [event.params.account, event.params.sender];
+  record.bytesValues = [event.params.role];
+  record.save();
+}
+
+export function handleRoleRevoked(event: RoleRevoked): void {
+  const membership = getTimelockRoleMembership(event.address, event.params.role, event.params.account, event);
+  membership.granted = false;
+  membership.lastSender = event.params.sender;
+  membership.save();
+
+  const record = recordEvent(event, 'TIMELOCK_ROLE_REVOKED');
+  record.addresses = [event.params.account, event.params.sender];
+  record.bytesValues = [event.params.role];
   record.save();
 }

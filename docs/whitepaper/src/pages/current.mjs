@@ -78,8 +78,8 @@ export const currentPages = [
               rows: [
                 ['Genesis issuance', '20,000,000 GBX for canonical liquidity'],
                 ['Later issuance', 'One permanently bound immutable Mine'],
-                ['Supply limit', 'No economic cap; ERC20Votes retains a uint208 safety ceiling'],
-                ['Governance', 'Resonance actions plus increase-only Mine capacity'],
+                ['Supply limit', 'No economic cap; GBX has no voting checkpoints'],
+                ['Governance', 'sGBX Governor; four-selector Timelock authority'],
                 ['Legal status', status.licensing],
               ],
             })}
@@ -107,15 +107,16 @@ export const currentPages = [
             eyebrow: 'Part I',
             number: '01',
             title: 'The economic loop',
-            deck: 'Mining brings USDG in; sGBX signals direct each interval of a seven-day stream.',
+            deck: 'Mining brings USDG in; staked sGBX coordinates signals and bounded governance.',
           })}
           <div class="spread">
             <div class="col-main">
               ${steps([
                 'A participant takes a mining slot at its current hourly decaying USDG price.',
                 'The incumbent accrues GBX continuously at the fixed rate assigned on entry.',
+                'Staked GBX becomes non-transferable sGBX: idle balances may govern, while signaled balances direct later stream time.',
                 'Twenty percent of a nonempty-slot handoff routes through Resonance; eighty percent becomes a displaced-miner claim.',
-                'ResonanceRouter forwards every nonzero balance; live arrivals aggregate into the next seven-day stream without resetting the active one.',
+                'ResonanceRouter waits below the active amount left; a qualifying balance restarts seven days with new USDG plus that remainder.',
                 'Strategies pull released USDG and exchange it for assets whose complete payments become Fund liabilities.',
                 'A GBX holder may burn GBX for a selected pro-rata basket of raw Fund assets.',
               ])}
@@ -239,7 +240,8 @@ export const currentPages = [
                 GBX begins with ${Number(contractConstants.gbx.genesisLiquidityTokens).toLocaleString('en-US')} genesis
                 tokens. Its only later issuer is the permanently bound Mine. Global rates offered to future occupants
                 halve at immutable cumulative-mining thresholds, then continue at a positive tail on every modeled
-                horizon. ERC20Votes' uint208 ceiling remains the remote implementation bound.
+                horizon. GBX supports permit approvals but has no governance checkpoints; votes begin only after staking
+                into sGBX.
               </p>
               <p>
                 Rewards accrue continuously but mint at checkpoints. Fund calls <code>checkpointAll</code> before every
@@ -274,7 +276,7 @@ export const currentPages = [
             eyebrow: 'Part V',
             number: '05',
             title: 'Immutable by design',
-            deck: 'The timelock can maintain membership and add mining concurrency; it cannot rewrite mining tenures.',
+            deck: 'sGBX voting can authorize four exact calls; no proposer can expand that surface.',
           })}
           ${ledger({
             yesHead: 'Timelocked actions',
@@ -288,16 +290,16 @@ export const currentPages = [
             noItems: [
               'No capacity decrease or incumbent repricing',
               'No emission setter or replacement authority',
-              'No proxy, migration, rescue, pause, or arbitrary executor',
+              'No multisig bypass, guardian, or queued veto',
               'No Fund withdrawal or liquidity NFT recovery',
             ],
           })}
           <div class="spread stack-2">
             <div class="col-main">
               <p>
-                Major risks include uncertain mining demand and GBX liquidity, rollover risk, temporarily elevated
-                issuance after expansion, rapid signal movement, failing token dependencies, permanent deployment
-                mistakes, and immutable custody.
+                ProtocolGovernor is the Timelock's sole proposer. Its targets, block-clock voting configuration, quorum,
+                and zero-value selector filter are immutable. Execution opens after the delay; a queued proposal cannot
+                be canceled. Historical sGBX voting weight also survives unstaking after the snapshot.
               </p>
             </div>
             <div class="col-side">

@@ -36,7 +36,7 @@ export const hero = {
   definition: 'An index fund. The people who own it decide what goes in.',
   chips: [
     { label: "Who it's for", body: 'Anyone who wants a diversified stake, without a manager.' },
-    { label: 'You hold', body: 'GBX: a share of the fund, and a say in what it buys.' },
+    { label: 'You hold', body: 'GBX: a share of the fund. Stake it as sGBX to signal and vote.' },
     { label: 'You get back', body: 'Your share of the real assets, whichever ones you pick.' },
     { label: "What's in it", body: 'Tokenized stocks, ETFs and crypto on Robinhood Chain.' },
   ],
@@ -62,13 +62,13 @@ export const story = {
     {
       n: '1',
       verb: 'She gets GBX',
-      body: 'Mara buys $500 of GBX, the token that is both her share and her vote.',
+      body: 'Mara buys $500 of GBX, the token that represents her share of the fund.',
       tech: 'GBX',
     },
     {
       n: '2',
       verb: 'She points it',
-      body: 'She stakes her GBX for sGBX and assigns it to the assets she wants bought.',
+      body: 'She stakes her GBX for voting sGBX and assigns some to the assets she wants bought.',
       tech: 'sGBX',
     },
     {
@@ -109,10 +109,10 @@ export const story = {
 export const signal = {
   title: 'How signaling works',
   lead:
-    'Stake GBX for sGBX, then point it at the assets you want the fund to own. What it ' +
-    'buys backs your GBX, and you can take your share of it out.',
+    'Stake GBX for voting sGBX. Signal the assets you want bought, or leave it idle to govern. What the fund buys ' +
+    'backs the GBX you can redeem.',
   splitLabel: "This round's signal",
-  splitNote: "Every holder's sGBX is pooled, so the next dollar released splits the same way. Move yours any time.",
+  splitNote: 'Signaled sGBX is pooled, so the next dollar splits the same way. Move yours any time.',
   segments: [
     { token: 'NVDA', share: 50 },
     { token: 'QQQ', share: 30 },
