@@ -16,6 +16,7 @@ typechain-types/
 generated/
 docs/whitepaper/build/
 docs/one-pager/gumball6900/build/
+docs/longform/build/
 .claude/launch.json
 .claude/worktrees/
 packages/subgraph/build/

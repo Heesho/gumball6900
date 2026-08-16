@@ -480,6 +480,8 @@ if p > 0 and M ≠ 0 (occupied):  claim = ⌊p · 8000 / 10000⌋,    revenue = 
 _Rounding._ `revenue = p − ⌊0.8p⌋ = ⌈0.2p⌉`. The rounding unit accrues to the **protocol**, not the displaced miner.
 _Dust._ At most 1 raw USDG unit per replacement, always in the protocol's favor. There is no accepted loss.
 
+<!-- figure: mining-split -->
+
 **Worked example.** `p = 1_000_000`: `claim = 800_000`, `revenue = 200_000`. `p = 1_000_003`:
 `claim = ⌊800_002.4⌋ = 800_002`, `revenue = 200_001`. Note `200_001 > 0.2·1_000_003 = 200_000.6`, confirming the
 ceiling behavior.
@@ -511,6 +513,8 @@ smallest `k*` with `u_{k*} ≤ u_∞`, after which the rate is permanently `u_�
 **Symbols.** `u_k` in raw GBX per second; `T_k`, `H` in raw GBX cumulative.
 **Overflow.** All operations are shifts and additions on `uint256`; `H ≤ 10^27` and `u_0 ≤ 10^24` keep every
 intermediate far below `2^256`.
+
+<!-- figure: halving-curve -->
 
 **Structural consequence.** Because the thresholds themselves halve,
 
@@ -937,6 +941,8 @@ left() = 0                                          if now ≥ periodFinish
 getRewardForDuration() = rewardRate · 604800 + (remainderFinish − (periodFinish − 604800))
 ```
 
+<!-- figure: stream-schedule -->
+
 **Worked example A (clean division).** `S = 604_800_000_000` raw USDG (604,800.000000 USDG).
 `rewardRate = 1_000_000`, `rateRemainder = 0`. Emission is exactly 1 USDG per second for seven days.
 
@@ -1182,6 +1188,8 @@ _Rounding._ Floor on the subtracted term, so the quoted price is at or above the
 non-increasing within an epoch.
 _Overflow._ `mulDiv`; `initialPrice < 2^192` bounds the intermediate.
 
+<!-- figure: auction-decay -->
+
 **Important distinction.** `p_min` is a floor on the **next epoch's starting price**, not on the fill price. Fills
 below `p_min`, including at exactly zero after full decay, are normal and expected.
 
@@ -1292,9 +1300,13 @@ cumulative Fund classification  = X − ⌊X · BRIBE_BPS / BPS⌋
 splitRemainder                  = (X · BRIBE_BPS) mod BPS
 ```
 
+<!-- figure: acquisition-split -->
+
 **Why the carry is load-bearing.** Naive per-payment flooring would give the Bribe `⌊1 · 1000 / 10000⌋ = 0` on every
 one-raw-unit payment, so an adversary filling in dust could starve the reward share permanently. This was internal
 finding **SR-002** (High).
+
+<!-- figure: cumulative-split -->
 
 **Worked example (SR-002's minimal trace).** Ten separate one-raw-unit payments:
 
@@ -1617,6 +1629,8 @@ selected address to retain at least `balancesBefore[i] − payouts[i]`, catching
 transfer mutates the earlier address's reported balance. This is the remediation of finding **E-01**, evidenced by
 `test_RedeemRejectsDifferentAddressesThatDebitOneSharedLedger` and
 `test_RedeemFinalPassRejectsAnAsymmetricAliasSideEffect`.
+
+<!-- figure: redemption -->
 
 ### 25.6 Worked redemption example
 

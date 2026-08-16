@@ -57,6 +57,7 @@ function loadMarkdownIt() {
 
 import { brandmark } from '../whitepaper/src/brand-asset.mjs';
 import { assertContrast } from '../whitepaper/src/theme.mjs';
+import { chartFor, chartIds } from './charts.mjs';
 import { figureFor } from './figures.mjs';
 import { stylesheet } from './styles.mjs';
 
@@ -152,6 +153,24 @@ const md = new MarkdownIt({ html: true, linkify: false, typographer: true });
  * Mermaid fences are replaced with hand-set SVG. A fence with no counterpart is reported
  * by the caller rather than dropped, so a new diagram cannot silently vanish from print.
  */
+/**
+ * Expands `<!-- figure: id -->` markers into named charts.
+ *
+ * The marker is an HTML comment so it stays invisible wherever the markdown is read
+ * directly. An unknown id fails the build rather than vanishing, which is the same rule
+ * the Mermaid path follows.
+ */
+function renderNamedFigures(body, unknown) {
+  return body.replace(/<!--\s*figure:\s*([a-z0-9-]+)\s*-->/g, (_m, id) => {
+    const chart = chartFor(id);
+    if (!chart) {
+      unknown.push(id);
+      return '';
+    }
+    return `<div class="figure">${chart.svg}<p class="figure__caption">${chart.caption}</p></div>`;
+  });
+}
+
 function renderFences(body, missing, drifted) {
   return body.replace(/```mermaid\n([\s\S]*?)```/g, (_match, source) => {
     const figure = figureFor(source);
@@ -225,9 +244,11 @@ function buildHtml(edition, raw) {
   const { meta, body } = splitFrontMatter(raw);
   const missing = [];
   const drifted = [];
+  const unknownFigures = [];
   // The H1 becomes the cover title, so it is dropped from the flow to avoid printing twice.
   const withoutTitle = body.replace(/^#\s+.+$/m, '');
-  const withFigures = renderFences(withoutTitle, missing, drifted);
+  const withCharts = renderNamedFigures(withoutTitle, unknownFigures);
+  const withFigures = renderFences(withCharts, missing, drifted);
   const rendered = markLongTables(md.render(withFigures));
 
   const brandFont = resolve(repoRoot, 'docs/whitepaper/fonts/Modak-Regular.ttf');
@@ -250,7 +271,7 @@ ${edition.toc ? tocBlock(body) : ''}
 </body>
 </html>`;
 
-  return { html, meta, missing, drifted };
+  return { html, meta, missing, drifted, unknownFigures };
 }
 
 /* -------------------------------------------------------------------- gate ---- */
@@ -344,7 +365,11 @@ for (const edition of EDITIONS) {
 
   const sourcePath = resolve(repoRoot, edition.source);
   const raw = readFileSync(sourcePath, 'utf8');
-  const { html, meta, missing, drifted } = buildHtml(edition, raw);
+  const { html, meta, missing, drifted, unknownFigures } = buildHtml(edition, raw);
+
+  if (unknownFigures.length > 0) {
+    throw new Error(`Unknown figure id(s): ${unknownFigures.join(', ')}\nRegistered: ${chartIds().join(', ')}`);
+  }
 
   if (drifted.length > 0) {
     throw new Error(
@@ -360,6 +385,7 @@ for (const edition of EDITIONS) {
 
   console.log(`\n${edition.key}`);
   console.log(`  source    ${edition.source} · ${raw.split(/\s+/).length.toLocaleString()} words`);
+  console.log(`  figures   ${(html.match(/class="figure"/g) ?? []).length} rendered`);
   console.log(
     `  stale     ${stale.checked} superseded claims absent` +
       (stale.exempted ? ` · ${stale.exempted} retraction(s) exempt` : ''),

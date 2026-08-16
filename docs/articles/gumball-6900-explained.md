@@ -154,6 +154,8 @@ someone later replaces you at a nonzero price, and since the price falls to zero
 replace you having paid nothing. You keep the GBX you accrued, but no handoff payment. Interfaces must not present
 that 80% as principal, yield, or a refund.
 
+<!-- figure: mining-split -->
+
 **Liquidity fees.** The 20,000,000 GBX genesis allocation sits in a single Uniswap v4 position pairing GBX with USDG,
 held permanently in a contract with no owner and no withdrawal function. Anyone may call a public function that
 collects its trading fees: the USDG becomes revenue, the GBX is burned, and the underlying liquidity is verified
@@ -238,6 +240,8 @@ sGBX, and returns her 600 GBX. Active weight is now just Ana's 1,000 plus Ben's 
 | B        | 56,347.826086    |
 | C        | 22,539.130434    |
 
+<!-- figure: signal-allocation -->
+
 Four days and 345,600 USDG remain in the stream. Cara earned Bribe rewards on Strategy C for two days and stopped the
 moment she withdrew. Ben's Strategy B holding is frozen at what it earned — it will accumulate nothing further unless
 someone signals it again.
@@ -259,6 +263,8 @@ price falls. If it is asking too little, someone fills it immediately and the ne
 
 Buyers are protected by three parameters on their own transaction: the auction round they expect (so a competing fill
 can't change the price under them), a deadline, and a maximum they will pay.
+
+<!-- figure: auction-decay -->
 
 ## 10. A numeric walkthrough: acquisition and redemption
 
@@ -287,6 +293,8 @@ Bribe  10%  →  0.18 WBTC   (reward for Ana and Ben, who signaled Strategy A)
 Each share is recorded as a separate liability and delivered by its own call that anyone can make. This matters: if
 the treasury or the reward pool has a problem with that token, **only that leg stalls**. The other leg still settles,
 and neither can freeze the auction itself.
+
+<!-- figure: acquisition-split -->
 
 The split is also **cumulatively exact**. It carries the fractional remainder between payments, so a buyer cannot
 starve the reward share by paying in tiny increments. Ten separate one-unit payments produce exactly 9 units to the
@@ -319,6 +327,8 @@ ETH:  floor(400 ETH × 250,000 ÷ 101,000,000) = 0.990099009900990099 ETH
 
 **Step 4 — the burn.** Diego's 250,000 GBX is burned. Supply falls to 100,750,000 GBX. Everything above happens in one
 atomic transaction: if any transfer fails, the entire redemption including the burn is undone.
+
+<!-- figure: redemption -->
 
 **Two things worth noticing.** Without the Step 1 checkpoint, Diego's WBTC payout would have been 0.125 WBTC instead
 of 0.12376237 — the difference is exactly the dilution from recognising the miners' claim, and it is correct. And if
