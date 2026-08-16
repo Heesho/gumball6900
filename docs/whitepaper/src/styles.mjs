@@ -535,13 +535,19 @@ code, .mono {
 
 /* ---------------------------------------------------------------- cover ---- */
 
+/*
+ * The wordmark is set in the brand face. Modak has been vendored and font-face embedded by
+ * this pipeline for a long time while no rule ever applied it; the cover is where it
+ * belongs, since its rounded forms are the same shape language as the mark above it. It
+ * has no small sizes and no second weight, so nothing else in the document uses it.
+ */
 .cover__title {
   margin: 0;
-  font-family: ${fonts.sans};
-  font-size: ${type.displayXL.size}pt;
-  line-height: ${type.displayXL.leading}pt;
-  font-weight: 600;
-  letter-spacing: -0.038em;
+  font-family: ${fonts.brand}, ${fonts.sans};
+  font-size: 54pt;
+  line-height: 56pt;
+  font-weight: 400;
+  letter-spacing: 0.004em;
   color: ${palette.onDeep};
 }
 .cover__subtitle {

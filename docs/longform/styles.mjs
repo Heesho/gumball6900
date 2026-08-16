@@ -1,6 +1,10 @@
 /**
  * Long-form print stylesheet.
  *
+ * NOTE: the whole sheet is one template literal, so a backtick anywhere inside it — including
+ * inside a comment — terminates the string and fails the module at parse time. Refer to CSS
+ * properties in prose here, never in code quotes.
+ *
  * The whitepaper and one-pager builders paginate by hand: every page is a fixed block and
  * nothing reflows. That does not scale to a 21,000-word document, so this sheet does the
  * opposite — content flows and Chrome paginates, with `@page` margins reserving the
@@ -14,12 +18,46 @@ const g = geometry;
 
 export function stylesheet({ brandFontUrl, documentTitle } = {}) {
   return `
+/*
+ * Running furniture lives in the page margin boxes, which is the only way to repeat it
+ * without hand-paginating. Chrome supports the boxes and their content, colour and font
+ * properties, but not text-transform, so the brand string is uppercased in the source
+ * rather than in CSS.
+ */
 @page {
   size: ${g.pageWidth}mm ${g.pageHeight}mm;
   margin: ${g.marginTop}mm ${g.marginX}mm ${g.marginBottom}mm ${g.marginX}mm;
 
-  @top-left { content: "${documentTitle ?? ''}"; }
-  @bottom-right { content: counter(page); }
+  @top-left {
+    content: "GUMBALL6900";
+    font-family: ${fonts.sans};
+    font-size: 6.4pt;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: ${palette.pink};
+    vertical-align: bottom;
+    padding-bottom: 3mm;
+  }
+
+  @top-right {
+    content: "${documentTitle ?? ''}";
+    font-family: ${fonts.sans};
+    font-size: 6.4pt;
+    letter-spacing: 0.09em;
+    color: ${palette.inkFaint};
+    vertical-align: bottom;
+    padding-bottom: 3mm;
+  }
+
+  @bottom-right {
+    content: counter(page);
+    font-family: ${fonts.sans};
+    font-size: 8pt;
+    font-weight: 600;
+    color: ${palette.ink};
+    vertical-align: top;
+    padding-top: 4mm;
+  }
 }
 
 /* The cover carries no running furniture and bleeds to the sheet edge. */
@@ -87,15 +125,22 @@ body {
 
 .cover__lockup { position: absolute; top: 52mm; left: 0; right: 0; }
 
+/*
+ * The wordmark is set in the brand face. Modak is vendored under the OFL and was already
+ * being embedded by all three pipelines while no stylesheet applied it — the cover is
+ * where it belongs, because its rounded bubble forms are the same shape language as the
+ * mark directly above it. Everything else stays in the text faces; Modak has no small
+ * sizes and no second weight.
+ */
 .cover__title {
-  margin: 6mm 0 0;
-  font-family: ${fonts.sans};
-  font-size: ${type.displayXL.size}pt;
-  line-height: ${type.displayXL.leading}pt;
-  font-weight: 600;
-  letter-spacing: -0.028em;
+  margin: 7mm 0 0;
+  font-family: ${fonts.brand}, ${fonts.sans};
+  font-size: 58pt;
+  line-height: 58pt;
+  font-weight: 400;
+  letter-spacing: 0.004em;
   color: ${palette.onDeep};
-  max-width: 150mm;
+  max-width: 165mm;
 }
 
 .cover__subtitle {
@@ -158,6 +203,22 @@ h1 {
   border-bottom: 0.8pt solid ${palette.ruleStrong};
   break-before: page;
   page-break-before: always;
+}
+
+/*
+ * The brand tick sits on h2, not h1.
+ *
+ * Both documents number their sections at the second level — "## 12. Mining and issuance"
+ * — so h1 occurs only on the cover and the contents page. A tick on h1 therefore appeared
+ * once, on the cover, above the wordmark, which is the one place it should never be.
+ */
+h2::before {
+  content: '';
+  display: block;
+  width: 9mm;
+  height: 1.3pt;
+  background: ${palette.pink};
+  margin-bottom: 2.6mm;
 }
 h1:first-of-type { break-before: avoid; page-break-before: avoid; }
 
@@ -303,6 +364,20 @@ td code { font-size: 7.2pt; }
   color: ${palette.inkFaint};
   text-align: left;
 }
+
+/* The opening paragraph takes a brand drop cap, as the typeset edition does. */
+main > p:first-of-type::first-letter {
+  float: left;
+  font-size: 34pt;
+  line-height: 25pt;
+  padding: 0 1.6mm 0 0;
+  font-family: ${fonts.sans};
+  font-weight: 600;
+  color: ${palette.pink};
+}
+
+/* Table heads carry the brand rule rather than a neutral one. */
+thead th { border-bottom-color: ${palette.pink}; }
 
 /* ------------------------------------------------------------- brandmark ---- */
 

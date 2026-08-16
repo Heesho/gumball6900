@@ -166,11 +166,15 @@ ${Object.keys(bands).map(band).join('\n')}
 
 .hero__identity { flex: none; width: 84mm; display: flex; align-items: center; gap: 4.6mm; }
 .hero__mark { flex: none; width: 19mm; }
+/* The wordmark is set in the vendored brand face, which this sheet already embedded and
+   never applied. Sizing is reduced because Modak's rounded forms set optically larger than
+   the sans at the same point size. */
 .hero__wordmark {
-  font-size: ${type.wordmark}pt;
+  font-family: ${fonts.brand}, ${fonts.sans};
+  font-size: ${type.wordmark - 2}pt;
   line-height: ${type.wordmark + 1}pt;
-  font-weight: 600;
-  letter-spacing: -0.022em;
+  font-weight: 400;
+  letter-spacing: 0.004em;
   color: ${palette.onDeep};
 }
 .hero__tagline {
