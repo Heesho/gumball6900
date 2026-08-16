@@ -17,6 +17,12 @@ independent_audit_status: No independent external audit has been performed.
 > commit; claims that rest on deployment procedure rather than code are marked as such. Where a repository document
 > disagrees with the Solidity, the Solidity governs and the discrepancy is recorded in §43.
 
+> **Typeset PDF editions.** A designed, print-ready PDF of the whitepaper and a one-page
+> sheet are built from `docs/whitepaper/` and `docs/one-pager/gumball6900/` via
+> `pnpm docs:whitepaper` and `pnpm docs:one-pager`, and land in `output/pdf/`. Those
+> editions are the presentation layer; this document and the fact registry remain the
+> detailed reference.
+
 ## 1. Abstract
 
 GUM BALL 6900 is an immutable, governance-minimized protocol that converts recurring onchain revenue into a

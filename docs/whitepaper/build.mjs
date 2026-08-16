@@ -36,7 +36,10 @@ const STALE_PHRASES = [
   'four ongoing',
   'setBribeBps',
   'bribeBps',
-  '90/10',
+  // '90/10' was listed here while the split was a superseded ADR 0013/0016 design. ADR
+  // 0032 made a fixed 90% Fund / 10% paired-Bribe classification the current behaviour,
+  // so blocking the term would now reject a correct document. The phrases that became
+  // stale in its place are the 100%-Fund claims below.
   'fund migration',
   'successor fund',
   'migrate liquidity',
@@ -68,6 +71,20 @@ const STALE_PHRASES = [
   'multisig proposer',
   'resonance.addsignal',
   'resonance.removesignal',
+  // Superseded by ADR 0032: acquired-asset payments are no longer wholly Fund-bound.
+  '100% to fund',
+  '100% fund',
+  'no auction proceeds',
+  'never fund bribes',
+  'never receive auction proceeds',
+  // Superseded by ADR 0031: idle receipts and the standalone staking surface are gone.
+  'idle sgbx',
+  'idle receipt',
+  'allocatedbalance',
+  'stakeandsignal',
+  'removesignalandunstake',
+  'stake and signal',
+  'remove signal and unstake',
 ];
 
 function scanStaleClaims(documentHtml) {

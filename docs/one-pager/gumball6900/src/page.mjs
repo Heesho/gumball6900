@@ -10,6 +10,7 @@
  * in `styles.mjs` are what enforce that split.
  */
 
+import { brandmark } from '../../../whitepaper/src/brand-asset.mjs';
 import { hero, reasons, rules, signal, status, story } from './copy.mjs';
 // Still read, but only for the PDF's Info dictionary: the sheet records which contracts it
 // describes without spending a line of the page on it.
@@ -30,13 +31,19 @@ function band(name, body, chrome = '') {
 /* -------------------------------------------------------------------- hero ---- */
 
 /**
- * The identity block is the wordmark alone.
+ * The identity block pairs the brandmark with the wordmark.
  *
- * It used to open with `brandMark()` from the whitepaper's figure library. ADR 0024's
- * rewrite deleted that module, and the mark is not worth reconstructing here: the name and
- * the ball device derive from an existing brand whose usage rights are unresolved, so the
- * whitepaper's current edition sets its cover in type for the same reason. A sheet that is
- * explicitly not for distribution should not be the thing that propagates the asset.
+ * History: this band was wordmark-only for a long stretch. `brandMark()` from the
+ * whitepaper's figure library was deleted by ADR 0024's rewrite, and it was left out
+ * afterwards on the reasoning that the name and the ball device derive from an existing
+ * brand whose usage rights are unresolved, so a sheet not cleared for distribution should
+ * not be what propagates the asset.
+ *
+ * That reasoning was overridden by an explicit owner decision on 2026-08-16, taken with
+ * the provenance state stated: `canonical-logo-provenance-policy.json` is still
+ * `unconfigured`, and `docs/LEGAL-PROVENANCE-BLOCKER.md` still gates distribution. The
+ * mark now appears on both this sheet and the whitepaper cover. Embedding it is a
+ * presentation decision and remains no evidence whatsoever that rights are cleared.
  */
 function heroBand() {
   const chip = (entry) => html`
@@ -51,6 +58,7 @@ function heroBand() {
     html`
       <div class="hero">
         <div class="hero__identity">
+          ${brandmark('14mm', 'brandmark--sheet')}
           <div>
             <p class="hero__wordmark">${hero.wordmark}</p>
             <p class="hero__tagline">${hero.tagline}</p>

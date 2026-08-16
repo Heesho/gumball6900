@@ -1,4 +1,5 @@
 import { html, ledger, note, sectionHead, steps, table } from '../page-kit.mjs';
+import { brandmark } from '../brand-asset.mjs';
 import { contractConstants, status } from '../protocol-facts.mjs';
 import { meta } from '../meta.mjs';
 import { palette } from '../theme.mjs';
@@ -13,7 +14,8 @@ export const currentPages = [
     render: () =>
       frame(
         html`<span class="chip">Whitepaper ${meta.version} · ${meta.date}</span>
-          <div style="position:absolute; top:82mm; left:0; right:0;">
+          <div style="position:absolute; top:60mm; left:0; right:0;">${brandmark('26mm', 'brandmark--cover')}</div>
+          <div style="position:absolute; top:92mm; left:0; right:0;">
             <h1 class="cover__title">GumBall6900</h1>
             <p class="cover__subtitle">The index fund<br />that chooses itself</p>
             <p class="cover__thesis" style="margin-top:8mm;">
@@ -61,9 +63,9 @@ export const currentPages = [
                 provenance, and a signed deployment manifest remain unresolved.
               </p>
               <p style="color:${palette.onDeepMuted}">
-                This edition describes the ADR 0031 and ADR 0032 target architecture. Their Solidity and integration
-                work is pending. Existing tests and fixtures remain evidence only for mechanics they currently
-                implement; a local green build is not a safety or release claim.
+                This edition describes the architecture introduced by ADR 0031 and ADR 0032, whose Solidity is
+                implemented and covered by the current suites. A local green build is engineering evidence, never a
+                safety, audit, or release claim.
               </p>
             </div>
             <div class="col-side">

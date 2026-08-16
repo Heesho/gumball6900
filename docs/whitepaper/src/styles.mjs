@@ -671,5 +671,22 @@ a { color: inherit; text-decoration: none; }
 .center { text-align: center; }
 .small { font-size: 8.2pt; line-height: 12.6pt; }
 .sans { font-family: ${fonts.sans}; }
+
+/* ------------------------------------------------------------- brandmark ---- */
+
+/*
+ * The source artwork is a circular mark on an opaque near-white square. Clipping to a
+ * circle is what lets the same asset sit on the black cover and on paper without a
+ * light square halo; the black field of the mark then reads as part of the surface.
+ * The circle occupies ~96% of the artwork width, so 48% is the largest radius that
+ * still removes every corner pixel.
+ */
+.brandmark {
+  display: block;
+  clip-path: circle(48% at 50% 50%);
+  -webkit-clip-path: circle(48% at 50% 50%);
+}
+.brandmark--cover { margin: 0; }
+.brandmark--runner { width: 4.4mm; height: 4.4mm; transform: translateY(0.9mm); }
 `.trim();
 }

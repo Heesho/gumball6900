@@ -406,5 +406,17 @@ ${Object.keys(bands).map(band).join('\n')}
 }
 .note__status { color: ${palette.inkMuted}; }
 .note__more { font-family: ${fonts.mono}; font-size: 7.8pt; color: ${palette.inkFaint}; }
+
+/* ------------------------------------------------------------- brandmark ---- */
+
+/* The artwork is a circular mark on an opaque near-white square. Clipping to a circle is
+   what lets it sit on the deep hero band without a light square halo; 48% is the largest
+   radius that still removes every corner pixel. */
+.brandmark {
+  display: block;
+  flex: none;
+  clip-path: circle(48% at 50% 50%);
+  -webkit-clip-path: circle(48% at 50% 50%);
+}
 `;
 }
