@@ -152,11 +152,15 @@ const md = new MarkdownIt({ html: true, linkify: false, typographer: true });
  * Mermaid fences are replaced with hand-set SVG. A fence with no counterpart is reported
  * by the caller rather than dropped, so a new diagram cannot silently vanish from print.
  */
-function renderFences(body, missing) {
+function renderFences(body, missing, drifted) {
   return body.replace(/```mermaid\n([\s\S]*?)```/g, (_match, source) => {
     const figure = figureFor(source);
     if (!figure) {
       missing.push(source.split('\n')[0].trim());
+      return '';
+    }
+    if (figure.drift) {
+      drifted.push(figure.drift);
       return '';
     }
     return `<div class="figure">${figure.svg}<p class="figure__caption">${figure.caption}</p></div>`;
@@ -220,9 +224,10 @@ function tocBlock(body) {
 function buildHtml(edition, raw) {
   const { meta, body } = splitFrontMatter(raw);
   const missing = [];
+  const drifted = [];
   // The H1 becomes the cover title, so it is dropped from the flow to avoid printing twice.
   const withoutTitle = body.replace(/^#\s+.+$/m, '');
-  const withFigures = renderFences(withoutTitle, missing);
+  const withFigures = renderFences(withoutTitle, missing, drifted);
   const rendered = markLongTables(md.render(withFigures));
 
   const brandFont = resolve(repoRoot, 'docs/whitepaper/fonts/Modak-Regular.ttf');
@@ -245,7 +250,7 @@ ${edition.toc ? tocBlock(body) : ''}
 </body>
 </html>`;
 
-  return { html, meta, missing };
+  return { html, meta, missing, drifted };
 }
 
 /* -------------------------------------------------------------------- gate ---- */
@@ -339,7 +344,15 @@ for (const edition of EDITIONS) {
 
   const sourcePath = resolve(repoRoot, edition.source);
   const raw = readFileSync(sourcePath, 'utf8');
-  const { html, meta, missing } = buildHtml(edition, raw);
+  const { html, meta, missing, drifted } = buildHtml(edition, raw);
+
+  if (drifted.length > 0) {
+    throw new Error(
+      `Diagram source changed since the figure was drawn:\n` +
+        drifted.map((d) => `  ${d.id}: expected ${d.expected}, source now ${d.actual}`).join('\n') +
+        `\nRedraw the SVG in docs/longform/figures.mjs and update its hashes, or revert the Mermaid.`,
+    );
+  }
 
   const stale = scanStale(html);
   const htmlPath = resolve(buildDir, `${edition.key}.html`);

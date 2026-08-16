@@ -1,17 +1,26 @@
 /**
  * Figures for the long-form editions.
  *
- * The markdown sources carry Mermaid fences. Mermaid is not a dependency here and the
- * build has no network, so each diagram is redrawn once as inline SVG in the house
- * palette and keyed by the Mermaid block's leading directive. That is not purely a
- * workaround: Mermaid's default rendering would not match the typeset editions, and a
- * hand-set diagram can carry the split percentages as labels rather than edge text.
+ * The markdown sources carry Mermaid fences. Rendering them with the real Mermaid was
+ * measured rather than assumed: the package resolves and installs fine, and it costs
+ * 9,638 lines of lockfile churn and 83MB for two diagrams. That is not a trade a docs
+ * build should make, and Mermaid's default output would not match the typeset editions
+ * anyway — a hand-set diagram can label the 90/10 split on the edges that carry it.
  *
- * `figureFor` returns null for any diagram that has no hand-set counterpart, and the
- * builder then reports it rather than silently dropping the figure.
+ * The cost of drawing by hand is drift: edit the Mermaid and the PDF would silently keep
+ * the old picture. Each figure therefore pins the SHA-256 of the Mermaid source it was
+ * drawn from. If the source changes, `figureFor` reports a mismatch and the build fails
+ * with the new hash, so the diagram cannot go stale without someone being told.
  */
 
+import { createHash } from 'node:crypto';
+
 import { palette } from '../whitepaper/src/theme.mjs';
+
+/** Normalised hash of a Mermaid block, ignoring line-ending and trailing-space noise. */
+export function sourceHash(mermaidSource) {
+  return createHash('sha256').update(mermaidSource.replace(/\r/g, '').trim()).digest('hex').slice(0, 16);
+}
 
 const S = {
   node: `fill="${palette.paperTintWarm}" stroke="${palette.ruleStrong}" stroke-width="1"`,
@@ -107,12 +116,18 @@ const governanceStates = `
 
 const FIGURES = [
   {
+    id: 'protocol-loop',
+    /** Hash of the `flowchart TB` contract graph in the whitepaper, and the `flowchart LR`
+     *  loop in the one-pager — both are drawn by `protocolLoop`. */
+    hashes: ['68917c386aaa4935', '6ffc07e2faf531de'],
     match: (src) => src.includes('ResonanceRouter') || src.includes('slot auctions'),
     svg: protocolLoop,
     caption:
       'The economic loop. Revenue enters at the Mine and the liquidity position, is streamed by Resonance under live signal weights, and every acquired payment splits 90% to Fund and 10% to that Strategy’s signalers.',
   },
   {
+    id: 'governance-states',
+    hashes: ['3c4c3418b21ee32e'],
     match: (src) => src.includes('stateDiagram') || src.includes('Queued'),
     svg: governanceStates,
     caption:
@@ -120,7 +135,26 @@ const FIGURES = [
   },
 ];
 
-/** Returns `{svg, caption}` for a Mermaid source block, or null when none is hand-set. */
+/**
+ * Resolves a Mermaid block to its hand-set figure.
+ *
+ * Returns `{svg, caption}` on a clean match, `{drift}` when a known diagram's source has
+ * changed since the SVG was drawn, and `null` when no figure exists for it. The caller
+ * treats drift as a build failure and a missing figure as a reported omission.
+ */
 export function figureFor(mermaidSource) {
-  return FIGURES.find((f) => f.match(mermaidSource)) ?? null;
+  const figure = FIGURES.find((f) => f.match(mermaidSource));
+  if (!figure) return null;
+
+  const hash = sourceHash(mermaidSource);
+  if (!figure.hashes.includes(hash)) {
+    return {
+      drift: {
+        id: figure.id,
+        expected: figure.hashes.join(' or '),
+        actual: hash,
+      },
+    };
+  }
+  return figure;
 }
