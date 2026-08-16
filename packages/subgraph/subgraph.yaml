@@ -112,10 +112,10 @@ dataSources:
           handler: handleDelegateChanged
         - event: DelegateVotesChanged(indexed address,uint256,uint256)
           handler: handleDelegateVotesChanged
-        - event: Staked(indexed address,uint256)
-          handler: handleStaked
-        - event: Unstaked(indexed address,uint256)
-          handler: handleUnstaked
+        - event: Signaled(indexed address,indexed address,uint256)
+          handler: handleSignaled
+        - event: SignalWithdrawn(indexed address,indexed address,uint256)
+          handler: handleSignalWithdrawn
         - event: ResonanceSet(indexed address)
           handler: handleSignalResonanceSet
       file: ./src/signal-gbx.ts
@@ -316,6 +316,12 @@ templates:
         - name: BribeRouter
           file: ./abis/BribeRouter.json
       eventHandlers:
+        - event: BribePaymentAccrued(indexed address,indexed
+            address,uint256,uint256,uint256)
+          handler: handleRouterBribePaymentAccrued
+        - event: BribeRewardNotified(indexed address,indexed address,indexed
+            address,uint256)
+          handler: handleRouterBribeRewardNotified
         - event: FundPaymentAccrued(indexed address,indexed address,uint256,uint256)
           handler: handleRouterFundPaymentAccrued
         - event: FundPaymentPaid(indexed address,indexed address,indexed address,uint256)

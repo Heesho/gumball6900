@@ -8,7 +8,7 @@
 
 > **buildSignal**(`signalGBX`, `strategy`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Adds an absolute amount to the caller's existing signal for one Strategy. The amount is a delta, not a target.
+Atomically deposits GBX, mints non-transferable sGBX, and signals the same amount to one live Strategy.
 
 ## Parameters
 

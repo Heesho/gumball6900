@@ -1,8 +1,8 @@
 import {
   DelegateChanged,
   DelegateVotesChanged,
-  Staked,
-  Unstaked,
+  Signaled,
+  SignalWithdrawn,
   ResonanceSet,
 } from '../generated/SignalGBX/SignalGBX';
 import { getAccount, getProtocol, recordEvent } from './entities';
@@ -28,32 +28,32 @@ export function handleDelegateVotesChanged(event: DelegateVotesChanged): void {
   record.save();
 }
 
-export function handleStaked(event: Staked): void {
+export function handleSignaled(event: Signaled): void {
   const protocol = getProtocol(event);
-  protocol.stakedGBXRaw = protocol.stakedGBXRaw.plus(event.params.amount);
+  protocol.signaledGBXRaw = protocol.signaledGBXRaw.plus(event.params.amount);
   protocol.save();
 
   const account = getAccount(event.params.account, event);
-  account.stakedGBXRaw = account.stakedGBXRaw.plus(event.params.amount);
+  account.signaledGBXRaw = account.signaledGBXRaw.plus(event.params.amount);
   account.save();
 
-  const record = recordEvent(event, 'SIGNAL_GBX_STAKED');
-  record.addresses = [event.params.account];
+  const record = recordEvent(event, 'SIGNAL_GBX_SIGNALED');
+  record.addresses = [event.params.account, event.params.strategy];
   record.values = [event.params.amount];
   record.save();
 }
 
-export function handleUnstaked(event: Unstaked): void {
+export function handleSignalWithdrawn(event: SignalWithdrawn): void {
   const protocol = getProtocol(event);
-  protocol.stakedGBXRaw = protocol.stakedGBXRaw.minus(event.params.amount);
+  protocol.signaledGBXRaw = protocol.signaledGBXRaw.minus(event.params.amount);
   protocol.save();
 
   const account = getAccount(event.params.account, event);
-  account.stakedGBXRaw = account.stakedGBXRaw.minus(event.params.amount);
+  account.signaledGBXRaw = account.signaledGBXRaw.minus(event.params.amount);
   account.save();
 
-  const record = recordEvent(event, 'SIGNAL_GBX_UNSTAKED');
-  record.addresses = [event.params.account];
+  const record = recordEvent(event, 'SIGNAL_GBX_WITHDRAWN');
+  record.addresses = [event.params.account, event.params.strategy];
   record.values = [event.params.amount];
   record.save();
 }

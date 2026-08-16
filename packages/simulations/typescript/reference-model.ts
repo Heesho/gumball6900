@@ -95,11 +95,26 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
   const auctionQuotes = scenarios.auctionCases.map((entry) => {
     const payment = auctionPriceAt(big(entry, 'initPrice'), big(entry, 'elapsedSeconds'), big(entry, 'epochPeriod'));
     const settlement = settleStrategyPayment(big(entry, 'actualTargetReceived'));
+    let partitionFundAmount = 0n;
+    let partitionBribeAmount = 0n;
+    let partitionRemainder = 0n;
+    for (const raw of array(entry.paymentPartitions, 'paymentPartitions')) {
+      const part = BigInt(text(raw, 'paymentPartitions'));
+      const classified = settleStrategyPayment(part, partitionRemainder);
+      partitionFundAmount += classified.fundAmount;
+      partitionBribeAmount += classified.bribeAmount;
+      partitionRemainder = classified.splitRemainder;
+    }
     return {
       id: id(entry.id, 'id'),
       paymentAmount: decimal(payment),
       nextInitPrice: decimal(nextAuctionInitPrice(payment, big(entry, 'priceMultiplier'), big(entry, 'minInitPrice'))),
       fundAmount: decimal(settlement.fundAmount),
+      bribeAmount: decimal(settlement.bribeAmount),
+      splitRemainder: decimal(settlement.splitRemainder),
+      partitionFundAmount: decimal(partitionFundAmount),
+      partitionBribeAmount: decimal(partitionBribeAmount),
+      partitionRemainder: decimal(partitionRemainder),
     };
   });
 

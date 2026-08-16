@@ -2,13 +2,13 @@
 
 ---
 
-[GUM BALL 6900 TypeScript SDK](../README.md) / buildRemoveSignalAndUnstake
+[GUM BALL 6900 TypeScript SDK](../README.md) / buildWithdrawSignal
 
-# Function: buildRemoveSignalAndUnstake()
+# Function: buildWithdrawSignal()
 
-> **buildRemoveSignalAndUnstake**(`signalGBX`, `strategy`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildWithdrawSignal**(`signalGBX`, `strategy`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Removes signal, burns the released SignalGBX, and returns underlying GBX atomically.
+Atomically removes signal, burns the same sGBX amount, and returns underlying GBX.
 
 ## Parameters
 

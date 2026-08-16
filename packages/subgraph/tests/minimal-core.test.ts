@@ -1,9 +1,18 @@
-import { ethereum } from '@graphprotocol/graph-ts';
-import { assert, beforeEach, clearStore, describe, newMockEvent, test } from 'matchstick-as/assembly/index';
+import { DataSourceContext, ethereum } from '@graphprotocol/graph-ts';
+import {
+  assert,
+  beforeEach,
+  clearStore,
+  dataSourceMock,
+  describe,
+  newMockEvent,
+  test,
+} from 'matchstick-as/assembly/index';
 import { Burned, Minted } from '../generated/GBX/GBX';
 import { FeesHarvested } from '../generated/LiquidityPosition/LiquidityPosition';
 import { Claimed, EmissionCheckpointed, Mined, MinerPaymentAccrued } from '../generated/Mine/Mine';
 import { RewardCarryFunded } from '../generated/templates/BribeTemplate/Bribe';
+import { BribePaymentAccrued, BribeRewardNotified } from '../generated/templates/BribeRouterTemplate/BribeRouter';
 import {
   RevenueDistributed,
   RevenueNotified,
@@ -13,6 +22,7 @@ import {
   StrategyKilled,
 } from '../generated/Resonance/Resonance';
 import { handleRewardCarryFunded } from '../src/bribe';
+import { handleRouterBribePaymentAccrued, handleRouterBribeRewardNotified } from '../src/bribe-router';
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
 import { handleFeesHarvested } from '../src/liquidity-position';
@@ -25,6 +35,8 @@ import {
   handleStrategyAdded,
   handleStrategyKilled,
 } from '../src/resonance';
+import { handleSignaled, handleSignalWithdrawn } from '../src/signal-gbx';
+import { Signaled, SignalWithdrawn } from '../generated/SignalGBX/SignalGBX';
 import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, configureEvent, uintParam } from './helpers';
 
 export {
@@ -38,6 +50,10 @@ export {
   handleRevenueDistributed,
   handleRevenueNotified,
   handleRewardCarryFunded,
+  handleRouterBribePaymentAccrued,
+  handleRouterBribeRewardNotified,
+  handleSignaled,
+  handleSignalWithdrawn,
   handleStrategyAdded,
   handleStrategyKilled,
   handleSignalAdded,
@@ -187,9 +203,81 @@ describe('core protocol mappings', () => {
     handleSignalRemoved(removed);
 
     assert.fieldEquals('ProtocolState', '4663', 'strategyCount', '1');
+    assert.fieldEquals('ProtocolState', '4663', 'liveStrategyCount', '0');
     assert.fieldEquals('Strategy', strategyId, 'paymentToken', ASSET.toHexString());
     assert.fieldEquals('Strategy', strategyId, 'totalSignalWeightRaw', '0');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'signalWeightRaw', '0');
+  });
+
+  test('tracks atomic SignalGBX deposits and strategy-scoped withdrawals', () => {
+    const signaled = changetype<Signaled>(newMockEvent());
+    configureEvent(signaled, CONTRACT, 1);
+    signaled.parameters = new Array<ethereum.EventParam>();
+    signaled.parameters.push(addressParam('account', USER));
+    signaled.parameters.push(addressParam('strategy', STRATEGY));
+    signaled.parameters.push(uintParam('amount', 100));
+    handleSignaled(signaled);
+
+    const withdrawn = changetype<SignalWithdrawn>(newMockEvent());
+    configureEvent(withdrawn, CONTRACT, 2);
+    withdrawn.parameters = new Array<ethereum.EventParam>();
+    withdrawn.parameters.push(addressParam('account', USER));
+    withdrawn.parameters.push(addressParam('strategy', STRATEGY));
+    withdrawn.parameters.push(uintParam('amount', 40));
+    handleSignalWithdrawn(withdrawn);
+
+    assert.fieldEquals('ProtocolState', '4663', 'signaledGBXRaw', '60');
+    assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'signaledGBXRaw', '60');
+    assert.fieldEquals('ProtocolEvent', eventId(signaled), 'eventType', 'SIGNAL_GBX_SIGNALED');
+    assert.fieldEquals('ProtocolEvent', eventId(withdrawn), 'eventType', 'SIGNAL_GBX_WITHDRAWN');
+    assert.fieldEquals(
+      'ProtocolEvent',
+      eventId(withdrawn),
+      'addresses',
+      `[${USER.toHexString()}, ${STRATEGY.toHexString()}]`,
+    );
+  });
+
+  test('tracks cumulative BribeRouter liabilities and isolated reward notification', () => {
+    const added = changetype<StrategyAdded>(newMockEvent());
+    configureEvent(added, CONTRACT, 1);
+    added.parameters = new Array<ethereum.EventParam>();
+    added.parameters.push(addressParam('strategy', STRATEGY));
+    added.parameters.push(addressParam('bribe', REWARDS));
+    added.parameters.push(addressParam('bribeRouter', USER_TWO));
+    added.parameters.push(addressParam('paymentToken', ASSET));
+    handleStrategyAdded(added);
+
+    const context = new DataSourceContext();
+    context.setString('strategyId', '4663-' + STRATEGY.toHexString());
+    dataSourceMock.setReturnValues(USER_TWO.toHexString(), 'robinhood', context);
+
+    const accrued = changetype<BribePaymentAccrued>(newMockEvent());
+    configureEvent(accrued, USER_TWO, 2);
+    accrued.parameters = new Array<ethereum.EventParam>();
+    accrued.parameters.push(addressParam('bribe', REWARDS));
+    accrued.parameters.push(addressParam('paymentToken', ASSET));
+    accrued.parameters.push(uintParam('amount', 1));
+    accrued.parameters.push(uintParam('totalLiability', 1));
+    accrued.parameters.push(uintParam('remainder', 0));
+    handleRouterBribePaymentAccrued(accrued);
+
+    const notified = changetype<BribeRewardNotified>(newMockEvent());
+    configureEvent(notified, USER_TWO, 3);
+    notified.parameters = new Array<ethereum.EventParam>();
+    notified.parameters.push(addressParam('caller', USER));
+    notified.parameters.push(addressParam('bribe', REWARDS));
+    notified.parameters.push(addressParam('paymentToken', ASSET));
+    notified.parameters.push(uintParam('amount', 1));
+    handleRouterBribeRewardNotified(notified);
+
+    const strategyId = '4663-' + STRATEGY.toHexString();
+    assert.fieldEquals('Strategy', strategyId, 'routerBribePaymentAccruedRaw', '1');
+    assert.fieldEquals('Strategy', strategyId, 'routerBribePaymentNotifiedRaw', '1');
+    assert.fieldEquals('Strategy', strategyId, 'pendingRouterBribePaymentRaw', '0');
+    assert.fieldEquals('Strategy', strategyId, 'routerSplitRemainderRaw', '0');
+    assert.fieldEquals('ProtocolEvent', eventId(accrued), 'eventType', 'BRIBE_ROUTER_BRIBE_PAYMENT_ACCRUED');
+    assert.fieldEquals('ProtocolEvent', eventId(notified), 'eventType', 'BRIBE_ROUTER_BRIBE_REWARD_NOTIFIED');
   });
 
   test('tracks observable Resonance resets and distributions without inferring schedule state', () => {

@@ -35,11 +35,12 @@ export function getProtocol(event: ethereum.Event): ProtocolState {
     protocol.latestRevenueNotificationRaw = ZERO;
     protocol.latestRevenueNotificationAt = ZERO;
     protocol.distributedRevenueRaw = ZERO;
-    protocol.stakedGBXRaw = ZERO;
+    protocol.signaledGBXRaw = ZERO;
     protocol.fundBurnedGBXRaw = ZERO;
     protocol.redeemedGBXRaw = ZERO;
     protocol.timelockDelay = ZERO;
     protocol.strategyCount = 0;
+    protocol.liveStrategyCount = 0;
     protocol.governanceProposalCount = ZERO;
     protocol.governanceVoteCount = ZERO;
   }
@@ -59,7 +60,7 @@ export function getAccount(address: Address, event: ethereum.Event): Account {
     account.gbxBurnedRaw = ZERO;
     account.miningPaymentAccruedRaw = ZERO;
     account.miningUSDGClaimedRaw = ZERO;
-    account.stakedGBXRaw = ZERO;
+    account.signaledGBXRaw = ZERO;
     account.signalWeightRaw = ZERO;
     account.currentDelegate = Address.zero();
     account.delegatedVotesRaw = ZERO;
@@ -109,6 +110,10 @@ export function getStrategy(address: Address, event: ethereum.Event): Strategy {
     strategy.routerFundPaymentAccruedRaw = ZERO;
     strategy.routerFundPaymentPaidRaw = ZERO;
     strategy.pendingRouterFundPaymentRaw = ZERO;
+    strategy.routerBribePaymentAccruedRaw = ZERO;
+    strategy.routerBribePaymentNotifiedRaw = ZERO;
+    strategy.pendingRouterBribePaymentRaw = ZERO;
+    strategy.routerSplitRemainderRaw = ZERO;
     strategy.bribeFundRewardAccruedRaw = ZERO;
     strategy.bribeFundRewardPaidRaw = ZERO;
     strategy.pendingBribeFundRewardRaw = ZERO;

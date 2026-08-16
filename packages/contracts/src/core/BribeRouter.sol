@@ -3,6 +3,7 @@ pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { Bribe } from "./Bribe.sol";
@@ -10,31 +11,42 @@ import { Bribe } from "./Bribe.sol";
 /**
  * @title GumBall6900 Strategy Payment Router
  * @author Heesho
- * @notice Records one Strategy's complete payment as an immutable Fund liability.
- * @dev Deferred delivery keeps an auction fill live when a supported token temporarily rejects Fund. Bribe is retained
- *      as the immutable graph pairing only; auction payments never fund rewards.
+ * @notice Cumulatively classifies one Strategy's acquired-asset payments into immutable Fund and Bribe liabilities.
+ * @dev Classification is fixed at 90/10 and frequency-independent. Deferred isolated settlement keeps an auction fill
+ *      live when either immutable destination temporarily rejects the acquired asset.
  * @custom:version 1.0.0
  */
 contract BribeRouter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    /// @notice Denominator for the immutable payment split.
+    uint256 public constant BPS = 10_000;
+    /// @notice Basis points of cumulative Strategy payments classified to Fund.
+    uint256 public constant FUND_BPS = 9_000;
+    /// @notice Basis points of cumulative Strategy payments classified to the paired Bribe.
+    uint256 public constant BRIBE_BPS = 1_000;
+
     /// @notice Strategy exclusively authorized to supply completed auction payments.
     address public immutable strategy;
-    /// @notice Independently fundable Bribe paired with the Strategy.
+    /// @notice Bribe paired with the Strategy and fixed as the automatic 10% reward destination.
     Bribe public immutable bribe;
     /// @notice Strategy payment token routed by this contract.
     IERC20 public immutable paymentToken;
-    /// @notice Immutable treasury destination for every completed payment.
+    /// @notice Immutable treasury destination for the 90% Fund-classified share.
     address public immutable fund;
 
-    /// @notice Complete payment-token amount irrevocably owed to Fund and payable by any caller.
+    /// @notice Payment-token amount irrevocably owed to Fund and payable by any caller.
     uint256 public fundPaymentLiability;
-    /// @notice Exact payment-token balance pulled from Strategy minus completed Fund payouts.
+    /// @notice Payment-token amount irrevocably owed to the paired Bribe and not yet notified.
+    uint256 public bribePaymentLiability;
+    /// @notice Sub-token Bribe entitlement in basis-point numerator units, always smaller than `BPS`.
+    uint256 public splitRemainder;
+    /// @notice Exact payment-token balance pulled from Strategy minus completed Fund and Bribe settlements.
     uint256 public accountedPaymentBalance;
 
     /// @notice Emitted when Strategy supplies a completed auction payment.
     /// @param strategy Strategy that supplied the payment.
-    /// @param amount Exact amount pulled and made Fund-bound.
+    /// @param amount Exact amount pulled and classified.
     event PaymentRouted(address indexed strategy, uint256 amount);
     /// @notice Emitted when a completed payment creates a fixed Fund entitlement.
     /// @param fund Immutable Fund destination.
@@ -44,12 +56,20 @@ contract BribeRouter is ReentrancyGuard {
     event FundPaymentAccrued(
         address indexed fund, address indexed paymentToken, uint256 amount, uint256 totalLiability
     );
+    /// @notice Emitted when a completed payment creates a fixed paired-Bribe entitlement.
+    event BribePaymentAccrued(
+        address indexed bribe, address indexed paymentToken, uint256 amount, uint256 totalLiability, uint256 remainder
+    );
     /// @notice Emitted when a permissionless caller pays the fixed Fund entitlement.
     /// @param caller Account that triggered payment.
     /// @param fund Immutable Fund receiver.
     /// @param paymentToken Strategy payment token paid.
     /// @param amount Exact amount paid.
     event FundPaymentPaid(address indexed caller, address indexed fund, address indexed paymentToken, uint256 amount);
+    /// @notice Emitted when a permissionless caller notifies the fixed paired Bribe.
+    event BribeRewardNotified(
+        address indexed caller, address indexed bribe, address indexed paymentToken, uint256 amount
+    );
 
     /// @notice Raised when an incoming or outgoing supported-token delta is not exact.
     /// @param expected Requested amount.
@@ -72,7 +92,7 @@ contract BribeRouter is ReentrancyGuard {
     /// @param strategy_ Strategy exclusively allowed to route payments.
     /// @param bribe_ Independently fundable Bribe paired with the Strategy.
     /// @param paymentToken_ Strategy payment token.
-    /// @param fund_ Treasury receiving every completed payment.
+    /// @param fund_ Treasury receiving the fixed 90% share of cumulative completed payments.
     constructor(address strategy_, Bribe bribe_, IERC20 paymentToken_, address fund_) {
         if (
             strategy_ == address(0) || address(bribe_) == address(0) || address(paymentToken_) == address(0)
@@ -86,7 +106,7 @@ contract BribeRouter is ReentrancyGuard {
         fund = fund_;
     }
 
-    /// @notice Pulls one complete auction payment and records it as a fixed Fund liability.
+    /// @notice Pulls one complete auction payment and cumulatively classifies its fixed 90/10 liabilities.
     /// @param amount Exact payment-token amount to pull.
     function routePayment(uint256 amount) external nonReentrant {
         if (msg.sender != strategy) revert NotStrategy(msg.sender);
@@ -101,11 +121,21 @@ contract BribeRouter is ReentrancyGuard {
             revert InexactTransfer(amount, senderDebit, receiverCredit);
         }
 
+        uint256 bribeAmount = Math.mulDiv(amount, BRIBE_BPS, BPS);
+        uint256 accumulatedRemainder = splitRemainder + mulmod(amount, BRIBE_BPS, BPS);
+        bribeAmount += accumulatedRemainder / BPS;
+        splitRemainder = accumulatedRemainder % BPS;
+        uint256 fundAmount = amount - bribeAmount;
+
         accountedPaymentBalance += amount;
-        fundPaymentLiability += amount;
+        fundPaymentLiability += fundAmount;
+        bribePaymentLiability += bribeAmount;
 
         emit PaymentRouted(msg.sender, amount);
-        emit FundPaymentAccrued(fund, address(paymentToken), amount, fundPaymentLiability);
+        emit FundPaymentAccrued(fund, address(paymentToken), fundAmount, fundPaymentLiability);
+        emit BribePaymentAccrued(
+            address(bribe), address(paymentToken), bribeAmount, bribePaymentLiability, splitRemainder
+        );
     }
 
     /// @notice Pays the complete fixed payment liability to the immutable Fund.
@@ -120,6 +150,32 @@ contract BribeRouter is ReentrancyGuard {
         _transferExact(fund, amount);
 
         emit FundPaymentPaid(msg.sender, fund, address(paymentToken), amount);
+    }
+
+    /// @notice Notifies the complete paired-Bribe liability as an acquired-asset reward.
+    /// @dev State clears before interaction; any failure atomically restores this leg without altering Fund liability.
+    /// @return amount Exact reward amount notified.
+    function notifyBribeReward() external nonReentrant returns (uint256 amount) {
+        amount = bribePaymentLiability;
+        if (amount == 0) return 0;
+
+        bribePaymentLiability = 0;
+        accountedPaymentBalance -= amount;
+
+        uint256 senderBefore = paymentToken.balanceOf(address(this));
+        uint256 receiverBefore = paymentToken.balanceOf(address(bribe));
+        paymentToken.forceApprove(address(bribe), amount);
+        bribe.notifyRewardAmount(address(paymentToken), amount);
+        if (paymentToken.allowance(address(this), address(bribe)) != 0) {
+            paymentToken.forceApprove(address(bribe), 0);
+        }
+        uint256 senderDebit = senderBefore - paymentToken.balanceOf(address(this));
+        uint256 receiverCredit = paymentToken.balanceOf(address(bribe)) - receiverBefore;
+        if (senderDebit != amount || receiverCredit != amount) {
+            revert InexactTransfer(amount, senderDebit, receiverCredit);
+        }
+
+        emit BribeRewardNotified(msg.sender, address(bribe), address(paymentToken), amount);
     }
 
     /// @notice Returns direct payment-token donations outside Strategy-supplied accounting.

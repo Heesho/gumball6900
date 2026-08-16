@@ -6,4 +6,4 @@
 
 # Variable: signalViewSchema
 
-> `const` **signalViewSchema**: `ZodObject`\<\{ `allocatedSignalBalance`: `ZodBigInt`; `blockNumber`: `ZodBigInt`; `currentVotes`: `ZodBigInt`; `delegate`: `ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>; `signalBalance`: `ZodBigInt`; `unallocatedSignalBalance`: `ZodBigInt`; \}, `$strip`\>
+> `const` **signalViewSchema**: `ZodObject`\<\{ `blockNumber`: `ZodBigInt`; `currentVotes`: `ZodBigInt`; `delegate`: `ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>; `signalBalance`: `ZodBigInt`; \}, `$strip`\>

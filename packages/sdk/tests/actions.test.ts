@@ -20,21 +20,18 @@ import {
   buildKillStrategyProposalCall,
   buildMine,
   buildMoveSignal,
+  buildNotifyRouterBribeReward,
   buildNotifyRevenue,
   buildPayBribeFundReward,
   buildPayRouterFundPayment,
   buildProtocolProposal,
   buildQueueProtocolProposal,
   buildRedemption,
-  buildRemoveSignal,
-  buildRemoveSignalAndUnstake,
   buildRouteRevenue,
   buildSignal,
-  buildStake,
-  buildStakeAndSignal,
-  buildStakeAndSignalWithPermit,
+  buildSignalWithPermit,
   buildStrategyBuy,
-  buildUnstake,
+  buildWithdrawSignal,
   bribeAbi,
   bribeRouterAbi,
   fundAbi,
@@ -79,31 +76,15 @@ describe('minimal typed transaction builders', () => {
     });
   });
 
-  it('targets SignalGBX for staking, scalar signaling, combined flows, moves, exits, and delegation', () => {
-    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildStake(A, 4n).data })).toMatchObject({
-      args: [4n],
-      functionName: 'stake',
-    });
-    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildUnstake(A, 4n).data })).toMatchObject({
-      args: [4n],
-      functionName: 'unstake',
-    });
+  it('targets SignalGBX for mandatory deposit-and-signal, permit, moves, atomic exits, and delegation', () => {
     expect(decodeFunctionData({ abi: signalGbxAbi, data: buildSignal(A, B, 3n).data })).toMatchObject({
       args: [getAddress(B), 3n],
       functionName: 'signal',
     });
-    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildRemoveSignal(A, B, 2n).data })).toMatchObject({
-      args: [getAddress(B), 2n],
-      functionName: 'removeSignal',
-    });
-    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildStakeAndSignal(A, B, 5n).data })).toMatchObject({
-      args: [getAddress(B), 5n],
-      functionName: 'stakeAndSignal',
-    });
     expect(
       decodeFunctionData({
         abi: signalGbxAbi,
-        data: buildStakeAndSignalWithPermit({
+        data: buildSignalWithPermit({
           amount: 6n,
           deadline: 1_000n,
           r: R,
@@ -115,15 +96,15 @@ describe('minimal typed transaction builders', () => {
       }),
     ).toMatchObject({
       args: [getAddress(B), 6n, 1_000n, 27, R, S],
-      functionName: 'stakeAndSignalWithPermit',
+      functionName: 'signalWithPermit',
     });
     expect(decodeFunctionData({ abi: signalGbxAbi, data: buildMoveSignal(A, B, C, 2n).data })).toMatchObject({
       args: [getAddress(B), getAddress(C), 2n],
       functionName: 'moveSignal',
     });
-    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildRemoveSignalAndUnstake(A, B, 2n).data })).toMatchObject({
+    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildWithdrawSignal(A, B, 2n).data })).toMatchObject({
       args: [getAddress(B), 2n],
-      functionName: 'removeSignalAndUnstake',
+      functionName: 'withdrawSignal',
     });
     expect(decodeFunctionData({ abi: signalGbxAbi, data: buildDelegateSignalVotes(A, D).data })).toMatchObject({
       args: [getAddress(D)],
@@ -259,6 +240,9 @@ describe('minimal typed transaction builders', () => {
     });
     expect(decodeFunctionData({ abi: bribeRouterAbi, data: buildPayRouterFundPayment(A).data }).functionName).toBe(
       'payFundPayment',
+    );
+    expect(decodeFunctionData({ abi: bribeRouterAbi, data: buildNotifyRouterBribeReward(A).data }).functionName).toBe(
+      'notifyBribeReward',
     );
     expect(decodeFunctionData({ abi: bribeAbi, data: buildPayBribeFundReward(A, C).data })).toMatchObject({
       args: [C],

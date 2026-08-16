@@ -45,6 +45,33 @@ id = "generic-api-key"
   regexes = ['''^key(?::| ===) 'uniswapV4\.(?:permit2|quoter)'$''']
 
   [[rules.allowlists]]
+  description = "Historical Uniswap Permit2 fixture keys are public manifest identifiers, not credentials."
+  condition = "AND"
+  regexTarget = "match"
+  paths = [
+    '''(^|/)apps/web/tests/runtime-config\.test\.ts$''',
+    '''(^|/)packages/contracts/test/hardhat/unit/ReleaseManifestBinding\.test\.ts$''',
+  ]
+  regexes = ['''uniswapV4\.permit2''']
+
+  [[rules.allowlists]]
+  description = "The canonical Ethereum WBTC L1 token address is public bridge metadata, not a credential."
+  condition = "AND"
+  regexTarget = "match"
+  paths = [
+    '''(^|/)packages/config/assets/robinhood\.ts$''',
+    '''(^|/)packages/config/deployments/robinhood-mainnet-wrapped-btc\.2026-08-02\.candidate\.json$''',
+  ]
+  regexes = ['''0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599''']
+
+  [[rules.allowlists]]
+  description = "The EIP-1967 beacon proxy kind is a public deployment-schema enum, not a credential."
+  condition = "AND"
+  regexTarget = "match"
+  paths = ['''(^|/)packages/contracts/script/hardhat/deployment\.ts$''']
+  regexes = ['''eip1967-beacon''']
+
+  [[rules.allowlists]]
   description = "USDG access-control role hashes are public bytes32 protocol constants."
   condition = "AND"
   regexTarget = "match"

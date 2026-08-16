@@ -23,6 +23,27 @@ function splitPayment(payment: bigint, hasPreviousMiner: boolean) {
   return { payment, previousMiner, resonance: payment - previousMiner };
 }
 
+function classifyStrategyPayments(payments: bigint[]) {
+  let fundLiability = 0n;
+  let bribeLiability = 0n;
+  let splitRemainder = 0n;
+  for (const payment of payments) {
+    const baseBribe = mulDiv(payment, 1_000n, BPS);
+    const accumulatedRemainder = splitRemainder + ((payment * 1_000n) % BPS);
+    const bribeAmount = baseBribe + accumulatedRemainder / BPS;
+    splitRemainder = accumulatedRemainder % BPS;
+    fundLiability += payment - bribeAmount;
+    bribeLiability += bribeAmount;
+  }
+  return {
+    payments,
+    totalPayment: payments.reduce((sum, payment) => sum + payment, 0n),
+    fundLiability,
+    bribeLiability,
+    splitRemainder,
+  };
+}
+
 function redemption(balance: bigint, burned: bigint, supply: bigint): bigint {
   return mulDiv(balance, burned, supply);
 }
@@ -31,6 +52,7 @@ function rawSuite() {
   const incumbentRatePerHour = 100n * WAD;
   const capacity = 3n;
   const newSlotRatePerHour = incumbentRatePerHour / capacity;
+  const sequentialCapacityRates = Array.from({ length: 16 }, (_, index) => incumbentRatePerHour / BigInt(index + 1));
   const legacyOneHour = incumbentRatePerHour;
   const newSlotOneHour = newSlotRatePerHour;
 
@@ -40,7 +62,7 @@ function rawSuite() {
   const redeemGBX = 1_000_000n * WAD;
 
   return {
-    schemaVersion: 5,
+    schemaVersion: 7,
     purpose: 'Deterministic protocol mechanics; not forecasts, valuations, or investment projections.',
     assumptions: {
       genesisLiquidityAllocationGBXRaw: GENESIS_LP_GBX,
@@ -52,6 +74,8 @@ function rawSuite() {
       tenureRatesLocked: true,
       capacityOnlyIncreases: true,
       redemptionsCheckpointAllSlots: true,
+      strategyFundBps: 9_000n,
+      strategyBribeBps: 1_000n,
     },
     mining: {
       priceCurve: [0n, 900n, 1_800n, 2_700n, 3_600n].map((elapsedSeconds) => ({
@@ -73,6 +97,19 @@ function rawSuite() {
         undividedGlobalRatePerHour: incumbentRatePerHour,
         explanation:
           'Occupied slots keep their tenure rate. Only newly occupied or replaced slots divide the current global rate by current capacity.',
+      },
+      sequentialExpansionToCap: {
+        capacity: 16n,
+        assignedRatesPerHour: sequentialCapacityRates,
+        aggregateOneHourEmission: sequentialCapacityRates.reduce((sum, rate) => sum + rate, 0n),
+        undividedGlobalRatePerHour: incumbentRatePerHour,
+        aggregateBpsOfUndividedRate: mulDiv(
+          sequentialCapacityRates.reduce((sum, rate) => sum + rate, 0n),
+          BPS,
+          incumbentRatePerHour,
+        ),
+        explanation:
+          'Worst-order illustration with one new occupation after each capacity increase; every earlier tenure keeps its assigned rate.',
       },
       handoffHalving: {
         halvingAmount: 490_000_000n * WAD,
@@ -108,7 +145,10 @@ function rawSuite() {
         elapsedSeconds,
         paymentAmount: elapsedSeconds >= 86_400n ? 0n : 100n * WAD - mulDiv(100n * WAD, elapsedSeconds, 86_400n),
       })),
-      completePaymentIsFundLiability: true,
+      cumulativeSplitIsFrequencyIndependent: true,
+      tenOneUnitPayments: classifyStrategyPayments(Array<bigint>(10).fill(1n)),
+      oneCombinedPayment: classifyStrategyPayments([10n]),
+      directRouterDonationSurplus: 7n,
     },
     supply: {
       identity: 'totalSupply = lifetimeMinted - lifetimeBurned',

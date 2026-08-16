@@ -1,5 +1,7 @@
 # Supported token model
 
+> ADRs 0031 and 0032 define the target token interactions below. Contract implementation remains pending.
+
 ## Canonical and registered tokens
 
 GBX, USDG, Strategy payment tokens, and Bribe reward tokens are supported only when they behave as standard,
@@ -26,17 +28,18 @@ disabled. Tokens that reject zero approvals remain usable when the exact allowan
 under-consumes an allowance, the protocol still attempts fail-closed cleanup and may reject that token.
 
 GBX supports ERC-2612 permit approvals, including the permit attempted by SignalGBX's atomic
-`stakeAndSignalWithPermit` workflow. That workflow tolerates a permit signature already consumed by an observer and
-still relies on the exact GBX `transferFrom` as its authorization and custody check. SignalGBX deliberately has no ERC-2612 approval permit because it is
+`signalWithPermit` workflow. That workflow uses the underlying permit as authorization and still relies on the exact
+GBX `transferFrom` as its custody check. SignalGBX deliberately has no ERC-2612 approval permit because it is
 non-transferable; its signature-based delegation belongs to ERC20Votes governance rather than token spending.
 
 ## Failure isolation
 
-A token that rejects a payout can leave its fixed Fund or user liability unpaid. It cannot change the destination.
-Accrued Resonance Strategy rewards and Bribe or BribeRouter Fund liabilities are visible and permissionlessly
-retryable. Signal removal and unstaking do not perform those payouts. Bribe users can claim one token or a selected
-unique list, allowing them to omit a broken reward token. Direct USDG donations and zero-active-signal Resonance
-emission are surplus, not retryable liabilities.
+A token that rejects a payout can leave its fixed Fund, Bribe, or user liability unpaid. It cannot change the
+destination. Accrued Resonance Strategy rewards and BribeRouter's Fund and paired-Bribe liabilities are visible and
+permissionlessly retryable. A failed Fund payment does not consume the Bribe liability and a failed Bribe notification
+does not consume the Fund liability. `withdrawSignal` does not perform either payout. Bribe users can claim one token
+or a selected unique list, allowing them to omit a broken reward token. Direct USDG donations and zero-active-signal
+Resonance emission are surplus, not retryable liabilities.
 
 Fund is intentionally different: it is a permissionless raw-token treasury. Any ERC-20 can be sent to it, but that
 does not make the token supported or official. A redeemer chooses which unique non-GBX addresses to include. A broken

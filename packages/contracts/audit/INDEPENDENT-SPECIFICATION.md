@@ -2,8 +2,8 @@
 
 Date: 2026-08-15
 
-This is the review target for the ADR 0024, ADR 0027, ADR 0028, ADR 0029, and ADR 0030 development candidate. It is
-not an independent audit result.
+This is the review target for the ADR 0024, ADR 0027, ADR 0028, ADR 0029, ADR 0031, and ADR 0032 development candidate.
+It is not an independent audit result.
 
 ## Authority model
 
@@ -20,7 +20,7 @@ not an independent audit result.
 - GBX mints `20_000_000 ether` at construction, then permanently binds its only issuer to one deployed Mine whose
   reciprocal `gbx()` identity matches.
 - Supply reconciles as `lifetimeMinted - lifetimeBurned` and has no protocol-defined economic maximum. GBX retains
-  ERC20Permit for approval-based staking but has no voting checkpoints; SignalGBX is the sole protocol vote token.
+  ERC20Permit for approval-based signaling but has no voting checkpoints; SignalGBX is the sole protocol vote token.
 - Capacity begins at one, only increases, and never exceeds sixteen.
 - Each slot price decays linearly to zero over one hour. Epoch ID, deadline, and maximum price protect handoffs.
 - A handoff checkpoints every occupied slot. Each receives `elapsed * slot.ups`, and `slot.ups` is never recomputed.
@@ -31,12 +31,12 @@ not an independent audit result.
 
 ## Signals, Strategies, and Bribes
 
-- SignalGBX mints and burns one-for-one, is non-transferable, accepts stakes only after reciprocal Resonance binding,
-  and is immediately withdrawable to the extent unallocated. Its supply is fully backed; unsolicited GBX is stranded
-  surplus rather than receipt issuance. It retains ERC20Votes but not ERC20Permit; the optional
-  `stakeAndSignalWithPermit` signature authorizes the underlying GBX transfer only.
-- SignalGBX is the sole user-facing signal coordinator. It owns each account's aggregate allocation and supports
-  scalar add/remove, live-to-live or killed-to-live moves, stake-and-signal, and remove-and-unstake atomically.
+- SignalGBX mints and burns one-for-one, is non-transferable, and accepts GBX only after reciprocal Resonance binding.
+  Every mint atomically adds the same signal to one live Strategy, and every burn atomically removes signal and returns
+  the same GBX. Its supply is fully backed; unsolicited GBX is stranded surplus rather than token issuance. It retains
+  ERC20Votes but not ERC20Permit; `signalWithPermit` authorizes only the underlying GBX transfer.
+- SignalGBX is the sole user-facing signal coordinator. Its balance is each account's aggregate signal and it supports
+  atomic deposit-and-signal, live-to-live or killed-to-live moves, and remove-burn-withdraw. Idle sGBX is unreachable.
 - Each paired Bribe owns account-by-Strategy balances and raw Strategy supply. Resonance owns only the active global
   denominator; compatibility views forward to those canonical ledgers. A killed Strategy is excluded immediately
   while its Bribe balances remain recorded for exit.
@@ -51,8 +51,10 @@ not an independent audit result.
 - Killing a Strategy checkpoints and preserves its accrued claim, excludes its full weight from future rewards, blocks
   later additions, and leaves incumbent signalers free to exit without decrementing the active total twice.
 - One uniform Strategy type checkpoints and pulls released revenue before auctioning its complete USDG lot. Its
-  complete payment becomes a fixed Fund liability.
-- Bribes are independently funded, have at most eight reward tokens, pause at zero supply, and isolate broken-token
+  payment becomes cumulative fixed liabilities: exactly 90% for Fund and 10% for its paired Bribe.
+- Each BribeRouter liability can be paid independently and permissionlessly, and payment-frequency changes cannot
+  alter cumulative classification. Direct router donations remain surplus. Bribes may also be independently funded,
+  have at most eight reward tokens, pause at zero supply, and isolate broken-token
   claims from signal exit. Old-denominator Bribe carry and a fully exiting account's sub-token remainder move to the
   fixed Fund classification before virtual supply changes.
 

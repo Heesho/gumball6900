@@ -24,16 +24,36 @@ def split(payment: int, has_previous: bool) -> dict[str, int]:
     return {"payment": payment, "previousMiner": previous, "resonance": payment - previous}
 
 
+def classify_strategy_payments(payments: list[int]) -> dict[str, object]:
+    fund = 0
+    bribe = 0
+    remainder = 0
+    for payment in payments:
+        base_bribe, raw_remainder = divmod(payment * 1_000, BPS)
+        carry, remainder = divmod(remainder + raw_remainder, BPS)
+        bribe_amount = base_bribe + carry
+        fund += payment - bribe_amount
+        bribe += bribe_amount
+    return {
+        "payments": payments,
+        "totalPayment": sum(payments),
+        "fundLiability": fund,
+        "bribeLiability": bribe,
+        "splitRemainder": remainder,
+    }
+
+
 def compute() -> dict[str, object]:
     incumbent = 100 * WAD
     capacity = 3
     new_slot = incumbent // capacity
+    sequential_capacity_rates = [incumbent // slot_capacity for slot_capacity in range(1, 17)]
     supply = 100_000_000 * WAD
     pending = 1_000_000 * WAD
     fund_usdg = 50_000_000 * 10**6
     redeem = 1_000_000 * WAD
     return {
-        "schemaVersion": 5,
+        "schemaVersion": 7,
         "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
         "assumptions": {
             "genesisLiquidityAllocationGBXRaw": GENESIS,
@@ -45,6 +65,8 @@ def compute() -> dict[str, object]:
             "tenureRatesLocked": True,
             "capacityOnlyIncreases": True,
             "redemptionsCheckpointAllSlots": True,
+            "strategyFundBps": 9_000,
+            "strategyBribeBps": 1_000,
         },
         "mining": {
             "priceCurve": [
@@ -65,6 +87,14 @@ def compute() -> dict[str, object]:
                 "aggregateOneHourEmission": incumbent + new_slot * 2,
                 "undividedGlobalRatePerHour": incumbent,
                 "explanation": "Occupied slots keep their tenure rate. Only newly occupied or replaced slots divide the current global rate by current capacity.",
+            },
+            "sequentialExpansionToCap": {
+                "capacity": 16,
+                "assignedRatesPerHour": sequential_capacity_rates,
+                "aggregateOneHourEmission": sum(sequential_capacity_rates),
+                "undividedGlobalRatePerHour": incumbent,
+                "aggregateBpsOfUndividedRate": mul_div(sum(sequential_capacity_rates), BPS, incumbent),
+                "explanation": "Worst-order illustration with one new occupation after each capacity increase; every earlier tenure keeps its assigned rate.",
             },
             "handoffHalving": {
                 "halvingAmount": 490_000_000 * WAD,
@@ -107,7 +137,10 @@ def compute() -> dict[str, object]:
                 }
                 for elapsed in (0, 21_600, 43_200, 64_800, 86_400)
             ],
-            "completePaymentIsFundLiability": True,
+            "cumulativeSplitIsFrequencyIndependent": True,
+            "tenOneUnitPayments": classify_strategy_payments([1] * 10),
+            "oneCombinedPayment": classify_strategy_payments([10]),
+            "directRouterDonationSurplus": 7,
         },
         "supply": {
             "identity": "totalSupply = lifetimeMinted - lifetimeBurned",

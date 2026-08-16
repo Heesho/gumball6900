@@ -10,7 +10,7 @@
     "pnpmWorkspaceSha256": "3604bce409a06ed0777341b414504513ac3bd5d5899fd859dfe376da93b24532"
   },
   "packageEntryCount": 1085,
-  "dependencyEntriesSha256": "9358482fbf2c94a9975e04bf18181cfe8563260ffb85517a97c0edea97f0478c",
+  "dependencyEntriesSha256": "0b5aa865b56b60c5a428c0baeeab8275378aedda20d587534e008bc9ad09a947",
   "entries": [
     {
       "license": "(Apache-2.0 OR MIT)",
@@ -4160,7 +4160,7 @@
     {
       "license": "MIT",
       "name": "nanoid",
-      "versions": ["3.3.17", "5.1.16"]
+      "versions": ["3.3.18", "5.1.16"]
     },
     {
       "license": "MIT",

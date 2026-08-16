@@ -116,7 +116,7 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_StrategyAddedAfterAccrualCannotClaimHistoricRevenue() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(604_800);
         _finishRevenueStream();
@@ -124,7 +124,7 @@ contract ResonanceTest is ProtocolFixture {
         (address lateStrategy,,) = resonance.addStrategy(IERC20(address(secondAsset)), defaultConfig());
         assertEq(resonance.earned(lateStrategy, address(usdg)), 0);
 
-        _stake(BOB, 100 ether);
+        _signalDefault(BOB, 100 ether);
         _signalOne(BOB, lateStrategy);
         assertEq(resonance.earned(lateStrategy, address(usdg)), 0);
         assertEq(resonance.distribute(lateStrategy), 0);
@@ -151,21 +151,25 @@ contract ResonanceTest is ProtocolFixture {
     //////////////////////////////////////////////////////////////*/
 
     function test_SignalValidationRejectsUnknownZeroAndExcessAmounts() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
+        _mintTestGBX(ALICE, 1);
 
         vm.startPrank(ALICE);
-        vm.expectRevert();
+        gbx.approve(address(signalGBX), 1);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, BOB));
         signalGBX.signal(BOB, 1);
-        vm.expectRevert();
-        signalGBX.removeSignal(BOB, 1);
-        vm.expectRevert();
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, BOB));
+        signalGBX.withdrawSignal(BOB, 1);
+        vm.expectRevert(SignalGBX.ZeroAmount.selector);
         signalGBX.signal(address(targetStrategy), 0);
-        vm.expectRevert();
-        signalGBX.removeSignal(address(targetStrategy), 0);
-        vm.expectRevert();
-        signalGBX.signal(address(targetStrategy), 101 ether);
-        vm.expectRevert();
-        signalGBX.removeSignal(address(targetStrategy), 1);
+        vm.expectRevert(SignalGBX.ZeroAmount.selector);
+        signalGBX.withdrawSignal(address(targetStrategy), 0);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Resonance.InsufficientSignal.selector, address(targetStrategy), uint256(100 ether), uint256(101 ether)
+            )
+        );
+        signalGBX.withdrawSignal(address(targetStrategy), 101 ether);
         vm.stopPrank();
     }
 
@@ -226,9 +230,10 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_AddSignalIsIncrementalAndMirrorsTheBribe() external {
-        _stake(ALICE, 100 ether);
+        _mintTestGBX(ALICE, 50 ether);
 
         vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 50 ether);
         signalGBX.signal(address(targetStrategy), 30 ether);
         signalGBX.signal(address(targetStrategy), 20 ether);
         vm.stopPrank();
@@ -242,10 +247,9 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_RemoveSignalPreservesTheExactPartialAllocation() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 80 ether);
         vm.startPrank(ALICE);
-        signalGBX.signal(address(targetStrategy), 80 ether);
-        signalGBX.removeSignal(address(targetStrategy), 30 ether);
+        signalGBX.withdrawSignal(address(targetStrategy), 30 ether);
         vm.stopPrank();
 
         assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 50 ether);
@@ -257,7 +261,7 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_ScalarSignalsSplitAcrossStrategiesAndExitCompletely() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalTwo(ALICE, address(targetStrategy), address(gbxStrategy), 3, 1);
 
         assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 75 ether);
@@ -274,15 +278,13 @@ contract ResonanceTest is ProtocolFixture {
         assertEq(gbxBribe.totalSupply(), 0);
     }
 
-    function test_StakingMoreCreatesOnlyUnallocatedSignal() external {
-        _stake(ALICE, 100 ether);
-        vm.prank(ALICE);
-        signalGBX.signal(address(targetStrategy), 60 ether);
-        _stake(ALICE, 400 ether);
+    function test_EveryAdditionalDepositIsImmediatelySignaled() external {
+        _signalDefault(ALICE, 100 ether);
+        _signalDefault(ALICE, 400 ether);
 
-        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 60 ether);
-        assertEq(resonance.totalSignalWeight(), 60 ether);
-        assertEq(signalGBX.balanceOf(ALICE) - resonance.accountSignalWeight(ALICE), 440 ether);
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 500 ether);
+        assertEq(resonance.totalSignalWeight(), 500 ether);
+        assertEq(signalGBX.balanceOf(ALICE), resonance.accountSignalWeight(ALICE));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -340,7 +342,7 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_RawRemainderIsFrontLoadedAndTheCompleteAmountIsScheduled() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
 
         uint256 startedAt = block.timestamp;
@@ -360,7 +362,7 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_OneRawUnitEmitsDuringTheFirstActiveSecond() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(1);
 
@@ -372,7 +374,7 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_TopUpBelowLeftRevertsAtomicallyAtResonance() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(1_209_600);
         uint256 originalFinish = _periodFinish();
@@ -396,7 +398,7 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_QualifyingTopUpCheckpointsAndRestartsWithRewardPlusLeft() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(1_209_600);
 
@@ -417,7 +419,7 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_DirectDonationIsNotScheduled() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         usdg.mint(address(resonance), 50_000_000);
 
@@ -432,7 +434,7 @@ contract ResonanceTest is ProtocolFixture {
         _routeRevenue(604_800);
         vm.warp(block.timestamp + 1 days);
 
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
 
         vm.warp(block.timestamp + 6 days);
@@ -447,12 +449,12 @@ contract ResonanceTest is ProtocolFixture {
     //////////////////////////////////////////////////////////////*/
 
     function test_NewStrategyWeightReceivesOnlyPostEntryRevenue() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(604_800);
 
         vm.warp(block.timestamp + 1 days);
-        _stake(BOB, 100 ether);
+        _signalDefault(BOB, 100 ether);
         _signalOne(BOB, address(gbxStrategy));
 
         vm.warp(block.timestamp + 6 days);
@@ -460,9 +462,23 @@ contract ResonanceTest is ProtocolFixture {
         assertEq(resonance.distribute(address(gbxStrategy)), 259_200);
     }
 
+    function test_MoveCheckpointsBothStrategiesBeforeChangingTheirWeights() external {
+        _signalDefault(ALICE, 100 ether);
+        _routeRevenue(604_800);
+
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(ALICE);
+        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
+
+        vm.warp(block.timestamp + 6 days);
+        assertEq(resonance.distribute(address(targetStrategy)), 397_440);
+        assertEq(resonance.distribute(address(gbxStrategy)), 207_360);
+        assertEq(usdg.balanceOf(address(targetStrategy)) + usdg.balanceOf(address(gbxStrategy)), 604_800);
+    }
+
     function test_RevenueSplitsByCurrentStrategyWeight() external {
-        _stake(ALICE, 75 ether);
-        _stake(BOB, 25 ether);
+        _signalDefault(ALICE, 75 ether);
+        _signalDefault(BOB, 25 ether);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(BOB, address(gbxStrategy));
         _routeRevenue(100_000_000);
@@ -478,7 +494,7 @@ contract ResonanceTest is ProtocolFixture {
         vm.expectRevert();
         resonance.distribute(ALICE);
 
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(604_800);
         vm.warp(block.timestamp + 1 days);
@@ -497,7 +513,7 @@ contract ResonanceTest is ProtocolFixture {
         _mintTestGBX(ALICE, 100 ether);
         vm.startPrank(ALICE);
         gbx.approve(address(feeSignalGBX), 100 ether);
-        feeSignalGBX.stakeAndSignal(strategy, 100 ether);
+        feeSignalGBX.signal(strategy, 100 ether);
         vm.stopPrank();
 
         uint256 revenue = 604_800;
@@ -506,7 +522,7 @@ contract ResonanceTest is ProtocolFixture {
         vm.warp(block.timestamp + feeResonance.DURATION());
 
         vm.prank(ALICE);
-        feeSignalGBX.removeSignal(strategy, 1 ether);
+        feeSignalGBX.withdrawSignal(strategy, 1 ether);
         assertEq(feeResonance.account_Token_Rewards(strategy, address(feeToken)), revenue);
 
         feeToken.setFeeBps(100);
@@ -529,7 +545,7 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_DistributingTwicePaysNothingTheSecondTime() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(604_800);
         vm.warp(block.timestamp + 1 days);
@@ -557,14 +573,16 @@ contract ResonanceTest is ProtocolFixture {
         vm.expectRevert();
         resonance.killStrategy(address(targetStrategy));
 
-        _stake(ALICE, 1 ether);
-        vm.prank(ALICE);
-        vm.expectRevert();
+        _mintTestGBX(ALICE, 1 ether);
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 1 ether);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(targetStrategy)));
         signalGBX.signal(address(targetStrategy), 1 ether);
+        vm.stopPrank();
     }
 
     function test_KillPreservesPreKillRewardsAndStopsFutureAccrual() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(604_800);
         vm.warp(block.timestamp + 1 days);
@@ -581,8 +599,8 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_KillRemovesDeadWeightAndFutureRevenueFlowsOnlyToSurvivor() external {
-        _stake(ALICE, 50 ether);
-        _stake(BOB, 50 ether);
+        _signalDefault(ALICE, 50 ether);
+        _signalDefault(BOB, 50 ether);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(BOB, address(gbxStrategy));
         _routeRevenue(604_800);
@@ -599,20 +617,19 @@ contract ResonanceTest is ProtocolFixture {
     }
 
     function test_DeadStrategySignalCanExitWithoutSubtractingActiveSupplyTwice() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         resonance.killStrategy(address(targetStrategy));
         assertEq(resonance.totalSignalWeight(), 0);
         assertEq(targetBribe.totalSupply(), 100 ether);
 
         vm.startPrank(ALICE);
-        signalGBX.removeSignal(address(targetStrategy), 40 ether);
+        signalGBX.withdrawSignal(address(targetStrategy), 40 ether);
         assertEq(resonance.totalSignalWeight(), 0);
         assertEq(targetBribe.totalSupply(), 60 ether);
-        signalGBX.removeSignal(address(targetStrategy), 60 ether);
+        signalGBX.withdrawSignal(address(targetStrategy), 60 ether);
         assertEq(resonance.totalSignalWeight(), 0);
         assertEq(targetBribe.totalSupply(), 0);
-        signalGBX.unstake(100 ether);
         vm.stopPrank();
 
         assertEq(resonance.accountSignalWeight(ALICE), 0);
@@ -633,8 +650,8 @@ contract ResonanceTest is ProtocolFixture {
         uint256 firstWeight = bound(rawFirstWeight, 1 ether, 999 ether);
         uint256 secondWeight = 1_000 ether - firstWeight;
 
-        _stake(ALICE, firstWeight);
-        _stake(BOB, secondWeight);
+        _signalDefault(ALICE, firstWeight);
+        _signalDefault(BOB, secondWeight);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(BOB, address(gbxStrategy));
         _routeRevenue(revenue);
@@ -651,8 +668,8 @@ contract ResonanceTest is ProtocolFixture {
         uint256 revenue = bound(rawRevenue, 1, 1e15);
         uint256 split = bound(rawSplit, 1, 99);
 
-        _stake(ALICE, split * 1 ether);
-        _stake(BOB, (100 - split) * 1 ether);
+        _signalDefault(ALICE, split * 1 ether);
+        _signalDefault(BOB, (100 - split) * 1 ether);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(BOB, address(gbxStrategy));
         _routeRevenue(revenue);

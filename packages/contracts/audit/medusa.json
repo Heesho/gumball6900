@@ -5,7 +5,7 @@
     "timeout": 3600,
     "testLimit": 100000,
     "callSequenceLength": 150,
-    "corpusDirectory": "reports/medusa-corpus",
+    "corpusDirectory": "audit/reports/medusa-corpus",
     "coverageEnabled": true,
     "targetContracts": ["ProtocolStateMachineCampaign"],
     "targetContractsBalances": ["0"],
@@ -60,13 +60,13 @@
     "platformConfig": {
       "target": "audit/harness/ProtocolStateMachineCampaign.sol",
       "solcVersion": "",
-      "exportDirectory": "reports/medusa-compilation",
+      "exportDirectory": "audit/reports/medusa-compilation",
       "args": ["--compile-force-framework", "foundry", "--foundry-compile-all"]
     }
   },
   "logging": {
     "level": "info",
-    "logDirectory": "reports/medusa-logs",
+    "logDirectory": "audit/reports/medusa-logs",
     "noColor": true
   }
 }

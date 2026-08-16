@@ -1,8 +1,8 @@
 # ADR 0019: Incremental absolute signals and bounded Bribe rewards
 
 - Status: accepted for scalar signal deltas and bounded Bribe rewards; Resonance batch and account-enumeration
-  convenience APIs are superseded by ADR 0029, and direct Resonance signal entrypoints and aggregate state are
-  superseded by ADR 0030
+  convenience APIs are superseded by ADR 0029, direct Resonance signal entrypoints and aggregate state were superseded
+  by ADR 0030, and idle-allocation and standalone-exit provisions are superseded by ADR 0031
 - Date: 2026-08-09
 - Supersedes the signaling provisions of
   [ADR 0013](0013-upstream-shaped-core-starting-point.md)

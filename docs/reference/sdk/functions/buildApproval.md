@@ -8,7 +8,7 @@
 
 > **buildApproval**(`token`, `spender`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Encodes an ERC-20 allowance for staking, mining, Strategy payment, or redemption.
+Encodes an ERC-20 allowance for signaling, mining, Strategy payment, or redemption.
 
 ## Parameters
 

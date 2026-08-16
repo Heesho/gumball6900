@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "5",
+  "schemaVersion": "7",
   "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
   "assumptions": {
     "genesisLiquidityAllocationGBXRaw": "20000000000000000000000000",
@@ -10,7 +10,9 @@
     "maximumCapacity": "16",
     "tenureRatesLocked": true,
     "capacityOnlyIncreases": true,
-    "redemptionsCheckpointAllSlots": true
+    "redemptionsCheckpointAllSlots": true,
+    "strategyFundBps": "9000",
+    "strategyBribeBps": "1000"
   },
   "mining": {
     "priceCurve": [
@@ -59,6 +61,31 @@
       "aggregateOneHourEmission": "166666666666666666666",
       "undividedGlobalRatePerHour": "100000000000000000000",
       "explanation": "Occupied slots keep their tenure rate. Only newly occupied or replaced slots divide the current global rate by current capacity."
+    },
+    "sequentialExpansionToCap": {
+      "capacity": "16",
+      "assignedRatesPerHour": [
+        "100000000000000000000",
+        "50000000000000000000",
+        "33333333333333333333",
+        "25000000000000000000",
+        "20000000000000000000",
+        "16666666666666666666",
+        "14285714285714285714",
+        "12500000000000000000",
+        "11111111111111111111",
+        "10000000000000000000",
+        "9090909090909090909",
+        "8333333333333333333",
+        "7692307692307692307",
+        "7142857142857142857",
+        "6666666666666666666",
+        "6250000000000000000"
+      ],
+      "aggregateOneHourEmission": "338072899322899322896",
+      "undividedGlobalRatePerHour": "100000000000000000000",
+      "aggregateBpsOfUndividedRate": "33807",
+      "explanation": "Worst-order illustration with one new occupation after each capacity increase; every earlier tenure keeps its assigned rate."
     },
     "handoffHalving": {
       "halvingAmount": "490000000000000000000000000",
@@ -125,7 +152,22 @@
         "paymentAmount": "0"
       }
     ],
-    "completePaymentIsFundLiability": true
+    "cumulativeSplitIsFrequencyIndependent": true,
+    "tenOneUnitPayments": {
+      "payments": ["1", "1", "1", "1", "1", "1", "1", "1", "1", "1"],
+      "totalPayment": "10",
+      "fundLiability": "9",
+      "bribeLiability": "1",
+      "splitRemainder": "0"
+    },
+    "oneCombinedPayment": {
+      "payments": ["10"],
+      "totalPayment": "10",
+      "fundLiability": "9",
+      "bribeLiability": "1",
+      "splitRemainder": "0"
+    },
+    "directRouterDonationSurplus": "7"
   },
   "supply": {
     "identity": "totalSupply = lifetimeMinted - lifetimeBurned",

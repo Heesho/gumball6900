@@ -3,6 +3,10 @@
 This file defines the accounting identities used by the hardening tests. For Resonance, `P = 1e36`; for Bribe rewards,
 `P = 1e18`. Quantities named `Scaled` already include their subsystem's precision unit.
 
+> ADRs 0031 and 0032 make the SignalGBX and BribeRouter identities below authoritative for the next implementation.
+> Current executable tests still assert the superseded identities; see
+> [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
+
 ## Supply and mining
 
 ```text
@@ -33,23 +37,37 @@ checks exact sender debit and receiver credit.
 ## Signals and virtual Bribe balances
 
 ```text
-SignalGBX.allocatedBalance(account) = accountSignalWeight(account)
-sum_strategy Bribe(strategy).balanceOf(account) = SignalGBX.allocatedBalance(account)
+SignalGBX.balanceOf(account) = accountSignalWeight(account)
+sum_strategy Bribe(strategy).balanceOf(account) = SignalGBX.balanceOf(account)
+sum_strategy Bribe(strategy).totalSupply() = SignalGBX.totalSupply()
+GBX.balanceOf(SignalGBX) >= SignalGBX.totalSupply()
 sum_account accountSignals[account][strategy] = strategySignalWeight[strategy]
 sum_live_strategies strategySignalWeight[strategy] = totalSignalWeight
 Bribe(strategy).balanceOf(account) = accountSignals[account][strategy]
 Bribe(strategy).totalSupply() = strategySignalWeight[strategy]
-accountSignalWeight[account] <= SignalGBX.balanceOf(account)
 ```
 
-Removing signal changes only accounting and virtual balances. Unallocated SignalGBX remains withdrawable even if a
-fixed payout or reward token is blocked. A killed Strategy's recorded `strategySignalWeight` and paired Bribe supply
-remain, but its balance is excluded from active `totalSignalWeight`.
+Every successful `signal` or `signalWithPermit` deposits exact GBX, mints the same SignalGBX amount, and creates the
+same Strategy and Bribe position atomically. Every successful `withdrawSignal` removes the same position, burns the
+same SignalGBX amount, and returns exact GBX atomically. `moveSignal` changes neither escrow custody, SignalGBX supply,
+nor voting units. Excess escrow GBX is unsolicited surplus and creates no receipt, signal, or withdrawal entitlement.
+A killed Strategy's recorded `strategySignalWeight` and paired Bribe supply remain, but its balance is excluded from
+active `totalSignalWeight` and remains movable out or withdrawable.
 
 SignalGBX is the only caller accepted by Resonance's `addSignalFor`, `removeSignalFor`, and `moveSignalFor`. SignalGBX
-owns the aggregate allocation reservation; the paired Bribe owns account-by-Strategy and per-Strategy balances;
-Resonance owns only the active live-Strategy total. Atomic combined workflows must produce the same final state as their
-standalone stake, signal, remove, and unstake components.
+balance owns the aggregate signal; the paired Bribe owns account-by-Strategy and per-Strategy balances; Resonance owns
+only the active live-Strategy total. A separate `allocatedBalance`, standalone stake/unstake state, or intermediate idle
+receipt is forbidden.
+
+Before the first Strategy is registered, `liveStrategyCount = 0` and new signal is impossible. After registration:
+
+```text
+liveStrategyCount >= 1
+liveStrategyCount = sum_strategy(isStrategyAlive(strategy) ? 1 : 0)
+```
+
+Killing the final live Strategy reverts. Adding a replacement and then killing the old Strategy in one Timelock batch
+preserves the invariant.
 
 ## Governance authority
 
@@ -114,7 +132,7 @@ allocation before it snapshots auction inventory. In one block, newly notified r
 Killing a live Strategy checkpoints its whole accrued reward, preserves that claim, and subtracts its complete recorded
 weight from active `totalSignalWeight`. The recorded account, Strategy, and Bribe balances remain. Later removals reduce
 those three balances but do not subtract the already excluded weight from active `totalSignalWeight`; additions are
-forbidden.
+forbidden. The transition also decrements `liveStrategyCount` and reverts if the Strategy is the final live one.
 
 ## Bribe reward-token conservation
 
@@ -137,10 +155,25 @@ remainder does likewise. Claims clear only selected token liabilities.
 ## BribeRouter conservation
 
 ```text
-accountedPaymentBalance = fundPaymentLiability
+BPS = 10,000
+FUND_BPS = 9,000
+BRIBE_BPS = 1,000
+
+cumulativeBribeClassification
+  = floor(cumulativeStrategyPayments * BRIBE_BPS / BPS)
+cumulativeFundClassification
+  = cumulativeStrategyPayments - cumulativeBribeClassification
+splitRemainder
+  = (cumulativeStrategyPayments * BRIBE_BPS) mod BPS
+
+accountedPaymentBalance
+  = fundPaymentLiability + bribeRewardLiability
 ```
 
-Direct donations remain unaccounted surplus. Auction payments never enter Bribe reward accounting.
+Equivalent payment partitions produce identical cumulative classifications. `payFundPayment` consumes only the fixed
+Fund liability; `notifyBribeReward` consumes only the fixed Bribe liability and schedules the acquired payment asset in
+the paired Bribe. Failure preserves the affected liability and cannot change or consume the other. Direct donations
+remain unaccounted surplus and alter neither liabilities nor split remainder.
 
 ## Fund and liquidity
 

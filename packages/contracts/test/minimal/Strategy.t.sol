@@ -321,7 +321,7 @@ contract StrategyTest is ProtocolFixture {
     }
 
     function test_BuyAtomicallyIncludesRevenueReleasedThroughTheCurrentTimestamp() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _routeRevenue(604_800);
 
@@ -338,8 +338,8 @@ contract StrategyTest is ProtocolFixture {
                           ACQUISITION SETTLEMENT
     //////////////////////////////////////////////////////////////*/
 
-    function test_CompletePaymentBecomesFundLiabilityAndAdvancesTheEpoch() external {
-        _stake(ALICE, 100 ether);
+    function test_CompletePaymentBecomesFixedNinetyTenLiabilitiesAndAdvancesTheEpoch() external {
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _fundStrategy(targetStrategy, 50_000_000);
 
@@ -352,7 +352,8 @@ contract StrategyTest is ProtocolFixture {
         vm.stopPrank();
 
         assertEq(paid, DEFAULT_INITIAL_PRICE);
-        assertEq(targetRouter.fundPaymentLiability(), DEFAULT_INITIAL_PRICE);
+        assertEq(targetRouter.fundPaymentLiability(), 9 ether);
+        assertEq(targetRouter.bribePaymentLiability(), 1 ether);
         assertEq(target.balanceOf(address(targetRouter)), DEFAULT_INITIAL_PRICE);
         assertEq(target.balanceOf(address(targetBribe)), 0, "auction proceeds never fund Bribe");
         assertEq(target.balanceOf(address(targetStrategy)), 0, "no payment dust is retained");
@@ -362,12 +363,13 @@ contract StrategyTest is ProtocolFixture {
         assertEq(targetStrategy.initialPrice(), 15 ether);
     }
 
-    function test_CompletePaymentGoesToFundRegardlessOfSignalSupply() external {
+    function test_CompletePaymentIsClassifiedRegardlessOfSignalSupply() external {
         _fundStrategy(targetStrategy, 50_000_000);
 
         _buyTarget(CAROL, targetStrategy, target);
 
-        assertEq(targetRouter.fundPaymentLiability(), DEFAULT_INITIAL_PRICE);
+        assertEq(targetRouter.fundPaymentLiability(), 9 ether);
+        assertEq(targetRouter.bribePaymentLiability(), 1 ether);
         assertEq(target.balanceOf(address(targetBribe)), 0);
         assertEq(target.balanceOf(address(targetRouter)), DEFAULT_INITIAL_PRICE);
     }
@@ -380,7 +382,7 @@ contract StrategyTest is ProtocolFixture {
             resonance.addStrategy(IERC20(address(target)), config);
         Strategy dustStrategy = Strategy(strategyAddress);
 
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, strategyAddress);
         usdg.mint(strategyAddress, 50_000_000);
 
@@ -392,12 +394,13 @@ contract StrategyTest is ProtocolFixture {
 
         assertEq(paid, 1);
         assertEq(BribeRouter(routerAddress).fundPaymentLiability(), 1);
+        assertEq(BribeRouter(routerAddress).bribePaymentLiability(), 0);
         assertEq(target.balanceOf(bribeAddress), 0);
         assertEq(target.balanceOf(routerAddress), 1);
     }
 
     function test_AcquisitionPricedInTheRevenueTokenSettlesExactly() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         (address strategyAddress, address bribeAddress, address routerAddress) =
             resonance.addStrategy(IERC20(address(usdg)), defaultConfig());
         Strategy selfPriced = Strategy(strategyAddress);
@@ -413,7 +416,8 @@ contract StrategyTest is ProtocolFixture {
 
         assertEq(usdg.balanceOf(strategyAddress), 0, "revenue and payment must not co-mingle");
         assertEq(usdg.balanceOf(CAROL), 50_000_000);
-        assertEq(BribeRouter(routerAddress).fundPaymentLiability(), DEFAULT_INITIAL_PRICE);
+        assertEq(BribeRouter(routerAddress).fundPaymentLiability(), 9 ether);
+        assertEq(BribeRouter(routerAddress).bribePaymentLiability(), 1 ether);
         assertEq(usdg.balanceOf(bribeAddress), 0);
     }
 
@@ -438,7 +442,7 @@ contract StrategyTest is ProtocolFixture {
     //////////////////////////////////////////////////////////////*/
 
     function test_GBXPaymentWaitsInRouterUntilFundDeliveryAndPermissionlessBurn() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(gbxStrategy));
         _fundStrategy(gbxStrategy, 50_000_000);
         _mintTestGBX(BOB, DEFAULT_INITIAL_PRICE);
@@ -453,19 +457,20 @@ contract StrategyTest is ProtocolFixture {
 
         assertEq(gbx.totalSupply(), supplyBefore, "Strategy settlement does not burn GBX");
         assertEq(gbx.lifetimeBurned(), burnedBefore);
-        assertEq(gbxRouter.fundPaymentLiability(), DEFAULT_INITIAL_PRICE);
+        assertEq(gbxRouter.fundPaymentLiability(), 9 ether);
+        assertEq(gbxRouter.bribePaymentLiability(), 1 ether);
         assertEq(gbx.balanceOf(address(gbxRouter)), DEFAULT_INITIAL_PRICE);
         assertEq(gbx.balanceOf(address(fund)), 0);
         assertEq(gbx.balanceOf(address(gbxBribe)), 0);
         assertEq(usdg.balanceOf(BOB), 50_000_000);
 
         gbxRouter.payFundPayment();
-        assertEq(gbx.balanceOf(address(fund)), DEFAULT_INITIAL_PRICE);
+        assertEq(gbx.balanceOf(address(fund)), 9 ether);
         assertEq(gbx.totalSupply(), supplyBefore, "Fund receipt does not burn GBX");
 
-        fund.burnGBX(DEFAULT_INITIAL_PRICE);
-        assertEq(gbx.totalSupply(), supplyBefore - DEFAULT_INITIAL_PRICE);
-        assertEq(gbx.lifetimeBurned(), burnedBefore + DEFAULT_INITIAL_PRICE);
+        fund.burnGBX(9 ether);
+        assertEq(gbx.totalSupply(), supplyBefore - 9 ether);
+        assertEq(gbx.lifetimeBurned(), burnedBefore + 9 ether);
         assertEq(gbx.balanceOf(address(fund)), 0);
     }
 
@@ -575,18 +580,20 @@ contract StrategyTest is ProtocolFixture {
         assertEq(targetStrategy.currentPrice(), expected);
     }
 
-    /// @notice Every payment becomes an exactly conserved Fund liability.
-    function testFuzz_CompletePaymentIsConservedAsFundLiability(uint256 offset) external {
+    /// @notice Every payment becomes exactly conserved fixed Fund and Bribe liabilities.
+    function testFuzz_CompletePaymentIsConservedAsNinetyTenLiabilities(uint256 offset) external {
         uint256 elapsed = bound(offset, 0, DEFAULT_EPOCH_DURATION - 1);
 
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _fundStrategy(targetStrategy, 50_000_000);
 
         vm.warp(DEPLOYED_AT + elapsed);
         uint256 paid = _buyTarget(CAROL, targetStrategy, target);
 
-        assertEq(targetRouter.fundPaymentLiability(), paid);
+        uint256 expectedBribe = paid / 10;
+        assertEq(targetRouter.fundPaymentLiability(), paid - expectedBribe);
+        assertEq(targetRouter.bribePaymentLiability(), expectedBribe);
         assertEq(target.balanceOf(address(targetRouter)), paid);
         assertEq(target.balanceOf(address(targetBribe)), 0);
         assertEq(target.balanceOf(address(targetStrategy)), 0);
@@ -624,13 +631,16 @@ contract StrategyTest is ProtocolFixture {
 
         assertEq(paid, price);
         assertEq(gbx.totalSupply(), supplyBefore);
-        assertEq(gbxRouter.fundPaymentLiability(), price);
+        uint256 expectedBribe = price / 10;
+        uint256 expectedFund = price - expectedBribe;
+        assertEq(gbxRouter.fundPaymentLiability(), expectedFund);
+        assertEq(gbxRouter.bribePaymentLiability(), expectedBribe);
 
         if (price != 0) {
             gbxRouter.payFundPayment();
-            assertEq(gbx.balanceOf(address(fund)), price);
-            fund.burnGBX(price);
-            assertEq(gbx.totalSupply(), supplyBefore - price);
+            assertEq(gbx.balanceOf(address(fund)), expectedFund);
+            fund.burnGBX(expectedFund);
+            assertEq(gbx.totalSupply(), supplyBefore - expectedFund);
         }
     }
 

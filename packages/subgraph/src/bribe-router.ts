@@ -1,5 +1,10 @@
 import { dataSource } from '@graphprotocol/graph-ts';
-import { FundPaymentAccrued, FundPaymentPaid } from '../generated/templates/BribeRouterTemplate/BribeRouter';
+import {
+  BribePaymentAccrued,
+  BribeRewardNotified,
+  FundPaymentAccrued,
+  FundPaymentPaid,
+} from '../generated/templates/BribeRouterTemplate/BribeRouter';
 import { Strategy } from '../generated/schema';
 import { recordEvent } from './entities';
 
@@ -33,6 +38,35 @@ export function handleRouterFundPaymentPaid(event: FundPaymentPaid): void {
 
   const record = recordEvent(event, 'BRIBE_ROUTER_FUND_PAYMENT_PAID');
   record.addresses = [event.params.caller, event.params.fund, event.params.paymentToken];
+  record.values = [event.params.amount];
+  record.save();
+}
+
+export function handleRouterBribePaymentAccrued(event: BribePaymentAccrued): void {
+  const entity = strategy();
+  entity.routerBribePaymentAccruedRaw = entity.routerBribePaymentAccruedRaw.plus(event.params.amount);
+  entity.pendingRouterBribePaymentRaw = event.params.totalLiability;
+  entity.routerSplitRemainderRaw = event.params.remainder;
+  entity.lastBlockNumber = event.block.number;
+  entity.lastTimestamp = event.block.timestamp;
+  entity.save();
+
+  const record = recordEvent(event, 'BRIBE_ROUTER_BRIBE_PAYMENT_ACCRUED');
+  record.addresses = [event.params.bribe, event.params.paymentToken];
+  record.values = [event.params.amount, event.params.totalLiability, event.params.remainder];
+  record.save();
+}
+
+export function handleRouterBribeRewardNotified(event: BribeRewardNotified): void {
+  const entity = strategy();
+  entity.routerBribePaymentNotifiedRaw = entity.routerBribePaymentNotifiedRaw.plus(event.params.amount);
+  entity.pendingRouterBribePaymentRaw = entity.pendingRouterBribePaymentRaw.minus(event.params.amount);
+  entity.lastBlockNumber = event.block.number;
+  entity.lastTimestamp = event.block.timestamp;
+  entity.save();
+
+  const record = recordEvent(event, 'BRIBE_ROUTER_BRIBE_REWARD_NOTIFIED');
+  record.addresses = [event.params.caller, event.params.bribe, event.params.paymentToken];
   record.values = [event.params.amount];
   record.save();
 }

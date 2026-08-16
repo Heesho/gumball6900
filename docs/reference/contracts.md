@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 23. Documented ABI entries: 594. Documented public ABI functions: 314.
+Documented source surfaces: 22. Documented ABI entries: 594. Documented public ABI functions: 315.
 
 ## Bribe
 
@@ -757,7 +757,7 @@ Source: [`src/core/BribeRouter.sol`](../../packages/contracts/src/core/BribeRout
 
 Artifact: `out/BribeRouter.sol/BribeRouter.json`
 
-Public ABI: 9 functions, 3 events, 7 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 15 functions, 5 events, 7 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address)`
 
@@ -770,9 +770,33 @@ Creates the fixed route between one Strategy, payment token, Bribe, and Fund.
 **Parameters**
 
 - `bribe_`: Independently fundable Bribe paired with the Strategy.
-- `fund_`: Treasury receiving every completed payment.
+- `fund_`: Treasury receiving the fixed 90% share of cumulative completed payments.
 - `paymentToken_`: Strategy payment token.
 - `strategy_`: Strategy exclusively allowed to route payments.
+
+### `BPS()`
+
+```solidity
+function BPS() external view returns (uint256 arg0);
+```
+
+Denominator for the immutable payment split.
+
+### `BRIBE_BPS()`
+
+```solidity
+function BRIBE_BPS() external view returns (uint256 arg0);
+```
+
+Basis points of cumulative Strategy payments classified to the paired Bribe.
+
+### `FUND_BPS()`
+
+```solidity
+function FUND_BPS() external view returns (uint256 arg0);
+```
+
+Basis points of cumulative Strategy payments classified to Fund.
 
 ### `accountedPaymentBalance()`
 
@@ -780,7 +804,7 @@ Creates the fixed route between one Strategy, payment token, Bribe, and Fund.
 function accountedPaymentBalance() external view returns (uint256 arg0);
 ```
 
-Exact payment-token balance pulled from Strategy minus completed Fund payouts.
+Exact payment-token balance pulled from Strategy minus completed Fund and Bribe settlements.
 
 ### `bribe()`
 
@@ -788,7 +812,15 @@ Exact payment-token balance pulled from Strategy minus completed Fund payouts.
 function bribe() external view returns (contract Bribe arg0);
 ```
 
-Independently fundable Bribe paired with the Strategy.
+Bribe paired with the Strategy and fixed as the automatic 10% reward destination.
+
+### `bribePaymentLiability()`
+
+```solidity
+function bribePaymentLiability() external view returns (uint256 arg0);
+```
+
+Payment-token amount irrevocably owed to the paired Bribe and not yet notified.
 
 ### `fund()`
 
@@ -796,7 +828,7 @@ Independently fundable Bribe paired with the Strategy.
 function fund() external view returns (address arg0);
 ```
 
-Immutable treasury destination for every completed payment.
+Immutable treasury destination for the 90% Fund-classified share.
 
 ### `fundPaymentLiability()`
 
@@ -804,7 +836,20 @@ Immutable treasury destination for every completed payment.
 function fundPaymentLiability() external view returns (uint256 arg0);
 ```
 
-Complete payment-token amount irrevocably owed to Fund and payable by any caller.
+Payment-token amount irrevocably owed to Fund and payable by any caller.
+
+### `notifyBribeReward()`
+
+```solidity
+function notifyBribeReward() external returns (uint256 amount);
+```
+
+Notifies the complete paired-Bribe liability as an acquired-asset reward.
+State clears before interaction; any failure atomically restores this leg without altering Fund liability.
+
+**Returns**
+
+- `amount`: Exact reward amount notified.
 
 ### `payFundPayment()`
 
@@ -845,11 +890,19 @@ Strategy payment token routed by this contract.
 function routePayment(uint256 amount) external;
 ```
 
-Pulls one complete auction payment and records it as a fixed Fund liability.
+Pulls one complete auction payment and cumulatively classifies its fixed 90/10 liabilities.
 
 **Parameters**
 
 - `amount`: Exact payment-token amount to pull.
+
+### `splitRemainder()`
+
+```solidity
+function splitRemainder() external view returns (uint256 arg0);
+```
+
+Sub-token Bribe entitlement in basis-point numerator units, always smaller than `BPS`.
 
 ### `strategy()`
 
@@ -860,6 +913,22 @@ function strategy() external view returns (address arg0);
 Strategy exclusively authorized to supply completed auction payments.
 
 ### Events
+
+#### `BribePaymentAccrued(address,address,uint256,uint256,uint256)`
+
+```solidity
+event BribePaymentAccrued(address indexed bribe, address indexed paymentToken, uint256 amount, uint256 totalLiability, uint256 remainder);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `BribeRewardNotified(address,address,address,uint256)`
+
+```solidity
+event BribeRewardNotified(address indexed caller, address indexed bribe, address indexed paymentToken, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
 
 #### `FundPaymentAccrued(address,address,uint256,uint256)`
 
@@ -2547,7 +2616,7 @@ Source: [`src/core/Resonance.sol`](../../packages/contracts/src/core/Resonance.s
 
 Artifact: `out/Resonance.sol/Resonance.json`
 
-Public ABI: 40 functions, 9 events, 21 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 41 functions, 9 events, 21 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address,address,address)`
 
@@ -2579,8 +2648,8 @@ Fixed-point precision for allocating six-decimal USDG across eighteen-decimal Si
 function accountSignalWeight(address account) external view returns (uint256 amount);
 ```
 
-Returns an account's complete allocation across live and killed Strategies.
-SignalGBX owns the canonical aggregate used to reserve allocated stake.
+Returns an account's complete signal across live and killed Strategies.
+SignalGBX balance is the canonical account aggregate because idle sGBX is unreachable.
 
 ### `accountSignals(address,address)`
 
@@ -2736,6 +2805,14 @@ function left(address rewardToken) external view returns (uint256 reward);
 
 Returns exact raw reward units left in the active period.
 
+### `liveStrategyCount()`
+
+```solidity
+function liveStrategyCount() external view returns (uint256 arg0);
+```
+
+Number of registered Strategies eligible for new signal and future Resonance rewards.
+
 ### `moveSignalFor(address,address,address,uint256)`
 
 ```solidity
@@ -2825,7 +2902,7 @@ Binds the sole ResonanceRouter after reciprocal Resonance and USDG identity vali
 function signalGBX() external view returns (contract IERC20 arg0);
 ```
 
-Non-transferable staking receipt used as signal power.
+Non-transferable signal receipt used as allocation and governance power.
 
 ### `strategyFactory()`
 
@@ -2968,6 +3045,14 @@ error DuplicateStrategy(address strategy);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `FinalLiveStrategy(address)`
+
+```solidity
+error FinalLiveStrategy(address strategy);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `ForbiddenPaymentToken(address)`
 
 ```solidity
@@ -3012,14 +3097,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error InvalidResonanceRouter(address resonanceRouter);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `NotRewardToken(address)`
-
-```solidity
-error NotRewardToken(address token);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3255,7 +3332,7 @@ Source: [`src/core/SignalGBX.sol`](../../packages/contracts/src/core/SignalGBX.s
 
 Artifact: `out/SignalGBX.sol/SignalGBX.json`
 
-Public ABI: 36 functions, 9 events, 32 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 31 functions, 9 events, 29 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -3263,11 +3340,11 @@ Public ABI: 36 functions, 9 events, 32 custom errors, 1 constructor, 0 receive e
 constructor(contract IERC20 gbx_, address initialOwner);
 ```
 
-Creates the non-transferable staking receipt and assigns deployment-time ownership.
+Creates the non-transferable signal token and assigns deployment-time ownership.
 
 **Parameters**
 
-- `gbx_`: GBX token deposited by stakers.
+- `gbx_`: GBX token deposited by signalers.
 - `initialOwner`: Deployment-time owner responsible for binding Resonance.
 
 ### `CLOCK_MODE()`
@@ -3277,14 +3354,6 @@ function CLOCK_MODE() external view returns (string arg0);
 ```
 
 Machine-readable description of the clock as specified in ERC-6372.
-
-### `allocatedBalance(address)`
-
-```solidity
-function allocatedBalance(address account) external view returns (uint256 amount);
-```
-
-SignalGBX allocated by each account across all live and killed Strategies.
 
 ### `allowance(address,address)`
 
@@ -3444,32 +3513,6 @@ function owner() external view returns (address arg0);
 
 Returns the address of the current owner.
 
-### `removeSignal(address,uint256)`
-
-```solidity
-function removeSignal(address strategy, uint256 amount) external;
-```
-
-Removes signal from one Strategy while leaving the SignalGBX idle and immediately reusable.
-
-**Parameters**
-
-- `amount`: Absolute SignalGBX delta removed.
-- `strategy`: Strategy losing signal; exits remain available after kill.
-
-### `removeSignalAndUnstake(address,uint256)`
-
-```solidity
-function removeSignalAndUnstake(address strategy, uint256 amount) external;
-```
-
-Atomically removes signal, burns the released SignalGBX, and returns the same amount of GBX.
-
-**Parameters**
-
-- `amount`: Amount of signal removed, SignalGBX burned, and GBX returned.
-- `strategy`: Strategy losing signal; exits remain available after kill.
-
 ### `renounceOwnership()`
 
 ```solidity
@@ -3504,50 +3547,25 @@ Binds the Resonance dependency once after reciprocal SignalGBX identity validati
 function signal(address strategy, uint256 amount) external;
 ```
 
-Allocates existing unallocated SignalGBX to one live Strategy.
+Atomically deposits GBX, mints the same sGBX amount, and assigns it to one live Strategy.
 
 **Parameters**
 
-- `amount`: Absolute SignalGBX delta added.
-- `strategy`: Live Strategy receiving signal.
+- `amount`: Exact GBX deposited, sGBX minted, and signal assigned.
+- `strategy`: Live Strategy receiving the complete new signal.
 
-### `stake(uint256)`
-
-```solidity
-function stake(uint256 amount) external;
-```
-
-Stakes GBX after Resonance setup and mints the same amount of non-transferable SignalGBX.
-
-**Parameters**
-
-- `amount`: Amount of GBX to stake.
-
-### `stakeAndSignal(address,uint256)`
+### `signalWithPermit(address,uint256,uint256,uint8,bytes32,bytes32)`
 
 ```solidity
-function stakeAndSignal(address strategy, uint256 amount) external;
+function signalWithPermit(address strategy, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
 ```
 
-Atomically stakes GBX and allocates the minted SignalGBX to one live Strategy.
-
-**Parameters**
-
-- `amount`: Amount of GBX staked and SignalGBX allocated.
-- `strategy`: Live Strategy receiving signal.
-
-### `stakeAndSignalWithPermit(address,uint256,uint256,uint8,bytes32,bytes32)`
-
-```solidity
-function stakeAndSignalWithPermit(address strategy, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
-```
-
-Attempts an underlying GBX permit, then atomically stakes and signals the requested amount.
+Attempts an underlying GBX permit, then performs the same atomic transition as `signal`.
 A pre-consumed permit may fail harmlessly because the exact underlying transfer remains authoritative.
 
 **Parameters**
 
-- `amount`: Amount of GBX requested, staked, and SignalGBX allocated.
+- `amount`: Amount of GBX deposited, SignalGBX minted, and signal assigned.
 - `deadline`: Permit expiry timestamp.
 - `r`: Permit signature `r` component.
 - `s`: Permit signature `s` component.
@@ -3594,18 +3612,18 @@ function transferOwnership(address newOwner) external;
 
 Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
 
-### `unstake(uint256)`
+### `withdrawSignal(address,uint256)`
 
 ```solidity
-function unstake(uint256 amount) external;
+function withdrawSignal(address strategy, uint256 amount) external;
 ```
 
-Burns unallocated SignalGBX and immediately returns the same amount of underlying GBX.
-Active signals reserve only their absolute allocated amount; they do not block withdrawal of the remainder.
+Atomically removes signal, burns the same sGBX amount, and returns the same amount of GBX.
 
 **Parameters**
 
-- `amount`: Amount of SignalGBX to burn and GBX to withdraw.
+- `amount`: Amount of signal removed, SignalGBX burned, and GBX returned.
+- `strategy`: Strategy losing signal; exits remain available after kill.
 
 ### Events
 
@@ -3657,10 +3675,18 @@ event ResonanceSet(address indexed resonance);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `Staked(address,uint256)`
+#### `SignalWithdrawn(address,address,uint256)`
 
 ```solidity
-event Staked(address indexed account, uint256 amount);
+event SignalWithdrawn(address indexed account, address indexed strategy, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Signaled(address,address,uint256)`
+
+```solidity
+event Signaled(address indexed account, address indexed strategy, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3673,23 +3699,7 @@ event Transfer(address indexed from, address indexed to, uint256 value);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `Unstaked(address,uint256)`
-
-```solidity
-event Unstaked(address indexed account, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 ### Custom errors
-
-#### `ActiveSignals(address,uint256)`
-
-```solidity
-error ActiveSignals(address account, uint256 signalWeight);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
 
 #### `CheckpointUnorderedInsertion()`
 
@@ -3799,22 +3809,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error InexactUnderlyingTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InsufficientAllocatedSignal(uint256,uint256)`
-
-```solidity
-error InsufficientAllocatedSignal(uint256 available, uint256 requested);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InsufficientUnallocatedSignal(uint256,uint256)`
-
-```solidity
-error InsufficientUnallocatedSignal(uint256 available, uint256 requested);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -4758,30 +4752,6 @@ Routes the complete nonzero pending USDG balance into Resonance.
 **Returns**
 
 - `amount`: Amount delivered to Resonance.
-
-## ISignalGBXAllocation
-
-Source: [`src/core/interfaces/ISignalGBXAllocation.sol`](../../packages/contracts/src/core/interfaces/ISignalGBXAllocation.sol)
-
-Artifact: `out/ISignalGBXAllocation.sol/ISignalGBXAllocation.json`
-
-Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `allocatedBalance(address)`
-
-```solidity
-function allocatedBalance(address account) external view returns (uint256 amount);
-```
-
-Returns the SignalGBX balance one account has allocated across all live and killed Strategies.
-
-**Parameters**
-
-- `account`: Account whose aggregate allocation is queried.
-
-**Returns**
-
-- `amount`: Complete allocated SignalGBX balance.
 
 ## ProtocolGovernor
 

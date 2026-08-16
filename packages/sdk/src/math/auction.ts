@@ -1,10 +1,12 @@
 import {
   ABS_MAX_AUCTION_INIT_PRICE,
   ABS_MIN_AUCTION_INIT_PRICE,
+  BPS_DENOMINATOR,
   MAX_AUCTION_EPOCH_PERIOD,
   MAX_AUCTION_PRICE_MULTIPLIER,
   MIN_AUCTION_EPOCH_PERIOD,
   MIN_AUCTION_PRICE_MULTIPLIER,
+  STRATEGY_BRIBE_BPS,
   WAD,
 } from './constants.js';
 import { assertNonNegative, assertPositive, clampBigInt, mulDiv } from './integer.js';
@@ -12,6 +14,8 @@ import { assertNonNegative, assertPositive, clampBigInt, mulDiv } from './intege
 export interface StrategyPaymentSettlement {
   paymentAmount: bigint;
   fundAmount: bigint;
+  bribeAmount: bigint;
+  splitRemainder: bigint;
 }
 
 export interface AuctionConfig {
@@ -59,8 +63,21 @@ export function nextAuctionInitPrice(
   return clampBigInt(mulDiv(quotedPaymentAmount, priceMultiplier, WAD), minInitPrice, ABS_MAX_AUCTION_INIT_PRICE);
 }
 
-/** Models the uniform Strategy rule: every completed payment is owed entirely to Fund. */
-export function settleStrategyPayment(paymentAmount: bigint): StrategyPaymentSettlement {
+/** Models BribeRouter's cumulative, frequency-independent 90/10 acquired-asset classification. */
+export function settleStrategyPayment(paymentAmount: bigint, priorSplitRemainder = 0n): StrategyPaymentSettlement {
   assertNonNegative(paymentAmount, 'paymentAmount');
-  return { paymentAmount, fundAmount: paymentAmount };
+  assertNonNegative(priorSplitRemainder, 'priorSplitRemainder');
+  if (priorSplitRemainder >= BPS_DENOMINATOR) {
+    throw new RangeError('priorSplitRemainder must be smaller than BPS_DENOMINATOR');
+  }
+
+  const baseBribeAmount = mulDiv(paymentAmount, STRATEGY_BRIBE_BPS, BPS_DENOMINATOR);
+  const accumulatedRemainder = priorSplitRemainder + ((paymentAmount * STRATEGY_BRIBE_BPS) % BPS_DENOMINATOR);
+  const bribeAmount = baseBribeAmount + accumulatedRemainder / BPS_DENOMINATOR;
+  return {
+    paymentAmount,
+    fundAmount: paymentAmount - bribeAmount,
+    bribeAmount,
+    splitRemainder: accumulatedRemainder % BPS_DENOMINATOR,
+  };
 }

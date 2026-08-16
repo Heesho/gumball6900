@@ -1,22 +1,26 @@
 # GumBall6900
 
 GumBall6900 is an experimental, governance-minimized onchain index protocol for Robinhood Chain. GBX miners supply
-recurring USDG revenue, staked GBX holders continuously signal which assets the protocol should acquire, and GBX can be
+recurring USDG revenue, GBX signalers continuously direct which assets the protocol should acquire, and GBX can be
 burned for caller-selected Fund assets.
 
 > Development status: not deployed, audited, or authorized for user funds. Independent review, legal/provenance
 > clearance, final economic parameters, and signed deployment evidence remain release blockers.
+
+> Architecture status: [ADR 0031](docs/adr/0031-mandatory-signal-backed-signalgbx.md) and
+> [ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md) are implemented in the development tree. This is
+> local engineering evidence only; independent review and every deployment gate remain outstanding.
 
 ## Protocol loop
 
 1. A user replaces an hourly Mine slot. If a miner is displaced, 80% of the USDG payment becomes their claim and 20%
    routes to Resonance. An empty slot routes 100% to Resonance.
 2. The slot miner continuously accrues GBX at a rate fixed for that complete tenure.
-3. GBX holders stake one-for-one into non-transferable SignalGBX (`sGBX`), the governance token and sole signal
-   coordinator. They may stake and signal atomically, move absolute allocations, or remove a signal and unstake in one
-   call. Signal changes checkpoint elapsed flow first; idle sGBX can govern but directs no revenue or Bribe rewards.
+3. GBX holders call SignalGBX (`sGBX`), the non-transferable governance token and sole signal coordinator, to deposit
+   GBX, mint the same sGBX amount, and assign every minted unit to one live Strategy atomically. They may move an
+   allocation without changing custody or votes, or withdraw it by removing signal, burning sGBX, and receiving GBX.
 4. A Strategy buyer atomically pulls its released USDG, receives the complete Strategy balance, and pays the asset that
-   Strategy acquires; the complete payment becomes a Fund
+   Strategy acquires; BribeRouter cumulatively classifies the payment as 90% Fund liability and 10% paired-Bribe reward
    liability.
 5. A GBX holder burns tokens to redeem a proportional share of caller-selected Fund assets.
 
@@ -24,9 +28,10 @@ burned for caller-selected Fund assets.
 replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance --7-day stream--> Strategies
                          \--80%--> displaced miner
 Mine -> continuous GBX
-SignalGBX --signal coordination------> Resonance allocation weights
+GBX -> SignalGBX --mandatory signal--> Resonance allocation weights
 SignalGBX --block-clock votes--------> ProtocolGovernor -> Timelock
-Strategy payment -> BribeRouter -> Fund
+Strategy acquired-asset payment -> BribeRouter --90%--> Fund
+                                              \--10%--> paired Bribe -> signalers
 GBX burn -> Fund selected assets
 ```
 
@@ -38,8 +43,8 @@ reward index; index and Strategy floors, zero-active-signal intervals, and direc
 
 GBX creates only 20 million tokens for the permanent, one-sided genesis liquidity position. Deployment then binds its
 sole mint authority permanently to Mine. There is no protocol-defined economic supply cap or replacement minter. GBX
-retains ERC-2612 permit approvals but carries no governance checkpoints; voting power exists only after staking into
-sGBX.
+retains ERC-2612 permit approvals but carries no governance checkpoints; voting power exists only while GBX backs an
+active Strategy signal through sGBX.
 
 Mine starts with one slot. Timelock governance may only increase capacity, up to 16. Every slot's USDG replacement
 price decays linearly to zero over one hour and can be filled at any time.
@@ -74,6 +79,8 @@ Governor proposals contain only those four exact zero-value calls at immutable R
 delay, voting period, proposal threshold, and quorum percentage use sGBX's block-number clock and are fixed at
 construction. Execution is permissionless after the Timelock delay. There is no multisig bypass, guardian, queued
 proposal veto, proxy, pause switch, treasury sweep, arbitrary call path, successor, or migration routine.
+After the first Strategy is created, `killStrategy` cannot remove the final live Strategy; governance replaces it by
+batching an addition before the old Strategy's kill.
 
 ## Contracts
 
@@ -81,12 +88,12 @@ proposal veto, proxy, pause switch, treasury sweep, arbitrary call path, success
 | ------------------- | ------------------------------------------------------------------------------------------------- |
 | `GBX`               | Genesis allocation, permanent Mine authority, cumulative mint/burn accounting, ERC-2612 permits.  |
 | `Mine`              | Hourly multislot handoffs, continuous tenure-locked GBX accrual, 80/20 USDG split, positive tail. |
-| `SignalGBX`         | Non-transferable staked GBX, ERC20Votes governance power, and the sole signal coordinator.        |
+| `SignalGBX`         | Mandatory signal-backed GBX escrow, ERC20Votes governance, and sole signal coordinator.           |
 | `ResonanceRouter`   | Holds USDG below the active amount left, then permissionlessly forwards a qualifying balance.     |
 | `Resonance`         | Bribe-shaped seven-day USDG rewards, active signal totals, and Strategy/Bribe administration.     |
 | `Strategy`          | Reverse Dutch acquisition auction.                                                                |
-| `BribeRouter`       | Fixed complete Strategy-payment liability to Fund.                                                |
-| `Bribe`             | Up to eight independently funded reward streams for signalers.                                    |
+| `BribeRouter`       | Cumulative immutable 90% Fund / 10% paired-Bribe acquired-asset classification and liabilities.   |
+| `Bribe`             | Automatic acquired-asset share plus additional rewards, within the fixed eight-token cap.         |
 | `Fund`              | Registry-free backing, selective redemption, and permissionless Fund-held GBX burn.               |
 | `LiquidityPosition` | Permanent fixed-principal Uniswap v4 position and permissionless fee routing.                     |
 | `ProtocolGovernor`  | Immutable four-selector sGBX governance over Timelock-owned Resonance and Mine.                   |
@@ -116,10 +123,13 @@ pnpm build
 ```
 
 Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
-[emissions](docs/EMISSIONS.md), [access control](docs/ACCESS_CONTROL.md), and
+[emissions](docs/EMISSIONS.md), [access control](docs/ACCESS_CONTROL.md),
+[operations](docs/OPERATIONS.md), and
 [ADR 0024](docs/adr/0024-immutable-multislot-mine.md), and
-[ADR 0029](docs/adr/0029-bribe-based-resonance.md), and
-[ADR 0030](docs/adr/0030-signalgbx-coordination-and-token-governance.md).
+[ADR 0029](docs/adr/0029-bribe-based-resonance.md),
+[ADR 0030](docs/adr/0030-signalgbx-coordination-and-token-governance.md),
+[ADR 0031](docs/adr/0031-mandatory-signal-backed-signalgbx.md), and
+[ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md).
 
 ## Provenance
 

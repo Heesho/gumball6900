@@ -1,6 +1,8 @@
 # Whitepaper fact check
 
-This register covers whitepaper v0.5. Solidity and the cross-language economic fixtures are authoritative.
+This register covers whitepaper v0.6. Existing Solidity and cross-language fixtures remain authoritative local
+engineering evidence for implemented mechanics. ADRs 0031 and 0032 are implemented in the development tree; no row is
+an independent audit or deployment claim.
 
 | Claim                                                                         | Source                                              | Status / limitation                                   |
 | ----------------------------------------------------------------------------- | --------------------------------------------------- | ----------------------------------------------------- |
@@ -9,6 +11,9 @@ This register covers whitepaper v0.5. Solidity and the cross-language economic f
 | GBX has no protocol-defined economic maximum                                  | GBX ABI and ADR 0024                                | Enforced; GBX has no voting checkpoints               |
 | GBX permit and sGBX voting responsibilities are separate                      | `GBX`, `SignalGBX`, ADR 0030                        | GBX has permit; sGBX has votes and no approval permit |
 | ProtocolGovernor is limited to four exact zero-value calls                    | `ProtocolGovernor._propose`, ADR 0030               | Enforced at immutable targets                         |
+| Every minted sGBX unit is atomically assigned to one Strategy                 | `SignalGBX.signal`, ADR 0031                        | Enforced and covered by deterministic/stateful tests  |
+| Final live Strategy cannot be killed after bootstrap                          | `Resonance.killStrategy`, ADR 0031                  | Enforced through explicit live-Strategy count         |
+| Strategy payment is cumulatively 90% Fund / 10% paired Bribe                  | `BribeRouter.routePayment`, ADR 0032                | Enforced with explicit split remainder                |
 | Mine capacity begins at one and never exceeds sixteen                         | `Mine.capacity`, `MAX_CAPACITY`, `increaseCapacity` | Enforced                                              |
 | Capacity cannot decrease                                                      | `increaseCapacity` guard; no decrease method        | Enforced                                              |
 | Slot price reaches zero after one hour                                        | `PRICE_DECAY_PERIOD`, `Mine._price`                 | Enforced                                              |

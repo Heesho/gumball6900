@@ -1,12 +1,14 @@
 # ADR 0029: Bribe-based Resonance reward stream
 
-- Status: accepted for the Resonance reward stream; direct signal entrypoints and signal-state ownership superseded by
-  ADR 0030; not audited or deployed; not approved for user funds
+- Status: accepted for the Resonance reward stream; direct signal entrypoints and signal-state ownership were
+  superseded by ADR 0030 and then ADR 0031; permission to kill the final live Strategy is superseded by ADR 0031; the
+  preserved 100%-Fund settlement is superseded by ADR 0032; not audited or deployed; not approved for user funds
 - Date: 2026-08-15
 - Supersedes: ADR 0026 and the Resonance carry, direct-donation synchronization, and Resonance Fund-liability provisions
   of ADR 0020
-- Preserves: ADR 0019's incremental signals, ADR 0021's complete Strategy-payment liability, ADR 0027's Bribe carry
-  policy, and ADR 0028's closed Bribe pool after Strategy death
+- Preserves historically: ADR 0019's incremental signals, ADR 0021's then-current complete Strategy-payment liability,
+  ADR 0027's Bribe carry policy, and ADR 0028's closed Bribe pool after Strategy death. ADRs 0031 and 0032 replace the
+  first two where stated above.
 
 ## Context
 

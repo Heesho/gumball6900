@@ -9,18 +9,16 @@ describe('core starting-point status page', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'The governance-minimized GBX protocol.' })).toBeTruthy();
     expect(screen.getByText('20,000,000 GBX')).toBeTruthy();
-    expect(screen.getByText('100% Fund-bound')).toBeTruthy();
+    expect(screen.getByText('90% Fund · 10% Bribe')).toBeTruthy();
     expect(screen.getByText('None')).toBeTruthy();
-    expect(
-      screen.getByText(/Stake GBX into non-transferable sGBX to signal which assets Fund should accumulate/i),
-    ).toBeTruthy();
-    expect(screen.getByText('Pro-rata independently funded Bribe stream')).toBeTruthy();
-    expect(screen.getByText('stakeAndSignal() · removeSignalAndUnstake()')).toBeTruthy();
+    expect(screen.getByText(/Deposit GBX directly into a Strategy signal to mint non-transferable sGBX/i)).toBeTruthy();
+    expect(screen.getByText('Pro-rata Bribe stream from its explicit notifications')).toBeTruthy();
+    expect(screen.getByText('signal() / signalWithPermit() · withdrawSignal()')).toBeTruthy();
     expect(screen.getByText('20% Resonance · 80% displaced miner')).toBeTruthy();
     expect(screen.getByText('USDG → Resonance · GBX → Fund burn · principal fixed')).toBeTruthy();
     expect(screen.getByText('Internally hardened candidate · not deployed · external audit pending')).toBeTruthy();
     expect(screen.getByText('left(USDG) · distribute(strategy)')).toBeTruthy();
-    expect(screen.getByText('fundPaymentLiability → payFundPayment()')).toBeTruthy();
+    expect(screen.getByText(/fundPaymentLiability → payFundPayment\(\).*bribePaymentLiability/)).toBeTruthy();
     expect(screen.getByText('claimReward() · claimRewards(account, tokens)')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /connect wallet/i })).toBeNull();
   });

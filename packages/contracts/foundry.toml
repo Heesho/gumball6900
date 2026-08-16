@@ -26,6 +26,13 @@ invariant = { runs = 1_000, depth = 500, fail_on_revert = true }
 fuzz = { runs = 100_000 }
 invariant = { runs = 10_000, depth = 1_000, fail_on_revert = true }
 
+# Echidna identifies constructor-deployed contracts by compiler metadata when resolving
+# immutable references. Keep metadata enabled only for this test-only build profile;
+# production and release artifact profiles continue to use metadata-free bytecode.
+[profile.echidna]
+bytecode_hash = "ipfs"
+cbor_metadata = true
+
 # Suites that cannot live in the default profile because they pull oversized contracts into the build graph, which
 # would make `forge build --sizes` reject a contract that gate exists to protect. Neither is deployed on chain:
 #

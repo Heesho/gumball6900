@@ -1,7 +1,8 @@
 # ADR 0020: Preserve exact carry and defer fixed-destination payouts
 
 - Status: accepted for Bribe and fixed-liability behavior; Resonance carry, direct-donation synchronization, and
-  Resonance Fund-liability provisions superseded by ADR 0029; Strategy-routing provision superseded by ADR 0021
+  Resonance Fund-liability provisions superseded by ADR 0029; Strategy-routing provision superseded by ADRs 0021 and
+  0032
 - Date: 2026-08-09
 - Builds on [ADR 0019](0019-incremental-absolute-signals-and-bounded-bribe-rewards.md)
 - Supersedes the A-02, A-03, and A-04 risk descriptions in ADRs 0017 and 0019
@@ -28,8 +29,8 @@ Keep the contract graph and permissions unchanged while making accounting explic
 - Revenue or rewards already committed to Fund become fixed, permissionlessly payable liabilities. Signal removal and
   unstaking never transfer USDG or a reward token.
 - Bribe exposes scalar and caller-selected reward claims so a broken token need not block unrelated rewards.
-- BribeRouter pulls an acquisition payment once and classifies its fixed destinations atomically. ADR 0021 later
-  removes its auction-reward destination, leaving the complete payment as a Fund liability.
+- BribeRouter pulls an acquisition payment once and classifies its fixed destinations atomically. ADR 0021's later
+  100%-Fund rule was itself superseded by ADR 0032's cumulative 90% Fund and 10% paired-Bribe liabilities.
 - Direct USDG donations to Resonance are observable and permissionlessly classifiable with `syncRevenue`.
 
 No destination can be redirected, no recovery role is introduced, and `MAX_REWARD_TOKENS` remains eight.

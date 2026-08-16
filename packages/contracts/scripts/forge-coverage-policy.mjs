@@ -17,7 +17,7 @@ export const FORGE_COVERAGE_POLICY = Object.freeze([
   policy('src/core/LiquidityPosition.sol', [50_00, 8], [50_00, 24], [55_00, 102]),
   policy('src/core/Resonance.sol', [95_00, 27], [80_00, 51], [95_00, 197]),
   policy('src/core/ResonanceRouter.sol', [95_00, 3], [95_00, 3], [95_00, 17]),
-  policy('src/core/SignalGBX.sol', [95_00, 17], [95_00, 16], [95_00, 96]),
+  policy('src/core/SignalGBX.sol', [95_00, 11], [95_00, 13], [95_00, 63]),
   policy('src/core/Strategy.sol', [95_00, 7], [95_00, 17], [95_00, 69]),
   policy('src/core/StrategyFactory.sol', [95_00, 2], [95_00, 3], [95_00, 11]),
   policy('src/governance/ProtocolGovernor.sol', [95_00, 18], [95_00, 7], [95_00, 64]),

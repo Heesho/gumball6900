@@ -40,8 +40,10 @@ export const numbers = {
   priceDecay: `${contractConstants.mine.priceDecaySeconds / 3_600} hour`,
   /** Mine.sol MAX_CAPACITY, the permanent ceiling on concurrent slots. */
   maxSlots: contractConstants.mine.maxCapacity,
-  /** BribeRouter.routePayment records the complete payment as a Fund liability. */
-  fundBoundShare: '100%',
+  /** BribeRouter.FUND_BPS: cumulative Strategy-payment share classified to Fund. */
+  fundBoundShare: percentFromBps(contractConstants.bribeRouter.fundBps),
+  /** BribeRouter.BRIBE_BPS: cumulative Strategy-payment share classified to paired-Bribe rewards. */
+  bribeRewardShare: percentFromBps(contractConstants.bribeRouter.bribeBps),
   /** Bribe.sol MAX_REWARD_TOKENS, immutable and not governable. */
   maxRewardTokens: contractConstants.bribe.maxRewardTokens,
   /** Fund and LiquidityPosition inherit no ownership and expose no withdrawal surface. */

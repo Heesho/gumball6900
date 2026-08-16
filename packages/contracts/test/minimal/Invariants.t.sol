@@ -34,7 +34,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
         handler =
             new ProtocolHandler(gbx, usdg, target, fund, signalGBX, resonance, resonanceRouter, mine, allStrategies);
-        workflowHandler = new ProtocolWorkflowHandler(gbx, signalGBX, resonance, mine, allStrategies);
+        workflowHandler = new ProtocolWorkflowHandler(gbx, target, signalGBX, resonance, mine, allStrategies);
 
         resonance.transferOwnership(address(this));
         targetContract(address(handler));
@@ -46,8 +46,8 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                             TOKEN SOLVENCY
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Every staking receipt is fully backed; unsolicited GBX can only create stranded surplus.
-    function invariant_StakingReceiptIsFullyCollateralized() external view {
+    /// @notice Every signal receipt is fully backed; unsolicited GBX can only create stranded surplus.
+    function invariant_SignalReceiptIsFullyCollateralized() external view {
         assertGe(gbx.balanceOf(address(signalGBX)), signalGBX.totalSupply());
     }
 
@@ -144,8 +144,8 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         }
     }
 
-    /// @notice From every reached state, each actor can remove every signal in bounded calls and recover all staked GBX.
-    function invariant_EveryActorCanFullyRemoveSignalsAndUnstake() external {
+    /// @notice From every reached state, each actor can withdraw every position in bounded calls and recover all GBX.
+    function invariant_EveryActorCanFullyWithdrawSignals() external {
         uint256 snapshot = vm.snapshotState();
 
         for (uint256 i; i < handler.actorCount(); ++i) {
@@ -154,13 +154,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                 uint256 amount = resonance.accountSignals(actor, allStrategies[j]);
                 if (amount == 0) continue;
                 vm.prank(actor);
-                signalGBX.removeSignal(allStrategies[j], amount);
-            }
-
-            uint256 balance = signalGBX.balanceOf(actor);
-            if (balance != 0) {
-                vm.prank(actor);
-                signalGBX.unstake(balance);
+                signalGBX.withdrawSignal(allStrategies[j], amount);
             }
 
             assertEq(resonance.accountSignalWeight(actor), 0);
@@ -170,21 +164,17 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         assertTrue(vm.revertToState(snapshot));
     }
 
-    /// @notice From every reached state, each actor can withdraw its entire unallocated balance without touching signals.
-    function invariant_EveryActorCanUnstakeItsUnallocatedBalance() external {
-        uint256 snapshot = vm.snapshotState();
-
+    /// @notice Idle sGBX is unreachable: every account's receipt balance equals its complete Strategy allocation.
+    function invariant_EveryReceiptUnitIsAssigned() external view {
         for (uint256 i; i < handler.actorCount(); ++i) {
             address actor = handler.actors(i);
-            uint256 unallocated = signalGBX.balanceOf(actor) - resonance.accountSignalWeight(actor);
-            if (unallocated == 0) continue;
-
-            vm.prank(actor);
-            signalGBX.unstake(unallocated);
+            uint256 summed;
+            for (uint256 j; j < allStrategies.length; ++j) {
+                summed += resonance.accountSignals(actor, allStrategies[j]);
+            }
             assertEq(signalGBX.balanceOf(actor), resonance.accountSignalWeight(actor));
+            assertEq(summed, signalGBX.balanceOf(actor));
         }
-
-        assertTrue(vm.revertToState(snapshot));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -303,12 +293,13 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         }
     }
 
-    /// @notice Each Strategy payment router holds only immutable Fund liability; auction proceeds never queue for Bribe.
+    /// @notice Each Strategy payment router exposes only its two immutable settlement liabilities.
     function invariant_BribeRouterAccountingIdentitiesAreExact() external view {
         for (uint256 i; i < allStrategies.length; ++i) {
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(allStrategies[i]));
-            assertEq(router.accountedPaymentBalance(), router.fundPaymentLiability());
+            assertEq(router.accountedPaymentBalance(), router.fundPaymentLiability() + router.bribePaymentLiability());
             assertLe(router.accountedPaymentBalance(), router.paymentToken().balanceOf(address(router)));
+            assertLt(router.splitRemainder(), router.BPS());
         }
     }
 
@@ -373,7 +364,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         for (uint256 i; i < actions.length; ++i) {
             console.log(actions[i], handler.ghostCalls(bytes32(bytes(actions[i]))));
         }
-        string[3] memory workflows = _workflowActionNames();
+        string[8] memory workflows = _workflowActionNames();
         for (uint256 i; i < workflows.length; ++i) {
             console.log(workflows[i], workflowHandler.ghostCalls(bytes32(bytes(workflows[i]))));
         }
@@ -382,14 +373,15 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @notice Proves no handler action is dead code that always short-circuits on its own guards.
     /// @dev Without this, every invariant above could pass vacuously against a handler that never does anything.
     function test_EveryHandlerActionIsReachable() external {
-        handler.stake(0, 1_000 ether);
-        workflowHandler.stakeAndSignal(1, 0, 100 ether);
-        handler.addSignal(0, 0, 100 ether);
-        handler.addSignalMany(0, 2);
+        handler.signalDefault(0, 1_000 ether);
+        workflowHandler.signal(1, 0, 100 ether);
+        handler.signal(0, 0, 100 ether);
+        handler.signalWithPermit(2, 0, 100 ether);
+        handler.signalMany(0, 2);
         workflowHandler.moveSignal(0, 0, 1, 1 ether);
-        workflowHandler.removeSignalAndUnstake(1, 0, 1 ether);
-        handler.removeSignal(0, 0, 1 ether);
-        handler.removeSignalMany(0, 1);
+        workflowHandler.withdrawSignal(1, 0, 1 ether);
+        handler.withdrawSignal(0, 0, 1 ether);
+        handler.withdrawSignalMany(0, 1);
         handler.mine(0, 0);
         vm.warp(block.timestamp + 30 minutes);
         handler.mine(1, 0);
@@ -401,11 +393,13 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.distributeAll();
         handler.buy(1, 1);
         handler.notifyTinyReward(0, 1);
-        handler.advanceTime(type(uint256).max);
+        workflowHandler.advanceTime(type(uint256).max);
 
-        handler.claimRewards(0, 0);
-        handler.claimSelectiveReward(0, 0, 0);
+        workflowHandler.claimRewards(0, 0);
+        workflowHandler.claimSelectiveReward(0, 0, 0);
         handler.payFixedLiabilities();
+        handler.payFundLiabilities();
+        handler.notifyBribeLiabilities();
 
         // Fund needs a GBX balance of its own before the burn path is reachable.
         vm.prank(handler.actors(0));
@@ -413,8 +407,10 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.burnFundGBX(1 ether);
 
         handler.redeem(0, 1 ether, true);
+        workflowHandler.delegate(0, 1, false);
+        workflowHandler.addStrategy();
         handler.killStrategy(0);
-        handler.unstake(0, type(uint256).max);
+        handler.withdrawDefault(0, type(uint256).max);
 
         string[22] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
@@ -424,7 +420,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                 string.concat("handler action is unreachable: ", actions[i])
             );
         }
-        string[3] memory workflows = _workflowActionNames();
+        string[8] memory workflows = _workflowActionNames();
         for (uint256 i; i < workflows.length; ++i) {
             assertGt(
                 workflowHandler.ghostCalls(bytes32(bytes(workflows[i]))),
@@ -436,32 +432,41 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     function _actionNames() private pure returns (string[22] memory actions) {
         return [
-            "stake",
-            "unstake",
-            "addSignal",
-            "removeSignal",
-            "addSignalMany",
-            "removeSignalMany",
+            "signalDefault",
+            "withdrawDefault",
+            "signal",
+            "signalWithPermit",
+            "withdrawSignal",
+            "signalMany",
+            "withdrawSignalMany",
             "mine",
             "donateRevenue",
             "donateDirectRevenue",
             "distributeAll",
             "buy",
-            "claimRewards",
-            "claimSelectiveReward",
             "notifyTinyReward",
             "payFixedLiabilities",
+            "payFundLiabilities",
+            "notifyBribeLiabilities",
             "checkpointMining",
             "claimMiningPayment",
             "increaseMiningCapacity",
             "redeem",
             "burnFundGBX",
-            "killStrategy",
-            "advanceTime"
+            "killStrategy"
         ];
     }
 
-    function _workflowActionNames() private pure returns (string[3] memory actions) {
-        return ["stakeAndSignal", "moveSignal", "removeSignalAndUnstake"];
+    function _workflowActionNames() private pure returns (string[8] memory actions) {
+        return [
+            "signal",
+            "moveSignal",
+            "withdrawSignal",
+            "claimRewards",
+            "claimSelectiveReward",
+            "addStrategy",
+            "delegate",
+            "advanceTime"
+        ];
     }
 }

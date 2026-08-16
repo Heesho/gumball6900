@@ -29,14 +29,18 @@ authorized for user funds. A green local build is engineering evidence, never a 
   increase aggregate issuance while legacy-rate miners remain.
 - Global rates use constructor-immutable cumulative-mining halvings and a strictly positive tail rate. Do not add a
   rate setter, emissions controller, migration authority, oracle, entropy source, team fee, or claim redirection.
-- `SignalGBX` is the non-transferable, one-for-one staked-GBX governance token and the sole external signal
-  coordinator. It retains ERC20Votes on the default block-number clock, self-delegates any stake made while the holder
-  has no current delegate, and has
-  no ERC-2612 permit. Idle sGBX directs no revenue or Bribe rewards but retains governance voting power. There is no
-  staking withdrawal lock, signal cooldown, epoch restriction, or once-per-period allocation rule. Signals are absolute
-  per-Strategy amounts changed by incremental deltas through `signal`, `removeSignal`, and `moveSignal`; combined
-  `stakeAndSignal`, underlying-GBX-permit `stakeAndSignalWithPermit`, and `removeSignalAndUnstake` flows stay atomic.
-  A signaler may immediately withdraw any unallocated SignalGBX balance.
+- `SignalGBX` is the non-transferable, one-for-one GBX escrow receipt, the ERC20Votes governance token on the default
+  block-number clock, and the sole public signal coordinator. Idle sGBX is forbidden: every successful raw-unit mint
+  must atomically deposit the same GBX amount, assign the same amount to one live Strategy through Resonance, and give
+  the account the same virtual balance in the paired Bribe. The public user operations are `signal`,
+  underlying-GBX-permit `signalWithPermit`, `moveSignal`, and `withdrawSignal`. A signal made while the holder has no
+  current delegate self-delegates. `withdrawSignal` performs the exact inverse of `signal`: it removes the paired
+  Strategy and Bribe balance, burns the same sGBX amount, and returns the same GBX amount atomically. `moveSignal`
+  checkpoints both Strategies under their prior weights but changes neither GBX custody, sGBX supply, nor governance
+  voting units. SignalGBX has no ERC-2612 approval permit, staking withdrawal lock, signal cooldown, epoch restriction,
+  or once-per-period allocation rule. Standalone `stake`/`unstake`, allocation from an idle receipt, removal into an
+  idle receipt, and the redundant `stakeAndSignal`, `stakeAndSignalWithPermit`, and `removeSignalAndUnstake` workflows
+  are not permitted.
 - `Resonance` holds received USDG in one global seven-day Bribe-style stream and allocates each elapsed interval among
   live Strategies according to the SignalGBX weights active during that interval. Every signal change checkpoints
   elapsed revenue before changing weights, and every Strategy purchase checkpoints and pulls that Strategy's released
@@ -48,21 +52,32 @@ authorized for user funds. A green local build is engineering evidence, never a 
   elapses while active signal supply is zero, and direct USDG donations, also remain unscheduled or unclaimable surplus
   in Resonance. Strategy and Bribe deployment follows the Liquid Signal shape: Resonance uses `StrategyFactory` and
   `BribeFactory`, and each Strategy has a corresponding `BribeRouter` and `Bribe`.
-- Signal state has one canonical owner at each level: SignalGBX stores each account's aggregate allocated balance, each
-  Strategy's paired Bribe stores account-by-Strategy balances and its complete signal supply, and Resonance stores only
-  the active live-Strategy total. Resonance's `addSignalFor`, `removeSignalFor`, and `moveSignalFor` hooks are callable
-  only by SignalGBX; do not restore direct user signaling on Resonance or duplicate these ledgers.
+- Signal state has one canonical owner at each level: `SignalGBX.balanceOf(account)` is the account's aggregate signal,
+  each Strategy's paired Bribe stores account-by-Strategy balances and its complete signal supply, and Resonance stores
+  only the active live-Strategy total. Do not maintain a separate `SignalGBX.allocatedBalance` value that must duplicate
+  `balanceOf`. Resonance's `addSignalFor`, `removeSignalFor`, and `moveSignalFor` hooks are callable only by SignalGBX;
+  do not restore direct user signaling on Resonance or duplicate these ledgers.
 - Killing a Strategy is irreversible. The kill checkpoints and preserves its accrued Resonance claim, excludes its
   complete weight from active reward supply, rejects later signal additions, and lets existing signalers remove their
   allocations without subtracting the excluded weight again. The killed Strategy earns no later Resonance revenue.
+  Resonance tracks `liveStrategyCount`: before bootstrap it may be zero, but after the first Strategy is registered,
+  `killStrategy` must not remove the final live Strategy. Governance replaces the final Strategy by atomically batching
+  an addition before the old Strategy's kill. Do not add a fake abstain Strategy. Killed-Strategy positions must remain
+  movable to a live Strategy and withdrawable.
 - Each Bribe may register at most eight append-only reward tokens. The cap is fixed in code and is not governable.
 - Before a Bribe signal-supply change, classify unindexable old-supply reward carry to its fixed Fund remainder. When
   an account fully exits, classify its sub-token user remainder to Fund rather than reallocating it to other signalers.
-- Every Strategy is the same bounded reverse Dutch acquisition mechanism. Its complete payment, regardless of token,
-  becomes a fixed `Fund` liability through the paired `BribeRouter`; auction proceeds never fund `Bribe` rewards.
-  Bribes are funded independently by explicit reward notifications.
-- A Strategy priced in GBX does not burn during settlement. After its fixed liability is paid into `Fund`, anyone may
-  burn that GBX through `Fund.burnGBX`. Users should settle and burn pending Fund GBX before calculating a redemption.
+- Every Strategy is the same bounded reverse Dutch acquisition mechanism. Its complete acquired-asset payment enters
+  the paired `BribeRouter` and is classified cumulatively as 90% fixed `Fund` liability and 10% fixed paired-`Bribe`
+  reward liability. The acquired payment asset, not USDG, is the automatic Bribe reward. `BPS = 10_000`,
+  `FUND_BPS = 9_000`, and `BRIBE_BPS = 1_000` are immutable; use explicit cumulative split-remainder accounting so
+  payment partitioning cannot starve either destination. `BribeRouter.routePayment` only pulls and classifies the exact
+  payment. Permissionless `payFundPayment` and `notifyBribeReward` isolate the two fixed settlement legs so failure of
+  either preserves its liability without blocking or consuming the other. Direct donations to BribeRouter are
+  unaccounted surplus. Additional independently funded Bribe rewards remain permitted within the fixed token cap.
+- A Strategy priced in GBX does not burn during settlement. After the 90% Fund liability is paid into `Fund`, anyone
+  may burn that GBX through `Fund.burnGBX`; the 10% Bribe liability funds the paired GBX reward stream. Users should
+  settle and burn pending Fund GBX before calculating a redemption.
 - Before every redemption denominator snapshot, Fund must checkpoint all Mine slots so accrued unminted GBX is
   included. Capacity remains bounded so this call stays bounded.
 

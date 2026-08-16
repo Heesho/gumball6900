@@ -1,11 +1,12 @@
 # Internal security finding register
 
-Date: 2026-08-15
+Date: 2026-08-16
 
-Status: the ADR 0024 Mine redesign and ADR 0029 Bribe-based Resonance are an uncommitted development candidate. Their
-current unit, invariant, integration, Hardhat, SDK, subgraph, simulation, and frontend campaigns pass, but they have
-not received the independent audit, full static re-disposition, mutation campaign, symbolic analysis, or release
-review required for deployment.
+Status: the ADR 0031 mandatory-signal and ADR 0032 fixed 90/10 implementation is an uncommitted development candidate.
+Its current unit, invariant, integration, Hardhat, mutation, SDK, subgraph, simulation, and frontend campaigns pass,
+and pinned native external-fuzzer and static campaigns now pass. It has not received an independent audit, compatible
+symbolic analysis, or release review required for deployment. Current campaign-specific findings are in
+`SIGNAL-RESONANCE-FINDINGS.md`.
 
 ## Current dispositions
 
@@ -29,9 +30,9 @@ review required for deployment.
 | E-05 | Low      | Resolved in development                                       | The subgraph records Bribe carry classified to Fund even when no whole-token liability accrues.                                   |
 | M-03 | High     | Mitigated; open release gate                                  | Reciprocal identity checks prevent crossed graphs, but incorrect parameters or malicious lookalikes remain unrecoverable.         |
 | M-04 | High     | Open release gate                                             | Exact initial rate, thresholds, tail, multiplier, and minimum price have not been selected or independently reviewed.             |
-| G-01 | High     | Accepted by ADR 0030; independent review required             | Snapshot voting does not lock sGBX, so short-lived or borrowed GBX can retain historical voting power after unstaking.            |
+| G-01 | High     | Accepted by ADR 0030; independent review required             | Snapshot voting does not lock sGBX, so short-lived or borrowed GBX can retain historical voting power after signal withdrawal.    |
 | G-02 | Medium   | Accepted by ADR 0030                                          | A successful proposal has no public cancellation path after it is queued in the Timelock.                                         |
-| G-03 | High     | Open deployment and parameter gate                            | Idle or undelegated sGBX increases quorum without voting and can deadlock every remaining maintenance action.                     |
+| G-03 | High     | Open deployment and parameter gate                            | Undelegated sGBX increases quorum without voting and can deadlock every remaining maintenance action.                             |
 
 No production-safety conclusion applies to the Mine redesign.
 
@@ -41,10 +42,10 @@ ProtocolGovernor accepts only exact zero-value calls to the three Resonance main
 increase. The Governor is intended to be the Timelock's sole proposer, generic relay and Timelock replacement always
 revert, and Resonance/Mine ownership provides no direct caller bypass after setup.
 
-SignalGBX uses block snapshots without a staking or withdrawal lock. An account may hold or borrow GBX through the
-snapshot, then unstake and still vote with historical weight. This is especially material because Strategy death is
-irreversible. A percentage quorum uses historical sGBX total supply, including idle and undelegated receipts; enough
-inactive stake can make all four maintenance paths unreachable. Conversely, low staked participation lowers the
+SignalGBX uses block snapshots without a signal-withdrawal lock. An account may hold or borrow GBX through the
+snapshot, signal it, then withdraw and still vote with historical weight. This is especially material because Strategy
+death is irreversible. A percentage quorum uses historical sGBX total supply, including undelegated receipts; enough
+undelegated signal can make all four maintenance paths unreachable. Conversely, low signaled participation lowers the
 absolute amount needed for capture. Exact voting delay, period, threshold, quorum, and chain block-time assumptions
 remain unresolved production parameters.
 
@@ -80,7 +81,7 @@ The 2026-08-13 internal EthSkills checklist review found four additional current
   checks each selected address before its transfer and verifies after the basket that it retained at least its own
   snapshot less its payout. The dual-facade regression proves the GBX burn and all transfers roll back atomically.
 - One-time setup accepted any code-bearing target. GBX, SignalGBX, both factories, and Resonance now require reciprocal
-  Mine, Resonance, factory, router, and USDG identities before binding. SignalGBX staking waits for that validation.
+  Mine, Resonance, factory, router, and USDG identities before binding. SignalGBX signaling waits for that validation.
 - Resonance could register non-transferable SignalGBX as Strategy payment, producing an unfillable append-only graph.
   The system token is now rejected as both Strategy payment and Bribe reward before it can consume an append-only slot.
 - Strategy and ResonanceRouter unconditionally attempted `approve(spender, 0)` after the exact allowance had already
@@ -187,16 +188,17 @@ capacity expansion, threshold timing, tail dilution, MEV, and thin GBX liquidity
 
 ## Evidence status
 
-- The current default Foundry campaign passes 322 tests. Its stateful suite passes 1,000 runs of 500 calls (500,000
-  transitions) with zero handler reverts. The integration profile passes 17 tests, including 256 randomized action
-  sequences and real Uniswap v4 fee harvesting.
+- The current default Foundry campaign passes 335 tests. Its stateful suite passes 27 properties at 1,000 runs of 500
+  calls (13.5 million aggregate calls), with all 31 selectors reached about 16,000 times and zero handler reverts or
+  discards. The integration profile passes 17 tests, including 256 randomized action sequences and real Uniswap v4
+  fee harvesting.
 - Hardhat parity, SDK, subgraph, independent TypeScript/Python simulations, frontend, formatting, lint, typecheck,
   documentation, and workspace builds pass in this working tree.
-- Slither 0.11.6 successfully analyzed the current 157-contract compile graph and emitted 171 raw detector results
-  across 12 detector classes. The exact-fingerprint register correctly reports drift from the superseded graph; all
-  current output still requires manual re-disposition alongside the unavailable pinned Aderyn and Semgrep runs, so
-  this is not a static-analysis pass.
-- Earlier Medusa, Echidna, coverage, static, mutation, and gas reports belong to the superseded graph until rerun and
-  recorded.
+- Pinned Slither 0.11.5, Aderyn 0.6.8, Semgrep 1.162.0, Gitleaks 8.30.1, compiler/size, dependency, and license gates
+  pass. The exact register accepts 177 current-source findings across 28 reviewed detector classes; Semgrep and
+  Gitleaks raw reports contain zero findings.
+- Current native Medusa 1.5.1 completed 101,602 calls with zero failures across 65 surfaces. Pinned Echidna 2.3.2
+  completed 100,213 calls with all 25 properties passing. The current 43-mutant focused campaign killed every mutant.
 - Mythril 0.24.8 remains incompatible with constructor-resolved immutable/Cancun runtimes and is not a proof.
-- Independent audit, mutation testing, pinned Echidna, legal clearance, and a signed deployment manifest remain open.
+- Independent audit, a second external-fuzzer seed, legal clearance, reviewed production parameters, monitored
+  testnet rehearsal, and a signed deployment manifest remain open.

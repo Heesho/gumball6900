@@ -5,6 +5,8 @@ export const WAD = 10n ** 18n;
 export const ACCUMULATOR_PRECISION = 10n ** 27n;
 
 export const BPS_DENOMINATOR = 10_000n;
+export const STRATEGY_FUND_BPS = 9_000n;
+export const STRATEGY_BRIBE_BPS = 1_000n;
 
 /** The only GBX created before the immutable Mine is bound. */
 export const GENESIS_LIQUIDITY_ALLOCATION = 20_000_000n * WAD;

@@ -35,8 +35,28 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
         assertEq(protocolGovernor.quorumDenominator(), 100);
         assertEq(protocolTimelock.getMinDelay(), TEST_TIMELOCK_DELAY);
 
+        assertTrue(gbx.minterLocked());
+        assertEq(gbx.minter(), address(mine));
+        assertEq(signalGBX.resonance(), address(resonance));
+        assertEq(bribeFactory.resonance(), address(resonance));
+        assertEq(strategyFactory.resonance(), address(resonance));
+        assertEq(resonance.liveStrategyCount(), 2);
+        assertTrue(resonance.isStrategy(address(targetStrategy)));
+        assertTrue(resonance.isStrategyAlive(address(targetStrategy)));
+        assertTrue(resonance.isStrategy(address(gbxStrategy)));
+        assertTrue(resonance.isStrategyAlive(address(gbxStrategy)));
+        assertEq(resonance.bribeFor(address(targetStrategy)), address(targetBribe));
+        assertEq(resonance.bribeRouterFor(address(targetStrategy)), address(targetRouter));
+        assertEq(resonance.bribeFor(address(gbxStrategy)), address(gbxBribe));
+        assertEq(resonance.bribeRouterFor(address(gbxStrategy)), address(gbxRouter));
+
         assertEq(resonance.owner(), address(protocolTimelock));
         assertEq(mine.owner(), address(protocolTimelock));
+        assertEq(protocolTimelock.getRoleAdmin(protocolTimelock.PROPOSER_ROLE()), protocolTimelock.DEFAULT_ADMIN_ROLE());
+        assertEq(
+            protocolTimelock.getRoleAdmin(protocolTimelock.CANCELLER_ROLE()), protocolTimelock.DEFAULT_ADMIN_ROLE()
+        );
+        assertEq(protocolTimelock.getRoleAdmin(protocolTimelock.EXECUTOR_ROLE()), protocolTimelock.DEFAULT_ADMIN_ROLE());
         assertTrue(protocolTimelock.hasRole(protocolTimelock.PROPOSER_ROLE(), address(protocolGovernor)));
         assertTrue(protocolTimelock.hasRole(protocolTimelock.CANCELLER_ROLE(), address(protocolGovernor)));
         assertTrue(protocolTimelock.hasRole(protocolTimelock.EXECUTOR_ROLE(), address(0)));
@@ -149,7 +169,7 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
     }
 
     function test_ApprovedBatchExecutesAllBoundedAdministrationAfterTheTimelock() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         (address[] memory targets, uint256[] memory values, bytes[] memory payloads) = _completeAdministrationBatch();
         string memory description = "ADD KILL BRIBE AND CAPACITY";
         bytes32 descriptionHash = keccak256(bytes(description));
@@ -184,7 +204,7 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
     }
 
     function test_RevertingLateBatchCallRollsBackEarlierCallsAndRemainsQueued() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
 
         address[] memory targets = new address[](2);
         uint256[] memory values = new uint256[](2);
@@ -218,7 +238,7 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
     }
 
     function test_QueuedProposalCannotBeCancelled() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         address[] memory targets = _addresses(address(resonance));
         uint256[] memory values = _uints(0);
         bytes[] memory payloads = new bytes[](1);
@@ -242,7 +262,7 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
     }
 
     function test_QuorumUsesSnapshotSupplyAndVotingDoesNotLockSignalGBX() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         address[] memory targets = _addresses(address(resonance));
         uint256[] memory values = _uints(0);
         bytes[] memory payloads = new bytes[](1);
@@ -256,7 +276,7 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
 
         assertEq(protocolGovernor.quorum(snapshot), 4 ether);
         vm.prank(ALICE);
-        signalGBX.unstake(100 ether);
+        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
         assertEq(signalGBX.balanceOf(ALICE), 0);
 
         vm.prank(ALICE);
@@ -274,7 +294,7 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
             100 ether,
             TEST_QUORUM_NUMERATOR
         );
-        _stake(ALICE, 99 ether);
+        _signalDefault(ALICE, 99 ether);
         vm.roll(block.number + 1);
 
         address[] memory targets = _addresses(address(resonance));
@@ -291,8 +311,8 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
     }
 
     function test_ProposalWithWinningVotesButNoQuorumIsDefeated() external {
-        _stake(ALICE, 1 ether);
-        _stake(BOB, 99 ether);
+        _signalDefault(ALICE, 1 ether);
+        _signalDefault(BOB, 99 ether);
 
         address[] memory targets = _addresses(address(resonance));
         uint256[] memory values = _uints(0);

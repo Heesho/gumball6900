@@ -1,8 +1,28 @@
 import { describe, expect, it } from 'vitest';
 
-import { exactStreamEmission, RevenueConservationModel, RewardConservationModel } from './conservation-model.js';
+import {
+  exactStreamEmission,
+  RevenueConservationModel,
+  RewardConservationModel,
+  StrategyPaymentConservationModel,
+} from './conservation-model.js';
 
 describe('independent Resonance reward model', () => {
+  it('conserves 10,000 one-unit Strategy payments and isolates donations from settlement', () => {
+    const model = new StrategyPaymentConservationModel();
+    for (let i = 0; i < 10_000; i += 1) model.route(1n);
+    model.donate(7n);
+
+    expect(model.fundLiability).toBe(9_000n);
+    expect(model.bribeLiability).toBe(1_000n);
+    expect(model.splitRemainder).toBe(0n);
+    expect(model.accountedBalance).toBe(model.fundLiability + model.bribeLiability);
+    expect(model.surplus()).toBe(7n);
+    expect(model.notifyBribe()).toBe(1_000n);
+    expect(model.payFund()).toBe(9_000n);
+    expect(model.balance).toBe(7n);
+    expect(model.accountedBalance).toBe(0n);
+  });
   it('checkpoints and restarts a qualifying live top-up with reward plus exact left', () => {
     const model = new RevenueConservationModel(1);
     model.setWeight(0, 1n);

@@ -83,7 +83,7 @@ function uniqueAddresses(values: readonly Address[], name: string): Address[] {
   return normalized;
 }
 
-/** Encodes an ERC-20 allowance for staking, mining, Strategy payment, or redemption. */
+/** Encodes an ERC-20 allowance for signaling, mining, Strategy payment, or redemption. */
 export function buildApproval(token: Address, spender: Address, amount: bigint): ContractTransaction {
   uint256(amount, 'amount');
   return transaction(
@@ -159,19 +159,7 @@ export function buildHarvestLiquidityFees(liquidityPosition: Address): ContractT
   );
 }
 
-/** Stakes GBX one-for-one for non-transferable SignalGBX. */
-export function buildStake(signalGBX: Address, amount: bigint): ContractTransaction {
-  positiveUint256(amount, 'amount');
-  return transaction(signalGBX, encodeFunctionData({ abi: signalGbxAbi, functionName: 'stake', args: [amount] }));
-}
-
-/** Burns unallocated SignalGBX and immediately withdraws the same amount of underlying GBX. */
-export function buildUnstake(signalGBX: Address, amount: bigint): ContractTransaction {
-  positiveUint256(amount, 'amount');
-  return transaction(signalGBX, encodeFunctionData({ abi: signalGbxAbi, functionName: 'unstake', args: [amount] }));
-}
-
-/** Adds an absolute amount to the caller's existing signal for one Strategy. The amount is a delta, not a target. */
+/** Atomically deposits GBX, mints non-transferable sGBX, and signals the same amount to one live Strategy. */
 export function buildSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
   positiveUint256(amount, 'amount');
   return transaction(
@@ -184,33 +172,7 @@ export function buildSignal(signalGBX: Address, strategy: Address, amount: bigin
   );
 }
 
-/** Removes an absolute amount from the caller's existing signal for one Strategy. */
-export function buildRemoveSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
-  positiveUint256(amount, 'amount');
-  return transaction(
-    signalGBX,
-    encodeFunctionData({
-      abi: signalGbxAbi,
-      functionName: 'removeSignal',
-      args: [getAddress(strategy), amount],
-    }),
-  );
-}
-
-/** Stakes GBX and signals the minted SignalGBX to one Strategy atomically. */
-export function buildStakeAndSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
-  positiveUint256(amount, 'amount');
-  return transaction(
-    signalGBX,
-    encodeFunctionData({
-      abi: signalGbxAbi,
-      functionName: 'stakeAndSignal',
-      args: [getAddress(strategy), amount],
-    }),
-  );
-}
-
-export interface StakeAndSignalWithPermitParameters {
+export interface SignalWithPermitParameters {
   readonly signalGBX: Address;
   readonly strategy: Address;
   readonly amount: bigint;
@@ -220,8 +182,8 @@ export interface StakeAndSignalWithPermitParameters {
   readonly s: Hex;
 }
 
-/** Uses an underlying GBX permit, then stakes and signals in the same transaction. */
-export function buildStakeAndSignalWithPermit(parameters: StakeAndSignalWithPermitParameters): ContractTransaction {
+/** Uses an underlying GBX permit, then atomically deposits, mints, and signals. */
+export function buildSignalWithPermit(parameters: SignalWithPermitParameters): ContractTransaction {
   positiveUint256(parameters.amount, 'amount');
   uint256(parameters.deadline, 'deadline');
   if (!Number.isInteger(parameters.v) || parameters.v < 0 || parameters.v > 255) {
@@ -233,13 +195,13 @@ export function buildStakeAndSignalWithPermit(parameters: StakeAndSignalWithPerm
     parameters.signalGBX,
     encodeFunctionData({
       abi: signalGbxAbi,
-      functionName: 'stakeAndSignalWithPermit',
+      functionName: 'signalWithPermit',
       args: [getAddress(parameters.strategy), parameters.amount, parameters.deadline, parameters.v, r, s],
     }),
   );
 }
 
-/** Moves an absolute signal amount between Strategies without staking or unstaking. */
+/** Moves an absolute signal amount between Strategies without changing GBX custody or sGBX supply. */
 export function buildMoveSignal(
   signalGBX: Address,
   fromStrategy: Address,
@@ -257,18 +219,14 @@ export function buildMoveSignal(
   );
 }
 
-/** Removes signal, burns the released SignalGBX, and returns underlying GBX atomically. */
-export function buildRemoveSignalAndUnstake(
-  signalGBX: Address,
-  strategy: Address,
-  amount: bigint,
-): ContractTransaction {
+/** Atomically removes signal, burns the same sGBX amount, and returns underlying GBX. */
+export function buildWithdrawSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
   positiveUint256(amount, 'amount');
   return transaction(
     signalGBX,
     encodeFunctionData({
       abi: signalGbxAbi,
-      functionName: 'removeSignalAndUnstake',
+      functionName: 'withdrawSignal',
       args: [getAddress(strategy), amount],
     }),
   );
@@ -477,6 +435,11 @@ export function buildCancelPendingProtocolProposal(
 /** Pays a BribeRouter's complete fixed Fund payment-token liability. */
 export function buildPayRouterFundPayment(bribeRouter: Address): ContractTransaction {
   return transaction(bribeRouter, encodeFunctionData({ abi: bribeRouterAbi, functionName: 'payFundPayment' }));
+}
+
+/** Notifies a BribeRouter's complete fixed paired-Bribe payment-token liability. */
+export function buildNotifyRouterBribeReward(bribeRouter: Address): ContractTransaction {
+  return transaction(bribeRouter, encodeFunctionData({ abi: bribeRouterAbi, functionName: 'notifyBribeReward' }));
 }
 
 /** Retries one Bribe token's complete fixed Fund rounding liability. */
