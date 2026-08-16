@@ -3,8 +3,25 @@ import pytest
 from python.conservation_model import (
     RevenueConservationModel,
     RewardConservationModel,
+    StrategyPaymentConservationModel,
     exact_stream_emission,
 )
+
+
+def test_strategy_payment_classification_conserves_and_isolates_donations() -> None:
+    model = StrategyPaymentConservationModel()
+    for _ in range(10_000):
+        model.route(1)
+    model.donate(7)
+    assert model.fund_liability == 9_000
+    assert model.bribe_liability == 1_000
+    assert model.split_remainder == 0
+    assert model.accounted_balance == model.fund_liability + model.bribe_liability
+    assert model.surplus() == 7
+    assert model.notify_bribe() == 1_000
+    assert model.pay_fund() == 9_000
+    assert model.balance == 7
+    assert model.accounted_balance == 0
 
 
 def test_qualifying_live_top_up_checkpoints_and_restarts_with_reward_plus_left() -> None:

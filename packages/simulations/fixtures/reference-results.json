@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "6",
+  "schemaVersion": "7",
   "usdGDecimals": "6",
   "targetDecimals": "18",
   "infiniteSupply": true,
@@ -31,7 +31,12 @@
       "id": "strategy-midpoint",
       "paymentAmount": "50000000000000000000",
       "nextInitPrice": "100000000000000000000",
-      "fundAmount": "42000000000000000000"
+      "fundAmount": "37800000000000000000",
+      "bribeAmount": "4200000000000000000",
+      "splitRemainder": "0",
+      "partitionFundAmount": "37800000000000000000",
+      "partitionBribeAmount": "4200000000000000000",
+      "partitionRemainder": "0"
     }
   ],
   "rewardQuotes": [

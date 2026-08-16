@@ -1330,6 +1330,45 @@ export const bribeRouterAbi = [
   },
   {
     type: 'function',
+    name: 'BPS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'BRIBE_BPS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'FUND_BPS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'accountedPaymentBalance',
     inputs: [],
     outputs: [
@@ -1350,6 +1389,19 @@ export const bribeRouterAbi = [
         name: '',
         type: 'address',
         internalType: 'contract Bribe',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'bribePaymentLiability',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
     stateMutability: 'view',
@@ -1379,6 +1431,19 @@ export const bribeRouterAbi = [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'notifyBribeReward',
+    inputs: [],
+    outputs: [
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -1434,6 +1499,19 @@ export const bribeRouterAbi = [
   },
   {
     type: 'function',
+    name: 'splitRemainder',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'strategy',
     inputs: [],
     outputs: [
@@ -1444,6 +1522,74 @@ export const bribeRouterAbi = [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    name: 'BribePaymentAccrued',
+    inputs: [
+      {
+        name: 'bribe',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'paymentToken',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'totalLiability',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'remainder',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'BribeRewardNotified',
+    inputs: [
+      {
+        name: 'caller',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'bribe',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'paymentToken',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
   },
   {
     type: 'event',
@@ -7083,25 +7229,6 @@ export const signalGbxAbi = [
   },
   {
     type: 'function',
-    name: 'allocatedBalance',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'allowance',
     inputs: [
       {
@@ -7506,42 +7633,6 @@ export const signalGbxAbi = [
   },
   {
     type: 'function',
-    name: 'removeSignal',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'removeSignalAndUnstake',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     name: 'renounceOwnership',
     inputs: [],
     outputs: [],
@@ -7593,38 +7684,7 @@ export const signalGbxAbi = [
   },
   {
     type: 'function',
-    name: 'stake',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'stakeAndSignal',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'stakeAndSignalWithPermit',
+    name: 'signalWithPermit',
     inputs: [
       {
         name: 'strategy',
@@ -7754,8 +7814,13 @@ export const signalGbxAbi = [
   },
   {
     type: 'function',
-    name: 'unstake',
+    name: 'withdrawSignal',
     inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
       {
         name: 'amount',
         type: 'uint256',
@@ -7880,10 +7945,41 @@ export const signalGbxAbi = [
   },
   {
     type: 'event',
-    name: 'Staked',
+    name: 'SignalWithdrawn',
     inputs: [
       {
         name: 'account',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'strategy',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'Signaled',
+    inputs: [
+      {
+        name: 'account',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'strategy',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -7921,41 +8017,6 @@ export const signalGbxAbi = [
       },
     ],
     anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'Unstaked',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'ActiveSignals',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'signalWeight',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
   },
   {
     type: 'error',
@@ -8128,38 +8189,6 @@ export const signalGbxAbi = [
       },
       {
         name: 'receiverCredit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InsufficientAllocatedSignal',
-    inputs: [
-      {
-        name: 'available',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'requested',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InsufficientUnallocatedSignal',
-    inputs: [
-      {
-        name: 'available',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'requested',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -9574,6 +9603,19 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'liveStrategyCount',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'moveSignalFor',
     inputs: [
       {
@@ -10089,6 +10131,17 @@ export const resonanceAbi = [
   },
   {
     type: 'error',
+    name: 'FinalLiveStrategy',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'ForbiddenPaymentToken',
     inputs: [
       {
@@ -10183,17 +10236,6 @@ export const resonanceAbi = [
     inputs: [
       {
         name: 'resonanceRouter',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'NotRewardToken',
-    inputs: [
-      {
-        name: 'token',
         type: 'address',
         internalType: 'address',
       },

@@ -41,8 +41,8 @@ structure.
    the band below.
 
 3. **How signaling works** - the section that closes the loop, and the reason anyone signals at
-   all: stake GBX for voting sGBX, point some at the assets you want the fund to own, and what it
-   buys backs your GBX. Idle sGBX remains usable for bounded governance. Two rows share one label gutter so the chain reads down the left edge -
+   all: deposit GBX into voting sGBX signals for assets you want the fund to own, and what it buys backs your GBX.
+   Every sGBX unit remains assigned until moved or withdrawn. Two rows share one label gutter so the chain reads down the left edge -
    this round's pooled signal, then what a run of rounds accumulates into. Signalling and the
    basket chart used to be separate sections; splitting them hid that they are one mechanism,
    and left the sheet stating that signalling happens without ever saying what a signaler gets
@@ -148,22 +148,22 @@ extracts it like any other word.
 The build refuses to overwrite the published PDF unless all of these pass. It prints to a staging
 path first, so a failed gate never replaces a good file.
 
-| Gate                    | What it blocks                                                                                                                                                                     |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Protocol facts          | A printed number drifting from the contracts or the tested simulation fixture (10 cross-checks)                                                                                    |
-| Protocol fee            | The "0% management fee" figure outliving its truth: any fee identifier in the core contracts, unpinned basis-point arithmetic outside `Mine`, or a third share appearing inside it |
-| Contrast                | Any foreground/background pair below WCAG AA (30 pairs, including this sheet's own surfaces)                                                                                       |
-| Stylesheet hygiene      | `undefined`, `NaN`, or `null` reaching a CSS declaration                                                                                                                           |
-| Stale claims            | 92 phrases from superseded designs, plus status language the evidence does not support                                                                                             |
-| Placeholders            | `{{...}}`, unresolved template values, `undefined`, `NaN`                                                                                                                          |
-| Punctuation             | Em and en dashes; the house rule is ASCII hyphens                                                                                                                                  |
-| Word budget             | More than 480 words, counted from the rendered text including figure labels                                                                                                        |
-| Band budget             | Any band whose content is taller than its declared height                                                                                                                          |
-| Clipping                | Any text block taller than the box drawn around it                                                                                                                                 |
-| Overlap                 | Any two sibling panels intersecting                                                                                                                                                |
-| Type size               | Any rendered text under 7.5pt, in HTML or scaled inside a figure                                                                                                                   |
-| Page count and geometry | Anything other than exactly one page at A4 landscape                                                                                                                               |
-| Fonts                   | A file that embeds no font programs                                                                                                                                                |
+| Gate                    | What it blocks                                                                                                                                                             |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Protocol facts          | A printed number drifting from the contracts or the tested simulation fixture (10 cross-checks)                                                                            |
+| Protocol fee            | The "0% management fee" figure outliving its truth: any fee identifier, unpinned basis-point arithmetic outside `Mine` and `BribeRouter`, or drift from either exact split |
+| Contrast                | Any foreground/background pair below WCAG AA (30 pairs, including this sheet's own surfaces)                                                                               |
+| Stylesheet hygiene      | `undefined`, `NaN`, or `null` reaching a CSS declaration                                                                                                                   |
+| Stale claims            | 92 phrases from superseded designs, plus status language the evidence does not support                                                                                     |
+| Placeholders            | `{{...}}`, unresolved template values, `undefined`, `NaN`                                                                                                                  |
+| Punctuation             | Em and en dashes; the house rule is ASCII hyphens                                                                                                                          |
+| Word budget             | More than 480 words, counted from the rendered text including figure labels                                                                                                |
+| Band budget             | Any band whose content is taller than its declared height                                                                                                                  |
+| Clipping                | Any text block taller than the box drawn around it                                                                                                                         |
+| Overlap                 | Any two sibling panels intersecting                                                                                                                                        |
+| Type size               | Any rendered text under 7.5pt, in HTML or scaled inside a figure                                                                                                           |
+| Page count and geometry | Anything other than exactly one page at A4 landscape                                                                                                                       |
+| Fonts                   | A file that embeds no font programs                                                                                                                                        |
 
 Flags: `--html` writes the HTML and stops (fastest layout loop); `--force` prints despite failures,
 for drafting only; `--open` opens the finished PDF.

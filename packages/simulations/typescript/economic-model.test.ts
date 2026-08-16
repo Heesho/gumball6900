@@ -47,6 +47,28 @@ describe('multislot Mine economic suite', () => {
     ]);
   });
 
+  it('quantifies sequential tenure-rate accumulation through the capacity cap', () => {
+    const expansion = row(row(row(loadTypeScriptEconomicSuite()).mining).sequentialExpansionToCap);
+    const rates = list(expansion.assignedRatesPerHour);
+    expect(expansion.capacity).toBe('16');
+    expect(rates).toHaveLength(16);
+    expect(rates[0]).toBe('100000000000000000000');
+    expect(rates[15]).toBe('6250000000000000000');
+    expect(expansion.aggregateBpsOfUndividedRate).toBe('33807');
+  });
+
+  it('classifies tiny Strategy payments with the same cumulative 90/10 result as one payment', () => {
+    const auction = row(row(loadTypeScriptEconomicSuite()).strategyAuction);
+    const tiny = row(auction.tenOneUnitPayments);
+    const combined = row(auction.oneCombinedPayment);
+    expect(tiny.fundLiability).toBe('9');
+    expect(tiny.bribeLiability).toBe('1');
+    expect(tiny.splitRemainder).toBe('0');
+    expect(tiny.fundLiability).toBe(combined.fundLiability);
+    expect(tiny.bribeLiability).toBe(combined.bribeLiability);
+    expect(auction.directRouterDonationSurplus).toBe('7');
+  });
+
   it('applies a lower rate only at a later slot handoff and preserves a positive tail', () => {
     const mining = row(row(loadTypeScriptEconomicSuite()).mining);
     const halving = row(mining.handoffHalving);

@@ -17,7 +17,7 @@ import {
   buildProtocolProposal,
   buildRedemption,
   buildSignal,
-  buildStakeAndSignalWithPermit,
+  buildSignalWithPermit,
   buildStrategyBuy,
   readMineSlotView,
   readProtocolGovernorView,
@@ -41,7 +41,7 @@ const occupy = buildMine({
 const checkpoint = buildCheckpointMining(mine);
 const claim = buildClaimMiningPayment(mine, displacedMiner);
 const signal = buildSignal(signalGBX, strategy, 1_000n * 10n ** 18n);
-const stakeAndSignal = buildStakeAndSignalWithPermit({
+const signalWithPermit = buildSignalWithPermit({
   signalGBX,
   strategy,
   amount,
@@ -74,10 +74,10 @@ raw quotient-plus-front-loaded-remainder schedule, exact amount left, and Resona
 floors, zero-active-signal intervals, and direct donations may make the token balance exceed scheduled and claimable
 revenue. Strategy raw balances alone omit released-but-not-yet-transferred stream revenue.
 
-SignalGBX is the user-facing staking, signaling, and vote-delegation boundary. Scalar `buildSignal` and
-`buildRemoveSignal` calls use incremental absolute deltas. Combined builders cover stake-and-signal, the same flow with
-an underlying GBX permit, signal moves, and remove-and-unstake. Idle SignalGBX remains withdrawable and retains voting
-power; direct SignalGBX transfers are disabled.
+SignalGBX is the user-facing signaling and vote-delegation boundary. `buildSignal` atomically deposits GBX, mints the
+same sGBX amount, and assigns it to one live Strategy; `buildSignalWithPermit` does the same using underlying GBX
+permit. `buildMoveSignal` reallocates existing signal, and `buildWithdrawSignal` atomically removes signal, burns sGBX,
+and returns GBX. Idle SignalGBX is unreachable, and direct SignalGBX transfers are disabled.
 
 `buildRouteRevenue` leaves a Router balance below the active amount left in the Router; a qualifying complete balance
 restarts seven days with `reward + left`. `buildNotifyRevenue` encodes that Router-only call.

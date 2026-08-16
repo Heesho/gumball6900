@@ -13,7 +13,6 @@ import { BribeRouter } from "./BribeRouter.sol";
 import { Strategy } from "./Strategy.sol";
 import { StrategyFactory } from "./StrategyFactory.sol";
 import { IResonanceRouterIdentity } from "./interfaces/IResonanceIdentity.sol";
-import { ISignalGBXAllocation } from "./interfaces/ISignalGBXAllocation.sol";
 
 /// @title GumBall6900 Signal-Directed Revenue Allocator
 /// @author Heesho
@@ -29,7 +28,7 @@ contract Resonance is ReentrancyGuard, Ownable {
     uint256 public constant DURATION = 7 days;
     /// @notice Fixed-point precision for allocating six-decimal USDG across eighteen-decimal SignalGBX.
     uint256 public constant REWARD_PRECISION = 1e36;
-    /// @notice Non-transferable staking receipt used as signal power.
+    /// @notice Non-transferable signal receipt used as allocation and governance power.
     IERC20 public immutable signalGBX;
     /// @notice Six-decimal reward token streamed to Strategies.
     IERC20 public immutable usdg;
@@ -64,6 +63,8 @@ contract Resonance is ReentrancyGuard, Ownable {
 
     /// @notice Total active SignalGBX weight eligible for Resonance rewards.
     uint256 public totalSignalWeight;
+    /// @notice Number of registered Strategies eligible for new signal and future Resonance rewards.
+    uint256 public liveStrategyCount;
 
     /// @notice Whether an address is a Resonance-created Strategy.
     mapping(address strategy => bool valid) public isStrategy;
@@ -80,13 +81,13 @@ contract Resonance is ReentrancyGuard, Ownable {
     address public resonanceRouter;
 
     error DuplicateStrategy(address strategy);
+    error FinalLiveStrategy(address strategy);
     error ForbiddenPaymentToken(address token);
     error ForbiddenRewardToken(address token);
     error InexactRevenuePayout(address receiver, uint256 expected, uint256 senderDebit, uint256 receiverCredit);
     error InexactRevenueTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
     error InsufficientSignal(address strategy, uint256 available, uint256 requested);
     error InvalidResonanceRouter(address resonanceRouter);
-    error NotRewardToken(address token);
     error ResonanceRouterAlreadySet(address resonanceRouter);
     error RewardSmallerThanLeft(uint256 reward, uint256 left);
     error SameStrategy(address strategy);
@@ -287,6 +288,7 @@ contract Resonance is ReentrancyGuard, Ownable {
 
         isStrategy[strategyAddress] = true;
         isStrategyAlive[strategyAddress] = true;
+        ++liveStrategyCount;
         bribeFor[strategyAddress] = bribeAddress;
         bribeRouterFor[strategyAddress] = bribeRouterAddress;
         paymentTokenFor[strategyAddress] = address(paymentToken);
@@ -301,8 +303,10 @@ contract Resonance is ReentrancyGuard, Ownable {
     function killStrategy(address strategy) external nonReentrant onlyOwner updateReward(strategy) {
         if (!isStrategy[strategy]) revert StrategyNotFound(strategy);
         if (!isStrategyAlive[strategy]) revert StrategyAlreadyDead(strategy);
+        if (liveStrategyCount == 1) revert FinalLiveStrategy(strategy);
 
         isStrategyAlive[strategy] = false;
+        --liveStrategyCount;
         totalSignalWeight -= strategySignalWeight(strategy);
 
         emit StrategyKilled(strategy);
@@ -355,10 +359,10 @@ contract Resonance is ReentrancyGuard, Ownable {
         return Bribe(bribe).balanceOf(account);
     }
 
-    /// @notice Returns an account's complete allocation across live and killed Strategies.
-    /// @dev SignalGBX owns the canonical aggregate used to reserve allocated stake.
+    /// @notice Returns an account's complete signal across live and killed Strategies.
+    /// @dev SignalGBX balance is the canonical account aggregate because idle sGBX is unreachable.
     function accountSignalWeight(address account) public view returns (uint256 amount) {
-        return ISignalGBXAllocation(address(signalGBX)).allocatedBalance(account);
+        return signalGBX.balanceOf(account);
     }
 
     /// @notice Returns the complete SignalGBX weight recorded for one Strategy.

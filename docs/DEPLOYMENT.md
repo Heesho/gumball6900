@@ -15,7 +15,7 @@ The intended order is:
    ResonanceRouter,
    and complete Resonance's one-time router binding. Each call verifies the candidate points back to the exact
    SignalGBX, factory, Resonance, and USDG identities before storing the irreversible binding. SignalGBX cannot accept
-   stakes before this step completes.
+   signals before this step completes.
 4. Deploy Mine with the exact signed values for price multiplier, minimum initial USDG price, initial GBX/second,
    cumulative halving amount, positive tail GBX/second, capacity one, and the temporary setup owner. Verify its GBX,
    USDG, and ResonanceRouter identities.

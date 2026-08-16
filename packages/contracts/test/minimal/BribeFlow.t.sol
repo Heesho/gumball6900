@@ -280,7 +280,7 @@ contract BribeRetirementRiskTest is ProtocolFixture {
     }
 
     function test_KnownRisk_DeadStrategyBribeCanPauseAndQueueRewardsForever() external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
 
         uint256 streamed = 7 days;
@@ -294,8 +294,7 @@ contract BribeRetirementRiskTest is ProtocolFixture {
         resonance.killStrategy(address(targetStrategy));
 
         vm.startPrank(ALICE);
-        signalGBX.removeSignal(address(targetStrategy), 100 ether);
-        signalGBX.unstake(100 ether);
+        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
         vm.stopPrank();
         targetBribe.claimReward(ALICE, address(target));
 
@@ -313,10 +312,12 @@ contract BribeRetirementRiskTest is ProtocolFixture {
         vm.stopPrank();
         assertEq(targetBribe.queuedRewards(address(target)), postRetirementReward);
 
-        _stake(BOB, 1 ether);
-        vm.prank(BOB);
+        _mintTestGBX(BOB, 1 ether);
+        vm.startPrank(BOB);
+        gbx.approve(address(signalGBX), 1 ether);
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(targetStrategy)));
         signalGBX.signal(address(targetStrategy), 1 ether);
+        vm.stopPrank();
 
         vm.warp(block.timestamp + 365 days);
         assertEq(targetBribe.claimReward(ALICE, address(target)), 0);

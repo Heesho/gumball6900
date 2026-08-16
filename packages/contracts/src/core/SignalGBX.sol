@@ -13,11 +13,11 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
 import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 
-/// @title GumBall6900 Non-Transferable Signal Receipt
+/// @title GumBall6900 Non-Transferable Signal Token
 /// @author Heesho
-/// @notice Non-transferable signal receipt with ticker sGBX, minted one-for-one when a holder stakes GBX.
-/// @dev Adapted from Liquid Signal Governance. There is no time lock: a holder may immediately unstake any balance not
-///      currently allocated to Strategies.
+/// @notice Non-transferable signal receipt with ticker sGBX, minted one-for-one only while assigning GBX to a Strategy.
+/// @dev Adapted from Liquid Signal Governance. Idle sGBX is unreachable: minting and burning are atomically coupled to
+///      the matching Resonance and paired-Bribe virtual balance change.
 /// @custom:version 1.0.0
 contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
@@ -29,32 +29,19 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     /// @notice Resonance that applies this coordinator's per-Strategy signal changes.
     address public resonance;
 
-    /// @notice SignalGBX allocated by each account across all live and killed Strategies.
-    mapping(address account => uint256 amount) public allocatedBalance;
-
-    /// @notice Emitted when an account deposits GBX and receives SignalGBX.
-    /// @param account Account that staked.
-    /// @param amount Amount of GBX deposited and SignalGBX minted.
-    event Staked(address indexed account, uint256 amount);
-    /// @notice Emitted when an account burns SignalGBX and withdraws GBX.
-    /// @param account Account that unstaked.
-    /// @param amount Amount of SignalGBX burned and GBX returned.
-    event Unstaked(address indexed account, uint256 amount);
-    /// @notice Emitted when the staking receipt is permanently bound to Resonance.
+    /// @notice Emitted when an account atomically deposits GBX, mints sGBX, and assigns it to a Strategy.
+    event Signaled(address indexed account, address indexed strategy, uint256 amount);
+    /// @notice Emitted when an account atomically removes signal, burns sGBX, and receives GBX.
+    event SignalWithdrawn(address indexed account, address indexed strategy, uint256 amount);
+    /// @notice Emitted when the signal token is permanently bound to Resonance.
     /// @param resonance Bound Resonance address.
     event ResonanceSet(address indexed resonance);
 
-    /// @notice An unstake exceeds the account's SignalGBX not allocated in Resonance.
-    error ActiveSignals(address account, uint256 signalWeight);
     /// @notice The underlying token did not move by the exact requested amount at both ends of a transfer.
     /// @param expected Requested underlying amount.
     /// @param senderDebit Amount removed from the sender.
     /// @param receiverCredit Amount credited to the receiver.
     error InexactUnderlyingTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-    /// @notice A signal removal exceeds the account's complete allocated SignalGBX balance.
-    error InsufficientAllocatedSignal(uint256 available, uint256 requested);
-    /// @notice A signal addition exceeds the account's unallocated SignalGBX balance.
-    error InsufficientUnallocatedSignal(uint256 available, uint256 requested);
     /// @notice A candidate Resonance does not point back to this SignalGBX receipt.
     error InvalidResonance(address resonance);
     /// @notice A transfer other than minting or burning was attempted.
@@ -65,11 +52,11 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     error ResonanceNotSet();
     /// @notice A required deployment or binding address is zero.
     error ZeroAddress();
-    /// @notice A stake or unstake amount is zero.
+    /// @notice A signal operation amount is zero.
     error ZeroAmount();
 
-    /// @notice Creates the non-transferable staking receipt and assigns deployment-time ownership.
-    /// @param gbx_ GBX token deposited by stakers.
+    /// @notice Creates the non-transferable signal token and assigns deployment-time ownership.
+    /// @param gbx_ GBX token deposited by signalers.
     /// @param initialOwner Deployment-time owner responsible for binding Resonance.
     constructor(IERC20 gbx_, address initialOwner)
         ERC20("Signal GUM BALL 6900", "sGBX")
@@ -82,35 +69,28 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         gbx = gbx_;
     }
 
-    /// @notice Stakes GBX after Resonance setup and mints the same amount of non-transferable SignalGBX.
-    /// @param amount Amount of GBX to stake.
-    function stake(uint256 amount) external nonReentrant {
-        _requireAmount(amount);
-        _configuredResonance();
-        _stake(msg.sender, amount);
-    }
-
-    /// @notice Atomically stakes GBX and allocates the minted SignalGBX to one live Strategy.
-    /// @param strategy Live Strategy receiving signal.
-    /// @param amount Amount of GBX staked and SignalGBX allocated.
-    function stakeAndSignal(address strategy, uint256 amount) external nonReentrant {
+    /// @notice Atomically deposits GBX, mints the same sGBX amount, and assigns it to one live Strategy.
+    /// @param strategy Live Strategy receiving the complete new signal.
+    /// @param amount Exact GBX deposited, sGBX minted, and signal assigned.
+    function signal(address strategy, uint256 amount) external nonReentrant {
         _requireAmount(amount);
         address configuredResonance = _configuredResonance();
 
-        _stake(msg.sender, amount);
-        _allocate(msg.sender, amount);
+        _depositAndMint(msg.sender, amount);
         ICoreResonance(configuredResonance).addSignalFor(msg.sender, strategy, amount);
+
+        emit Signaled(msg.sender, strategy, amount);
     }
 
-    /// @notice Attempts an underlying GBX permit, then atomically stakes and signals the requested amount.
+    /// @notice Attempts an underlying GBX permit, then performs the same atomic transition as `signal`.
     /// @dev A pre-consumed permit may fail harmlessly because the exact underlying transfer remains authoritative.
     /// @param strategy Live Strategy receiving signal.
-    /// @param amount Amount of GBX requested, staked, and SignalGBX allocated.
+    /// @param amount Amount of GBX deposited, SignalGBX minted, and signal assigned.
     /// @param deadline Permit expiry timestamp.
     /// @param v Permit recovery identifier.
     /// @param r Permit signature `r` component.
     /// @param s Permit signature `s` component.
-    function stakeAndSignalWithPermit(address strategy, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
+    function signalWithPermit(address strategy, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
         external
         nonReentrant
     {
@@ -118,34 +98,13 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         address configuredResonance = _configuredResonance();
 
         // A permit is permissionless to submit and may already have been consumed by an observer. In that case the
-        // allowance created by the successful permit is still sufficient for `_stake`; every other failed permit
+        // allowance created by the successful permit is still sufficient for `_depositAndMint`; every other failure
         // remains harmless because the exact `transferFrom` below is the authorization and custody backstop.
         try IERC20Permit(address(gbx)).permit(msg.sender, address(this), amount, deadline, v, r, s) { } catch { }
-        _stake(msg.sender, amount);
-        _allocate(msg.sender, amount);
+        _depositAndMint(msg.sender, amount);
         ICoreResonance(configuredResonance).addSignalFor(msg.sender, strategy, amount);
-    }
 
-    /// @notice Allocates existing unallocated SignalGBX to one live Strategy.
-    /// @param strategy Live Strategy receiving signal.
-    /// @param amount Absolute SignalGBX delta added.
-    function signal(address strategy, uint256 amount) external nonReentrant {
-        _requireAmount(amount);
-        address configuredResonance = _configuredResonance();
-
-        _allocate(msg.sender, amount);
-        ICoreResonance(configuredResonance).addSignalFor(msg.sender, strategy, amount);
-    }
-
-    /// @notice Removes signal from one Strategy while leaving the SignalGBX idle and immediately reusable.
-    /// @param strategy Strategy losing signal; exits remain available after kill.
-    /// @param amount Absolute SignalGBX delta removed.
-    function removeSignal(address strategy, uint256 amount) external nonReentrant {
-        _requireAmount(amount);
-        address configuredResonance = _configuredResonance();
-
-        _deallocate(msg.sender, amount);
-        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, strategy, amount);
+        emit Signaled(msg.sender, strategy, amount);
     }
 
     /// @notice Atomically moves signal from one Strategy to another without moving GBX or minting SignalGBX.
@@ -159,24 +118,17 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         ICoreResonance(configuredResonance).moveSignalFor(msg.sender, fromStrategy, toStrategy, amount);
     }
 
-    /// @notice Atomically removes signal, burns the released SignalGBX, and returns the same amount of GBX.
+    /// @notice Atomically removes signal, burns the same sGBX amount, and returns the same amount of GBX.
     /// @param strategy Strategy losing signal; exits remain available after kill.
     /// @param amount Amount of signal removed, SignalGBX burned, and GBX returned.
-    function removeSignalAndUnstake(address strategy, uint256 amount) external nonReentrant {
+    function withdrawSignal(address strategy, uint256 amount) external nonReentrant {
         _requireAmount(amount);
         address configuredResonance = _configuredResonance();
 
-        _deallocate(msg.sender, amount);
         ICoreResonance(configuredResonance).removeSignalFor(msg.sender, strategy, amount);
-        _unstake(msg.sender, amount);
-    }
+        _burnAndWithdraw(msg.sender, amount);
 
-    /// @notice Burns unallocated SignalGBX and immediately returns the same amount of underlying GBX.
-    /// @dev Active signals reserve only their absolute allocated amount; they do not block withdrawal of the remainder.
-    /// @param amount Amount of SignalGBX to burn and GBX to withdraw.
-    function unstake(uint256 amount) external nonReentrant {
-        _requireAmount(amount);
-        _unstake(msg.sender, amount);
+        emit SignalWithdrawn(msg.sender, strategy, amount);
     }
 
     /// @notice Binds the Resonance dependency once after reciprocal SignalGBX identity validation.
@@ -204,7 +156,7 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         if (amount == 0) revert ZeroAmount();
     }
 
-    function _stake(address account, uint256 amount) private {
+    function _depositAndMint(address account, uint256 amount) private {
         uint256 senderBalanceBefore = gbx.balanceOf(account);
         uint256 receiptBalanceBefore = gbx.balanceOf(address(this));
         gbx.safeTransferFrom(account, address(this), amount);
@@ -217,17 +169,9 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
 
         // Any stake with no current delegate self-delegates, activating vote checkpoints without a second transaction.
         if (delegates(account) == address(0)) _delegate(account, account);
-
-        emit Staked(account, amount);
     }
 
-    function _unstake(address account, uint256 amount) private {
-        uint256 signalWeight = allocatedBalance[account];
-        uint256 balance = balanceOf(account);
-        if (signalWeight != 0 && (signalWeight > balance || amount > balance - signalWeight)) {
-            revert ActiveSignals(account, signalWeight);
-        }
-
+    function _burnAndWithdraw(address account, uint256 amount) private {
         _burn(account, amount);
         uint256 receiptBalanceBefore = gbx.balanceOf(address(this));
         uint256 receiverBalanceBefore = gbx.balanceOf(account);
@@ -237,22 +181,6 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         if (senderDebit != amount || receiverCredit != amount) {
             revert InexactUnderlyingTransfer(amount, senderDebit, receiverCredit);
         }
-
-        emit Unstaked(account, amount);
-    }
-
-    function _allocate(address account, uint256 amount) private {
-        uint256 allocated = allocatedBalance[account];
-        uint256 balance = balanceOf(account);
-        uint256 available = allocated < balance ? balance - allocated : 0;
-        if (amount > available) revert InsufficientUnallocatedSignal(available, amount);
-        allocatedBalance[account] = allocated + amount;
-    }
-
-    function _deallocate(address account, uint256 amount) private {
-        uint256 allocated = allocatedBalance[account];
-        if (amount > allocated) revert InsufficientAllocatedSignal(allocated, amount);
-        allocatedBalance[account] = allocated - amount;
     }
 
     /// @notice Applies receipt and signal-checkpoint accounting for a mint or burn.

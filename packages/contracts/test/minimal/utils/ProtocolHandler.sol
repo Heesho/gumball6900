@@ -23,6 +23,8 @@ import { MockERC20 } from "./Tokens.sol";
 ///      with `fail_on_revert = true` and any revert is a genuine finding rather than an unreachable random input.
 contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     uint256 internal constant ACTOR_COUNT = 4;
+    bytes32 private constant PERMIT_TYPEHASH =
+        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
     GBX public immutable gbx;
     MockERC20 public immutable usdg;
@@ -34,6 +36,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     Mine public immutable mineContract;
 
     address[ACTOR_COUNT] public actors;
+    uint256[ACTOR_COUNT] private actorKeys;
     address[] public strategies;
 
     /// @notice Total USDG the handler has ever created, used as the conservation reference.
@@ -63,10 +66,13 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         resonanceRouter = resonanceRouter_;
         mineContract = mine_;
 
-        actors[0] = address(0xA11CE);
-        actors[1] = address(0xB0B);
-        actors[2] = address(0xCA401);
-        actors[3] = address(0xDA3E);
+        actorKeys[0] = 0xA11CE;
+        actorKeys[1] = 0xB0B;
+        actorKeys[2] = 0xCA401;
+        actorKeys[3] = 0xDA3E;
+        for (uint256 i; i < ACTOR_COUNT; ++i) {
+            actors[i] = vm.addr(actorKeys[i]);
+        }
 
         for (uint256 i; i < strategies_.length; ++i) {
             strategies.push(strategies_[i]);
@@ -74,54 +80,79 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     /*//////////////////////////////////////////////////////////////
-                             STAKING ACTIONS
+                         DEFAULT SIGNAL ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function stake(uint256 actorSeed, uint256 amount) external {
+    function signalDefault(uint256 actorSeed, uint256 amount) external {
         address actor = _actor(actorSeed);
         uint256 requested = _bound(amount, 1e15, 1_000_000 ether);
         if (!_supplyGBX(actor, requested)) return;
+        address[] memory alive = _aliveStrategies();
+        if (alive.length == 0) return;
 
         vm.startPrank(actor);
         gbx.approve(address(signalGBX), requested);
-        signalGBX.stake(requested);
+        signalGBX.signal(alive[0], requested);
         vm.stopPrank();
 
-        ghostCalls["stake"] += 1;
+        ghostCalls["signalDefault"] += 1;
     }
 
-    function unstake(uint256 actorSeed, uint256 amount) external {
+    function withdrawDefault(uint256 actorSeed, uint256 amount) external {
         address actor = _actor(actorSeed);
-        uint256 balance = signalGBX.balanceOf(actor);
-        uint256 allocated = resonance.accountSignalWeight(actor);
-        uint256 available = balance - allocated;
-        if (available == 0) return;
+        address[] memory selected = _accountStrategies(actor);
+        if (selected.length == 0) return;
+        address strategy = selected[0];
+        uint256 held = resonance.accountSignals(actor, strategy);
 
         vm.prank(actor);
-        signalGBX.unstake(_bound(amount, 1, available));
+        signalGBX.withdrawSignal(strategy, _bound(amount, 1, held));
 
-        ghostCalls["unstake"] += 1;
+        ghostCalls["withdrawDefault"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////
                             SIGNAL ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function addSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
+    function signal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
         address actor = _actor(actorSeed);
-        uint256 available = signalGBX.balanceOf(actor) - resonance.accountSignalWeight(actor);
-        if (available == 0) return;
+        uint256 requested = _bound(amount, 1e15, 1_000_000 ether);
+        if (!_supplyGBX(actor, requested)) return;
         address[] memory alive = _aliveStrategies();
         if (alive.length == 0) return;
 
         address strategy = alive[_bound(strategySeed, 0, alive.length - 1)];
-        vm.prank(actor);
-        signalGBX.signal(strategy, _bound(amount, 1, available));
+        vm.startPrank(actor);
+        gbx.approve(address(signalGBX), requested);
+        signalGBX.signal(strategy, requested);
+        vm.stopPrank();
 
-        ghostCalls["addSignal"] += 1;
+        ghostCalls["signal"] += 1;
     }
 
-    function removeSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
+    function signalWithPermit(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
+        uint256 actorIndex = actorSeed % ACTOR_COUNT;
+        address actor = actors[actorIndex];
+        uint256 requested = _bound(amount, 1e15, 1_000_000 ether);
+        if (!_supplyGBX(actor, requested)) return;
+        address[] memory alive = _aliveStrategies();
+        if (alive.length == 0) return;
+
+        address strategy = alive[_bound(strategySeed, 0, alive.length - 1)];
+        uint256 deadline = block.timestamp + 1 days;
+        bytes32 structHash =
+            keccak256(abi.encode(PERMIT_TYPEHASH, actor, address(signalGBX), requested, gbx.nonces(actor), deadline));
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", gbx.DOMAIN_SEPARATOR(), structHash));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(actorKeys[actorIndex], digest);
+
+        vm.prank(actor);
+        signalGBX.signalWithPermit(strategy, requested, deadline, v, r, s);
+
+        ghostCalls["signalWithPermit"] += 1;
+    }
+
+    function withdrawSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
         address actor = _actor(actorSeed);
         address[] memory selected = _accountStrategies(actor);
         if (selected.length == 0) return;
@@ -129,41 +160,38 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         address strategy = selected[_bound(strategySeed, 0, selected.length - 1)];
         uint256 held = resonance.accountSignals(actor, strategy);
         vm.prank(actor);
-        signalGBX.removeSignal(strategy, _bound(amount, 1, held));
+        signalGBX.withdrawSignal(strategy, _bound(amount, 1, held));
 
-        ghostCalls["removeSignal"] += 1;
+        ghostCalls["withdrawSignal"] += 1;
     }
 
-    function addSignalMany(uint256 actorSeed, uint256 countSeed) external {
+    function signalMany(uint256 actorSeed, uint256 countSeed) external {
         address actor = _actor(actorSeed);
-        uint256 available = signalGBX.balanceOf(actor) - resonance.accountSignalWeight(actor);
-        if (available == 0) return;
-
         address[] memory alive = _aliveStrategies();
         if (alive.length == 0) return;
 
         uint256 count = _bound(countSeed, 1, alive.length);
-        if (available < count) return;
+        uint256 deposited = count * 1 ether;
+        if (!_supplyGBX(actor, deposited)) return;
 
         address[] memory selected = new address[](count);
         uint256[] memory amounts = new uint256[](count);
-        uint256 share = available / count;
         for (uint256 i; i < count; ++i) {
             selected[i] = alive[i];
-            amounts[i] = share;
+            amounts[i] = 1 ether;
         }
-        amounts[0] += available - (share * count);
 
         vm.startPrank(actor);
+        gbx.approve(address(signalGBX), deposited);
         for (uint256 i; i < count; ++i) {
             signalGBX.signal(selected[i], amounts[i]);
         }
         vm.stopPrank();
 
-        ghostCalls["addSignalMany"] += 1;
+        ghostCalls["signalMany"] += 1;
     }
 
-    function removeSignalMany(uint256 actorSeed, uint256 countSeed) external {
+    function withdrawSignalMany(uint256 actorSeed, uint256 countSeed) external {
         address actor = _actor(actorSeed);
         address[] memory current = _accountStrategies(actor);
         if (current.length == 0) return;
@@ -178,11 +206,11 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
         vm.startPrank(actor);
         for (uint256 i; i < count; ++i) {
-            signalGBX.removeSignal(selected[i], amounts[i]);
+            signalGBX.withdrawSignal(selected[i], amounts[i]);
         }
         vm.stopPrank();
 
-        ghostCalls["removeSignalMany"] += 1;
+        ghostCalls["withdrawSignalMany"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -262,32 +290,6 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         ghostCalls["buy"] += 1;
     }
 
-    function claimRewards(uint256 actorSeed, uint256 strategySeed) external {
-        if (strategies.length == 0) return;
-
-        address actor = _actor(actorSeed);
-        address strategy = strategies[_bound(strategySeed, 0, strategies.length - 1)];
-        Bribe bribe = Bribe(resonance.bribeFor(strategy));
-
-        bribe.claimRewards(actor);
-
-        ghostCalls["claimRewards"] += 1;
-    }
-
-    function claimSelectiveReward(uint256 actorSeed, uint256 strategySeed, uint256 tokenSeed) external {
-        if (strategies.length == 0) return;
-
-        address actor = _actor(actorSeed);
-        Bribe bribe = Bribe(resonance.bribeFor(strategies[_bound(strategySeed, 0, strategies.length - 1)]));
-        address[] memory tokens = bribe.rewardTokens();
-        if (tokens.length == 0) return;
-
-        vm.prank(actor);
-        bribe.claimReward(actor, tokens[_bound(tokenSeed, 0, tokens.length - 1)]);
-
-        ghostCalls["claimSelectiveReward"] += 1;
-    }
-
     function notifyTinyReward(uint256 strategySeed, uint256 amount) external {
         if (strategies.length == 0) return;
 
@@ -312,7 +314,9 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
     function payFixedLiabilities() external {
         for (uint256 i; i < strategies.length; ++i) {
-            BribeRouter(resonance.bribeRouterFor(strategies[i])).payFundPayment();
+            BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
+            router.payFundPayment();
+            router.notifyBribeReward();
             Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
             address[] memory tokens = bribe.rewardTokens();
             for (uint256 t; t < tokens.length; ++t) {
@@ -321,6 +325,28 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         }
 
         ghostCalls["payFixedLiabilities"] += 1;
+    }
+
+    function payFundLiabilities() external {
+        for (uint256 i; i < strategies.length; ++i) {
+            BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
+            router.payFundPayment();
+            Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
+            address[] memory tokens = bribe.rewardTokens();
+            for (uint256 t; t < tokens.length; ++t) {
+                bribe.payFundReward(tokens[t]);
+            }
+        }
+
+        ghostCalls["payFundLiabilities"] += 1;
+    }
+
+    function notifyBribeLiabilities() external {
+        for (uint256 i; i < strategies.length; ++i) {
+            BribeRouter(resonance.bribeRouterFor(strategies[i])).notifyBribeReward();
+        }
+
+        ghostCalls["notifyBribeLiabilities"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -401,11 +427,6 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         resonance.killStrategy(victim);
 
         ghostCalls["killStrategy"] += 1;
-    }
-
-    function advanceTime(uint256 secondsSeed) external {
-        vm.warp(block.timestamp + _bound(secondsSeed, 1 hours, 21 days));
-        ghostCalls["advanceTime"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////

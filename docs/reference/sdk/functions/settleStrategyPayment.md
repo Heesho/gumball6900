@@ -6,15 +6,16 @@
 
 # Function: settleStrategyPayment()
 
-> **settleStrategyPayment**(`paymentAmount`): [`StrategyPaymentSettlement`](../interfaces/StrategyPaymentSettlement.md)
+> **settleStrategyPayment**(`paymentAmount`, `priorSplitRemainder?`): [`StrategyPaymentSettlement`](../interfaces/StrategyPaymentSettlement.md)
 
-Models the uniform Strategy rule: every completed payment is owed entirely to Fund.
+Models BribeRouter's cumulative, frequency-independent 90/10 acquired-asset classification.
 
 ## Parameters
 
-| Parameter       | Type     |
-| --------------- | -------- |
-| `paymentAmount` | `bigint` |
+| Parameter             | Type     | Default value |
+| --------------------- | -------- | ------------- |
+| `paymentAmount`       | `bigint` | `undefined`   |
+| `priorSplitRemainder` | `bigint` | `0n`          |
 
 ## Returns
 

@@ -61,8 +61,9 @@ export const currentPages = [
                 provenance, and a signed deployment manifest remain unresolved.
               </p>
               <p style="color:${palette.onDeepMuted}">
-                This edition supersedes the daily pooled mining design. The Solidity and tested economic fixtures are
-                authoritative. A local green build is engineering evidence, not a safety or release claim.
+                This edition describes the ADR 0031 and ADR 0032 target architecture. Their Solidity and integration
+                work is pending. Existing tests and fixtures remain evidence only for mechanics they currently
+                implement; a local green build is not a safety or release claim.
               </p>
             </div>
             <div class="col-side">
@@ -107,17 +108,17 @@ export const currentPages = [
             eyebrow: 'Part I',
             number: '01',
             title: 'The economic loop',
-            deck: 'Mining brings USDG in; staked sGBX coordinates signals and bounded governance.',
+            deck: 'Mining brings USDG in; signal-backed sGBX coordinates acquisition weights and bounded governance.',
           })}
           <div class="spread">
             <div class="col-main">
               ${steps([
                 'A participant takes a mining slot at its current hourly decaying USDG price.',
                 'The incumbent accrues GBX continuously at the fixed rate assigned on entry.',
-                'Staked GBX becomes non-transferable sGBX: idle balances may govern, while signaled balances direct later stream time.',
+                'A signal atomically escrows GBX, mints non-transferable voting sGBX, and assigns every unit to one live Strategy.',
                 'Twenty percent of a nonempty-slot handoff routes through Resonance; eighty percent becomes a displaced-miner claim.',
                 'ResonanceRouter waits below the active amount left; a qualifying balance restarts seven days with new USDG plus that remainder.',
-                'Strategies pull released USDG and exchange it for assets whose complete payments become Fund liabilities.',
+                'Strategies pull released USDG; acquired-asset payments classify cumulatively 90% to Fund and 10% to paired Bribes.',
                 'A GBX holder may burn GBX for a selected pro-rata basket of raw Fund assets.',
               ])}
             </div>
@@ -299,7 +300,8 @@ export const currentPages = [
               <p>
                 ProtocolGovernor is the Timelock's sole proposer. Its targets, block-clock voting configuration, quorum,
                 and zero-value selector filter are immutable. Execution opens after the delay; a queued proposal cannot
-                be canceled. Historical sGBX voting weight also survives unstaking after the snapshot.
+                be canceled. Historical sGBX voting weight also survives withdrawing signal after the snapshot. After
+                bootstrap, the final live Strategy cannot be killed until a replacement is added.
               </p>
             </div>
             <div class="col-side">

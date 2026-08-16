@@ -27,7 +27,7 @@ fi
 
 if ! (
     cd "$CONTRACTS_DIR"
-    FOUNDRY_TEST=audit/harness forge test --match-contract ProtocolStateMachineCampaignTest
+    FOUNDRY_PROFILE=integration forge test --match-contract CampaignHarnessTest
 ) >"$REPORT_DIR/protocol-campaign-smoke.txt" 2>&1; then
     status=1
 fi
@@ -36,6 +36,7 @@ ECHIDNA_IMAGE="ghcr.io/crytic/echidna/echidna:v$ECHIDNA_VERSION@$ECHIDNA_IMAGE_D
 if ! docker run --rm \
     --platform linux/amd64 \
     --pull=never \
+    --env FOUNDRY_PROFILE=echidna \
     --volume "$REPOSITORY_DIR:/workspace" \
     --workdir /workspace/packages/contracts \
     "$ECHIDNA_IMAGE" \
@@ -43,6 +44,9 @@ if ! docker run --rm \
     --contract ProtocolStateMachineCampaign \
     --config audit/echidna.yaml \
     >"$REPORT_DIR/echidna.json"; then
+    status=1
+fi
+if ! node "$AUDIT_DIR/check-echidna-results.mjs" "$REPORT_DIR/echidna.json" "$AUDIT_DIR/echidna.yaml"; then
     status=1
 fi
 

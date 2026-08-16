@@ -2,6 +2,7 @@ import { type Address, type Hex, type PublicClient } from 'viem';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  readBribeRouterView,
   readLiquidityPositionView,
   readMineSlotView,
   readProtocolGovernorView,
@@ -150,10 +151,49 @@ describe('Resonance reads', () => {
   });
 });
 
-describe('SignalGBX and protocol governance reads', () => {
-  it('reads canonical SignalGBX allocation and voting state', async () => {
+describe('BribeRouter reads', () => {
+  it('validates and returns the complete immutable 90/10 settlement state', async () => {
     const values: Readonly<Record<string, unknown>> = {
-      allocatedBalance: 60n,
+      accountedPaymentBalance: 100n,
+      BPS: 10_000n,
+      bribe: address(2),
+      BRIBE_BPS: 1_000n,
+      bribePaymentLiability: 10n,
+      fund: address(3),
+      FUND_BPS: 9_000n,
+      fundPaymentLiability: 90n,
+      paymentSurplus: 7n,
+      paymentToken: address(4),
+      splitRemainder: 0n,
+      strategy: address(5),
+    };
+    const readContract = vi.fn(
+      async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
+    );
+    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
+    const client = { getBlock, readContract } as unknown as PublicClient;
+
+    await expect(readBribeRouterView(client, address(1))).resolves.toEqual({
+      accountedPaymentBalance: 100n,
+      basisPoints: 10_000n,
+      blockNumber: BLOCK_NUMBER,
+      bribe: address(2),
+      bribeBasisPoints: 1_000n,
+      bribePaymentLiability: 10n,
+      fund: address(3),
+      fundBasisPoints: 9_000n,
+      fundPaymentLiability: 90n,
+      paymentSurplus: 7n,
+      paymentToken: address(4),
+      splitRemainder: 0n,
+      strategy: address(5),
+    });
+  });
+});
+
+describe('SignalGBX and protocol governance reads', () => {
+  it('reads the canonical fully allocated SignalGBX aggregate and voting state', async () => {
+    const values: Readonly<Record<string, unknown>> = {
       balanceOf: 100n,
       delegates: address(2),
       getVotes: 100n,
@@ -165,12 +205,10 @@ describe('SignalGBX and protocol governance reads', () => {
     const client = { getBlock, readContract } as unknown as PublicClient;
 
     await expect(readSignalView(client, address(1), address(2))).resolves.toEqual({
-      allocatedSignalBalance: 60n,
       blockNumber: BLOCK_NUMBER,
       currentVotes: 100n,
       delegate: address(2),
       signalBalance: 100n,
-      unallocatedSignalBalance: 40n,
     });
     for (const [request] of readContract.mock.calls) expect(request.blockNumber).toBe(BLOCK_NUMBER);
   });

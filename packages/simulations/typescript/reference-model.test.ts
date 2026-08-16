@@ -31,6 +31,18 @@ describe('Mine reference model', () => {
     expect(results.miningQuotes[1]?.nextGlobalUps).toBe('50000000000000000000');
   });
 
+  it('matches cumulative 90/10 acquired-asset classification across payment partitions', () => {
+    const quote = loadTypeScriptResults().auctionQuotes[0];
+    expect(quote).toMatchObject({
+      fundAmount: '37800000000000000000',
+      bribeAmount: '4200000000000000000',
+      splitRemainder: '0',
+      partitionFundAmount: '37800000000000000000',
+      partitionBribeAmount: '4200000000000000000',
+      partitionRemainder: '0',
+    });
+  });
+
   it('rejects numeric financial inputs that could lose precision', () => {
     const scenarios = JSON.parse(readFileSync(scenarioPath, 'utf8')) as Record<string, unknown>;
     const first = (scenarios.miningCases as Array<Record<string, unknown>>)[0]!;

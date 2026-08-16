@@ -296,7 +296,7 @@ contract Mine is Ownable, ReentrancyGuard {
     }
 
     /// @notice Permanently opens more concurrent slots without repricing any occupied slot.
-    function increaseCapacity(uint256 newCapacity) external onlyOwner nonReentrant {
+    function increaseCapacity(uint256 newCapacity) external nonReentrant onlyOwner {
         uint256 previousCapacity = capacity;
         if (newCapacity <= previousCapacity) revert CapacityNotIncreased(previousCapacity, newCapacity);
         if (newCapacity > MAX_CAPACITY) revert CapacityTooHigh(newCapacity);

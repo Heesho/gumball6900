@@ -12,8 +12,8 @@ contract CarryReallocationTest is ProtocolFixture {
 
     /// @notice Revenue rounded away under old weights remains surplus and cannot be captured by a later Strategy.
     function test_NewStrategySignalCannotReceivePreEntryRoundedSurplus() external {
-        _stake(ALICE, 1e36);
-        _stake(CAROL, 1e36);
+        _signalDefault(ALICE, 1e36);
+        _signalDefault(CAROL, 1e36);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(CAROL, address(targetStrategy));
 
@@ -22,7 +22,7 @@ contract CarryReallocationTest is ProtocolFixture {
         _finishRevenueStream();
         assertEq(resonance.rewardPerToken(address(usdg)), 0);
 
-        _stake(BOB, 2e36);
+        _signalDefault(BOB, 2e36);
         _signalOne(BOB, address(gbxStrategy));
 
         _routeRevenue(4);
@@ -38,8 +38,8 @@ contract CarryReallocationTest is ProtocolFixture {
 
     /// @notice Bribe carry emitted under old weights is fixed to Fund before a later signaler enters.
     function test_NewSignalerCannotReceivePreEntryRewardCarry() external {
-        _stake(ALICE, 50 ether);
-        _stake(CAROL, 50 ether);
+        _signalDefault(ALICE, 50 ether);
+        _signalDefault(CAROL, 50 ether);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(CAROL, address(targetStrategy));
 
@@ -52,7 +52,7 @@ contract CarryReallocationTest is ProtocolFixture {
 
         // Ninety-nine units are emitted under the two incumbent accounts but remain below index resolution.
         vm.warp(DEPLOYED_AT + 99);
-        _stake(BOB, 100 ether);
+        _signalDefault(BOB, 100 ether);
         _signalOne(BOB, address(targetStrategy));
         assertEq(targetBribe.rewardPerToken(address(target)), 0);
         assertEq(targetBribe.fundRewardLiability(address(target)), 99);
@@ -67,8 +67,8 @@ contract CarryReallocationTest is ProtocolFixture {
 
     /// @notice Old-denominator Bribe carry cannot be reallocated to signalers who remain after an exit.
     function test_RemainingSignalerCannotReceivePreExitRewardCarry() external {
-        _stake(ALICE, 50 ether);
-        _stake(CAROL, 50 ether);
+        _signalDefault(ALICE, 50 ether);
+        _signalDefault(CAROL, 50 ether);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(CAROL, address(targetStrategy));
 
@@ -80,7 +80,7 @@ contract CarryReallocationTest is ProtocolFixture {
 
         vm.warp(DEPLOYED_AT + 99);
         vm.prank(ALICE);
-        signalGBX.removeSignal(address(targetStrategy), 50 ether);
+        signalGBX.withdrawSignal(address(targetStrategy), 50 ether);
         assertEq(targetBribe.fundRewardLiability(address(target)), 99);
 
         vm.warp(DEPLOYED_AT + 300);
@@ -92,8 +92,8 @@ contract CarryReallocationTest is ProtocolFixture {
 
     /// @notice A fully exiting account's sub-token reward remainder becomes a fixed Fund remainder.
     function test_FullExitCannotReallocateUserRewardRemainder() external {
-        _stake(ALICE, 3);
-        _stake(CAROL, 7);
+        _signalDefault(ALICE, 3);
+        _signalDefault(CAROL, 7);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(CAROL, address(targetStrategy));
 
@@ -105,7 +105,7 @@ contract CarryReallocationTest is ProtocolFixture {
 
         vm.warp(DEPLOYED_AT + 1);
         vm.prank(ALICE);
-        signalGBX.removeSignal(address(targetStrategy), 3);
+        signalGBX.withdrawSignal(address(targetStrategy), 3);
 
         assertEq(targetBribe.userRewardRemainder(ALICE, address(target)), 0);
         assertEq(targetBribe.fundRewardRemainder(address(target)), 3e17);

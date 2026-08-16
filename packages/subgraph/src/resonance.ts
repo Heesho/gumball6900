@@ -51,6 +51,7 @@ export function handleRevenueNotified(event: RevenueNotified): void {
 export function handleStrategyAdded(event: StrategyAdded): void {
   const protocol = getProtocol(event);
   protocol.strategyCount += 1;
+  protocol.liveStrategyCount += 1;
   protocol.save();
 
   const strategy = getStrategy(event.params.strategy, event);
@@ -71,6 +72,10 @@ export function handleStrategyAdded(event: StrategyAdded): void {
 }
 
 export function handleStrategyKilled(event: StrategyKilled): void {
+  const protocol = getProtocol(event);
+  protocol.liveStrategyCount -= 1;
+  protocol.save();
+
   const strategy = getStrategy(event.params.strategy, event);
   strategy.live = false;
   strategy.save();

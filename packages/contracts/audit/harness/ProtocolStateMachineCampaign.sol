@@ -175,36 +175,40 @@ contract ProtocolStateMachineCampaign {
                                 ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function stake(uint8 actorSeed, uint96 amount) external {
+    function signalDefault(uint8 actorSeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
         uint256 requested = _clamp(amount, 1, gbx.balanceOf(address(actor)));
+        address[] memory alive = _aliveStrategies();
+        if (alive.length == 0) revert("NO_LIVE_STRATEGY");
 
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), requested)));
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.stake, (requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.signal, (alive[0], requested)));
     }
 
-    function unstake(uint8 actorSeed, uint96 amount) external {
+    function withdrawDefault(uint8 actorSeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
-        uint256 available = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
-        uint256 requested = _clamp(amount, 1, available);
+        address[] memory selected = _accountStrategies(account);
+        if (selected.length == 0) revert("NO_ACCOUNT_STRATEGY");
+        address strategy = selected[0];
+        uint256 requested = _clamp(amount, 1, resonance.accountSignals(account, strategy));
 
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.unstake, (requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.withdrawSignal, (strategy, requested)));
     }
 
-    function addSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
+    function signal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
-        uint256 available = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
         address[] memory alive = _aliveStrategies();
         if (alive.length == 0) revert("NO_LIVE_STRATEGY");
 
         address strategy = alive[uint256(strategySeed) % alive.length];
-        uint256 requested = _clamp(amount, 1, available);
+        uint256 requested = _clamp(amount, 1, gbx.balanceOf(account));
+        actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), requested)));
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.signal, (strategy, requested)));
     }
 
-    function removeSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
+    function withdrawSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
         address[] memory selected = _accountStrategies(account);
@@ -212,13 +216,13 @@ contract ProtocolStateMachineCampaign {
 
         address strategy = selected[uint256(strategySeed) % selected.length];
         uint256 requested = _clamp(amount, 1, resonance.accountSignals(account, strategy));
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignal, (strategy, requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.withdrawSignal, (strategy, requested)));
     }
 
-    function addSignalMany(uint8 actorSeed, uint8 countSeed) external {
+    function signalMany(uint8 actorSeed, uint8 countSeed) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
-        uint256 available = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
+        uint256 available = gbx.balanceOf(account);
         address[] memory alive = _aliveStrategies();
         if (alive.length == 0) revert("NO_LIVE_STRATEGY");
 
@@ -233,12 +237,13 @@ contract ProtocolStateMachineCampaign {
         }
         amounts[0] += available - (share * count);
 
+        actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), available)));
         for (uint256 i; i < count; ++i) {
             actor.run(address(signalGBX), abi.encodeCall(SignalGBX.signal, (selected[i], amounts[i])));
         }
     }
 
-    function removeSignalMany(uint8 actorSeed, uint8 countSeed) external {
+    function withdrawSignalMany(uint8 actorSeed, uint8 countSeed) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
         address[] memory current = _accountStrategies(account);
@@ -253,7 +258,7 @@ contract ProtocolStateMachineCampaign {
         }
 
         for (uint256 i; i < count; ++i) {
-            actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignal, (selected[i], amounts[i])));
+            actor.run(address(signalGBX), abi.encodeCall(SignalGBX.withdrawSignal, (selected[i], amounts[i])));
         }
     }
 
@@ -348,6 +353,7 @@ contract ProtocolStateMachineCampaign {
         for (uint256 i; i < strategies.length; ++i) {
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
             router.payFundPayment();
+            router.notifyBribeReward();
 
             Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
             address[] memory tokens = bribe.rewardTokens();
@@ -404,8 +410,8 @@ contract ProtocolStateMachineCampaign {
                               PROPERTIES
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Every staking receipt is fully backed; unsolicited GBX can only create stranded surplus.
-    function echidna_stakingReceiptIsFullyCollateralized() public view returns (bool holds) {
+    /// @notice Every signal receipt is fully backed; unsolicited GBX can only create stranded surplus.
+    function echidna_signalReceiptIsFullyCollateralized() public view returns (bool holds) {
         return gbx.balanceOf(address(signalGBX)) >= signalGBX.totalSupply();
     }
 
@@ -447,11 +453,11 @@ contract ProtocolStateMachineCampaign {
         return accountTotal == strategyTotal;
     }
 
-    /// @notice No account signals with more weight than the receipts it actually holds.
+    /// @notice Mandatory signaling makes every account's complete receipt balance active signal.
     function echidna_signalWeightNeverExceedsTheReceiptBalance() public view returns (bool holds) {
         for (uint256 i; i < ACTOR_COUNT; ++i) {
             address actor = address(actors[i]);
-            if (resonance.accountSignalWeight(actor) > signalGBX.balanceOf(actor)) return false;
+            if (resonance.accountSignalWeight(actor) != signalGBX.balanceOf(actor)) return false;
         }
         return true;
     }
@@ -465,9 +471,9 @@ contract ProtocolStateMachineCampaign {
 
             uint256 summed;
             for (uint256 j; j < selected.length; ++j) {
-                uint256 signal = resonance.accountSignals(actor, selected[j]);
-                if (signal == 0) return false;
-                summed += signal;
+                uint256 signalAmount = resonance.accountSignals(actor, selected[j]);
+                if (signalAmount == 0) return false;
+                summed += signalAmount;
                 for (uint256 k = j + 1; k < selected.length; ++k) {
                     if (selected[j] == selected[k]) return false;
                 }
@@ -596,13 +602,25 @@ contract ProtocolStateMachineCampaign {
         return true;
     }
 
-    /// @notice Every Strategy payment Router balance is immutable Fund liability; auction proceeds never queue for Bribe.
+    /// @notice Every Strategy payment Router balance is exactly its immutable Fund plus paired-Bribe liabilities.
     function echidna_bribeRouterAccountingIsExact() public view returns (bool holds) {
         for (uint256 i; i < strategies.length; ++i) {
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
-            if (router.accountedPaymentBalance() != router.fundPaymentLiability()) return false;
+            if (router.accountedPaymentBalance() != router.fundPaymentLiability() + router.bribePaymentLiability()) {
+                return false;
+            }
+            if (router.splitRemainder() >= router.BPS()) return false;
         }
         return true;
+    }
+
+    /// @notice The bootstrap escape hatch is closed permanently: exactly the tracked nonzero live count survives.
+    function echidna_atLeastOneStrategyRemainsLive() public view returns (bool holds) {
+        uint256 counted;
+        for (uint256 i; i < strategies.length; ++i) {
+            if (resonance.isStrategyAlive(strategies[i])) ++counted;
+        }
+        return counted != 0 && counted == resonance.liveStrategyCount();
     }
 
     /// @notice The router never conceals or misreports any balance awaiting a permissionless route call.

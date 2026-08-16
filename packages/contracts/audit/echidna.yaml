@@ -8,11 +8,18 @@ shrinkLimit: 5000
 maxTimeDelay: 172800
 maxBlockDelay: 50400
 coverage: true
+# The constructor-only campaign graph produces a test harness runtime of roughly 31 KB.
+# This limit applies only to the harness; production contract sizes remain enforced separately.
+codeSize: 4294967295
+testMaxGas: 125000000
+propMaxGas: 125000000
 corpusDir: audit/reports/echidna-corpus
 coverageDir: audit/reports/echidna-coverage
 format: json
 stopOnFail: true
-testDestruction: true
+# No target contains SELFDESTRUCT; enabling destruction mode leaves Echidna 2.3.2
+# with an empty destruction-call set and crashes its workers before the first call.
+testDestruction: false
 allContracts: false
 disableOnchainSources: true
 cryticArgs:

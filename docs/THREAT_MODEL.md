@@ -1,13 +1,16 @@
 # Threat model
 
+> Target-development threat model under ADRs 0031 and 0032. The current executable campaign has not yet been updated
+> for these decisions; see [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
+
 ## Primary risks
 
 - SignalGBX governance can authorize only four exact zero-value calls through the selector-bounded ProtocolGovernor and
   Timelock. A voting-power capture can misuse Strategy addition, Strategy death, Bribe reward registration, or
   increase-only Mine capacity, but cannot reach another target or selector. Fund and LiquidityPosition are ownerless.
-- SignalGBX uses historical block-number snapshots. A holder may acquire and stake GBX before the snapshot, then remove
-  every signal and unstake after the snapshot while retaining that proposal's voting weight. Governance does not create
-  a staking lock, and low staked supply lowers the absolute quorum represented by a fixed quorum percentage.
+- SignalGBX uses historical block-number snapshots. A holder may acquire and signal GBX before the snapshot, then
+  withdraw every signal after the snapshot while retaining that proposal's voting weight. Governance does not create
+  a signal withdrawal lock, and low signaled supply lowers the absolute quorum represented by a fixed quorum percentage.
 - Once a successful proposal is queued, no multisig, guardian, or Governor caller can cancel it. The Timelock delay is
   an observation and exit window, not an emergency veto. Incorrect immutable voting parameters or role setup cannot be
   repaired.
@@ -22,6 +25,8 @@
 - Unrestricted signaling permits rapid allocation movement and wallet-splitting; it deliberately provides no
   epoch-level stability or anti-churn guarantee. Elapsed revenue is checkpointed before each weight change, so a
   same-block flash signal earns no newly notified USDG, but a signal held over real time earns that interval's flow.
+- Idle sGBX is unreachable, so every current voting unit also carries a Strategy allocation. This does not prevent
+  short-duration voting power around a block snapshot because `withdrawSignal` remains immediate.
 - Resonance streaming is lazy. USDG entitlement accrues with time, but token balances move to Strategies only when a
   caller triggers a signal change, notification, distribution, purchase, or other checkpointing path. Interfaces must
   preview released revenue rather than treating the Strategy's raw balance as its complete executable inventory.
@@ -42,8 +47,9 @@
 - Bribe carry remains conserved and assigned to Fund before a signal denominator changes, so a late Bribe signaler
   cannot receive value emitted before entry. A fully exiting Bribe account's sub-token remainder also becomes fixed Fund
   precision rather than being reallocated to remaining signalers.
-- A broken or blocklisting token can prevent its own deferred Fund or user payout. The fixed liability remains
-  observable and retryable, while signal removal and unstaking remain available because neither path transfers it.
+- A broken or blocklisting token can prevent its own deferred Fund, Bribe, or user payout. The fixed liability remains
+  observable and retryable. BribeRouter's two settlement legs are independent, and `withdrawSignal` remains available
+  because it transfers only the escrowed GBX return rather than an acquired-asset liability.
 - A malformed caller-selected token can revert that redemption, but cannot block redemptions that omit
   it.
 - Omitted redemption assets are forfeited to the remaining GBX supply.
@@ -55,10 +61,11 @@
   token's payout.
 - Killing a Strategy checkpoints and preserves its pre-kill Resonance claim, then excludes its complete recorded weight
   from active reward supply. Existing allocations stay reserved and removable, but no later removal subtracts that
-  weight again. Killing the final live weighted Strategy can therefore create the accepted zero-active-supply condition
-  even while dead-Strategy allocations remain recorded.
+  weight again. After bootstrap, killing the final live Strategy is prohibited; governance must add a replacement
+  first. A zero-active-signal interval can still occur if every user exits all live Strategies.
 - Killing a Strategy turns its Bribe into a closed reward pool. Existing signalers may remain indefinitely, earn and
-  claim independently funded Bribe rewards, or exit incrementally, but neither they nor new accounts can add signal.
+  claim automatic acquired-asset or additionally funded Bribe rewards, or exit incrementally, but neither they nor new
+  accounts can add signal.
   If the final signaler exits before active and queued rewards finish, the remainder is permanently abandoned in the
   Bribe. A notification made after signal supply reaches zero is likewise unrecoverable. This amount is unbounded and
   is accepted by ADR 0028 without a retirement, refund, rescue, or Fund-redirection mechanism.
@@ -75,6 +82,6 @@
 
 The starting point has no pause guardian, proxy upgrade path, Mine replacement authority, emission setter, price
 oracle, NAV calculation, curated Fund asset list, or per-user signal cooldown. Signal changes are caller-bounded scalar
-operations coordinated only by SignalGBX; there is no batch or forced whole-account reset. These omissions are
-deliberate simplifications and must be reconsidered through testing and audit before any deployment. Current internal
-hardening does not replace independent security review.
+operations coordinated only by SignalGBX; there is no idle receipt, public batch, or forced whole-account reset. These
+omissions are deliberate simplifications and must be reconsidered through testing and audit before any deployment.
+Current internal hardening does not replace independent security review.

@@ -38,14 +38,14 @@ export default function HomePage() {
           The governance-minimized GBX protocol.
         </h1>
         <p className="mt-6 max-w-3xl text-sm leading-7 text-[#a5b3b2] sm:text-base">
-          Stake GBX into non-transferable sGBX to signal which assets Fund should accumulate and vote on four bounded
-          protocol actions. Every completed Strategy payment is Fund-bound, independently funded Bribes may reward
-          signalers, and holders can redeem a caller-selected pro-rata basket without an asset registry.
+          Deposit GBX directly into a Strategy signal to mint non-transferable sGBX and vote on four bounded protocol
+          actions. Every completed Strategy payment is split 90% to Fund and 10% to that Strategy&apos;s Bribe, while
+          holders can redeem a caller-selected pro-rata basket without an asset registry.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Metric label="Genesis GBX supply" value="20,000,000 GBX" />
-          <Metric label="Strategy payment destination" value="100% Fund-bound" />
-          <Metric label="Staking withdrawal lock" value="None" />
+          <Metric label="Strategy payment split" value="90% Fund · 10% Bribe" />
+          <Metric label="Signal withdrawal lock" value="None" />
         </div>
       </section>
 
@@ -68,11 +68,11 @@ export default function HomePage() {
           <dl className="space-y-5">
             <Definition label="Mining revenue" value="20% Resonance · 80% displaced miner" />
             <Definition label="v4 position fees" value="USDG → Resonance · GBX → Fund burn · principal fixed" />
-            <Definition label="Strategy payment" value="100% fixed Fund liability" />
+            <Definition label="Strategy payment" value="90% fixed Fund liability · 10% fixed Bribe liability" />
             <Definition label="GBX payment" value="Fund receipt · optional later burn" />
             <Definition label="Signal" value="Replaceable at any time" />
-            <Definition label="Combined workflow" value="stakeAndSignal() · removeSignalAndUnstake()" />
-            <Definition label="Signal reward" value="Pro-rata independently funded Bribe stream" />
+            <Definition label="Signal workflow" value="signal() / signalWithPermit() · withdrawSignal()" />
+            <Definition label="Signal reward" value="Pro-rata Bribe stream from its explicit notifications" />
             <Definition label="Redemption" value="Selected raw balances ÷ pre-burn GBX supply" />
           </dl>
         </Panel>
@@ -86,7 +86,7 @@ export default function HomePage() {
             <li>Redemption always uses pre-burn supply and caller-selected Fund balances.</li>
             <li>Fund has no asset registry or protocol-wide token loop.</li>
             <li>GBX payments remain supply-neutral until a permissionless Fund burn.</li>
-            <li>SignalGBX is the sole signal coordinator; idle sGBX remains usable for governance.</li>
+            <li>Every sGBX unit is backed by an active Strategy signal; SignalGBX is the sole signal coordinator.</li>
             <li>GBX supports permit approvals; non-transferable sGBX supports votes but no approval permit.</li>
             <li>Mine capacity starts at one, can only increase, and is capped at sixteen.</li>
             <li>The deployed core has no proxy, upgrade path, treasury recovery, or successor migration.</li>
@@ -111,13 +111,16 @@ export default function HomePage() {
 
       <Panel eyebrow="Settlement observability" title="Streams, claims, and fixed liabilities stay visible">
         <p className="max-w-4xl text-sm leading-6 text-[#a8b5b4]">
-          A blocked Strategy, Fund, or reward token cannot strand signal removal or unstaking. Revenue and settlement
-          claims keep immutable receivers and remain permissionlessly retryable. Reward holders can claim one token or a
-          unique selected set so a broken token does not block healthy rewards.
+          A blocked Strategy, Fund, or reward token cannot strand signal movement or withdrawal. Revenue and settlement
+          liabilities keep immutable receivers and remain permissionlessly retryable. Reward holders can claim one token
+          or a unique selected set so a broken token does not block healthy rewards.
         </p>
         <dl className="mt-5 grid gap-4 sm:grid-cols-3">
           <Definition label="Revenue stream" value="left(USDG) · distribute(strategy)" />
-          <Definition label="Acquisition state" value="fundPaymentLiability → payFundPayment()" />
+          <Definition
+            label="Acquisition state"
+            value="fundPaymentLiability → payFundPayment() · bribePaymentLiability → notifyBribeReward()"
+          />
           <Definition label="Reward claims" value="claimReward() · claimRewards(account, tokens)" />
         </dl>
       </Panel>

@@ -198,9 +198,9 @@ contract Strategy is ReentrancyGuard {
         return initialPrice - Math.mulDiv(initialPrice, elapsed, epochDuration);
     }
 
-    /// @notice Converts the complete payment into an immutable Fund liability.
-    /// @dev Deferred delivery preserves auction liveness when a payment token temporarily rejects Fund. Bribes remain
-    ///      independently fundable and never receive auction proceeds.
+    /// @notice Converts the complete payment into immutable 90% Fund and 10% Bribe liabilities.
+    /// @dev Deferred delivery isolates temporary failure at either destination. Cumulative classification preserves the
+    ///      exact split independently of payment frequency; additional explicit Bribe notifications remain possible.
     /// @param paymentAmount Total payment collected from the buyer.
     function _settlePayment(uint256 paymentAmount) private {
         address router = ICoreResonance(resonance).bribeRouterFor(address(this));

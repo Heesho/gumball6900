@@ -36,7 +36,7 @@ export const hero = {
   definition: 'An index fund. The people who own it decide what goes in.',
   chips: [
     { label: "Who it's for", body: 'Anyone who wants a diversified stake, without a manager.' },
-    { label: 'You hold', body: 'GBX: a share of the fund. Stake it as sGBX to signal and vote.' },
+    { label: 'You hold', body: 'GBX: a share of the fund. Deposit it as sGBX to signal and vote.' },
     { label: 'You get back', body: 'Your share of the real assets, whichever ones you pick.' },
     { label: "What's in it", body: 'Tokenized stocks, ETFs and crypto on Robinhood Chain.' },
   ],
@@ -68,19 +68,19 @@ export const story = {
     {
       n: '2',
       verb: 'She points it',
-      body: 'She stakes her GBX for voting sGBX and assigns some to the assets she wants bought.',
+      body: 'She deposits GBX into voting sGBX signals for the assets she wants bought.',
       tech: 'sGBX',
     },
     {
       n: '3',
       verb: 'The fund buys',
-      body: "New dollars follow all holders' assignments. The price falls until a trader is willing to supply the asset.",
+      body: "New dollars follow all holders' signals. The price falls until a trader supplies the asset.",
       tech: 'Strategy',
     },
     {
       n: '4',
       verb: 'The basket grows',
-      body: 'The asset joins the basket: everything holders have bought so far.',
+      body: `The asset payment splits: ${numbers.fundBoundShare} backs the basket and ${numbers.bribeRewardShare} rewards its signalers.`,
       tech: 'Fund',
     },
     {
@@ -108,11 +108,9 @@ export const story = {
  */
 export const signal = {
   title: 'How signaling works',
-  lead:
-    'Stake GBX for voting sGBX. Signal the assets you want bought, or leave it idle to govern. What the fund buys ' +
-    'backs the GBX you can redeem.',
+  lead: 'Deposit GBX as voting sGBX signals. Every unit points to an asset until moved or withdrawn. Fund purchases back redeemable GBX.',
   splitLabel: "This round's signal",
-  splitNote: 'Signaled sGBX is pooled, so the next dollar splits the same way. Move yours any time.',
+  splitNote: 'All sGBX stays signaled. The next dollar follows the pool; move or withdraw any time.',
   segments: [
     { token: 'NVDA', share: 50 },
     { token: 'QQQ', share: 30 },
@@ -186,7 +184,7 @@ export const reasons = {
     { value: '0%', label: 'Management fee, ever' },
     { value: '0', label: 'Team or presale tokens' },
     { value: '0', label: 'Lockup or notice period' },
-    { value: numbers.fundBoundShare, label: 'Of payments reach the fund' },
+    { value: numbers.fundBoundShare, label: 'Of each asset payment backs Fund' },
     { value: numbers.genesisLiquidityShort, label: 'Genesis GBX, locked in liquidity' },
   ],
 };

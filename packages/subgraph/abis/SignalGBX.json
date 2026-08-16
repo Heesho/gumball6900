@@ -30,25 +30,6 @@
   },
   {
     "type": "function",
-    "name": "allocatedBalance",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "allowance",
     "inputs": [
       {
@@ -453,42 +434,6 @@
   },
   {
     "type": "function",
-    "name": "removeSignal",
-    "inputs": [
-      {
-        "name": "strategy",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "removeSignalAndUnstake",
-    "inputs": [
-      {
-        "name": "strategy",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "renounceOwnership",
     "inputs": [],
     "outputs": [],
@@ -540,38 +485,7 @@
   },
   {
     "type": "function",
-    "name": "stake",
-    "inputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "stakeAndSignal",
-    "inputs": [
-      {
-        "name": "strategy",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "stakeAndSignalWithPermit",
+    "name": "signalWithPermit",
     "inputs": [
       {
         "name": "strategy",
@@ -701,8 +615,13 @@
   },
   {
     "type": "function",
-    "name": "unstake",
+    "name": "withdrawSignal",
     "inputs": [
+      {
+        "name": "strategy",
+        "type": "address",
+        "internalType": "address"
+      },
       {
         "name": "amount",
         "type": "uint256",
@@ -827,10 +746,41 @@
   },
   {
     "type": "event",
-    "name": "Staked",
+    "name": "SignalWithdrawn",
     "inputs": [
       {
         "name": "account",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "strategy",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "Signaled",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "strategy",
         "type": "address",
         "indexed": true,
         "internalType": "address"
@@ -868,41 +818,6 @@
       }
     ],
     "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "Unstaked",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "amount",
-        "type": "uint256",
-        "indexed": false,
-        "internalType": "uint256"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "error",
-    "name": "ActiveSignals",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "signalWeight",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
   },
   {
     "type": "error",
@@ -1075,38 +990,6 @@
       },
       {
         "name": "receiverCredit",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "InsufficientAllocatedSignal",
-    "inputs": [
-      {
-        "name": "available",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "requested",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "InsufficientUnallocatedSignal",
-    "inputs": [
-      {
-        "name": "available",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "requested",
         "type": "uint256",
         "internalType": "uint256"
       }

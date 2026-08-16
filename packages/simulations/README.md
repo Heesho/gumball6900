@@ -20,6 +20,8 @@ price promises, deployment configurations, or investment projections.
   its complete weight from the future denominator, and leaves its recorded signal available for incremental exit.
 - Bribe uses `1e18` reward precision and assigns unindexable old-supply carry plus fully exiting user remainders to
   Fund before changing virtual signal supply.
+- Strategy payments are cumulatively classified as 90% Fund and 10% paired Bribe. A basis-point remainder makes any
+  payment partition identical to one combined payment; direct BribeRouter donations remain settlement surplus.
 - Slot price is `initialPrice - floor(initialPrice * elapsed / 3600)` during the hour and zero afterward.
 - The next initial price floors the paid-price multiplier before applying its minimum and maximum.
 - All committed financial JSON values are decimal strings; neither implementation uses floating point arithmetic.
@@ -32,12 +34,13 @@ price promises, deployment configurations, or investment projections.
 - hourly price endpoints, replacement transitions, zero-price rollover, and 80/20 payment conservation;
 - expansion from one to three slots where the incumbent keeps its old rate and new miners receive divided rates;
 - a threshold crossing where the incumbent retains its rate and only the next replacement receives the lower rate;
-- genesis-position budgeting, Strategy auctions, Bribe rewards, Fund-held GBX burns, and raw-basket redemptions.
+- genesis-position budgeting, Strategy auctions, cumulative 90/10 settlement, Bribe rewards, Fund-held GBX burns, and
+  raw-basket redemptions.
 
 Separate TypeScript and Python conservation models cover one-raw-unit Resonance streams, qualifying live-period resets,
 Router retention below the reset threshold, zero-signal and direct-donation surplus, per-Strategy rounding surplus,
-irreversible Strategy death, and Bribe carry classification across entry and exit boundaries. These state-machine
-tests are independent of the Solidity suite.
+irreversible Strategy death, cumulative tiny-payment settlement, isolated liability payment, donation surplus, and
+Bribe carry classification across entry and exit boundaries. These state-machine tests are independent of Solidity.
 
 The smaller `fixtures/reference-results.json` is the SDK formula-vector fixture. Both fixtures are checked across
 TypeScript and Python, and both languages assert the fixed-tenure fairness rule independently.
@@ -67,6 +70,6 @@ agree, then regenerates the committed SVGs.
 | Tenure-locked capacity expansion    | `mining.capacityExpansion`                                 |
 | Thresholds affect only handoffs     | `mining.handoffHalving`                                    |
 | Hourly decay and 80/20 split        | `mining.priceCurve`, `mining.paymentExamples`              |
-| Strategy and Bribe arithmetic       | `auctions`, `bribeRewards`                                 |
+| Strategy and Bribe arithmetic       | `strategyAuction`, `bribeRewards`, conservation models     |
 | Resonance streaming and signal time | TypeScript/Python `conservation-model` tests               |
 | Raw redemptions and GBX burns       | `redemptionAndGbxBurn`                                     |

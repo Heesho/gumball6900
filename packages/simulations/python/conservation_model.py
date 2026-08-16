@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 
 
 STREAM_DURATION = 7 * 24 * 60 * 60
+SETTLEMENT_BPS = 10_000
+SETTLEMENT_BRIBE_BPS = 1_000
 
 
 def exact_stream_emission(amount: int, duration: int, elapsed: int) -> int:
@@ -11,6 +13,50 @@ def exact_stream_emission(amount: int, duration: int, elapsed: int) -> int:
         raise ValueError("invalid stream input")
     active = min(elapsed, duration)
     return active * (amount // duration) + min(active, amount % duration)
+
+
+@dataclass
+class StrategyPaymentConservationModel:
+    """Independent state model for cumulative 90/10 classification and isolated settlement."""
+
+    fund_liability: int = 0
+    bribe_liability: int = 0
+    split_remainder: int = 0
+    accounted_balance: int = 0
+    balance: int = 0
+
+    def route(self, payment: int) -> None:
+        if payment <= 0:
+            raise ValueError("payment must be positive")
+        base_bribe, raw_remainder = divmod(payment * SETTLEMENT_BRIBE_BPS, SETTLEMENT_BPS)
+        carry, self.split_remainder = divmod(self.split_remainder + raw_remainder, SETTLEMENT_BPS)
+        bribe = base_bribe + carry
+        self.fund_liability += payment - bribe
+        self.bribe_liability += bribe
+        self.accounted_balance += payment
+        self.balance += payment
+
+    def donate(self, amount: int) -> None:
+        if amount < 0:
+            raise ValueError("amount must be non-negative")
+        self.balance += amount
+
+    def pay_fund(self) -> int:
+        amount = self.fund_liability
+        self.fund_liability = 0
+        self.accounted_balance -= amount
+        self.balance -= amount
+        return amount
+
+    def notify_bribe(self) -> int:
+        amount = self.bribe_liability
+        self.bribe_liability = 0
+        self.accounted_balance -= amount
+        self.balance -= amount
+        return amount
+
+    def surplus(self) -> int:
+        return self.balance - self.accounted_balance
 
 
 @dataclass

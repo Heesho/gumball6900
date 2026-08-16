@@ -1,0 +1,205 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
+
+/// @title HistoricalBribeReference
+/// @notice Test-only reference for the historical Synthetix/Liquid-Signal Bribe accounting shape.
+/// @dev This deliberately retains the historical `1e18` index and quotient-only reward rate. It is independent of
+///      Resonance and exists only to make intended similarities and divergences executable review evidence.
+contract HistoricalBribeReference {
+    uint256 internal constant DURATION = 7 days;
+    uint256 internal constant PRECISION = 1e18;
+
+    uint256 public totalSupply;
+    uint256 public periodFinish;
+    uint256 public rewardRate;
+    uint256 public lastUpdateTime;
+    uint256 public rewardPerTokenStored;
+
+    mapping(address account => uint256 balance) public balanceOf;
+    mapping(address account => uint256 paid) public userRewardPerTokenPaid;
+    mapping(address account => uint256 accrued) public rewards;
+
+    function lastTimeRewardApplicable() public view returns (uint256) {
+        return block.timestamp < periodFinish ? block.timestamp : periodFinish;
+    }
+
+    function rewardPerToken() public view returns (uint256) {
+        if (totalSupply == 0) return rewardPerTokenStored;
+        return
+            rewardPerTokenStored + ((lastTimeRewardApplicable() - lastUpdateTime) * rewardRate * PRECISION)
+                / totalSupply;
+    }
+
+    function earned(address account) public view returns (uint256) {
+        return
+            (balanceOf[account] * (rewardPerToken() - userRewardPerTokenPaid[account])) / PRECISION + rewards[account];
+    }
+
+    function setBalance(address account, uint256 amount) external {
+        _checkpoint(account);
+        totalSupply = totalSupply - balanceOf[account] + amount;
+        balanceOf[account] = amount;
+    }
+
+    function notifyRewardAmount(uint256 amount) external {
+        _checkpoint(address(0));
+        if (block.timestamp >= periodFinish) {
+            rewardRate = amount / DURATION;
+        } else {
+            uint256 remaining = periodFinish - block.timestamp;
+            rewardRate = (amount + remaining * rewardRate) / DURATION;
+        }
+        lastUpdateTime = block.timestamp;
+        periodFinish = block.timestamp + DURATION;
+    }
+
+    function claim(address account) external returns (uint256 reward) {
+        _checkpoint(account);
+        reward = rewards[account];
+        rewards[account] = 0;
+    }
+
+    function _checkpoint(address account) private {
+        rewardPerTokenStored = rewardPerToken();
+        lastUpdateTime = lastTimeRewardApplicable();
+        if (account != address(0)) {
+            rewards[account] = earned(account);
+            userRewardPerTokenPaid[account] = rewardPerTokenStored;
+        }
+    }
+}
+
+/// @title HistoricalBribeDifferentialTest
+/// @notice Executable comparison of Resonance with the historical Bribe mechanics it intentionally adapts.
+contract HistoricalBribeDifferentialTest is ProtocolFixture {
+    HistoricalBribeReference internal historical;
+
+    function setUp() external {
+        _deployProtocol();
+        historical = new HistoricalBribeReference();
+    }
+
+    function test_DivisibleStreamsMatchHistoricalRateIndexEarnedRestartAndClaimAccounting() external {
+        uint256 weight = 100 ether;
+        uint256 firstReward = 604_800e6;
+        uint256 startedAt = block.timestamp;
+
+        _signalDefault(ALICE, weight);
+        historical.setBalance(address(targetStrategy), weight);
+        _routeRevenue(firstReward);
+        historical.notifyRewardAmount(firstReward);
+
+        (uint256 finish, uint256 remainderFinish, uint256 rate,,) = _rewardData();
+        assertEq(resonance.strategySignalWeight(address(targetStrategy)), historical.balanceOf(address(targetStrategy)));
+        assertEq(resonance.totalSignalWeight(), historical.totalSupply());
+        assertEq(rate, historical.rewardRate());
+        assertEq(finish, historical.periodFinish());
+        assertEq(remainderFinish, startedAt, "a divisible stream has no front-loaded remainder interval");
+
+        vm.warp(startedAt + 2 days);
+        _assertEquivalentIndexAndEarned();
+
+        uint256 amountLeft = resonance.left(address(usdg));
+        assertEq(amountLeft, (historical.periodFinish() - block.timestamp) * historical.rewardRate());
+        uint256 restartRemainder = (amountLeft * 2) % resonance.DURATION();
+        uint256 topUp = amountLeft + (restartRemainder == 0 ? 0 : resonance.DURATION() - restartRemainder);
+        _notifyAsRouter(topUp);
+        historical.notifyRewardAmount(topUp);
+
+        (finish, remainderFinish, rate,,) = _rewardData();
+        assertEq(rate, historical.rewardRate());
+        assertEq(finish, historical.periodFinish());
+        assertEq(remainderFinish, block.timestamp);
+
+        vm.warp(block.timestamp + 7 days);
+        _assertEquivalentIndexAndEarned();
+
+        uint256 expectedClaim = historical.claim(address(targetStrategy));
+        uint256 actualClaim = resonance.distribute(address(targetStrategy));
+        assertEq(actualClaim, expectedClaim);
+        assertEq(usdg.balanceOf(address(targetStrategy)), expectedClaim);
+        assertEq(resonance.earned(address(targetStrategy), address(usdg)), 0);
+        assertEq(historical.earned(address(targetStrategy)), 0);
+    }
+
+    function test_VirtualBalanceChangesMatchHistoricalCheckpointOrdering() external {
+        _signalDefault(ALICE, 100 ether);
+        vm.prank(ALICE);
+        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
+
+        historical.setBalance(address(targetStrategy), 60 ether);
+        historical.setBalance(address(gbxStrategy), 40 ether);
+        _routeRevenue(604_800e6);
+        historical.notifyRewardAmount(604_800e6);
+
+        vm.warp(block.timestamp + 1 days);
+        vm.prank(ALICE);
+        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 10 ether);
+        historical.setBalance(address(targetStrategy), 50 ether);
+        historical.setBalance(address(gbxStrategy), 50 ether);
+
+        assertEq(resonance.strategySignalWeight(address(targetStrategy)), historical.balanceOf(address(targetStrategy)));
+        assertEq(resonance.strategySignalWeight(address(gbxStrategy)), historical.balanceOf(address(gbxStrategy)));
+        assertEq(resonance.totalSignalWeight(), historical.totalSupply());
+        assertEq(resonance.earned(address(targetStrategy), address(usdg)), historical.earned(address(targetStrategy)));
+        assertEq(resonance.earned(address(gbxStrategy), address(usdg)), historical.earned(address(gbxStrategy)));
+
+        vm.warp(block.timestamp + 6 days);
+        assertEq(resonance.distribute(address(targetStrategy)), historical.claim(address(targetStrategy)));
+        assertEq(resonance.distribute(address(gbxStrategy)), historical.claim(address(gbxStrategy)));
+    }
+
+    function test_FrontLoadedRawRemainderIsAnExplicitHistoricalDivergence() external {
+        uint256 startedAt = block.timestamp;
+        _signalDefault(ALICE, 1 ether);
+        historical.setBalance(address(targetStrategy), 1 ether);
+
+        _routeRevenue(604_801);
+        historical.notifyRewardAmount(604_801);
+
+        assertEq(historical.rewardRate(), 1, "historical quotient-only scheduling strands one raw unit");
+        (, uint256 remainderFinish, uint256 rate,,) = _rewardData();
+        assertEq(rate, 1);
+        assertEq(remainderFinish, startedAt + 1, "Resonance emits the raw remainder in the first second");
+
+        vm.warp(startedAt + 1);
+        assertEq(resonance.earned(address(targetStrategy), address(usdg)), 2);
+        assertEq(historical.earned(address(targetStrategy)), 1);
+
+        vm.warp(startedAt + 7 days);
+        assertEq(resonance.distribute(address(targetStrategy)), 604_801);
+        assertEq(historical.claim(address(targetStrategy)), 604_800);
+        assertEq(usdg.balanceOf(address(resonance)), 0);
+    }
+
+    function _assertEquivalentIndexAndEarned() private view {
+        assertEq(
+            resonance.rewardPerToken(address(usdg)) / 1e18,
+            historical.rewardPerToken(),
+            "the 1e36 Resonance index must normalize to the historical 1e18 index"
+        );
+        assertEq(resonance.earned(address(targetStrategy), address(usdg)), historical.earned(address(targetStrategy)));
+    }
+
+    function _rewardData()
+        private
+        view
+        returns (
+            uint256 periodFinish,
+            uint256 remainderFinish,
+            uint256 rewardRate,
+            uint256 lastUpdateTime,
+            uint256 rewardPerTokenStored
+        )
+    {
+        return resonance.token_RewardData(address(usdg));
+    }
+
+    function _notifyAsRouter(uint256 amount) private {
+        usdg.mint(address(resonanceRouter), amount);
+        vm.prank(KEEPER);
+        resonanceRouter.route();
+    }
+}

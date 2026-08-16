@@ -33,7 +33,7 @@ contract USDGFlowTest is ProtocolFixture {
 
     /// @notice Mine revenue waiting below the active stream's remainder can be routed after that stream finishes.
     function testFuzz_MineRevenueAndHandoffClaimsReachFinalDestinationsWithoutDust(uint256 rawElapsed) external {
-        _stake(ALICE, 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
 
         uint256 firstPayment = _occupyMineSlot(BOB);
@@ -107,7 +107,7 @@ contract USDGFlowTest is ProtocolFixture {
     /// @notice A blocked buyer payout restores distribution, payment settlement, and auction state for a clean retry.
     function test_BlockedBuyerPayoutRollsBackTheWholePurchaseAndCanRetry() external {
         HostileRevenueGraph memory graph = _deployHostileRevenueGraph();
-        _stakeAndSignal(graph, ALICE, address(graph.firstStrategy), 100 ether);
+        _signalFixture(graph, ALICE, address(graph.firstStrategy), 100 ether);
 
         graph.revenue.mint(address(graph.router), 604_800);
         graph.router.route();
@@ -138,15 +138,16 @@ contract USDGFlowTest is ProtocolFixture {
 
         assertEq(graph.revenue.balanceOf(CAROL), 3_600, "one hour of one-unit-per-second revenue is acquired");
         assertEq(graph.firstStrategy.epochId(), 1);
-        assertEq(paymentRouter.fundPaymentLiability(), price);
+        assertEq(paymentRouter.fundPaymentLiability(), price - (price / 10));
+        assertEq(paymentRouter.bribePaymentLiability(), price / 10);
         assertEq(target.balanceOf(CAROL), 0);
     }
 
     /// @notice One USDG-blocked Strategy does not prevent a separate single-Strategy distribution.
     function test_BlockedStrategyDoesNotBrickUnrelatedDistributionOrItsOwnLaterRetry() external {
         HostileRevenueGraph memory graph = _deployHostileRevenueGraph();
-        _stakeAndSignal(graph, ALICE, address(graph.firstStrategy), 50 ether);
-        _stakeAndSignal(graph, BOB, address(graph.secondStrategy), 50 ether);
+        _signalFixture(graph, ALICE, address(graph.firstStrategy), 50 ether);
+        _signalFixture(graph, BOB, address(graph.secondStrategy), 50 ether);
 
         graph.revenue.mint(address(graph.router), 100_000_000);
         graph.router.route();
@@ -179,7 +180,7 @@ contract USDGFlowTest is ProtocolFixture {
     /// @notice An issuer wipe is detected as a deficit and cannot silently corrupt USDG accounting.
     function test_IssuerWipeFailsClosedUntilTheMissingUSDGIsRestored() external {
         HostileRevenueGraph memory graph = _deployHostileRevenueGraph();
-        _stakeAndSignal(graph, ALICE, address(graph.firstStrategy), 100 ether);
+        _signalFixture(graph, ALICE, address(graph.firstStrategy), 100 ether);
 
         uint256 routed = 604_800;
         graph.revenue.mint(address(graph.router), routed);
@@ -214,13 +215,12 @@ contract USDGFlowTest is ProtocolFixture {
         vm.stopPrank();
     }
 
-    function _stakeAndSignal(HostileRevenueGraph memory graph, address account, address strategy, uint256 amount)
+    function _signalFixture(HostileRevenueGraph memory graph, address account, address strategy, uint256 amount)
         private
     {
         _mintTestGBX(account, amount);
         vm.startPrank(account);
         gbx.approve(address(graph.receipts), amount);
-        graph.receipts.stake(amount);
         graph.receipts.signal(strategy, amount);
         vm.stopPrank();
     }

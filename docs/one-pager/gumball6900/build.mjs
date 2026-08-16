@@ -66,14 +66,10 @@ const LIMITS = {
  */
 const STALE_PHRASES = [
   // Superseded settlement and reward economics.
-  '90/10',
-  '90% to fund',
-  '90 percent',
   'acquisition reward percentage',
   'adjustable acquisition reward',
   'setBribeBps',
   'bribeBps',
-  'signal-reward share',
   'one reward token per strategy',
   'unlimited reward tokens',
   'auction proceeds fund',
@@ -277,15 +273,16 @@ function scanStylesheet(css) {
  * That figure is a claim of absence, and absence is the hardest kind of claim to keep true:
  * nothing about printing it stops someone reintroducing a split later. An earlier design did
  * have one - `Resonance.bribeBps` took a share of every acquisition for signalers - and
- * ADR 0021 removed it, making the complete payment a fixed Fund liability.
+ * ADR 0032 fixes the complete payment at 90% Fund and 10% paired-Bribe rewards. Neither
+ * destination is a team, manager, or privileged fee recipient.
  *
  * ADR 0024 complicated this guard rather than retiring it. `Mine` genuinely does split a
  * payment in basis points: 80% to the miner being displaced, 20% into the buying flow. A
  * flat "no bps in core" rule would now fail on an honest contract, and deleting the rule
- * would give up the check everywhere else. So the split is allowed in exactly one file and
- * pinned to exactly two constants: if either moves, or a third share appears, this build
- * stops. Note what the pin protects - neither leg of that split is a fee, because neither
- * leg reaches the team. The moment one does, the arithmetic below stops matching.
+ * would give up the check everywhere else. Mine's split is pinned to exactly two constants;
+ * if either moves, or a third share appears, this build stops. ADR 0032 adds one other exact
+ * split in BribeRouter and pins it independently.
+ * Neither split reaches the team; the moment one does, the arithmetic below stops matching.
  */
 function assertNoProtocolFee() {
   const coreDir = resolve(repoRoot, 'packages/contracts/src/core');
@@ -313,15 +310,15 @@ function assertNoProtocolFee() {
   ];
   // Basis-point arithmetic, which is how a split would have to be expressed.
   const splitPatterns = [/\/\s*10_?000\b/, /\bbps\b/i];
-  // The one file whose split is expected, and therefore pinned rather than banned.
-  const SPLIT_FILE = 'Mine.sol';
+  // The two files whose splits are expected, and therefore pinned rather than banned.
+  const SPLIT_FILES = new Set(['Mine.sol', 'BribeRouter.sol']);
 
   const hits = [];
   for (const { name, text } of sources) {
     for (const identifier of forbidden) {
       if (text.includes(identifier)) hits.push(`${name}: ${identifier}`);
     }
-    if (name === SPLIT_FILE) continue;
+    if (SPLIT_FILES.has(name)) continue;
     for (const pattern of splitPatterns) {
       if (pattern.test(text)) hits.push(`${name}: split arithmetic ${pattern}`);
     }
@@ -330,8 +327,8 @@ function assertNoProtocolFee() {
   // The pinned half: Mine's handoff split is the two shares the sheet prints, and nothing
   // else. `revenueAmount = paid - previousMinerAmount` is the line that makes the split
   // exhaustive - with it, there is no third share to pay a team out of.
-  const mine = sources.find((entry) => entry.name === SPLIT_FILE);
-  if (!mine) hits.push(`${SPLIT_FILE} is missing`);
+  const mine = sources.find((entry) => entry.name === 'Mine.sol');
+  if (!mine) hits.push('Mine.sol is missing');
   else {
     const pins = [
       ['PREVIOUS_MINER_BPS = 8_000', /uint256 public constant PREVIOUS_MINER_BPS = 8_000;/],
@@ -339,24 +336,38 @@ function assertNoProtocolFee() {
       ['exhaustive two-way split', /revenueAmount = paid - previousMinerAmount;/],
     ];
     for (const [label, pattern] of pins) {
-      if (!pattern.test(mine.text)) hits.push(`${SPLIT_FILE}: ${label} no longer holds`);
+      if (!pattern.test(mine.text)) hits.push(`Mine.sol: ${label} no longer holds`);
     }
     // Any basis-point constant beyond the two pinned ones is a third share.
     const bpsConstants = [...mine.text.matchAll(/constant\s+(\w*BPS\w*)\s*=/g)].map((match) => match[1]);
     const unexpected = bpsConstants.filter((name) => name !== 'BPS' && name !== 'PREVIOUS_MINER_BPS');
-    if (unexpected.length > 0) hits.push(`${SPLIT_FILE}: unexpected share ${unexpected.join(', ')}`);
+    if (unexpected.length > 0) hits.push(`Mine.sol: unexpected share ${unexpected.join(', ')}`);
   }
 
-  // The positive half: the complete payment must still become a Fund liability.
+  // The ADR 0032 half: cumulative acquired-asset classification must remain exact and fixed.
   const router = sources.find((entry) => entry.name === 'BribeRouter.sol');
   if (!router) hits.push('BribeRouter.sol is missing');
-  else if (!router.text.includes('fundPaymentLiability += amount;')) {
-    hits.push('BribeRouter no longer credits the complete payment to Fund');
+  else {
+    const pins = [
+      ['BPS = 10_000', /uint256 public constant BPS = 10_000;/],
+      ['FUND_BPS = 9_000', /uint256 public constant FUND_BPS = 9_000;/],
+      ['BRIBE_BPS = 1_000', /uint256 public constant BRIBE_BPS = 1_000;/],
+      ['Fund liability classification', /fundPaymentLiability \+= fundAmount;/],
+      ['Bribe liability classification', /bribePaymentLiability \+= bribeAmount;/],
+      ['frequency-independent remainder', /splitRemainder = accumulatedRemainder % BPS;/],
+    ];
+    for (const [label, pattern] of pins) {
+      if (!pattern.test(router.text)) hits.push(`BribeRouter.sol: ${label} no longer holds`);
+    }
+    const bpsConstants = [...router.text.matchAll(/constant\s+(\w*BPS\w*)\s*=/g)].map((match) => match[1]);
+    const expected = new Set(['BPS', 'FUND_BPS', 'BRIBE_BPS']);
+    const unexpected = bpsConstants.filter((name) => !expected.has(name));
+    if (unexpected.length > 0) hits.push(`BribeRouter.sol: unexpected share ${unexpected.join(', ')}`);
   }
 
   if (hits.length > 0) {
     throw new Error(
-      `The sheet prints "0% management fee", but the contracts now contain a fee or split:\n  ${hits.join('\n  ')}\n` +
+      `The sheet prints "0% management fee", but the contracts now contain a fee or unreviewed split:\n  ${hits.join('\n  ')}\n` +
         'Update the reasons strip and the mining panel in src/copy.mjs before publishing.',
     );
   }
@@ -780,7 +791,7 @@ async function main() {
 
   // 2. Contrast: every foreground/background pair in the shared palette clears WCAG AA.
   const coreSources = assertNoProtocolFee();
-  console.log(`fee       no fee in ${coreSources} core contracts · Mine's 80/20 split pinned, no third share`);
+  console.log(`fee       no fee in ${coreSources} core contracts · exact Mine 80/20 and Strategy 90/10 splits pinned`);
 
   const contrast = [...assertContrast(), ...assertSheetContrast()];
   const worst = contrast.reduce((low, check) => (check.ratio < low.ratio ? check : low));

@@ -2,9 +2,9 @@
 
 ---
 
-[GUM BALL 6900 TypeScript SDK](../README.md) / StakeAndSignalWithPermitParameters
+[GUM BALL 6900 TypeScript SDK](../README.md) / SignalWithPermitParameters
 
-# Interface: StakeAndSignalWithPermitParameters
+# Interface: SignalWithPermitParameters
 
 ## Properties
 

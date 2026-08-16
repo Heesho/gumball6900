@@ -8,7 +8,7 @@
 
 > **buildMoveSignal**(`signalGBX`, `fromStrategy`, `toStrategy`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Moves an absolute signal amount between Strategies without staking or unstaking.
+Moves an absolute signal amount between Strategies without changing GBX custody or sGBX supply.
 
 ## Parameters
 

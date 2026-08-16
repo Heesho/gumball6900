@@ -1,8 +1,10 @@
 # ADR 0021: Uniform Strategy settlement into Fund
 
-- Status: accepted for development; not approved for deployment or user funds
+- Status: superseded by [ADR 0032](0032-fixed-90-10-acquired-asset-settlement.md); retained as historical development
+  context; never approved for deployment or user funds
 - Date: 2026-08-09
 - Supersedes: ADR 0013 and ADR 0016 provisions for acquisition splits, buyback settlement, and `setBribeBps`
+- Superseded by: ADR 0032's immutable, cumulatively exact 90% Fund / 10% paired-Bribe acquired-asset settlement
 
 ## Context
 

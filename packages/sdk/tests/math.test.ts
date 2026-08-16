@@ -143,11 +143,39 @@ describe('auctions and Strategy settlement', () => {
     );
   });
 
-  it('settles the complete payment to Fund without a signal-dependent split', () => {
+  it('classifies a Strategy payment into the fixed cumulative 90/10 split', () => {
     expect(settleStrategyPayment(token(42n))).toEqual({
       paymentAmount: token(42n),
-      fundAmount: token(42n),
+      fundAmount: token(37n) + token(8n) / 10n,
+      bribeAmount: token(4n) + token(2n) / 10n,
+      splitRemainder: 0n,
     });
+  });
+
+  it('classifies any payment partition identically to one cumulative payment', () => {
+    const parts = [1n, 2n, 7n, 9n, 11n, 70n, 101n];
+    let fundAmount = 0n;
+    let bribeAmount = 0n;
+    let splitRemainder = 0n;
+
+    for (const part of parts) {
+      const settlement = settleStrategyPayment(part, splitRemainder);
+      fundAmount += settlement.fundAmount;
+      bribeAmount += settlement.bribeAmount;
+      splitRemainder = settlement.splitRemainder;
+    }
+
+    const combined = settleStrategyPayment(parts.reduce((sum, part) => sum + part, 0n));
+    expect({ fundAmount, bribeAmount, splitRemainder }).toEqual({
+      fundAmount: combined.fundAmount,
+      bribeAmount: combined.bribeAmount,
+      splitRemainder: combined.splitRemainder,
+    });
+    expect(fundAmount + bribeAmount).toBe(combined.paymentAmount);
+  });
+
+  it('rejects an invalid prior split remainder', () => {
+    expect(() => settleStrategyPayment(1n, 10_000n)).toThrow('priorSplitRemainder');
   });
 
   it('leaves independently floored reward residue in the contract', () => {

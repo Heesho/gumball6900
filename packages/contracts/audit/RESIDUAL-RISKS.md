@@ -8,7 +8,7 @@
   or guarantee.
 - GBX has no protocol-defined economic supply cap. Immutable future-handoff halvings converge to a positive tail, so
   dilution does not terminate on any modeled horizon. SignalGBX voting checkpoints impose a `uint208` ceiling on the
-  amount that can be staked for governance, even though GBX itself has no such implementation ceiling.
+  amount that can be signaled for governance, even though GBX itself has no such implementation ceiling.
 - Exact production Mine parameters remain unresolved and materially affect demand, dilution, revenue, and MEV.
 - Accrued GBX is unminted between checkpoints. Fund forces a checkpoint before redemption, but indexers must compute
   pending emission for effective-supply displays.
@@ -34,11 +34,11 @@ eight Bribe reward tokens, and increase Mine capacity to sixteen. The Governor i
 cannot reduce capacity, reprice incumbents, change Mine economics, move Fund assets, recover the liquidity NFT, relay
 an arbitrary call, replace the Timelock, or upgrade/migrate the core.
 
-Voting uses block snapshots while the Timelock delay uses seconds. Staked GBX has no withdrawal lock, so a voter can
+Voting uses block snapshots while the Timelock delay uses seconds. Signaled GBX has no withdrawal lock, so a voter can
 exit after the snapshot while retaining historical voting weight, and short-lived borrowed GBX can influence a known
-snapshot. Idle and undelegated SignalGBX counts toward historical total supply and therefore quorum but casts no vote;
-large inactive supply can deadlock all four maintenance actions. Once queued, an action has no public cancellation
-path. Stale or conflicting queued operations may remain forever and revert on execution, though they do not block a
+snapshot. Undelegated SignalGBX counts toward historical total supply and therefore quorum but casts no vote; large
+undelegated supply can deadlock all four maintenance actions. Once queued, an action has no public cancellation path.
+Stale or conflicting queued operations may remain forever and revert on execution, though they do not block a
 differently described replacement proposal.
 
 Incorrect vote parameters, dependencies, bootstrap Strategies, bindings, ownership, PoolKey, ticks, token ID, or
@@ -47,5 +47,6 @@ canceller, or default administrator survives setup.
 
 ## Evidence gaps
 
-No independent audit, current Mine mutation score, pinned Echidna result, compatible symbolic proof, legal clearance,
-or signed deployment manifest exists. Historical campaign evidence must not be presented as a review of ADR 0024.
+No independent audit, compatible symbolic proof, legal clearance, or signed deployment manifest exists. Current
+pinned Echidna and Medusa campaigns and the 43-mutant SignalGBX/Resonance/BribeRouter campaign are internal engineering
+evidence and must not be presented as independent review.

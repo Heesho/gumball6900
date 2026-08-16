@@ -23,11 +23,12 @@ type ProtocolState @entity(immutable: false) {
   latestRevenueNotificationRaw: BigInt!
   latestRevenueNotificationAt: BigInt!
   distributedRevenueRaw: BigInt!
-  stakedGBXRaw: BigInt!
+  signaledGBXRaw: BigInt!
   fundBurnedGBXRaw: BigInt!
   redeemedGBXRaw: BigInt!
   timelockDelay: BigInt!
   strategyCount: Int!
+  liveStrategyCount: Int!
   governanceProposalCount: BigInt!
   governanceVoteCount: BigInt!
   lastBlockNumber: BigInt!
@@ -42,7 +43,7 @@ type Account @entity(immutable: false) {
   gbxBurnedRaw: BigInt!
   miningPaymentAccruedRaw: BigInt!
   miningUSDGClaimedRaw: BigInt!
-  stakedGBXRaw: BigInt!
+  signaledGBXRaw: BigInt!
   signalWeightRaw: BigInt!
   currentDelegate: Bytes!
   delegatedVotesRaw: BigInt!
@@ -82,6 +83,10 @@ type Strategy @entity(immutable: false) {
   routerFundPaymentAccruedRaw: BigInt!
   routerFundPaymentPaidRaw: BigInt!
   pendingRouterFundPaymentRaw: BigInt!
+  routerBribePaymentAccruedRaw: BigInt!
+  routerBribePaymentNotifiedRaw: BigInt!
+  pendingRouterBribePaymentRaw: BigInt!
+  routerSplitRemainderRaw: BigInt!
   bribeFundRewardAccruedRaw: BigInt!
   bribeFundRewardPaidRaw: BigInt!
   pendingBribeFundRewardRaw: BigInt!

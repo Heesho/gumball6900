@@ -227,16 +227,14 @@ export async function readLiquidityPositionView(
 }
 
 export const signalViewSchema = z.object({
-  allocatedSignalBalance: unsignedBigIntSchema,
   blockNumber: unsignedBigIntSchema,
   currentVotes: unsignedBigIntSchema,
   delegate: addressSchema,
   signalBalance: unsignedBigIntSchema,
-  unallocatedSignalBalance: unsignedBigIntSchema,
 });
 export type SignalView = z.infer<typeof signalViewSchema>;
 
-/** Reads an account's SignalGBX receipt, allocation, delegation, votes, and immediately withdrawable remainder. */
+/** Reads an account's fully allocated SignalGBX aggregate, delegation, and current votes. */
 export async function readSignalView(
   client: PublicClient,
   signalGBX: Address,
@@ -246,24 +244,16 @@ export async function readSignalView(
   const signalerAccount = getAddress(account);
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [signalBalance, allocatedSignalBalance, delegate, currentVotes] = await Promise.all([
+  const [signalBalance, delegate, currentVotes] = await Promise.all([
     read(client, blockNumber, signalGBX, signalGbxAbi, 'balanceOf', [signalerAccount]),
-    read(client, blockNumber, signalGBX, signalGbxAbi, 'allocatedBalance', [signalerAccount]),
     read(client, blockNumber, signalGBX, signalGbxAbi, 'delegates', [signalerAccount]),
     read(client, blockNumber, signalGBX, signalGbxAbi, 'getVotes', [signalerAccount]),
   ]);
-  const parsedSignalBalance = unsignedBigIntSchema.parse(signalBalance);
-  const parsedAllocatedSignalBalance = unsignedBigIntSchema.parse(allocatedSignalBalance);
-  if (parsedAllocatedSignalBalance > parsedSignalBalance) {
-    throw new RangeError('allocated SignalGBX exceeds the account balance');
-  }
   const result = signalViewSchema.parse({
-    allocatedSignalBalance: parsedAllocatedSignalBalance,
     blockNumber,
     currentVotes,
     delegate,
-    signalBalance: parsedSignalBalance,
-    unallocatedSignalBalance: parsedSignalBalance - parsedAllocatedSignalBalance,
+    signalBalance,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;
@@ -636,13 +626,22 @@ export async function readBribeRewardView(
 
 export const bribeRouterViewSchema = z.object({
   accountedPaymentBalance: unsignedBigIntSchema,
+  basisPoints: unsignedBigIntSchema.positive(),
   blockNumber: unsignedBigIntSchema,
+  bribe: addressSchema,
+  bribeBasisPoints: unsignedBigIntSchema,
+  bribePaymentLiability: unsignedBigIntSchema,
+  fund: addressSchema,
+  fundBasisPoints: unsignedBigIntSchema,
   fundPaymentLiability: unsignedBigIntSchema,
+  paymentToken: addressSchema,
   paymentSurplus: unsignedBigIntSchema,
+  splitRemainder: unsignedBigIntSchema,
+  strategy: addressSchema,
 });
 export type BribeRouterView = z.infer<typeof bribeRouterViewSchema>;
 
-/** Reads a Strategy router's fixed Fund payment liability and direct-donation surplus. */
+/** Reads a Strategy router's immutable 90/10 terms, liabilities, split carry, and direct-donation surplus. */
 export async function readBribeRouterView(
   client: PublicClient,
   bribeRouter: Address,
@@ -650,17 +649,57 @@ export async function readBribeRouterView(
 ): Promise<BribeRouterView> {
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
-  const [accountedPaymentBalance, fundPaymentLiability, paymentSurplus] = await Promise.all([
+  const [
+    accountedPaymentBalance,
+    basisPoints,
+    bribe,
+    bribeBasisPoints,
+    bribePaymentLiability,
+    fund,
+    fundBasisPoints,
+    fundPaymentLiability,
+    paymentToken,
+    paymentSurplus,
+    splitRemainder,
+    strategy,
+  ] = await Promise.all([
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'accountedPaymentBalance'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'BPS'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'bribe'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'BRIBE_BPS'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'bribePaymentLiability'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'fund'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'FUND_BPS'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'fundPaymentLiability'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'paymentToken'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'paymentSurplus'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'splitRemainder'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'strategy'),
   ]);
   const result = bribeRouterViewSchema.parse({
     accountedPaymentBalance,
+    basisPoints,
     blockNumber,
+    bribe,
+    bribeBasisPoints,
+    bribePaymentLiability,
+    fund,
+    fundBasisPoints,
     fundPaymentLiability,
+    paymentToken,
     paymentSurplus,
+    splitRemainder,
+    strategy,
   });
+  if (result.fundBasisPoints + result.bribeBasisPoints !== result.basisPoints) {
+    throw new RangeError('BribeRouter basis-point split is incoherent');
+  }
+  if (result.fundPaymentLiability + result.bribePaymentLiability !== result.accountedPaymentBalance) {
+    throw new RangeError('BribeRouter liabilities do not reconcile to its accounted balance');
+  }
+  if (result.splitRemainder >= result.basisPoints) {
+    throw new RangeError('BribeRouter split remainder exceeds its fixed denominator');
+  }
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }

@@ -1,10 +1,14 @@
 # Economics
 
+> Target-development economics: ADRs 0031 and 0032 are authoritative and implemented in the current development tree.
+> These mechanics remain unaudited and are not authorized for user funds.
+
 ## Supply
 
 GBX creates 20 million tokens for genesis liquidity, then permanently assigns mint authority to Mine. There is no
 protocol-defined economic maximum supply. GBX supports ERC-2612 approvals but has no voting checkpoints; governance
-power is minted one-for-one only when GBX is staked as SignalGBX. Supply is exact cumulative accounting:
+power is minted one-for-one only when GBX is deposited into a Strategy signal through SignalGBX. Supply is exact
+cumulative accounting:
 
 ```text
 totalSupply = lifetimeMinted - lifetimeBurned
@@ -47,12 +51,26 @@ handoff. Exact deployment parameters remain release inputs and must be recorded 
 
 Mining and liquidity USDG route into Resonance's global seven-day stream. Each elapsed interval follows the SignalGBX
 weights active during that interval; moving a signal checkpoints the old interval first and affects only later flow.
-A holder may keep sGBX idle for governance without directing revenue or Bribe rewards. SignalGBX coordinates every
-change; it stores the account aggregate, paired Bribes store per-Strategy positions and supply, and Resonance stores
-only the active total across live Strategies.
+A holder mints sGBX only by atomically assigning the same amount to a live Strategy. SignalGBX coordinates every
+change; its account balance is the aggregate signal, paired Bribes store per-Strategy positions and supply, and
+Resonance stores only the active total across live Strategies. Moving signal changes no custody or votes; withdrawal
+removes the position, burns sGBX, and returns GBX atomically.
 A Strategy purchase atomically pulls all revenue released to it through that timestamp, then sells its complete USDG
-balance through a reverse Dutch auction. The complete payment becomes a Fund liability. Bribes are independently
-funded.
+balance through a reverse Dutch auction. Its acquired-asset payment is classified cumulatively as 90% fixed Fund
+liability and 10% fixed paired-Bribe reward liability. Explicit basis-point remainder accounting makes one payment and
+any partition of that payment economically identical. The two liabilities settle independently, so a failure at one
+destination does not block or consume the other. Additional independently funded Bribe rewards remain possible.
+
+For cumulative acquired-asset payments `X`:
+
+```text
+paired Bribe classification = floor(X * 1,000 / 10,000)
+Fund classification = X - paired Bribe classification
+split remainder = (X * 1,000) mod 10,000
+```
+
+The payment asset, not USDG, funds the automatic paired-Bribe stream. If the payment asset is GBX, the 90% Fund share
+may be burned permissionlessly after settlement while the 10% share rewards the paired signalers.
 
 Streaming is lazy accounting: no keeper transaction is required each second. A later signal change, distribution,
 purchase, or qualifying notification materializes the elapsed amount. During an active schedule ResonanceRouter holds

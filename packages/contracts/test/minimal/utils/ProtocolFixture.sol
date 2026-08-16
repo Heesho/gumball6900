@@ -141,38 +141,45 @@ abstract contract ProtocolFixture is Test {
         gbx.mint(receiver, amount);
     }
 
-    /// @notice Stakes GBX for `account`, distributing reserve GBX first when the account is short.
-    function _stake(address account, uint256 amount) internal {
+    /// @notice Signals GBX to the default target Strategy, distributing test GBX first when the account is short.
+    function _signalDefault(address account, uint256 amount) internal {
         if (gbx.balanceOf(account) < amount) {
             _mintTestGBX(account, amount - gbx.balanceOf(account));
         }
 
         vm.startPrank(account);
         gbx.approve(address(signalGBX), amount);
-        signalGBX.stake(amount);
+        signalGBX.signal(address(targetStrategy), amount);
         vm.stopPrank();
     }
 
-    /// @notice Allocates the account's entire currently unallocated signal power to one Strategy.
+    /// @notice Moves the account's complete default-Strategy signal to `strategy` when necessary.
     function _signalOne(address account, address strategy) internal {
-        uint256 amount = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
+        if (strategy == address(targetStrategy)) return;
+        uint256 amount = resonance.accountSignals(account, address(targetStrategy));
+        if (amount == 0) return;
         vm.prank(account);
-        signalGBX.signal(strategy, amount);
+        signalGBX.moveSignal(address(targetStrategy), strategy, amount);
     }
 
-    /// @notice Allocates the account's currently unallocated signal power between two Strategies.
+    /// @notice Moves signal between two Strategies until the requested relative allocation is reached.
     function _signalTwo(address account, address first, address second, uint256 firstWeight, uint256 secondWeight)
         internal
     {
-        uint256 available = signalGBX.balanceOf(account) - resonance.accountSignalWeight(account);
+        uint256 available = signalGBX.balanceOf(account);
         uint256 totalRelativeWeight = firstWeight + secondWeight;
         uint256 firstAmount = Math.mulDiv(available, firstWeight, totalRelativeWeight);
         uint256 secondAmount = Math.mulDiv(available, secondWeight, totalRelativeWeight);
+        uint256 currentFirst = resonance.accountSignals(account, first);
+        uint256 currentSecond = resonance.accountSignals(account, second);
 
-        vm.startPrank(account);
-        if (firstAmount != 0) signalGBX.signal(first, firstAmount);
-        if (secondAmount != 0) signalGBX.signal(second, secondAmount);
-        vm.stopPrank();
+        if (currentFirst > firstAmount) {
+            vm.prank(account);
+            signalGBX.moveSignal(first, second, currentFirst - firstAmount);
+        } else if (currentSecond > secondAmount) {
+            vm.prank(account);
+            signalGBX.moveSignal(second, first, currentSecond - secondAmount);
+        }
     }
 
     /// @notice Removes every signal assigned to either Strategy in the fixed test graph.
@@ -181,8 +188,8 @@ abstract contract ProtocolFixture is Test {
         uint256 gbxAmount = resonance.accountSignals(account, address(gbxStrategy));
 
         vm.startPrank(account);
-        if (targetAmount != 0) signalGBX.removeSignal(address(targetStrategy), targetAmount);
-        if (gbxAmount != 0) signalGBX.removeSignal(address(gbxStrategy), gbxAmount);
+        if (targetAmount != 0) signalGBX.withdrawSignal(address(targetStrategy), targetAmount);
+        if (gbxAmount != 0) signalGBX.withdrawSignal(address(gbxStrategy), gbxAmount);
         vm.stopPrank();
     }
 

@@ -34,6 +34,15 @@ def auction_price(initial: int, elapsed: int, duration: int) -> int:
     return 0 if elapsed >= duration else initial - mul_div(initial, elapsed, duration)
 
 
+def classify_payment(payment: int, remainder: int = 0) -> tuple[int, int, int]:
+    if payment < 0 or remainder < 0 or remainder >= 10_000:
+        raise ValueError("invalid payment classification input")
+    base_bribe, raw_remainder = divmod(payment * 1_000, 10_000)
+    bribe_carry, next_remainder = divmod(remainder + raw_remainder, 10_000)
+    bribe = base_bribe + bribe_carry
+    return payment - bribe, bribe, next_remainder
+
+
 def compute(scenarios: dict[str, Any]) -> dict[str, Any]:
     mining_quotes = []
     for case in scenarios["miningCases"]:
@@ -64,12 +73,25 @@ def compute(scenarios: dict[str, Any]) -> dict[str, Any]:
     for case in scenarios["auctionCases"]:
         payment = auction_price(int(case["initPrice"]), int(case["elapsedSeconds"]), int(case["epochPeriod"]))
         next_price = max(mul_div(payment, int(case["priceMultiplier"]), WAD), int(case["minInitPrice"]))
+        fund, bribe, remainder = classify_payment(int(case["actualTargetReceived"]))
+        partition_fund = 0
+        partition_bribe = 0
+        partition_remainder = 0
+        for part in case["paymentPartitions"]:
+            part_fund, part_bribe, partition_remainder = classify_payment(int(part), partition_remainder)
+            partition_fund += part_fund
+            partition_bribe += part_bribe
         auction_quotes.append(
             {
                 "id": case["id"],
                 "paymentAmount": str(payment),
                 "nextInitPrice": str(next_price),
-                "fundAmount": case["actualTargetReceived"],
+                "fundAmount": str(fund),
+                "bribeAmount": str(bribe),
+                "splitRemainder": str(remainder),
+                "partitionFundAmount": str(partition_fund),
+                "partitionBribeAmount": str(partition_bribe),
+                "partitionRemainder": str(partition_remainder),
             }
         )
 

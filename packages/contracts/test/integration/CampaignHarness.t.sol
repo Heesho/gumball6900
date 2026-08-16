@@ -36,10 +36,10 @@ contract CampaignHarnessTest is Test {
     }
 
     function test_EveryActionDrivesRealStateAndKeepsEveryPropertyTrue() external {
-        campaign.stake(0, 1_000_000 ether);
+        campaign.signalDefault(0, 1_000_000 ether);
         _assertAllProperties();
 
-        campaign.addSignalMany(0, 2);
+        campaign.signalMany(0, 2);
         assertGt(campaign.resonance().totalSignalWeight(), 0, "signal must actually allocate");
         _assertAllProperties();
 
@@ -84,18 +84,15 @@ contract CampaignHarnessTest is Test {
         assertEq(_aliveCount(), 2, "a Strategy must actually be retired");
         _assertAllProperties();
 
-        campaign.removeSignalMany(0, 2);
+        campaign.withdrawSignalMany(0, 2);
         assertEq(campaign.resonance().totalSignalWeight(), 0);
-        _assertAllProperties();
-
-        campaign.unstake(0, type(uint96).max);
         _assertAllProperties();
     }
 
     /// @notice A GBX-priced Strategy is reachable and leaves its payment available for later Fund settlement.
     function test_TheGBXPaymentPathIsReachableFromTheCampaign() external {
-        campaign.stake(0, 1_000_000 ether);
-        campaign.addSignalMany(0, 2);
+        campaign.signalDefault(0, 1_000_000 ether);
+        campaign.signalMany(0, 2);
         campaign.donateRevenue(500_000_000);
         vm.warp(block.timestamp + 30 minutes);
         campaign.distributeAll();
@@ -107,7 +104,7 @@ contract CampaignHarnessTest is Test {
         assertGt(
             BribeRouter(campaign.resonance().bribeRouterFor(campaign.strategies(1))).fundPaymentLiability(),
             0,
-            "the complete GBX payment must be Fund-bound"
+            "the GBX payment must create a Fund liability"
         );
         _assertAllProperties();
     }
@@ -129,13 +126,13 @@ contract CampaignHarnessTest is Test {
             uint8 actor = seed % 3;
 
             // Failing actions are exactly what the fuzzer discards, so ignore them and keep exploring.
-            if (seed % 8 == 0) try campaign.stake(actor, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
-            if (seed % 8 == 1) try campaign.addSignal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
+            if (seed % 8 == 0) try campaign.signalDefault(actor, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
+            if (seed % 8 == 1) try campaign.signal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
             if (seed % 8 == 2) try campaign.mine(actor, seed) { } catch { }
             if (seed % 8 == 3) try campaign.donateRevenue(uint64(seed) * 1e6 + 1) { } catch { }
             if (seed % 8 == 4) try campaign.distributeAll() { } catch { }
             if (seed % 8 == 5) try campaign.buy(actor, seed) { } catch { }
-            if (seed % 8 == 6) try campaign.removeSignalMany(actor, seed) { } catch { }
+            if (seed % 8 == 6) try campaign.withdrawSignalMany(actor, seed) { } catch { }
             if (seed % 8 == 7) try campaign.claimRewards(actor, seed) { } catch { }
 
             vm.warp(block.timestamp + 1 hours + uint256(seed) * 1 hours);
@@ -144,7 +141,7 @@ contract CampaignHarnessTest is Test {
     }
 
     function _assertAllProperties() private view {
-        assertTrue(campaign.echidna_stakingReceiptIsFullyCollateralized(), "staking collateralization");
+        assertTrue(campaign.echidna_signalReceiptIsFullyCollateralized(), "signal collateralization");
         assertTrue(campaign.echidna_gbxSupplyReconciles(), "supply reconciliation");
         assertTrue(campaign.echidna_miningAuthorityRemainsFinal(), "permanent mining authority");
         assertTrue(campaign.echidna_effectiveSupplyIncludesPendingMining(), "effective supply");
@@ -160,6 +157,8 @@ contract CampaignHarnessTest is Test {
         assertTrue(campaign.echidna_deadStrategiesAreExcludedFromActiveWeight(), "dead strategy weight exclusion");
         assertTrue(campaign.echidna_checkpointsNeverLeadTheGlobalIndex(), "checkpoint ordering");
         assertTrue(campaign.echidna_bribesAreSolventAgainstAccruedRewards(), "bribe solvency");
+        assertTrue(campaign.echidna_bribeRouterAccountingIsExact(), "90/10 router accounting");
+        assertTrue(campaign.echidna_atLeastOneStrategyRemainsLive(), "final live Strategy");
         assertTrue(campaign.echidna_routerRetentionIsFullyVisible(), "visible router retention");
         assertTrue(campaign.echidna_auctionPricesStayWithinTheirBounds(), "auction bounds");
         assertTrue(campaign.echidna_gbxPaymentsLeaveStrategy(), "GBX payment leaves Strategy");

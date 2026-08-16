@@ -2,18 +2,20 @@
 
 ## The index fund that chooses itself
 
-Whitepaper v0.5 — 15 August 2026 — by Heesho
+Whitepaper v0.6 — 16 August 2026 — by Heesho
 
 > Development status: experimental, not deployed, not independently audited, and not authorized for user funds.
 > Exact mining economics, deployment parameters, third-party provenance, and independent security review remain open
-> release gates. The Solidity is authoritative if this explanation ever disagrees with the code.
+> release gates. ADRs 0031 and 0032 are authoritative development decisions, but the Solidity and integrations have not
+> yet been reconciled to them; this paper describes the target architecture, not current implementation conformance.
 
 ## Abstract
 
-GumBall6900 is a proposed signal-directed onchain fund. GBX holders stake into non-transferable SignalGBX (`sGBX`),
-which supplies block-clock governance votes and continuously directs new USDG toward acquisition Strategies. Each
-Strategy exchanges USDG for one configured asset through a reverse Dutch auction. Its complete payment is owed to an
-ownerless Fund. GBX holders may burn GBX to redeem a caller-selected pro-rata share of raw Fund assets.
+GumBall6900 is a proposed signal-directed onchain fund. GBX holders deposit into non-transferable SignalGBX (`sGBX`)
+only while assigning every receipt unit to an acquisition Strategy. sGBX supplies block-clock governance votes and
+continuously directs new USDG. Each Strategy exchanges USDG for one configured asset through a reverse Dutch auction.
+Its acquired-asset payment is classified 90% to an ownerless Fund and 10% to the paired Bribe for signalers. GBX
+holders may burn GBX to redeem a caller-selected pro-rata share of raw Fund assets.
 
 GBX distribution uses an immutable multislot Mine adapted from Farplace MineRig. A slot can change hands at any time.
 Its USDG price decays to zero over one hour, creating a continuously clearing market rather than a pooled daily round.
@@ -27,12 +29,13 @@ The protocol has five recurring actions:
 2. The incumbent accrues GBX continuously at the rate fixed when that tenure began.
 3. Mining revenue enters a seven-day Resonance stream whose elapsed flow follows current sGBX signals.
 4. Strategies atomically pull released USDG and exchange their accumulated balance for configured payment assets,
-   which become Fund liabilities.
+   which are classified cumulatively 90% to Fund and 10% to the paired Bribe.
 5. A GBX holder may burn GBX for selected Fund assets in kind.
 
 ```text
 slot replacement -> 80% displaced miner
-                -> 20% ResonanceRouter -> Resonance stream -> Strategies -> Fund
+                -> 20% ResonanceRouter -> Resonance stream -> Strategies -> 90% Fund
+                                                                       \-> 10% paired Bribe
 
 GBX -> sGBX -> live signals ------------------------------^
            \-> ProtocolGovernor -> Timelock -> four bounded actions
@@ -114,18 +117,20 @@ claim is permanently left for remaining GBX holders.
 
 ## 6. Signals and acquisitions
 
-Staking GBX mints sGBX one-for-one. sGBX is non-transferable, retains ERC20Votes, and is the only user-facing signal
-coordinator. A stake made with no current delegate self-delegates voting power. A holder may add or remove absolute signal amounts for
-individual active Strategies at any time and immediately withdraw any unallocated sGBX balance. Idle sGBX directs no
-revenue or Bribe rewards but remains available for governance.
+`signal` deposits GBX and mints sGBX one-for-one only while assigning every raw unit to a live Strategy in the same
+transaction. sGBX is non-transferable, retains ERC20Votes, and is the only user-facing signal coordinator. A first
+signal made with no current delegate self-delegates voting power. `signalWithPermit` uses the underlying GBX permit and
+relies on the exact GBX transfer; sGBX itself has no ERC-2612 approval permit. Idle sGBX and standalone staking or
+unstaking are not valid protocol states.
 
-Standalone calls support staking, signaling, moving a signal, removing it, and unstaking. Combined calls can stake and
-signal or remove a signal and unstake atomically. `stakeAndSignalWithPermit` tolerantly attempts an underlying GBX
-permit and relies on the exact GBX transfer; sGBX itself has no ERC-2612 approval permit.
+`moveSignal` moves an existing position between live Strategies without transferring GBX, minting or burning sGBX, or
+changing voting units. `withdrawSignal` removes a selected Strategy and paired-Bribe position, burns the same sGBX
+amount, and returns the same GBX atomically. Both remain immediate scalar operations with no cooldown or epoch.
 
-Signal state has one canonical owner at each layer. SignalGBX stores the account's complete allocated amount. Each
+Signal state has one canonical owner at each layer. SignalGBX balance is the account's complete signaled amount. Each
 Strategy's paired Bribe stores account-by-Strategy balances and that Strategy's complete signal supply. Resonance stores
-only the active total across live Strategies and accepts signal mutation hooks only from SignalGBX.
+only the active total across live Strategies and accepts signal mutation hooks only from SignalGBX. A separate
+`allocatedBalance` duplicate is not maintained.
 
 Resonance schedules routed USDG in one active seven-day stream. Each signal mutation first checkpoints the elapsed
 interval under the old weights, so a signal moved now affects later flow without a lock, cooldown, or voting epoch. A
@@ -144,11 +149,15 @@ revenue—so the protocol needs no per-second keeper. Global-index and per-Strat
 than explicit carry. Stream time continues when active signal weight is zero, making that interval's emission
 unclaimable, and direct USDG donations to Resonance are unscheduled surplus. Neither category is assigned to Fund or
 later signalers. Killing a Strategy checkpoints and preserves its pre-kill claim, removes its complete weight from later
-rewards, forbids additions, and leaves incumbent signalers free to exit.
+rewards, forbids additions, and leaves incumbent signalers free to exit. After the first Strategy is registered, the
+final live Strategy cannot be killed until governance adds a replacement.
 
 Signals steer future flow; they do not force Fund to sell past holdings or maintain a target portfolio. A Strategy's
-complete payment becomes a fixed Fund liability. Independently funded Bribes may reward signalers, with at most eight
-append-only reward tokens per Bribe. Strategy auction proceeds never fund Bribes.
+acquired-asset payment enters BribeRouter, which cumulatively classifies 90% as a fixed Fund liability and 10% as a
+fixed paired-Bribe reward liability. Explicit split remainder prevents repeated tiny payments from starving the Bribe.
+The two permissionless settlement legs are isolated, so failure of one preserves its liability without consuming the
+other. The acquired payment asset, not USDG, is the automatic Bribe reward. Additional independent rewards remain
+possible within the eight-token cap.
 
 ## 7. Genesis liquidity
 
@@ -185,8 +194,9 @@ the temporary setup authority.
 - A miner can be replaced at any time and is not guaranteed an 80% successor payment.
 - Capacity expansion temporarily raises aggregate issuance under the fixed-tenure fairness rule.
 - A bad immutable deployment or token dependency cannot be repaired by governance.
-- A holder can unstake after a proposal snapshot and retain its historical voting weight. Low sGBX participation also
-  lowers the absolute voting weight represented by a percentage quorum.
+- A holder can withdraw every signal after a proposal snapshot and retain that proposal's historical voting weight.
+  Low sGBX participation also lowers the absolute voting weight represented by a percentage quorum. Under the target
+  interface this exit occurs through `withdrawSignal`; no idle intermediate receipt exists.
 - A queued proposal cannot be canceled; the Timelock delay is an observation and exit window rather than a guardian
   veto.
 - Permissionless signaling permits rapid allocation movement, but only stream time held at a weight earns new flow;

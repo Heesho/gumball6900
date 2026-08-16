@@ -6,9 +6,9 @@
 
 # Function: readSignalView()
 
-> **readSignalView**(`client`, `signalGBX`, `account`, `options?`): `Promise`\<\{ `allocatedSignalBalance`: `bigint`; `blockNumber`: `bigint`; `currentVotes`: `bigint`; `delegate`: `` `0x${string}` ``; `signalBalance`: `bigint`; `unallocatedSignalBalance`: `bigint`; \}\>
+> **readSignalView**(`client`, `signalGBX`, `account`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `currentVotes`: `bigint`; `delegate`: `` `0x${string}` ``; `signalBalance`: `bigint`; \}\>
 
-Reads an account's SignalGBX receipt, allocation, delegation, votes, and immediately withdrawable remainder.
+Reads an account's fully allocated SignalGBX aggregate, delegation, and current votes.
 
 ## Parameters
 
@@ -21,4 +21,4 @@ Reads an account's SignalGBX receipt, allocation, delegation, votes, and immedia
 
 ## Returns
 
-`Promise`\<\{ `allocatedSignalBalance`: `bigint`; `blockNumber`: `bigint`; `currentVotes`: `bigint`; `delegate`: `` `0x${string}` ``; `signalBalance`: `bigint`; `unallocatedSignalBalance`: `bigint`; \}\>
+`Promise`\<\{ `blockNumber`: `bigint`; `currentVotes`: `bigint`; `delegate`: `` `0x${string}` ``; `signalBalance`: `bigint`; \}\>

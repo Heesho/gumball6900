@@ -121,6 +121,21 @@ test('rejects a new or changed analyzer finding', async () => {
   assert.match(result.stderr, /NEW slither\|test-detector/);
 });
 
+test('accepts Slither description sections emitted in a different order', async () => {
+  const paths = await fixture();
+  const first = reports();
+  first.slither.results.detectors[0].description = 'first reviewed line\nsecond reviewed line\n';
+  await writeFile(paths.slither, JSON.stringify(first.slither));
+  const update = run(paths, ['--update']);
+  assert.equal(update.status, 0, update.stderr);
+
+  const reordered = reports();
+  reordered.slither.results.detectors[0].description = 'second reviewed line\nfirst reviewed line\n';
+  await writeFile(paths.slither, JSON.stringify(reordered.slither));
+  const result = run(paths);
+  assert.equal(result.status, 0, result.stderr);
+});
+
 test('rejects a stale disposition when a finding disappears', async () => {
   const paths = await fixture();
   const current = reports([]);
@@ -133,6 +148,7 @@ test('rejects a stale disposition when a finding disappears', async () => {
 test('rejects expired dispositions', async () => {
   const paths = await fixture();
   const policy = JSON.parse(await readFile(paths.policy, 'utf8'));
+  policy.reviewedAt = '2026-08-01';
   policy.expiresAt = '2026-08-10T00:00:00Z';
   await writeFile(paths.policy, JSON.stringify(policy));
   const result = run(paths, [], { STATIC_FINDINGS_NOW: '2026-08-11T00:00:00Z' });

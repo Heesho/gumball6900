@@ -17,8 +17,8 @@ contract SignalGasTest is ProtocolFixture {
         (uint256 addGas, uint256 removeGas) = _measureAddAndRemove(0);
 
         console.log("addSignal gas, one reward token", addGas);
-        console.log("removeSignal gas, one reward token", removeGas);
-        assertLt(addGas, 300_000, "scalar entry gas changed materially");
+        console.log("withdrawSignal gas, one reward token", removeGas);
+        assertLt(addGas, 400_000, "atomic custody-and-signal entry gas changed materially");
         assertLt(removeGas, 300_000, "scalar exit gas changed materially");
         assertLe(removeGas, addGas + 75_000, "exit overhead changed materially");
     }
@@ -30,7 +30,7 @@ contract SignalGasTest is ProtocolFixture {
         uint256 addSlope = (addFour - addOne) / 3;
         uint256 removeSlope = (removeFour - removeOne) / 3;
         console.log("addSignal gas per additional reward token", addSlope);
-        console.log("removeSignal gas per additional reward token", removeSlope);
+        console.log("withdrawSignal gas per additional reward token", removeSlope);
 
         assertGt(addSlope, 10_000, "the measurement must keep observing the reward-token loop");
         assertLt(addSlope, 35_000, "entry slope changed materially");
@@ -47,7 +47,7 @@ contract SignalGasTest is ProtocolFixture {
         uint256 buyGas = _measureMaximumBuy();
 
         console.log("addSignal gas at MAX_REWARD_TOKENS", addGas);
-        console.log("removeSignal gas at MAX_REWARD_TOKENS", removeGas);
+        console.log("withdrawSignal gas at MAX_REWARD_TOKENS", removeGas);
         console.log("claimReward gas with MAX_REWARD_TOKENS registered", scalarClaimGas);
         console.log("selective eight-token claim gas", selectiveClaimGas);
         console.log("claimRewards gas at MAX_REWARD_TOKENS", claimGas);
@@ -103,9 +103,10 @@ contract SignalGasTest is ProtocolFixture {
     function _measureAddAndRemove(uint256 extraRewardTokens) private returns (uint256 addGas, uint256 removeGas) {
         _deployProtocol();
         _addRewardTokens(extraRewardTokens);
-        _stake(ALICE, 100 ether);
+        _mintTestGBX(ALICE, 100 ether);
 
         vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
         uint256 gasBefore = gasleft();
         signalGBX.signal(address(targetStrategy), 100 ether);
         addGas = gasBefore - gasleft();
@@ -116,16 +117,14 @@ contract SignalGasTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         gasBefore = gasleft();
-        signalGBX.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
         removeGas = gasBefore - gasleft();
         vm.stopPrank();
     }
 
     function _measureMaximumRemove() private returns (uint256 gasUsed) {
         _deployProtocol();
-        _stake(ALICE, 100 ether);
-        vm.prank(ALICE);
-        signalGBX.signal(address(targetStrategy), 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 1);
         _startEveryRewardStream();
         vm.warp(block.timestamp + 1 days);
@@ -133,7 +132,7 @@ contract SignalGasTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         uint256 gasBefore = gasleft();
-        signalGBX.removeSignal(address(targetStrategy), 100 ether);
+        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
         gasUsed = gasBefore - gasleft();
         vm.stopPrank();
     }
@@ -141,9 +140,10 @@ contract SignalGasTest is ProtocolFixture {
     function _measureMaximumAdd() private returns (uint256 gasUsed) {
         _deployProtocol();
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 1);
-        _stake(ALICE, 100 ether);
+        _mintTestGBX(ALICE, 100 ether);
 
         vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
         uint256 gasBefore = gasleft();
         signalGBX.signal(address(targetStrategy), 100 ether);
         gasUsed = gasBefore - gasleft();
@@ -153,9 +153,7 @@ contract SignalGasTest is ProtocolFixture {
     function _measureMaximumSelectiveClaim(bool allTokens) private returns (uint256 gasUsed) {
         _deployProtocol();
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 1);
-        _stake(ALICE, 100 ether);
-        vm.prank(ALICE);
-        signalGBX.signal(address(targetStrategy), 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _startEveryRewardStream();
         vm.warp(block.timestamp + 1 days);
 
@@ -172,9 +170,7 @@ contract SignalGasTest is ProtocolFixture {
     function _measureMaximumClaim() private returns (uint256 gasUsed) {
         _deployProtocol();
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 1);
-        _stake(ALICE, 100 ether);
-        vm.prank(ALICE);
-        signalGBX.signal(address(targetStrategy), 100 ether);
+        _signalDefault(ALICE, 100 ether);
         _startEveryRewardStream();
         vm.warp(block.timestamp + 1 days);
 
@@ -186,9 +182,7 @@ contract SignalGasTest is ProtocolFixture {
     function _measureMaximumBuy() private returns (uint256 gasUsed) {
         _deployProtocol();
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 1);
-        _stake(ALICE, 100 ether);
-        vm.prank(ALICE);
-        signalGBX.signal(address(targetStrategy), 100 ether);
+        _signalDefault(ALICE, 100 ether);
         usdg.mint(address(targetStrategy), 100_000_000);
 
         uint256 price = targetStrategy.currentPrice();

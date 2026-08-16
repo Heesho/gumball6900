@@ -20,6 +20,16 @@ function hash(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function stableAnalyzerDescription(value) {
+  return value
+    .replaceAll('\r\n', '\n')
+    .split('\n')
+    .map((line) => line.trimEnd())
+    .filter((line) => line.length !== 0)
+    .sort()
+    .join('\n');
+}
+
 function sourceElement(element) {
   const source = element?.source_mapping;
   return (
@@ -62,7 +72,10 @@ function normalizeSlither(report) {
         symbol: typeof primary.name === 'string' ? primary.name : 'unknown',
         startLine: lines[0],
         endLine: lines.at(-1),
-        descriptionHash: hash(finding.description),
+        // Slither builds several description sections from sets whose presentation order can vary between identical
+        // runs. Preserve every nonempty line but sort the presentation before hashing so the exact register responds
+        // to semantic content rather than analyzer iteration order.
+        descriptionHash: hash(stableAnalyzerDescription(finding.description)),
       };
     });
 }

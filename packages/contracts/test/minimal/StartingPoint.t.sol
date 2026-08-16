@@ -137,7 +137,7 @@ contract StartingPointTest is Test {
     }
 
     function test_MiningRoutesRevenueMintsContinuouslyAndPaysTheDisplacedMiner() external {
-        _stakeAndSignal();
+        _signalFixture();
         uint256 firstPrice = _mine(ALICE, 0);
         vm.warp(block.timestamp + 30 minutes);
         uint256 secondPrice = _mine(BOB, 0);
@@ -169,8 +169,8 @@ contract StartingPointTest is Test {
         assertEq(mine.pendingEmission(), 21_600 ether);
     }
 
-    function test_AcquisitionSendsCompletePaymentTowardFund() external {
-        _stakeAndSignal();
+    function test_AcquisitionClassifiesTheCompletePaymentNinetyTen() external {
+        _signalFixture();
         usdg.mint(address(targetStrategy), 50_000_000);
 
         target.mint(CAROL, STRATEGY_PRICE);
@@ -181,7 +181,8 @@ contract StartingPointTest is Test {
 
         Bribe bribe = Bribe(resonance.bribeFor(address(targetStrategy)));
         BribeRouter router = BribeRouter(resonance.bribeRouterFor(address(targetStrategy)));
-        assertEq(router.fundPaymentLiability(), STRATEGY_PRICE);
+        assertEq(router.fundPaymentLiability(), 9 ether);
+        assertEq(router.bribePaymentLiability(), 1 ether);
         assertEq(target.balanceOf(address(bribe)), 0);
         assertEq(usdg.balanceOf(CAROL), 50_000_000);
         assertEq(targetStrategy.epochId(), 1);
@@ -198,7 +199,8 @@ contract StartingPointTest is Test {
         vm.stopPrank();
 
         BribeRouter router = BribeRouter(resonance.bribeRouterFor(address(targetStrategy)));
-        assertEq(router.fundPaymentLiability(), STRATEGY_PRICE);
+        assertEq(router.fundPaymentLiability(), 9 ether);
+        assertEq(router.bribePaymentLiability(), 1 ether);
         assertEq(target.balanceOf(resonance.bribeFor(address(targetStrategy))), 0);
         assertEq(target.balanceOf(resonance.bribeRouterFor(address(targetStrategy))), STRATEGY_PRICE);
     }
@@ -214,7 +216,7 @@ contract StartingPointTest is Test {
     }
 
     function test_GBXPaymentRequiresSeparateFundDeliveryAndBurn() external {
-        _stakeAndSignal();
+        _signalFixture();
         usdg.mint(address(gbxStrategy), 50_000_000);
 
         uint256 supplyBefore = gbx.totalSupply();
@@ -229,32 +231,27 @@ contract StartingPointTest is Test {
         assertEq(usdg.balanceOf(BOB), 50_000_000);
 
         BribeRouter router = BribeRouter(resonance.bribeRouterFor(address(gbxStrategy)));
-        assertEq(router.fundPaymentLiability(), STRATEGY_PRICE);
+        assertEq(router.fundPaymentLiability(), 9 ether);
+        assertEq(router.bribePaymentLiability(), 1 ether);
         router.payFundPayment();
-        assertEq(gbx.balanceOf(address(fund)), STRATEGY_PRICE);
+        assertEq(gbx.balanceOf(address(fund)), 9 ether);
         assertEq(gbx.totalSupply(), supplyBefore);
 
-        fund.burnGBX(STRATEGY_PRICE);
-        assertEq(gbx.totalSupply(), supplyBefore - STRATEGY_PRICE);
-        assertEq(gbx.lifetimeBurned(), STRATEGY_PRICE);
+        fund.burnGBX(9 ether);
+        assertEq(gbx.totalSupply(), supplyBefore - 9 ether);
+        assertEq(gbx.lifetimeBurned(), 9 ether);
     }
 
-    function test_SignalsCanBeAdjustedAndUnstakedWithoutTimeLock() external {
+    function test_SignalsCanBeMovedAndWithdrawnWithoutTimeLock() external {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
-        signalGBX.stake(100 ether);
-
-        signalGBX.signal(address(targetStrategy), 60 ether);
-        vm.expectRevert(abi.encodeWithSelector(SignalGBX.ActiveSignals.selector, ALICE, 60 ether));
-        signalGBX.unstake(100 ether);
-
-        signalGBX.signal(address(gbxStrategy), 40 ether);
-        signalGBX.removeSignal(address(targetStrategy), 60 ether);
+        signalGBX.signal(address(targetStrategy), 100 ether);
+        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
+        signalGBX.withdrawSignal(address(targetStrategy), 60 ether);
         assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 0);
         assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 40 ether);
 
-        signalGBX.removeSignal(address(gbxStrategy), 40 ether);
-        signalGBX.unstake(100 ether);
+        signalGBX.withdrawSignal(address(gbxStrategy), 40 ether);
         vm.stopPrank();
 
         assertEq(signalGBX.balanceOf(ALICE), 0);
@@ -393,16 +390,14 @@ contract StartingPointTest is Test {
         assertEq(gbx.lifetimeBurned(), 50 ether);
     }
 
-    function _stakeAndSignal() private {
+    function _signalFixture() private {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
-        signalGBX.stake(100 ether);
         signalGBX.signal(address(targetStrategy), 100 ether);
         vm.stopPrank();
 
         vm.startPrank(BOB);
         gbx.approve(address(signalGBX), 100 ether);
-        signalGBX.stake(100 ether);
         signalGBX.signal(address(gbxStrategy), 100 ether);
         vm.stopPrank();
     }
