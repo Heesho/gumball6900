@@ -22,19 +22,18 @@ its complete first payment routes to ResonanceRouter.
 
 ## GBX accrual
 
-Every occupied slot accrues `elapsed seconds * assigned UPS`. `checkpointAll` crystallizes all live slots without
-resetting auction clocks or changing their rates. Replacement checkpoints first, then gives the incoming miner the
-current global rate divided by current capacity.
+Every occupied slot accrues `elapsed seconds * assigned TPS`. Mine caches the sum of occupied TPS and the emission
+accrued through one global timestamp, making total pending emission constant-time. A replacement settles and mints
+only the outgoing slot, then gives the incoming tenure the current global TPS divided by sixteen.
 
-## Capacity and fairness
+## Fixed slots and fairness
 
-Capacity starts at one and can only rise, through the timelock, to 16. An occupied slot keeps its assigned rate across
-capacity changes and cumulative-mining thresholds. This prevents governance from reducing a miner's reward mid-tenure. Aggregate
-issuance may temporarily exceed the undivided current global rate until old-rate slots turn over.
+Mine has exactly 16 ownerless slots. An occupied slot keeps its assigned TPS across cumulative-mining thresholds. This
+prevents a miner's reward from changing mid-tenure. Aggregate issuance may temporarily exceed the current global TPS
+after a halving until old-rate slots turn over.
 
 ## Infinite tail
 
 Global handoff rates follow cumulative-mining halvings down to a constructor-fixed positive tail. The tail never reaches
-zero, so GBX issuance and mining-sourced USDG revenue can continue indefinitely. Integer division by capacity may leave
-unissued rate residue, but the minimum tail bound ensures a newly assigned slot always receives a positive rate at the
-maximum capacity.
+zero, so GBX issuance and mining-sourced USDG revenue can continue indefinitely. Integer division by sixteen may leave
+unissued rate residue, but the minimum tail bound ensures every newly assigned tenure receives a positive TPS.

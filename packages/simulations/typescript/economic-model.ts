@@ -1,4 +1,4 @@
-/** Deterministic integer-only scenarios for the immutable multislot Mine design. */
+/** Deterministic integer-only scenarios for the immutable fixed-slot Mine design. */
 
 const WAD = 10n ** 18n;
 const BPS = 10_000n;
@@ -49,20 +49,18 @@ function redemption(balance: bigint, burned: bigint, supply: bigint): bigint {
 }
 
 function rawSuite() {
-  const incumbentRatePerHour = 100n * WAD;
-  const capacity = 3n;
-  const newSlotRatePerHour = incumbentRatePerHour / capacity;
-  const sequentialCapacityRates = Array.from({ length: 16 }, (_, index) => incumbentRatePerHour / BigInt(index + 1));
-  const legacyOneHour = incumbentRatePerHour;
-  const newSlotOneHour = newSlotRatePerHour;
+  const globalTpsPerHour = 100n * WAD;
+  const incumbentRatePerHour = globalTpsPerHour / 16n;
+  const newTenureRatePerHour = globalTpsPerHour / 2n / 16n;
+  const allSlotRates = Array<bigint>(16).fill(incumbentRatePerHour);
 
-  const supplyBeforeCheckpoint = 100_000_000n * WAD;
+  const mintedSupplyBefore = 100_000_000n * WAD;
   const pendingMining = 1_000_000n * WAD;
   const fundUSDG = 50_000_000n * 10n ** 6n;
   const redeemGBX = 1_000_000n * WAD;
 
   return {
-    schemaVersion: 7,
+    schemaVersion: 8,
     purpose: 'Deterministic protocol mechanics; not forecasts, valuations, or investment projections.',
     assumptions: {
       genesisLiquidityAllocationGBXRaw: GENESIS_LP_GBX,
@@ -70,10 +68,10 @@ function rawSuite() {
       priceDecaySeconds: HOUR,
       previousMinerBps: 8_000n,
       resonanceRevenueBps: 2_000n,
-      maximumCapacity: 16n,
+      fixedSlotCount: 16n,
       tenureRatesLocked: true,
-      capacityOnlyIncreases: true,
-      redemptionsCheckpointAllSlots: true,
+      redemptionsUseConstantTimeEffectiveSupply: true,
+      checkpointAllExists: false,
       strategyFundBps: 9_000n,
       strategyBribeBps: 1_000n,
     },
@@ -86,37 +84,34 @@ function rawSuite() {
         { id: 'empty-slot', ...splitPayment(1_000_000n, false) },
         { id: 'replacement', ...splitPayment(1_000_000n, true) },
       ],
-      capacityExpansion: {
-        capacityBefore: 1n,
-        capacityAfter: capacity,
+      staggeredFixedSlots: {
         incumbentRatePerHour,
-        incumbentRateAfterExpansionPerHour: incumbentRatePerHour,
-        newSlotRatePerHour,
-        oneHourEmissions: [legacyOneHour, newSlotOneHour, newSlotOneHour],
-        aggregateOneHourEmission: legacyOneHour + newSlotOneHour * 2n,
-        undividedGlobalRatePerHour: incumbentRatePerHour,
+        incumbentRateAfterHalvingPerHour: incumbentRatePerHour,
+        newTenureRatePerHour,
+        oneHourEmissions: [incumbentRatePerHour, newTenureRatePerHour, newTenureRatePerHour],
+        aggregateOneHourEmission: incumbentRatePerHour + newTenureRatePerHour * 2n,
         explanation:
-          'Occupied slots keep their tenure rate. Only newly occupied or replaced slots divide the current global rate by current capacity.',
+          'All slots divide the global TPS by sixteen. A halving affects only newly occupied or replaced tenures.',
       },
-      sequentialExpansionToCap: {
-        capacity: 16n,
-        assignedRatesPerHour: sequentialCapacityRates,
-        aggregateOneHourEmission: sequentialCapacityRates.reduce((sum, rate) => sum + rate, 0n),
-        undividedGlobalRatePerHour: incumbentRatePerHour,
-        aggregateBpsOfUndividedRate: mulDiv(
-          sequentialCapacityRates.reduce((sum, rate) => sum + rate, 0n),
+      allSlotsBeforeHalving: {
+        slotCount: 16n,
+        assignedRatesPerHour: allSlotRates,
+        aggregateOneHourEmission: allSlotRates.reduce((sum, rate) => sum + rate, 0n),
+        globalRatePerHour: globalTpsPerHour,
+        aggregateBpsOfGlobalRate: mulDiv(
+          allSlotRates.reduce((sum, rate) => sum + rate, 0n),
           BPS,
-          incumbentRatePerHour,
+          globalTpsPerHour,
         ),
-        explanation:
-          'Worst-order illustration with one new occupation after each capacity increase; every earlier tenure keeps its assigned rate.',
+        explanation: 'Sixteen occupied slots at the same generation exactly reproduce the global rate.',
       },
       handoffHalving: {
         halvingAmount: 490_000_000n * WAD,
-        globalRateBefore: 100n * WAD,
-        globalRateAfter: 50n * WAD,
-        incumbentRateAfterThreshold: 100n * WAD,
-        nextReplacementRateAtCapacityThree: (50n * WAD) / 3n,
+        globalRateBefore: globalTpsPerHour,
+        globalRateAfter: globalTpsPerHour / 2n,
+        incumbentSlotRateAfterThreshold: incumbentRatePerHour,
+        nextReplacementSlotRate: newTenureRatePerHour,
+        aggregateLockedSixteenSlots: allSlotRates.reduce((sum, rate) => sum + rate, 0n),
       },
       infiniteTail: {
         tailRatePerSecond: 10n ** 16n,
@@ -125,13 +120,13 @@ function rawSuite() {
       },
     },
     redemption: {
-      supplyBeforeCheckpoint,
+      mintedSupplyBefore,
       pendingMining,
-      denominatorAfterCheckpoint: supplyBeforeCheckpoint + pendingMining,
+      effectiveSupplyBeforeBurn: mintedSupplyBefore + pendingMining,
       fundUSDGRaw: fundUSDG,
       redeemGBX,
-      payoutWithoutCheckpointRaw: redemption(fundUSDG, redeemGBX, supplyBeforeCheckpoint),
-      payoutWithCheckpointRaw: redemption(fundUSDG, redeemGBX, supplyBeforeCheckpoint + pendingMining),
+      payoutIgnoringPendingRaw: redemption(fundUSDG, redeemGBX, mintedSupplyBefore),
+      payoutWithEffectiveSupplyRaw: redemption(fundUSDG, redeemGBX, mintedSupplyBefore + pendingMining),
     },
     genesisLiquidity: {
       publicBootstrap: false,

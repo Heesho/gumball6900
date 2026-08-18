@@ -7,7 +7,6 @@ import {
   buildApproval,
   buildCancelPendingProtocolProposal,
   buildCastProtocolVote,
-  buildCheckpointMining,
   buildClaimBribeReward,
   buildClaimMiningPayment,
   buildClaimSelectedBribeRewards,
@@ -16,7 +15,6 @@ import {
   buildExecuteProtocolProposal,
   buildFundBurn,
   buildHarvestLiquidityFees,
-  buildIncreaseMiningCapacityProposalCall,
   buildKillStrategyProposalCall,
   buildMine,
   buildMoveSignal,
@@ -124,7 +122,7 @@ describe('minimal typed transaction builders', () => {
     });
   });
 
-  it('composes the four bounded admin calls into a ProtocolGovernor lifecycle', () => {
+  it('composes the three bounded admin calls into a ProtocolGovernor lifecycle', () => {
     const config = {
       epochDuration: 86_400n,
       initialPrice: 10_000_000n,
@@ -135,7 +133,6 @@ describe('minimal typed transaction builders', () => {
     const addStrategy = buildAddStrategyProposalCall(A, B, config);
     const killStrategy = buildKillStrategyProposalCall(A, C);
     const addBribeReward = buildAddBribeRewardProposalCall(A, B, C);
-    const increaseCapacity = buildIncreaseMiningCapacityProposalCall(D, 3n);
     expect(decodeFunctionData({ abi: resonanceAbi, data: addStrategy.calldata })).toMatchObject({
       args: [getAddress(B), config],
       functionName: 'addStrategy',
@@ -148,22 +145,23 @@ describe('minimal typed transaction builders', () => {
       args: [getAddress(B), getAddress(C)],
       functionName: 'addBribeReward',
     });
-    expect(decodeFunctionData({ abi: mineAbi, data: increaseCapacity.calldata })).toMatchObject({
-      args: [3n],
-      functionName: 'increaseCapacity',
-    });
     for (const call of [addStrategy, killStrategy, addBribeReward]) {
       expect(call.target).toBe(getAddress(A));
       expect(call.value).toBe(0n);
     }
 
-    const calls = [addStrategy, increaseCapacity] as const;
-    const description = 'Add the first Strategy and increase Mine capacity';
+    const calls = [addStrategy, killStrategy, addBribeReward] as const;
+    const description = 'Update the Resonance strategy set';
     const descriptionHash = keccak256(toBytes(description));
     expect(
       decodeFunctionData({ abi: protocolGovernorAbi, data: buildProtocolProposal(C, calls, description).data }),
     ).toMatchObject({
-      args: [[getAddress(A), getAddress(D)], [0n, 0n], [addStrategy.calldata, increaseCapacity.calldata], description],
+      args: [
+        [getAddress(A), getAddress(A), getAddress(A)],
+        [0n, 0n, 0n],
+        [addStrategy.calldata, killStrategy.calldata, addBribeReward.calldata],
+        description,
+      ],
       functionName: 'propose',
     });
     expect(decodeFunctionData({ abi: protocolGovernorAbi, data: buildCastProtocolVote(C, 7n, 1).data })).toMatchObject({
@@ -220,10 +218,7 @@ describe('minimal typed transaction builders', () => {
     });
   });
 
-  it('encodes mining checkpoint and liquidity maintenance', () => {
-    expect(decodeFunctionData({ abi: mineAbi, data: buildCheckpointMining(A).data })).toMatchObject({
-      functionName: 'checkpointAll',
-    });
+  it('encodes liquidity maintenance without a mining checkpoint action', () => {
     expect(
       decodeFunctionData({ abi: liquidityPositionAbi, data: buildHarvestLiquidityFees(A).data }).functionName,
     ).toBe('harvestFees');

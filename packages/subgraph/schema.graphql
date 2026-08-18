@@ -12,7 +12,7 @@ type ProtocolState @entity(immutable: false) {
   miningPaymentsRaw: BigInt!
   previousMinerPaymentsRaw: BigInt!
   miningRevenueRoutedRaw: BigInt!
-  miningCapacity: BigInt!
+  miningSlotCount: BigInt!
   liquidityPrincipalRaw: BigInt!
   liquidityFeeHarvestCount: BigInt!
   liquidityUSDGRoutedRaw: BigInt!
@@ -61,7 +61,7 @@ type MiningSlot @entity(immutable: false) {
   currentMiner: Bytes!
   initialPriceRaw: BigInt!
   auctionStartedAt: BigInt!
-  upsRaw: BigInt!
+  tpsRaw: BigInt!
   totalMinedRaw: BigInt!
   totalReplacementPaidRaw: BigInt!
   lastPriceRaw: BigInt!

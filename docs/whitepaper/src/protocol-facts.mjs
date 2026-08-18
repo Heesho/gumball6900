@@ -26,8 +26,9 @@ export const contractConstants = {
     priceDecaySeconds: 3_600,
     previousMinerBps: 8_000,
     resonanceBps: 2_000,
-    maxCapacity: 16,
+    slotCount: 16,
     tenureRatesLocked: true,
+    constantTimePendingEmission: true,
   },
   bribe: { source: 'packages/contracts/src/core/Bribe.sol', maxRewardTokens: 8 },
   bribeRouter: {
@@ -62,19 +63,19 @@ export function verifyProtocolFacts() {
     ['price decay', BigInt(fixture.assumptions.priceDecaySeconds), BigInt(expected.priceDecaySeconds)],
     ['previous miner bps', BigInt(fixture.assumptions.previousMinerBps), BigInt(expected.previousMinerBps)],
     ['resonance bps', BigInt(fixture.assumptions.resonanceRevenueBps), BigInt(expected.resonanceBps)],
-    ['capacity cap', BigInt(fixture.assumptions.maximumCapacity), BigInt(expected.maxCapacity)],
+    ['fixed slot count', BigInt(fixture.assumptions.fixedSlotCount), BigInt(expected.slotCount)],
     [
       'incumbent rate lock',
-      fixture.mining.capacityExpansion.incumbentRateAfterExpansionPerHour,
-      fixture.mining.capacityExpansion.incumbentRatePerHour,
+      fixture.mining.staggeredFixedSlots.incumbentRateAfterHalvingPerHour,
+      fixture.mining.staggeredFixedSlots.incumbentRatePerHour,
     ],
   ];
   const failures = checks.filter(([, actual, wanted]) => actual !== wanted);
   if (
     !fixture.assumptions.infiniteSupply ||
     !fixture.assumptions.tenureRatesLocked ||
-    !fixture.assumptions.capacityOnlyIncreases ||
-    !fixture.assumptions.redemptionsCheckpointAllSlots
+    !fixture.assumptions.redemptionsUseConstantTimeEffectiveSupply ||
+    fixture.assumptions.checkpointAllExists
   ) {
     failures.push(['boolean protocol assumptions', false, true]);
   }
@@ -96,6 +97,6 @@ export function verifyProtocolFacts() {
   return {
     checks: checks.length + 4 + routerPins.length,
     genesisLiquidityTokens: contractConstants.gbx.genesisLiquidityTokens,
-    maxCapacity: expected.maxCapacity,
+    slotCount: expected.slotCount,
   };
 }

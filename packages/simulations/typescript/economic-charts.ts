@@ -31,8 +31,8 @@ function frame(title: string, subtitle: string, body: string): string {
 }
 
 function miningRates(root: { [key: string]: DecimalJson }): string {
-  const expansion = object(object(root.mining!, 'mining').capacityExpansion!, 'capacityExpansion');
-  const emissions = array(expansion.oneHourEmissions, 'oneHourEmissions').map((value) => BigInt(string(value, 'rate')));
+  const slots = object(object(root.mining!, 'mining').staggeredFixedSlots!, 'staggeredFixedSlots');
+  const emissions = array(slots.oneHourEmissions, 'oneHourEmissions').map((value) => BigInt(string(value, 'rate')));
   const maximum = emissions[0]!;
   const colors = ['#f7c948', '#56b4e9', '#56b4e9'];
   const bars = emissions.map((amount, index) => {
@@ -44,8 +44,8 @@ function miningRates(root: { [key: string]: DecimalJson }): string {
     ].join('\n');
   });
   return frame(
-    'Capacity expansion preserves incumbent rate',
-    'The occupied slot keeps 100 GBX/hour; newly filled slots receive the current rate divided by capacity',
+    'Fixed-slot halving preserves incumbent TPS',
+    'The incumbent keeps 6.25 GBX/hour; later tenures receive the halved 3.125 GBX/hour',
     bars.join('\n'),
   );
 }
@@ -78,13 +78,13 @@ function genesisChart(root: { [key: string]: DecimalJson }): string {
 
 function redemptionChart(root: { [key: string]: DecimalJson }): string {
   const redemption = object(root.redemption!, 'redemption');
-  const without = BigInt(string(redemption.payoutWithoutCheckpointRaw, 'without'));
-  const withCheckpoint = BigInt(string(redemption.payoutWithCheckpointRaw, 'with'));
+  const without = BigInt(string(redemption.payoutIgnoringPendingRaw, 'without'));
+  const withPending = BigInt(string(redemption.payoutWithEffectiveSupplyRaw, 'with'));
   const maximum = without;
-  const heights = [without, withCheckpoint].map((value) => Number((value * 280n) / maximum));
+  const heights = [without, withPending].map((value) => Number((value * 280n) / maximum));
   return frame(
     'Pending mining belongs in redemption supply',
-    'Fund checkpoints every live slot before taking the common pre-burn denominator',
+    'Fund reads minted supply plus the constant-time pending accumulator; no mining checkpoint is called',
     heights
       .map(
         (height, index) =>

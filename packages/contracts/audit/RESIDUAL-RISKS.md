@@ -2,17 +2,18 @@
 
 ## Mine and supply
 
-- Fixed-tenure rates prevent mid-mine dilution but temporarily raise aggregate issuance after capacity expansion or a
-  future-handoff halving. Old slots keep their earlier rates until replacement.
+- Fixed-tenure rates prevent mid-mine dilution but temporarily raise aggregate issuance after a future-handoff
+  halving. Old slots keep their earlier rates until replacement.
 - Miners face rollover risk and may be replaced at zero USDG after one hour. The 80% successor payment is not a refund
   or guarantee.
 - GBX has no protocol-defined economic supply cap. Immutable future-handoff halvings converge to a positive tail, so
   dilution does not terminate on any modeled horizon. SignalGBX voting checkpoints impose a `uint208` ceiling on the
   amount that can be signaled for governance, even though GBX itself has no such implementation ceiling.
 - Exact production Mine parameters remain unresolved and materially affect demand, dilution, revenue, and MEV.
-- Accrued GBX is unminted between checkpoints. Fund forces a checkpoint before redemption, but indexers must compute
-  pending emission for effective-supply displays.
-- Every handoff, capacity increase, and redemption checkpoints up to sixteen slots. Work is bounded but linear.
+- Accrued GBX is unminted until a slot handoff. Fund uses Mine's constant-time effective supply, and indexers should
+  use the same view for inclusive supply displays.
+- Mine handoffs and effective-supply reads are constant time; rigorous tests separately traverse all sixteen slots as
+  a differential oracle.
 - The permanent GBX minter handoff and immutable dependencies cannot be repaired after an incorrect deployment.
   Reciprocal identity checks reject crossed GBX/Mine, Resonance/SignalGBX/factory, and Resonance/router graphs, but a
   malicious lookalike contract or incorrect immutable parameter still requires signed bytecode and manifest review.
@@ -29,15 +30,15 @@
 
 ## Governance and setup
 
-SignalGBX voting may propose only four exact actions through ProtocolGovernor: add/kill Strategies, register up to
-eight Bribe reward tokens, and increase Mine capacity to sixteen. The Governor is the Timelock's sole proposer; it
-cannot reduce capacity, reprice incumbents, change Mine economics, move Fund assets, recover the liquidity NFT, relay
+SignalGBX voting may propose only three exact actions through ProtocolGovernor: add/kill Strategies and register up to
+eight Bribe reward tokens. The Governor is the Timelock's sole proposer; it cannot change Mine's fixed slot count,
+reprice incumbents, change Mine economics, move Fund assets, recover the liquidity NFT, relay
 an arbitrary call, replace the Timelock, or upgrade/migrate the core.
 
 Voting uses block snapshots while the Timelock delay uses seconds. Signaled GBX has no withdrawal lock, so a voter can
 exit after the snapshot while retaining historical voting weight, and short-lived borrowed GBX can influence a known
 snapshot. Undelegated SignalGBX counts toward historical total supply and therefore quorum but casts no vote; large
-undelegated supply can deadlock all four maintenance actions. Once queued, an action has no public cancellation path.
+undelegated supply can deadlock all three maintenance actions. Once queued, an action has no public cancellation path.
 Stale or conflicting queued operations may remain forever and revert on execution, though they do not block a
 differently described replacement proposal.
 

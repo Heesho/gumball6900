@@ -22,11 +22,16 @@ authorized for user funds. A green local build is engineering evidence, never a 
   authority to one deployed `Mine`; the handover is one-time and cannot be replaced or reopened. There is no
   protocol-defined economic supply cap, and supply reconciles as `totalSupply == lifetimeMinted - lifetimeBurned`.
   GBX retains ERC-2612 permit approvals but does not carry ERC20Votes checkpoints or governance weight.
-- Mine starts with one slot. Timelock governance may only increase capacity, never decrease it, up to the hard cap of 16. Each slot uses an hourly reverse Dutch replacement auction and may change hands at any time.
-- A slot's assigned GBX-per-second rate is locked for that miner's complete tenure. Checkpoints, redemptions, capacity
-  increases, and cumulative-mining threshold crossings must not reprice or dilute an occupied slot. Only a newly occupied or
-  replaced slot receives `current global rate / current capacity`. Accept that capacity expansion can temporarily
-  increase aggregate issuance while legacy-rate miners remain.
+- Mine has exactly 16 immutable slots. Each slot uses an independent hourly reverse Dutch replacement auction and may
+  change hands at any time. Mine is ownerless and has no capacity or all-slot checkpoint operation.
+- A slot's assigned GBX tokens-per-second (`tps`) rate is locked for that miner's complete tenure. Redemptions and
+  cumulative-mining threshold crossings must not reprice or dilute an occupied slot. Only a newly occupied or replaced
+  slot receives `current global tps / 16`. Accept that aggregate issuance can temporarily exceed the current global
+  rate while legacy-rate miners remain.
+- Mine must maintain `aggregateTps` and a timestamped `storedPendingEmission` so total pending emission is available in
+  constant time. Before one slot changes rate, accrue the old aggregate through the current timestamp; settle and mint
+  only the replaced slot; then replace its contribution to `aggregateTps`. Halvings use
+  `totalMined + pendingEmission()` so miners cannot postpone a threshold by delaying their own replacement.
 - Global rates use constructor-immutable cumulative-mining halvings and a strictly positive tail rate. Do not add a
   rate setter, emissions controller, migration authority, oracle, entropy source, team fee, or claim redirection.
 - `SignalGBX` is the non-transferable, one-for-one GBX escrow receipt, the ERC20Votes governance token on the default
@@ -78,8 +83,8 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - A Strategy priced in GBX does not burn during settlement. After the 90% Fund liability is paid into `Fund`, anyone
   may burn that GBX through `Fund.burnGBX`; the 10% Bribe liability funds the paired GBX reward stream. Users should
   settle and burn pending Fund GBX before calculating a redemption.
-- Before every redemption denominator snapshot, Fund must checkpoint all Mine slots so accrued unminted GBX is
-  included. Capacity remains bounded so this call stays bounded.
+- Before every redemption denominator snapshot, Fund must read Mine's constant-time effective supply so accrued
+  unminted GBX is included without a checkpoint or any slot iteration.
 
 ## Fund behavior
 
@@ -91,7 +96,7 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - Redemption is unpausable and does not enumerate Fund assets. A redeemer supplies `gbxAmount`, a receiver, and a
   caller-selected array of unique non-GBX token addresses. For every selected token, transfer:
 
-  `floor(Fund token balance * gbxAmount / GBX total supply before the burn)`
+  `floor(Fund token balance * gbxAmount / (GBX total supply + pending mining emission) before the burn)`
 
 - Take the supply and balance snapshots before burning, and make the burn and every selected transfer atomic. A failed
   selected-token transfer reverts the entire redemption, including the burn.
@@ -125,16 +130,16 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - `Fund` and `LiquidityPosition` are ownerless. `Fund` assets move only when a GBX holder burns their own tokens
   through redemption; assets that redeemers omit stay in `Fund` for the remaining GBX supply indefinitely. GBX held by
   `Fund` is burnable by anyone through the dedicated burn function.
-- The remaining administrative surface is `Resonance.addStrategy`, `Resonance.killStrategy`,
-  `Resonance.addBribeReward`, and `Mine.increaseCapacity`. Nothing else is owner-gated after one-time setup.
+- The remaining administrative surface is `Resonance.addStrategy`, `Resonance.killStrategy`, and
+  `Resonance.addBribeReward`. Nothing else is owner-gated after one-time setup.
 - `ProtocolGovernor` uses SignalGBX ERC20Votes checkpoints and immutable, constructor-selected block-clock voting delay,
-  period, proposal threshold, quorum percentage, Timelock, Resonance, and Mine dependencies. It may propose only exact
-  zero-value calls for the four continuing administrative selectors. It is the Timelock's sole proposer and sole
+  period, proposal threshold, quorum percentage, Timelock, and Resonance dependencies. It may propose only exact
+  zero-value calls for the three continuing administrative selectors. It is the Timelock's sole proposer and sole
   canceller-role holder; there is no multisig bypass, guardian, or queued-proposal veto. Standard Governor cancellation
   remains available only to the proposer while a proposal is pending.
-- The Timelock should own Resonance and Mine, use a documented minimum delay, have no external default admin after
+- The Timelock should own Resonance, use a documented minimum delay, have no external default admin after
   setup, and grant the executor role to the zero address for permissionless execution. Create every reviewed initial
-  Strategy while the temporary setup owner still controls Resonance, then transfer Resonance and Mine to the Timelock
+  Strategy while the temporary setup owner still controls Resonance, then transfer Resonance to the Timelock
   and renounce setup authority. Do not leave a deployer, multisig, or alternate proposer path.
 - CI must never broadcast mainnet transactions.
 

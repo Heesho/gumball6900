@@ -3513,11 +3513,6 @@ export const mineAbi = [
         internalType: 'address',
       },
       {
-        name: 'initialOwner',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
         name: 'config',
         type: 'tuple',
         internalType: 'struct Mine.Config',
@@ -3533,7 +3528,7 @@ export const mineAbi = [
             internalType: 'uint256',
           },
           {
-            name: 'initialUps',
+            name: 'initialTps',
             type: 'uint256',
             internalType: 'uint256',
           },
@@ -3543,7 +3538,7 @@ export const mineAbi = [
             internalType: 'uint256',
           },
           {
-            name: 'tailUps',
+            name: 'tailTps',
             type: 'uint256',
             internalType: 'uint256',
           },
@@ -3555,19 +3550,6 @@ export const mineAbi = [
   {
     type: 'function',
     name: 'BPS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MAX_CAPACITY',
     inputs: [],
     outputs: [
       {
@@ -3606,7 +3588,7 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'MAX_INITIAL_UPS',
+    name: 'MAX_INITIAL_TPS',
     inputs: [],
     outputs: [
       {
@@ -3671,7 +3653,7 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'MIN_TAIL_UPS',
+    name: 'MIN_TAIL_TPS',
     inputs: [],
     outputs: [
       {
@@ -3723,7 +3705,7 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'capacity',
+    name: 'SLOT_COUNT',
     inputs: [],
     outputs: [
       {
@@ -3736,16 +3718,16 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'checkpointAll',
+    name: 'aggregateTps',
     inputs: [],
     outputs: [
       {
-        name: 'amount',
+        name: '',
         type: 'uint256',
         internalType: 'uint256',
       },
     ],
-    stateMutability: 'nonpayable',
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -3842,7 +3824,7 @@ export const mineAbi = [
             internalType: 'uint256',
           },
           {
-            name: 'ups',
+            name: 'tps',
             type: 'uint256',
             internalType: 'uint256',
           },
@@ -3871,20 +3853,7 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'increaseCapacity',
-    inputs: [
-      {
-        name: 'newCapacity',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'initialUps',
+    name: 'initialTps',
     inputs: [],
     outputs: [
       {
@@ -3949,26 +3918,13 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'nextGlobalUps',
+    name: 'nextGlobalTps',
     inputs: [],
     outputs: [
       {
-        name: 'ups',
+        name: 'tps',
         type: 'uint256',
         internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'owner',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -3999,6 +3955,19 @@ export const mineAbi = [
     outputs: [
       {
         name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'pendingUpdatedAt',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -4036,13 +4005,6 @@ export const mineAbi = [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'renounceOwnership',
-    inputs: [],
-    outputs: [],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -4089,7 +4051,7 @@ export const mineAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'ups',
+        name: 'tps',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -4103,7 +4065,20 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'tailUps',
+    name: 'storedPendingEmission',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'tailTps',
     inputs: [],
     outputs: [
       {
@@ -4142,19 +4117,6 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'transferOwnership',
-    inputs: [
-      {
-        name: 'newOwner',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     name: 'usdg',
     inputs: [],
     outputs: [
@@ -4165,25 +4127,6 @@ export const mineAbi = [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'event',
-    name: 'CapacityIncreased',
-    inputs: [
-      {
-        name: 'previousCapacity',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'newCapacity',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
   },
   {
     type: 'event',
@@ -4206,7 +4149,7 @@ export const mineAbi = [
   },
   {
     type: 'event',
-    name: 'EmissionCheckpointed',
+    name: 'EmissionSettled',
     inputs: [
       {
         name: 'miner',
@@ -4282,7 +4225,7 @@ export const mineAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'ups',
+        name: 'tps',
         type: 'uint256',
         indexed: false,
         internalType: 'uint256',
@@ -4323,25 +4266,6 @@ export const mineAbi = [
   },
   {
     type: 'event',
-    name: 'OwnershipTransferred',
-    inputs: [
-      {
-        name: 'previousOwner',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'newOwner',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
     name: 'RevenueRouted',
     inputs: [
       {
@@ -4364,33 +4288,6 @@ export const mineAbi = [
       },
     ],
     anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'CapacityNotIncreased',
-    inputs: [
-      {
-        name: 'currentCapacity',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'requestedCapacity',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'CapacityTooHigh',
-    inputs: [
-      {
-        name: 'requestedCapacity',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
   },
   {
     type: 'error',
@@ -4475,10 +4372,10 @@ export const mineAbi = [
   },
   {
     type: 'error',
-    name: 'InitialUpsOutOfRange',
+    name: 'InitialTpsOutOfRange',
     inputs: [
       {
-        name: 'ups',
+        name: 'tps',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -4529,28 +4426,6 @@ export const mineAbi = [
   },
   {
     type: 'error',
-    name: 'OwnableInvalidOwner',
-    inputs: [
-      {
-        name: 'owner',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'OwnableUnauthorizedAccount',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'PriceMultiplierOutOfRange',
     inputs: [
       {
@@ -4578,10 +4453,10 @@ export const mineAbi = [
   },
   {
     type: 'error',
-    name: 'TailUpsOutOfRange',
+    name: 'TailTpsOutOfRange',
     inputs: [
       {
-        name: 'ups',
+        name: 'tps',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -4627,11 +4502,6 @@ export const protocolGovernorAbi = [
         name: 'resonance_',
         type: 'address',
         internalType: 'contract Resonance',
-      },
-      {
-        name: 'mine_',
-        type: 'address',
-        internalType: 'contract Mine',
       },
       {
         name: 'votingDelayBlocks',
@@ -5145,19 +5015,6 @@ export const protocolGovernorAbi = [
       },
     ],
     stateMutability: 'pure',
-  },
-  {
-    type: 'function',
-    name: 'mine',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'contract Mine',
-      },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',

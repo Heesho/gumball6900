@@ -87,11 +87,9 @@ contract Fund is ReentrancyGuard {
             revert InvalidMine(mine);
         }
 
-        // Crystallize every live slot's accrued GBX before taking the common redemption denominator. This makes a
-        // handoff convert pending supply into minted supply without ever letting pending miner rewards disappear from
-        // a redemption snapshot.
-        IMine(mine).checkpointAll();
-        uint256 supplyBeforeBurn = gbx.totalSupply();
+        // Pending mining emission is economically issued even though it is minted only when its individual slot is
+        // replaced. Include Mine's constant-time pending accumulator without mutating or iterating through Mine.
+        uint256 supplyBeforeBurn = IMine(mine).effectiveTotalSupply();
         uint256[] memory balancesBefore = new uint256[](tokenCount);
         uint256[] memory payouts = new uint256[](tokenCount);
 

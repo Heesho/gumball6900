@@ -10,7 +10,7 @@ import {
 } from 'matchstick-as/assembly/index';
 import { Burned, Minted } from '../generated/GBX/GBX';
 import { FeesHarvested } from '../generated/LiquidityPosition/LiquidityPosition';
-import { Claimed, EmissionCheckpointed, Mined, MinerPaymentAccrued } from '../generated/Mine/Mine';
+import { Claimed, EmissionSettled, Mined, MinerPaymentAccrued } from '../generated/Mine/Mine';
 import { RewardCarryFunded } from '../generated/templates/BribeTemplate/Bribe';
 import { BribePaymentAccrued, BribeRewardNotified } from '../generated/templates/BribeRouterTemplate/BribeRouter';
 import {
@@ -26,7 +26,7 @@ import { handleRouterBribePaymentAccrued, handleRouterBribeRewardNotified } from
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
 import { handleFeesHarvested } from '../src/liquidity-position';
-import { handleClaimed, handleEmissionCheckpointed, handleMined, handleMinerPaymentAccrued } from '../src/mine';
+import { handleClaimed, handleEmissionSettled, handleMined, handleMinerPaymentAccrued } from '../src/mine';
 import {
   handleRevenueDistributed,
   handleRevenueNotified,
@@ -42,7 +42,7 @@ import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, confi
 export {
   handleBurned,
   handleClaimed,
-  handleEmissionCheckpointed,
+  handleEmissionSettled,
   handleFeesHarvested,
   handleMined,
   handleMinerPaymentAccrued,
@@ -107,7 +107,7 @@ describe('core protocol mappings', () => {
     mined.parameters.push(addressParam('previousMiner', USER));
     mined.parameters.push(uintParam('price', 50));
     mined.parameters.push(uintParam('initialPrice', 100));
-    mined.parameters.push(uintParam('ups', 4));
+    mined.parameters.push(uintParam('tps', 4));
     handleMined(mined);
 
     const accrued = changetype<MinerPaymentAccrued>(newMockEvent());
@@ -129,21 +129,21 @@ describe('core protocol mappings', () => {
     const slotId = '4663-' + CONTRACT.toHexString() + '-slot-0';
     assert.fieldEquals('MiningSlot', slotId, 'epoch', '8');
     assert.fieldEquals('MiningSlot', slotId, 'currentMiner', USER_TWO.toHexString());
-    assert.fieldEquals('MiningSlot', slotId, 'upsRaw', '4');
+    assert.fieldEquals('MiningSlot', slotId, 'tpsRaw', '4');
     assert.fieldEquals('ProtocolState', '4663', 'miningPaymentsRaw', '50');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'miningPaymentAccruedRaw', '40');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'miningUSDGClaimedRaw', '40');
   });
 
-  test('tracks mining checkpoints and fixed-principal fee harvesting', () => {
-    const checkpoint = changetype<EmissionCheckpointed>(newMockEvent());
-    configureEvent(checkpoint, CONTRACT, 1);
-    checkpoint.parameters = new Array<ethereum.EventParam>();
-    checkpoint.parameters.push(addressParam('miner', USER));
-    checkpoint.parameters.push(uintParam('index', 0));
-    checkpoint.parameters.push(uintParam('epochId', 7));
-    checkpoint.parameters.push(uintParam('amount', 80));
-    handleEmissionCheckpointed(checkpoint);
+  test('tracks target-slot mining settlement and fixed-principal fee harvesting', () => {
+    const settled = changetype<EmissionSettled>(newMockEvent());
+    configureEvent(settled, CONTRACT, 1);
+    settled.parameters = new Array<ethereum.EventParam>();
+    settled.parameters.push(addressParam('miner', USER));
+    settled.parameters.push(uintParam('index', 0));
+    settled.parameters.push(uintParam('epochId', 7));
+    settled.parameters.push(uintParam('amount', 80));
+    handleEmissionSettled(settled);
 
     const harvested = changetype<FeesHarvested>(newMockEvent());
     configureEvent(harvested, CONTRACT, 2);

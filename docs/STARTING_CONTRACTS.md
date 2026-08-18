@@ -42,7 +42,7 @@ coordinator; an idle receipt state is not permitted.
 | `BribeRouter`       | Pulls exact Strategy payment, cumulatively classifies 90% Fund / 10% paired Bribe, and isolates both permissionless settlement legs.                                 |
 | `Bribe`             | Streams the automatic acquired-asset share and additional rewards over virtual signal balances, within the fixed eight-token cap.                                    |
 | `Fund`              | Ownerless raw-token treasury, permissionless GBX burn boundary, and caller-selected pro-rata redemption mechanism.                                                   |
-| `ProtocolGovernor`  | Uses sGBX checkpoints to propose only four exact zero-value calls through the immutable Timelock and target graph.                                                   |
+| `ProtocolGovernor`  | Uses sGBX checkpoints to propose only three exact zero-value Resonance calls through the immutable Timelock.                                                         |
 
 ## Supply and mining
 
@@ -54,16 +54,15 @@ supply identity is:
 GBX total supply = GBX lifetime minted - GBX lifetime burned
 ```
 
-Mine starts with one slot. The timelock may only increase capacity, up to the immutable cap of sixteen. Each slot may
+Mine starts with exactly sixteen permanent slots and has no owner or capacity control. Each slot may
 be replaced at any time. Its quoted USDG price falls linearly from `initialPrice` to zero over one hour. A nonempty-slot
 replacement makes 80% of the price claimable by the displaced miner and routes 20% through ResonanceRouter. An empty
 slot routes 100% because there is no displaced miner. Payments are exact-transfer checked.
 
-Each new occupant receives `current global GBX/second / current capacity`. That assigned rate is locked for the entire
-tenure. Checkpointing, threshold crossings, Fund redemptions, and later capacity increases do not change it. For
-example, if an incumbent holds 100 GBX/hour and capacity grows from one to three, that incumbent keeps 100 GBX/hour;
-new occupants receive approximately one third of the then-current global rate. The accepted consequence is temporarily
-higher aggregate issuance until older slots turn over.
+Each new occupant receives `current global TPS / 16`. That assigned rate is locked for the entire tenure. Threshold
+crossings, Fund redemptions, and other slots' handoffs do not change it. The accepted consequence is temporarily higher
+aggregate issuance after a halving until older slots turn over. Mine maintains exact total pending emission in constant
+time, and Fund reads effective supply without calling or mutating all slots.
 
 The global rate used for future handoffs halves at constructor-immutable cumulative-mining thresholds and eventually
 reaches a strictly positive immutable tail. There is no protocol-defined economic maximum GBX supply, rate setter,
@@ -110,8 +109,8 @@ them. Complete GBX proceeds transfer to Fund and are burned atomically. The NFT 
 
 ## Fund redemption
 
-Before every redemption, Fund checkpoints every live mining slot. This crystallizes accrued GBX before the common
-pre-burn denominator is captured:
+Before every redemption, Fund reads Mine's constant-time effective supply. This includes accrued unminted GBX in the
+common pre-burn denominator without iterating or mutating mining slots:
 
 ```text
 payout(token) = floor(Fund balance(token) * GBX burned / GBX total supply before burn)
@@ -123,20 +122,19 @@ asset registry. Omitted assets remain for the post-redemption supply.
 
 ## Governance
 
-There is no migration or upgrade path. Fund and LiquidityPosition are ownerless. TimelockController owns Resonance and
-Mine, and ProtocolGovernor is its sole proposer. The continuing administrative surface is exactly:
+There is no migration or upgrade path. Fund, LiquidityPosition, and Mine are ownerless. TimelockController owns
+Resonance, and ProtocolGovernor is its sole proposer. The continuing administrative surface is exactly:
 
 - `Resonance.addStrategy`;
 - `Resonance.killStrategy`;
-- `Resonance.addBribeReward`, subject to the immutable eight-token cap; and
-- `Mine.increaseCapacity`, which can only increase from one to at most sixteen and never reprices incumbents.
+- `Resonance.addBribeReward`, subject to the immutable eight-token cap.
 
-ProtocolGovernor accepts only those exact zero-value calls at immutable Resonance and Mine targets. Its voting delay,
+ProtocolGovernor accepts only those exact zero-value calls at the immutable Resonance target. Its voting delay,
 period, proposal threshold, and quorum percentage are immutable constructor inputs and use SignalGBX's block-number
 clock. Execution is permissionless after the configured Timelock delay. There is no multisig bypass, external default
 administrator, guardian, or queued-proposal veto; standard proposer cancellation ends when a proposal leaves Pending.
-Every reviewed initial Strategy is bootstrapped by the temporary setup owner before Resonance and Mine ownership moves
-to the Timelock and that temporary authority is removed.
+Every reviewed initial Strategy is bootstrapped by the temporary setup owner before Resonance ownership moves to the
+Timelock and that temporary authority is removed.
 
 ## Deliberate scope
 

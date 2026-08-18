@@ -6,7 +6,7 @@
 
 # Function: readProtocolGovernorView()
 
-> **readProtocolGovernorView**(`client`, `protocolGovernor`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `mine`: `` `0x${string}` ``; `name`: `string`; `proposalThreshold`: `bigint`; `quorumDenominator`: `bigint`; `quorumNumerator`: `bigint`; `resonance`: `` `0x${string}` ``; `signalGBX`: `` `0x${string}` ``; `timelock`: `` `0x${string}` ``; `timelockMinDelay`: `bigint`; `votingDelay`: `bigint`; `votingPeriod`: `bigint`; \}\>
+> **readProtocolGovernorView**(`client`, `protocolGovernor`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `name`: `string`; `proposalThreshold`: `bigint`; `quorumDenominator`: `bigint`; `quorumNumerator`: `bigint`; `resonance`: `` `0x${string}` ``; `signalGBX`: `` `0x${string}` ``; `timelock`: `` `0x${string}` ``; `timelockMinDelay`: `bigint`; `votingDelay`: `bigint`; `votingPeriod`: `bigint`; \}\>
 
 Reads ProtocolGovernor's immutable targets, voting parameters, vote token, and Timelock delay.
 
@@ -20,4 +20,4 @@ Reads ProtocolGovernor's immutable targets, voting parameters, vote token, and T
 
 ## Returns
 
-`Promise`\<\{ `blockNumber`: `bigint`; `mine`: `` `0x${string}` ``; `name`: `string`; `proposalThreshold`: `bigint`; `quorumDenominator`: `bigint`; `quorumNumerator`: `bigint`; `resonance`: `` `0x${string}` ``; `signalGBX`: `` `0x${string}` ``; `timelock`: `` `0x${string}` ``; `timelockMinDelay`: `bigint`; `votingDelay`: `bigint`; `votingPeriod`: `bigint`; \}\>
+`Promise`\<\{ `blockNumber`: `bigint`; `name`: `string`; `proposalThreshold`: `bigint`; `quorumDenominator`: `bigint`; `quorumNumerator`: `bigint`; `resonance`: `` `0x${string}` ``; `signalGBX`: `` `0x${string}` ``; `timelock`: `` `0x${string}` ``; `timelockMinDelay`: `bigint`; `votingDelay`: `bigint`; `votingPeriod`: `bigint`; \}\>

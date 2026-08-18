@@ -46,23 +46,23 @@ sole mint authority permanently to Mine. There is no protocol-defined economic s
 retains ERC-2612 permit approvals but carries no governance checkpoints; voting power exists only while GBX backs an
 active Strategy signal through sGBX.
 
-Mine starts with one slot. Timelock governance may only increase capacity, up to 16. Every slot's USDG replacement
-price decays linearly to zero over one hour and can be filled at any time.
+Mine has exactly 16 ownerless slots. Every slot's USDG replacement price decays linearly to zero over one hour and can
+be filled at any time.
 
-An occupied slot's GBX-per-second rate cannot be changed mid-tenure. Capacity expansion and later mining halvings apply
-only when a slot is newly occupied or replaced. This protects miners from governance dilution, while accepting that
-aggregate issuance can temporarily rise as old-rate and new-rate slots coexist. Constructor-fixed cumulative-mining
+An occupied slot's GBX TPS cannot be changed mid-tenure. Mining halvings apply only when a slot is newly occupied or
+replaced. This protects miners from mid-tenure dilution, while accepting that aggregate issuance can temporarily
+exceed the current global TPS as old-rate and new-rate slots coexist. Constructor-fixed cumulative-mining
 halvings end in a positive tail so mining and revenue can continue indefinitely.
 
 ## Redemption
 
-Fund checkpoints all mining slots before taking its supply snapshot, then pays each selected token as:
+Fund reads Mine's constant-time effective supply, without checkpointing any slot, then pays each selected token as:
 
 ```text
-floor(Fund token balance * GBX burned / GBX total supply before burn)
+floor(Fund token balance * GBX burned / (minted GBX + pending mining emission) before burn)
 ```
 
-The checkpoint includes accrued unminted mining rewards in supply. Omitted assets stay in Fund. A failed selected-token
+The denominator includes accrued unminted mining rewards. Omitted assets stay in Fund. A failed selected-token
 transfer reverts the complete redemption and burn.
 
 ## Governance-minimized core
@@ -72,10 +72,9 @@ operates an immutable, selector-bounded ProtocolGovernor. It is the TimelockCont
 Timelock owns only the narrow remaining administration:
 
 - add or kill a Strategy;
-- add a Bribe reward token within the fixed cap of eight; and
-- increase Mine capacity, never decrease it, up to 16.
+- add a Bribe reward token within the fixed cap of eight.
 
-Governor proposals contain only those four exact zero-value calls at immutable Resonance and Mine targets. Voting
+Governor proposals contain only those three exact zero-value calls at the immutable Resonance target. Voting
 delay, voting period, proposal threshold, and quorum percentage use sGBX's block-number clock and are fixed at
 construction. Execution is permissionless after the Timelock delay. There is no multisig bypass, guardian, queued
 proposal veto, proxy, pause switch, treasury sweep, arbitrary call path, successor, or migration routine.
@@ -96,7 +95,7 @@ batching an addition before the old Strategy's kill.
 | `Bribe`             | Automatic acquired-asset share plus additional rewards, within the fixed eight-token cap.         |
 | `Fund`              | Registry-free backing, selective redemption, and permissionless Fund-held GBX burn.               |
 | `LiquidityPosition` | Permanent fixed-principal Uniswap v4 position and permissionless fee routing.                     |
-| `ProtocolGovernor`  | Immutable four-selector sGBX governance over Timelock-owned Resonance and Mine.                   |
+| `ProtocolGovernor`  | Immutable three-selector sGBX governance over Timelock-owned Resonance.                           |
 
 ## Repository
 

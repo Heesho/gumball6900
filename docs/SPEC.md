@@ -8,10 +8,10 @@ The required behavior is:
 
 1. GBX creates 20 million genesis-liquidity tokens and permanently assigns all later minting to one immutable Mine
    only after the Mine identifies that same GBX.
-2. Mine starts with one hourly reverse-Dutch slot. Timelock governance may only increase capacity, to at most sixteen.
-3. Each mining tenure has a fixed GBX-per-second rate. Checkpoints, cumulative-mining thresholds, redemptions, and capacity
-   increases do not dilute an incumbent; only a new occupant receives current global rate divided by current capacity.
-4. A nonempty-slot replacement checkpoints all accrual, makes 80% of the exact USDG price claimable by the displaced
+2. Mine has exactly sixteen ownerless hourly reverse-Dutch slots and no all-slot checkpoint.
+3. Each mining tenure has a fixed GBX TPS. Cumulative-mining thresholds and redemptions do not dilute an incumbent;
+   only a new occupant receives current global TPS divided by sixteen.
+4. A nonempty-slot replacement settles only that slot's accrual, makes 80% of the exact USDG price claimable by the displaced
    miner, and routes 20% through ResonanceRouter. An empty slot routes 100%; there is no team fee.
 5. Global rates used for future handoffs halve at immutable cumulative-mining thresholds and continue at a positive
    immutable tail. GBX therefore has no protocol-defined economic maximum. It retains ERC-2612 permit but has no
@@ -33,14 +33,14 @@ The required behavior is:
    and immutably as 90% fixed Fund liability and 10% fixed paired-Bribe reward liability. Explicit split-remainder
    accounting makes the result independent of payment partitioning. The automatic Bribe reward is the acquired payment
    asset, not USDG; additional independent Bribe funding remains possible.
-8. Fund checkpoints all Mine slots before every redemption denominator snapshot, then performs registry-free,
+8. Fund reads Mine's constant-time effective supply before every redemption denominator snapshot, then performs registry-free,
    caller-selected in-kind redemption atomically with the GBX burn.
 9. LiquidityPosition permanently holds one precommitted single-sided GBX/USDG v4 position at fixed principal. Anyone
    may harvest fees; USDG transfers to ResonanceRouter, which may retain it until the balance qualifies, and GBX is
    burned through Fund atomically.
-10. TimelockController owns Resonance and Mine. Its sole proposer is an immutable ProtocolGovernor using SignalGBX's
+10. TimelockController owns Resonance. Its sole proposer is an immutable ProtocolGovernor using SignalGBX's
     block-number vote checkpoints. The Governor permits only exact zero-value calls to `Resonance.addStrategy`,
-    `Resonance.killStrategy`, `Resonance.addBribeReward`, and `Mine.increaseCapacity`; it has no mutable settings,
+    `Resonance.killStrategy`, and `Resonance.addBribeReward`; it has no mutable settings,
     generic relay, Timelock replacement, nonzero-value execution, multisig bypass, guardian, or queued-proposal veto. Fund and
     LiquidityPosition are ownerless. After the first Strategy is registered, `killStrategy` cannot remove the final
     live Strategy; a replacement is added before the old Strategy is killed in one permitted batch. No core contract

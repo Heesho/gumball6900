@@ -134,20 +134,6 @@ export function buildClaimMiningPayment(mine: Address, account: Address): Contra
   return transaction(mine, encodeFunctionData({ abi: mineAbi, functionName: 'claim', args: [getAddress(account)] }));
 }
 
-/** Crystallizes all live slots' accrued GBX without changing their tenure rates or auction clocks. */
-export function buildCheckpointMining(mine: Address): ContractTransaction {
-  return transaction(mine, encodeFunctionData({ abi: mineAbi, functionName: 'checkpointAll' }));
-}
-
-/** Encodes the Governor-bounded, increase-only Mine capacity operation as a proposal call. */
-export function buildIncreaseMiningCapacityProposalCall(mine: Address, newCapacity: bigint): ProtocolProposalCall {
-  positiveUint256(newCapacity, 'newCapacity');
-  return proposalCall(
-    mine,
-    encodeFunctionData({ abi: mineAbi, functionName: 'increaseCapacity', args: [newCapacity] }),
-  );
-}
-
 /** Collects canonical LP fees, routes USDG through ResonanceRouter, and burns GBX through Fund. */
 export function buildHarvestLiquidityFees(liquidityPosition: Address): ContractTransaction {
   return transaction(

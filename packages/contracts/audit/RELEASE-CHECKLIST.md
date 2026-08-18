@@ -6,10 +6,10 @@ production-ready or deployment-authorized.
 ## Internal engineering
 
 - [x] Fundraiser removed and immutable multislot Mine implemented.
-- [x] Incumbent slot rates remain fixed through checkpoints, thresholds, redemptions, and capacity increases.
-- [x] Capacity is increase-only from one to sixteen.
+- [x] Incumbent slot rates remain fixed through thresholds, redemptions, and other slot handoffs.
+- [x] Sixteen slots are fixed at construction and Mine has no administrative surface.
 - [x] Nonempty payments classify 80% to displaced miner and 20% to Resonance; empty slots route 100%.
-- [x] Fund checkpoints all live slots before the redemption denominator.
+- [x] Fund uses constant-time effective supply, including all pending mining, for the redemption denominator.
 - [x] SDK, subgraph, simulations, whitepaper, frontend, and active architecture docs updated.
 - [x] Full current-tree Foundry, Hardhat, SDK, subgraph, simulation, frontend, documentation, and workspace gates pass.
 - [ ] Static findings regenerated and manually dispositioned for the Mine graph.
@@ -18,7 +18,7 @@ production-ready or deployment-authorized.
 - [ ] Compatible symbolic analysis or explicit independent disposition complete.
 - [x] Bribe A-09 carry is fixed to Fund before signal-supply changes, with entry, exit, and remainder regressions.
 - [x] SignalGBX coordinates atomic signal workflows, retains ERC20Votes, and omits its unused ERC20Permit surface.
-- [x] ProtocolGovernor restricts proposals to the four exact zero-value maintenance calls.
+- [x] ProtocolGovernor restricts proposals to the three exact zero-value maintenance calls.
 - [ ] Current-tree static findings regenerated and manually dispositioned for ProtocolGovernor and coordinator flows.
 - [ ] Governance vote borrowing, quorum liveness, immutable parameters, and absent queued cancellation independently
       reviewed and accepted.
@@ -26,7 +26,7 @@ production-ready or deployment-authorized.
 ## Economic and independent review
 
 - [ ] Initial GBX/second, cumulative halving amount, positive tail, USDG multiplier, and minimum price approved.
-- [ ] Fixed-tenure transitional over-issuance modeled under capacity and threshold scenarios.
+- [ ] Fixed-tenure transitional over-issuance modeled under staggered halving and turnover scenarios.
 - [ ] Rollover, zero-price replacement, MEV, demand collapse, and thin-liquidity scenarios reviewed.
 - [ ] Independent external audit complete; all material findings resolved.
 - [ ] Farplace, give.fun, Liquid Signal, Euler, Solidly, Synthetix, and dependency provenance cleared by counsel.
@@ -38,8 +38,8 @@ production-ready or deployment-authorized.
 - [ ] Signed manifest verifies chain, bytecode, constructor arguments, immutable Mine parameters, and dependencies.
 - [ ] GBX genesis recipient receives exactly 20M and permanent minter handoff resolves to the deployed Mine.
 - [ ] Reviewed initial Strategies are created and receipt-recorded before governance ownership handoff.
-- [ ] Mine starts at capacity one; Resonance and Mine ownership resolve to the reviewed Timelock.
-- [ ] ProtocolGovernor token, Timelock, Resonance, Mine, immutable settings, and four-selector filter are verified.
+- [ ] Mine starts with exactly sixteen slots and no owner; Resonance ownership resolves to the reviewed Timelock.
+- [ ] ProtocolGovernor token, Timelock, Resonance, immutable settings, and three-selector filter are verified.
 - [ ] Governor is the sole Timelock proposer/canceller, execution is open, and no external default admin survives.
 - [ ] One-time Resonance/factory/router bindings verified.
 - [ ] PoolKey, price, ticks, NFT ID, genesis principal, rounding residual, and permanent custody verified.

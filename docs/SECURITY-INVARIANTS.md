@@ -12,15 +12,17 @@ This file defines the accounting identities used by the hardening tests. For Res
 ```text
 genesis mint = 20,000,000e18
 totalSupply = lifetimeMinted - lifetimeBurned
-pendingEmission = sum_live_slots((now - lastAccruedAt) * slot.ups)
+aggregateTps = sum_slots(slot.tps)
+pendingEmission = storedPendingEmission + (now - pendingUpdatedAt) * aggregateTps
+pendingEmission = sum_slots((now - lastAccruedAt) * slot.tps)
 effectiveTotalSupply = totalSupply + pendingEmission
 ```
 
-`slot.ups` is written only when a slot receives a new miner. It is not rewritten by checkpointing, a cumulative-mining
-threshold, a Fund redemption, or `increaseCapacity`. On a handoff, all old accrual is checkpointed first, then:
+`slot.tps` is written only when a slot receives a new miner. It is not rewritten by a cumulative-mining threshold or a
+Fund redemption. On a handoff, only the outgoing slot is settled, then:
 
 ```text
-newSlot.ups = globalUps(totalMinedAfterCheckpoint) / currentCapacity
+newSlot.tps = globalTps(totalMined + pendingEmission) / 16
 ```
 
 For a positive nonempty-slot payment:
@@ -78,14 +80,13 @@ Timelock proposers = {ProtocolGovernor}
 allowed calls = {
   Resonance.addStrategy,
   Resonance.killStrategy,
-  Resonance.addBribeReward,
-  Mine.increaseCapacity
+  Resonance.addBribeReward
 }
 value for every allowed call = 0
 executor msg.value = 0
 ```
 
-The Governor's voting parameters, quorum percentage, Timelock, and two targets are immutable. Its generic relay and
+The Governor's voting parameters, quorum percentage, Timelock, and Resonance target are immutable. Its generic relay and
 Timelock replacement paths always revert. Open execution does not create proposal authority. A proposal may be
 canceled by its proposer only while Pending; queued operations have no guardian or cancellation path.
 
@@ -177,13 +178,14 @@ remain unaccounted surplus and alter neither liabilities nor split remainder.
 
 ## Fund and liquidity
 
-Fund first checkpoints Mine, then every selected payout uses the same post-checkpoint, pre-burn supply and raw balance:
+Fund first reads Mine's effective supply, then every selected payout uses the same effective pre-burn supply and raw
+balance:
 
 ```text
 payout(token) = floor(balanceBefore(token) * gbxAmount / totalSupplyBeforeBurn)
 ```
 
-The checkpoint, GBX burn, and every selected transfer are atomic. Every successful redemption also satisfies:
+The GBX burn and every selected transfer are atomic. Every successful redemption also satisfies:
 
 ```text
 finalBalance(token) >= balanceBefore(token) - payout(token)

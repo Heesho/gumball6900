@@ -11,5 +11,5 @@
 | Property                                            | Modifier   | Type     |
 | --------------------------------------------------- | ---------- | -------- |
 | <a id="property-halvingamount"></a> `halvingAmount` | `readonly` | `bigint` |
-| <a id="property-initialups"></a> `initialUps`       | `readonly` | `bigint` |
-| <a id="property-tailups"></a> `tailUps`             | `readonly` | `bigint` |
+| <a id="property-initialtps"></a> `initialTps`       | `readonly` | `bigint` |
+| <a id="property-tailtps"></a> `tailTps`             | `readonly` | `bigint` |

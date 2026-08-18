@@ -181,32 +181,30 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 ### FACT-MINE-01 — Mine issues GBX continuously to whoever currently occupies each slot
 
 - **Plain-English claim:** GBX is created second by second and credited to the current occupant of each mining slot.
-- **Technical formulation:** For each occupied slot, accrual is `(block.timestamp - slot.lastAccruedAt) * slot.ups`
-  raw GBX units. `_checkpointAll` mints that amount to `slot.miner` and advances `lastAccruedAt`. `ups` is
-  GBX raw units (18 decimals) per second.
-- **Source:** `packages/contracts/src/core/Mine.sol:353-377`
-- **Functions/state:** `slots`, `Slot.ups`, `Slot.lastAccruedAt`, `checkpointAll`, `pendingEmission`, `totalMined`
-- **ADR:** ADR 0024
-- **Tests:** `test_MiningRoutesRevenueMintsContinuouslyAndPaysTheDisplacedMiner`,
-  `test_EffectiveSupplyIncludesPendingEmissionBeforeCheckpoint`,
-  `invariant_EffectiveSupplyIncludesEveryPendingEmission`
+- **Technical formulation:** For each occupied slot, accrual is `(block.timestamp - slot.lastAccruedAt) * slot.tps`
+  raw GBX units. A handoff mints only that outgoing slot's amount to `slot.miner`. `tps` means GBX raw token units
+  (18 decimals) per second.
+- **Source:** `packages/contracts/src/core/Mine.sol`
+- **Functions/state:** `slots`, `Slot.tps`, `Slot.lastAccruedAt`, `pendingEmission`, `totalMined`
+- **ADR:** ADR 0033
+- **Tests:** `test_StaggeredSlotsSettleIndependentlyWhileCachedTotalRemainsExact`,
+  `test_EffectiveSupplyIncludesPendingEmissionWithoutMintingOrChangingSlots`,
+  `invariant_EffectiveSupplyIncludesEveryPendingEmission`, `invariant_MiningPendingAndTpsCachesMatchEverySlot`
 - **Status:** `implemented`
 - **Commit:** `281e601`
-- **Caveats:** Accrual is _lazy_. GBX is not minted until someone calls a checkpointing path. `GBX.totalSupply()`
+- **Caveats:** Accrual is _lazy_. GBX is not minted until that slot changes hands. `GBX.totalSupply()`
   therefore understates economic supply between checkpoints; `Mine.effectiveTotalSupply()` is the inclusive figure.
 
-### FACT-MINE-02 — Mine starts with one slot; capacity may only increase, to a hard maximum of 16
+### FACT-MINE-02 — Mine has exactly 16 permanent slots
 
-- **Plain-English claim:** The mine opens with a single slot. Governance can add slots, up to sixteen, but can never
-  remove one.
-- **Technical formulation:** `capacity = 1` at construction. `increaseCapacity(newCapacity)` is `onlyOwner`, reverts
-  when `newCapacity <= capacity` (`CapacityNotIncreased`) and when `newCapacity > MAX_CAPACITY` (`CapacityTooHigh`).
-  `MAX_CAPACITY = 16`.
-- **Source:** `packages/contracts/src/core/Mine.sol:33`, `:69`, `:299-313`
-- **Functions/state:** `capacity`, `MAX_CAPACITY`, `increaseCapacity`
-- **ADR:** ADR 0024
-- **Tests:** `test_CapacityCanOnlyIncreaseThroughTheOwnerAndNeverAboveTheHardCap`,
-  `invariant_MiningCapacityAndRatesStayBounded`
+- **Plain-English claim:** The mine opens with sixteen empty slots and the slot count can never change.
+- **Technical formulation:** `SLOT_COUNT = 16`; construction initializes every index `0..15`. Mine has no owner and
+  no capacity-changing function.
+- **Source:** `packages/contracts/src/core/Mine.sol`
+- **Functions/state:** `SLOT_COUNT`, `slots`
+- **ADR:** ADR 0033
+- **Tests:** `test_LaunchesWithSixteenEmptySlotsAndPermanentMiningAuthority`,
+  `invariant_MiningPendingAndTpsCachesMatchEverySlot`
 - **Status:** `implemented`
 - **Commit:** `281e601`
 
@@ -264,43 +262,40 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 
 ### FACT-MINE-06 — A slot's GBX rate is locked for the occupant's entire tenure
 
-- **Plain-English claim:** Once you take a slot, your GBX-per-second rate is fixed until someone replaces you. Adding
-  slots, checkpointing, redemptions, or emission halvings never reduce it.
-- **Technical formulation:** `slot.ups` is written only inside `mine()` when constructing the new `Slot`. No other
-  function assigns `slot.ups`. A new occupant receives `ups = _globalUps(totalMined) / capacity`, evaluated **after**
-  `_checkpointAll()`, using integer division; the division residue is unissued.
-- **Source:** `packages/contracts/src/core/Mine.sol:198`, `:209-216`
-- **Functions/state:** `mine`, `Slot.ups`, `_globalUps`, `capacity`
-- **ADR:** ADR 0024
-- **Tests:** `test_IncreasingCapacityPreservesLegacyRateAndDividesOnlyNewSlots`,
-  `test_MiningCapacityIncreasePreservesIncumbentAndDividesNewSlotRate`,
-  `test_LongTenureKeepsItsOriginalRateAcrossSupplyThresholds`, `test_CheckpointDoesNotResetTheAuctionClockOrPrice`
+- **Plain-English claim:** Once you take a slot, your GBX-per-second rate is fixed until someone replaces you. Other
+  handoffs, redemptions, or emission halvings never reduce it.
+- **Technical formulation:** `slot.tps` is written only when `mine()` constructs the new `Slot`. A new occupant receives
+  `tps = _globalTps(totalMined + storedPendingEmission) / SLOT_COUNT` after the aggregate pending accumulator is synced
+  and only the outgoing slot is settled. The division residue is unissued.
+- **Source:** `packages/contracts/src/core/Mine.sol`
+- **Functions/state:** `mine`, `Slot.tps`, `_globalTps`, `SLOT_COUNT`
+- **ADR:** ADR 0033
+- **Tests:** `test_HalvingUsesEconomicAccrualAndNeverRepricesAnIncumbent`,
+  `test_StaggeredSlotsSettleIndependentlyWhileCachedTotalRemainsExact`
 - **Status:** `implemented`
 - **Commit:** `281e601`
-- **Caveats:** This is the accepted consequence recorded as finding **M-01**: because incumbents keep old rates while
-  new slots get `globalRate / newCapacity`, aggregate issuance can temporarily exceed the current undivided global
-  rate after a capacity increase. `packages/simulations/fixtures/economic-scenarios.json` models capacity 1→3 with an
-  incumbent at 100 GBX/hour and two new slots at 33.333… GBX/hour each, for 166.666… GBX/hour aggregate against a
-  100 GBX/hour undivided global rate.
+- **Caveats:** Because incumbents keep old rates while later tenures get the halved global rate divided by sixteen,
+  aggregate issuance can temporarily exceed the current global rate after a halving.
 
 ### FACT-MINE-07 — The global handoff rate halves at cumulative-mining thresholds down to a strictly positive tail
 
 - **Plain-English claim:** The rate offered to _new_ slot occupants halves as cumulative mining passes fixed
   thresholds, and then stops falling at a permanent floor. Issuance never reaches zero.
 - **Technical formulation:** `_rateState(mined)` walks halvings `k = 0, 1, 2, …`. Threshold accumulation is
-  `T_1 = H`, `T_{k+1} = T_k + (H >> k)` where `H = halvingAmount`. Rate after `k` halvings is `initialUps >> k`. As
-  soon as `initialUps >> k <= tailUps`, the rate is pinned to `tailUps` and the next threshold becomes
+  `T_1 = H`, `T_{k+1} = T_k + (H >> k)` where `H = halvingAmount`. Rate after `k` halvings is `initialTps >> k`. As
+  soon as `initialTps >> k <= tailTps`, the rate is pinned to `tailTps` and the next threshold becomes
   `type(uint256).max`.
-- **Source:** `packages/contracts/src/core/Mine.sol:383-398`
-- **Functions/state:** `_rateState`, `_globalUps`, `nextGlobalUps`, `initialUps`, `halvingAmount`, `tailUps`, `totalMined`
-- **ADR:** ADR 0024
-- **Tests:** `test_SupplyThresholdHalvesTheRateAndTailNeverEnds`,
-  `test_GlobalRateUsesTheTailWhenTheInitialRateAlreadyEqualsIt`, `test_LongTenureKeepsItsOriginalRateAcrossSupplyThresholds`
+- **Source:** `packages/contracts/src/core/Mine.sol`
+- **Functions/state:** `_rateState`, `_globalTps`, `nextGlobalTps`, `initialTps`, `halvingAmount`, `tailTps`, `totalMined`,
+  `pendingEmission`
+- **ADR:** ADR 0033
+- **Tests:** `test_GlobalRateUsesTheTailWhenTheInitialRateAlreadyEqualsIt`,
+  `test_HalvingUsesEconomicAccrualAndNeverRepricesAnIncumbent`
 - **Status:** `implemented` / `config-dependent`
 - **Commit:** `281e601`
 - **Caveats:** Because thresholds themselves halve, the _entire_ halving schedule completes below cumulative mined
-  `2H`. `sum_{k>=0} (H >> k) < 2H`. After that, issuance is permanently `tailUps` per second globally. The exact
-  `initialUps`, `halvingAmount`, and `tailUps` are **unselected** — finding M-04, an open release gate.
+  `2H`. `sum_{k>=0} (H >> k) < 2H`. After that, issuance is permanently `tailTps` per second globally. The exact
+  `initialTps`, `halvingAmount`, and `tailTps` are **unselected** — finding M-04, an open release gate.
 
 ### FACT-MINE-08 — Constructor bounds on Mine's immutable economic parameters
 
@@ -311,8 +306,8 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   | --------------------- | ------------------------------------------------------------------- |
   | `priceMultiplier` | `[MIN_PRICE_MULTIPLIER, MAX_PRICE_MULTIPLIER] = [1.1e18, 3e18]` |
   | `minimumInitialPrice` | `[MIN_INITIAL_PRICE, MAX_INITIAL_PRICE] = [1e6, type(uint192).max]` |
-  | `initialUps` | `(0, MAX_INITIAL_UPS] = (0, 1e24]` |
-  | `tailUps` | `[MIN_TAIL_UPS, initialUps] = [16, initialUps]` |
+  | `initialTps` | `(0, MAX_INITIAL_TPS] = (0, 1e24]` |
+  | `tailTps` | `[MIN_TAIL_TPS, initialTps] = [16, initialTps]` |
   | `halvingAmount` | `[MIN_HALVING_AMOUNT, MAX_HALVING_AMOUNT] = [1_000 ether, 1e27]` |
   Additionally `IRevenueRouterIdentity(resonanceRouter).usdg()` must equal `usdg`.
 - **Source:** `packages/contracts/src/core/Mine.sol:28-49`, `:136-173`
@@ -321,8 +316,8 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Tests:** `test_ConstructorRejectsInvalidDependenciesAndEconomicBounds`, `test_ConstructorRejectsZeroAddresses`
 - **Status:** `implemented`
 - **Commit:** `281e601`
-- **Caveats:** `MIN_TAIL_UPS = MAX_CAPACITY = 16` exists so that `tailUps / capacity >= 1` at maximum capacity — a new
-  slot always receives a strictly positive rate.
+- **Caveats:** `MIN_TAIL_TPS = SLOT_COUNT = 16` exists so that `tailTps / SLOT_COUNT >= 1` — a new slot always receives
+  a strictly positive raw-unit rate.
 
 ### FACT-MINE-09 — The next slot opening price is the paid price times an immutable multiplier, clamped
 
@@ -578,9 +573,9 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 
 ## E. Onchain governance
 
-### FACT-GOV-01 — ProtocolGovernor admits only four exact zero-value calls
+### FACT-GOV-01 — ProtocolGovernor admits only three exact zero-value calls
 
-- **Plain-English claim:** Governance can do exactly four things and nothing else. Every other proposal is rejected
+- **Plain-English claim:** Governance can do exactly three things and nothing else. Every other proposal is rejected
   before it is even created.
 - **Technical formulation:** `_propose` iterates all calls and requires `values[i] == 0` and either:
   | Target | Selector | Required calldata length |
@@ -588,12 +583,11 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   | `resonance` | `Resonance.addStrategy` | `4 + 5*32 = 164` bytes |
   | `resonance` | `Resonance.killStrategy` | `4 + 32 = 36` bytes |
   | `resonance` | `Resonance.addBribeReward` | `4 + 2*32 = 68` bytes |
-  | `mine` | `Mine.increaseCapacity` | `4 + 32 = 36` bytes |
   Anything else reverts `UnsupportedProposalCall`. Empty proposals revert `GovernorInvalidProposalLength`.
 - **Source:** `packages/contracts/src/governance/ProtocolGovernor.sol:26-29`, `:121-155`
-- **Functions/state:** `_propose`, `resonance`, `mine`
-- **ADR:** ADR 0030, ADR 0016
-- **Tests:** `test_OnlyTheFourExactZeroValueCallsCanBeProposed`, `test_ProposalLengthValidationAndPendingCancellation`,
+- **Functions/state:** `_propose`, `resonance`
+- **ADR:** ADR 0033, ADR 0030, ADR 0016
+- **Tests:** `test_OnlyTheThreeExactZeroValueCallsCanBeProposed`, `test_ProposalLengthValidationAndPendingCancellation`,
   `test_ApprovedBatchExecutesAllBoundedAdministrationAfterTheTimelock`
 - **Status:** `implemented`
 - **Commit:** `281e601`
@@ -603,7 +597,7 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Plain-English claim:** Voting delay, voting period, proposal threshold, quorum percentage, and the target
   contracts are fixed at deployment and can never be changed.
 - **Technical formulation:** `_votingDelayBlocks (uint48)`, `_votingPeriodBlocks (uint32)`,
-  `_proposalThresholdVotes (uint256)`, `_quorumNumerator (uint256)`, `resonance`, and `mine` are all `immutable`.
+  `_proposalThresholdVotes (uint256)`, `_quorumNumerator (uint256)`, and `resonance` are all `immutable`.
   Constructor requires `votingPeriodBlocks != 0`, `quorumNumerator_ != 0`, `quorumNumerator_ <= 100`, and
   `resonance_.signalGBX() == address(votingToken)`.
 - **Source:** `packages/contracts/src/governance/ProtocolGovernor.sol:32-39`, `:59-88`
@@ -666,14 +660,13 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 
 ### FACT-GOV-06 — Timelock ownership and role closure are a deployment procedure, not a contract invariant
 
-- **Plain-English claim:** The intended setup gives the timelock ownership of Resonance and Mine, makes the Governor
+- **Plain-English claim:** The intended setup gives the timelock ownership of Resonance, makes the Governor
   its only proposer, and leaves execution open to anyone after the delay — but this is done by deployment steps, not
   enforced by the contracts themselves.
-- **Technical formulation:** `Resonance` and `Mine` are `Ownable`; ownership transfer to a `TimelockController` and
+- **Technical formulation:** Resonance is `Ownable`; its ownership transfer to a `TimelockController` and
   the grant/renounce of `PROPOSER_ROLE`, `CANCELLER_ROLE`, `EXECUTOR_ROLE` (zero address), and `DEFAULT_ADMIN_ROLE`
   occur in deployment steps 9–10 of `docs/DEPLOYMENT.md`. No Solidity in this repository enforces them.
-- **Source:** `docs/DEPLOYMENT.md` steps 9–11; `packages/contracts/src/core/Resonance.sol:25`;
-  `packages/contracts/src/core/Mine.sol:21`
+- **Source:** `docs/DEPLOYMENT.md`; `packages/contracts/src/core/Resonance.sol`
 - **Functions/state:** `Ownable.owner`, `transferOwnership`
 - **ADR:** ADR 0030, ADR 0016
 - **Tests:** `test_DeploymentFixesDependenciesSettingsAndRoleClosure`, `test_TheCampaignWiresTheCompleteProtocolGraph`
@@ -1231,7 +1224,7 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   do not name are permanently given up.
 - **Technical formulation:** For each selected token `i`:
   `payout_i = floor(balanceOf_i(Fund) * gbxAmount / supplyBeforeBurn)`
-  where `supplyBeforeBurn = gbx.totalSupply()` captured after `Mine.checkpointAll()` and before the burn.
+  where `supplyBeforeBurn = Mine.effectiveTotalSupply()` captured before the burn.
 - **Source:** `packages/contracts/src/core/Fund.sol:78-135`
 - **Functions/state:** `redeem`, `balancesBefore`, `payouts`
 - **ADR:** ADR 0017
@@ -1241,23 +1234,23 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   `testFuzz_BackingPerGBXNeverDecreasesOnRedemption`, `testFuzz_SequentialRedemptionsStaySolvent`
 - **Status:** `implemented`
 - **Commit:** `281e601`
-- **Worked example (from `packages/simulations/fixtures/economic-scenarios.json`):** supply before checkpoint
-  `100,000,000e18`, pending mining `1,000,000e18`, denominator after checkpoint `101,000,000e18`, Fund USDG
-  `50,000,000.000000` (raw `50000000000000`), redeeming `1,000,000e18` GBX. Payout with the checkpoint is
+- **Worked example (from `packages/simulations/fixtures/economic-scenarios.json`):** minted supply
+  `100,000,000e18`, pending mining `1,000,000e18`, effective denominator `101,000,000e18`, Fund USDG
+  `50,000,000.000000` (raw `50000000000000`), redeeming `1,000,000e18` GBX. Payout with effective supply is
   `floor(50000000000000 * 1e24 / 1.01e26) = 495,049,504,950` raw USDG. Without the checkpoint it would have been
-  `500,000,000,000` — the checkpoint correctly dilutes the redeemer by the miners' accrued-but-unminted GBX.
+  `500,000,000,000` — effective supply correctly includes the miners' accrued-but-unminted GBX.
 
-### FACT-FUND-03 — Redemption checkpoints every Mine slot before taking the denominator
+### FACT-FUND-03 — Redemption reads a constant-time effective Mine supply before taking the denominator
 
-- **Plain-English claim:** Before working out your share, the protocol first credits every miner the GBX they have
-  earned but not yet received, so redemptions cannot dilute miners out of the picture.
+- **Plain-English claim:** Before working out your share, the protocol counts every miner's accrued GBX without
+  minting it or touching any mining slot.
 - **Technical formulation:** `redeem` validates `gbx.minterLocked()`, that `mine` has code, and that
-  `IMine(mine).gbx() == address(gbx)`, then calls `IMine(mine).checkpointAll()` before reading `gbx.totalSupply()`.
-  The loop is bounded by `MAX_CAPACITY = 16`.
+  `IMine(mine).gbx() == address(gbx)`, then reads `IMine(mine).effectiveTotalSupply()`. Mine computes this in constant
+  time from minted supply plus its aggregate pending-emission accumulator.
 - **Source:** `packages/contracts/src/core/Fund.sol:85-94`
-- **Functions/state:** `redeem`, `IMine.checkpointAll`
-- **ADR:** ADR 0024 (finding **A-10**)
-- **Tests:** `test_RedemptionCheckpointsPendingEmissionBeforeTakingItsDenominator`,
+- **Functions/state:** `redeem`, `IMine.effectiveTotalSupply`
+- **ADR:** ADR 0033 (finding **A-10**)
+- **Tests:** `test_RedemptionUsesEffectiveSupplyWithoutSettlingAnyMiner`,
   `test_RedeemRequiresAFinalizedReciprocalMineIdentity`
 - **Status:** `implemented`
 - **Commit:** `281e601`
@@ -1419,18 +1412,18 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Status:** `implemented`
 - **Commit:** `281e601`
 
-### FACT-BIND-03 — The remaining administrative surface is exactly four functions
+### FACT-BIND-03 — The remaining administrative surface is exactly three functions
 
-- **Plain-English claim:** After setup, the only things any privileged party can do are: add a Strategy, retire a
-  Strategy, register a Bribe reward token, and add mining slots.
+- **Plain-English claim:** After setup, the only things governance can do are: add a Strategy, retire a Strategy, and
+  register a Bribe reward token.
 - **Technical formulation:** `onlyOwner` functions in the protocol at this commit:
   `Resonance.addStrategy`, `Resonance.killStrategy`, `Resonance.addBribeReward`, `Resonance.setResonanceRouter`
-  (one-time), `Mine.increaseCapacity`, `SignalGBX.setResonance` (one-time), `StrategyFactory.setResonance`
+  (one-time), `SignalGBX.setResonance` (one-time), `StrategyFactory.setResonance`
   (one-time), `BribeFactory.setResonance` (one-time). The one-time bindings are consumed during deployment, leaving
-  the four continuing actions. `Fund` and `LiquidityPosition` have no owner at all.
-- **Source:** `Resonance.sol:247`, `:266`, `:301`, `:312`; `Mine.sol:299`; `Fund.sol:19`; `LiquidityPosition.sol:40`
-- **ADR:** ADR 0016, ADR 0017, ADR 0030
-- **Tests:** `test_OnlyTheFourExactZeroValueCallsCanBeProposed`, `test_FundHasNoAdministrativeSurfaceLeft`,
+  the three continuing actions. `Fund`, `LiquidityPosition`, and `Mine` have no owner at all.
+- **Source:** `Resonance.sol`; `Mine.sol`; `Fund.sol`; `LiquidityPosition.sol`
+- **ADR:** ADR 0016, ADR 0017, ADR 0030, ADR 0033
+- **Tests:** `test_OnlyTheThreeExactZeroValueCallsCanBeProposed`, `test_FundHasNoAdministrativeSurfaceLeft`,
   `test_ThePositionHolderHasNoAdministrativeSurfaceLeft`, `test_ApprovedBatchExecutesAllBoundedAdministrationAfterTheTimelock`
 - **Status:** `implemented`
 - **Commit:** `281e601`
@@ -1676,9 +1669,9 @@ Commands were run against the working tree at commit `281e601ecb3f3989da826a8a7d
 | `GBX.GENESIS_LIQUIDITY_ALLOCATION`                | `core/GBX.sol`                    | `20_000_000 ether`         |
 | `Mine.BPS` / `Mine.PREVIOUS_MINER_BPS`            | `core/Mine.sol`                   | `10_000` / `8_000`         |
 | `Mine.PRICE_DECAY_PERIOD`                         | `core/Mine.sol`                   | `1 hours`                  |
-| `Mine.MAX_CAPACITY` / `MIN_TAIL_UPS`              | `core/Mine.sol`                   | `16` / `MAX_CAPACITY`      |
+| `Mine.SLOT_COUNT` / `MIN_TAIL_TPS`                | `core/Mine.sol`                   | `16` / `SLOT_COUNT`        |
 | `Mine.MIN_/MAX_PRICE_MULTIPLIER`                  | `core/Mine.sol`                   | `1.1e18` / `3e18`          |
-| `Mine.MIN_INITIAL_PRICE` / `MAX_INITIAL_UPS`      | `core/Mine.sol`                   | `1e6` / `1e24`             |
+| `Mine.MIN_INITIAL_PRICE` / `MAX_INITIAL_TPS`      | `core/Mine.sol`                   | `1e6` / `1e24`             |
 | `Mine.MIN_/MAX_HALVING_AMOUNT`                    | `core/Mine.sol`                   | `1_000 ether` / `1e27`     |
 | `Resonance.DURATION` / `REWARD_PRECISION`         | `core/Resonance.sol`              | `7 days` / `1e36`          |
 | `Bribe.REWARD_DURATION` / `REWARD_PRECISION`      | `core/Bribe.sol`                  | `7 days` / `1e18`          |

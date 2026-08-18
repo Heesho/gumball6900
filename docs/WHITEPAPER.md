@@ -38,7 +38,7 @@ slot replacement -> 80% displaced miner
                                                                        \-> 10% paired Bribe
 
 GBX -> sGBX -> live signals ------------------------------^
-           \-> ProtocolGovernor -> Timelock -> four bounded actions
+           \-> ProtocolGovernor -> Timelock -> three bounded actions
 GBX burn -> selected Fund assets -> redeemer
 ```
 
@@ -64,7 +64,7 @@ total GBX supply = lifetime GBX minted - lifetime GBX burned
 
 ## 3. The mining market
 
-Mine starts with one slot and may grow to at most sixteen. Every slot has a replacement price that begins at its
+Mine starts with exactly sixteen permanent slots. Every slot has a replacement price that begins at its
 `initialPrice` and falls linearly to zero across one hour. After a handoff, the next initial price is the paid amount
 times an immutable multiplier, bounded below by an immutable minimum.
 
@@ -86,27 +86,25 @@ own.
 
 ## 4. Fixed-tenure fairness
 
-A slot's GBX-per-second rate is written when a miner enters and remains fixed until that miner is replaced. It is not
-changed by checkpointing, a cumulative-mining threshold crossing, Fund redemption, or a capacity increase.
+A slot's TPS rate is written when a miner enters and remains fixed until that miner is replaced. It is not changed by
+a cumulative-mining threshold crossing, Fund redemption, or another slot's handoff.
 
-Suppose the system's global rate is 100 GBX/hour while capacity is one. The incumbent receives 100 GBX/hour. If the
-timelock expands capacity to three, that incumbent still receives 100 GBX/hour. New occupants receive approximately
-one third of the then-current global rate. Governance cannot dilute someone after they paid to mine.
+Suppose the system's global rate is 100 GBX/hour. Each new tenure receives one sixteenth, or 6.25 GBX/hour. If the
+global rate later halves, an incumbent still receives 6.25 GBX/hour while a new tenure receives 3.125 GBX/hour.
 
 The accepted cost is temporary aggregate issuance above the current global rate while old high-rate tenures coexist
 with new divided-rate slots. This ends slot by slot as incumbents are replaced. Integer division residue for a new slot
 is unissued.
 
-## 5. Accrual, checkpoints, and redemption supply
+## 5. Accrual and redemption supply
 
-GBX accrues continuously but is minted at checkpoints. Anyone may checkpoint all live slots. Every replacement and
-capacity increase checkpoints before changing state.
+GBX accrues continuously but each slot mints only when it changes hands. Mine maintains the total pending emission
+with one aggregate TPS accumulator while all sixteen slots remain on independent schedules.
 
-Fund also checkpoints every slot before capturing a redemption denominator. Therefore a redemption cannot ignore GBX
-that miners already earned merely because nobody sent a separate checkpoint transaction. The sixteen-slot hard cap
-makes this work bounded.
+Fund reads Mine's constant-time effective supply before capturing a redemption denominator. Therefore a redemption
+cannot ignore GBX that miners already earned, and it does not call or mutate every mining slot.
 
-After checkpointing, Fund computes every selected payout against the same pre-burn total supply:
+Fund computes every selected payout against the same effective pre-burn supply:
 
 ```text
 payout(token) = floor(Fund balance(token) * GBX burned / GBX supply before burn)
@@ -170,22 +168,21 @@ atomically. There is no keeper, bounty, oracle, swap, migration, or NFT withdraw
 
 ## 8. Governance and immutability
 
-TimelockController owns only Resonance and Mine. SignalGBX holders operate ProtocolGovernor, which is the Timelock's
+TimelockController owns only Resonance. SignalGBX holders operate ProtocolGovernor, which is the Timelock's
 sole proposer. The continuing administrative surface is:
 
 - add a Strategy;
 - permanently kill a Strategy;
-- register a Bribe reward token, subject to the immutable eight-token cap; and
-- increase Mine capacity, from one to at most sixteen.
+- register a Bribe reward token, subject to the immutable eight-token cap.
 
-ProtocolGovernor accepts only those exact zero-value calls at immutable Resonance and Mine addresses. Its voting delay,
+ProtocolGovernor accepts only those exact zero-value calls at the immutable Resonance address. Its voting delay,
 period, proposal threshold, and quorum percentage are immutable constructor inputs and use SignalGBX's block-number
 clock. Execution is permissionless after the Timelock delay but rejects nonzero executor `msg.value`. The proposer may
 cancel only while a proposal is Pending; there is no multisig bypass, guardian, or queued-proposal veto.
 
-Capacity cannot decrease, and expansion cannot reprice an incumbent. Fund and LiquidityPosition are ownerless. No
+Mine has exactly sixteen slots, no owner, and no path to reprice an incumbent. Fund and LiquidityPosition are ownerless. No
 contract has a proxy, general executor, pause switch, rescue function, emission setter, successor, or migration path.
-Deployment bootstraps reviewed initial Strategies before transferring Resonance and Mine to the Timelock and removing
+Deployment bootstraps reviewed initial Strategies before transferring Resonance to the Timelock and removing
 the temporary setup authority.
 
 ## 9. Important risks

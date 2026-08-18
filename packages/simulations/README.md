@@ -7,9 +7,9 @@ price promises, deployment configurations, or investment projections.
 
 - USDG uses raw 6-decimal units; GBX and modeled target assets use raw 18-decimal units.
 - GBX starts with exactly 20M genesis-liquidity tokens and then has unbounded Mine issuance.
-- A live slot accrues `elapsedSeconds * assignedUps`; the assigned rate remains fixed until replacement.
-- Capacity increases and cumulative-mining halvings affect only newly occupied or replaced slots.
-- A new slot receives `globalUps(totalMined) / capacity`; division residue is unissued.
+- A live slot accrues `elapsedSeconds * assignedTps`; the assigned TPS remains fixed until replacement.
+- Mine has exactly sixteen slots; cumulative-mining halvings affect only newly occupied or replaced slots.
+- A new tenure receives `globalTps(totalMined + pendingEmission) / 16`; division residue is unissued.
 - A nonempty-slot replacement pays `floor(price * 80%)` to the displaced miner and routes the residue to Resonance.
   An empty slot routes 100%.
 - Resonance uses a `1e36` reward-per-signal index and a seven-day raw-unit stream. Integer division remainder is emitted
@@ -32,7 +32,7 @@ price promises, deployment configurations, or investment projections.
 
 - 20M genesis supply, unbounded mint/burn reconciliation, cumulative halvings, and a positive tail;
 - hourly price endpoints, replacement transitions, zero-price rollover, and 80/20 payment conservation;
-- expansion from one to three slots where the incumbent keeps its old rate and new miners receive divided rates;
+- staggered fixed-slot handoffs where an incumbent keeps its old TPS and later miners receive the halved TPS;
 - a threshold crossing where the incumbent retains its rate and only the next replacement receives the lower rate;
 - genesis-position budgeting, Strategy auctions, cumulative 90/10 settlement, Bribe rewards, Fund-held GBX burns, and
   raw-basket redemptions.
@@ -67,7 +67,7 @@ agree, then regenerates the committed SVGs.
 | Requirement                         | Fixture path / evidence                                    |
 | ----------------------------------- | ---------------------------------------------------------- |
 | 20M genesis and unbounded issuance  | `assumptions.genesisSupply`, `mining.supplyReconciliation` |
-| Tenure-locked capacity expansion    | `mining.capacityExpansion`                                 |
+| Tenure-locked fixed-slot TPS        | `mining.staggeredFixedSlots`                               |
 | Thresholds affect only handoffs     | `mining.handoffHalving`                                    |
 | Hourly decay and 80/20 split        | `mining.priceCurve`, `mining.paymentExamples`              |
 | Strategy and Bribe arithmetic       | `strategyAuction`, `bribeRewards`, conservation models     |

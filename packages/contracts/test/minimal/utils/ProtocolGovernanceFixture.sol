@@ -30,7 +30,6 @@ abstract contract ProtocolGovernanceFixture is ProtocolFixture {
             IVotes(address(signalGBX)),
             protocolTimelock,
             resonance,
-            mine,
             TEST_VOTING_DELAY,
             TEST_VOTING_PERIOD,
             TEST_PROPOSAL_THRESHOLD,
@@ -41,7 +40,6 @@ abstract contract ProtocolGovernanceFixture is ProtocolFixture {
         protocolTimelock.grantRole(protocolTimelock.CANCELLER_ROLE(), address(protocolGovernor));
 
         resonance.transferOwnership(address(protocolTimelock));
-        mine.transferOwnership(address(protocolTimelock));
         protocolTimelock.renounceRole(protocolTimelock.DEFAULT_ADMIN_ROLE(), address(this));
 
         vm.label(address(protocolGovernor), "ProtocolGovernor");

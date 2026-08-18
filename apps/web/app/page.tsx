@@ -82,28 +82,27 @@ export default function HomePage() {
         <Panel eyebrow="Target guarantees" title="What the final contract code must keep narrow">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
             <li>GBX starts at 20M and permanently assigns future issuance to one immutable Mine.</li>
-            <li>An occupied slot keeps its assigned rate until replacement, including across capacity increases.</li>
-            <li>Redemption always uses pre-burn supply and caller-selected Fund balances.</li>
+            <li>An occupied slot keeps its assigned TPS until replacement, including across halvings.</li>
+            <li>Redemption uses minted plus pending pre-burn supply and caller-selected Fund balances.</li>
             <li>Fund has no asset registry or protocol-wide token loop.</li>
             <li>GBX payments remain supply-neutral until a permissionless Fund burn.</li>
             <li>Every sGBX unit is backed by an active Strategy signal; SignalGBX is the sole signal coordinator.</li>
             <li>GBX supports permit approvals; non-transferable sGBX supports votes but no approval permit.</li>
-            <li>Mine capacity starts at one, can only increase, and is capped at sixteen.</li>
+            <li>Mine has exactly sixteen ownerless slots and no all-slot checkpoint.</li>
             <li>The deployed core has no proxy, upgrade path, treasury recovery, or successor migration.</li>
             <li>Supported token movements fail closed unless sender debit and receiver credit are both exact.</li>
           </ul>
         </Panel>
 
-        <Panel eyebrow="Governance" title="Four narrow timelocked actions">
+        <Panel eyebrow="Governance" title="Three narrow timelocked actions">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
             <li>Add a Strategy.</li>
             <li>Kill a Strategy.</li>
             <li>Add Bribe rewards.</li>
-            <li>Increase Mine capacity, without repricing incumbent slots.</li>
           </ul>
           <p className="mt-5 text-xs leading-5 text-[#778786]">
             SignalGBX voting power operates an immutable ProtocolGovernor, the Timelock&apos;s sole proposer. Its
-            targets, block-clock voting configuration, and four zero-value selectors cannot change. Execution is
+            target, block-clock voting configuration, and three zero-value selectors cannot change. Execution is
             permissionless after the delay, with no multisig bypass, guardian, or queued-proposal veto.
           </p>
         </Panel>

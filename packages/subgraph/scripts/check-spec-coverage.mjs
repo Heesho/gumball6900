@@ -18,7 +18,6 @@ export const REVIEWED_EXTENSION_ENTITIES = Object.freeze([
 export const REQUIRED_HANDLERS = Object.freeze([
   'handleBribeRewardAdded',
   'handleBurned',
-  'handleCapacityIncreased',
   'handleCallExecuted',
   'handleCallSalt',
   'handleCallScheduled',
@@ -26,7 +25,7 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleClaimed',
   'handleDelegateChanged',
   'handleDelegateVotesChanged',
-  'handleEmissionCheckpointed',
+  'handleEmissionSettled',
   'handleFeesHarvested',
   'handleFundGBXBurned',
   'handleGovernorTimelockChange',

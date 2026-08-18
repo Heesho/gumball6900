@@ -21,11 +21,11 @@ Uniswap v4 fees -> LiquidityPosition -> USDG revenue / GBX burn
 ```
 
 GBX creates only the 20 million genesis-liquidity allocation. A one-time deployment binding permanently assigns all
-later mint authority to a Mine that identifies the same GBX. Mine starts with one hourly reverse-Dutch slot and has an increase-only capacity cap of 16. Each occupied slot keeps its GBX-per-second rate until it is replaced. Capacity expansion therefore does not dilute
-incumbents; newly filled slots divide the current global rate by current capacity.
+later mint authority to a Mine that identifies the same GBX. Mine has exactly sixteen ownerless hourly reverse-Dutch
+slots. Each occupied slot keeps its TPS until replacement; newly filled slots divide the current global TPS by sixteen.
 
-Fund checkpoints all Mine slots before its redemption supply snapshot. This crystallizes pending GBX so a miner's
-earned but unminted balance cannot be excluded from the denominator. The complete checkpoint is bounded by 16 slots.
+Fund reads Mine's constant-time effective supply before its redemption snapshot. Pending GBX is included in the
+denominator without minting it, iterating slots, or changing mining state.
 
 SignalGBX is a non-transferable one-for-one GBX escrow token, the ERC20Votes governance source, and the only external
 signal coordinator. Idle sGBX is invalid. `signal` and `signalWithPermit` atomically deposit GBX, mint the same sGBX,
@@ -61,8 +61,8 @@ has been added, while killed-Strategy positions remain movable out or withdrawab
 Fund is an ownerless raw-token treasury with caller-selected redemption arrays and no registry or migration path.
 LiquidityPosition permanently holds the precommitted, fixed-principal Uniswap v4 NFT.
 
-ProtocolGovernor binds immutable SignalGBX, Timelock, Resonance, Mine, block-clock voting parameters, and quorum. Its
-proposal filter admits only the four exact zero-value administrative calls. It is the Timelock's sole proposer; open
+ProtocolGovernor binds immutable SignalGBX, Timelock, Resonance, block-clock voting parameters, and quorum. Its
+proposal filter admits only the three exact zero-value Resonance calls. It is the Timelock's sole proposer; open
 execution follows the delay and rejects nonzero executor `msg.value`, with no multisig bypass, guardian, or
 queued-proposal veto.
 

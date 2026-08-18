@@ -56,15 +56,15 @@ const purchase = buildStrategyBuy({ strategy, revenueReceiver: receiver, expecte
 
 const calls = [
   buildAddStrategyProposalCall(resonance, paymentToken, strategyConfig),
-  buildIncreaseMiningCapacityProposalCall(mine, 3n),
+  buildAddBribeRewardProposalCall(resonance, strategy, rewardToken),
 ];
 const propose = buildProtocolProposal(protocolGovernor, calls, description);
 const governor = await readProtocolGovernorView(publicClient, protocolGovernor);
 const proposal = await readProtocolProposalView(publicClient, protocolGovernor, proposalId, { voter: account });
 ```
 
-`quoteMiningAccrual` accepts explicit per-slot rates because occupied rates are tenure-locked. `miningRateAt` computes
-the global rate that a future handoff will divide by current capacity; it must not be used to reprice an incumbent.
+`quoteMiningAccrual` accepts explicit per-slot TPS values because occupied rates are tenure-locked. `miningRateAt`
+computes the global TPS that a future handoff will divide by sixteen; it must not be used to reprice an incumbent.
 
 Every composed reader pins its RPC calls to one block and revalidates that block before returning. Generated ABIs and
 API docs are updated by repository scripts and must not be edited by hand.
@@ -82,8 +82,8 @@ and returns GBX. Idle SignalGBX is unreachable, and direct SignalGBX transfers a
 `buildRouteRevenue` leaves a Router balance below the active amount left in the Router; a qualifying complete balance
 restarts seven days with `reward + left`. `buildNotifyRevenue` encodes that Router-only call.
 
-The four administrative encoders return typed, zero-value `ProtocolProposalCall` values rather than wallet-ready calls:
-add or kill a Strategy, add a Bribe reward token, and increase Mine capacity. Compose them through the
+The three administrative encoders return typed, zero-value `ProtocolProposalCall` values rather than wallet-ready
+calls: add or kill a Strategy and add a Bribe reward token. Compose them through the
 `ProtocolGovernor` propose, vote, queue, and execute builders. The original proposer may cancel only while a proposal is
 Pending; there is intentionally no guardian or queued-proposal cancellation path. `readProtocolGovernorView` exposes
 the fixed graph, voting parameters, and Timelock delay. `readProtocolProposalView` exposes lifecycle state, vote totals,

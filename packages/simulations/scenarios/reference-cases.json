@@ -1,35 +1,33 @@
 {
-  "schemaVersion": "7",
+  "schemaVersion": "8",
   "usdGDecimals": "6",
   "targetDecimals": "18",
   "miningCases": [
     {
-      "id": "incumbent-before-expansion",
+      "id": "incumbent-before-halving",
       "initialPrice": "2000000",
       "elapsedSeconds": "1800",
       "payment": "1000000",
       "hasPreviousMiner": true,
-      "slotUps": ["100000000000000000000"],
+      "slotTps": ["6250000000000000000"],
       "accrualSeconds": "3600",
-      "totalMined": "0",
-      "initialUps": "100000000000000000000",
+      "economicallyMined": "0",
+      "initialTps": "100000000000000000000",
       "halvingAmount": "490000000000000000000000000",
-      "tailUps": "10000000000000000",
-      "capacity": "1"
+      "tailTps": "10000000000000000"
     },
     {
-      "id": "protected-capacity-expansion",
+      "id": "protected-staggered-halving",
       "initialPrice": "2000000",
       "elapsedSeconds": "3600",
       "payment": "0",
       "hasPreviousMiner": true,
-      "slotUps": ["100000000000000000000", "33333333333333333333", "33333333333333333333"],
+      "slotTps": ["6250000000000000000", "3125000000000000000", "3125000000000000000"],
       "accrualSeconds": "3600",
-      "totalMined": "490000000000000000000000000",
-      "initialUps": "100000000000000000000",
+      "economicallyMined": "490000000000000000000000000",
+      "initialTps": "100000000000000000000",
       "halvingAmount": "490000000000000000000000000",
-      "tailUps": "10000000000000000",
-      "capacity": "3"
+      "tailTps": "10000000000000000"
     }
   ],
   "auctionCases": [
@@ -57,7 +55,7 @@
   ],
   "redemptionCases": [
     {
-      "id": "checkpointed-ten-percent-basket",
+      "id": "effective-supply-ten-percent-basket",
       "shares": "100000000000000000000",
       "supplyBefore": "1010000000000000000000",
       "assets": [

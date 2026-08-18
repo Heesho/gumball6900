@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "7",
+  "schemaVersion": "8",
   "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
   "assumptions": {
     "genesisLiquidityAllocationGBXRaw": "20000000000000000000000000",
@@ -7,10 +7,10 @@
     "priceDecaySeconds": "3600",
     "previousMinerBps": "8000",
     "resonanceRevenueBps": "2000",
-    "maximumCapacity": "16",
+    "fixedSlotCount": "16",
     "tenureRatesLocked": true,
-    "capacityOnlyIncreases": true,
-    "redemptionsCheckpointAllSlots": true,
+    "redemptionsUseConstantTimeEffectiveSupply": true,
+    "checkpointAllExists": false,
     "strategyFundBps": "9000",
     "strategyBribeBps": "1000"
   },
@@ -51,48 +51,46 @@
         "resonance": "200000"
       }
     ],
-    "capacityExpansion": {
-      "capacityBefore": "1",
-      "capacityAfter": "3",
-      "incumbentRatePerHour": "100000000000000000000",
-      "incumbentRateAfterExpansionPerHour": "100000000000000000000",
-      "newSlotRatePerHour": "33333333333333333333",
-      "oneHourEmissions": ["100000000000000000000", "33333333333333333333", "33333333333333333333"],
-      "aggregateOneHourEmission": "166666666666666666666",
-      "undividedGlobalRatePerHour": "100000000000000000000",
-      "explanation": "Occupied slots keep their tenure rate. Only newly occupied or replaced slots divide the current global rate by current capacity."
+    "staggeredFixedSlots": {
+      "incumbentRatePerHour": "6250000000000000000",
+      "incumbentRateAfterHalvingPerHour": "6250000000000000000",
+      "newTenureRatePerHour": "3125000000000000000",
+      "oneHourEmissions": ["6250000000000000000", "3125000000000000000", "3125000000000000000"],
+      "aggregateOneHourEmission": "12500000000000000000",
+      "explanation": "All slots divide the global TPS by sixteen. A halving affects only newly occupied or replaced tenures."
     },
-    "sequentialExpansionToCap": {
-      "capacity": "16",
+    "allSlotsBeforeHalving": {
+      "slotCount": "16",
       "assignedRatesPerHour": [
-        "100000000000000000000",
-        "50000000000000000000",
-        "33333333333333333333",
-        "25000000000000000000",
-        "20000000000000000000",
-        "16666666666666666666",
-        "14285714285714285714",
-        "12500000000000000000",
-        "11111111111111111111",
-        "10000000000000000000",
-        "9090909090909090909",
-        "8333333333333333333",
-        "7692307692307692307",
-        "7142857142857142857",
-        "6666666666666666666",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
+        "6250000000000000000",
         "6250000000000000000"
       ],
-      "aggregateOneHourEmission": "338072899322899322896",
-      "undividedGlobalRatePerHour": "100000000000000000000",
-      "aggregateBpsOfUndividedRate": "33807",
-      "explanation": "Worst-order illustration with one new occupation after each capacity increase; every earlier tenure keeps its assigned rate."
+      "aggregateOneHourEmission": "100000000000000000000",
+      "globalRatePerHour": "100000000000000000000",
+      "aggregateBpsOfGlobalRate": "10000",
+      "explanation": "Sixteen occupied slots at the same generation exactly reproduce the global rate."
     },
     "handoffHalving": {
       "halvingAmount": "490000000000000000000000000",
       "globalRateBefore": "100000000000000000000",
       "globalRateAfter": "50000000000000000000",
-      "incumbentRateAfterThreshold": "100000000000000000000",
-      "nextReplacementRateAtCapacityThree": "16666666666666666666"
+      "incumbentSlotRateAfterThreshold": "6250000000000000000",
+      "nextReplacementSlotRate": "3125000000000000000",
+      "aggregateLockedSixteenSlots": "100000000000000000000"
     },
     "infiniteTail": {
       "tailRatePerSecond": "10000000000000000",
@@ -114,13 +112,13 @@
     }
   },
   "redemption": {
-    "supplyBeforeCheckpoint": "100000000000000000000000000",
+    "mintedSupplyBefore": "100000000000000000000000000",
     "pendingMining": "1000000000000000000000000",
-    "denominatorAfterCheckpoint": "101000000000000000000000000",
+    "effectiveSupplyBeforeBurn": "101000000000000000000000000",
     "fundUSDGRaw": "50000000000000",
     "redeemGBX": "1000000000000000000000000",
-    "payoutWithoutCheckpointRaw": "500000000000",
-    "payoutWithCheckpointRaw": "495049504950"
+    "payoutIgnoringPendingRaw": "500000000000",
+    "payoutWithEffectiveSupplyRaw": "495049504950"
   },
   "genesisLiquidity": {
     "publicBootstrap": false,

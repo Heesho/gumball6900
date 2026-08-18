@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 22. Documented ABI entries: 594. Documented public ABI functions: 315.
+Documented source surfaces: 22. Documented ABI entries: 583. Documented public ABI functions: 310.
 
 ## Bribe
 
@@ -2038,7 +2038,7 @@ Routes the complete nonzero pending USDG balance into Resonance.
 function usdg() external view returns (contract IERC20 token);
 ```
 
-Returns the exact USDG token forwarded by the router.
+Returns the USDG token routed through Resonance.
 
 ## Mine
 
@@ -2046,23 +2046,15 @@ Source: [`src/core/Mine.sol`](../../packages/contracts/src/core/Mine.sol)
 
 Artifact: `out/Mine.sol/Mine.json`
 
-Public ABI: 39 functions, 7 events, 20 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 36 functions, 5 events, 16 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
-### `constructor(address,address,address,address,(uint256,uint256,uint256,uint256,uint256))`
+### `constructor(address,address,address,(uint256,uint256,uint256,uint256,uint256))`
 
 ```solidity
-constructor(contract GBX gbx_, contract IERC20 usdg_, address resonanceRouter_, address initialOwner, struct Mine.Config config);
+constructor(contract GBX gbx_, contract IERC20 usdg_, address resonanceRouter_, struct Mine.Config config);
 ```
 
-Creates the immutable mining market with one empty slot.
-
-**Parameters**
-
-- `config`: Immutable price and future-handoff emission configuration.
-- `gbx_`: GBX token that will permanently bind this contract as minter.
-- `initialOwner`: Timelock or setup owner allowed only to increase capacity.
-- `resonanceRouter_`: Router receiving the protocol share of replacement payments.
-- `usdg_`: Exact-transfer token paid by incoming miners.
+Creates the immutable mining market with sixteen empty slots.
 
 ### `BPS()`
 
@@ -2070,15 +2062,7 @@ Creates the immutable mining market with one empty slot.
 function BPS() external view returns (uint256 arg0);
 ```
 
-Basis-point denominator used by the replacement payment split.
-
-### `MAX_CAPACITY()`
-
-```solidity
-function MAX_CAPACITY() external view returns (uint256 arg0);
-```
-
-Immutable upper bound on concurrently open mining slots.
+Basis-point denominator used for replacement-payment allocation.
 
 ### `MAX_HALVING_AMOUNT()`
 
@@ -2086,7 +2070,7 @@ Immutable upper bound on concurrently open mining slots.
 function MAX_HALVING_AMOUNT() external view returns (uint256 arg0);
 ```
 
-Largest supported cumulative mining amount for the first halving.
+Highest accepted cumulative raw-GBX interval between the first two halving thresholds.
 
 ### `MAX_INITIAL_PRICE()`
 
@@ -2094,15 +2078,15 @@ Largest supported cumulative mining amount for the first halving.
 function MAX_INITIAL_PRICE() external view returns (uint256 arg0);
 ```
 
-Largest supported initial USDG price.
+Highest accepted raw USDG starting price for a new auction.
 
-### `MAX_INITIAL_UPS()`
+### `MAX_INITIAL_TPS()`
 
 ```solidity
-function MAX_INITIAL_UPS() external view returns (uint256 arg0);
+function MAX_INITIAL_TPS() external view returns (uint256 arg0);
 ```
 
-Largest constructor-supported initial global GBX-per-second rate.
+Highest accepted initial global raw-GBX tokens-per-second rate.
 
 ### `MAX_PRICE_MULTIPLIER()`
 
@@ -2110,7 +2094,7 @@ Largest constructor-supported initial global GBX-per-second rate.
 function MAX_PRICE_MULTIPLIER() external view returns (uint256 arg0);
 ```
 
-Largest constructor-supported next-price multiplier.
+Highest accepted fixed-point replacement-price multiplier.
 
 ### `MIN_HALVING_AMOUNT()`
 
@@ -2118,7 +2102,7 @@ Largest constructor-supported next-price multiplier.
 function MIN_HALVING_AMOUNT() external view returns (uint256 arg0);
 ```
 
-Smallest supported cumulative mining amount for the first halving.
+Lowest accepted cumulative raw-GBX interval between the first two halving thresholds.
 
 ### `MIN_INITIAL_PRICE()`
 
@@ -2126,7 +2110,7 @@ Smallest supported cumulative mining amount for the first halving.
 function MIN_INITIAL_PRICE() external view returns (uint256 arg0);
 ```
 
-Smallest constructor-supported initial USDG price.
+Lowest accepted raw USDG starting price for a new auction.
 
 ### `MIN_PRICE_MULTIPLIER()`
 
@@ -2134,15 +2118,15 @@ Smallest constructor-supported initial USDG price.
 function MIN_PRICE_MULTIPLIER() external view returns (uint256 arg0);
 ```
 
-Smallest constructor-supported next-price multiplier.
+Lowest accepted fixed-point replacement-price multiplier.
 
-### `MIN_TAIL_UPS()`
+### `MIN_TAIL_TPS()`
 
 ```solidity
-function MIN_TAIL_UPS() external view returns (uint256 arg0);
+function MIN_TAIL_TPS() external view returns (uint256 arg0);
 ```
 
-Smallest tail rate that keeps a new slot positive at maximum capacity.
+Lowest accepted global tail rate, preserving at least one raw unit per slot per second.
 
 ### `PREVIOUS_MINER_BPS()`
 
@@ -2150,7 +2134,7 @@ Smallest tail rate that keeps a new slot positive at maximum capacity.
 function PREVIOUS_MINER_BPS() external view returns (uint256 arg0);
 ```
 
-Share of a nonempty-slot payment owed to the displaced miner.
+Share of a paid replacement price credited to the displaced miner, in basis points.
 
 ### `PRICE_DECAY_PERIOD()`
 
@@ -2158,7 +2142,7 @@ Share of a nonempty-slot payment owed to the displaced miner.
 function PRICE_DECAY_PERIOD() external view returns (uint256 arg0);
 ```
 
-Time over which a slot replacement price decays linearly to zero.
+Duration over which each replacement price decays linearly to zero.
 
 ### `PRICE_PRECISION()`
 
@@ -2166,24 +2150,23 @@ Time over which a slot replacement price decays linearly to zero.
 function PRICE_PRECISION() external view returns (uint256 arg0);
 ```
 
-Fixed-point precision used by the next-price multiplier.
+Fixed-point precision used by the replacement-price multiplier.
 
-### `capacity()`
-
-```solidity
-function capacity() external view returns (uint256 arg0);
-```
-
-Number of open slot indices; begins at one and only increases.
-
-### `checkpointAll()`
+### `SLOT_COUNT()`
 
 ```solidity
-function checkpointAll() external returns (uint256 amount);
+function SLOT_COUNT() external view returns (uint256 arg0);
 ```
 
-Mints every live slot's accrued GBX without changing any occupied slot's assigned rate.
-Anyone may checkpoint. Fund calls this atomically before every redemption supply snapshot.
+Permanent number of independent mining slots.
+
+### `aggregateTps()`
+
+```solidity
+function aggregateTps() external view returns (uint256 arg0);
+```
+
+Sum of all occupied slots' tenure-locked tokens-per-second rates.
 
 ### `claim(address)`
 
@@ -2192,7 +2175,6 @@ function claim(address account) external;
 ```
 
 Claims accumulated USDG replacement payments for an account.
-Anyone may trigger a claim, but payment always goes to `account`.
 
 ### `claimable(address)`
 
@@ -2200,7 +2182,7 @@ Anyone may trigger a claim, but payment always goes to `account`.
 function claimable(address account) external view returns (uint256 amount);
 ```
 
-USDG pull claim owed to each displaced miner.
+Pull-based USDG replacement proceeds owed to each displaced miner.
 
 ### `effectiveTotalSupply()`
 
@@ -2208,7 +2190,7 @@ USDG pull claim owed to each displaced miner.
 function effectiveTotalSupply() external view returns (uint256 amount);
 ```
 
-Returns minted GBX supply plus all live slots' accrued unminted rewards.
+Returns minted GBX supply plus all accrued unminted mining emission.
 
 ### `gbx()`
 
@@ -2216,7 +2198,7 @@ Returns minted GBX supply plus all live slots' accrued unminted rewards.
 function gbx() external view returns (contract GBX arg0);
 ```
 
-GBX token issued by this Mine after the permanent handoff.
+Canonical GBX token whose sole mint authority is this Mine.
 
 ### `getSlot(uint256)`
 
@@ -2224,7 +2206,7 @@ GBX token issued by this Mine after the permanent handoff.
 function getSlot(uint256 index) external view returns (struct Mine.Slot slot);
 ```
 
-Returns the complete state of one current slot.
+Returns the complete state of one mining slot.
 
 ### `halvingAmount()`
 
@@ -2232,23 +2214,15 @@ Returns the complete state of one current slot.
 function halvingAmount() external view returns (uint256 arg0);
 ```
 
-Cumulative mining amount at the first future-handoff rate halving.
+Cumulative raw-GBX interval used to derive immutable halving thresholds.
 
-### `increaseCapacity(uint256)`
-
-```solidity
-function increaseCapacity(uint256 newCapacity) external;
-```
-
-Permanently opens more concurrent slots without repricing any occupied slot.
-
-### `initialUps()`
+### `initialTps()`
 
 ```solidity
-function initialUps() external view returns (uint256 arg0);
+function initialTps() external view returns (uint256 arg0);
 ```
 
-Initial global GBX-per-second rate offered to future handoffs.
+Initial global raw-GBX tokens-per-second rate.
 
 ### `mine(address,uint256,uint256,uint256,uint256)`
 
@@ -2258,41 +2232,21 @@ function mine(address miner, uint256 index, uint256 epochId, uint256 deadline, u
 
 Replaces one slot's miner at its current linearly decaying USDG price.
 
-**Parameters**
-
-- `deadline`: Latest timestamp at which this transaction may execute.
-- `epochId`: Expected slot epoch used for frontrun protection.
-- `index`: Slot index below current capacity.
-- `maximumPrice`: Maximum USDG price accepted by the payer.
-- `miner`: Account that receives subsequent GBX emissions for the slot.
-
-**Returns**
-
-- `paid`: Actual USDG price paid.
-
 ### `minimumInitialPrice()`
 
 ```solidity
 function minimumInitialPrice() external view returns (uint256 arg0);
 ```
 
-Immutable lower bound for every next slot opening price.
+Floor for every newly started reverse Dutch auction.
 
-### `nextGlobalUps()`
-
-```solidity
-function nextGlobalUps() external view returns (uint256 ups);
-```
-
-Returns the global rate that would apply immediately after a checkpoint.
-
-### `owner()`
+### `nextGlobalTps()`
 
 ```solidity
-function owner() external view returns (address arg0);
+function nextGlobalTps() external view returns (uint256 tps);
 ```
 
-Returns the address of the current owner.
+Returns the global tokens-per-second rate that the next handoff will divide by sixteen.
 
 ### `pendingEmission()`
 
@@ -2300,7 +2254,7 @@ Returns the address of the current owner.
 function pendingEmission() external view returns (uint256 amount);
 ```
 
-Returns accrued unminted GBX across every live slot.
+Returns total accrued unminted GBX in constant time across all sixteen slots.
 
 ### `pendingEmission(uint256)`
 
@@ -2308,7 +2262,15 @@ Returns accrued unminted GBX across every live slot.
 function pendingEmission(uint256 index) external view returns (uint256 amount);
 ```
 
-Returns accrued unminted GBX for one live slot.
+Returns accrued unminted GBX for one slot without changing its state.
+
+### `pendingUpdatedAt()`
+
+```solidity
+function pendingUpdatedAt() external view returns (uint256 arg0);
+```
+
+Timestamp through which `storedPendingEmission` incorporates `aggregateTps`.
 
 ### `price(uint256)`
 
@@ -2316,7 +2278,7 @@ Returns accrued unminted GBX for one live slot.
 function price(uint256 index) external view returns (uint256 amount);
 ```
 
-Returns the current USDG replacement price for one slot.
+Returns one slot's current linearly decaying USDG replacement price.
 
 ### `priceMultiplier()`
 
@@ -2324,15 +2286,7 @@ Returns the current USDG replacement price for one slot.
 function priceMultiplier() external view returns (uint256 arg0);
 ```
 
-Immutable multiplier used to derive a slot's next opening price.
-
-### `renounceOwnership()`
-
-```solidity
-function renounceOwnership() external;
-```
-
-Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
+Fixed-point multiplier applied to each paid price to start the next auction.
 
 ### `resonanceRouter()`
 
@@ -2340,23 +2294,31 @@ Leaves the contract without owner. It will not be possible to call `onlyOwner` f
 function resonanceRouter() external view returns (address arg0);
 ```
 
-Permissionless router that receives mining revenue.
+Router receiving the Resonance share of replacement payments.
 
 ### `slots(uint256)`
 
 ```solidity
-function slots(uint256 index) external view returns (uint256 epochId, uint256 initialPrice, uint256 auctionStartedAt, uint256 lastAccruedAt, uint256 ups, address miner);
+function slots(uint256 index) external view returns (uint256 epochId, uint256 initialPrice, uint256 auctionStartedAt, uint256 lastAccruedAt, uint256 tps, address miner);
 ```
 
-Current state of each mining slot index.
+Mining-slot state by zero-based slot index.
 
-### `tailUps()`
+### `storedPendingEmission()`
 
 ```solidity
-function tailUps() external view returns (uint256 arg0);
+function storedPendingEmission() external view returns (uint256 arg0);
 ```
 
-Strictly positive global GBX-per-second rate floor.
+Total unminted slot emission accrued through `pendingUpdatedAt`.
+
+### `tailTps()`
+
+```solidity
+function tailTps() external view returns (uint256 arg0);
+```
+
+Strictly positive global raw-GBX tokens-per-second tail rate.
 
 ### `totalClaimable()`
 
@@ -2372,15 +2334,7 @@ Total USDG currently owed to displaced miners.
 function totalMined() external view returns (uint256 arg0);
 ```
 
-Cumulative GBX minted through slot checkpoints.
-
-### `transferOwnership(address)`
-
-```solidity
-function transferOwnership(address newOwner) external;
-```
-
-Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
+Cumulative GBX actually minted when individual slots were replaced.
 
 ### `usdg()`
 
@@ -2388,17 +2342,9 @@ Transfers ownership of the contract to a new account (`newOwner`). Can only be c
 function usdg() external view returns (contract IERC20 arg0);
 ```
 
-Exact-transfer USDG token used for replacement payments.
+USDG token paid to replace mining slots.
 
 ### Events
-
-#### `CapacityIncreased(uint256,uint256)`
-
-```solidity
-event CapacityIncreased(uint256 previousCapacity, uint256 newCapacity);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
 
 #### `Claimed(address,uint256)`
 
@@ -2408,10 +2354,10 @@ event Claimed(address indexed account, uint256 amount);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `EmissionCheckpointed(address,uint256,uint256,uint256)`
+#### `EmissionSettled(address,uint256,uint256,uint256)`
 
 ```solidity
-event EmissionCheckpointed(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
+event EmissionSettled(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2419,7 +2365,7 @@ _No additional NatSpec notice is present in the compiled artifact._
 #### `Mined(address,address,uint256,uint256,address,uint256,uint256,uint256)`
 
 ```solidity
-event Mined(address indexed payer, address indexed miner, uint256 indexed index, uint256 epochId, address previousMiner, uint256 price, uint256 initialPrice, uint256 ups);
+event Mined(address indexed payer, address indexed miner, uint256 indexed index, uint256 epochId, address previousMiner, uint256 price, uint256 initialPrice, uint256 tps);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2428,14 +2374,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 event MinerPaymentAccrued(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `OwnershipTransferred(address,address)`
-
-```solidity
-event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2449,22 +2387,6 @@ event RevenueRouted(uint256 indexed index, uint256 indexed epochId, uint256 amou
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
-
-#### `CapacityNotIncreased(uint256,uint256)`
-
-```solidity
-error CapacityNotIncreased(uint256 currentCapacity, uint256 requestedCapacity);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `CapacityTooHigh(uint256)`
-
-```solidity
-error CapacityTooHigh(uint256 requestedCapacity);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
 
 #### `DeadlinePassed(uint256)`
 
@@ -2514,10 +2436,10 @@ error InitialPriceOutOfRange(uint256 price);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InitialUpsOutOfRange(uint256)`
+#### `InitialTpsOutOfRange(uint256)`
 
 ```solidity
-error InitialUpsOutOfRange(uint256 ups);
+error InitialTpsOutOfRange(uint256 tps);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2546,22 +2468,6 @@ error NothingToClaim(address account);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `OwnableInvalidOwner(address)`
-
-```solidity
-error OwnableInvalidOwner(address owner);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `OwnableUnauthorizedAccount(address)`
-
-```solidity
-error OwnableUnauthorizedAccount(address account);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `PriceMultiplierOutOfRange(uint256)`
 
 ```solidity
@@ -2586,10 +2492,10 @@ error SafeERC20FailedOperation(address token);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `TailUpsOutOfRange(uint256)`
+#### `TailTpsOutOfRange(uint256)`
 
 ```solidity
-error TailUpsOutOfRange(uint256 ups);
+error TailTpsOutOfRange(uint256 tps);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -4639,19 +4545,7 @@ Source: [`src/core/interfaces/IMine.sol`](../../packages/contracts/src/core/inte
 
 Artifact: `out/IMine.sol/IMine.json`
 
-Public ABI: 4 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `checkpointAll()`
-
-```solidity
-function checkpointAll() external returns (uint256 amount);
-```
-
-Mints every live slot's accrued GBX through the current timestamp.
-
-**Returns**
-
-- `amount`: Complete GBX amount minted by this checkpoint.
+Public ABI: 3 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
 ### `effectiveTotalSupply()`
 
@@ -4675,7 +4569,7 @@ Canonical GBX token minted by this contract.
 function pendingEmission() external view returns (uint256 amount);
 ```
 
-Returns accrued GBX that has not yet been minted across every live slot.
+Returns accrued GBX that has not yet been minted across all sixteen slots in constant time.
 
 ## IResonanceIdentity
 
@@ -4759,23 +4653,22 @@ Source: [`src/governance/ProtocolGovernor.sol`](../../packages/contracts/src/gov
 
 Artifact: `out/ProtocolGovernor.sol/ProtocolGovernor.json`
 
-Public ABI: 46 functions, 8 events, 24 custom errors, 1 constructor, 1 receive entry, 0 fallback entries.
+Public ABI: 45 functions, 8 events, 24 custom errors, 1 constructor, 1 receive entry, 0 fallback entries.
 
-### `constructor(address,address,address,address,uint48,uint32,uint256,uint256)`
+### `constructor(address,address,address,uint48,uint32,uint256,uint256)`
 
 ```solidity
-constructor(contract IVotes votingToken, contract TimelockController timelockController, contract Resonance resonance_, contract Mine mine_, uint48 votingDelayBlocks, uint32 votingPeriodBlocks, uint256 proposalThresholdVotes, uint256 quorumNumerator_);
+constructor(contract IVotes votingToken, contract TimelockController timelockController, contract Resonance resonance_, uint48 votingDelayBlocks, uint32 votingPeriodBlocks, uint256 proposalThresholdVotes, uint256 quorumNumerator_);
 ```
 
 Creates a selector-bounded Governor using deployed SignalGBX vote checkpoints.
 
 **Parameters**
 
-- `mine_`: Immutable Mine maintenance target.
 - `proposalThresholdVotes`: Historical SignalGBX votes required to submit a proposal.
 - `quorumNumerator_`: Required participation percentage, from one through one hundred.
 - `resonance_`: Immutable Resonance maintenance target.
-- `timelockController`: Timelock that will own Resonance and Mine.
+- `timelockController`: Timelock that will own Resonance.
 - `votingDelayBlocks`: Delay from proposal creation to snapshot in SignalGBX clock blocks.
 - `votingPeriodBlocks`: Voting duration in SignalGBX clock blocks.
 - `votingToken`: SignalGBX contract used as the immutable IVotes source.
@@ -4949,14 +4842,6 @@ function hashProposal(address[] targets, uint256[] values, bytes[] calldatas, by
 
 See {IGovernor-hashProposal}. The proposal id is produced by hashing the ABI encoded `targets` array, the `values` array, the `calldatas` array and the descriptionHash (bytes32 which itself is the keccak256 hash of the description string). This proposal id can be produced from the proposal data which is part of the {ProposalCreated} event. It can even be computed in advance, before the proposal is submitted. Note that the chainId and the governor address are not part of the proposal id computation. Consequently, the same proposal (with same operation and same description) will have the same id if submitted on multiple governors across multiple networks. This also means that in order to execute the same operation twice (on the same governor) the proposer will have to change the description in order to avoid proposal id conflicts.
 
-### `mine()`
-
-```solidity
-function mine() external view returns (contract Mine arg0);
-```
-
-The sole Mine whose bounded capacity increase may be proposed.
-
 ### `name()`
 
 ```solidity
@@ -5114,7 +4999,7 @@ Returns the immutable quorum percentage numerator.
 function relay(address arg0, uint256 arg1, bytes arg2) external payable;
 ```
 
-Generic Governor relay is incompatible with the immutable four-selector surface.
+Generic Governor relay is incompatible with the immutable three-selector surface.
 
 ### `resonance()`
 

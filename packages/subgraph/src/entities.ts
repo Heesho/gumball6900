@@ -24,7 +24,7 @@ export function getProtocol(event: ethereum.Event): ProtocolState {
     protocol.miningPaymentsRaw = ZERO;
     protocol.previousMinerPaymentsRaw = ZERO;
     protocol.miningRevenueRoutedRaw = ZERO;
-    protocol.miningCapacity = BigInt.fromI32(1);
+    protocol.miningSlotCount = BigInt.fromI32(16);
     protocol.liquidityPrincipalRaw = ZERO;
     protocol.liquidityFeeHarvestCount = ZERO;
     protocol.liquidityUSDGRoutedRaw = ZERO;
@@ -83,7 +83,7 @@ export function getMiningSlot(mine: Address, index: BigInt, event: ethereum.Even
     entity.currentMiner = Address.zero();
     entity.initialPriceRaw = ZERO;
     entity.auctionStartedAt = ZERO;
-    entity.upsRaw = ZERO;
+    entity.tpsRaw = ZERO;
     entity.totalMinedRaw = ZERO;
     entity.totalReplacementPaidRaw = ZERO;
     entity.lastPriceRaw = ZERO;

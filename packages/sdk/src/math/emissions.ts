@@ -2,14 +2,14 @@ import { BPS_DENOMINATOR, MINE_PRICE_DECAY_PERIOD, PREVIOUS_MINER_BPS, WAD } fro
 import { assertNonNegative, assertPositive, mulDiv } from './integer.js';
 
 export interface MiningCurveConfig {
-  readonly initialUps: bigint;
+  readonly initialTps: bigint;
   readonly halvingAmount: bigint;
-  readonly tailUps: bigint;
+  readonly tailTps: bigint;
 }
 
 export interface MiningAccrualInput {
   readonly elapsedSeconds: bigint;
-  readonly slotUps: readonly bigint[];
+  readonly slotTps: readonly bigint[];
 }
 
 export interface MiningAccrualQuote {
@@ -23,33 +23,33 @@ export interface MiningPaymentQuote {
   readonly resonanceAmount: bigint;
 }
 
-/** Returns the global rate assigned at the next handoff, before dividing it by current capacity. */
-export function miningRateAt(totalMined: bigint, config: MiningCurveConfig): bigint {
-  assertNonNegative(totalMined, 'totalMined');
-  assertPositive(config.initialUps, 'initialUps');
+/** Returns the global TPS assigned at the next handoff, before dividing it across sixteen fixed slots. */
+export function miningRateAt(economicallyMined: bigint, config: MiningCurveConfig): bigint {
+  assertNonNegative(economicallyMined, 'economicallyMined');
+  assertPositive(config.initialTps, 'initialTps');
   assertPositive(config.halvingAmount, 'halvingAmount');
-  assertPositive(config.tailUps, 'tailUps');
-  if (config.tailUps > config.initialUps) throw new RangeError('tailUps must not exceed initialUps');
+  assertPositive(config.tailTps, 'tailTps');
+  if (config.tailTps > config.initialTps) throw new RangeError('tailTps must not exceed initialTps');
 
   let halvings = 0n;
   let nextThreshold = config.halvingAmount;
-  while (totalMined >= nextThreshold) {
+  while (economicallyMined >= nextThreshold) {
     halvings += 1n;
-    const shifted = config.initialUps >> halvings;
-    if (shifted <= config.tailUps) return config.tailUps;
+    const shifted = config.initialTps >> halvings;
+    if (shifted <= config.tailTps) return config.tailTps;
     nextThreshold += config.halvingAmount >> halvings;
   }
 
-  const shifted = config.initialUps >> halvings;
-  return shifted <= config.tailUps ? config.tailUps : shifted;
+  const shifted = config.initialTps >> halvings;
+  return shifted <= config.tailTps ? config.tailTps : shifted;
 }
 
-/** Mirrors checkpointing fixed per-slot tenure rates; thresholds never reprice an occupied slot. */
+/** Quotes fixed per-slot tenure accrual; thresholds never reprice an occupied slot. */
 export function quoteMiningAccrual(input: MiningAccrualInput): MiningAccrualQuote {
   assertNonNegative(input.elapsedSeconds, 'elapsedSeconds');
-  const slotEmissions = input.slotUps.map((ups, index) => {
-    assertNonNegative(ups, `slotUps[${index}]`);
-    return ups * input.elapsedSeconds;
+  const slotEmissions = input.slotTps.map((tps, index) => {
+    assertNonNegative(tps, `slotTps[${index}]`);
+    return tps * input.elapsedSeconds;
   });
   return { slotEmissions, totalEmission: slotEmissions.reduce((sum, amount) => sum + amount, 0n) };
 }

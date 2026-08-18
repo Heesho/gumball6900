@@ -71,8 +71,8 @@ surplus and cannot satisfy or enlarge either liability.
 ## Governance boundary
 
 ProtocolGovernor voting units are SignalGBX checkpoints. The Governor can propose only exact zero-value calls for
-`Resonance.addStrategy`, `Resonance.killStrategy`, `Resonance.addBribeReward`, and `Mine.increaseCapacity`. The Timelock
-remains the only post-setup owner of Resonance and Mine, with no guardian or alternate proposer path.
+`Resonance.addStrategy`, `Resonance.killStrategy`, and `Resonance.addBribeReward`. The Timelock remains the only
+post-setup owner of Resonance, with no guardian or alternate proposer path. Mine has no administrative surface.
 
 ## Supported-token assumption
 

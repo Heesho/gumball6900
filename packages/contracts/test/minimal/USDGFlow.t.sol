@@ -68,9 +68,8 @@ contract USDGFlowTest is ProtocolFixture {
     function test_BlockedRevenueIngressCannotPartiallyAdvanceAMineSlot() external {
         HostileRevenueGraph memory graph = _deployHostileRevenueGraph();
         GBX isolatedGBX = new GBX(GENESIS, address(this));
-        Mine isolatedMine = new Mine(
-            isolatedGBX, IERC20(address(graph.revenue)), address(graph.router), address(this), defaultMineConfig()
-        );
+        Mine isolatedMine =
+            new Mine(isolatedGBX, IERC20(address(graph.revenue)), address(graph.router), defaultMineConfig());
         isolatedGBX.setMinter(address(isolatedMine));
 
         Mine.Slot memory initialSlot = isolatedMine.getSlot(0);

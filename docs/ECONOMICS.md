@@ -30,15 +30,15 @@ handoff payment.
 
 ## Tenure-locked rates
 
-The rate assigned when a slot is occupied is fixed until that slot changes hands. Capacity increases, checkpoints,
-redemptions, and later cumulative-mining halvings never dilute an incumbent. A new or replaced slot receives:
+The TPS assigned when a slot is occupied is fixed until that slot changes hands. Redemptions and later
+cumulative-mining halvings never dilute an incumbent. A new or replaced slot receives:
 
 ```text
-current global GBX-per-second rate / current capacity
+current global GBX tokens per second / 16
 ```
 
-Integer division residue is unissued. Protecting incumbents means capacity expansion can temporarily increase aggregate
-issuance: legacy slots retain older rates while new slots receive divided current rates. The reproduced scenario in
+Integer division residue is unissued. Protecting incumbents means a halving can temporarily leave aggregate issuance
+above the new global rate: legacy slots retain older TPS while new slots receive the new rate. The reproduced scenario in
 `packages/simulations/fixtures/economic-scenarios.json` makes this tradeoff explicit.
 
 ## Emission curve
@@ -83,10 +83,11 @@ surplus rather than explicit carry. Stream time continues at zero active signal 
 unclaimable, and direct Resonance donations are unscheduled surplus. Neither category is assigned to Fund or later
 signalers. Bribe separately retains its explicit carry and Fund classification before its virtual supply changes.
 
-Before redemption, Fund checkpoints every mining slot. For each selected token it then pays:
+Before redemption, Fund reads Mine's constant-time effective supply, including all accrued unminted mining. For each
+selected token it then pays:
 
 ```text
-floor(Fund balance * GBX burned / totalSupply after checkpoint and before burn)
+floor(Fund balance * GBX burned / effective supply before burn)
 ```
 
 Omitted assets remain for the post-redemption supply. A basket also reverts if one selected token transfer reduces

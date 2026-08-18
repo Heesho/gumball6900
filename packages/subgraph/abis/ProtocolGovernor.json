@@ -18,11 +18,6 @@
         "internalType": "contract Resonance"
       },
       {
-        "name": "mine_",
-        "type": "address",
-        "internalType": "contract Mine"
-      },
-      {
         "name": "votingDelayBlocks",
         "type": "uint48",
         "internalType": "uint48"
@@ -534,19 +529,6 @@
       }
     ],
     "stateMutability": "pure"
-  },
-  {
-    "type": "function",
-    "name": "mine",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "contract Mine"
-      }
-    ],
-    "stateMutability": "view"
   },
   {
     "type": "function",

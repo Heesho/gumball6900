@@ -9,7 +9,6 @@ import { TimelockController } from "@openzeppelin/contracts/governance/TimelockC
 import { IVotes } from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import { Vm } from "forge-std/Vm.sol";
 
-import { Mine } from "../../src/core/Mine.sol";
 import { Resonance } from "../../src/core/Resonance.sol";
 import { Strategy } from "../../src/core/Strategy.sol";
 import { ProtocolGovernor } from "../../src/governance/ProtocolGovernor.sol";
@@ -27,7 +26,6 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
         assertEq(address(protocolGovernor.token()), address(signalGBX));
         assertEq(protocolGovernor.timelock(), address(protocolTimelock));
         assertEq(address(protocolGovernor.resonance()), address(resonance));
-        assertEq(address(protocolGovernor.mine()), address(mine));
         assertEq(protocolGovernor.votingDelay(), TEST_VOTING_DELAY);
         assertEq(protocolGovernor.votingPeriod(), TEST_VOTING_PERIOD);
         assertEq(protocolGovernor.proposalThreshold(), TEST_PROPOSAL_THRESHOLD);
@@ -51,7 +49,6 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
         assertEq(resonance.bribeRouterFor(address(gbxStrategy)), address(gbxRouter));
 
         assertEq(resonance.owner(), address(protocolTimelock));
-        assertEq(mine.owner(), address(protocolTimelock));
         assertEq(protocolTimelock.getRoleAdmin(protocolTimelock.PROPOSER_ROLE()), protocolTimelock.DEFAULT_ADMIN_ROLE());
         assertEq(
             protocolTimelock.getRoleAdmin(protocolTimelock.CANCELLER_ROLE()), protocolTimelock.DEFAULT_ADMIN_ROLE()
@@ -68,36 +65,36 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
 
     function test_ConstructorRejectsMismatchedTokenAndInvalidVotingParameters() external {
         vm.expectRevert(abi.encodeWithSelector(ProtocolGovernor.InvalidDependency.selector, address(0)));
-        new ProtocolGovernor(IVotes(address(0)), protocolTimelock, resonance, mine, 1, 10, 0, TEST_QUORUM_NUMERATOR);
+        new ProtocolGovernor(IVotes(address(0)), protocolTimelock, resonance, 1, 10, 0, TEST_QUORUM_NUMERATOR);
 
         vm.expectRevert(abi.encodeWithSelector(ProtocolGovernor.InvalidDependency.selector, address(gbx)));
-        new ProtocolGovernor(IVotes(address(gbx)), protocolTimelock, resonance, mine, 1, 10, 0, TEST_QUORUM_NUMERATOR);
+        new ProtocolGovernor(IVotes(address(gbx)), protocolTimelock, resonance, 1, 10, 0, TEST_QUORUM_NUMERATOR);
 
         vm.expectRevert(ProtocolGovernor.InvalidGovernanceParameter.selector);
-        new ProtocolGovernor(IVotes(address(signalGBX)), protocolTimelock, resonance, mine, 1, 0, 0, 4);
+        new ProtocolGovernor(IVotes(address(signalGBX)), protocolTimelock, resonance, 1, 0, 0, 4);
 
         vm.expectRevert(ProtocolGovernor.InvalidGovernanceParameter.selector);
-        new ProtocolGovernor(IVotes(address(signalGBX)), protocolTimelock, resonance, mine, 1, 10, 0, 0);
+        new ProtocolGovernor(IVotes(address(signalGBX)), protocolTimelock, resonance, 1, 10, 0, 0);
 
         vm.expectRevert(ProtocolGovernor.InvalidGovernanceParameter.selector);
-        new ProtocolGovernor(IVotes(address(signalGBX)), protocolTimelock, resonance, mine, 1, 10, 0, 101);
+        new ProtocolGovernor(IVotes(address(signalGBX)), protocolTimelock, resonance, 1, 10, 0, 101);
     }
 
-    function test_OnlyTheFourExactZeroValueCallsCanBeProposed() external {
+    function test_OnlyTheThreeExactZeroValueCallsCanBeProposed() external {
         bytes memory addStrategy =
             abi.encodeCall(Resonance.addStrategy, (IERC20(address(secondAsset)), defaultConfig()));
         bytes memory kill = abi.encodeCall(Resonance.killStrategy, (address(targetStrategy)));
         bytes memory addBribeReward =
             abi.encodeCall(Resonance.addBribeReward, (address(targetStrategy), address(secondAsset)));
-        bytes memory increaseCapacity = abi.encodeCall(Mine.increaseCapacity, (2));
+        bytes memory increaseCapacity = abi.encodeWithSignature("increaseCapacity(uint256)", 2);
 
         _assertProposalAccepted(address(resonance), addStrategy, "ADD");
         _assertProposalAccepted(address(resonance), kill, "KILL");
         _assertProposalAccepted(address(resonance), addBribeReward, "BRIBE");
-        _assertProposalAccepted(address(mine), increaseCapacity, "CAPACITY");
 
         _expectUnsupported(ALICE, 0, kill);
         _expectUnsupported(address(mine), 0, kill);
+        _expectUnsupported(address(mine), 0, increaseCapacity);
         _expectUnsupported(address(resonance), 1, kill);
         _expectUnsupported(address(resonance), 0, abi.encodeWithSignature("transferOwnership(address)", ALICE));
         _expectUnsupported(address(protocolTimelock), 0, abi.encodeCall(TimelockController.updateDelay, (1 days)));
@@ -106,7 +103,6 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
         _assertMalformedLengthsRejected(address(resonance), addStrategy);
         _assertMalformedLengthsRejected(address(resonance), kill);
         _assertMalformedLengthsRejected(address(resonance), addBribeReward);
-        _assertMalformedLengthsRejected(address(mine), increaseCapacity);
     }
 
     function test_ProposalLengthValidationAndPendingCancellation() external {
@@ -171,7 +167,7 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
     function test_ApprovedBatchExecutesAllBoundedAdministrationAfterTheTimelock() external {
         _signalDefault(ALICE, 100 ether);
         (address[] memory targets, uint256[] memory values, bytes[] memory payloads) = _completeAdministrationBatch();
-        string memory description = "ADD KILL BRIBE AND CAPACITY";
+        string memory description = "ADD KILL AND BRIBE";
         bytes32 descriptionHash = keccak256(bytes(description));
 
         vm.prank(ALICE);
@@ -199,7 +195,6 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
         assertEq(uint256(protocolGovernor.state(proposalId)), uint256(IGovernor.ProposalState.Executed));
         assertFalse(resonance.isStrategyAlive(address(gbxStrategy)));
         assertTrue(targetBribe.isRewardToken(address(secondAsset)));
-        assertEq(mine.capacity(), 2);
         assertTrue(_findAddedStrategy() != address(0));
     }
 
@@ -209,11 +204,11 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
         address[] memory targets = new address[](2);
         uint256[] memory values = new uint256[](2);
         bytes[] memory payloads = new bytes[](2);
-        targets[0] = address(mine);
-        targets[1] = address(mine);
-        payloads[0] = abi.encodeCall(Mine.increaseCapacity, (2));
-        payloads[1] = abi.encodeCall(Mine.increaseCapacity, (2));
-        string memory description = "ATOMIC REVERTING CAPACITY BATCH";
+        targets[0] = address(resonance);
+        targets[1] = address(resonance);
+        payloads[0] = abi.encodeCall(Resonance.addBribeReward, (address(targetStrategy), address(secondAsset)));
+        payloads[1] = abi.encodeCall(Resonance.addBribeReward, (address(targetStrategy), address(secondAsset)));
+        string memory description = "ATOMIC REVERTING REWARD BATCH";
         bytes32 descriptionHash = keccak256(bytes(description));
 
         vm.prank(ALICE);
@@ -225,15 +220,15 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
         protocolGovernor.queue(targets, values, payloads, descriptionHash);
         vm.warp(block.timestamp + protocolTimelock.getMinDelay());
 
-        vm.expectRevert(abi.encodeWithSelector(Mine.CapacityNotIncreased.selector, 2, 2));
+        vm.expectRevert();
         protocolGovernor.execute(targets, values, payloads, descriptionHash);
 
-        assertEq(mine.capacity(), 1, "the earlier capacity increase must roll back");
+        assertFalse(targetBribe.isRewardToken(address(secondAsset)), "the earlier reward addition must roll back");
         assertEq(uint256(protocolGovernor.state(proposalId)), uint256(IGovernor.ProposalState.Queued));
 
-        vm.expectRevert(abi.encodeWithSelector(Mine.CapacityNotIncreased.selector, 2, 2));
+        vm.expectRevert();
         protocolGovernor.execute(targets, values, payloads, descriptionHash);
-        assertEq(mine.capacity(), 1);
+        assertFalse(targetBribe.isRewardToken(address(secondAsset)));
         assertEq(uint256(protocolGovernor.state(proposalId)), uint256(IGovernor.ProposalState.Queued));
     }
 
@@ -288,7 +283,6 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
             IVotes(address(signalGBX)),
             protocolTimelock,
             resonance,
-            mine,
             TEST_VOTING_DELAY,
             TEST_VOTING_PERIOD,
             100 ether,
@@ -383,9 +377,9 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
         view
         returns (address[] memory targets, uint256[] memory values, bytes[] memory payloads)
     {
-        targets = new address[](4);
-        values = new uint256[](4);
-        payloads = new bytes[](4);
+        targets = new address[](3);
+        values = new uint256[](3);
+        payloads = new bytes[](3);
 
         targets[0] = address(resonance);
         payloads[0] = abi.encodeCall(Resonance.addStrategy, (IERC20(address(secondAsset)), defaultConfig()));
@@ -393,8 +387,6 @@ contract ProtocolGovernorTest is ProtocolGovernanceFixture {
         payloads[1] = abi.encodeCall(Resonance.killStrategy, (address(gbxStrategy)));
         targets[2] = address(resonance);
         payloads[2] = abi.encodeCall(Resonance.addBribeReward, (address(targetStrategy), address(secondAsset)));
-        targets[3] = address(mine);
-        payloads[3] = abi.encodeCall(Mine.increaseCapacity, (2));
     }
 
     function _findAddedStrategy() private returns (address strategy) {

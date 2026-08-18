@@ -50,13 +50,10 @@ dataSources:
         - name: Mine
           file: ./abis/Mine.json
       eventHandlers:
-        - event: CapacityIncreased(uint256,uint256)
-          handler: handleCapacityIncreased
         - event: Claimed(indexed address,uint256)
           handler: handleClaimed
-        - event: EmissionCheckpointed(indexed address,indexed uint256,indexed
-            uint256,uint256)
-          handler: handleEmissionCheckpointed
+        - event: EmissionSettled(indexed address,indexed uint256,indexed uint256,uint256)
+          handler: handleEmissionSettled
         - event: Mined(indexed address,indexed address,indexed
             uint256,uint256,address,uint256,uint256,uint256)
           handler: handleMined

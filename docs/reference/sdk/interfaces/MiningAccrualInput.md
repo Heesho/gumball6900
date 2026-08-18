@@ -11,4 +11,4 @@
 | Property                                              | Modifier   | Type                |
 | ----------------------------------------------------- | ---------- | ------------------- |
 | <a id="property-elapsedseconds"></a> `elapsedSeconds` | `readonly` | `bigint`            |
-| <a id="property-slotups"></a> `slotUps`               | `readonly` | readonly `bigint`[] |
+| <a id="property-slottps"></a> `slotTps`               | `readonly` | readonly `bigint`[] |

@@ -3,7 +3,7 @@
 - Status: accepted for ProtocolGovernor, Timelock, voting-token, and selector-bounded governance decisions; idle
   SignalGBX, standalone staking/unstaking, redundant combined workflows, and `allocatedBalance` decisions are
   superseded by [ADR 0031](0031-mandatory-signal-backed-signalgbx.md); not audited or deployed; not approved for user
-  funds
+  funds; Mine authority and the fourth selector are superseded by [ADR 0033](0033-fixed-mine-slots-and-constant-time-pending-emission.md)
 - Date: 2026-08-15
 - Supersedes:
   - ADR 0013's external proposer/canceller administration model;
@@ -12,7 +12,7 @@
   - ADR 0024's GBX ERC20Votes implementation-bound statement; and
   - ADR 0029's direct Resonance signal-entry and duplicated signal-ledger descriptions.
 - Preserves: ADR 0015's signal terminology, ADR 0019's scalar absolute allocations and immediate exits, ADR 0029's
-  Bribe-shaped Resonance stream, and the four continuing administrative actions.
+  Bribe-shaped Resonance stream, and the three continuing Resonance administrative actions.
 
 > The `Token responsibilities`, `Sole signal coordinator and combined workflows`, and `Canonical signal state`
 > sections below document the superseded idle-receipt design. ADR 0031 replaces those sections with mandatory
@@ -88,7 +88,7 @@ changes.
 ### Selector-bounded ProtocolGovernor
 
 ProtocolGovernor uses SignalGBX as its immutable IVotes source. Its constructor fixes the TimelockController,
-Resonance, Mine, voting delay, voting period, proposal threshold, and quorum numerator. The quorum denominator is fixed
+Resonance, voting delay, voting period, proposal threshold, and quorum numerator. The quorum denominator is fixed
 at 100. Voting follows SignalGBX's block-number clock; none of these values or dependencies has a setter.
 
 Every proposal element must have zero ETH value, use the immutable target, use the exact selector, and have the exact
@@ -98,16 +98,15 @@ static calldata length for one of:
 Resonance.addStrategy
 Resonance.killStrategy
 Resonance.addBribeReward
-Mine.increaseCapacity
 ```
 
 The inherited generic `relay` and Timelock replacement entrypoints always revert. The execution entrypoint also rejects
-nonzero `msg.value` before it can be forwarded to the Timelock. Batches may contain only the same four allowed calls;
+nonzero `msg.value` before it can be forwarded to the Timelock. Batches may contain only the same three allowed calls;
 they cannot target the Governor, Timelock, another contract, or another selector.
 
 ### Timelock authority and cancellation
 
-TimelockController owns Resonance and Mine. ProtocolGovernor is its sole proposer and sole `CANCELLER_ROLE` holder,
+TimelockController owns Resonance. ProtocolGovernor is its sole proposer and sole `CANCELLER_ROLE` holder,
 the zero address holds the executor role, and no external default administrator remains after setup. There is no
 deployer or multisig proposer bypass.
 
@@ -119,7 +118,7 @@ queued-proposal veto; the Timelock delay is an observation and exit window.
 
 The temporary setup owner completes reciprocal bindings and creates every reviewed initial Strategy before governance
 handoff. Deployment then creates the Timelock and ProtocolGovernor, grants only the Governor proposer and canceller
-roles, transfers Resonance and Mine ownership to the Timelock, and finally renounces temporary Timelock administration.
+roles, transfers Resonance ownership to the Timelock, and finally renounces temporary Timelock administration.
 The final evidence must also prove that no alternate proposer, external admin, or pre-scheduled operation remains.
 
 ## Consequences

@@ -43,13 +43,12 @@ describe('GBX mining authority integrity', function () {
       tokenAddress,
       tokenAddress,
       await router.getAddress(),
-      deployer.address,
       {
         priceMultiplier: ethers.parseEther('1.1'),
         minimumInitialPrice: 1_000_000n,
-        initialUps: 16n,
+        initialTps: 16n,
         halvingAmount: ethers.parseEther('1000'),
-        tailUps: 16n,
+        tailTps: 16n,
       },
     ]);
     await mine.waitForDeployment();

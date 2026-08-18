@@ -1,4 +1,4 @@
-"""Independent integer-only model of multislot mining and redemption checkpointing."""
+"""Independent integer-only model of fixed-slot mining and constant-time effective-supply redemption."""
 
 from __future__ import annotations
 
@@ -44,16 +44,16 @@ def classify_strategy_payments(payments: list[int]) -> dict[str, object]:
 
 
 def compute() -> dict[str, object]:
-    incumbent = 100 * WAD
-    capacity = 3
-    new_slot = incumbent // capacity
-    sequential_capacity_rates = [incumbent // slot_capacity for slot_capacity in range(1, 17)]
+    global_tps = 100 * WAD
+    incumbent = global_tps // 16
+    post_halving = (global_tps // 2) // 16
+    all_slot_rates = [incumbent] * 16
     supply = 100_000_000 * WAD
     pending = 1_000_000 * WAD
     fund_usdg = 50_000_000 * 10**6
     redeem = 1_000_000 * WAD
     return {
-        "schemaVersion": 7,
+        "schemaVersion": 8,
         "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
         "assumptions": {
             "genesisLiquidityAllocationGBXRaw": GENESIS,
@@ -61,10 +61,10 @@ def compute() -> dict[str, object]:
             "priceDecaySeconds": HOUR,
             "previousMinerBps": 8_000,
             "resonanceRevenueBps": 2_000,
-            "maximumCapacity": 16,
+            "fixedSlotCount": 16,
             "tenureRatesLocked": True,
-            "capacityOnlyIncreases": True,
-            "redemptionsCheckpointAllSlots": True,
+            "redemptionsUseConstantTimeEffectiveSupply": True,
+            "checkpointAllExists": False,
             "strategyFundBps": 9_000,
             "strategyBribeBps": 1_000,
         },
@@ -77,31 +77,29 @@ def compute() -> dict[str, object]:
                 {"id": "empty-slot", **split(1_000_000, False)},
                 {"id": "replacement", **split(1_000_000, True)},
             ],
-            "capacityExpansion": {
-                "capacityBefore": 1,
-                "capacityAfter": capacity,
+            "staggeredFixedSlots": {
                 "incumbentRatePerHour": incumbent,
-                "incumbentRateAfterExpansionPerHour": incumbent,
-                "newSlotRatePerHour": new_slot,
-                "oneHourEmissions": [incumbent, new_slot, new_slot],
-                "aggregateOneHourEmission": incumbent + new_slot * 2,
-                "undividedGlobalRatePerHour": incumbent,
-                "explanation": "Occupied slots keep their tenure rate. Only newly occupied or replaced slots divide the current global rate by current capacity.",
+                "incumbentRateAfterHalvingPerHour": incumbent,
+                "newTenureRatePerHour": post_halving,
+                "oneHourEmissions": [incumbent, post_halving, post_halving],
+                "aggregateOneHourEmission": incumbent + post_halving * 2,
+                "explanation": "All slots divide the global TPS by sixteen. A halving affects only newly occupied or replaced tenures.",
             },
-            "sequentialExpansionToCap": {
-                "capacity": 16,
-                "assignedRatesPerHour": sequential_capacity_rates,
-                "aggregateOneHourEmission": sum(sequential_capacity_rates),
-                "undividedGlobalRatePerHour": incumbent,
-                "aggregateBpsOfUndividedRate": mul_div(sum(sequential_capacity_rates), BPS, incumbent),
-                "explanation": "Worst-order illustration with one new occupation after each capacity increase; every earlier tenure keeps its assigned rate.",
+            "allSlotsBeforeHalving": {
+                "slotCount": 16,
+                "assignedRatesPerHour": all_slot_rates,
+                "aggregateOneHourEmission": sum(all_slot_rates),
+                "globalRatePerHour": global_tps,
+                "aggregateBpsOfGlobalRate": mul_div(sum(all_slot_rates), BPS, global_tps),
+                "explanation": "Sixteen occupied slots at the same generation exactly reproduce the global rate.",
             },
             "handoffHalving": {
                 "halvingAmount": 490_000_000 * WAD,
-                "globalRateBefore": 100 * WAD,
-                "globalRateAfter": 50 * WAD,
-                "incumbentRateAfterThreshold": 100 * WAD,
-                "nextReplacementRateAtCapacityThree": 50 * WAD // 3,
+                "globalRateBefore": global_tps,
+                "globalRateAfter": global_tps // 2,
+                "incumbentSlotRateAfterThreshold": incumbent,
+                "nextReplacementSlotRate": post_halving,
+                "aggregateLockedSixteenSlots": sum(all_slot_rates),
             },
             "infiniteTail": {
                 "tailRatePerSecond": 10**16,
@@ -112,13 +110,13 @@ def compute() -> dict[str, object]:
             },
         },
         "redemption": {
-            "supplyBeforeCheckpoint": supply,
+            "mintedSupplyBefore": supply,
             "pendingMining": pending,
-            "denominatorAfterCheckpoint": supply + pending,
+            "effectiveSupplyBeforeBurn": supply + pending,
             "fundUSDGRaw": fund_usdg,
             "redeemGBX": redeem,
-            "payoutWithoutCheckpointRaw": mul_div(fund_usdg, redeem, supply),
-            "payoutWithCheckpointRaw": mul_div(fund_usdg, redeem, supply + pending),
+            "payoutIgnoringPendingRaw": mul_div(fund_usdg, redeem, supply),
+            "payoutWithEffectiveSupplyRaw": mul_div(fund_usdg, redeem, supply + pending),
         },
         "genesisLiquidity": {
             "publicBootstrap": False,

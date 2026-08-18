@@ -50,11 +50,12 @@ describe('Strategy reads', () => {
 describe('Mine and liquidity reads', () => {
   it('reads a tenure-locked Mine slot and global accounting at one block', async () => {
     const values: Readonly<Record<string, unknown>> = {
-      capacity: 2n,
+      aggregateTps: 8n,
+      SLOT_COUNT: 16n,
       claimable: 80n,
       effectiveTotalSupply: 1_020n,
       getSlot: [7n, 100n, 1_000n, 1_500n, 4n, address(2)],
-      nextGlobalUps: 2n,
+      nextGlobalTps: 2n,
       pendingEmission: 20n,
       price: 50n,
       totalClaimable: 80n,
@@ -67,9 +68,9 @@ describe('Mine and liquidity reads', () => {
     const client = { getBlock, readContract } as unknown as PublicClient;
 
     await expect(readMineSlotView(client, address(1), 0n, address(2))).resolves.toEqual({
+      aggregateTps: 8n,
       auctionStartedAt: 1_000n,
       blockNumber: BLOCK_NUMBER,
-      capacity: 2n,
       claimablePayment: 80n,
       currentPrice: 50n,
       effectiveTotalSupply: 1_020n,
@@ -78,12 +79,14 @@ describe('Mine and liquidity reads', () => {
       initialPrice: 100n,
       lastAccruedAt: 1_500n,
       mine: address(1),
-      nextGlobalUps: 2n,
+      nextGlobalTps: 2n,
       pendingEmission: 20n,
+      slotCount: 16n,
       slotMiner: address(2),
       totalClaimable: 80n,
       totalMined: 1_000n,
-      ups: 4n,
+      totalPendingEmission: 20n,
+      tps: 4n,
     });
   });
 
@@ -216,7 +219,6 @@ describe('SignalGBX and protocol governance reads', () => {
   it('reads the fixed Governor graph, parameters, and Timelock delay', async () => {
     const values: Readonly<Record<string, unknown>> = {
       getMinDelay: 86_400n,
-      mine: address(2),
       name: 'GumBall6900 Protocol Governor',
       proposalThreshold: 10n,
       quorumDenominator: 100n,
@@ -235,7 +237,6 @@ describe('SignalGBX and protocol governance reads', () => {
 
     await expect(readProtocolGovernorView(client, address(1))).resolves.toEqual({
       blockNumber: BLOCK_NUMBER,
-      mine: address(2),
       name: 'GumBall6900 Protocol Governor',
       proposalThreshold: 10n,
       quorumDenominator: 100n,

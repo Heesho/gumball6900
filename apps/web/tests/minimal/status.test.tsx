@@ -23,13 +23,13 @@ describe('core starting-point status page', () => {
     expect(screen.queryByRole('button', { name: /connect wallet/i })).toBeNull();
   });
 
-  it('limits token governance to four immutable timelocked actions without a multisig bypass', () => {
+  it('limits token governance to three immutable timelocked actions without a multisig bypass', () => {
     render(<HomePage />);
 
     expect(screen.getByText('Add a Strategy.')).toBeTruthy();
     expect(screen.getByText('Kill a Strategy.')).toBeTruthy();
     expect(screen.getByText('Add Bribe rewards.')).toBeTruthy();
-    expect(screen.getByText('Increase Mine capacity, without repricing incumbent slots.')).toBeTruthy();
+    expect(screen.queryByText(/Increase Mine capacity/i)).toBeNull();
     expect(
       screen.getByText(/SignalGBX voting power operates an immutable ProtocolGovernor, the Timelock's sole proposer/i),
     ).toBeTruthy();

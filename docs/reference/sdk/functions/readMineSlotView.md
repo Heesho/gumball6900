@@ -6,7 +6,7 @@
 
 # Function: readMineSlotView()
 
-> **readMineSlotView**(`client`, `mine`, `index`, `account`, `options?`): `Promise`\<\{ `auctionStartedAt`: `bigint`; `blockNumber`: `bigint`; `capacity`: `bigint`; `claimablePayment`: `bigint`; `currentPrice`: `bigint`; `effectiveTotalSupply`: `bigint`; `epochId`: `bigint`; `index`: `bigint`; `initialPrice`: `bigint`; `lastAccruedAt`: `bigint`; `mine`: `` `0x${string}` ``; `nextGlobalUps`: `bigint`; `pendingEmission`: `bigint`; `slotMiner`: `` `0x${string}` ``; `totalClaimable`: `bigint`; `totalMined`: `bigint`; `ups`: `bigint`; \}\>
+> **readMineSlotView**(`client`, `mine`, `index`, `account`, `options?`): `Promise`\<\{ `aggregateTps`: `bigint`; `auctionStartedAt`: `bigint`; `blockNumber`: `bigint`; `claimablePayment`: `bigint`; `currentPrice`: `bigint`; `effectiveTotalSupply`: `bigint`; `epochId`: `bigint`; `index`: `bigint`; `initialPrice`: `bigint`; `lastAccruedAt`: `bigint`; `mine`: `` `0x${string}` ``; `nextGlobalTps`: `bigint`; `pendingEmission`: `bigint`; `slotCount`: `bigint`; `slotMiner`: `` `0x${string}` ``; `totalClaimable`: `bigint`; `totalMined`: `bigint`; `totalPendingEmission`: `bigint`; `tps`: `bigint`; \}\>
 
 Reads one slot's tenure-locked rate, auction state, pending GBX, and account USDG claim at one block.
 
@@ -22,4 +22,4 @@ Reads one slot's tenure-locked rate, auction state, pending GBX, and account USD
 
 ## Returns
 
-`Promise`\<\{ `auctionStartedAt`: `bigint`; `blockNumber`: `bigint`; `capacity`: `bigint`; `claimablePayment`: `bigint`; `currentPrice`: `bigint`; `effectiveTotalSupply`: `bigint`; `epochId`: `bigint`; `index`: `bigint`; `initialPrice`: `bigint`; `lastAccruedAt`: `bigint`; `mine`: `` `0x${string}` ``; `nextGlobalUps`: `bigint`; `pendingEmission`: `bigint`; `slotMiner`: `` `0x${string}` ``; `totalClaimable`: `bigint`; `totalMined`: `bigint`; `ups`: `bigint`; \}\>
+`Promise`\<\{ `aggregateTps`: `bigint`; `auctionStartedAt`: `bigint`; `blockNumber`: `bigint`; `claimablePayment`: `bigint`; `currentPrice`: `bigint`; `effectiveTotalSupply`: `bigint`; `epochId`: `bigint`; `index`: `bigint`; `initialPrice`: `bigint`; `lastAccruedAt`: `bigint`; `mine`: `` `0x${string}` ``; `nextGlobalTps`: `bigint`; `pendingEmission`: `bigint`; `slotCount`: `bigint`; `slotMiner`: `` `0x${string}` ``; `totalClaimable`: `bigint`; `totalMined`: `bigint`; `totalPendingEmission`: `bigint`; `tps`: `bigint`; \}\>

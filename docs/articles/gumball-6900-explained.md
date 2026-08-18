@@ -137,8 +137,8 @@ deployment it has six decimal places, which matters later for the arithmetic.
 
 There are two revenue sources, and only two.
 
-**Mining.** The mine has slots — one at launch, and governance may add more up to a hard maximum of sixteen. Whoever
-occupies a slot receives continuously minted GBX at a fixed rate. To take a slot, you win its auction: the price to
+**Mining.** The mine has exactly sixteen permanent slots. Whoever occupies a slot accrues GBX continuously at a fixed
+rate, minted when that slot next changes hands. To take a slot, you win its auction: the price to
 displace the current occupant starts at some level and falls in a straight line to zero over one hour, then sits at
 zero until someone takes it.
 
@@ -147,9 +147,9 @@ protocol revenue. When you take an **empty** slot, there is nobody to compensate
 There is no team fee anywhere in this. The displaced miner's 80% is held as a claim they withdraw when they like —
 anyone can trigger the withdrawal, but the money can only ever go to the miner.
 
-Two things a prospective miner should understand. First, your GBX rate is **locked for your entire tenure** — adding
-slots, halving issuance, and redemptions never change it. Only a newly occupied slot receives the current rate divided
-by the current slot count. Second, less comfortably: **the 80% handoff is not guaranteed.** You receive it only if
+Two things a prospective miner should understand. First, your GBX rate is **locked for your entire tenure** — halving
+issuance, redemptions, and other slots' handoffs never change it. Only a newly occupied or replaced slot receives the
+current global TPS divided by sixteen. Second, less comfortably: **the 80% handoff is not guaranteed.** You receive it only if
 someone later replaces you at a nonzero price, and since the price falls to zero after an hour, a successor can
 replace you having paid nothing. You keep the GBX you accrued, but no handoff payment. Interfaces must not present
 that 80% as principal, yield, or a refund.
@@ -311,9 +311,9 @@ supply is **100,000,000**, and miners have accrued **1,000,000 GBX** that has no
 
 Diego holds 250,000 GBX and wants out. He calls redeem, naming WBTC and ETH.
 
-**Step 1 — the miners get credited first.** Before doing anything else, the Fund forces the mine to mint every miner's
-accrued GBX. Supply rises from 100,000,000 to **101,000,000 GBX**. This is deliberate: it stops a redeemer from
-claiming a share calculated against a supply figure that ignores GBX the miners have already earned.
+**Step 1 — pending mining counts first.** Before doing anything else, the Fund reads Mine's effective supply:
+100,000,000 minted GBX plus 1,000,000 accrued unminted GBX, or **101,000,000 GBX**. This constant-time view does not
+mint or touch every slot, and stops a redeemer from ignoring GBX the miners have already earned.
 
 **Step 2 — one snapshot for everything.** The Fund records supply-before-burn = 101,000,000 GBX and records its
 balance of each named asset. Every payout uses this same denominator.
@@ -330,7 +330,7 @@ atomic transaction: if any transfer fails, the entire redemption including the b
 
 <!-- figure: redemption -->
 
-**Two things worth noticing.** Without the Step 1 checkpoint, Diego's WBTC payout would have been 0.125 WBTC instead
+**Two things worth noticing.** If Step 1 ignored pending mining, Diego's WBTC payout would have been 0.125 WBTC instead
 of 0.12376237 — the difference is exactly the dilution from recognising the miners' claim, and it is correct. And if
 the Fund had been holding, say, 2,000,000 GBX from a GBX-denominated auction that nobody had burned yet, that GBX
 would have counted in the denominator and reduced Diego's payout. Anyone can burn Fund-held GBX at any time, and a
@@ -385,13 +385,12 @@ Some deliberate details, which apply to both sources:
 
 ## 13. How governance works
 
-Governance can do **four things**, and the contract rejects any proposal that tries to do anything else — checked by
+Governance can do **three things**, and the contract rejects any proposal that tries to do anything else — checked by
 target address, function selector, and even calldata length, before the proposal can be created:
 
 1. Add a Strategy.
 2. Permanently retire a Strategy.
 3. Register a Bribe reward token (within the eight-token cap).
-4. Increase mine capacity (increase-only, hard cap of sixteen).
 
 Voting power comes from signalled sGBX measured at a historical snapshot block. A passing proposal goes into a
 **Timelock** — a contract that holds an approved action for a fixed delay before it can be executed. After the delay,

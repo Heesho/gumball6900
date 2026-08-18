@@ -4,6 +4,9 @@ Run date: 2026-08-16. Baseline commit: `281e601ecb3f3989da826a8a7dfba37b63b55ca0
 All results are local engineering evidence. No command deployed, broadcast, committed, pushed, published, or transferred
 roles.
 
+> Historical evidence only: ADR 0033 later replaced Mine capacity/checkpoint accounting. Its fixed-slot differential
+> and current-tree gate results are recorded by the newer tests and release checklist, not by the counts below.
+
 ## Environment and baseline
 
 The build uses Solidity 0.8.26, Cancun EVM, legacy pipeline (`viaIR=false`), optimizer enabled with 10,000 runs, Foundry

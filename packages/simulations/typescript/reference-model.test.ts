@@ -17,7 +17,7 @@ describe('Mine reference model', () => {
     expect(loadCommittedFixture()).toEqual(typescript);
   });
 
-  it('pins rate protection, 80/20 payment, hourly zero, and checkpointed supply', () => {
+  it('pins rate protection, 80/20 payment, hourly zero, and effective supply', () => {
     const results = loadTypeScriptResults();
     expect(results.infiniteSupply).toBe(true);
     expect(results.genesisLiquidityAllocation).toBe('20000000000000000000000000');
@@ -27,8 +27,8 @@ describe('Mine reference model', () => {
       resonanceAmount: '200000',
     });
     expect(results.miningQuotes[1]?.price).toBe('0');
-    expect(results.miningQuotes[1]?.slotEmissions[0]).toBe('360000000000000000000000');
-    expect(results.miningQuotes[1]?.nextGlobalUps).toBe('50000000000000000000');
+    expect(results.miningQuotes[1]?.slotEmissions[0]).toBe('22500000000000000000000');
+    expect(results.miningQuotes[1]?.nextGlobalTps).toBe('50000000000000000000');
   });
 
   it('matches cumulative 90/10 acquired-asset classification across payment partitions', () => {

@@ -80,9 +80,9 @@ export async function readSupplyView(
 }
 
 export const mineSlotViewSchema = z.object({
+  aggregateTps: unsignedBigIntSchema,
   auctionStartedAt: unsignedBigIntSchema,
   blockNumber: unsignedBigIntSchema,
-  capacity: unsignedBigIntSchema,
   claimablePayment: unsignedBigIntSchema,
   currentPrice: unsignedBigIntSchema,
   effectiveTotalSupply: unsignedBigIntSchema,
@@ -91,12 +91,14 @@ export const mineSlotViewSchema = z.object({
   initialPrice: unsignedBigIntSchema,
   lastAccruedAt: unsignedBigIntSchema,
   mine: addressSchema,
-  nextGlobalUps: unsignedBigIntSchema,
+  nextGlobalTps: unsignedBigIntSchema,
   pendingEmission: unsignedBigIntSchema,
+  slotCount: unsignedBigIntSchema,
   slotMiner: addressSchema,
+  totalPendingEmission: unsignedBigIntSchema,
   totalClaimable: unsignedBigIntSchema,
   totalMined: unsignedBigIntSchema,
-  ups: unsignedBigIntSchema,
+  tps: unsignedBigIntSchema,
 });
 export type MineSlotView = z.infer<typeof mineSlotViewSchema>;
 
@@ -113,25 +115,29 @@ export async function readMineSlotView(
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
   const [
-    capacity,
+    aggregateTps,
     claimablePayment,
     currentPrice,
     effectiveTotalSupply,
     slot,
-    nextGlobalUps,
+    nextGlobalTps,
     pendingEmission,
+    slotCount,
     totalClaimable,
     totalMined,
+    totalPendingEmission,
   ] = await Promise.all([
-    read(client, blockNumber, mine, mineAbi, 'capacity'),
+    read(client, blockNumber, mine, mineAbi, 'aggregateTps'),
     read(client, blockNumber, mine, mineAbi, 'claimable', [claimant]),
     read(client, blockNumber, mine, mineAbi, 'price', [index]),
     read(client, blockNumber, mine, mineAbi, 'effectiveTotalSupply'),
     read(client, blockNumber, mine, mineAbi, 'getSlot', [index]),
-    read(client, blockNumber, mine, mineAbi, 'nextGlobalUps'),
+    read(client, blockNumber, mine, mineAbi, 'nextGlobalTps'),
     read(client, blockNumber, mine, mineAbi, 'pendingEmission', [index]),
+    read(client, blockNumber, mine, mineAbi, 'SLOT_COUNT'),
     read(client, blockNumber, mine, mineAbi, 'totalClaimable'),
     read(client, blockNumber, mine, mineAbi, 'totalMined'),
+    read(client, blockNumber, mine, mineAbi, 'pendingEmission'),
   ]);
   const slotRecord = slot as Readonly<Record<string, unknown>>;
   const values = Array.isArray(slot)
@@ -141,13 +147,13 @@ export async function readMineSlotView(
         slotRecord.initialPrice,
         slotRecord.auctionStartedAt,
         slotRecord.lastAccruedAt,
-        slotRecord.ups,
+        slotRecord.tps,
         slotRecord.miner,
       ];
   const result = mineSlotViewSchema.parse({
+    aggregateTps,
     auctionStartedAt: values[2],
     blockNumber,
-    capacity,
     claimablePayment,
     currentPrice,
     effectiveTotalSupply,
@@ -156,12 +162,14 @@ export async function readMineSlotView(
     initialPrice: values[1],
     lastAccruedAt: values[3],
     mine,
-    nextGlobalUps,
+    nextGlobalTps,
     pendingEmission,
+    slotCount,
     slotMiner: values[5],
     totalClaimable,
     totalMined,
-    ups: values[4],
+    totalPendingEmission,
+    tps: values[4],
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;
@@ -261,7 +269,6 @@ export async function readSignalView(
 
 export const protocolGovernorViewSchema = z.object({
   blockNumber: unsignedBigIntSchema,
-  mine: addressSchema,
   name: z.string().min(1),
   proposalThreshold: unsignedBigIntSchema,
   quorumDenominator: unsignedBigIntSchema.positive(),
@@ -285,7 +292,6 @@ export async function readProtocolGovernorView(
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
   const [
-    mine,
     name,
     proposalThreshold,
     quorumDenominator,
@@ -296,7 +302,6 @@ export async function readProtocolGovernorView(
     votingDelay,
     votingPeriod,
   ] = await Promise.all([
-    read(client, blockNumber, governor, protocolGovernorAbi, 'mine'),
     read(client, blockNumber, governor, protocolGovernorAbi, 'name'),
     read(client, blockNumber, governor, protocolGovernorAbi, 'proposalThreshold'),
     read(client, blockNumber, governor, protocolGovernorAbi, 'quorumDenominator'),
@@ -311,7 +316,6 @@ export async function readProtocolGovernorView(
   const timelockMinDelay = await read(client, blockNumber, timelock, timelockControllerAbi, 'getMinDelay');
   const result = protocolGovernorViewSchema.parse({
     blockNumber,
-    mine,
     name,
     proposalThreshold,
     quorumDenominator,

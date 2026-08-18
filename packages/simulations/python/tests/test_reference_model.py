@@ -10,7 +10,7 @@ def test_reference_cases_capture_miner_rate_protection() -> None:
     assert results["infiniteSupply"] is True
     assert results["miningQuotes"][0]["previousMinerAmount"] == "800000"
     assert results["miningQuotes"][1]["price"] == "0"
-    assert results["miningQuotes"][1]["nextGlobalUps"] == "50000000000000000000"
+    assert results["miningQuotes"][1]["nextGlobalTps"] == "50000000000000000000"
     auction = results["auctionQuotes"][0]
     assert auction["fundAmount"] == auction["partitionFundAmount"] == "37800000000000000000"
     assert auction["bribeAmount"] == auction["partitionBribeAmount"] == "4200000000000000000"

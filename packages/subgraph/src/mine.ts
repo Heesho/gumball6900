@@ -1,23 +1,6 @@
-import {
-  CapacityIncreased,
-  Claimed,
-  EmissionCheckpointed,
-  Mined,
-  MinerPaymentAccrued,
-  RevenueRouted,
-} from '../generated/Mine/Mine';
+import { Claimed, EmissionSettled, Mined, MinerPaymentAccrued, RevenueRouted } from '../generated/Mine/Mine';
 import { BigInt } from '@graphprotocol/graph-ts';
 import { getAccount, getMiningSlot, getProtocol, recordEvent } from './entities';
-
-export function handleCapacityIncreased(event: CapacityIncreased): void {
-  const protocol = getProtocol(event);
-  protocol.miningCapacity = event.params.newCapacity;
-  protocol.save();
-
-  const record = recordEvent(event, 'MINE_CAPACITY_INCREASED');
-  record.values = [event.params.previousCapacity, event.params.newCapacity];
-  record.save();
-}
 
 export function handleMined(event: Mined): void {
   const protocol = getProtocol(event);
@@ -29,7 +12,7 @@ export function handleMined(event: Mined): void {
   slot.currentMiner = event.params.miner;
   slot.initialPriceRaw = event.params.initialPrice;
   slot.auctionStartedAt = event.block.timestamp;
-  slot.upsRaw = event.params.ups;
+  slot.tpsRaw = event.params.tps;
   slot.totalReplacementPaidRaw = slot.totalReplacementPaidRaw.plus(event.params.price);
   slot.lastPriceRaw = event.params.price;
   slot.save();
@@ -41,12 +24,12 @@ export function handleMined(event: Mined): void {
     event.params.epochId,
     event.params.price,
     event.params.initialPrice,
-    event.params.ups,
+    event.params.tps,
   ];
   record.save();
 }
 
-export function handleEmissionCheckpointed(event: EmissionCheckpointed): void {
+export function handleEmissionSettled(event: EmissionSettled): void {
   const protocol = getProtocol(event);
   protocol.minedGBXRaw = protocol.minedGBXRaw.plus(event.params.amount);
   protocol.save();
@@ -59,7 +42,7 @@ export function handleEmissionCheckpointed(event: EmissionCheckpointed): void {
   slot.totalMinedRaw = slot.totalMinedRaw.plus(event.params.amount);
   slot.save();
 
-  const record = recordEvent(event, 'MINE_EMISSION_CHECKPOINTED');
+  const record = recordEvent(event, 'MINE_EMISSION_SETTLED');
   record.addresses = [event.params.miner];
   record.values = [event.params.index, event.params.epochId, event.params.amount];
   record.save();

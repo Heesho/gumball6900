@@ -71,14 +71,14 @@ const decimal = (value: bigint): string => value.toString();
 
 export function computeReferenceResults(scenarios: ReferenceScenarios) {
   const miningQuotes = scenarios.miningCases.map((entry) => {
-    const slotUps = array(entry.slotUps, 'slotUps').map((value) => BigInt(text(value, 'slotUps')));
-    const accrual = quoteMiningAccrual({ elapsedSeconds: big(entry, 'accrualSeconds'), slotUps });
+    const slotTps = array(entry.slotTps, 'slotTps').map((value) => BigInt(text(value, 'slotTps')));
+    const accrual = quoteMiningAccrual({ elapsedSeconds: big(entry, 'accrualSeconds'), slotTps });
     const curve = {
       halvingAmount: big(entry, 'halvingAmount'),
-      initialUps: big(entry, 'initialUps'),
-      tailUps: big(entry, 'tailUps'),
+      initialTps: big(entry, 'initialTps'),
+      tailTps: big(entry, 'tailTps'),
     };
-    const nextGlobalUps = miningRateAt(big(entry, 'totalMined'), curve);
+    const nextGlobalTps = miningRateAt(big(entry, 'economicallyMined'), curve);
     const payment = quoteMiningPayment(big(entry, 'payment'), entry.hasPreviousMiner === true);
     return {
       id: id(entry.id, 'id'),
@@ -87,8 +87,8 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
       resonanceAmount: decimal(payment.resonanceAmount),
       slotEmissions: accrual.slotEmissions.map(decimal),
       totalEmission: decimal(accrual.totalEmission),
-      nextGlobalUps: decimal(nextGlobalUps),
-      nextSlotUps: decimal(nextGlobalUps / big(entry, 'capacity')),
+      nextGlobalTps: decimal(nextGlobalTps),
+      nextSlotTps: decimal(nextGlobalTps / 16n),
     };
   });
 

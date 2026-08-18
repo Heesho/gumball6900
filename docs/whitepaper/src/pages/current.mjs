@@ -186,7 +186,7 @@ export const currentPages = [
   {
     id: 'fairness',
     runner: 'Fixed-tenure fairness',
-    section: { title: 'Fixed-tenure fairness', note: 'Capacity cannot dilute incumbents' },
+    section: { title: 'Fixed-tenure fairness', note: 'Halvings cannot dilute incumbents' },
     render: () =>
       frame(
         html`${sectionHead({
@@ -196,23 +196,22 @@ export const currentPages = [
             deck: 'A slot rate changes only when that slot changes hands.',
           })}
           <p class="lead">
-            Checkpoints, cumulative-mining thresholds, redemptions, and capacity increases never rewrite an occupied
+            Claims, cumulative-mining thresholds, redemptions, and other slots' handoffs never rewrite an occupied
             slot's GBX-per-second rate.
           </p>
           ${table({
-            head: ['State', 'Slot 0 incumbent', 'New slots'],
+            head: ['State', 'Earlier incumbent', 'New tenure'],
             rows: [
-              ['Capacity 1; global 100 GBX/hour', '100 GBX/hour', 'Closed'],
-              ['Capacity grows to 3', 'Still 100 GBX/hour', 'Open'],
-              ['New occupations', 'Still 100 GBX/hour', 'About 33 GBX/hour each'],
+              ['Global 100 GBX/hour', '6.25 GBX/hour', '6.25 GBX/hour'],
+              ['Global rate halves', 'Still 6.25 GBX/hour', '3.125 GBX/hour'],
+              ['Incumbent is replaced', 'Tenure ends', '3.125 GBX/hour'],
             ],
           })}
           <div class="spread stack-2">
             <div class="col-main">
               <p>
-                This prevents governance from changing the economic deal after entry. Only future occupations divide the
-                current global rate by current capacity. A threshold crossing similarly changes only the rate offered at
-                a later handoff.
+                All sixteen slots divide the current global rate by sixteen when a tenure begins. A threshold crossing
+                changes only the rate offered at a later handoff, never an incumbent's already-assigned rate.
               </p>
             </div>
             <div class="col-side">
@@ -228,7 +227,7 @@ export const currentPages = [
   {
     id: 'supply-redemption',
     runner: 'Supply and redemption',
-    section: { title: 'Supply and redemption', note: 'Infinite tail, checkpointed denominator' },
+    section: { title: 'Supply and redemption', note: 'Infinite tail, constant-time denominator' },
     render: () =>
       frame(
         html`${sectionHead({
@@ -247,19 +246,20 @@ export const currentPages = [
                 into sGBX.
               </p>
               <p>
-                Rewards accrue continuously but mint at checkpoints. Fund calls <code>checkpointAll</code> before every
-                redemption, so already-earned GBX cannot be omitted from the denominator.
+                Rewards accrue continuously but each slot mints only when it changes hands. Fund reads Mine's
+                constant-time effective supply before every redemption, so already-earned unminted GBX cannot be omitted
+                from the denominator and redemption never depends on touching all slots.
               </p>
               <p class="formula">
-                <span class="formula__label">Payout</span> floor(Fund token balance × GBX burned ÷ post-checkpoint
-                pre-burn supply)
+                <span class="formula__label">Payout</span> floor(Fund token balance × GBX burned ÷ effective pre-burn
+                supply)
               </p>
             </div>
             <div class="col-side">
               ${note({
-                label: 'Bounded work',
+                label: 'Constant-time supply',
                 kind: 'capital',
-                body: `Capacity is permanently capped at ${contractConstants.mine.maxCapacity}; checkpoint cost grows linearly but cannot become unbounded.`,
+                body: `Mine maintains one aggregate TPS accumulator across ${contractConstants.mine.slotCount} fixed slots; Fund performs no slot loop or mining mutation.`,
               })}
               ${note({
                 label: 'Omissions',
@@ -279,19 +279,14 @@ export const currentPages = [
             eyebrow: 'Part V',
             number: '05',
             title: 'Immutable by design',
-            deck: 'sGBX voting can authorize four exact calls; no proposer can expand that surface.',
+            deck: 'sGBX voting can authorize three exact calls; no proposer can expand that surface.',
           })}
           ${ledger({
             yesHead: 'Timelocked actions',
-            yesItems: [
-              'Add a Strategy',
-              'Permanently kill a Strategy',
-              'Register a Bribe reward token, up to eight',
-              'Increase Mine capacity, from one to at most sixteen',
-            ],
+            yesItems: ['Add a Strategy', 'Permanently kill a Strategy', 'Register a Bribe reward token, up to eight'],
             noHead: 'Absent powers',
             noItems: [
-              'No capacity decrease or incumbent repricing',
+              'No Mine administration or incumbent repricing',
               'No emission setter or replacement authority',
               'No multisig bypass, guardian, or queued veto',
               'No Fund withdrawal or liquidity NFT recovery',

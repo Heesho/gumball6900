@@ -10,18 +10,19 @@
 - `GBX.totalSupply() == GBX.lifetimeMinted() - GBX.lifetimeBurned()`.
 - The temporary minter may permanently hand authority to one deployed Mine exactly once. After the handoff, neither
   the minter nor the lock can change.
-- Mine capacity begins at one, only increases, and never exceeds sixteen.
-- Every occupied slot accrues `elapsedSeconds * slot.ups`. Its `ups` is fixed from occupation until replacement.
-- Checkpoints, cumulative-mining thresholds, redemptions, and capacity increases never reprice an occupied slot.
-- A new occupation assigns `globalUps(totalMinedAfterCheckpoint) / capacity`; floor remainder is unissued.
+- Mine has exactly sixteen immutable, ownerless slots.
+- Every occupied slot accrues `elapsedSeconds * slot.tps`. Its `tps` is fixed from occupation until replacement.
+- Cumulative-mining thresholds and redemptions never reprice an occupied slot.
+- A new occupation assigns `globalTps(totalMined + pendingEmission) / 16`; floor remainder is unissued.
 - Global rates used for future handoffs halve at immutable cumulative-mining thresholds and never fall below the
   positive immutable tail.
-- `Mine.effectiveTotalSupply() == GBX.totalSupply() + Mine.pendingEmission()` before a checkpoint.
-- A replacement checkpoints all live slots before assigning the incoming tenure.
+- `Mine.aggregateTps() == sum(Mine.getSlot(i).tps)` across all sixteen slots.
+- `Mine.effectiveTotalSupply() == GBX.totalSupply() + Mine.pendingEmission()`.
+- A replacement settles only its outgoing slot before assigning the incoming tenure.
 - A nonempty-slot USDG payment is exactly `80% displaced-miner claim + 20% routed revenue`. An empty-slot payment is
   100% routed revenue. A zero-price handoff transfers nothing.
 - Mine USDG balance equals total outstanding pull claims; claim execution reduces both by the same exact amount.
-- Every Fund redemption checkpoints Mine before its pre-burn supply snapshot.
+- Every Fund redemption uses Mine's constant-time effective supply without checkpointing or mutating Mine.
 
 ## Signals, revenue, and Bribes
 
@@ -61,10 +62,10 @@
 
 ## Governance
 
-- ProtocolGovernor's SignalGBX, Timelock, Resonance, Mine, voting delay, voting period, proposal threshold, and quorum
+- ProtocolGovernor's SignalGBX, Timelock, Resonance, voting delay, voting period, proposal threshold, and quorum
   percentage are immutable.
-- Every proposal call has zero ETH value, targets the immutable Resonance or Mine, and uses exactly one of
-  `addStrategy`, `killStrategy`, `addBribeReward`, or `increaseCapacity` with canonical calldata length.
+- Every proposal call has zero ETH value, targets the immutable Resonance, and uses exactly one of `addStrategy`,
+  `killStrategy`, or `addBribeReward` with canonical calldata length.
 - ProtocolGovernor is the Timelock's only proposer. The zero-address executor leaves execution permissionless after the
   delay, and no external default admin remains after setup.
 - The proposer may cancel only while a proposal is Pending. No multisig, guardian, or public path can cancel a queued
@@ -79,7 +80,7 @@
   redirected, consumed by failure of the other leg, or paid twice. Direct BribeRouter donations alter neither.
 - A GBX-priced Strategy is supply-neutral until the Fund-classified GBX is explicitly burned after reaching Fund; the
   Bribe-classified GBX remains a reward liability and is not burned by settlement.
-- Fund redemption uses one post-checkpoint, pre-burn supply snapshot for every selected token and is atomic with the
+- Fund redemption uses one effective pre-burn supply snapshot for every selected token and is atomic with the
   GBX burn and every selected transfer.
 - Redemption rejects GBX, the zero address, and duplicates. Fund has no asset registry or administrative withdrawal.
 - LiquidityPosition accepts only its precommitted nonempty hookless v4 NFT and exact range.

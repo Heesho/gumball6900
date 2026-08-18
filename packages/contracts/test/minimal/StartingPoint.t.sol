@@ -118,13 +118,12 @@ contract StartingPointTest is Test {
             gbx,
             IERC20(address(usdg)),
             address(resonanceRouter),
-            address(this),
             Mine.Config({
                 priceMultiplier: 2e18,
                 minimumInitialPrice: 1e6,
-                initialUps: 4 ether,
+                initialTps: 4 ether,
                 halvingAmount: 490_000_000 ether,
-                tailUps: 0.01 ether
+                tailTps: 0.01 ether
             })
         );
         gbx.setMinter(address(mine));
@@ -149,24 +148,23 @@ contract StartingPointTest is Test {
         assertEq(resonance.left(address(usdg)), 996_400);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
         assertEq(usdg.balanceOf(address(fund)), 0);
-        assertEq(gbx.balanceOf(ALICE), 100 ether + 7_200 ether);
+        assertEq(gbx.balanceOf(ALICE), 100 ether + 450 ether);
         assertEq(gbx.balanceOf(BOB), 100 ether);
 
         mine.claim(ALICE);
         assertEq(usdg.balanceOf(ALICE), 800_000);
     }
 
-    function test_MiningCapacityIncreasePreservesIncumbentAndDividesNewSlotRate() external {
+    function test_FixedSlotsAccrueIndependentlyAtOneSixteenthGlobalRate() external {
         _mine(ALICE, 0);
-        mine.increaseCapacity(2);
         _mine(BOB, 1);
 
-        assertEq(mine.capacity(), 2);
-        assertEq(mine.getSlot(0).ups, 4 ether);
-        assertEq(mine.getSlot(1).ups, 2 ether);
+        assertEq(mine.SLOT_COUNT(), 16);
+        assertEq(mine.getSlot(0).tps, 0.25 ether);
+        assertEq(mine.getSlot(1).tps, 0.25 ether);
 
         vm.warp(block.timestamp + 1 hours);
-        assertEq(mine.pendingEmission(), 21_600 ether);
+        assertEq(mine.pendingEmission(), 1_800 ether);
     }
 
     function test_AcquisitionClassifiesTheCompletePaymentNinetyTen() external {
@@ -380,7 +378,7 @@ contract StartingPointTest is Test {
     function test_GBXSupplyReconcilesContinuousIssuanceAndBurns() external {
         _mine(ALICE, 0);
         vm.warp(block.timestamp + 10);
-        mine.checkpointAll();
+        _mine(ALICE, 0);
         uint256 supplyBefore = gbx.totalSupply();
         vm.prank(ALICE);
         gbx.burn(50 ether);

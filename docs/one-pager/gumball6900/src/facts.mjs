@@ -38,8 +38,8 @@ export const numbers = {
   routedShare: percentFromBps(contractConstants.mine.resonanceBps),
   /** Mine.sol PRICE_DECAY_PERIOD, printed as the unit a reader thinks in. */
   priceDecay: `${contractConstants.mine.priceDecaySeconds / 3_600} hour`,
-  /** Mine.sol MAX_CAPACITY, the permanent ceiling on concurrent slots. */
-  maxSlots: contractConstants.mine.maxCapacity,
+  /** Mine.sol SLOT_COUNT, the permanent number of concurrent slots. */
+  maxSlots: contractConstants.mine.slotCount,
   /** BribeRouter.FUND_BPS: cumulative Strategy-payment share classified to Fund. */
   fundBoundShare: percentFromBps(contractConstants.bribeRouter.fundBps),
   /** BribeRouter.BRIBE_BPS: cumulative Strategy-payment share classified to paired-Bribe rewards. */

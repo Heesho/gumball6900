@@ -2,17 +2,17 @@
 
 Date: 2026-08-15
 
-This is the review target for the ADR 0024, ADR 0027, ADR 0028, ADR 0029, ADR 0031, and ADR 0032 development candidate.
+This is the review target for the ADR 0027, ADR 0028, ADR 0029, ADR 0031, ADR 0032, and ADR 0033 development candidate.
 It is not an independent audit result.
 
 ## Authority model
 
 - Deployments are direct and non-upgradeable. Fund and LiquidityPosition are ownerless.
-- TimelockController owns Resonance and Mine. ProtocolGovernor is its sole proposer and accepts only exact zero-value
-  calls to add/kill Strategies, register Bribe rewards, or increase Mine capacity.
-- SignalGBX votes govern those four calls. The Governor and Timelock are immutable, execution is permissionless after
+- TimelockController owns Resonance. ProtocolGovernor is its sole proposer and accepts only exact zero-value calls to
+  add/kill Strategies or register Bribe rewards. Mine has no administrative authority.
+- SignalGBX votes govern those three calls. The Governor and Timelock are immutable, execution is permissionless after
   the delay, and no public path can cancel an operation after it has been queued.
-- No authority can reduce capacity, reprice an occupied slot, replace the GBX minter, set emissions, migrate, pause,
+- No authority can change the fixed slot count, reprice an occupied slot, replace the GBX minter, set emissions, migrate, pause,
   rescue, sweep, move Fund assets, or withdraw the liquidity NFT.
 
 ## GBX and Mine
@@ -21,10 +21,12 @@ It is not an independent audit result.
   reciprocal `gbx()` identity matches.
 - Supply reconciles as `lifetimeMinted - lifetimeBurned` and has no protocol-defined economic maximum. GBX retains
   ERC20Permit for approval-based signaling but has no voting checkpoints; SignalGBX is the sole protocol vote token.
-- Capacity begins at one, only increases, and never exceeds sixteen.
+- Mine has exactly sixteen permanent slots from construction.
 - Each slot price decays linearly to zero over one hour. Epoch ID, deadline, and maximum price protect handoffs.
-- A handoff checkpoints every occupied slot. Each receives `elapsed * slot.ups`, and `slot.ups` is never recomputed.
-- The incoming tenure receives `globalUps(totalMinedAfterCheckpoint) / currentCapacity`.
+- A handoff settles only the displaced slot. Each tenure receives `elapsed * slot.tps`, and `slot.tps` is never recomputed.
+- The incoming tenure receives `globalTps(totalMined + pendingEmission) / 16`.
+- `aggregateTps`, `storedPendingEmission`, and `pendingUpdatedAt` make total pending emission and effective supply
+  constant-time without iterating or mutating all slots.
 - Future-handoff global rates halve at immutable cumulative-mining thresholds and stop falling at a positive tail.
 - A nonempty price splits into an 80% displaced-miner pull claim plus a 20% Resonance route. An empty slot routes 100%.
 - Exact USDG balance deltas are required. Mine retains only outstanding claims, and claims cannot be redirected.
@@ -60,8 +62,8 @@ It is not an independent audit result.
 
 ## Fund and liquidity
 
-- Fund is registry-free and ownerless. Before redemption it validates and checkpoints the permanent Mine.
-- Every selected token uses one post-checkpoint, pre-burn supply and raw balance snapshot. The checkpoint, burn, and
+- Fund is registry-free and ownerless. Before redemption it validates the permanent Mine and reads its effective supply.
+- Every selected token uses one effective pre-burn supply and raw balance snapshot. The burn and
   all exact transfers are atomic. Zero, GBX, and duplicates are rejected with EIP-1153 marks. A basket-wide final
   balance check rejects distinct selected addresses whose transfers consume the same snapshotted backing.
 - LiquidityPosition permanently holds one exact hookless GBX/USDG v4 NFT. Harvesting removes zero principal, routes
@@ -70,10 +72,10 @@ It is not an independent audit result.
 ## Release properties
 
 - Foundry and Hardhat compile the same Solidity tree; SDK/subgraph ABIs come from current artifacts.
-- TypeScript and Python independently assert fixed-tenure expansion, future-handoff halvings, 80/20 payments, the
-  no-economic-cap issuance model, checkpointed redemption, qualifying Resonance resets and surplus solvency, and
+- TypeScript and Python independently assert fixed sixteen-slot tenure, future-handoff halvings, 80/20 payments, the
+  no-economic-cap issuance model, effective-supply redemption, qualifying Resonance resets and surplus solvency, and
   boundary-carry Fund routing in Bribe.
-- Foundry separately proves the four-selector Governor filter, sole-proposer Timelock closure, snapshot quorum,
+- Foundry separately proves the three-selector Governor filter, sole-proposer Timelock closure, snapshot quorum,
   coordinator rollback, move semantics, and the accepted absence of queued cancellation.
 - No consumer may display pending Mine accrual as already minted supply or the 80% handoff as guaranteed.
 - A green local campaign does not clear independent audit, parameter, monitored testnet, manifest, licensing, or legal

@@ -8,7 +8,7 @@
 
 > **quoteMiningAccrual**(`input`): [`MiningAccrualQuote`](../interfaces/MiningAccrualQuote.md)
 
-Mirrors checkpointing fixed per-slot tenure rates; thresholds never reprice an occupied slot.
+Quotes fixed per-slot tenure accrual; thresholds never reprice an occupied slot.
 
 ## Parameters
 

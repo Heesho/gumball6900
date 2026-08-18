@@ -5,7 +5,7 @@ import {
   ABS_MAX_AUCTION_INIT_PRICE,
   ABS_MIN_AUCTION_INIT_PRICE,
   GENESIS_LIQUIDITY_ALLOCATION,
-  MAX_MINE_CAPACITY,
+  MINE_SLOT_COUNT,
   MAX_AUCTION_EPOCH_PERIOD,
   MAX_AUCTION_PRICE_MULTIPLIER,
   MINE_PRICE_DECAY_PERIOD,
@@ -48,10 +48,10 @@ describe('integer helpers', () => {
 });
 
 describe('multislot mining economics', () => {
-  it('pins genesis, hourly decay, and capacity constants', () => {
+  it('pins genesis, hourly decay, and fixed slot constants', () => {
     expect(GENESIS_LIQUIDITY_ALLOCATION).toBe(token(20_000_000n));
     expect(MINE_PRICE_DECAY_PERIOD).toBe(3_600n);
-    expect(MAX_MINE_CAPACITY).toBe(16n);
+    expect(MINE_SLOT_COUNT).toBe(16n);
   });
 
   it('quotes the exact linear replacement price', () => {
@@ -69,13 +69,13 @@ describe('multislot mining economics', () => {
     expect(quoteMiningPayment(1_000_000n, false).resonanceAmount).toBe(1_000_000n);
   });
 
-  it('keeps tenure rates fixed when capacity grows', () => {
-    const quote = quoteMiningAccrual({ elapsedSeconds: 100n, slotUps: [4n, 2n] });
+  it('accrues independent tenure-locked TPS exactly', () => {
+    const quote = quoteMiningAccrual({ elapsedSeconds: 100n, slotTps: [4n, 2n] });
     expect(quote).toEqual({ slotEmissions: [400n, 200n], totalEmission: 600n });
   });
 
   it('applies halvings only when a slot is next assigned', () => {
-    const curve = { halvingAmount: 1_000n, initialUps: 10n, tailUps: 1n };
+    const curve = { halvingAmount: 1_000n, initialTps: 10n, tailTps: 1n };
     expect(miningRateAt(999n, curve)).toBe(10n);
     expect(miningRateAt(1_000n, curve)).toBe(5n);
     expect(miningRateAt(1_500n, curve)).toBe(2n);

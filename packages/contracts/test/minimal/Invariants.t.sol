@@ -336,23 +336,24 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         assertEq(mine.effectiveTotalSupply(), gbx.totalSupply() + mine.pendingEmission());
     }
 
-    /// @notice Capacity is bounded and every miner's tenure rate stays within the initial global rate.
-    function invariant_MiningCapacityAndRatesStayBounded() external view {
-        uint256 capacity = mine.capacity();
-        assertGe(capacity, 1);
-        assertLe(capacity, mine.MAX_CAPACITY());
+    /// @notice Cached mining totals exactly equal a naïve traversal of all fixed slots in every reached state.
+    function invariant_MiningPendingAndTpsCachesMatchEverySlot() external view {
+        assertEq(mine.SLOT_COUNT(), 16);
 
-        uint256 combinedUps;
-        for (uint256 i; i < capacity; ++i) {
+        uint256 naivePending;
+        uint256 combinedTps;
+        for (uint256 i; i < mine.SLOT_COUNT(); ++i) {
             Mine.Slot memory slot = mine.getSlot(i);
             assertLe(mine.price(i), slot.initialPrice);
             assertLe(slot.lastAccruedAt, block.timestamp);
-            if (slot.miner == address(0)) assertEq(slot.ups, 0);
-            assertLe(slot.ups, mine.initialUps());
-            combinedUps += slot.ups;
+            if (slot.miner == address(0)) assertEq(slot.tps, 0);
+            assertLe(slot.tps, mine.initialTps());
+            combinedTps += slot.tps;
+            naivePending += mine.pendingEmission(i);
         }
-        assertLe(combinedUps, mine.initialUps() * capacity);
-        assertGe(mine.nextGlobalUps(), mine.tailUps());
+        assertEq(combinedTps, mine.aggregateTps());
+        assertEq(naivePending, mine.pendingEmission());
+        assertGe(mine.nextGlobalTps(), mine.tailTps());
         assertLe(mine.totalMined(), gbx.lifetimeMinted() - gbx.GENESIS_LIQUIDITY_ALLOCATION());
     }
 
@@ -360,7 +361,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @dev Invariants are also evaluated once before the first call, so this cannot assert nonzero counts.
     ///      `test_EveryHandlerActionIsReachable` carries that assertion instead.
     function invariant_CallSummary() external view {
-        string[22] memory actions = _actionNames();
+        string[20] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             console.log(actions[i], handler.ghostCalls(bytes32(bytes(actions[i]))));
         }
@@ -385,9 +386,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.mine(0, 0);
         vm.warp(block.timestamp + 30 minutes);
         handler.mine(1, 0);
-        handler.checkpointMining();
         handler.claimMiningPayment(0);
-        handler.increaseMiningCapacity(2);
         handler.donateRevenue(50_000e6);
         handler.donateDirectRevenue(1);
         handler.distributeAll();
@@ -412,7 +411,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.killStrategy(0);
         handler.withdrawDefault(0, type(uint256).max);
 
-        string[22] memory actions = _actionNames();
+        string[20] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             assertGt(
                 handler.ghostCalls(bytes32(bytes(actions[i]))),
@@ -430,7 +429,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         }
     }
 
-    function _actionNames() private pure returns (string[22] memory actions) {
+    function _actionNames() private pure returns (string[20] memory actions) {
         return [
             "signalDefault",
             "withdrawDefault",
@@ -448,9 +447,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             "payFixedLiabilities",
             "payFundLiabilities",
             "notifyBribeLiabilities",
-            "checkpointMining",
             "claimMiningPayment",
-            "increaseMiningCapacity",
             "redeem",
             "burnFundGBX",
             "killStrategy"

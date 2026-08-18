@@ -23,7 +23,7 @@ contract CampaignHarnessTest is Test {
         assertEq(campaign.strategyCount(), 3);
         assertEq(campaign.gbx().minter(), address(campaign.mineContract()));
         assertTrue(campaign.gbx().minterLocked());
-        assertEq(campaign.mineContract().capacity(), 1);
+        assertEq(campaign.mineContract().SLOT_COUNT(), 16);
         assertEq(campaign.signalGBX().resonance(), address(campaign.resonance()));
         assertEq(campaign.resonance().resonanceRouter(), address(campaign.resonanceRouter()));
         assertEq(campaign.bribeFactory().resonance(), address(campaign.resonance()));
@@ -67,10 +67,9 @@ contract CampaignHarnessTest is Test {
         _assertAllProperties();
 
         campaign.claimMiningPayment(1);
-        campaign.checkpointMining();
+        vm.warp(block.timestamp + 1 hours);
+        campaign.mine(2, 0);
         assertGt(campaign.gbx().balanceOf(address(campaign.actors(2))), 0, "emission must actually mint");
-        campaign.increaseMiningCapacity(2);
-        assertGt(campaign.mineContract().capacity(), 1, "capacity must actually increase");
         _assertAllProperties();
 
         vm.warp(block.timestamp + 8 days);

@@ -6,16 +6,16 @@
 
 # Function: miningRateAt()
 
-> **miningRateAt**(`totalMined`, `config`): `bigint`
+> **miningRateAt**(`economicallyMined`, `config`): `bigint`
 
-Returns the global rate assigned at the next handoff, before dividing it by current capacity.
+Returns the global TPS assigned at the next handoff, before dividing it across sixteen fixed slots.
 
 ## Parameters
 
-| Parameter    | Type                                                      |
-| ------------ | --------------------------------------------------------- |
-| `totalMined` | `bigint`                                                  |
-| `config`     | [`MiningCurveConfig`](../interfaces/MiningCurveConfig.md) |
+| Parameter           | Type                                                      |
+| ------------------- | --------------------------------------------------------- |
+| `economicallyMined` | `bigint`                                                  |
+| `config`            | [`MiningCurveConfig`](../interfaces/MiningCurveConfig.md) |
 
 ## Returns
 

@@ -11,19 +11,18 @@ def test_hourly_price_and_payment_split() -> None:
     }
 
 
-def test_capacity_expansion_does_not_dilute_incumbent() -> None:
-    capacity = compute()["mining"]["capacityExpansion"]
-    assert capacity["incumbentRateAfterExpansionPerHour"] == capacity["incumbentRatePerHour"]
-    assert capacity["aggregateOneHourEmission"] > capacity["undividedGlobalRatePerHour"]
+def test_halving_does_not_reprice_incumbent_slot() -> None:
+    slots = compute()["mining"]["staggeredFixedSlots"]
+    assert slots["incumbentRateAfterHalvingPerHour"] == slots["incumbentRatePerHour"]
+    assert slots["newTenureRatePerHour"] < slots["incumbentRatePerHour"]
 
 
-def test_sequential_expansion_quantifies_the_max_capacity_transition() -> None:
-    expansion = compute()["mining"]["sequentialExpansionToCap"]
-    assert expansion["capacity"] == 16
-    assert len(expansion["assignedRatesPerHour"]) == 16
-    assert expansion["assignedRatesPerHour"][0] == 100 * 10**18
-    assert expansion["assignedRatesPerHour"][-1] == 100 * 10**18 // 16
-    assert expansion["aggregateBpsOfUndividedRate"] == 33_807
+def test_sixteen_equal_slot_rates_reconstruct_global_tps() -> None:
+    filled = compute()["mining"]["allSlotsBeforeHalving"]
+    assert filled["slotCount"] == 16
+    assert len(filled["assignedRatesPerHour"]) == 16
+    assert filled["assignedRatesPerHour"][0] == 100 * 10**18 // 16
+    assert filled["aggregateBpsOfGlobalRate"] == 10_000
 
 
 def test_strategy_payment_split_is_frequency_independent() -> None:
@@ -37,8 +36,8 @@ def test_strategy_payment_split_is_frequency_independent() -> None:
 def test_redemption_and_supply_accounting() -> None:
     suite = compute()
     redemption = suite["redemption"]
-    assert redemption["denominatorAfterCheckpoint"] == (
-        redemption["supplyBeforeCheckpoint"] + redemption["pendingMining"]
+    assert redemption["effectiveSupplyBeforeBurn"] == (
+        redemption["mintedSupplyBefore"] + redemption["pendingMining"]
     )
     supply = suite["supply"]
     assert supply["maximumSupply"] is None

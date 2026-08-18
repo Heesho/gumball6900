@@ -87,7 +87,7 @@ abstract contract ProtocolFixture is Test {
         resonanceRouter = new ResonanceRouter(IERC20(address(usdg)), address(resonance));
         resonance.setResonanceRouter(address(resonanceRouter));
 
-        mine = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), address(this), defaultMineConfig());
+        mine = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), defaultMineConfig());
         gbx.setMinter(address(mine));
 
         (address targetStrategyAddress, address targetBribeAddress, address targetRouterAddress) =
@@ -128,9 +128,9 @@ abstract contract ProtocolFixture is Test {
         return Mine.Config({
             priceMultiplier: 2e18,
             minimumInitialPrice: 1e6,
-            initialUps: 4 ether,
+            initialTps: 4 ether,
             halvingAmount: 490_000_000 ether,
-            tailUps: 0.01 ether
+            tailTps: 0.01 ether
         });
     }
 

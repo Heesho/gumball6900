@@ -219,7 +219,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
     function mine(uint256 actorSeed, uint256 slotSeed) external {
         address actor = _actor(actorSeed);
-        uint256 index = _bound(slotSeed, 0, mineContract.capacity() - 1);
+        uint256 index = _bound(slotSeed, 0, mineContract.SLOT_COUNT() - 1);
         Mine.Slot memory slot = mineContract.getSlot(index);
         uint256 payment = mineContract.price(index);
         if (payment != 0) _mintUSDG(actor, payment);
@@ -353,29 +353,12 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
                             MINING ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function checkpointMining() external {
-        mineContract.checkpointAll();
-        ghostCalls["checkpointMining"] += 1;
-    }
-
     function claimMiningPayment(uint256 actorSeed) external {
         address actor = _actor(actorSeed);
         if (mineContract.claimable(actor) == 0) return;
 
         mineContract.claim(actor);
         ghostCalls["claimMiningPayment"] += 1;
-    }
-
-    function increaseMiningCapacity(uint256 capacitySeed) external {
-        uint256 current = mineContract.capacity();
-        uint256 maximum = mineContract.MAX_CAPACITY();
-        if (current == maximum) return;
-
-        uint256 next = _bound(capacitySeed, current + 1, maximum);
-        vm.prank(mineContract.owner());
-        mineContract.increaseCapacity(next);
-
-        ghostCalls["increaseMiningCapacity"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////

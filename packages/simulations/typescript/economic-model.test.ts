@@ -34,27 +34,20 @@ describe('multislot Mine economic suite', () => {
     expect(replacement.resonance).toBe('200000');
   });
 
-  it('keeps an incumbent rate fixed when capacity expands', () => {
-    const capacity = row(row(row(loadTypeScriptEconomicSuite()).mining).capacityExpansion);
-    expect(capacity.capacityBefore).toBe('1');
-    expect(capacity.capacityAfter).toBe('3');
-    expect(capacity.incumbentRateAfterExpansionPerHour).toBe(capacity.incumbentRatePerHour);
-    expect(integer(capacity.aggregateOneHourEmission)).toBeGreaterThan(integer(capacity.undividedGlobalRatePerHour));
-    expect(list(capacity.oneHourEmissions)).toEqual([
-      '100000000000000000000',
-      '33333333333333333333',
-      '33333333333333333333',
-    ]);
+  it('keeps an incumbent TPS fixed when later tenures receive a halved TPS', () => {
+    const slots = row(row(row(loadTypeScriptEconomicSuite()).mining).staggeredFixedSlots);
+    expect(slots.incumbentRateAfterHalvingPerHour).toBe(slots.incumbentRatePerHour);
+    expect(list(slots.oneHourEmissions)).toEqual(['6250000000000000000', '3125000000000000000', '3125000000000000000']);
   });
 
-  it('quantifies sequential tenure-rate accumulation through the capacity cap', () => {
-    const expansion = row(row(row(loadTypeScriptEconomicSuite()).mining).sequentialExpansionToCap);
-    const rates = list(expansion.assignedRatesPerHour);
-    expect(expansion.capacity).toBe('16');
+  it('reconstructs the global TPS when all sixteen slots share one generation', () => {
+    const filled = row(row(row(loadTypeScriptEconomicSuite()).mining).allSlotsBeforeHalving);
+    const rates = list(filled.assignedRatesPerHour);
+    expect(filled.slotCount).toBe('16');
     expect(rates).toHaveLength(16);
-    expect(rates[0]).toBe('100000000000000000000');
+    expect(rates[0]).toBe('6250000000000000000');
     expect(rates[15]).toBe('6250000000000000000');
-    expect(expansion.aggregateBpsOfUndividedRate).toBe('33807');
+    expect(filled.aggregateBpsOfGlobalRate).toBe('10000');
   });
 
   it('classifies tiny Strategy payments with the same cumulative 90/10 result as one payment', () => {
@@ -72,18 +65,18 @@ describe('multislot Mine economic suite', () => {
   it('applies a lower rate only at a later slot handoff and preserves a positive tail', () => {
     const mining = row(row(loadTypeScriptEconomicSuite()).mining);
     const halving = row(mining.handoffHalving);
-    expect(halving.incumbentRateAfterThreshold).toBe(halving.globalRateBefore);
-    expect(integer(halving.nextReplacementRateAtCapacityThree)).toBeLessThan(integer(halving.globalRateBefore));
+    expect(integer(halving.incumbentSlotRateAfterThreshold)).toBeGreaterThan(integer(halving.nextReplacementSlotRate));
+    expect(integer(halving.aggregateLockedSixteenSlots)).toBeGreaterThan(integer(halving.globalRateAfter));
     const tail = row(mining.infiniteTail);
     expect(integer(tail.annualTailEmission)).toBeGreaterThan(0n);
   });
 
-  it('checkpoints pending mining before the redemption denominator', () => {
+  it('includes cached pending mining in the redemption denominator without checkpointing', () => {
     const redemption = row(row(loadTypeScriptEconomicSuite()).redemption);
-    expect(integer(redemption.denominatorAfterCheckpoint)).toBe(
-      integer(redemption.supplyBeforeCheckpoint) + integer(redemption.pendingMining),
+    expect(integer(redemption.effectiveSupplyBeforeBurn)).toBe(
+      integer(redemption.mintedSupplyBefore) + integer(redemption.pendingMining),
     );
-    expect(integer(redemption.payoutWithCheckpointRaw)).toBeLessThan(integer(redemption.payoutWithoutCheckpointRaw));
+    expect(integer(redemption.payoutWithEffectiveSupplyRaw)).toBeLessThan(integer(redemption.payoutIgnoringPendingRaw));
   });
 
   it('reconciles cumulative issuance and burns without a maximum supply', () => {

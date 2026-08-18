@@ -109,15 +109,15 @@ flowchart LR
 | `Bribe`             | Streams up to eight reward tokens to a Strategy's signalers.                          |
 | `Fund`              | Ownerless treasury; redemption and GBX burning are its only exits.                    |
 | `LiquidityPosition` | Permanently holds the GBX/USDG v4 position; fees harvestable by anyone.               |
-| `ProtocolGovernor`  | Admits only four exact zero-value calls, executed through a Timelock.                 |
+| `ProtocolGovernor`  | Admits only three exact zero-value Resonance calls through a Timelock.                |
 
 ## What governance can change
 
-Four things: add a Strategy, retire a Strategy, register a Bribe reward token, and increase mine capacity
-(increase-only, hard cap 16). Proposals are filtered by target, selector, and calldata length before creation. The
+Three things: add a Strategy, retire a Strategy, and register a Bribe reward token. Proposals are filtered by target,
+selector, and calldata length before creation. The
 **final live Strategy cannot be retired** — a replacement must be added first — so a valid signal destination always
 exists. Governance cannot touch mining rates, the 90/10 split, mint authority, Fund assets, liquidity custody, the
-auction mechanism, or its own voting parameters.
+auction mechanism, fixed sixteen-slot count, or its own voting parameters.
 
 ## Key risks
 

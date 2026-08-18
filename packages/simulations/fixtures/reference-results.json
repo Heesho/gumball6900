@@ -1,29 +1,29 @@
 {
-  "schemaVersion": "7",
+  "schemaVersion": "8",
   "usdGDecimals": "6",
   "targetDecimals": "18",
   "infiniteSupply": true,
   "genesisLiquidityAllocation": "20000000000000000000000000",
   "miningQuotes": [
     {
-      "id": "incumbent-before-expansion",
+      "id": "incumbent-before-halving",
       "price": "1000000",
       "previousMinerAmount": "800000",
       "resonanceAmount": "200000",
-      "slotEmissions": ["360000000000000000000000"],
-      "totalEmission": "360000000000000000000000",
-      "nextGlobalUps": "100000000000000000000",
-      "nextSlotUps": "100000000000000000000"
+      "slotEmissions": ["22500000000000000000000"],
+      "totalEmission": "22500000000000000000000",
+      "nextGlobalTps": "100000000000000000000",
+      "nextSlotTps": "6250000000000000000"
     },
     {
-      "id": "protected-capacity-expansion",
+      "id": "protected-staggered-halving",
       "price": "0",
       "previousMinerAmount": "0",
       "resonanceAmount": "0",
-      "slotEmissions": ["360000000000000000000000", "119999999999999999998800", "119999999999999999998800"],
-      "totalEmission": "599999999999999999997600",
-      "nextGlobalUps": "50000000000000000000",
-      "nextSlotUps": "16666666666666666666"
+      "slotEmissions": ["22500000000000000000000", "11250000000000000000000", "11250000000000000000000"],
+      "totalEmission": "45000000000000000000000",
+      "nextGlobalTps": "50000000000000000000",
+      "nextSlotTps": "3125000000000000000"
     }
   ],
   "auctionQuotes": [
@@ -50,7 +50,7 @@
   ],
   "redemptionQuotes": [
     {
-      "id": "checkpointed-ten-percent-basket",
+      "id": "effective-supply-ten-percent-basket",
       "percentageWad": "99009900990099009",
       "outputs": [
         {

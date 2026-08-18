@@ -25,7 +25,7 @@ This local campaign is not an independent audit or proof of safety. The followin
 8. Reward and payment tokens are governance-reviewed but externally implemented. Exact-delta checks fail closed for
    fee, surcharge, rebasing, shared-ledger, and callback anomalies; a broken token can still delay its own fixed claim.
 9. SignalGBX voting power is liquid: a holder can move or withdraw after a proposal snapshot. Governor delay, period,
-   threshold, quorum, timelock, and four-selector restriction bound the consequence but do not remove governance-market
+   threshold, quorum, timelock, and three-selector restriction bound the consequence but do not remove governance-market
    capture or voting-power rental risk.
 10. No mainnet fork, deployment receipt, live role state, legal clearance, signed manifest, or independent review was
     produced. The tree is suitable for independent review, not release authorization.

@@ -5,23 +5,23 @@
 
 ## Primary risks
 
-- SignalGBX governance can authorize only four exact zero-value calls through the selector-bounded ProtocolGovernor and
-  Timelock. A voting-power capture can misuse Strategy addition, Strategy death, Bribe reward registration, or
-  increase-only Mine capacity, but cannot reach another target or selector. Fund and LiquidityPosition are ownerless.
+- SignalGBX governance can authorize only three exact zero-value Resonance calls through the selector-bounded
+  ProtocolGovernor and Timelock. A voting-power capture can misuse Strategy addition, Strategy death, or Bribe reward
+  registration, but cannot reach another target or selector. Mine, Fund, and LiquidityPosition are ownerless.
 - SignalGBX uses historical block-number snapshots. A holder may acquire and signal GBX before the snapshot, then
   withdraw every signal after the snapshot while retaining that proposal's voting weight. Governance does not create
   a signal withdrawal lock, and low signaled supply lowers the absolute quorum represented by a fixed quorum percentage.
 - Once a successful proposal is queued, no multisig, guardian, or Governor caller can cancel it. The Timelock delay is
   an observation and exit window, not an emergency veto. Incorrect immutable voting parameters or role setup cannot be
   repaired.
-- A capacity increase can temporarily raise aggregate GBX issuance above the current global rate because incumbents
-  keep their fixed tenure rates while new slots receive divided rates. This is an accepted fairness tradeoff.
+- A halving can temporarily leave aggregate GBX issuance above the new global rate because incumbents keep their fixed
+  tenure TPS while new tenures receive the lower rate. This is an accepted fairness tradeoff.
 - Miners face rollover risk: without a replacement, an incumbent continues earning GBX but never receives the 80%
   handoff claim. A replacement can also occur at zero USDG after the hourly price reaches zero.
-- Accrued Mine rewards are unminted until checkpointed. Fund checkpoints atomically before redemption, but ordinary
+- Accrued Mine rewards are unminted until the individual slot is replaced. Fund includes cached pending emission in its
+  effective-supply denominator without checkpointing, but ordinary
   wallet and indexer supply displays must distinguish minted supply from effective supply.
-- Mine handoffs and redemptions checkpoint up to sixteen slots. The loop is bounded, but gas rises linearly with
-  capacity and a failure in any required GBX mint reverts the whole operation.
+- Mine handoffs settle only the selected slot and redemptions perform no Mine mutation or slot loop.
 - Unrestricted signaling permits rapid allocation movement and wallet-splitting; it deliberately provides no
   epoch-level stability or anti-churn guarantee. Elapsed revenue is checkpointed before each weight change, so a
   same-block flash signal earns no newly notified USDG, but a signal held over real time earns that interval's flow.

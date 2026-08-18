@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="500" viewBox="0 0 840 500" role="img">
   <rect width="840" height="500" rx="18" fill="#0b0d12"/>
   <text x="42" y="46" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="24" font-weight="700">Pending mining belongs in redemption supply</text>
-  <text x="42" y="72" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="13">Fund checkpoints every live slot before taking the common pre-burn denominator</text>
+  <text x="42" y="72" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="13">Fund reads minted supply plus the constant-time pending accumulator; no mining checkpoint is called</text>
   <line x1="78" y1="410" x2="798" y2="410" stroke="#394150"/>
   <rect x="260" y="130" width="120" height="280" rx="8" fill="#697586"/>
   <rect x="480" y="133" width="120" height="277" rx="8" fill="#f7c948"/>

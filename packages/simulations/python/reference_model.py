@@ -18,10 +18,10 @@ def mining_price(initial: int, elapsed: int) -> int:
     return 0 if elapsed >= 3_600 else initial - mul_div(initial, elapsed, 3_600)
 
 
-def mining_rate(total_mined: int, initial: int, halving: int, tail: int) -> int:
+def mining_rate(economically_mined: int, initial: int, halving: int, tail: int) -> int:
     halvings = 0
     threshold = halving
-    while total_mined >= threshold:
+    while economically_mined >= threshold:
         halvings += 1
         shifted = initial >> halvings
         if shifted <= tail:
@@ -49,12 +49,12 @@ def compute(scenarios: dict[str, Any]) -> dict[str, Any]:
         payment = int(case["payment"])
         previous = mul_div(payment, 8_000, 10_000) if case["hasPreviousMiner"] else 0
         seconds = int(case["accrualSeconds"])
-        emissions = [int(rate) * seconds for rate in case["slotUps"]]
+        emissions = [int(rate) * seconds for rate in case["slotTps"]]
         next_global = mining_rate(
-            int(case["totalMined"]),
-            int(case["initialUps"]),
+            int(case["economicallyMined"]),
+            int(case["initialTps"]),
             int(case["halvingAmount"]),
-            int(case["tailUps"]),
+            int(case["tailTps"]),
         )
         mining_quotes.append(
             {
@@ -64,8 +64,8 @@ def compute(scenarios: dict[str, Any]) -> dict[str, Any]:
                 "resonanceAmount": str(payment - previous),
                 "slotEmissions": [str(value) for value in emissions],
                 "totalEmission": str(sum(emissions)),
-                "nextGlobalUps": str(next_global),
-                "nextSlotUps": str(next_global // int(case["capacity"])),
+                "nextGlobalTps": str(next_global),
+                "nextSlotTps": str(next_global // 16),
             }
         )
 

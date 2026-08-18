@@ -129,13 +129,12 @@ contract ProtocolStateMachineCampaign {
             gbx,
             IERC20(address(usdg)),
             address(resonanceRouter),
-            address(this),
             Mine.Config({
                 priceMultiplier: 2e18,
                 minimumInitialPrice: 1e6,
-                initialUps: 4 ether,
+                initialTps: 4 ether,
                 halvingAmount: 490_000_000 ether,
-                tailUps: 0.01 ether
+                tailTps: 0.01 ether
             })
         );
         gbx.setMinter(address(mineContract));
@@ -264,7 +263,7 @@ contract ProtocolStateMachineCampaign {
 
     function mine(uint8 actorSeed, uint8 slotSeed) external {
         CampaignActor actor = _actor(actorSeed);
-        uint256 index = uint256(slotSeed) % mineContract.capacity();
+        uint256 index = uint256(slotSeed) % mineContract.SLOT_COUNT();
         Mine.Slot memory slot = mineContract.getSlot(index);
         uint256 payment = mineContract.price(index);
         if (payment != 0) {
@@ -363,22 +362,10 @@ contract ProtocolStateMachineCampaign {
         }
     }
 
-    function checkpointMining() external {
-        mineContract.checkpointAll();
-        _recordRevenueIndex();
-    }
-
     function claimMiningPayment(uint8 actorSeed) external {
         CampaignActor actor = _actor(actorSeed);
         if (mineContract.claimable(address(actor)) == 0) revert("NOTHING_TO_CLAIM");
         mineContract.claim(address(actor));
-    }
-
-    function increaseMiningCapacity(uint8 capacitySeed) external {
-        uint256 current = mineContract.capacity();
-        if (current == mineContract.MAX_CAPACITY()) revert("MAX_CAPACITY");
-        mineContract.increaseCapacity(_clamp(capacitySeed, current + 1, mineContract.MAX_CAPACITY()));
-        _recordRevenueIndex();
     }
 
     function redeem(uint8 actorSeed, uint96 amount, bool includePaymentAsset) external {
@@ -644,23 +631,25 @@ contract ProtocolStateMachineCampaign {
         return gbx.balanceOf(strategies[1]) == 0;
     }
 
-    /// @notice Mining capacity, slot rates, and USDG liabilities remain bounded and solvent.
+    /// @notice Fixed-slot TPS caches and USDG liabilities remain exact and solvent.
     function echidna_miningAccountingStaysBoundedAndSolvent() public view returns (bool holds) {
-        uint256 slotCount = mineContract.capacity();
-        if (slotCount == 0 || slotCount > mineContract.MAX_CAPACITY()) return false;
+        uint256 slotCount = mineContract.SLOT_COUNT();
+        if (slotCount != 16) return false;
         if (usdg.balanceOf(address(mineContract)) != mineContract.totalClaimable()) return false;
 
-        uint256 combinedUps;
+        uint256 combinedTps;
+        uint256 naivePending;
         for (uint256 i; i < slotCount; ++i) {
             Mine.Slot memory slot = mineContract.getSlot(i);
-            if (slot.miner == address(0) && slot.ups != 0) return false;
+            if (slot.miner == address(0) && slot.tps != 0) return false;
             if (mineContract.price(i) > slot.initialPrice) return false;
-            if (slot.ups > mineContract.initialUps()) return false;
-            combinedUps += slot.ups;
+            if (slot.tps > mineContract.initialTps()) return false;
+            combinedTps += slot.tps;
+            naivePending += mineContract.pendingEmission(i);
         }
         return
-            combinedUps <= mineContract.initialUps() * slotCount
-                && mineContract.nextGlobalUps() >= mineContract.tailUps();
+            combinedTps == mineContract.aggregateTps() && naivePending == mineContract.pendingEmission()
+                && mineContract.nextGlobalTps() >= mineContract.tailTps();
     }
 
     /// @notice USDG is only ever moved between accounts, never created or destroyed by the protocol.

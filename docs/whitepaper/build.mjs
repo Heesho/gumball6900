@@ -388,7 +388,7 @@ async function main() {
 
   const facts = verifyProtocolFacts();
   console.log(
-    `facts     ${facts.checks} cross-checks pass · ${facts.genesisLiquidityTokens.toLocaleString('en-US')} genesis GBX · ${facts.maxCapacity} slot hard cap`,
+    `facts     ${facts.checks} cross-checks pass · ${facts.genesisLiquidityTokens.toLocaleString('en-US')} genesis GBX · ${facts.slotCount} fixed slots`,
   );
 
   const contrast = assertContrast();

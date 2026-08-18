@@ -1,7 +1,7 @@
 # ADR 0024: Immutable multislot Mine with tenure-locked rates
 
-- Status: accepted for development; GBX ERC20Votes statement superseded by ADR 0030; not approved for deployment or
-  user funds
+- Status: superseded in part by ADR 0033 and in its GBX ERC20Votes statement by ADR 0030; not approved for deployment
+  or user funds
 - Date: 2026-08-12
 - Supersedes: ADR 0023 and the Fundraiser/supply portions of ADR 0014
 

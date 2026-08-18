@@ -9,19 +9,18 @@ import { GovernorVotes } from "@openzeppelin/contracts/governance/extensions/Gov
 import { IVotes } from "@openzeppelin/contracts/governance/utils/IVotes.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import { Mine } from "../core/Mine.sol";
 import { Resonance } from "../core/Resonance.sol";
 
 /// @title GumBall6900 Protocol Governor
 /// @author Heesho
-/// @notice Lets SignalGBX voting power operate the protocol's four bounded maintenance actions through a Timelock.
-/// @dev Proposals may contain only zero-value calls to Resonance.addStrategy, Resonance.killStrategy,
-///      Resonance.addBribeReward, or Mine.increaseCapacity at the immutable target addresses. Voting parameters,
-///      quorum, targets, and Timelock dependency are fixed at construction. Deployment must make this Governor the
-///      Timelock's sole proposer and sole CANCELLER_ROLE holder, open execution, and transfer Resonance and Mine
-///      ownership to the Timelock. Standard Governor cancellation remains proposer-only while Pending, so there is
-///      deliberately no guardian or queued-proposal veto.
-/// @custom:version 1.0.0
+/// @notice Lets SignalGBX voting power operate the protocol's three bounded maintenance actions through a Timelock.
+/// @dev Proposals may contain only zero-value calls to Resonance.addStrategy, Resonance.killStrategy, or
+///      Resonance.addBribeReward at the immutable Resonance address. Voting parameters, quorum, target, and Timelock
+///      dependency are fixed at construction. Deployment must make this Governor the Timelock's sole proposer and
+///      sole CANCELLER_ROLE holder, open execution, and transfer Resonance ownership to the Timelock. Standard
+///      Governor cancellation remains proposer-only while Pending, so there is deliberately no guardian or queued
+///      proposal veto.
+/// @custom:version 1.1.0
 contract ProtocolGovernor is Governor, GovernorCountingSimple, GovernorVotes, GovernorTimelockControl {
     uint256 private constant QUORUM_DENOMINATOR = 100;
     uint256 private constant ONE_ARGUMENT_CALLDATA_LENGTH = 4 + 32;
@@ -30,9 +29,6 @@ contract ProtocolGovernor is Governor, GovernorCountingSimple, GovernorVotes, Go
 
     /// @notice The sole Resonance whose bounded maintenance calls may be proposed.
     Resonance public immutable resonance;
-    /// @notice The sole Mine whose bounded capacity increase may be proposed.
-    Mine public immutable mine;
-
     uint48 private immutable _votingDelayBlocks;
     uint32 private immutable _votingPeriodBlocks;
     uint256 private immutable _proposalThresholdVotes;
@@ -42,16 +38,15 @@ contract ProtocolGovernor is Governor, GovernorCountingSimple, GovernorVotes, Go
     error InvalidDependency(address dependency);
     /// @notice Raised when an immutable voting parameter is outside its valid range.
     error InvalidGovernanceParameter();
-    /// @notice Raised when a proposal contains anything outside the four permitted protocol calls.
+    /// @notice Raised when a proposal contains anything outside the three permitted protocol calls.
     error UnsupportedProposalCall(address target, uint256 value, bytes4 selector, uint256 calldataLength);
     /// @notice Raised when a caller reaches an inherited generic governance mutation disabled by this contract.
     error ImmutableGovernanceSurface();
 
     /// @notice Creates a selector-bounded Governor using deployed SignalGBX vote checkpoints.
     /// @param votingToken SignalGBX contract used as the immutable IVotes source.
-    /// @param timelockController Timelock that will own Resonance and Mine.
+    /// @param timelockController Timelock that will own Resonance.
     /// @param resonance_ Immutable Resonance maintenance target.
-    /// @param mine_ Immutable Mine maintenance target.
     /// @param votingDelayBlocks Delay from proposal creation to snapshot in SignalGBX clock blocks.
     /// @param votingPeriodBlocks Voting duration in SignalGBX clock blocks.
     /// @param proposalThresholdVotes Historical SignalGBX votes required to submit a proposal.
@@ -60,7 +55,6 @@ contract ProtocolGovernor is Governor, GovernorCountingSimple, GovernorVotes, Go
         IVotes votingToken,
         TimelockController timelockController,
         Resonance resonance_,
-        Mine mine_,
         uint48 votingDelayBlocks,
         uint32 votingPeriodBlocks,
         uint256 proposalThresholdVotes,
@@ -70,7 +64,6 @@ contract ProtocolGovernor is Governor, GovernorCountingSimple, GovernorVotes, Go
             address(votingToken) == address(0) || address(votingToken).code.length == 0
                 || address(timelockController) == address(0) || address(timelockController).code.length == 0
                 || address(resonance_) == address(0) || address(resonance_).code.length == 0
-                || address(mine_) == address(0) || address(mine_).code.length == 0
         ) revert InvalidDependency(address(0));
         if (address(resonance_.signalGBX()) != address(votingToken)) {
             revert InvalidDependency(address(votingToken));
@@ -80,7 +73,6 @@ contract ProtocolGovernor is Governor, GovernorCountingSimple, GovernorVotes, Go
         }
 
         resonance = resonance_;
-        mine = mine_;
         _votingDelayBlocks = votingDelayBlocks;
         _votingPeriodBlocks = votingPeriodBlocks;
         _proposalThresholdVotes = proposalThresholdVotes;
@@ -117,7 +109,7 @@ contract ProtocolGovernor is Governor, GovernorCountingSimple, GovernorVotes, Go
         return Math.mulDiv(token().getPastTotalSupply(timepoint), _quorumNumerator, QUORUM_DENOMINATOR);
     }
 
-    /// @dev Rejects every proposal target except the four exact protocol maintenance calls.
+    /// @dev Rejects every proposal target except the three exact Resonance maintenance calls.
     function _propose(
         address[] memory targets,
         uint256[] memory values,
@@ -144,9 +136,7 @@ contract ProtocolGovernor is Governor, GovernorCountingSimple, GovernorVotes, Go
                     || (selector == Resonance.killStrategy.selector && payload.length == ONE_ARGUMENT_CALLDATA_LENGTH)
                     || (selector == Resonance.addBribeReward.selector
                         && payload.length == TWO_ARGUMENT_CALLDATA_LENGTH));
-            bool validMineCall = targets[i] == address(mine) && selector == Mine.increaseCapacity.selector
-                && payload.length == ONE_ARGUMENT_CALLDATA_LENGTH;
-            if (values[i] != 0 || (!validResonanceCall && !validMineCall)) {
+            if (values[i] != 0 || !validResonanceCall) {
                 revert UnsupportedProposalCall(targets[i], values[i], selector, payload.length);
             }
         }
@@ -172,7 +162,7 @@ contract ProtocolGovernor is Governor, GovernorCountingSimple, GovernorVotes, Go
         return super.execute(targets, values, calldatas, descriptionHash);
     }
 
-    /// @dev Generic Governor relay is incompatible with the immutable four-selector surface.
+    /// @dev Generic Governor relay is incompatible with the immutable three-selector surface.
     function relay(address, uint256, bytes calldata) public payable override {
         revert ImmutableGovernanceSurface();
     }
