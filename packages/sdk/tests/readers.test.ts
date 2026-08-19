@@ -5,8 +5,6 @@ import {
   readBribeRouterView,
   readLiquidityPositionView,
   readMineSlotView,
-  readProtocolGovernorView,
-  readProtocolProposalView,
   readResonanceView,
   readSignalView,
   readStrategyView,
@@ -194,7 +192,7 @@ describe('BribeRouter reads', () => {
   });
 });
 
-describe('SignalGBX and protocol governance reads', () => {
+describe('SignalGBX reads', () => {
   it('reads the canonical fully allocated SignalGBX aggregate and voting state', async () => {
     const values: Readonly<Record<string, unknown>> = {
       balanceOf: 100n,
@@ -214,76 +212,5 @@ describe('SignalGBX and protocol governance reads', () => {
       signalBalance: 100n,
     });
     for (const [request] of readContract.mock.calls) expect(request.blockNumber).toBe(BLOCK_NUMBER);
-  });
-
-  it('reads the fixed Governor graph, parameters, and Timelock delay', async () => {
-    const values: Readonly<Record<string, unknown>> = {
-      getMinDelay: 86_400n,
-      name: 'GumBall6900 Protocol Governor',
-      proposalThreshold: 10n,
-      quorumDenominator: 100n,
-      quorumNumerator: 4n,
-      resonance: address(3),
-      timelock: address(5),
-      token: address(4),
-      votingDelay: 7_200n,
-      votingPeriod: 50_400n,
-    };
-    const readContract = vi.fn(
-      async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
-    );
-    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
-    const client = { getBlock, readContract } as unknown as PublicClient;
-
-    await expect(readProtocolGovernorView(client, address(1))).resolves.toEqual({
-      blockNumber: BLOCK_NUMBER,
-      name: 'GumBall6900 Protocol Governor',
-      proposalThreshold: 10n,
-      quorumDenominator: 100n,
-      quorumNumerator: 4n,
-      resonance: address(3),
-      signalGBX: address(4),
-      timelock: address(5),
-      timelockMinDelay: 86_400n,
-      votingDelay: 7_200n,
-      votingPeriod: 50_400n,
-    });
-  });
-
-  it('reads one proposal lifecycle and snapshot-based vote totals', async () => {
-    const values: Readonly<Record<string, unknown>> = {
-      clock: 778,
-      hasVoted: true,
-      proposalDeadline: 900n,
-      proposalEta: 1_000n,
-      proposalNeedsQueuing: true,
-      proposalProposer: address(2),
-      proposalSnapshot: 700n,
-      proposalVotes: [3n, 20n, 2n],
-      quorum: 15n,
-      state: 1,
-    };
-    const readContract = vi.fn(
-      async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
-    );
-    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
-    const client = { getBlock, readContract } as unknown as PublicClient;
-
-    await expect(readProtocolProposalView(client, address(1), 9n, { voter: address(3) })).resolves.toEqual({
-      abstainVotes: 2n,
-      againstVotes: 3n,
-      blockNumber: BLOCK_NUMBER,
-      clock: 778n,
-      deadline: 900n,
-      eta: 1_000n,
-      forVotes: 20n,
-      hasVoted: true,
-      needsQueuing: true,
-      proposalId: 9n,
-      proposer: address(2),
-      quorum: 15n,
-      snapshot: 700n,
-      state: 1,
-    });
   });
 });

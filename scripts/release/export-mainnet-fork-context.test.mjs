@@ -582,7 +582,7 @@ function permissionedV2Fixture() {
 test('current fork-context export does not fall back to archived Safe bindings', () => {
   assert.throws(
     () => buildMainnetForkContext(preparedInputs()),
-    /Current ProtocolGovernor deployment\/release tooling is unavailable/,
+    /Current external-governance deployment\/release tooling is unavailable/,
   );
 });
 

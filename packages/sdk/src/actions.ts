@@ -1,4 +1,4 @@
-import { encodeFunctionData, getAddress, isHex, keccak256, toBytes, zeroAddress, type Address, type Hex } from 'viem';
+import { encodeFunctionData, getAddress, zeroAddress, type Address, type Hex } from 'viem';
 
 import {
   bribeAbi,
@@ -7,7 +7,6 @@ import {
   gbxAbi,
   liquidityPositionAbi,
   mineAbi,
-  protocolGovernorAbi,
   signalGbxAbi,
   strategyAbi,
   resonanceAbi,
@@ -22,43 +21,8 @@ export interface ContractTransaction {
   readonly value: 0n;
 }
 
-/** One zero-value call that can be composed into a selector-bounded ProtocolGovernor proposal. */
-export interface ProtocolProposalCall {
-  readonly target: Address;
-  readonly value: 0n;
-  readonly calldata: Hex;
-}
-
-/** OpenZeppelin GovernorCountingSimple vote choices. */
-export type ProtocolVoteSupport = 0 | 1 | 2;
-
 function transaction(to: Address, data: Hex): ContractTransaction {
   return { to: getAddress(to), data, value: 0n };
-}
-
-function proposalCall(target: Address, calldata: Hex): ProtocolProposalCall {
-  return { target: getAddress(target), value: 0n, calldata };
-}
-
-function proposalArguments(calls: readonly ProtocolProposalCall[]): {
-  targets: Address[];
-  values: bigint[];
-  calldatas: Hex[];
-} {
-  if (calls.length === 0) throw new RangeError('calls cannot be empty');
-  const targets: Address[] = [];
-  const values: bigint[] = [];
-  const calldatas: Hex[] = [];
-  for (const [index, call] of calls.entries()) {
-    if (call.value !== 0n) throw new RangeError(`calls[${index}].value must be zero`);
-    if (!isHex(call.calldata, { strict: true }) || call.calldata.length < 10) {
-      throw new RangeError(`calls[${index}].calldata must contain a function selector`);
-    }
-    targets.push(getAddress(call.target));
-    values.push(0n);
-    calldatas.push(call.calldata);
-  }
-  return { targets, values, calldatas };
 }
 
 function uint256(value: bigint, name: string): void {
@@ -274,147 +238,6 @@ export function buildNotifyRevenue(resonance: Address, reward: bigint): Contract
   return transaction(
     resonance,
     encodeFunctionData({ abi: resonanceAbi, functionName: 'notifyRevenue', args: [reward] }),
-  );
-}
-
-export interface ResonanceStrategyConfig {
-  readonly initialPrice: bigint;
-  readonly epochDuration: bigint;
-  readonly priceMultiplier: bigint;
-  readonly minimumPrice: bigint;
-}
-
-/** Encodes Governor-controlled deployment of a Strategy and its bound Bribe graph as a proposal call. */
-export function buildAddStrategyProposalCall(
-  resonance: Address,
-  paymentToken: Address,
-  config: ResonanceStrategyConfig,
-): ProtocolProposalCall {
-  positiveUint256(config.initialPrice, 'initialPrice');
-  positiveUint256(config.epochDuration, 'epochDuration');
-  positiveUint256(config.priceMultiplier, 'priceMultiplier');
-  positiveUint256(config.minimumPrice, 'minimumPrice');
-  return proposalCall(
-    resonance,
-    encodeFunctionData({
-      abi: resonanceAbi,
-      functionName: 'addStrategy',
-      args: [getAddress(paymentToken), config],
-    }),
-  );
-}
-
-/** Encodes irreversible Governor-controlled removal of a Strategy from live weight as a proposal call. */
-export function buildKillStrategyProposalCall(resonance: Address, strategy: Address): ProtocolProposalCall {
-  return proposalCall(
-    resonance,
-    encodeFunctionData({ abi: resonanceAbi, functionName: 'killStrategy', args: [getAddress(strategy)] }),
-  );
-}
-
-/** Encodes Governor-controlled registration of one Bribe reward token as a proposal call. */
-export function buildAddBribeRewardProposalCall(
-  resonance: Address,
-  strategy: Address,
-  rewardToken: Address,
-): ProtocolProposalCall {
-  return proposalCall(
-    resonance,
-    encodeFunctionData({
-      abi: resonanceAbi,
-      functionName: 'addBribeReward',
-      args: [getAddress(strategy), getAddress(rewardToken)],
-    }),
-  );
-}
-
-/** Returns the bytes32 description hash used by Governor queue, execute, and cancel calls. */
-export function hashProtocolProposalDescription(description: string): Hex {
-  return keccak256(toBytes(description));
-}
-
-/** Submits one or more bounded protocol calls to ProtocolGovernor. */
-export function buildProtocolProposal(
-  protocolGovernor: Address,
-  calls: readonly ProtocolProposalCall[],
-  description: string,
-): ContractTransaction {
-  const { targets, values, calldatas } = proposalArguments(calls);
-  return transaction(
-    protocolGovernor,
-    encodeFunctionData({
-      abi: protocolGovernorAbi,
-      functionName: 'propose',
-      args: [targets, values, calldatas, description],
-    }),
-  );
-}
-
-/** Casts a For (1), Against (0), or Abstain (2) vote on an active proposal. */
-export function buildCastProtocolVote(
-  protocolGovernor: Address,
-  proposalId: bigint,
-  support: ProtocolVoteSupport,
-): ContractTransaction {
-  uint256(proposalId, 'proposalId');
-  if (support !== 0 && support !== 1 && support !== 2) throw new RangeError('support must be 0, 1, or 2');
-  return transaction(
-    protocolGovernor,
-    encodeFunctionData({ abi: protocolGovernorAbi, functionName: 'castVote', args: [proposalId, support] }),
-  );
-}
-
-/** Queues a succeeded proposal in the immutable Timelock. */
-export function buildQueueProtocolProposal(
-  protocolGovernor: Address,
-  calls: readonly ProtocolProposalCall[],
-  descriptionHash: Hex,
-): ContractTransaction {
-  const { targets, values, calldatas } = proposalArguments(calls);
-  const parsedDescriptionHash = bytes32Schema.parse(descriptionHash) as Hex;
-  return transaction(
-    protocolGovernor,
-    encodeFunctionData({
-      abi: protocolGovernorAbi,
-      functionName: 'queue',
-      args: [targets, values, calldatas, parsedDescriptionHash],
-    }),
-  );
-}
-
-/** Executes a queued proposal after the immutable Timelock delay. */
-export function buildExecuteProtocolProposal(
-  protocolGovernor: Address,
-  calls: readonly ProtocolProposalCall[],
-  descriptionHash: Hex,
-): ContractTransaction {
-  const { targets, values, calldatas } = proposalArguments(calls);
-  const parsedDescriptionHash = bytes32Schema.parse(descriptionHash) as Hex;
-  return transaction(
-    protocolGovernor,
-    encodeFunctionData({
-      abi: protocolGovernorAbi,
-      functionName: 'execute',
-      args: [targets, values, calldatas, parsedDescriptionHash],
-    }),
-  );
-}
-
-/** Cancels the proposer's own proposal while it is Pending; queued cancellation is intentionally unavailable. */
-export function buildCancelPendingProtocolProposal(
-  protocolGovernor: Address,
-  calls: readonly ProtocolProposalCall[],
-  descriptionHash: Hex,
-): ContractTransaction {
-  const { targets, values, calldatas } = proposalArguments(calls);
-  const parsedDescriptionHash = bytes32Schema.parse(descriptionHash) as Hex;
-  return transaction(
-    protocolGovernor,
-    encodeFunctionData({
-      abi: protocolGovernorAbi,
-      functionName: 'cancel',
-      args: [targets, values, calldatas, parsedDescriptionHash],
-    }),
   );
 }
 

@@ -7,11 +7,9 @@ import {
   gbxAbi,
   liquidityPositionAbi,
   mineAbi,
-  protocolGovernorAbi,
   signalGbxAbi,
   strategyAbi,
   resonanceAbi,
-  timelockControllerAbi,
 } from './abis.js';
 import { pinBlockSnapshot, revalidateBlockSnapshot, type BlockSnapshot } from './block-snapshot.js';
 import { addressSchema, unsignedBigIntSchema } from './validation.js';
@@ -262,152 +260,6 @@ export async function readSignalView(
     currentVotes,
     delegate,
     signalBalance,
-  });
-  await revalidateBlockSnapshot(client, pinned);
-  return result;
-}
-
-export const protocolGovernorViewSchema = z.object({
-  blockNumber: unsignedBigIntSchema,
-  name: z.string().min(1),
-  proposalThreshold: unsignedBigIntSchema,
-  quorumDenominator: unsignedBigIntSchema.positive(),
-  quorumNumerator: unsignedBigIntSchema.positive(),
-  resonance: addressSchema,
-  signalGBX: addressSchema,
-  timelock: addressSchema,
-  timelockMinDelay: unsignedBigIntSchema,
-  votingDelay: unsignedBigIntSchema,
-  votingPeriod: unsignedBigIntSchema.positive(),
-});
-export type ProtocolGovernorView = z.infer<typeof protocolGovernorViewSchema>;
-
-/** Reads ProtocolGovernor's immutable targets, voting parameters, vote token, and Timelock delay. */
-export async function readProtocolGovernorView(
-  client: PublicClient,
-  protocolGovernor: Address,
-  options: ReadOptions = {},
-): Promise<ProtocolGovernorView> {
-  const governor = getAddress(protocolGovernor);
-  const pinned = await snapshot(client, options);
-  const { blockNumber } = pinned;
-  const [
-    name,
-    proposalThreshold,
-    quorumDenominator,
-    quorumNumerator,
-    resonance,
-    signalGBX,
-    timelockRaw,
-    votingDelay,
-    votingPeriod,
-  ] = await Promise.all([
-    read(client, blockNumber, governor, protocolGovernorAbi, 'name'),
-    read(client, blockNumber, governor, protocolGovernorAbi, 'proposalThreshold'),
-    read(client, blockNumber, governor, protocolGovernorAbi, 'quorumDenominator'),
-    read(client, blockNumber, governor, protocolGovernorAbi, 'quorumNumerator'),
-    read(client, blockNumber, governor, protocolGovernorAbi, 'resonance'),
-    read(client, blockNumber, governor, protocolGovernorAbi, 'token'),
-    read(client, blockNumber, governor, protocolGovernorAbi, 'timelock'),
-    read(client, blockNumber, governor, protocolGovernorAbi, 'votingDelay'),
-    read(client, blockNumber, governor, protocolGovernorAbi, 'votingPeriod'),
-  ]);
-  const timelock = addressSchema.parse(timelockRaw);
-  const timelockMinDelay = await read(client, blockNumber, timelock, timelockControllerAbi, 'getMinDelay');
-  const result = protocolGovernorViewSchema.parse({
-    blockNumber,
-    name,
-    proposalThreshold,
-    quorumDenominator,
-    quorumNumerator,
-    resonance,
-    signalGBX,
-    timelock,
-    timelockMinDelay,
-    votingDelay,
-    votingPeriod,
-  });
-  await revalidateBlockSnapshot(client, pinned);
-  return result;
-}
-
-export const protocolProposalStateSchema = z.number().int().min(0).max(7);
-export type ProtocolProposalState = z.infer<typeof protocolProposalStateSchema>;
-
-export interface ProtocolProposalReadOptions extends ReadOptions {
-  /** Optional voter whose participation status should be included. */
-  readonly voter?: Address;
-}
-
-export const protocolProposalViewSchema = z.object({
-  abstainVotes: unsignedBigIntSchema,
-  againstVotes: unsignedBigIntSchema,
-  blockNumber: unsignedBigIntSchema,
-  clock: unsignedBigIntSchema,
-  deadline: unsignedBigIntSchema,
-  eta: unsignedBigIntSchema,
-  forVotes: unsignedBigIntSchema,
-  hasVoted: z.boolean().nullable(),
-  needsQueuing: z.boolean(),
-  proposalId: unsignedBigIntSchema,
-  proposer: addressSchema,
-  quorum: unsignedBigIntSchema.nullable(),
-  snapshot: unsignedBigIntSchema,
-  state: protocolProposalStateSchema,
-});
-export type ProtocolProposalView = z.infer<typeof protocolProposalViewSchema>;
-
-/** Reads proposal lifecycle, vote totals, snapshot quorum, and optional account participation at one block. */
-export async function readProtocolProposalView(
-  client: PublicClient,
-  protocolGovernor: Address,
-  proposalId: bigint,
-  options: ProtocolProposalReadOptions = {},
-): Promise<ProtocolProposalView> {
-  unsignedBigIntSchema.parse(proposalId);
-  const governor = getAddress(protocolGovernor);
-  const voter = options.voter === undefined ? undefined : getAddress(options.voter);
-  const pinned = await snapshot(client, options);
-  const { blockNumber } = pinned;
-  const [clockRaw, deadline, eta, hasVoted, needsQueuing, proposer, snapshotTimepoint, state, proposalVotes] =
-    await Promise.all([
-      read(client, blockNumber, governor, protocolGovernorAbi, 'clock'),
-      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalDeadline', [proposalId]),
-      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalEta', [proposalId]),
-      voter === undefined
-        ? Promise.resolve(null)
-        : read(client, blockNumber, governor, protocolGovernorAbi, 'hasVoted', [proposalId, voter]),
-      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalNeedsQueuing', [proposalId]),
-      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalProposer', [proposalId]),
-      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalSnapshot', [proposalId]),
-      read(client, blockNumber, governor, protocolGovernorAbi, 'state', [proposalId]),
-      read(client, blockNumber, governor, protocolGovernorAbi, 'proposalVotes', [proposalId]),
-    ]);
-  const clock = typeof clockRaw === 'bigint' ? clockRaw : BigInt(clockRaw as number);
-  const snapshotValue = unsignedBigIntSchema.parse(snapshotTimepoint);
-  const quorum =
-    snapshotValue < clock
-      ? await read(client, blockNumber, governor, protocolGovernorAbi, 'quorum', [snapshotValue])
-      : null;
-  const proposalVotesRecord = proposalVotes as Readonly<Record<string, unknown>>;
-  const proposalVoteValues = Array.isArray(proposalVotes)
-    ? proposalVotes
-    : [proposalVotesRecord.againstVotes, proposalVotesRecord.forVotes, proposalVotesRecord.abstainVotes];
-  const result = protocolProposalViewSchema.parse({
-    abstainVotes: proposalVoteValues[2],
-    againstVotes: proposalVoteValues[0],
-    blockNumber,
-    clock,
-    deadline,
-    eta,
-    forVotes: proposalVoteValues[1],
-    hasVoted,
-    needsQueuing,
-    proposalId,
-    proposer,
-    quorum,
-    snapshot: snapshotValue,
-    state,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;

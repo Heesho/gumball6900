@@ -3,9 +3,9 @@
 This file defines the accounting identities used by the hardening tests. For Resonance, `P = 1e36`; for Bribe rewards,
 `P = 1e18`. Quantities named `Scaled` already include their subsystem's precision unit.
 
-> ADRs 0031 and 0032 make the SignalGBX and BribeRouter identities below authoritative for the next implementation.
-> Current executable tests still assert the superseded identities; see
-> [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
+> ADRs 0031, 0032, 0034, and 0035 make the SignalGBX, BribeRouter, Bribe lifetime bound, and external-governance
+> boundary below authoritative. Governance execution remains unselected and contributes no production invariant until
+> separately reviewed.
 
 ## Supply and mining
 
@@ -68,27 +68,29 @@ liveStrategyCount >= 1
 liveStrategyCount = sum_strategy(isStrategyAlive(strategy) ? 1 : 0)
 ```
 
-Killing the final live Strategy reverts. Adding a replacement and then killing the old Strategy in one Timelock batch
-preserves the invariant.
+Killing the final live Strategy reverts. Adding a replacement before killing the old Strategy preserves the invariant;
+whether an external governance system can batch those calls atomically remains an unselected integration property.
 
 ## Governance authority
 
 ```text
-Governor voting token = SignalGBX
-Governor clock = blocknumber
-Timelock proposers = {ProtocolGovernor}
-allowed calls = {
+in-repository Governor = none
+in-repository Timelock = none
+SignalGBX IVotes clock = blocknumber
+continuing Resonance owner calls = {
   Resonance.addStrategy,
   Resonance.killStrategy,
   Resonance.addBribeReward
 }
-value for every allowed call = 0
-executor msg.value = 0
+inherited Resonance owner calls = {
+  transferOwnership,
+  renounceOwnership
+}
 ```
 
-The Governor's voting parameters, quorum percentage, Timelock, and Resonance target are immutable. Its generic relay and
-Timelock replacement paths always revert. Open execution does not create proposal authority. A proposal may be
-canceled by its proposer only while Pending; queued operations have no guardian or cancellation path.
+SignalGBX retains non-transferable ERC20Votes checkpoints, but the core assigns them no proposal threshold, quorum,
+voting period, permission, batching, delay, cancellation, or execution semantics. The external Resonance owner remains
+unselected; deployment is blocked until a later ADR pins and reviews that integration and its ownership handoff.
 
 ## Resonance USDG solvency and surplus
 
@@ -137,6 +139,17 @@ forbidden. The transition also decrements `liveStrategyCount` and reverts if the
 
 ## Bribe reward-token conservation
 
+For Bribe precision `P = 1e18`, every token in every Bribe satisfies:
+
+```text
+0 <= lifetimeRewardNotified[token] <= floor(type(uint256).max / P)
+previewedRewardPerToken[token] <= lifetimeRewardNotified[token] * P <= type(uint256).max
+```
+
+Every accepted notification adds its raw amount to `lifetimeRewardNotified`; claims, Fund classification, and later
+balance changes never decrease it. Direct donations do not count because Bribe never indexes them. An over-cap amount
+reverts before reward checkpointing or token transfer, so the rejection cannot mutate a stream or gate a signal exit.
+
 ```text
 accountedRewardBalance[token] * P
   = scheduledRewards[token] * P
@@ -174,7 +187,9 @@ accountedPaymentBalance
 Equivalent payment partitions produce identical cumulative classifications. `payFundPayment` consumes only the fixed
 Fund liability; `notifyBribeReward` consumes only the fixed Bribe liability and schedules the acquired payment asset in
 the paired Bribe. Failure preserves the affected liability and cannot change or consume the other. Direct donations
-remain unaccounted surplus and alter neither liabilities nor split remainder.
+remain unaccounted surplus and alter neither liabilities nor split remainder. If the paired Bribe's lifetime cap for
+the payment token is exhausted, the automatic Bribe liability remains in BribeRouter and its Fund liability remains
+independently payable.
 
 ## Fund and liquidity
 

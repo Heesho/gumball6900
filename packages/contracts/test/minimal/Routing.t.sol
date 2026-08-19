@@ -182,6 +182,42 @@ contract BribeRouterTest is Test {
         assertEq(payment.allowance(address(router), address(bribe)), 0);
     }
 
+    /// @notice A lifetime-cap rejection rolls back the Bribe leg while leaving the Fund leg independently payable.
+    function test_LifetimeRewardCapFailurePreservesRouterStateAndFundSettlement() external {
+        uint256 maximum = bribe.MAX_LIFETIME_REWARD_AMOUNT();
+        payment.mint(address(this), maximum);
+        payment.approve(address(bribe), maximum);
+        bribe.notifyRewardAmount(address(payment), maximum);
+
+        payment.mint(address(this), 10 ether);
+        payment.approve(address(router), 10 ether);
+        router.routePayment(10 ether);
+
+        vm.prank(KEEPER);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Bribe.RewardLifetimeCapExceeded.selector, address(payment), maximum, uint256(1 ether), maximum
+            )
+        );
+        router.notifyBribeReward();
+
+        assertEq(router.fundPaymentLiability(), 9 ether);
+        assertEq(router.bribePaymentLiability(), 1 ether);
+        assertEq(router.accountedPaymentBalance(), 10 ether);
+        assertEq(payment.balanceOf(address(router)), 10 ether);
+        assertEq(payment.allowance(address(router), address(bribe)), 0);
+        assertEq(bribe.lifetimeRewardNotified(address(payment)), maximum);
+
+        vm.prank(KEEPER);
+        assertEq(router.payFundPayment(), 9 ether);
+        assertEq(payment.balanceOf(address(fundStandIn)), 9 ether);
+        assertEq(router.fundPaymentLiability(), 0);
+        assertEq(router.bribePaymentLiability(), 1 ether);
+        assertEq(router.accountedPaymentBalance(), 1 ether);
+        assertEq(payment.balanceOf(address(router)), 1 ether);
+        assertEq(payment.allowance(address(router), address(bribe)), 0);
+    }
+
     function test_DirectRouterDonationsRemainUnaccountedSurplus() external {
         payment.mint(address(router), 10 ether);
 

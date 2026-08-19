@@ -1,27 +1,30 @@
 ---
-title: 'GUM BALL 6900: A Signal-Directed Onchain Portfolio Acquisition and Redemption Protocol'
+title: 'GUM BALL 6900: Historical Pre-ADR 0034 Technical Whitepaper'
 version: 1.2.0
 date: 2026-08-18
 source_commit: working tree — not release pinned
-protocol_status: Development candidate. Implementation complete in the working tree; not approved for user funds.
+protocol_status: Historical pre-ADR 0034 snapshot. Its governance design is superseded and does not describe the current working tree; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: Internal engineering review and automated test campaigns, including passing static-analysis, mutation, and external-fuzzing gates. Open release gates recorded in packages/contracts/audit/FINDINGS.md.
+internal_review_status: Historical internal engineering evidence only. Current release gates are recorded separately and remain open.
 independent_audit_status: No independent external audit has been performed.
 ---
 
-# GUM BALL 6900: A Signal-Directed Onchain Portfolio Acquisition and Redemption Protocol
+# GUM BALL 6900: Historical Pre-ADR 0034 Technical Whitepaper
 
-> **Scope and status.** This document describes the current uncommitted development tree. The protocol is **not
-> deployed, not independently audited, and not
-> approved for user funds.** Every quantitative claim in this document was verified against Solidity source at that
-> commit; claims that rest on deployment procedure rather than code are marked as such. Where a repository document
-> disagrees with the Solidity, the Solidity governs and the discrepancy is recorded in §43.
+> **Historical edition — governance design superseded by ADR 0034.** This uncommitted snapshot predates
+> [ADR 0034](../../adr/0034-external-governance-ownership.md) and is preserved only as prior development evidence. It
+> does **not** describe the current working tree: the core now contains no `ProtocolGovernor`, `TimelockController`,
+> governance adapter, or provider-specific plugin. `SignalGBX` retains IVotes-compatible checkpoints, while the exact
+> external owner and governance system for `Resonance` remain unselected. Every present-tense Governor or Timelock
+> statement below describes the retired design, not current code.
 
-> **Typeset PDF editions.** A designed, print-ready PDF of the whitepaper and a one-page
-> sheet are built from `docs/whitepaper/` and `docs/one-pager/gumball6900/` via
-> `pnpm docs:whitepaper` and `pnpm docs:one-pager`, and land in `output/pdf/`. Those
-> editions are the presentation layer; this document and the fact registry remain the
-> detailed reference.
+> **Safety status.** The protocol is **not deployed, not independently audited, and not approved for user funds.**
+> Non-governance claims in this edition were verified against the then-current Solidity tree; this source was not
+> release-pinned, so it must not be used as current implementation or release evidence.
+
+> **Current presentation sources.** The compact whitepaper and one-page sheet are built from `docs/whitepaper/` and
+> `docs/one-pager/gumball6900/` via `pnpm docs:whitepaper` and `pnpm docs:one-pager`. Rebuilding this long-form
+> historical source is archival reproduction only and does not make its retired governance design current.
 
 ## 1. Abstract
 
@@ -46,10 +49,10 @@ each the floored pro-rata share of Fund's balance against a single effective pre
 all accrued unminted mining. Signaler compensation has two sources: the automatic 10% acquisition share, and
 **Bribes**, permissionlessly funded reward streams attached to each Strategy, capped at eight reward tokens.
 
-The continuing administrative surface is three selector-bounded, zero-value calls executed through a Timelock whose
-sole proposer is an immutable **ProtocolGovernor** reading sGBX ERC20Votes checkpoints. There is no upgrade path,
-proxy, pause switch, rescue function, arbitrary-call executor, oracle, NAV computation, or migration route anywhere in
-the protocol.
+The retired governance design captured by this edition routed three selector-bounded, zero-value calls through a
+Timelock whose sole proposer was an immutable **ProtocolGovernor** reading sGBX ERC20Votes checkpoints. ADR 0034
+removed both contracts from the current core and left selection and review of the external `Resonance` owner as a
+deployment blocker. The remaining immutability claims in this edition describe the pre-ADR 0034 snapshot only.
 
 This document specifies the implemented mathematics exactly, states the accounting identities the implementation can
 actually prove (and explicitly declines to assert those it cannot), enumerates state transitions, and presents the
@@ -739,7 +742,10 @@ Verified by `test_FlashSignalWeightCannotRedirectANewNotification`,
 `test_FlashSignalWeightCannotStealAccruedBribeRewards`, `test_NewStrategyWeightReceivesOnlyPostEntryRevenue`, and the
 named A-11 regression `test_SameTransactionSignalAndPurchaseCannotCaptureNewlyNotifiedRevenue`.
 
-## 15. Onchain governance
+## 15. Historical onchain governance design (superseded)
+
+> **Removed by ADR 0034.** This section documents the former in-repository `ProtocolGovernor` and Timelock design for
+> provenance only. Neither contract exists in the current core, and these parameters are not current protocol facts.
 
 `ProtocolGovernor` is `Governor, GovernorCountingSimple, GovernorVotes, GovernorTimelockControl`.
 
@@ -1712,7 +1718,11 @@ into demand as price rises.
 > market, or the deposited amount. An incorrect genesis price or range strands the position permanently and cannot be
 > corrected.
 
-## 27. Timelock and ProtocolGovernor
+## 27. Historical Timelock and ProtocolGovernor design (superseded)
+
+> **Removed by ADR 0034.** The role configuration and flow below describe the retired design only. Current deployment
+> remains blocked until a later ADR selects and reviews the exact external governance executor that will own
+> `Resonance`.
 
 ### 27.1 Intended role configuration
 
@@ -1735,9 +1745,9 @@ Several repository documents state these as "invariants". They are correctly und
 that must be proven by signed deployment evidence**. This is discrepancy D-5 (§43) and part of findings **M-03** and
 **E-02**.
 
-### 27.3 Governance flow
+### 27.3 Historical governance flow
 
-```mermaid
+```text
 stateDiagram-v2
     [*] --> Pending: propose (filter passes)
     Pending --> Active: votingDelay blocks elapse

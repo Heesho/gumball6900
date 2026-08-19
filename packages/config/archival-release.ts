@@ -3,7 +3,7 @@
  *
  * These exports describe the removed schema-v3 AllocationVoter/Safe graph. They
  * may validate archived evidence but must never authorize or derive outputs for
- * the current ProtocolGovernor architecture.
+ * the current external-governance-pending architecture.
  */
 export * from './schemas/deployment-manifest.js';
 export * from './schemas/deployment-authorization.js';

@@ -96,6 +96,8 @@ contract ProtocolStateMachineCampaign {
     uint256 public totalUSDGCreated;
     /// @notice Highest revenue index ever observed, used to prove monotonicity.
     uint256 public highestRevenueIndex;
+    /// @notice Keeps post-bootstrap Strategy growth bounded so fuzz loops cannot grow without limit.
+    bool public addedStrategy;
     /// @notice Complete GBX supply recorded immediately after deployment.
     uint256 public immutable genesisSupply;
 
@@ -393,6 +395,24 @@ contract ProtocolStateMachineCampaign {
         resonance.killStrategy(alive[uint256(strategySeed) % alive.length]);
     }
 
+    /// @notice Adds one post-bootstrap Strategy so later actions and properties cover dynamic registration.
+    function addStrategy() external {
+        if (addedStrategy) revert("STRATEGY_ALREADY_ADDED");
+        _recordRevenueIndex();
+
+        (address strategy,,) = resonance.addStrategy(
+            IERC20(address(paymentAsset)),
+            Strategy.Config({
+                initialPrice: AUCTION_INITIAL_PRICE,
+                epochDuration: AUCTION_EPOCH_DURATION,
+                priceMultiplier: AUCTION_PRICE_MULTIPLIER,
+                minimumPrice: AUCTION_MINIMUM_PRICE
+            })
+        );
+        strategies.push(strategy);
+        addedStrategy = true;
+    }
+
     /*//////////////////////////////////////////////////////////////
                               PROPERTIES
     //////////////////////////////////////////////////////////////*/
@@ -584,6 +604,10 @@ contract ProtocolStateMachineCampaign {
                             + bribe.fundRewardLiability(token)) * 1e18 + bribe.pendingRewardScaled(token)
                         + bribe.indexedRewardScaled(token) + userRemainders + bribe.fundRewardRemainder(token);
                 if (bribe.accountedRewardBalance(token) * 1e18 != right) return false;
+                uint256 lifetimeNotified = bribe.lifetimeRewardNotified(token);
+                if (lifetimeNotified > bribe.MAX_LIFETIME_REWARD_AMOUNT()) return false;
+                if (bribe.accountedRewardBalance(token) > lifetimeNotified) return false;
+                if (bribe.rewardPerToken(token) > lifetimeNotified * 1e18) return false;
             }
         }
         return true;
@@ -647,9 +671,8 @@ contract ProtocolStateMachineCampaign {
             combinedTps += slot.tps;
             naivePending += mineContract.pendingEmission(i);
         }
-        return
-            combinedTps == mineContract.aggregateTps() && naivePending == mineContract.pendingEmission()
-                && mineContract.nextGlobalTps() >= mineContract.tailTps();
+        return combinedTps == mineContract.aggregateTps() && naivePending == mineContract.pendingEmission()
+            && mineContract.nextGlobalTps() >= mineContract.tailTps();
     }
 
     /// @notice USDG is only ever moved between accounts, never created or destroyed by the protocol.

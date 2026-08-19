@@ -63,9 +63,9 @@ export const currentPages = [
                 provenance, and a signed deployment manifest remain unresolved.
               </p>
               <p style="color:${palette.onDeepMuted}">
-                This edition describes the architecture introduced by ADR 0031 and ADR 0032, whose Solidity is
-                implemented and covered by the current suites. A local green build is engineering evidence, never a
-                safety, audit, or release claim.
+                This edition describes the architecture introduced by ADR 0031, ADR 0032, and ADR 0034, whose core
+                Solidity is implemented and covered by the current suites. External governance remains unselected. A
+                local green build is engineering evidence, never a safety, audit, or release claim.
               </p>
             </div>
             <div class="col-side">
@@ -82,7 +82,7 @@ export const currentPages = [
                 ['Genesis issuance', '20,000,000 GBX for canonical liquidity'],
                 ['Later issuance', 'One permanently bound immutable Mine'],
                 ['Supply limit', 'No economic cap; GBX has no voting checkpoints'],
-                ['Governance', 'sGBX Governor; four-selector Timelock authority'],
+                ['Governance', 'External Resonance owner unselected; sGBX IVotes retained'],
                 ['Legal status', status.licensing],
               ],
             })}
@@ -110,7 +110,7 @@ export const currentPages = [
             eyebrow: 'Part I',
             number: '01',
             title: 'The economic loop',
-            deck: 'Mining brings USDG in; signal-backed sGBX coordinates acquisition weights and bounded governance.',
+            deck: 'Mining brings USDG in; signal-backed sGBX coordinates acquisition weights and exposes IVotes checkpoints.',
           })}
           <div class="spread">
             <div class="col-main">
@@ -272,40 +272,41 @@ export const currentPages = [
   {
     id: 'governance-risks',
     runner: 'Governance and risks',
-    section: { title: 'Governance and risks', note: 'Narrow authority, irreversible consequences' },
+    section: { title: 'Governance and risks', note: 'External integration remains a release gate' },
     render: () =>
       frame(
         html`${sectionHead({
             eyebrow: 'Part V',
             number: '05',
             title: 'Immutable by design',
-            deck: 'sGBX voting can authorize three exact calls; no proposer can expand that surface.',
+            deck: 'The core exposes three Resonance administration methods; external execution rules remain unselected.',
           })}
           ${ledger({
-            yesHead: 'Timelocked actions',
+            yesHead: 'Resonance owner actions',
             yesItems: ['Add a Strategy', 'Permanently kill a Strategy', 'Register a Bribe reward token, up to eight'],
             noHead: 'Absent powers',
             noItems: [
               'No Mine administration or incumbent repricing',
               'No emission setter or replacement authority',
-              'No multisig bypass, guardian, or queued veto',
+              'No core Governor, Timelock, or generic executor',
               'No Fund withdrawal or liquidity NFT recovery',
             ],
           })}
           <div class="spread stack-2">
             <div class="col-main">
               <p>
-                ProtocolGovernor is the Timelock's sole proposer. Its targets, block-clock voting configuration, quorum,
-                and zero-value selector filter are immutable. Execution opens after the delay; a queued proposal cannot
-                be canceled. Historical sGBX voting weight also survives withdrawing signal after the snapshot. After
-                bootstrap, the final live Strategy cannot be killed until a replacement is added.
+                SignalGBX retains block-clock ERC20Votes checkpoints, including historical weight after signal exits,
+                but this repository does not select or implement the governance system that will consume them. A later
+                ADR must pin the exact external executor, permissions, voting rules, upgrades, delay, cancellation, and
+                ownership handoff. After bootstrap, the final live Strategy cannot be killed until a replacement is
+                added.
               </p>
             </div>
             <div class="col-side">
               ${note({
                 label: 'Release status',
                 kind: 'asset',
-                body: 'Independent audit, parameter review, provenance clearance, and signed deployment evidence are still required.',
+                body: 'External governance selection, independent audit, parameter review, provenance clearance, and signed deployment evidence are still required.',
               })}
             </div>
           </div>`,

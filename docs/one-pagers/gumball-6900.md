@@ -3,13 +3,19 @@ title: GUM BALL 6900 at a Glance
 version: 1.1.0
 date: 2026-08-16
 source_commit: 95ed60efe333d875f7a66da7853eebdf5384e956
-protocol_status: Development candidate. Implementation complete at this commit; not approved for user funds.
+protocol_status: Historical development snapshot at the pinned commit. Governance architecture superseded by ADR 0034; not current and not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
 internal_review_status: Internal engineering review and automated test campaigns, including passing static-analysis, mutation, and external-fuzzing gates. Open release gates recorded in packages/contracts/audit/FINDINGS.md.
 independent_audit_status: No independent external audit has been performed.
 ---
 
 # GUM BALL 6900 at a Glance
+
+> **Historical sheet — governance design superseded by ADR 0034.** This document is pinned to commit `95ed60e` and
+> preserves its former `ProtocolGovernor` and Timelock design. [ADR 0034](../adr/0034-external-governance-ownership.md)
+> removed both from the current core. `SignalGBX` still exposes IVotes-compatible checkpoints, but the external owner
+> and governance system for `Resonance` remain unselected. The governance component, lifecycle, and risk statements
+> below are historical, not current protocol claims.
 
 **A protocol where token holders decide, by committing stake, which assets a shared onchain treasury buys — and where
 anyone holding the token can burn it to withdraw their share of what was bought.**

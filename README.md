@@ -7,9 +7,12 @@ burned for caller-selected Fund assets.
 > Development status: not deployed, audited, or authorized for user funds. Independent review, legal/provenance
 > clearance, final economic parameters, and signed deployment evidence remain release blockers.
 
-> Architecture status: [ADR 0031](docs/adr/0031-mandatory-signal-backed-signalgbx.md) and
-> [ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md) are implemented in the development tree. This is
-> local engineering evidence only; independent review and every deployment gate remain outstanding.
+> Architecture status: [ADR 0031](docs/adr/0031-mandatory-signal-backed-signalgbx.md),
+> [ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md),
+> [ADR 0034](docs/adr/0034-external-governance-ownership.md), and
+> [ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md) are implemented in the development tree. Governance execution
+> remains an unselected external integration, so deployment is blocked. This is local engineering evidence only;
+> independent review and every deployment gate remain outstanding.
 
 ## Protocol loop
 
@@ -29,7 +32,7 @@ replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance --7-day stream-->
                          \--80%--> displaced miner
 Mine -> continuous GBX
 GBX -> SignalGBX --mandatory signal--> Resonance allocation weights
-SignalGBX --block-clock votes--------> ProtocolGovernor -> Timelock
+SignalGBX --IVotes checkpoints-------> external governance (unselected) --owns--> Resonance
 Strategy acquired-asset payment -> BribeRouter --90%--> Fund
                                               \--10%--> paired Bribe -> signalers
 GBX burn -> Fund selected assets
@@ -67,18 +70,17 @@ transfer reverts the complete redemption and burn.
 
 ## Governance-minimized core
 
-All core contracts are direct and non-upgradeable. Fund and LiquidityPosition are ownerless. SignalGBX voting power
-operates an immutable, selector-bounded ProtocolGovernor. It is the TimelockController's sole proposer, and the
-Timelock owns only the narrow remaining administration:
+All core contracts are direct and non-upgradeable. Fund and LiquidityPosition are ownerless. Resonance retains only
+three continuing protocol administration methods:
 
 - add or kill a Strategy;
 - add a Bribe reward token within the fixed cap of eight.
 
-Governor proposals contain only those three exact zero-value calls at the immutable Resonance target. Voting
-delay, voting period, proposal threshold, and quorum percentage use sGBX's block-number clock and are fixed at
-construction. Execution is permissionless after the Timelock delay. There is no multisig bypass, guardian, queued
-proposal veto, proxy, pause switch, treasury sweep, arbitrary call path, successor, or migration routine.
-After the first Strategy is created, `killStrategy` cannot remove the final live Strategy; governance replaces it by
+SignalGBX retains block-clock ERC20Votes checkpoints for an external governance system, but this repository does not
+select or implement that system. The exact executor, release, plugins, permissions, voting rules, upgrade model,
+execution delay, and cancellation behavior remain deployment blockers. The selected external executor will own
+Resonance directly and can also transfer or renounce that ownership. After the first Strategy is created,
+`killStrategy` cannot remove the final live Strategy; the selected governance system must replace it by atomically
 batching an addition before the old Strategy's kill.
 
 ## Contracts
@@ -92,10 +94,9 @@ batching an addition before the old Strategy's kill.
 | `Resonance`         | Bribe-shaped seven-day USDG rewards, active signal totals, and Strategy/Bribe administration.     |
 | `Strategy`          | Reverse Dutch acquisition auction.                                                                |
 | `BribeRouter`       | Cumulative immutable 90% Fund / 10% paired-Bribe acquired-asset classification and liabilities.   |
-| `Bribe`             | Automatic acquired-asset share plus additional rewards, within the fixed eight-token cap.         |
+| `Bribe`             | Automatic and independent rewards, with eight-token and per-token lifetime notification caps.     |
 | `Fund`              | Registry-free backing, selective redemption, and permissionless Fund-held GBX burn.               |
 | `LiquidityPosition` | Permanent fixed-principal Uniswap v4 position and permissionless fee routing.                     |
-| `ProtocolGovernor`  | Immutable three-selector sGBX governance over Timelock-owned Resonance.                           |
 
 ## Repository
 
@@ -128,7 +129,10 @@ Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
 [ADR 0029](docs/adr/0029-bribe-based-resonance.md),
 [ADR 0030](docs/adr/0030-signalgbx-coordination-and-token-governance.md),
 [ADR 0031](docs/adr/0031-mandatory-signal-backed-signalgbx.md), and
-[ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md).
+[ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md),
+[ADR 0033](docs/adr/0033-fixed-mine-slots-and-constant-time-pending-emission.md),
+[ADR 0034](docs/adr/0034-external-governance-ownership.md), and
+[ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md).
 
 ## Provenance
 

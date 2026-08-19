@@ -1,7 +1,7 @@
 # Killed-Strategy Bribe terminal-state decision
 
-Status: accepted residual under ADR 0028; no production-code change. This note is engineering evidence, not deployment
-approval.
+Status: accepted residual under ADR 0028 and preserved by ADR 0035; no retirement or escape-hatch code change. This
+note is engineering evidence, not deployment approval.
 
 ## Exact terminal state
 
@@ -12,11 +12,17 @@ exit.
 
 The exact unreachable principal for one reward token is:
 
-`scheduledRewards[token] + queuedRewards[token] + later zero-supply notifications`
+`scheduledRewards[token] + queuedRewards[token] + successful later zero-supply notifications`
+
+The last term cannot exceed the token's remaining lifetime headroom:
+
+`MAX_LIFETIME_REWARD_AMOUNT - lifetimeRewardNotified[token]`
 
 Already accrued user liabilities remain claimable. Whole Fund liabilities remain permissionlessly payable. Direct
 donations that did not pass through `notifyRewardAmount` are outside Bribe accounting and are not included in the
-formula. The abandoned amount is unbounded; it can include nearly a complete seven-day stream.
+formula. The abandoned amount is not bounded to dust: it can include nearly a complete seven-day stream plus the
+remaining notification headroom. ADR 0035 bounds raw units per token/Bribe pair, but the protocol does not bound their
+economic value.
 
 ## Alternatives considered
 
@@ -34,11 +40,18 @@ formula. The abandoned amount is unbounded; it can include nearly a complete sev
 - Interfaces must show Strategy liveness and warn before the final signal exits when any registered reward has a
   nonzero scheduled or queued amount.
 - Reward-funding clients must warn on every dead Strategy and refuse by default when its Bribe signal supply is zero.
-  Direct contract calls remain possible and cannot be made recoverable.
+  Direct contract calls remain possible while lifetime headroom remains and cannot be made recoverable.
 - Monitoring must classify `dead Strategy && Bribe.totalSupply() == 0 && (scheduledRewards > 0 || queuedRewards > 0)`
   as permanently unreachable under the accepted policy, not as a recoverable protocol receivable.
+- Monitoring and reward-funding clients should expose `lifetimeRewardNotified(token)` and
+  `MAX_LIFETIME_REWARD_AMOUNT`; reaching the cap rejects only new notifications and does not create a withdrawal or
+  retirement right.
 - The deterministic regression
   `BribeRetirementRiskTest.test_KnownRisk_DeadStrategyBribeCanPauseAndQueueRewardsForever` must remain green.
+
+ADR 0035 deliberately fixes the separate cumulative-index liveness risk without changing this ownership decision. A
+killed Strategy is not needed to escape the overflow condition: the lifetime cap keeps every admitted checkpoint
+representable, so existing positions can still move or withdraw after notification capacity is exhausted.
 
 Reopen this decision only through an explicit replacement ADR that defines reward ownership at retirement and accepts
 the resulting trust-model change. Do not patch the expected regression or add an authority as an operational fix.

@@ -1,19 +1,19 @@
 # Threat model
 
-> Target-development threat model under ADRs 0031 and 0032. The current executable campaign has not yet been updated
-> for these decisions; see [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
+> Development threat model under ADRs 0031, 0032, 0034, and 0035. The external governance integration remains
+> unselected and must receive a separate threat model before deployment.
 
 ## Primary risks
 
-- SignalGBX governance can authorize only three exact zero-value Resonance calls through the selector-bounded
-  ProtocolGovernor and Timelock. A voting-power capture can misuse Strategy addition, Strategy death, or Bribe reward
-  registration, but cannot reach another target or selector. Mine, Fund, and LiquidityPosition are ownerless.
-- SignalGBX uses historical block-number snapshots. A holder may acquire and signal GBX before the snapshot, then
-  withdraw every signal after the snapshot while retaining that proposal's voting weight. Governance does not create
-  a signal withdrawal lock, and low signaled supply lowers the absolute quorum represented by a fixed quorum percentage.
-- Once a successful proposal is queued, no multisig, guardian, or Governor caller can cancel it. The Timelock delay is
-  an observation and exit window, not an emergency veto. Incorrect immutable voting parameters or role setup cannot be
-  repaired.
+- The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. Resonance's
+  external owner can misuse Strategy addition, Strategy death, or Bribe reward registration and can transfer or
+  renounce ownership. Mine, Fund, and LiquidityPosition remain outside that authority because they are ownerless.
+- SignalGBX retains historical block-number checkpoints, but the external governance system and its voting rules are
+  unselected. If it uses those snapshots, a holder may acquire and signal GBX before a snapshot, withdraw afterward,
+  and retain historical weight. Delegation, quorum, capture, and liveness must be reviewed against its exact release.
+- The core guarantees no proposal filter, voting delay, post-vote Timelock, guardian, cancellation path, open executor,
+  or immutable governance parameters. Assuming any of those properties before the external integration is selected and
+  verified would be unsafe; deployment remains blocked.
 - A halving can temporarily leave aggregate GBX issuance above the new global rate because incumbents keep their fixed
   tenure TPS while new tenures receive the lower rate. This is an accepted fairness tradeoff.
 - Miners face rollover risk: without a replacement, an incumbent continues earning GBX but never receives the 80%
@@ -59,10 +59,20 @@
 - Bribe work remains linear in the append-only reward-token list, permanently capped at eight. All mandatory entry,
   removal, settlement, and claim paths are therefore bounded, but a broken selected token can still revert that
   token's payout.
+- Bribe indexing is also bounded per token and per Bribe by a monotonic lifetime accepted-notification cap of
+  `floor(type(uint256).max / 1e18)` raw units. The check occurs before checkpointing or transfer and has no reset,
+  setter, or escape hatch, so a token cannot accumulate enough indexed precision to wrap and lock exits. For a normal
+  18-decimal token this is about `1.158e41` whole tokens and is not expected to be reached; unusually high-decimal,
+  mintable, or upgraded tokens can exhaust it earlier in economic terms. Reaching it permanently rejects later
+  notifications for that token in that Bribe but leaves existing claims, signal moves, and withdrawals available.
+- If an automatic Strategy-payment reward reaches an exhausted cap, its fixed Bribe liability stays retryable in
+  BribeRouter but can no longer enter that old Bribe; the independent Fund leg remains payable. The operational
+  replacement is a new Strategy with a new Bribe, followed by killing the old Strategy (adding first when the old one
+  is the final live Strategy). This does not reopen or drain the old Bribe.
 - Killing a Strategy checkpoints and preserves its pre-kill Resonance claim, then excludes its complete recorded weight
   from active reward supply. Existing allocations stay reserved and removable, but no later removal subtracts that
-  weight again. After bootstrap, killing the final live Strategy is prohibited; governance must add a replacement
-  first. A zero-active-signal interval can still occur if every user exits all live Strategies.
+  weight again. After bootstrap, killing the final live Strategy is prohibited; the Resonance owner must add a
+  replacement first. A zero-active-signal interval can still occur if every user exits all live Strategies.
 - Killing a Strategy turns its Bribe into a closed reward pool. Existing signalers may remain indefinitely, earn and
   claim automatic acquired-asset or additionally funded Bribe rewards, or exit incrementally, but neither they nor new
   accounts can add signal.
@@ -83,5 +93,6 @@
 The starting point has no pause guardian, proxy upgrade path, Mine replacement authority, emission setter, price
 oracle, NAV calculation, curated Fund asset list, or per-user signal cooldown. Signal changes are caller-bounded scalar
 operations coordinated only by SignalGBX; there is no idle receipt, public batch, or forced whole-account reset. These
-omissions are deliberate simplifications and must be reconsidered through testing and audit before any deployment.
-Current internal hardening does not replace independent security review.
+omissions are deliberate simplifications and must be reconsidered through testing and audit before any deployment. The
+external governance owner, permissions, voting rules, upgrade paths, delay, batching, and cancellation semantics are
+also unresolved release gates. Current internal hardening does not replace independent security review.

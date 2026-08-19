@@ -5,7 +5,11 @@ All results are local engineering evidence. No command deployed, broadcast, comm
 roles.
 
 > Historical evidence only: ADR 0033 later replaced Mine capacity/checkpoint accounting. Its fixed-slot differential
-> and current-tree gate results are recorded by the newer tests and release checklist, not by the counts below.
+> and current-tree gate results are recorded by the newer tests and release checklist, not by the counts below. ADR
+> 0034 later removed ProtocolGovernor and the protocol Timelock; all Governor/Timelock test, gas, size, SDK, subgraph,
+> and documentation figures below describe only this pinned baseline, not the current tree or an external governance
+> integration. ADR 0035 later added Bribe's lifetime notification counter, cap, error, and regressions; every Bribe
+> test, invariant, gas, size, ABI, and external-fuzzer figure below also predates that change.
 
 ## Environment and baseline
 
@@ -131,12 +135,12 @@ Direct `gasleft` measurements under the optimized 10,000-run compiler configurat
 | Fund liability settlement                  |    33,141 |
 | Kill Strategy                              |     9,244 |
 
-Selector-level `--gas-report` additionally covered signalWithPermit, partial and complete moves/withdrawals, Resonance
+At this baseline, selector-level `--gas-report` additionally covered signalWithPermit, partial and complete moves/withdrawals, Resonance
 distribution, payment classification, Bribe notification/claim, Governor voting, Timelock execution, and Fund
 redemption. The maximum mandatory exit measured 1.39M gas, below 5% of the conservative 30M reference block; scalar
 claims remain available when a batch token is broken.
 
-All production contracts fit EIP-170. The largest is ProtocolGovernor at 18,186 bytes (6,390-byte margin), followed by
+All production contracts at this baseline fit EIP-170. The largest was ProtocolGovernor at 18,186 bytes (6,390-byte margin), followed by
 StrategyFactory at 16,295, Resonance at 13,939, SignalGBX at 12,945, and Bribe at 11,596.
 
 ## Consumer and documentation checks
@@ -146,4 +150,6 @@ architecture/specification/ADR text, one-pager facts, and generated contract/SDK
 results: SDK 48/48, subgraph Matchstick 12/12 plus specification checks 4/4, web status 3/3, and browser E2E 6/6.
 
 The final repository gates and exact remaining environmental failures are recorded in
-`SIGNAL-RESONANCE-RESIDUAL-RISKS.md`. This tree is intended for independent-auditor handoff, not production release.
+`SIGNAL-RESONANCE-RESIDUAL-RISKS.md`. The post-ADR-0034 current tree requires fresh gates, and the unselected external
+governance system requires its own integration and independent review. This evidence is intended for auditor handoff,
+not production release.

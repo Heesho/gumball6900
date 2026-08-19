@@ -8,10 +8,11 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - Build the core contracts as a minimal adaptation of the pinned give.fun and Liquid Signal Governance contracts.
   Preserve their simple contract boundaries and behavior unless this file or a recorded ADR explicitly changes them.
 - Use these protocol names consistently: `GBX`, `Mine`, `LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`,
-  `StrategyFactory`, `Strategy`, `BribeFactory`, `BribeRouter`, `Bribe`, `Fund`, and `ProtocolGovernor`.
+  `StrategyFactory`, `Strategy`, `BribeFactory`, `BribeRouter`, `Bribe`, and `Fund`.
 - `packages/contracts/src` is the single Solidity source tree shared by Foundry and Hardhat. Core contracts use direct,
   non-upgradeable deployments. `StrategyFactory` and `BribeFactory` are allowed only as Resonance-controlled factories;
-  do not add generic public factories, arbitrary vault calls, NAV/price oracles, or a conventional DAO.
+  do not add generic public factories, arbitrary vault calls, NAV/price oracles, or governance implementation contracts
+  inside the core. Governance is a separately selected and reviewed external integration.
 
 ## Revenue, signaling, and acquisitions
 
@@ -70,6 +71,10 @@ authorized for user funds. A green local build is engineering evidence, never a 
   an addition before the old Strategy's kill. Do not add a fake abstain Strategy. Killed-Strategy positions must remain
   movable to a live Strategy and withdrawable.
 - Each Bribe may register at most eight append-only reward tokens. The cap is fixed in code and is not governable.
+- For each reward token in each Bribe, cumulative accepted notifications must never exceed
+  `floor(type(uint256).max / 1e18)` raw units. Track this lifetime amount monotonically; it has no reset, setter, or
+  escape hatch. Reject an over-cap notification before checkpointing or token transfer so cap exhaustion cannot block
+  claims, signal movement, or withdrawal. Direct token donations do not consume notification capacity.
 - Before a Bribe signal-supply change, classify unindexable old-supply reward carry to its fixed Fund remainder. When
   an account fully exits, classify its sub-token user remainder to Fund rather than reallocating it to other signalers.
 - Every Strategy is the same bounded reverse Dutch acquisition mechanism. Its complete acquired-asset payment enters
@@ -79,7 +84,9 @@ authorized for user funds. A green local build is engineering evidence, never a 
   payment partitioning cannot starve either destination. `BribeRouter.routePayment` only pulls and classifies the exact
   payment. Permissionless `payFundPayment` and `notifyBribeReward` isolate the two fixed settlement legs so failure of
   either preserves its liability without blocking or consuming the other. Direct donations to BribeRouter are
-  unaccounted surplus. Additional independently funded Bribe rewards remain permitted within the fixed token cap.
+  unaccounted surplus. A lifetime-cap failure preserves the automatic reward liability in BribeRouter while the Fund
+  leg remains independently payable; the exhausted Bribe cannot accept that token again. Additional independently
+  funded Bribe rewards remain permitted within the fixed token and lifetime caps.
 - A Strategy priced in GBX does not burn during settlement. After the 90% Fund liability is paid into `Fund`, anyone
   may burn that GBX through `Fund.burnGBX`; the 10% Bribe liability funds the paired GBX reward stream. Users should
   settle and burn pending Fund GBX before calculating a redemption.
@@ -130,17 +137,17 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - `Fund` and `LiquidityPosition` are ownerless. `Fund` assets move only when a GBX holder burns their own tokens
   through redemption; assets that redeemers omit stay in `Fund` for the remaining GBX supply indefinitely. GBX held by
   `Fund` is burnable by anyone through the dedicated burn function.
-- The remaining administrative surface is `Resonance.addStrategy`, `Resonance.killStrategy`, and
-  `Resonance.addBribeReward`. Nothing else is owner-gated after one-time setup.
-- `ProtocolGovernor` uses SignalGBX ERC20Votes checkpoints and immutable, constructor-selected block-clock voting delay,
-  period, proposal threshold, quorum percentage, Timelock, and Resonance dependencies. It may propose only exact
-  zero-value calls for the three continuing administrative selectors. It is the Timelock's sole proposer and sole
-  canceller-role holder; there is no multisig bypass, guardian, or queued-proposal veto. Standard Governor cancellation
-  remains available only to the proposer while a proposal is pending.
-- The Timelock should own Resonance, use a documented minimum delay, have no external default admin after
-  setup, and grant the executor role to the zero address for permissionless execution. Create every reviewed initial
-  Strategy while the temporary setup owner still controls Resonance, then transfer Resonance to the Timelock
-  and renounce setup authority. Do not leave a deployer, multisig, or alternate proposer path.
+- The continuing protocol administration surface is `Resonance.addStrategy`, `Resonance.killStrategy`, and
+  `Resonance.addBribeReward`. Resonance also retains inherited ownership transfer and renunciation. Do not add another
+  owner-gated protocol method.
+- SignalGBX retains ERC20Votes checkpoints for a separately reviewed external governance system. Do not implement or
+  vendor a DAO, Governor, Timelock, generic executor, governance adapter, or provider-specific plugin in the core until
+  an ADR selects its exact architecture and version.
+- Create every reviewed initial Strategy while the temporary setup owner controls Resonance. A production deployment
+  must then transfer Resonance directly to the exact external governance executor selected by a later ADR and remove
+  the temporary setup owner. Until that integration's code provenance, voting token, permissions, parameters,
+  admin/upgrade paths, execution delay, cancellation rules, and ownership receipt are reviewed and recorded, deployment
+  remains blocked.
 - CI must never broadcast mainnet transactions.
 
 ## Source and generated artifacts

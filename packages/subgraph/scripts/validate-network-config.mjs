@@ -5,17 +5,7 @@ import { fileURLToPath } from 'node:url';
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const networkFile = process.argv[2] ?? 'networks.json';
 const config = JSON.parse(readFileSync(resolve(packageRoot, networkFile), 'utf8'));
-const requiredDataSources = [
-  'GBX',
-  'Mine',
-  'LiquidityPosition',
-  'ProtocolGovernor',
-  'SignalGBX',
-  'ResonanceRouter',
-  'Resonance',
-  'Fund',
-  'TimelockController',
-];
+const requiredDataSources = ['GBX', 'Mine', 'LiquidityPosition', 'SignalGBX', 'ResonanceRouter', 'Resonance', 'Fund'];
 const zeroAddress = '0x0000000000000000000000000000000000000000';
 const addressPattern = /^0x[0-9a-fA-F]{40}$/;
 const network = config.robinhood;

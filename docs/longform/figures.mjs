@@ -91,29 +91,6 @@ const protocolLoop = `
   <text x="332" y="228" text-anchor="middle" ${S.tag}>AUCTION PAYMENT SPLITS 90 / 10</text>
 </svg>`;
 
-/** Governance proposal lifecycle, including the absent transition out of Queued. */
-const governanceStates = `
-<svg viewBox="0 0 640 210" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Governance proposal states">
-  ${arrowDefs}
-  ${node(6, 76, 84, 34, ['Pending'])}
-  ${node(130, 76, 84, 34, ['Active'])}
-  ${node(254, 30, 84, 34, ['Defeated'])}
-  ${node(254, 118, 84, 34, ['Succeeded'])}
-  ${node(378, 118, 84, 34, ['Queued'], 'deep')}
-  ${node(502, 118, 84, 34, ['Executed'], 'blue')}
-  ${node(130, 16, 84, 30, ['Canceled'])}
-
-  ${edge('M 90 93 L 130 93', 'delay', 110, 86)}
-  ${edge('M 172 76 L 172 46', 'proposer', 196, 62)}
-  ${edge('M 214 86 L 254 55', 'no quorum', 234, 74)}
-  ${edge('M 214 100 L 254 130', 'passes', 234, 122)}
-  ${edge('M 338 135 L 378 135', 'queue', 358, 128)}
-  ${edge('M 462 135 L 502 135', 'after delay', 482, 128)}
-
-  <text x="420" y="182" ${S.tagPink}>NO TRANSITION OUT OF QUEUED</text>
-  <text x="420" y="196" ${S.tag}>NO GUARDIAN, NO VETO, NO PUBLIC CANCELLATION</text>
-</svg>`;
-
 const FIGURES = [
   {
     id: 'protocol-loop',
@@ -124,14 +101,6 @@ const FIGURES = [
     svg: protocolLoop,
     caption:
       'The economic loop. Revenue enters at the Mine and the liquidity position, is streamed by Resonance under live signal weights, and every acquired payment splits 90% to Fund and 10% to that Strategy’s signalers.',
-  },
-  {
-    id: 'governance-states',
-    hashes: ['3c4c3418b21ee32e'],
-    match: (src) => src.includes('stateDiagram') || src.includes('Queued'),
-    svg: governanceStates,
-    caption:
-      'Proposal lifecycle. The Timelock delay is an observation window: once an operation is queued there is no cancellation path for any party.',
   },
 ];
 

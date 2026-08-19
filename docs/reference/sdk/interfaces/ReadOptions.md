@@ -6,10 +6,6 @@
 
 # Interface: ReadOptions
 
-## Extended by
-
-- [`ProtocolProposalReadOptions`](ProtocolProposalReadOptions.md)
-
 ## Properties
 
 | Property                                                     | Modifier   | Type                | Description                                                                                      |

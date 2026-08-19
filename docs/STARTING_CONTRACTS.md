@@ -1,7 +1,7 @@
 # Canonical contract starting point
 
-> This is the target development architecture under ADRs 0031 and 0032, not a claim of current Solidity conformance,
-> deployment, audit, or authorization for user funds. Implementation gaps are listed in
+> This is the target development architecture under ADRs 0031, 0032, 0034, and 0035, not a claim of current Solidity
+> conformance, deployment, audit, or authorization for user funds. Implementation gaps are listed in
 > [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
 
 ## Core graph
@@ -18,13 +18,13 @@ Uniswap v4 position -> LiquidityPosition -> USDG -> ResonanceRouter -> Resonance
                                         -> GBX -> Fund -> atomic burn
 
 GBX -> SignalGBX -> signals -> Resonance
-                  -> votes -> ProtocolGovernor -> Timelock -> Resonance / Mine
+                  -> IVotes checkpoints -> external governance (unselected) -> Resonance ownership
 ```
 
 The first purchase of an empty mining slot has no displaced miner, so its complete USDG payment routes through
 ResonanceRouter. GBX holders atomically deposit GBX, mint one-for-one non-transferable SignalGBX (`sGBX`), and assign
-every minted unit to a live Strategy. sGBX is both the ERC20Votes governance token and the sole user-facing signal
-coordinator; an idle receipt state is not permitted.
+every minted unit to a live Strategy. sGBX retains ERC20Votes checkpoints for a future external governance integration
+and is the sole user-facing signal coordinator; an idle receipt state is not permitted.
 
 ## Contract responsibilities
 
@@ -40,9 +40,8 @@ coordinator; an idle receipt state is not permitted.
 | `Strategy`          | Sells its complete USDG balance through a bounded linearly declining price. Its acquired-asset payment enters its fixed BribeRouter.                                 |
 | `BribeFactory`      | Bound once to Resonance; only that Resonance may deploy Bribes.                                                                                                      |
 | `BribeRouter`       | Pulls exact Strategy payment, cumulatively classifies 90% Fund / 10% paired Bribe, and isolates both permissionless settlement legs.                                 |
-| `Bribe`             | Streams the automatic acquired-asset share and additional rewards over virtual signal balances, within the fixed eight-token cap.                                    |
+| `Bribe`             | Streams the automatic acquired-asset share and additional rewards over virtual signal balances, within fixed token-count and lifetime-notification caps.             |
 | `Fund`              | Ownerless raw-token treasury, permissionless GBX burn boundary, and caller-selected pro-rata redemption mechanism.                                                   |
-| `ProtocolGovernor`  | Uses sGBX checkpoints to propose only three exact zero-value Resonance calls through the immutable Timelock.                                                         |
 
 ## Supply and mining
 
@@ -105,7 +104,13 @@ them. Complete GBX proceeds transfer to Fund and are burned atomically. The NFT 
   split carry makes the classification independent of payment frequency, and the two settlement legs are isolated.
 - A GBX Strategy payment is not burned at settlement. Once the 90% Fund share reaches Fund, anyone may burn it with
   `Fund.burnGBX`; the 10% share funds the paired Bribe.
-- Bribes receive the acquired payment asset automatically and may receive additional independent notifications.
+- Bribes receive the acquired payment asset automatically and may receive additional independent notifications. For
+  each reward token and Bribe, the monotonic accepted-notification total cannot exceed
+  `floor(type(uint256).max / 1e18)` raw units. The limit has no reset, setter, or escape hatch and rejects excess before
+  checkpointing or transfer, leaving existing claims and exits live.
+- If the automatic reward leg reaches that cap, the liability remains in BribeRouter and cannot enter the old Bribe;
+  its Fund leg remains independently payable. The owner can add a replacement Strategy and Bribe, then kill the old
+  Strategy without reopening its closed reward pool.
 
 ## Fund redemption
 
@@ -122,23 +127,25 @@ asset registry. Omitted assets remain for the post-redemption supply.
 
 ## Governance
 
-There is no migration or upgrade path. Fund, LiquidityPosition, and Mine are ownerless. TimelockController owns
-Resonance, and ProtocolGovernor is its sole proposer. The continuing administrative surface is exactly:
+There is no migration or upgrade path. Fund, LiquidityPosition, and Mine are ownerless. The core includes no Governor,
+Timelock, generic executor, or provider-specific governance adapter. Resonance is the only owned core contract, and its
+continuing protocol administration surface is:
 
 - `Resonance.addStrategy`;
 - `Resonance.killStrategy`;
 - `Resonance.addBribeReward`, subject to the immutable eight-token cap.
 
-ProtocolGovernor accepts only those exact zero-value calls at the immutable Resonance target. Its voting delay,
-period, proposal threshold, and quorum percentage are immutable constructor inputs and use SignalGBX's block-number
-clock. Execution is permissionless after the configured Timelock delay. There is no multisig bypass, external default
-administrator, guardian, or queued-proposal veto; standard proposer cancellation ends when a proposal leaves Pending.
-Every reviewed initial Strategy is bootstrapped by the temporary setup owner before Resonance ownership moves to the
-Timelock and that temporary authority is removed.
+SignalGBX retains block-number ERC20Votes checkpoints, but the core assigns them no proposal, quorum, delay,
+cancellation, or execution semantics. Resonance's owner may also transfer or renounce ownership. Every reviewed initial
+Strategy must be bootstrapped by the temporary setup owner before Resonance ownership moves directly to the exact
+external governance executor selected by a later ADR and that temporary authority is removed. The integration's exact
+release, code, plugins, permissions, voting rules, administrators, upgrade model, batching, delay, and cancellation
+semantics remain unselected, so deployment is blocked.
 
 ## Deliberate scope
 
 - Deployment broadcasting is intentionally absent.
+- The external governance integration and production Resonance owner remain unresolved release inputs.
 - Exact Mine economics and v4 pool parameters remain unresolved deployment inputs.
 - Independent security review and production deployment evidence remain required.
 - Farplace provenance and licensing clearance remain a release blocker recorded in `NOTICE`.

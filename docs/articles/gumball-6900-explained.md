@@ -3,7 +3,7 @@ title: How GUM BALL 6900 Turns Community Conviction Into an Onchain Portfolio
 version: 1.1.0
 date: 2026-08-16
 source_commit: 95ed60efe333d875f7a66da7853eebdf5384e956
-protocol_status: Development candidate. Implementation complete at this commit; not approved for user funds.
+protocol_status: Historical development snapshot at the pinned commit. Governance architecture superseded by ADR 0034; not current and not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
 internal_review_status: Internal engineering review and automated test campaigns, including passing static-analysis, mutation, and external-fuzzing gates. Open release gates recorded in packages/contracts/audit/FINDINGS.md.
 independent_audit_status: No independent external audit has been performed.
@@ -13,6 +13,12 @@ independent_audit_status: No independent external audit has been performed.
 
 > **Before you read on:** this protocol is not deployed, not audited, and not approved for user funds. This article
 > describes what the code at commit `95ed60e` does, not a live product. Nothing here is investment advice.
+
+> **Governance supersession notice.** This commit-pinned article preserves the former in-repository
+> `ProtocolGovernor` and Timelock design as historical evidence. [ADR 0034](../adr/0034-external-governance-ownership.md)
+> later removed both from the core. In the current tree, `SignalGBX` keeps IVotes-compatible checkpoints, but the exact
+> external owner and governance system for `Resonance` remain unselected. All Governor, Timelock, proposal-lifecycle,
+> quorum, and cancellation claims below apply only to commit `95ed60e`.
 
 ## 1. The central idea
 

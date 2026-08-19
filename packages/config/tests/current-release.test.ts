@@ -6,11 +6,11 @@ import * as archivalRelease from '../archival-release.js';
 describe('current release boundary', () => {
   it('fails closed without exposing the removed manifest and Safe graph as current', () => {
     expect(activeConfig.currentReleaseToolingStatus).toMatchObject({
-      architecture: 'protocol-governor',
+      architecture: 'external-governance-pending',
       state: 'blocked',
     });
     expect(() => activeConfig.assertCurrentReleaseToolingAvailable()).toThrow(
-      /Current ProtocolGovernor deployment\/release tooling is unavailable/,
+      /Current external-governance deployment\/release tooling is unavailable/,
     );
 
     expect('parseDeploymentManifest' in activeConfig).toBe(false);

@@ -1,6 +1,6 @@
 # Supported token model
 
-> ADRs 0031 and 0032 define the target token interactions below. Contract implementation remains pending.
+> ADRs 0031, 0032, and 0035 define the target token interactions below.
 
 ## Canonical and registered tokens
 
@@ -23,6 +23,13 @@ precision and still assign unindexable old-denominator carry to Fund before chan
 Bribe rewards can therefore create a larger whole-token Fund liability at a boundary, but cannot transfer pre-entry
 carry to a later signaler.
 
+Each reward token also has a per-Bribe lifetime notification budget of
+`floor(type(uint256).max / 1e18)` raw units. The monotonic counter counts accepted notifications, not the current token
+balance or direct donations, and claims never restore capacity. A standard 18-decimal token would need about
+`1.158e41` whole tokens to exhaust the budget; high-decimal, unusually mintable, or upgradeable tokens can reach the
+raw-unit limit with materially less economic value. The cap is checked before checkpointing and token transfer, so an
+over-cap attempt leaves the existing stream unchanged and does not prevent signal movement or withdrawal.
+
 SignalGBX is explicitly forbidden as a Strategy payment or Bribe reward token because its transfers are permanently
 disabled. Tokens that reject zero approvals remain usable when the exact allowance is fully consumed; if a token
 under-consumes an allowance, the protocol still attempts fail-closed cleanup and may reject that token.
@@ -37,9 +44,11 @@ non-transferable; its signature-based delegation belongs to ERC20Votes governanc
 A token that rejects a payout can leave its fixed Fund, Bribe, or user liability unpaid. It cannot change the
 destination. Accrued Resonance Strategy rewards and BribeRouter's Fund and paired-Bribe liabilities are visible and
 permissionlessly retryable. A failed Fund payment does not consume the Bribe liability and a failed Bribe notification
-does not consume the Fund liability. `withdrawSignal` does not perform either payout. Bribe users can claim one token
-or a selected unique list, allowing them to omit a broken reward token. Direct USDG donations and zero-active-signal
-Resonance emission are surplus, not retryable liabilities.
+does not consume the Fund liability. When failure is caused by an exhausted lifetime cap, the automatic reward
+liability remains in BribeRouter but cannot enter that old Bribe; a replacement Strategy and Bribe provide a fresh
+per-pool budget. `withdrawSignal` does not perform either payout. Bribe users can claim one token or a selected unique
+list, allowing them to omit a broken reward token. Direct USDG donations and zero-active-signal Resonance emission are
+surplus, not retryable liabilities.
 
 Fund is intentionally different: it is a permissionless raw-token treasury. Any ERC-20 can be sent to it, but that
 does not make the token supported or official. A redeemer chooses which unique non-GBX addresses to include. A broken
@@ -55,4 +64,5 @@ does not redirect the liability or block another miner's claim.
 
 Official protocol membership comes from Strategies registered in Resonance, not from Fund balances. Frontends and
 indexers must label unsolicited Fund balances separately, allow manual asset-address entry, warn that omissions are
-forfeited, show the fixed eight-token Bribe cap, and never present registration of a ninth reward token as valid.
+forfeited, show both the fixed eight-token Bribe cap and each registered token's remaining lifetime notification
+capacity, and never present registration of a ninth reward token or an over-cap notification as valid.

@@ -2,9 +2,9 @@
 
 The target graph is direct, immutable, and deliberately small.
 
-> Target-development architecture: ADRs 0031 and 0032 are authoritative, but their Solidity and integration work is
-> pending. See [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md). This document describes the
-> target and is not a claim that the current contracts already conform.
+> Development architecture: ADRs 0031, 0032, 0034, and 0035 are authoritative. Governance execution remains an
+> unselected external integration, so this document is not deployment approval or evidence of a complete production
+> graph.
 
 ```text
 slot replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance --7-day stream--> Strategy
@@ -12,7 +12,7 @@ slot replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance --7-day stre
 
 Mine --continuous GBX--> current slot miners
 GBX --signal deposit--> SignalGBX --signal coordination--> Resonance allocation weights
-                                  \--block-clock votes----> ProtocolGovernor -> Timelock
+                                  \--IVotes checkpoints---> external governance (unselected) --owns--> Resonance
 Strategy acquired-asset payment -> BribeRouter --90%--> fixed Fund liability
                                               \--10%--> paired Bribe reward liability
 additional reward funder ------------------------------> Bribe -> Strategy signalers
@@ -27,8 +27,9 @@ slots. Each occupied slot keeps its TPS until replacement; newly filled slots di
 Fund reads Mine's constant-time effective supply before its redemption snapshot. Pending GBX is included in the
 denominator without minting it, iterating slots, or changing mining state.
 
-SignalGBX is a non-transferable one-for-one GBX escrow token, the ERC20Votes governance source, and the only external
-signal coordinator. Idle sGBX is invalid. `signal` and `signalWithPermit` atomically deposit GBX, mint the same sGBX,
+SignalGBX is a non-transferable one-for-one GBX escrow token, retains ERC20Votes checkpoints for a future external
+governance integration, and is the only external signal coordinator. Idle sGBX is invalid. `signal` and
+`signalWithPermit` atomically deposit GBX, mint the same sGBX,
 assign the same amount to one live Strategy through Resonance, and mirror it into the paired Bribe. `moveSignal`
 changes allocation without changing custody, supply, or votes. `withdrawSignal` removes the Strategy and Bribe
 position, burns the same sGBX, and returns the same GBX. The permit path uses underlying GBX authorization; sGBX itself
@@ -53,22 +54,27 @@ every acquired-asset payment is cumulatively classified 90% to a fixed Fund liab
 reward liability. The split is immutable and uses explicit remainder accounting; Fund payment and Bribe notification
 are permissionless isolated settlement legs. Bribes may also receive independently notified rewards. Bribe old-supply
 carry and fully exiting user precision become fixed Fund classification before virtual signal supply changes. Killing
-a Strategy checkpoints and preserves its accrued Resonance claim, removes its complete weight from active reward
-supply, and leaves its Bribe as a closed pool for existing signalers; no new signal can enter, and a final exit can
-permanently abandon unfinished rewards. After bootstrap, the final live Strategy cannot be killed until a replacement
-has been added, while killed-Strategy positions remain movable out or withdrawable.
+Each reward token has a monotonic lifetime notification cap of `floor(type(uint256).max / 1e18)` raw units, checked
+before checkpointing or transfer so index overflow cannot block signal exits. Killing a Strategy checkpoints and
+preserves its accrued Resonance claim, removes its complete weight from active reward supply, and leaves its Bribe as a
+closed pool for existing signalers; no new signal can enter, and a final exit can permanently abandon unfinished
+rewards. After bootstrap, the final live Strategy cannot be killed until a replacement has been added, while killed-
+Strategy positions remain movable out or withdrawable.
 
 Fund is an ownerless raw-token treasury with caller-selected redemption arrays and no registry or migration path.
 LiquidityPosition permanently holds the precommitted, fixed-principal Uniswap v4 NFT.
 
-ProtocolGovernor binds immutable SignalGBX, Timelock, Resonance, block-clock voting parameters, and quorum. Its
-proposal filter admits only the three exact zero-value Resonance calls. It is the Timelock's sole proposer; open
-execution follows the delay and rejects nonzero executor `msg.value`, with no multisig bypass, guardian, or
-queued-proposal veto.
+The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. Resonance is its
+only owned contract and retains `addStrategy`, `killStrategy`, and `addBribeReward`, plus inherited ownership transfer
+and renunciation. A production setup must transfer Resonance from its temporary bootstrap owner directly to the exact
+external governance executor selected by a later ADR. That integration's release, permissions, voting rules,
+administrators, upgrade model, batching, delay, and cancellation semantics remain unselected, so deployment is blocked.
 
 See [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md), [ADR 0024](adr/0024-immutable-multislot-mine.md),
-[ADR 0027](adr/0027-bribe-carry-boundaries.md), [ADR 0028](adr/0028-closed-bribe-pools-after-strategy-death.md), and
+[ADR 0027](adr/0027-bribe-carry-boundaries.md), [ADR 0028](adr/0028-closed-bribe-pools-after-strategy-death.md),
 [ADR 0029](adr/0029-bribe-based-resonance.md),
 [ADR 0030](adr/0030-signalgbx-coordination-and-token-governance.md),
-[ADR 0031](adr/0031-mandatory-signal-backed-signalgbx.md), and
-[ADR 0032](adr/0032-fixed-90-10-acquired-asset-settlement.md).
+[ADR 0031](adr/0031-mandatory-signal-backed-signalgbx.md),
+[ADR 0032](adr/0032-fixed-90-10-acquired-asset-settlement.md),
+[ADR 0034](adr/0034-external-governance-ownership.md), and
+[ADR 0035](adr/0035-bribe-lifetime-reward-cap.md).

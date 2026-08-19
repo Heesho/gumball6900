@@ -1,5 +1,5 @@
 /**
- * Source-only Forge coverage policy for the current direct core and bounded governance.
+ * Source-only Forge coverage policy for the current direct core.
  *
  * Percentages are integer basis points so policy evaluation never depends on
  * floating-point rounding. `minimumTotal` pins the smallest acceptable
@@ -20,7 +20,6 @@ export const FORGE_COVERAGE_POLICY = Object.freeze([
   policy('src/core/SignalGBX.sol', [95_00, 11], [95_00, 13], [95_00, 63]),
   policy('src/core/Strategy.sol', [95_00, 7], [95_00, 17], [95_00, 69]),
   policy('src/core/StrategyFactory.sol', [95_00, 2], [95_00, 3], [95_00, 11]),
-  policy('src/governance/ProtocolGovernor.sol', [95_00, 18], [95_00, 7], [95_00, 64]),
 ]);
 
 function policy(path, functions, branches, lines) {

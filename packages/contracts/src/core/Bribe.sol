@@ -39,6 +39,8 @@ contract Bribe is ReentrancyGuard {
     uint256 public constant REWARD_DURATION = 7 days;
     /// @notice Fixed-point scale used to preserve sub-token reward allocation across checkpoints.
     uint256 public constant REWARD_PRECISION = 1e18;
+    /// @notice Maximum cumulative raw units one reward token may notify over this Bribe's lifetime.
+    uint256 public constant MAX_LIFETIME_REWARD_AMOUNT = type(uint256).max / REWARD_PRECISION;
     /// @notice Immutable upper bound on append-only reward tokens and every mandatory reward loop.
     uint256 public constant MAX_REWARD_TOKENS = 8;
 
@@ -80,6 +82,8 @@ contract Bribe is ReentrancyGuard {
     mapping(address token => uint256 scaledRemainder) public fundRewardRemainder;
     /// @notice Exact supported-token balance notified minus completed user and Fund payouts.
     mapping(address token => uint256 amount) public accountedRewardBalance;
+    /// @notice Monotonic cumulative raw units admitted through notifications for each reward token.
+    mapping(address token => uint256 amount) public lifetimeRewardNotified;
 
     /// @notice Emitted when Resonance appends one supported reward token.
     /// @param rewardToken Newly registered reward token.
@@ -182,6 +186,12 @@ contract Bribe is ReentrancyGuard {
     /// @param token Oversized token balance.
     /// @param balance Observed balance.
     error RewardScaleOverflow(address token, uint256 balance);
+    /// @notice Raised before cumulative notifications can exhaust the reward index's numeric range.
+    /// @param token Reward token whose immutable lifetime cap would be exceeded.
+    /// @param notified Cumulative raw units already admitted.
+    /// @param requested Additional raw units requested by this notification.
+    /// @param maximum Immutable cumulative raw-unit limit.
+    error RewardLifetimeCapExceeded(address token, uint256 notified, uint256 requested, uint256 maximum);
     /// @notice Raised for a zero address dependency, account, or token.
     error ZeroAddress();
     /// @notice Raised for a zero signal mutation or reward notification.
@@ -261,7 +271,14 @@ contract Bribe is ReentrancyGuard {
         _requireRewardToken(rewardToken);
         if (amount == 0) revert ZeroAmount();
 
+        uint256 notified = lifetimeRewardNotified[rewardToken];
+        uint256 maximum = MAX_LIFETIME_REWARD_AMOUNT;
+        if (amount > maximum - notified) {
+            revert RewardLifetimeCapExceeded(rewardToken, notified, amount, maximum);
+        }
+
         _checkpointToken(rewardToken);
+        lifetimeRewardNotified[rewardToken] = notified + amount;
 
         IERC20 token = IERC20(rewardToken);
         uint256 senderBalanceBefore = token.balanceOf(msg.sender);

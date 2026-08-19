@@ -1,15 +1,7 @@
 import { Address, BigInt, Bytes, ethereum } from '@graphprotocol/graph-ts';
-import {
-  Account,
-  GovernanceProposal,
-  MiningSlot,
-  ProtocolEvent,
-  ProtocolState,
-  Strategy,
-  TimelockRoleMembership,
-} from '../generated/schema';
+import { Account, MiningSlot, ProtocolEvent, ProtocolState, Strategy } from '../generated/schema';
 import { CHAIN_ID, CHAIN_ID_TEXT, ZERO } from './constants';
-import { addressId, eventId, governanceProposalId, slotId, timelockRoleMembershipId } from './ids';
+import { addressId, eventId, slotId } from './ids';
 
 export function getProtocol(event: ethereum.Event): ProtocolState {
   let protocol = ProtocolState.load(CHAIN_ID_TEXT);
@@ -38,11 +30,8 @@ export function getProtocol(event: ethereum.Event): ProtocolState {
     protocol.signaledGBXRaw = ZERO;
     protocol.fundBurnedGBXRaw = ZERO;
     protocol.redeemedGBXRaw = ZERO;
-    protocol.timelockDelay = ZERO;
     protocol.strategyCount = 0;
     protocol.liveStrategyCount = 0;
-    protocol.governanceProposalCount = ZERO;
-    protocol.governanceVoteCount = ZERO;
   }
   protocol.lastBlockNumber = event.block.number;
   protocol.lastTimestamp = event.block.timestamp;
@@ -64,7 +53,6 @@ export function getAccount(address: Address, event: ethereum.Event): Account {
     account.signalWeightRaw = ZERO;
     account.currentDelegate = Address.zero();
     account.delegatedVotesRaw = ZERO;
-    account.governanceVotesCast = ZERO;
     account.redeemedGBXRaw = ZERO;
   }
   account.lastBlockNumber = event.block.number;
@@ -122,51 +110,6 @@ export function getStrategy(address: Address, event: ethereum.Event): Strategy {
   strategy.lastBlockNumber = event.block.number;
   strategy.lastTimestamp = event.block.timestamp;
   return strategy;
-}
-
-export function getGovernanceProposal(
-  governor: Address,
-  proposalId: BigInt,
-  event: ethereum.Event,
-): GovernanceProposal {
-  const id = governanceProposalId(governor, proposalId);
-  let proposal = GovernanceProposal.load(id);
-  if (proposal == null) {
-    proposal = new GovernanceProposal(id);
-    proposal.governor = governor;
-    proposal.proposalId = proposalId;
-    proposal.lastLifecycleEvent = 'UNKNOWN';
-    proposal.againstVotesRaw = ZERO;
-    proposal.forVotesRaw = ZERO;
-    proposal.abstainVotesRaw = ZERO;
-    proposal.voteCount = ZERO;
-  }
-  proposal.lastBlockNumber = event.block.number;
-  proposal.lastTimestamp = event.block.timestamp;
-  return proposal;
-}
-
-export function getTimelockRoleMembership(
-  timelock: Address,
-  role: Bytes,
-  account: Address,
-  event: ethereum.Event,
-): TimelockRoleMembership {
-  const id = timelockRoleMembershipId(timelock, role, account);
-  let membership = TimelockRoleMembership.load(id);
-  if (membership == null) {
-    membership = new TimelockRoleMembership(id);
-    membership.timelock = timelock;
-    membership.role = role;
-    membership.account = account;
-    membership.granted = false;
-    membership.lastSender = Address.zero();
-  }
-  membership.lastBlockNumber = event.block.number;
-  membership.lastTimestamp = event.block.timestamp;
-  membership.lastTransactionHash = event.transaction.hash;
-  membership.lastLogIndex = event.logIndex;
-  return membership;
 }
 
 export function recordEvent(event: ethereum.Event, eventType: string): ProtocolEvent {

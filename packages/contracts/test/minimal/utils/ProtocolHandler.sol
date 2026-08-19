@@ -15,6 +15,7 @@ import { Resonance } from "../../../src/core/Resonance.sol";
 import { ResonanceRouter } from "../../../src/core/ResonanceRouter.sol";
 import { SignalGBX } from "../../../src/core/SignalGBX.sol";
 import { Strategy } from "../../../src/core/Strategy.sol";
+import { StrategyRegistry } from "./StrategyRegistry.sol";
 import { MockERC20 } from "./Tokens.sol";
 
 /// @title ProtocolHandler
@@ -34,10 +35,10 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     Resonance public immutable resonance;
     ResonanceRouter public immutable resonanceRouter;
     Mine public immutable mineContract;
+    StrategyRegistry public immutable strategyRegistry;
 
     address[ACTOR_COUNT] public actors;
     uint256[ACTOR_COUNT] private actorKeys;
-    address[] public strategies;
 
     /// @notice Total USDG the handler has ever created, used as the conservation reference.
     uint256 public ghostUSDGMinted;
@@ -55,7 +56,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         Resonance resonance_,
         ResonanceRouter resonanceRouter_,
         Mine mine_,
-        address[] memory strategies_
+        StrategyRegistry strategyRegistry_
     ) {
         gbx = gbx_;
         usdg = usdg_;
@@ -65,6 +66,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         resonance = resonance_;
         resonanceRouter = resonanceRouter_;
         mineContract = mine_;
+        strategyRegistry = strategyRegistry_;
 
         actorKeys[0] = 0xA11CE;
         actorKeys[1] = 0xB0B;
@@ -72,10 +74,6 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         actorKeys[3] = 0xDA3E;
         for (uint256 i; i < ACTOR_COUNT; ++i) {
             actors[i] = vm.addr(actorKeys[i]);
-        }
-
-        for (uint256 i; i < strategies_.length; ++i) {
-            strategies.push(strategies_[i]);
         }
     }
 
@@ -249,6 +247,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function distributeAll() external {
+        address[] memory strategies = strategyRegistry.all();
         for (uint256 i; i < strategies.length; ++i) {
             resonance.distribute(strategies[i]);
         }
@@ -260,6 +259,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     //////////////////////////////////////////////////////////////*/
 
     function buy(uint256 actorSeed, uint256 strategySeed) external {
+        address[] memory strategies = strategyRegistry.all();
         if (strategies.length == 0) return;
 
         address actor = _actor(actorSeed);
@@ -291,6 +291,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function notifyTinyReward(uint256 strategySeed, uint256 amount) external {
+        address[] memory strategies = strategyRegistry.all();
         if (strategies.length == 0) return;
 
         Strategy strategy = Strategy(strategies[_bound(strategySeed, 0, strategies.length - 1)]);
@@ -313,6 +314,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function payFixedLiabilities() external {
+        address[] memory strategies = strategyRegistry.all();
         for (uint256 i; i < strategies.length; ++i) {
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
             router.payFundPayment();
@@ -328,6 +330,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function payFundLiabilities() external {
+        address[] memory strategies = strategyRegistry.all();
         for (uint256 i; i < strategies.length; ++i) {
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
             router.payFundPayment();
@@ -342,6 +345,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function notifyBribeLiabilities() external {
+        address[] memory strategies = strategyRegistry.all();
         for (uint256 i; i < strategies.length; ++i) {
             BribeRouter(resonance.bribeRouterFor(strategies[i])).notifyBribeReward();
         }
@@ -417,7 +421,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     //////////////////////////////////////////////////////////////*/
 
     function strategyCount() external view returns (uint256 count) {
-        return strategies.length;
+        return strategyRegistry.length();
     }
 
     function actorCount() external pure returns (uint256 count) {
@@ -435,6 +439,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function _aliveStrategies() private view returns (address[] memory alive) {
+        address[] memory strategies = strategyRegistry.all();
         uint256 count;
         for (uint256 i; i < strategies.length; ++i) {
             if (resonance.isStrategyAlive(strategies[i])) ++count;
@@ -448,6 +453,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function _accountStrategies(address account) private view returns (address[] memory selected) {
+        address[] memory strategies = strategyRegistry.all();
         uint256 count;
         for (uint256 i; i < strategies.length; ++i) {
             if (resonance.accountSignals(account, strategies[i]) != 0) ++count;

@@ -1,7 +1,7 @@
 # Core invariants
 
-> These are target-development invariants under ADRs 0031 and 0032. Their implementation and executable tests are
-> pending; see [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
+> These are development invariants under ADRs 0031, 0032, 0034, and 0035. Governance execution remains an unselected
+> external integration and contributes no production invariant until separately reviewed.
 
 ## GBX and Mine
 
@@ -26,9 +26,9 @@
 
 ## Signals, revenue, and Bribes
 
-- SignalGBX supply is backed at least one-for-one by GBX held in SignalGBX, cannot be transferred, and is the
-  ERC20Votes source for ProtocolGovernor. Direct GBX donations are stranded surplus and mint no receipt or votes;
-  SignalGBX has no ERC-2612 approval permit.
+- SignalGBX supply is backed at least one-for-one by GBX held in SignalGBX, cannot be transferred, and retains
+  ERC20Votes checkpoints for a future external governance integration. Direct GBX donations are stranded surplus and
+  mint no receipt or votes; SignalGBX has no ERC-2612 approval permit.
 - Idle SignalGBX is unreachable. Every mint atomically deposits exact GBX and creates an identical Strategy and paired-
   Bribe position; every burn atomically removes an identical position and returns exact GBX.
 - SignalGBX is the sole external signal coordinator. `SignalGBX.balanceOf(account)` is the canonical account aggregate,
@@ -56,20 +56,24 @@
 - Every accounted Bribe reward unit is represented by a live schedule, queue, carry, user liability, or Fund liability.
 - Zero Bribe supply pauses rather than consumes stream time, and a live stream is never reset by a top-up.
 - A Bribe has at most eight append-only reward tokens.
+- For every Bribe reward token,
+  `lifetimeRewardNotified[token] <= floor(type(uint256).max / Bribe.REWARD_PRECISION())`. The counter increases by each
+  accepted raw notification, never decreases, and excludes direct donations. A notification that would exceed the cap
+  reverts before checkpointing or transfer. The previewed reward-per-token index cannot exceed
+  `lifetimeRewardNotified[token] * Bribe.REWARD_PRECISION()`.
 - `withdrawSignal` never depends on transferring a revenue, payment, or reward token other than its exact escrowed GBX
   return. Killed-Strategy positions remain movable out or withdrawable.
 - Only Resonance can deploy through StrategyFactory or BribeFactory or maintain Bribe virtual balances.
 
 ## Governance
 
-- ProtocolGovernor's SignalGBX, Timelock, Resonance, voting delay, voting period, proposal threshold, and quorum
-  percentage are immutable.
-- Every proposal call has zero ETH value, targets the immutable Resonance, and uses exactly one of `addStrategy`,
-  `killStrategy`, or `addBribeReward` with canonical calldata length.
-- ProtocolGovernor is the Timelock's only proposer. The zero-address executor leaves execution permissionless after the
-  delay, and no external default admin remains after setup.
-- The proposer may cancel only while a proposal is Pending. No multisig, guardian, or public path can cancel a queued
-  proposal or replace the Timelock.
+- The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter.
+- SignalGBX retains ERC20Votes checkpoints on its default block-number clock, but the core assigns them no proposal
+  threshold, quorum, voting period, cancellation, delay, or execution semantics.
+- Resonance is the only owned core contract. After its one-time router binding, its continuing protocol administration
+  methods are `addStrategy`, `killStrategy`, and `addBribeReward`; inherited ownership transfer and renunciation remain.
+- The external Resonance owner is unselected. No production ownership, voting, permission, upgrade, batching, delay, or
+  cancellation invariant exists until a later ADR selects the exact external integration, so deployment is blocked.
 
 ## Strategies, Fund, and liquidity
 
@@ -78,6 +82,8 @@
   change cumulative classification.
 - Fund payment and paired-Bribe notification are isolated permissionless settlement legs. Neither liability can be
   redirected, consumed by failure of the other leg, or paid twice. Direct BribeRouter donations alter neither.
+- If the paired Bribe has exhausted a token's lifetime notification cap, notification failure leaves the complete
+  automatic Bribe liability in BribeRouter while Fund settlement remains independently available.
 - A GBX-priced Strategy is supply-neutral until the Fund-classified GBX is explicitly burned after reaching Fund; the
   Bribe-classified GBX remains a reward liability and is not burned by settlement.
 - Fund redemption uses one effective pre-burn supply snapshot for every selected token and is atomic with the

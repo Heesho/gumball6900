@@ -75,7 +75,7 @@ async function main() {
     tag,
   });
   // The retained manifest is archival. This assertion deliberately aborts
-  // before output-directory creation until the ProtocolGovernor graph has a
+  // before output-directory creation until the external-governance graph has a
   // reviewed current manifest and subgraph derivation.
   const subgraphNetworks = deriveSubgraphNetworks(manifest);
   const [assetCandidateBytes, configBytes, manifestBytes, registryRevalidationBytes, registryResponseBytes] =

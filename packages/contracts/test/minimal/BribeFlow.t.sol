@@ -162,11 +162,13 @@ contract BribeRewardFlowTest is Test {
 
         assertEq(bribe.fundRewardLiability(address(mutableReward)), 1);
         assertEq(bribe.accountedRewardBalance(address(mutableReward)), 1);
+        assertEq(bribe.lifetimeRewardNotified(address(mutableReward)), 1);
         assertEq(mutableReward.balanceOf(address(bribe)), 1);
 
         mutableReward.setBlocked(address(this), false);
         assertEq(bribe.payFundReward(address(mutableReward)), 1);
         assertEq(bribe.fundRewardLiability(address(mutableReward)), 0);
+        assertEq(bribe.lifetimeRewardNotified(address(mutableReward)), 1);
         assertEq(mutableReward.balanceOf(address(this)), 1);
     }
 
@@ -197,21 +199,86 @@ contract BribeRewardFlowTest is Test {
         assertEq(bribe.accountedRewardBalance(address(mutableReward)), 0);
     }
 
-    /// @notice The exact scalable-balance ceiling succeeds and the first excess unit rolls back atomically.
-    function test_RewardScaleCeilingRejectsTheFirstExcessUnitWithoutConsumingIt() external {
+    /// @notice Any notification partition may fill the exact lifetime cap, but the first excess unit is rejected.
+    function test_LifetimeRewardCapAcceptsTheExactLimitAndRejectsTheFirstExcessUnit() external {
         bribe.deposit(1, ALICE);
-        uint256 maximum = type(uint256).max / bribe.REWARD_PRECISION();
+        uint256 maximum = bribe.MAX_LIFETIME_REWARD_AMOUNT();
+        assertEq(maximum, type(uint256).max / bribe.REWARD_PRECISION());
         reward.mint(address(this), maximum + 1);
         reward.approve(address(bribe), type(uint256).max);
 
-        bribe.notifyRewardAmount(address(reward), maximum);
-        vm.expectRevert(abi.encodeWithSelector(Bribe.RewardScaleOverflow.selector, address(reward), maximum + 1));
+        bribe.notifyRewardAmount(address(reward), maximum - 1);
+        bribe.notifyRewardAmount(address(reward), 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Bribe.RewardLifetimeCapExceeded.selector, address(reward), maximum, uint256(1), maximum
+            )
+        );
         bribe.notifyRewardAmount(address(reward), 1);
 
         assertEq(reward.balanceOf(address(this)), 1);
         assertEq(reward.balanceOf(address(bribe)), maximum);
+        assertEq(bribe.lifetimeRewardNotified(address(reward)), maximum);
         assertEq(bribe.accountedRewardBalance(address(reward)), maximum);
+        assertEq(bribe.scheduledRewards(address(reward)), maximum - 1);
+        assertEq(bribe.queuedRewards(address(reward)), 1);
+    }
+
+    /// @notice Paid rewards never reopen lifetime headroom or permit the historical two-cycle index overflow.
+    function test_LifetimeRewardCapStillBlocksAfterTheMaximumWasClaimed() external {
+        bribe.deposit(1, ALICE);
+        uint256 maximum = bribe.MAX_LIFETIME_REWARD_AMOUNT();
+        reward.mint(address(this), maximum + 1);
+        reward.approve(address(bribe), type(uint256).max);
+
+        bribe.notifyRewardAmount(address(reward), maximum);
+        vm.warp(block.timestamp + WEEK);
+        assertEq(bribe.claimReward(ALICE, address(reward)), maximum);
+        assertEq(bribe.accountedRewardBalance(address(reward)), 0);
+        assertEq(bribe.rewardPerToken(address(reward)), maximum * bribe.REWARD_PRECISION());
+
+        bribe.withdraw(1, ALICE);
+        bribe.deposit(1, BOB);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Bribe.RewardLifetimeCapExceeded.selector, address(reward), maximum, uint256(1), maximum
+            )
+        );
+        bribe.notifyRewardAmount(address(reward), 1);
+
+        assertEq(reward.balanceOf(address(this)), 1);
+        assertEq(reward.balanceOf(address(bribe)), 0);
+        assertEq(bribe.lifetimeRewardNotified(address(reward)), maximum);
+        assertEq(bribe.accountedRewardBalance(address(reward)), 0);
+        assertEq(bribe.scheduledRewards(address(reward)), 0);
         assertEq(bribe.queuedRewards(address(reward)), 0);
+
+        bribe.withdraw(1, BOB);
+        assertEq(bribe.balanceOf(BOB), 0);
+    }
+
+    /// @notice Multiple completed streams may consume the full cap without exceeding the cumulative index range.
+    function test_TwoCompletedRewardCyclesMayExactlyConsumeTheLifetimeCap() external {
+        bribe.deposit(1, ALICE);
+        uint256 maximum = bribe.MAX_LIFETIME_REWARD_AMOUNT();
+        uint256 first = maximum / 2;
+        uint256 second = maximum - first;
+        reward.mint(address(this), maximum);
+        reward.approve(address(bribe), type(uint256).max);
+
+        bribe.notifyRewardAmount(address(reward), first);
+        vm.warp(block.timestamp + WEEK);
+        assertEq(bribe.claimReward(ALICE, address(reward)), first);
+
+        bribe.notifyRewardAmount(address(reward), second);
+        vm.warp(block.timestamp + WEEK);
+        assertEq(bribe.claimReward(ALICE, address(reward)), second);
+
+        assertEq(bribe.lifetimeRewardNotified(address(reward)), maximum);
+        assertEq(bribe.rewardPerToken(address(reward)), maximum * bribe.REWARD_PRECISION());
+        assertEq(bribe.accountedRewardBalance(address(reward)), 0);
+        bribe.withdraw(1, ALICE);
     }
 
     /// @notice SafeERC20 accepts a genuine no-return token across both reward ingress and payout.

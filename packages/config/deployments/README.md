@@ -46,6 +46,6 @@ archived validation success from being mistaken for current deployment eligibili
 
 The Acquisition/Buyback distinction, legacy mining graph, and atomic Buyback burn in this schema are incompatible with
 ADR 0024's immutable multislot Mine and the current uniform Strategy settlement. Current deployment tooling must be
-rebuilt against the ProtocolGovernor core described in `docs/DEPLOYMENT.md`. The examples and policy files here remain
-provisional or archival inputs; they do not supply canonical addresses, Mine or Governor parameters, approvals, or
-deployment authorization.
+rebuilt after the external Resonance owner and governance integration required by ADR 0034 are selected. The examples
+and policy files here remain provisional or archival inputs; they do not supply canonical addresses, governance
+parameters, approvals, or deployment authorization.

@@ -2,7 +2,8 @@
 
 - Status: accepted for the Resonance reward stream; direct signal entrypoints and signal-state ownership were
   superseded by ADR 0030 and then ADR 0031; permission to kill the final live Strategy is superseded by ADR 0031; the
-  preserved 100%-Fund settlement is superseded by ADR 0032; not audited or deployed; not approved for user funds
+  preserved 100%-Fund settlement is superseded by ADR 0032; the intended Timelock owner is superseded by
+  [ADR 0034](0034-external-governance-ownership.md); not audited or deployed; not approved for user funds
 - Date: 2026-08-15
 - Supersedes: ADR 0026 and the Resonance carry, direct-donation synchronization, and Resonance Fund-liability provisions
   of ADR 0020

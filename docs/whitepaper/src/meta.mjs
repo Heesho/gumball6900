@@ -27,7 +27,7 @@ export const meta = {
     'tenure-locked rates',
     'in-kind redemption',
     'governance minimization',
-    'selector-bounded token governance',
+    'external governance integration',
     'Robinhood Chain',
     `contracts commit ${status.contractsCommitShort}`,
     `review candidate ${status.auditCandidateCommitShort}`,

@@ -4,24 +4,18 @@ Typed ABIs, transaction builders, canonical-block readers, validation, and indep
 6900 development core.
 
 The generated ABI set covers `GBX`, `Mine`, `LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`, both
-factories, `Strategy`, `BribeRouter`, `Bribe`, `Fund`, `ProtocolGovernor`, and OpenZeppelin `TimelockController`.
+factories, `Strategy`, `BribeRouter`, `Bribe`, and `Fund`.
 
 ```ts
 import {
-  buildAddStrategyProposalCall,
-  buildCheckpointMining,
   buildClaimMiningPayment,
   buildHarvestLiquidityFees,
-  buildIncreaseMiningCapacityProposalCall,
   buildMine,
-  buildProtocolProposal,
   buildRedemption,
   buildSignal,
   buildSignalWithPermit,
   buildStrategyBuy,
   readMineSlotView,
-  readProtocolGovernorView,
-  readProtocolProposalView,
   readResonanceView,
   readRedemptionPreview,
   readSupplyView,
@@ -38,7 +32,6 @@ const occupy = buildMine({
   deadline,
   maximumPrice,
 });
-const checkpoint = buildCheckpointMining(mine);
 const claim = buildClaimMiningPayment(mine, displacedMiner);
 const signal = buildSignal(signalGBX, strategy, 1_000n * 10n ** 18n);
 const signalWithPermit = buildSignalWithPermit({
@@ -53,14 +46,6 @@ const signalWithPermit = buildSignalWithPermit({
 const harvest = buildHarvestLiquidityFees(liquidityPosition);
 const redemption = buildRedemption(fund, gbxAmount, receiver, selectedTokens);
 const purchase = buildStrategyBuy({ strategy, revenueReceiver: receiver, expectedEpochId, deadline, maximumPayment });
-
-const calls = [
-  buildAddStrategyProposalCall(resonance, paymentToken, strategyConfig),
-  buildAddBribeRewardProposalCall(resonance, strategy, rewardToken),
-];
-const propose = buildProtocolProposal(protocolGovernor, calls, description);
-const governor = await readProtocolGovernorView(publicClient, protocolGovernor);
-const proposal = await readProtocolProposalView(publicClient, protocolGovernor, proposalId, { voter: account });
 ```
 
 `quoteMiningAccrual` accepts explicit per-slot TPS values because occupied rates are tenure-locked. `miningRateAt`
@@ -82,9 +67,6 @@ and returns GBX. Idle SignalGBX is unreachable, and direct SignalGBX transfers a
 `buildRouteRevenue` leaves a Router balance below the active amount left in the Router; a qualifying complete balance
 restarts seven days with `reward + left`. `buildNotifyRevenue` encodes that Router-only call.
 
-The three administrative encoders return typed, zero-value `ProtocolProposalCall` values rather than wallet-ready
-calls: add or kill a Strategy and add a Bribe reward token. Compose them through the
-`ProtocolGovernor` propose, vote, queue, and execute builders. The original proposer may cancel only while a proposal is
-Pending; there is intentionally no guardian or queued-proposal cancellation path. `readProtocolGovernorView` exposes
-the fixed graph, voting parameters, and Timelock delay. `readProtocolProposalView` exposes lifecycle state, vote totals,
-and snapshot quorum once the snapshot is historical.
+The SDK intentionally includes no governance proposal builders or readers. SignalGBX exposes ERC20Votes checkpoints,
+but the external governance system that will own Resonance has not been selected. Provider-specific actions and views
+will be added only after an exact integration and release are reviewed.

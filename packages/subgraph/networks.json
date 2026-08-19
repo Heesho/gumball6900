@@ -3,11 +3,9 @@
     "GBX": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
     "Mine": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
     "LiquidityPosition": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "ProtocolGovernor": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
     "SignalGBX": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
     "ResonanceRouter": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
     "Resonance": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "Fund": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 },
-    "TimelockController": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 }
+    "Fund": { "address": "0x0000000000000000000000000000000000000000", "startBlock": 0 }
   }
 }

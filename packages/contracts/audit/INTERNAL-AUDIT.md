@@ -2,7 +2,9 @@
 
 > Historical evidence only. ADR 0024 replaced the distribution contract and supply model with Mine, ADR 0026
 > replaced Resonance routing, streaming, and carry behavior, and ADR 0027 later resolved the A-09 Bribe boundary
-> disposition below. This report is not an audit of the current development graph.
+> disposition below. ADR 0034 later removed the intended ProtocolGovernor/Timelock ownership architecture; every
+> Timelock statement below describes only the pinned reviewed candidate. This report is not an audit of the current
+> development graph or any external governance integration.
 
 Date: 2026-08-09
 
@@ -76,3 +78,8 @@ Mythril result, or formal proof. Medusa 1.5.1 completed 101,840 calls successful
 fuzzer and does not clear the pinned nightly gate. The target-chain checks are read-only evidence at one pinned block,
 not deployment verification. See the dedicated campaign, static, formal, mutation, Uniswap, fork, residual-risk, and
 release-checklist files in this directory.
+
+For the post-ADR-0034 tree, the exact external governance provider and release, code and upgrade model, permission and
+admin graph, SignalGBX compatibility, voting and execution semantics, delay and cancellation behavior, and Resonance
+ownership handoff are additional deployment and independent-review gates. No conclusion in this historical report
+clears them.

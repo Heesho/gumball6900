@@ -118,6 +118,29 @@ contract CampaignHarnessTest is Test {
         campaign.killStrategy(0);
     }
 
+    function test_DynamicallyAddedStrategyEntersTheExternalCampaign() external {
+        uint256 addedIndex = campaign.strategyCount();
+        campaign.addStrategy();
+
+        assertEq(campaign.strategyCount(), addedIndex + 1);
+        address addedStrategy = campaign.strategies(addedIndex);
+        address actor = address(campaign.actors(0));
+        assertTrue(campaign.resonance().isStrategyAlive(addedStrategy));
+
+        uint96 fullSignalSeed = uint96(100 ether - 1);
+        campaign.signal(0, uint8(addedIndex), fullSignalSeed);
+        assertEq(campaign.resonance().accountSignals(actor, addedStrategy), 100 ether);
+        _assertAllProperties();
+
+        campaign.killStrategy(uint8(addedIndex));
+        assertFalse(campaign.resonance().isStrategyAlive(addedStrategy));
+
+        campaign.withdrawSignal(0, uint8(addedIndex), fullSignalSeed);
+        assertEq(campaign.resonance().accountSignals(actor, addedStrategy), 0);
+        assertEq(campaign.signalGBX().balanceOf(actor), 0);
+        _assertAllProperties();
+    }
+
     /// @notice Random action sequences never break a property, mirroring what the nightly campaign explores.
     function testFuzz_RandomActionSequencesPreserveEveryProperty(uint8[12] calldata seeds) external {
         for (uint256 i; i < seeds.length; ++i) {
@@ -125,14 +148,15 @@ contract CampaignHarnessTest is Test {
             uint8 actor = seed % 3;
 
             // Failing actions are exactly what the fuzzer discards, so ignore them and keep exploring.
-            if (seed % 8 == 0) try campaign.signalDefault(actor, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
-            if (seed % 8 == 1) try campaign.signal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
-            if (seed % 8 == 2) try campaign.mine(actor, seed) { } catch { }
-            if (seed % 8 == 3) try campaign.donateRevenue(uint64(seed) * 1e6 + 1) { } catch { }
-            if (seed % 8 == 4) try campaign.distributeAll() { } catch { }
-            if (seed % 8 == 5) try campaign.buy(actor, seed) { } catch { }
-            if (seed % 8 == 6) try campaign.withdrawSignalMany(actor, seed) { } catch { }
-            if (seed % 8 == 7) try campaign.claimRewards(actor, seed) { } catch { }
+            if (seed % 9 == 0) try campaign.signalDefault(actor, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
+            if (seed % 9 == 1) try campaign.signal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
+            if (seed % 9 == 2) try campaign.mine(actor, seed) { } catch { }
+            if (seed % 9 == 3) try campaign.donateRevenue(uint64(seed) * 1e6 + 1) { } catch { }
+            if (seed % 9 == 4) try campaign.distributeAll() { } catch { }
+            if (seed % 9 == 5) try campaign.buy(actor, seed) { } catch { }
+            if (seed % 9 == 6) try campaign.withdrawSignalMany(actor, seed) { } catch { }
+            if (seed % 9 == 7) try campaign.claimRewards(actor, seed) { } catch { }
+            if (seed % 9 == 8) try campaign.addStrategy() { } catch { }
 
             vm.warp(block.timestamp + 1 hours + uint256(seed) * 1 hours);
             _assertAllProperties();

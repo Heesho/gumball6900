@@ -10,7 +10,7 @@ an independent audit or deployment claim.
 | One deployed Mine receives permanent mint authority                           | `GBX.setMinter`, `minterLocked`            | Enforced after irreversible deployment handoff        |
 | GBX has no protocol-defined economic maximum                                  | GBX ABI and ADR 0024                       | Enforced; GBX has no voting checkpoints               |
 | GBX permit and sGBX voting responsibilities are separate                      | `GBX`, `SignalGBX`, ADR 0030               | GBX has permit; sGBX has votes and no approval permit |
-| ProtocolGovernor is limited to three exact zero-value calls                   | `ProtocolGovernor._propose`, ADR 0033      | Enforced at immutable Resonance target                |
+| Governance execution is not implemented in the core                           | ADR 0034; no governance source tree        | External integration and ownership handoff unresolved |
 | Every minted sGBX unit is atomically assigned to one Strategy                 | `SignalGBX.signal`, ADR 0031               | Enforced and covered by deterministic/stateful tests  |
 | Final live Strategy cannot be killed after bootstrap                          | `Resonance.killStrategy`, ADR 0031         | Enforced through explicit live-Strategy count         |
 | Strategy payment is cumulatively 90% Fund / 10% paired Bribe                  | `BribeRouter.routePayment`, ADR 0032       | Enforced with explicit split remainder                |

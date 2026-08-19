@@ -2,6 +2,9 @@
 
 Date: 2026-08-09
 
+Authority update: ADR 0034 later removed the in-repository Governor and Timelock. No external governance system has
+been selected or fork-validated; the historical target-chain observations below remain unchanged.
+
 No current-graph fork campaign passed in this audit. This is a blocked release gate, not a skipped test represented as
 success.
 
@@ -18,18 +21,21 @@ the canonical pool/NFT because no canonical GBX deployment exists.
 
 ## Why a fork did not run
 
-- The repository has no signed deployment manifest for the current 12-contract ADR 0021 graph.
+- The repository has no signed deployment manifest for the current direct-core graph and its required external
+  governance ownership integration.
 - The checked deployment schema and release/fork utilities are explicitly archived legacy evidence for a different
   14-contract graph and cannot safely construct current protocol state.
-- No current deployment addresses, constructor arguments, one-time bindings, PoolKey, token ID, or role snapshot are
-  authorized.
+- No current deployment addresses, constructor arguments, one-time bindings, PoolKey, token ID, external-governance
+  configuration, or ownership snapshot are authorized.
 - No credential-bearing RPC URL was requested, recorded, or printed during this review.
 
 ## Reproducible requirement
 
 Before release, build a current non-broadcast deployment/fork harness, bind it to a signed manifest, record the RPC
 provider capability without exposing credentials, and pin chain ID, block number, block hash, dependency code hashes,
-constructor inputs, one-time bindings, timelock roles, PoolKey, ticks, token ID, and NFT custody. Then rerun Fund
-EIP-1153 redemption and genuine PositionManager fixed-principal fee harvesting against that exact state.
+constructor inputs, one-time bindings, the exact external-governance release and bytecode, proxy/upgrade and permission
+graph, voting/execution/delay/cancellation policy, Resonance ownership receipt, PoolKey, ticks, token ID, and NFT
+custody. Then rerun Fund EIP-1153 redemption and genuine PositionManager fixed-principal fee harvesting against that
+exact state.
 
 Status: **blocked / not executed**. Release blocker: **yes**.

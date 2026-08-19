@@ -6,12 +6,13 @@
  * `@gumball-6900/config/archival-release` entrypoint.
  */
 export const CURRENT_RELEASE_TOOLING_BLOCKER =
-  'Current ProtocolGovernor deployment/release tooling is unavailable: the retained schema-v3 and Safe validators ' +
-  'describe the removed AllocationVoter graph. A separately reviewed current manifest and evidence schema is ' +
-  'required before deployment or subgraph outputs can be derived.';
+  'Current external-governance deployment/release tooling is unavailable: the retained schema-v3 and Safe validators ' +
+  'describe the removed AllocationVoter graph, while the external Resonance owner and governance integration remain ' +
+  'unselected. A separately reviewed current manifest and evidence schema is required before deployment or subgraph ' +
+  'outputs can be derived.';
 
 export const currentReleaseToolingStatus = Object.freeze({
-  architecture: 'protocol-governor',
+  architecture: 'external-governance-pending',
   kind: 'gumball-6900-current-release-tooling-status',
   protocol: 'GUM BALL 6900',
   reason: CURRENT_RELEASE_TOOLING_BLOCKER,

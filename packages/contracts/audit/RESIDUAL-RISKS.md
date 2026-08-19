@@ -22,6 +22,12 @@
 
 - Low-decimal Bribe rewards or very large signal denominators can classify economically meaningful carry to Fund when
   signal supply changes. The value remains conserved, but is no longer attributed to incumbent signalers.
+- Every reward token in every Bribe has a raw-unit lifetime-notification ceiling of
+  `floor((2^256 - 1) / 1e18)`. Claims, Fund payments, stream completion, zero supply, and Strategy death do not reopen
+  capacity. The ceiling is approximately `1.158e41` whole tokens for an 18-decimal asset, but unusually high-decimal
+  tokens can reach it at a much smaller displayed amount. At exhaustion, new direct and automatic notifications fail;
+  existing claims and signal exits remain available. An automatic reward remains a fixed BribeRouter liability while
+  its independent Fund leg can still settle.
 - Permissionless LP fee harvesting has no bounty and may be delayed until someone volunteers gas.
 - Signal timing can redirect a lumpy revenue notification because signaling has no cooldown.
 - Strategy price may fall to zero. Fund has no curated asset list, recovery, or migration.
@@ -30,24 +36,25 @@
 
 ## Governance and setup
 
-SignalGBX voting may propose only three exact actions through ProtocolGovernor: add/kill Strategies and register up to
-eight Bribe reward tokens. The Governor is the Timelock's sole proposer; it cannot change Mine's fixed slot count,
-reprice incumbents, change Mine economics, move Fund assets, recover the liquidity NFT, relay
-an arbitrary call, replace the Timelock, or upgrade/migrate the core.
+ADR 0034 removed the local ProtocolGovernor and protocol Timelock. SignalGBX retains block-number ERC20Votes
+checkpoints, but the core assigns them no proposal, quorum, voting-period, execution-delay, or cancellation semantics.
+Historical checkpoints survive signal withdrawal, so voting-power rental and post-withdrawal voting remain properties
+that the selected external governance integration must address.
 
-Voting uses block snapshots while the Timelock delay uses seconds. Signaled GBX has no withdrawal lock, so a voter can
-exit after the snapshot while retaining historical voting weight, and short-lived borrowed GBX can influence a known
-snapshot. Undelegated SignalGBX counts toward historical total supply and therefore quorum but casts no vote; large
-undelegated supply can deadlock all three maintenance actions. Once queued, an action has no public cancellation path.
-Stale or conflicting queued operations may remain forever and revert on execution, though they do not block a
-differently described replacement proposal.
+Resonance's owner can add/kill Strategies, register up to eight reward tokens per Bribe, transfer ownership, or
+renounce ownership. The immutable ownerless contracts and Mine economics remain outside that authority, but the core
+no longer enforces a selector-bounded proposal layer or delayed execution around Resonance ownership. A compromised or
+misconfigured external owner can misuse all three administration methods, transfer control again, or permanently
+renounce control.
 
-Incorrect vote parameters, dependencies, bootstrap Strategies, bindings, ownership, PoolKey, ticks, token ID, or
-Timelock roles are permanent. Deployment evidence must prove the initial Strategy set and that no external proposer,
-canceller, or default administrator survives setup.
+No external provider, release, proxy/upgrade model, plugin set, permission graph, voting configuration, delay,
+cancellation policy, emergency path, or executor address has been selected. Incorrect dependencies, bootstrap
+Strategies, bindings, ownership, PoolKey, ticks, token ID, external-governance permissions, or ownership handoff may be
+permanent. Deployment evidence must prove the exact integration and that no temporary setup authority survives.
 
 ## Evidence gaps
 
-No independent audit, compatible symbolic proof, legal clearance, or signed deployment manifest exists. Current
-pinned Echidna and Medusa campaigns and the 43-mutant SignalGBX/Resonance/BribeRouter campaign are internal engineering
-evidence and must not be presented as independent review.
+No independent audit, compatible symbolic proof, exact external-governance integration review, legal clearance, or
+signed deployment manifest exists. The pinned Echidna and Medusa campaigns and the 43-mutant
+SignalGBX/Resonance/BribeRouter campaign predate ADRs 0034 and 0035 and are internal engineering evidence, not
+independent review.

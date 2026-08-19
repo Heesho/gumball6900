@@ -9,37 +9,23 @@ const packageDirectory = path.resolve(scriptDirectory, '..');
 
 export const REQUIRED_ENTITIES = Object.freeze(['ProtocolState', 'Account', 'MiningSlot', 'Strategy', 'ProtocolEvent']);
 
-export const REVIEWED_EXTENSION_ENTITIES = Object.freeze([
-  'GovernanceProposal',
-  'GovernanceVote',
-  'TimelockRoleMembership',
-]);
+export const REVIEWED_EXTENSION_ENTITIES = Object.freeze([]);
 
 export const REQUIRED_HANDLERS = Object.freeze([
   'handleBribeRewardAdded',
   'handleBurned',
-  'handleCallExecuted',
-  'handleCallSalt',
-  'handleCallScheduled',
-  'handleCancelled',
   'handleClaimed',
   'handleDelegateChanged',
   'handleDelegateVotesChanged',
   'handleEmissionSettled',
   'handleFeesHarvested',
   'handleFundGBXBurned',
-  'handleGovernorTimelockChange',
   'handleMined',
   'handleMinerPaymentAccrued',
   'handleMinterSet',
   'handleMinted',
   'handleMiningRevenueRouted',
-  'handleMinDelayChange',
   'handlePositionRecorded',
-  'handleProposalCanceled',
-  'handleProposalCreated',
-  'handleProposalExecuted',
-  'handleProposalQueued',
   'handleRedeemed',
   'handleRevenueDistributed',
   'handleRevenueNotified',
@@ -61,10 +47,6 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleRouterFundPaymentPaid',
   'handleRouterBribePaymentAccrued',
   'handleRouterBribeRewardNotified',
-  'handleRoleGranted',
-  'handleRoleRevoked',
-  'handleVoteCast',
-  'handleVoteCastWithParams',
 ]);
 
 function matches(text, expression, captureIndex = 1) {

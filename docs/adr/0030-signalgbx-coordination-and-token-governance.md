@@ -1,9 +1,10 @@
 # ADR 0030: SignalGBX coordination and selector-bounded token governance
 
-- Status: accepted for ProtocolGovernor, Timelock, voting-token, and selector-bounded governance decisions; idle
-  SignalGBX, standalone staking/unstaking, redundant combined workflows, and `allocatedBalance` decisions are
-  superseded by [ADR 0031](0031-mandatory-signal-backed-signalgbx.md); not audited or deployed; not approved for user
-  funds; Mine authority and the fourth selector are superseded by [ADR 0033](0033-fixed-mine-slots-and-constant-time-pending-emission.md)
+- Status: historical; idle SignalGBX, standalone staking/unstaking, redundant combined workflows, and
+  `allocatedBalance` decisions are superseded by [ADR 0031](0031-mandatory-signal-backed-signalgbx.md); Mine authority
+  and the fourth selector are superseded by [ADR 0033](0033-fixed-mine-slots-and-constant-time-pending-emission.md);
+  ProtocolGovernor, Timelock, cancellation, and governance-deployment decisions are superseded by
+  [ADR 0034](0034-external-governance-ownership.md); not audited or deployed; not approved for user funds
 - Date: 2026-08-15
 - Supersedes:
   - ADR 0013's external proposer/canceller administration model;
@@ -16,8 +17,8 @@
 
 > The `Token responsibilities`, `Sole signal coordinator and combined workflows`, and `Canonical signal state`
 > sections below document the superseded idle-receipt design. ADR 0031 replaces those sections with mandatory
-> signal-backed minting and burning. The ProtocolGovernor, Timelock, cancellation, and deployment-authority sections
-> remain authoritative.
+> signal-backed minting and burning. ADR 0034 supersedes the ProtocolGovernor, Timelock, cancellation, and
+> deployment-authority sections.
 
 ## Context
 

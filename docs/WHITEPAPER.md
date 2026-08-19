@@ -6,14 +6,15 @@ Whitepaper v0.6 — 16 August 2026 — by Heesho
 
 > Development status: experimental, not deployed, not independently audited, and not authorized for user funds.
 > Exact mining economics, deployment parameters, third-party provenance, and independent security review remain open
-> release gates. ADRs 0031 and 0032 are authoritative development decisions, but the Solidity and integrations have not
-> yet been reconciled to them; this paper describes the target architecture, not current implementation conformance.
+> release gates. ADRs 0031, 0032, 0034, and 0035 are authoritative development decisions. Governance execution and the
+> production Resonance owner remain an unselected external integration, so deployment is blocked.
 
 ## Abstract
 
 GumBall6900 is a proposed signal-directed onchain fund. GBX holders deposit into non-transferable SignalGBX (`sGBX`)
-only while assigning every receipt unit to an acquisition Strategy. sGBX supplies block-clock governance votes and
-continuously directs new USDG. Each Strategy exchanges USDG for one configured asset through a reverse Dutch auction.
+only while assigning every receipt unit to an acquisition Strategy. sGBX records block-clock ERC20Votes checkpoints
+for a future external governance integration while continuously directing new USDG. Each Strategy exchanges USDG for
+one configured asset through a reverse Dutch auction.
 Its acquired-asset payment is classified 90% to an ownerless Fund and 10% to the paired Bribe for signalers. GBX
 holders may burn GBX to redeem a caller-selected pro-rata share of raw Fund assets.
 
@@ -38,7 +39,7 @@ slot replacement -> 80% displaced miner
                                                                        \-> 10% paired Bribe
 
 GBX -> sGBX -> live signals ------------------------------^
-           \-> ProtocolGovernor -> Timelock -> three bounded actions
+           \-> IVotes checkpoints -> external governance (unselected) -> Resonance owner actions
 GBX burn -> selected Fund assets -> redeemer
 ```
 
@@ -148,7 +149,7 @@ than explicit carry. Stream time continues when active signal weight is zero, ma
 unclaimable, and direct USDG donations to Resonance are unscheduled surplus. Neither category is assigned to Fund or
 later signalers. Killing a Strategy checkpoints and preserves its pre-kill claim, removes its complete weight from later
 rewards, forbids additions, and leaves incumbent signalers free to exit. After the first Strategy is registered, the
-final live Strategy cannot be killed until governance adds a replacement.
+final live Strategy cannot be killed until the Resonance owner adds a replacement.
 
 Signals steer future flow; they do not force Fund to sell past holdings or maintain a target portfolio. A Strategy's
 acquired-asset payment enters BribeRouter, which cumulatively classifies 90% as a fixed Fund liability and 10% as a
@@ -156,6 +157,14 @@ fixed paired-Bribe reward liability. Explicit split remainder prevents repeated 
 The two permissionless settlement legs are isolated, so failure of one preserves its liability without consuming the
 other. The acquired payment asset, not USDG, is the automatic Bribe reward. Additional independent rewards remain
 possible within the eight-token cap.
+
+Each reward token in each Bribe also has a monotonic lifetime accepted-notification limit of
+`floor(type(uint256).max / 1e18)` raw units. It is checked before reward checkpointing or token transfer and cannot be
+reset, so claims can never reopen capacity. A normal 18-decimal token would require about `1.158e41` whole tokens to
+reach it. If an irregular token does reach it, existing signalers can still claim, move, or withdraw; a new Strategy
+and Bribe must replace the exhausted pool. Any automatic reward liability that fails at the cap stays in BribeRouter,
+while the Fund settlement leg remains independent. The old killed Bribe remains a closed reward pool without an
+escape hatch.
 
 ## 7. Genesis liquidity
 
@@ -168,22 +177,25 @@ atomically. There is no keeper, bounty, oracle, swap, migration, or NFT withdraw
 
 ## 8. Governance and immutability
 
-TimelockController owns only Resonance. SignalGBX holders operate ProtocolGovernor, which is the Timelock's
-sole proposer. The continuing administrative surface is:
+The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. SignalGBX retains
+non-transferable ERC20Votes checkpoints on the block-number clock, but the core assigns them no proposal, quorum,
+delay, cancellation, or execution semantics. Resonance is the only owned core contract. Its continuing protocol
+administration methods are:
 
 - add a Strategy;
 - permanently kill a Strategy;
 - register a Bribe reward token, subject to the immutable eight-token cap.
 
-ProtocolGovernor accepts only those exact zero-value calls at the immutable Resonance address. Its voting delay,
-period, proposal threshold, and quorum percentage are immutable constructor inputs and use SignalGBX's block-number
-clock. Execution is permissionless after the Timelock delay but rejects nonzero executor `msg.value`. The proposer may
-cancel only while a proposal is Pending; there is no multisig bypass, guardian, or queued-proposal veto.
+The Resonance owner can also transfer or renounce ownership. The production owner remains unselected. A later ADR must
+pin and review the external governance provider, exact release and deployed code, plugins, SignalGBX compatibility,
+permissions and administrators, upgrade model, proposal rules, batching, delay, cancellation, and ownership handoff.
+Until then the protocol makes no claim that administration is selector-filtered, delayed, permissionlessly executable,
+or cancellable, and deployment is blocked.
 
 Mine has exactly sixteen slots, no owner, and no path to reprice an incumbent. Fund and LiquidityPosition are ownerless. No
-contract has a proxy, general executor, pause switch, rescue function, emission setter, successor, or migration path.
-Deployment bootstraps reviewed initial Strategies before transferring Resonance to the Timelock and removing
-the temporary setup authority.
+core contract has a proxy, general executor, pause switch, rescue function, emission setter, successor, or migration
+path. Deployment must bootstrap reviewed initial Strategies before transferring Resonance directly to the selected
+external governance executor and removing the temporary setup authority.
 
 ## 9. Important risks
 
@@ -191,14 +203,16 @@ the temporary setup authority.
 - A miner can be replaced at any time and is not guaranteed an 80% successor payment.
 - Capacity expansion temporarily raises aggregate issuance under the fixed-tenure fairness rule.
 - A bad immutable deployment or token dependency cannot be repaired by governance.
-- A holder can withdraw every signal after a proposal snapshot and retain that proposal's historical voting weight.
-  Low sGBX participation also lowers the absolute voting weight represented by a percentage quorum. Under the target
-  interface this exit occurs through `withdrawSignal`; no idle intermediate receipt exists.
-- A queued proposal cannot be canceled; the Timelock delay is an observation and exit window rather than a guardian
-  veto.
+- SignalGBX checkpoints do not lock withdrawals. If the selected external governance system uses historical snapshots,
+  a holder may withdraw after the snapshot and retain that proposal's weight. Its delegation, quorum, capture, and
+  liveness properties require separate review.
+- The external governance system is unselected. The core guarantees no proposal filter, delay, cancellation path,
+  guardian, open executor, immutable voting configuration, or external-governance upgrade boundary.
 - Permissionless signaling permits rapid allocation movement, but only stream time held at a weight earns new flow;
   existing Strategy inventory, qualifying-reset timing, and accepted rounding surplus still have timing considerations.
 - Broken or blocklisting tokens can block their own payout paths.
+- An exhausted Bribe lifetime notification cap permanently rejects that token's later notifications in the old pool;
+  replacement requires a new Strategy and paired Bribe rather than a reset or rescue.
 - Fund assets omitted from redemption remain permanently for the post-redemption supply.
 - The protocol has not received an independent audit, and Farplace/give.fun/Liquid Signal provenance remains legally
   unresolved.

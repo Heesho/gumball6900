@@ -1,17 +1,20 @@
 # Independent adversarial specification
 
-Date: 2026-08-15
+Date: 2026-08-15. Authority model reconciled 2026-08-19 for ADR 0034.
 
-This is the review target for the ADR 0027, ADR 0028, ADR 0029, ADR 0031, ADR 0032, and ADR 0033 development candidate.
-It is not an independent audit result.
+This is the review target for the ADR 0027, ADR 0028, ADR 0029, ADR 0031, ADR 0032, ADR 0033, and ADR 0034 development
+candidate. It is not an independent audit result.
 
 ## Authority model
 
 - Deployments are direct and non-upgradeable. Fund and LiquidityPosition are ownerless.
-- TimelockController owns Resonance. ProtocolGovernor is its sole proposer and accepts only exact zero-value calls to
-  add/kill Strategies or register Bribe rewards. Mine has no administrative authority.
-- SignalGBX votes govern those three calls. The Governor and Timelock are immutable, execution is permissionless after
-  the delay, and no public path can cancel an operation after it has been queued.
+- Resonance is the only owned core contract. Its owner may add/kill Strategies, register Bribe rewards, transfer
+  ownership, or renounce ownership. Mine has no administrative authority.
+- The core contains no Governor, protocol Timelock, generic executor, or provider-specific governance adapter.
+  SignalGBX retains ERC20Votes checkpoints for a future external integration, but the core assigns them no proposal,
+  quorum, execution, delay, or cancellation semantics.
+- External governance is unselected. Production requires a separately reviewed integration and direct transfer of
+  Resonance ownership to its exact executor, with no surviving temporary setup authority.
 - No authority can change the fixed slot count, reprice an occupied slot, replace the GBX minter, set emissions, migrate, pause,
   rescue, sweep, move Fund assets, or withdraw the liquidity NFT.
 
@@ -20,7 +23,8 @@ It is not an independent audit result.
 - GBX mints `20_000_000 ether` at construction, then permanently binds its only issuer to one deployed Mine whose
   reciprocal `gbx()` identity matches.
 - Supply reconciles as `lifetimeMinted - lifetimeBurned` and has no protocol-defined economic maximum. GBX retains
-  ERC20Permit for approval-based signaling but has no voting checkpoints; SignalGBX is the sole protocol vote token.
+  ERC20Permit for approval-based signaling but has no voting checkpoints; SignalGBX exposes the core's only IVotes
+  checkpoints for a future external governance integration.
 - Mine has exactly sixteen permanent slots from construction.
 - Each slot price decays linearly to zero over one hour. Epoch ID, deadline, and maximum price protect handoffs.
 - A handoff settles only the displaced slot. Each tenure receives `elapsed * slot.tps`, and `slot.tps` is never recomputed.
@@ -75,8 +79,9 @@ It is not an independent audit result.
 - TypeScript and Python independently assert fixed sixteen-slot tenure, future-handoff halvings, 80/20 payments, the
   no-economic-cap issuance model, effective-supply redemption, qualifying Resonance resets and surplus solvency, and
   boundary-carry Fund routing in Bribe.
-- Foundry separately proves the three-selector Governor filter, sole-proposer Timelock closure, snapshot quorum,
-  coordinator rollback, move semantics, and the accepted absence of queued cancellation.
+- Foundry separately proves coordinator rollback, move semantics, and that historical SignalGBX voting checkpoints
+  survive withdrawal. A later integration campaign must prove the selected external system's token compatibility,
+  permissions, voting, proposal scope, delay, cancellation, execution, and ownership handoff.
 - No consumer may display pending Mine accrual as already minted supply or the 80% handoff as guaranteed.
 - A green local campaign does not clear independent audit, parameter, monitored testnet, manifest, licensing, or legal
   review gates.

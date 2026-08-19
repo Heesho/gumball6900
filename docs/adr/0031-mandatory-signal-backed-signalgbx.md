@@ -7,8 +7,9 @@
   - ADR 0030's idle SignalGBX, standalone staking, standalone unstaking, redundant combined workflows, and
     `allocatedBalance` decisions; and
   - ADR 0029's permission to kill the final live Strategy.
-- Preserves: ADR 0030's non-transferable ERC20Votes token, ProtocolGovernor, selector-bounded proposal filter,
-  Timelock roles, immediate scalar signal changes, and absence of a lock, pause, rescue, migration, or upgrade path.
+- Preserves: ADR 0030's non-transferable ERC20Votes token, immediate scalar signal changes, and absence of a lock,
+  pause, rescue, migration, or core upgrade path. ADR 0034 later supersedes its ProtocolGovernor and Timelock
+  dependencies.
 
 ## Context
 
@@ -25,8 +26,9 @@ on SignalGBX, but an idle receipt state is no longer valid.
 
 ### Token and public surface
 
-SignalGBX remains a non-transferable ERC20Votes token, backed one-for-one by GBX held in SignalGBX, used by
-ProtocolGovernor, and the sole public user coordinator for signal changes. It exposes these user operations:
+SignalGBX remains a non-transferable ERC20Votes token, backed one-for-one by GBX held in SignalGBX, available to the
+external governance integration selected after ADR 0034, and the sole public user coordinator for signal changes. It
+exposes these user operations:
 
 ```solidity
 function signal(address strategy, uint256 amount) external;
@@ -102,8 +104,8 @@ governance voting power.
 ### Governance behavior
 
 `signal` mints voting units. `moveSignal` does not change voting units. `withdrawSignal` burns voting units. Delegating
-votes delegates no custody right and no authority to move or withdraw the delegator's signal. ADR 0030's
-ProtocolGovernor and Timelock decisions otherwise remain unchanged.
+votes delegates no custody right and no authority to move or withdraw the delegator's signal. ADR 0034 later removes
+ADR 0030's ProtocolGovernor and Timelock decisions.
 
 There is still no signal cooldown, epoch, once-per-period restriction, or withdrawal lock. Immediate exit now occurs
 through the bounded, per-Strategy `withdrawSignal` operation rather than an idle intermediate balance.
@@ -114,9 +116,9 @@ Signal additions are impossible before the first live Strategy exists because on
 valid destination. Reviewed initial Strategies must be created before the final governance handoff.
 
 Resonance tracks `liveStrategyCount`. Before the first Strategy is registered the count may be zero. After the first
-Strategy is registered, `killStrategy` must revert when it would reduce the count from one to zero. Governance replaces
-the final Strategy by atomically batching `addStrategy(replacement)` followed by `killStrategy(previous)` through the
-existing Governor and Timelock. No fake abstain Strategy or implicit null destination is created.
+Strategy is registered, `killStrategy` must revert when it would reduce the count from one to zero. Any selected
+external governance integration must replace the final Strategy by atomically batching `addStrategy(replacement)`
+followed by `killStrategy(previous)`. No fake abstain Strategy or implicit null destination is created.
 
 Strategy death remains irreversible. A killed Strategy cannot receive new signal, but every incumbent can move its
 signal to a live Strategy or withdraw it completely. The last-live guard adds no pause, rescue, successor, migration,

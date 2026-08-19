@@ -103,6 +103,21 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(resonance.totalSignalWeight(), 100 ether);
     }
 
+    function test_HistoricalVotingCheckpointsSurviveImmediateSignalWithdrawal() external {
+        _signalDefault(ALICE, 100 ether);
+        uint256 signalBlock = block.number;
+
+        vm.roll(signalBlock + 1);
+        vm.prank(ALICE);
+        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
+        vm.roll(signalBlock + 2);
+
+        assertEq(signalGBX.getVotes(ALICE), 0);
+        assertEq(signalGBX.totalSupply(), 0);
+        assertEq(signalGBX.getPastVotes(ALICE, signalBlock), 100 ether);
+        assertEq(signalGBX.getPastTotalSupply(signalBlock), 100 ether);
+    }
+
     function test_SignalRollsBackCustodySupplyVotesAndAllowanceConsumptionForInvalidStrategy() external {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
@@ -268,6 +283,27 @@ contract SignalGBXTest is ProtocolFixture {
 
         assertEq(resonance.totalSignalWeight(), 50 ether);
         assertEq(signalGBX.balanceOf(ALICE), 0);
+        assertEq(gbx.balanceOf(ALICE), 1_000 ether);
+    }
+
+    /// @notice Consuming a Bribe token's lifetime cap cannot block the canonical killed-Strategy exit path.
+    function test_KilledStrategyExitRemainsLiveAfterRewardLifetimeCapIsConsumed() external {
+        _signalDefault(ALICE, 1);
+
+        uint256 maximum = targetBribe.MAX_LIFETIME_REWARD_AMOUNT();
+        target.mint(address(this), maximum);
+        target.approve(address(targetBribe), maximum);
+        targetBribe.notifyRewardAmount(address(target), maximum);
+        vm.warp(block.timestamp + targetBribe.REWARD_DURATION());
+        assertEq(targetBribe.claimReward(ALICE, address(target)), maximum);
+        assertEq(targetBribe.lifetimeRewardNotified(address(target)), maximum);
+
+        resonance.killStrategy(address(targetStrategy));
+        vm.prank(ALICE);
+        signalGBX.withdrawSignal(address(targetStrategy), 1);
+
+        assertEq(signalGBX.balanceOf(ALICE), 0);
+        assertEq(targetBribe.balanceOf(ALICE), 0);
         assertEq(gbx.balanceOf(ALICE), 1_000 ether);
     }
 

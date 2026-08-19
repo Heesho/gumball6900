@@ -11,6 +11,7 @@ import { Strategy } from "../../src/core/Strategy.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 import { ProtocolHandler } from "./utils/ProtocolHandler.sol";
 import { ProtocolWorkflowHandler } from "./utils/ProtocolWorkflowHandler.sol";
+import { StrategyRegistry } from "./utils/StrategyRegistry.sol";
 
 /// @title ProtocolInvariantsTest
 /// @notice Stateful invariant suite driving the whole protocol through a bounded, revert-free handler.
@@ -19,22 +20,23 @@ import { ProtocolWorkflowHandler } from "./utils/ProtocolWorkflowHandler.sol";
 contract ProtocolInvariantsTest is ProtocolFixture {
     ProtocolHandler internal handler;
     ProtocolWorkflowHandler internal workflowHandler;
-
-    address[] internal allStrategies;
+    StrategyRegistry internal strategyRegistry;
 
     function setUp() external {
         _deployProtocol();
 
-        allStrategies.push(address(targetStrategy));
-        allStrategies.push(address(gbxStrategy));
-
         // A third Strategy paid in the revenue token itself widens the settlement paths explored.
         (address selfPriced,,) = resonance.addStrategy(IERC20(address(usdg)), defaultConfig());
-        allStrategies.push(selfPriced);
+        address[] memory initialStrategies = new address[](3);
+        initialStrategies[0] = address(targetStrategy);
+        initialStrategies[1] = address(gbxStrategy);
+        initialStrategies[2] = selfPriced;
+        strategyRegistry = new StrategyRegistry(initialStrategies);
 
-        handler =
-            new ProtocolHandler(gbx, usdg, target, fund, signalGBX, resonance, resonanceRouter, mine, allStrategies);
-        workflowHandler = new ProtocolWorkflowHandler(gbx, target, signalGBX, resonance, mine, allStrategies);
+        handler = new ProtocolHandler(
+            gbx, usdg, target, fund, signalGBX, resonance, resonanceRouter, mine, strategyRegistry
+        );
+        workflowHandler = new ProtocolWorkflowHandler(gbx, target, signalGBX, resonance, mine, strategyRegistry);
 
         resonance.transferOwnership(address(this));
         targetContract(address(handler));
@@ -58,6 +60,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice No USDG is ever created or destroyed by the protocol: it only moves between accounts.
     function invariant_USDGIsConserved() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         uint256 total = usdg.balanceOf(address(resonance)) + usdg.balanceOf(address(resonanceRouter))
             + usdg.balanceOf(address(fund)) + usdg.balanceOf(address(mine));
 
@@ -89,6 +92,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice Only live Strategy weights contribute to the active global denominator.
     function invariant_StrategyWeightsSumToTheGlobalTotal() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         uint256 summed;
         for (uint256 i; i < allStrategies.length; ++i) {
             if (resonance.isStrategyAlive(allStrategies[i])) {
@@ -100,6 +104,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice Per-account weights sum to all recorded Strategy weight, including removable dead-Strategy signal.
     function invariant_AccountWeightsSumToAllRecordedStrategyWeight() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         uint256 accountTotal;
         for (uint256 i; i < handler.actorCount(); ++i) {
             accountTotal += resonance.accountSignalWeight(handler.actors(i));
@@ -122,6 +127,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice Each Bribe's virtual supply mirrors its Strategy's recorded signal weight exactly.
     function invariant_BribeSupplyMirrorsStrategyWeight() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             Bribe bribe = Bribe(resonance.bribeFor(allStrategies[i]));
             assertEq(bribe.totalSupply(), resonance.strategySignalWeight(allStrategies[i]));
@@ -130,6 +136,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice Each account's virtual Bribe balance mirrors its recorded allocation exactly.
     function invariant_BribeBalancesMirrorAccountSignals() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             Bribe bribe = Bribe(resonance.bribeFor(allStrategies[i]));
             uint256 summed;
@@ -146,6 +153,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice From every reached state, each actor can withdraw every position in bounded calls and recover all GBX.
     function invariant_EveryActorCanFullyWithdrawSignals() external {
+        address[] memory allStrategies = strategyRegistry.all();
         uint256 snapshot = vm.snapshotState();
 
         for (uint256 i; i < handler.actorCount(); ++i) {
@@ -166,6 +174,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice Idle sGBX is unreachable: every account's receipt balance equals its complete Strategy allocation.
     function invariant_EveryReceiptUnitIsAssigned() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < handler.actorCount(); ++i) {
             address actor = handler.actors(i);
             uint256 summed;
@@ -183,6 +192,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice Resonance always holds at least the USDG it has already promised to Strategies.
     function invariant_ResonanceIsSolventAgainstClaimableRevenue() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         uint256 owed;
         for (uint256 i; i < allStrategies.length; ++i) {
             owed += resonance.earned(allStrategies[i], address(usdg));
@@ -192,6 +202,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice Scheduled and already-earned USDG never exceed Resonance's balance; rounding may leave surplus.
     function invariant_ResonanceScheduledAndEarnedRevenueIsSolvent() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         uint256 owed = resonance.left(address(usdg));
         for (uint256 i; i < allStrategies.length; ++i) {
             owed += resonance.earned(allStrategies[i], address(usdg));
@@ -217,6 +228,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice A killed Strategy's recorded signal is excluded from the active reward denominator.
     function invariant_DeadStrategiesAreExcludedFromActiveWeight() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         uint256 activeWeight;
         for (uint256 i; i < allStrategies.length; ++i) {
             if (resonance.isStrategyAlive(allStrategies[i])) {
@@ -237,6 +249,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice Every Bribe holds enough of each reward token to satisfy all accrued claims.
     function invariant_BribesAreSolventAgainstAccruedRewards() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             Bribe bribe = Bribe(resonance.bribeFor(allStrategies[i]));
             address[] memory rewardTokens = bribe.rewardTokens();
@@ -253,6 +266,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice A Bribe reward stream never schedules more than the Bribe actually holds.
     function invariant_ScheduledRewardsNeverExceedHeldBalance() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             Bribe bribe = Bribe(resonance.bribeFor(allStrategies[i]));
             address[] memory rewardTokens = bribe.rewardTokens();
@@ -265,6 +279,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice Every notified reward unit remains exactly scheduled, queued, indexed, claimable, Fund-bound, or carried.
     function invariant_BribeAccountingIdentitiesAreExact() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             Bribe bribe = Bribe(resonance.bribeFor(allStrategies[i]));
             address[] memory rewardTokens = bribe.rewardTokens();
@@ -289,12 +304,17 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                 assertEq(summedRewards, bribe.accruedRewardLiability(token));
                 assertEq(classifiedScaled, bribe.accountedRewardBalance(token) * precision);
                 assertLe(bribe.accountedRewardBalance(token), IERC20(token).balanceOf(address(bribe)));
+                uint256 lifetimeNotified = bribe.lifetimeRewardNotified(token);
+                assertLe(lifetimeNotified, bribe.MAX_LIFETIME_REWARD_AMOUNT());
+                assertLe(bribe.accountedRewardBalance(token), lifetimeNotified);
+                assertLe(bribe.rewardPerToken(token), lifetimeNotified * precision);
             }
         }
     }
 
     /// @notice Each Strategy payment router exposes only its two immutable settlement liabilities.
     function invariant_BribeRouterAccountingIdentitiesAreExact() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(allStrategies[i]));
             assertEq(router.accountedPaymentBalance(), router.fundPaymentLiability() + router.bribePaymentLiability());
@@ -309,6 +329,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice Every Strategy's starting price stays inside its immutable configured bounds.
     function invariant_AuctionPricesStayWithinTheirBounds() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             Strategy strategy = Strategy(allStrategies[i]);
             assertGe(strategy.initialPrice(), strategy.minimumPrice());
@@ -369,6 +390,34 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         for (uint256 i; i < workflows.length; ++i) {
             console.log(workflows[i], workflowHandler.ghostCalls(bytes32(bytes(workflows[i]))));
         }
+    }
+
+    /// @notice Proves a post-bootstrap Strategy reaches both handlers before and after retirement.
+    /// @dev The shared registry also supplies every Strategy-enumerating invariant above.
+    function test_DynamicallyAddedStrategyEntersEveryHarnessPath() external {
+        uint256 addedIndex = strategyRegistry.length();
+        workflowHandler.addStrategy();
+
+        assertEq(strategyRegistry.length(), addedIndex + 1);
+        assertEq(handler.strategyCount(), addedIndex + 1);
+
+        address addedStrategy = strategyRegistry.at(addedIndex);
+        address actor = handler.actors(0);
+        assertTrue(resonance.isStrategyAlive(addedStrategy));
+
+        handler.signal(0, addedIndex, 100 ether);
+        assertEq(resonance.accountSignals(actor, addedStrategy), 100 ether);
+
+        handler.notifyTinyReward(addedIndex, 1);
+        Bribe addedBribe = Bribe(resonance.bribeFor(addedStrategy));
+        assertEq(addedBribe.accountedRewardBalance(address(target)), 1);
+
+        handler.killStrategy(addedIndex);
+        assertFalse(resonance.isStrategyAlive(addedStrategy));
+
+        workflowHandler.withdrawSignal(0, addedIndex, 100 ether);
+        assertEq(resonance.accountSignals(actor, addedStrategy), 0);
+        assertEq(signalGBX.balanceOf(actor), 0);
     }
 
     /// @notice Proves no handler action is dead code that always short-circuits on its own guards.

@@ -27,13 +27,12 @@ liquidity:    accrued USDG -> ResonanceRouter; accrued GBX -> Fund -> atomic bur
 | `Strategy`          | Uniform bounded reverse-Dutch acquisition whose payment becomes fixed 90/10 Fund/Bribe liabilities.   |
 | `BribeFactory`      | Resonance-only Bribe deployment.                                                                      |
 | `BribeRouter`       | Cumulatively classifies every Strategy payment into isolated, permissionless 90/10 liabilities.       |
-| `Bribe`             | Seven-day reward streams over virtual signal balances, with at most eight reward tokens.              |
+| `Bribe`             | Seven-day reward streams with at most eight tokens and a fixed per-token lifetime notification cap.   |
 | `Fund`              | Ownerless raw treasury, GBX burn boundary, and caller-selected in-kind redemption.                    |
 
-Mine starts at one slot and can only grow to sixteen. A slot's assigned GBX/second rate never changes during that
-miner's tenure. Capacity expansion and halving thresholds affect new occupations only. This deliberately prevents
-governance or other users from diluting a miner after entry, while temporarily allowing aggregate issuance above the
-current global rate until old slots turn over.
+Mine has exactly sixteen slots. A slot's assigned GBX/second rate never changes during that miner's tenure. Halving
+thresholds affect new occupations only. This deliberately prevents other users from diluting a miner after entry,
+while temporarily allowing aggregate issuance above the current global rate until old slots turn over.
 
 A nonempty-slot replacement makes 80% of its USDG payment claimable by the displaced miner and routes 20% through
 ResonanceRouter. An empty slot routes 100%. There is no team fee. GBX has no protocol-defined economic supply cap, with
@@ -60,6 +59,12 @@ Bribe applies the same denominator-boundary rule to independently notified rewar
 changes, unindexable old-supply carry becomes fixed Fund precision; when an account fully exits, its sub-token user
 remainder does likewise instead of being reallocated to remaining signalers.
 
+For each reward token, a Bribe accepts at most `floor(type(uint256).max / 1e18)` raw units across its complete lifetime.
+The monotonic total has no reset, setter, or escape hatch. An excess notification reverts before checkpointing or token
+transfer, so existing claims, signal moves, and withdrawals remain usable. At this cap an automatic payment reward
+stays as a BribeRouter liability while the Fund leg remains independently payable; replacing the Strategy creates a
+new paired Bribe without reopening the old closed reward pool.
+
 ## Fund redemption
 
 `redeem(gbxAmount, receiver, tokens)` checkpoints every mining slot before calculating payouts, then uses one post-
@@ -69,11 +74,11 @@ different facades that debit one shared ledger. Omitted assets remain for the po
 
 ## Administration
 
-TimelockController owns Resonance and Mine. SignalGBX holders operate its sole proposer, ProtocolGovernor, whose
-immutable filter permits only Resonance Strategy addition/killing, Bribe reward registration, and increase-only Mine
-capacity. Execution is open after the delay; there is no multisig bypass, guardian, or queued veto. Fund and
-LiquidityPosition are ownerless. There is no proxy, migration, rescue, successor, emission setter, or capacity
-decrease.
+Resonance retains three continuing protocol administration methods: add a Strategy, kill a Strategy, and register a
+Bribe reward token. SignalGBX exposes ERC20Votes checkpoints, but governance execution is an unselected external
+integration and is not implemented in this repository. A production deployment remains blocked until an exact external
+governance executor is reviewed and receives Resonance ownership. Mine, Fund, and LiquidityPosition are ownerless.
+There is no core proxy, migration, rescue, successor, emission setter, or capacity change.
 
 ## Credit
 

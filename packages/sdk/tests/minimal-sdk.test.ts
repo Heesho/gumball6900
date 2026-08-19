@@ -75,10 +75,8 @@ describe('minimal SDK reads and deployment metadata', () => {
       'gbx',
       'liquidityPosition',
       'mine',
-      'protocolGovernor',
       'signalGBX',
       'strategyFactory',
-      'timelockController',
       'resonance',
       'resonanceRouter',
     ] as const;

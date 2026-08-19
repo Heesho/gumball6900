@@ -1,8 +1,8 @@
 # Protocol specification
 
-This is the authoritative target-development specification under ADRs 0031 and 0032. The current development tree
-implements these decisions and reconciles their generated consumers. This remains unaudited local engineering
-evidence, not deployment approval or authorization for user funds.
+This is the authoritative target-development specification under ADRs 0031, 0032, 0034, and 0035. The current
+development tree implements these decisions and reconciles their generated consumers. This remains unaudited local
+engineering evidence, not deployment approval or authorization for user funds.
 
 The required behavior is:
 
@@ -38,16 +38,21 @@ The required behavior is:
 9. LiquidityPosition permanently holds one precommitted single-sided GBX/USDG v4 position at fixed principal. Anyone
    may harvest fees; USDG transfers to ResonanceRouter, which may retain it until the balance qualifies, and GBX is
    burned through Fund atomically.
-10. TimelockController owns Resonance. Its sole proposer is an immutable ProtocolGovernor using SignalGBX's
-    block-number vote checkpoints. The Governor permits only exact zero-value calls to `Resonance.addStrategy`,
-    `Resonance.killStrategy`, and `Resonance.addBribeReward`; it has no mutable settings,
-    generic relay, Timelock replacement, nonzero-value execution, multisig bypass, guardian, or queued-proposal veto. Fund and
-    LiquidityPosition are ownerless. After the first Strategy is registered, `killStrategy` cannot remove the final
-    live Strategy; a replacement is added before the old Strategy is killed in one permitted batch. No core contract
-    is upgradeable or migratable.
-11. Each Bribe has at most eight append-only reward tokens. Bribe reward remainders remain explicit carry; old-supply
-    Bribe carry and fully exiting user precision become fixed Fund classification before supply changes. Broken payout
-    tokens do not block signal movement or withdrawal.
+10. The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. SignalGBX
+    retains non-transferable ERC20Votes checkpoints on the block-number clock for a future external integration, but
+    the core assigns them no proposal, quorum, delay, cancellation, or execution semantics. Resonance is the only owned
+    core contract; after its one-time binding, its continuing administration methods are `addStrategy`, `killStrategy`,
+    and `addBribeReward`, plus inherited ownership transfer and renunciation. The production Resonance owner remains
+    unselected, and deployment is blocked until a later ADR pins and reviews the exact external governance integration
+    and ownership handoff. Fund and LiquidityPosition are ownerless. After the first Strategy is registered,
+    `killStrategy` cannot remove the final live Strategy; a replacement must be added before the old Strategy is killed.
+    No core contract is upgradeable or migratable.
+11. Each Bribe has at most eight append-only reward tokens. For each token, its monotonic lifetime accepted-notification
+    total cannot exceed `floor(type(uint256).max / 1e18)` raw units and has no reset, setter, or escape hatch. The cap is
+    checked before checkpointing or transfer; reaching it stops later notifications for only that token and Bribe, not
+    claims, signal movement, or withdrawal. Bribe reward remainders remain explicit carry; old-supply Bribe carry and
+    fully exiting user precision become fixed Fund classification before supply changes. Broken payout tokens do not
+    block signal movement or withdrawal.
 12. `SignalGBX.balanceOf(account)` is the canonical account aggregate signal, each paired Bribe owns canonical
     account-by-Strategy balances and Strategy supply, and Resonance owns only the active total across live Strategies.
     SignalGBX maintains no separate `allocatedBalance` duplicate. SignalGBX supply equals the sum of every paired Bribe

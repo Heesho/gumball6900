@@ -1,7 +1,7 @@
 # ADR 0016: Governance-minimized immutable final surface
 
-- Status: accepted for the minimized four-action principle; terminology and implementation details are superseded by
-  ADRs 0017, 0019, 0020, 0021, 0029, and 0030
+- Status: accepted for the minimized administration principle; terminology and implementation details are superseded
+  by ADRs 0017, 0019, 0020, 0021, 0029, 0030, and 0034
 - Date: 2026-08-08
 - Superseded terminology: every reference below to a "management fee" means the bounded acquisition
   signal-reward share implemented as `bribeBps`; there is no separate management fee

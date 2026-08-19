@@ -28,8 +28,8 @@ this list; the claim-by-claim mapping lives in `FACT-CHECK.md`.
 
 ## External
 
-- OpenZeppelin Contracts 5.6.1 - ERC-20, ERC20Permit, ERC20Votes, ReentrancyGuard,
-  TimelockController. https://docs.openzeppelin.com/contracts/5.x/
+- OpenZeppelin Contracts 5.6.1 - ERC-20, ERC20Permit, ERC20Votes, Ownable, ReentrancyGuard, SafeERC20, and Math.
+  https://docs.openzeppelin.com/contracts/5.x/
 - Uniswap v4 core 1.0.2 and periphery 1.0.3 (pinned commits recorded in
   `packages/contracts/audit/UNISWAP-V4-REVIEW.md`). https://docs.uniswap.org/
 - Ethereum Improvement Proposals: EIP-20 (token standard), EIP-712 (typed signing),

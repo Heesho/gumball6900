@@ -2,35 +2,39 @@
 
 > Development design only. No production roles or addresses are configured.
 
-> ADRs 0031 and 0032 define the target authority model below. Their implementation is pending; current contracts and
-> integrations still reflect the superseded design.
+> ADRs 0031, 0032, and 0034 define the development authority model below. Governance execution remains an unselected
+> external integration, so deployment is blocked.
 
-OpenZeppelin TimelockController owns Resonance. ProtocolGovernor is its sole proposer and sole
-`CANCELLER_ROLE` holder; the zero-address executor makes execution permissionless after the documented delay. No
-external default admin remains after setup.
+The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. SignalGBX retains
+non-transferable ERC20Votes checkpoints on the block-number clock for a future external governance integration, but the
+core assigns those checkpoints no proposal, quorum, delay, cancellation, or execution semantics.
 
-The timelock can call only these lasting administrative methods:
+Resonance is the only owned core contract. After its one-time router binding, its continuing protocol administration
+methods are:
 
 - `Resonance.addStrategy`;
 - `Resonance.killStrategy`;
 - `Resonance.addBribeReward`, within the fixed eight-token cap.
 
-Mine has no owner or administrative methods. The timelock cannot change mining prices, splits,
-halving parameters, the tail rate, GBX mint authority, Fund assets, or liquidity custody.
+The Resonance owner can also call inherited `transferOwnership` and `renounceOwnership`; the core no longer claims to
+enforce a selector-bounded proposal surface around those capabilities. Mine has no owner or administrative methods.
+Resonance ownership cannot change mining prices, splits, halving parameters, the tail rate, GBX mint authority, Fund
+assets, or liquidity custody.
 
 The 90% Fund / 10% paired-Bribe acquired-asset split is immutable and exposes no setter. After the first Strategy is
-created, `killStrategy` reverts if it would remove the final live Strategy. Governance replaces that Strategy by
-batching `addStrategy` before `killStrategy`; this is an execution constraint on an existing allowed selector, not a
-new administrative power.
+created, `killStrategy` reverts if it would remove the final live Strategy. The Resonance owner must add a replacement
+before killing that Strategy. Whether those actions can be batched atomically is an external-governance integration
+property that must be selected and tested before deployment.
 
-ProtocolGovernor fixes SignalGBX, TimelockController, Resonance, voting delay, voting period, proposal threshold,
-and quorum percentage at construction. Its proposal filter accepts only the three exact zero-value calls above.
-Inherited generic relay and Timelock replacement entrypoints always revert. Standard Governor cancellation is available
-only to the proposal's proposer while Pending; there is no multisig bypass, guardian, or cancellation path once queued.
+A production deployment must bootstrap every reviewed initial Strategy under a temporary setup owner, then transfer
+Resonance directly to the exact external governance executor selected by a later ADR. The provider, exact release,
+deployed bytecode, plugins, voting rules, permissions, root/admin holders, upgrade paths, batching, delay, cancellation,
+and ownership receipt all remain unresolved release gates. No production ownership handoff is authorized until they are
+reviewed and recorded.
 
 GBX binds Mine once during deployment. SignalGBX, StrategyFactory, and BribeFactory bind Resonance once. Fund and
 LiquidityPosition are ownerless. There are no proxies, pause switches, sweep methods, successor bindings, migrations,
-or generic executors in protocol contracts.
+or generic executors in the core protocol contracts.
 
 Mining, displaced-miner claims, routing, `signal`, `signalWithPermit`, `moveSignal`,
 `withdrawSignal`, Strategy purchases, reward claims, Fund-liability payment, paired-Bribe notification, liquidity fee

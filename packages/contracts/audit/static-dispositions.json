@@ -22,8 +22,7 @@
     "slither:timestamp": "Timestamps intentionally drive fixed emission epochs, seven-day reward streams, bounded reverse Dutch prices, and caller deadlines with tested boundary semantics.",
     "slither:unused-return": "The ignored convenience values are non-authoritative; typed downstream calls revert on failure and exact token deltas independently prove complete routing.",
     "slither:weak-prng": "Modulo is used only to retain deterministic fixed-point accounting carry; the protocol contains no random selection or entropy-dependent outcome.",
-    "aderyn:contract-locks-ether": "ProtocolGovernor deliberately rejects native currency in execute, relay, and receive; unavoidable forced ETH remains inert surplus because the immutable governance surface cannot add a withdrawal or rescue path.",
-    "aderyn:centralization-risk": "Findings identify the intentionally minimal Resonance administration and its controlled factories; documented deployment transfers that surface to a no-default-admin timelock.",
+    "aderyn:centralization-risk": "Findings identify the intentionally minimal Resonance administration and its controlled factories; production deployment remains blocked until ownership is transferred to a separately reviewed external governance executor.",
     "aderyn:costly-loop": "Loops are capped at eight, caller-selected, incrementally bounded, or paired with scalar alternatives; worst-case gas is measured against the pinned chain limit.",
     "aderyn:large-numeric-literal": "Reported values are named fixed supply, emission, precision, fee, price, or time constants pinned by tests and independent economic fixtures.",
     "aderyn:literal-instead-of-constant": "The two literals are fixed positions in the pinned PositionManager return tuple and are tested against canonical pool and position identity.",
@@ -52,8 +51,7 @@
     "slither:timestamp": "protocol-time-boundaries",
     "slither:unused-return": "revert-authoritative-calls",
     "slither:weak-prng": "exact-carry-arithmetic",
-    "aderyn:contract-locks-ether": "no-native-currency-surface",
-    "aderyn:centralization-risk": "minimal-timelocked-administration",
+    "aderyn:centralization-risk": "minimal-external-administration",
     "aderyn:costly-loop": "bounded-or-escapable-loops",
     "aderyn:large-numeric-literal": "fixed-literals-and-abi-shape",
     "aderyn:literal-instead-of-constant": "fixed-literals-and-abi-shape",
@@ -122,21 +120,7 @@
       "revisitTrigger": "Re-review if Resonance token registration, constructor initialization, or reward-token enumeration changes.",
       "compensatingControls": [
         "Tests assert the sole reward token is USDG and reject forbidden reward-token administration.",
-        "The Governor allowlist exposes addBribeReward for Strategy Bribes but no Resonance reward-token mutation selector."
-      ]
-    },
-    "no-native-currency-surface": {
-      "reviewerId": "internal-protocol-security",
-      "impact": "Native currency reaching ProtocolGovernor would be permanently inert because no permitted governance action, relay, or recovery path can spend it.",
-      "exploitability": "Every ordinary payable path rejects nonzero value before forwarding, while ETH forced through protocol-level mechanisms cannot be prevented by recipient bytecode and grants no governance or withdrawal entitlement.",
-      "affectedAssumptions": [
-        "All continuing protocol administration remains limited to exact zero-value calls.",
-        "ProtocolGovernor retains no relay, rescue, arbitrary-call, or native-currency withdrawal authority."
-      ],
-      "revisitTrigger": "Re-review if Governor execution value handling, the permitted selector set, receive behavior, or any native-currency recovery mechanism changes.",
-      "compensatingControls": [
-        "Tests prove direct ETH, nonzero execution value, relay, and Timelock replacement all revert.",
-        "Forced native currency is excluded from protocol accounting and cannot affect proposals, votes, Strategy revenue, or Fund backing."
+        "Resonance exposes addBribeReward for Strategy Bribes but no owner method that mutates the Resonance reward token."
       ]
     },
     "exact-carry-arithmetic": {
@@ -228,18 +212,18 @@
         "Tests assert both successful exact deltas and rollback for every rejected supported-token behavior."
       ]
     },
-    "minimal-timelocked-administration": {
+    "minimal-external-administration": {
       "reviewerId": "internal-protocol-security",
-      "impact": "Compromise of the Resonance owner before or after timelock handoff could change Strategy membership or reward-token registration.",
-      "exploitability": "These findings identify the intended remaining administrative surface: Resonance ownership plus factories and SignalGBX wired immutably to Resonance; deployment requires ownership transfer to the documented TimelockController and removal of external default admin.",
+      "impact": "Compromise of the Resonance setup owner or future external governance executor could change Strategy membership, reward-token registration, or Resonance ownership.",
+      "exploitability": "These findings identify the intended remaining administrative surface: Resonance ownership plus factories and SignalGBX wired immutably to Resonance; deployment remains blocked until the exact external governance executor and its permission and upgrade model are reviewed.",
       "affectedAssumptions": [
-        "The signed deployment procedure transfers Resonance ownership to the configured timelock before protocol use.",
+        "The signed deployment procedure transfers Resonance ownership to the reviewed external governance executor before protocol use and removes temporary setup authority.",
         "Auction payments retain the immutable cumulative 90% Fund and 10% paired-Bribe split, and no new owner-gated functions are introduced."
       ],
-      "revisitTrigger": "Re-review if ownership wiring, timelock roles or delay, factory callers, SignalGBX controller, or the Resonance administrative surface changes.",
+      "revisitTrigger": "Re-review when an external governance system is selected or if ownership wiring, factory callers, SignalGBX controller, or the Resonance administrative surface changes.",
       "compensatingControls": [
         "Access-control tests enumerate every privileged and forbidden caller path.",
-        "The release checklist blocks launch evidence until role transfer and no-default-admin state are independently verified."
+        "The release checklist blocks launch evidence until the external governance integration and ownership transfer are independently verified."
       ]
     },
     "fixed-literals-and-abi-shape": {
@@ -282,7 +266,7 @@
       "endLine": 41,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -298,7 +282,7 @@
       "endLine": 14,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -314,7 +298,7 @@
       "endLine": 21,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -330,7 +314,7 @@
       "endLine": 299,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -346,7 +330,7 @@
       "endLine": 248,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -362,7 +346,7 @@
       "endLine": 24,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -378,7 +362,7 @@
       "endLine": 270,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -394,7 +378,7 @@
       "endLine": 303,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -410,7 +394,7 @@
       "endLine": 316,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -426,7 +410,7 @@
       "endLine": 22,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -442,7 +426,7 @@
       "endLine": 136,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -458,7 +442,7 @@
       "endLine": 45,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -474,23 +458,7 @@
       "endLine": 17,
       "descriptionHash": "4d9227339e2704c28d02c4525c4d443522d3a34c538e1ee28fec0761570fbba2",
       "rationaleId": "aderyn:centralization-risk",
-      "reviewProfileId": "minimal-timelocked-administration",
-      "reviewerId": "internal-protocol-security",
-      "reviewedAt": "2026-08-16"
-    },
-    {
-      "tool": "aderyn",
-      "detector": "contract-locks-ether",
-      "severity": "High",
-      "confidence": "Analyzer",
-      "path": "src/governance/ProtocolGovernor.sol",
-      "symbolType": "source",
-      "symbol": "1631:16",
-      "startLine": 25,
-      "endLine": 25,
-      "descriptionHash": "52893ca9236178036556bcdc16835ed3f30708209c620320155c4f130cdd2cec",
-      "rationaleId": "aderyn:contract-locks-ether",
-      "reviewProfileId": "no-native-currency-surface",
+      "reviewProfileId": "minimal-external-administration",
       "reviewerId": "internal-protocol-security",
       "reviewedAt": "2026-08-16"
     },
@@ -1488,22 +1456,6 @@
     },
     {
       "tool": "aderyn",
-      "detector": "reentrancy-state-change",
-      "severity": "High",
-      "confidence": "Analyzer",
-      "path": "src/governance/ProtocolGovernor.sol",
-      "symbolType": "source",
-      "symbol": "4676:55",
-      "startLine": 75,
-      "endLine": 75,
-      "descriptionHash": "2c3afe318601a288b26f6ab6568d7f358329d21403bb5dba7d79a6093930f4e8",
-      "rationaleId": "aderyn:reentrancy-state-change",
-      "reviewProfileId": "guarded-callback-ordering",
-      "reviewerId": "internal-protocol-security",
-      "reviewedAt": "2026-08-16"
-    },
-    {
-      "tool": "aderyn",
       "detector": "require-revert-in-loop",
       "severity": "Low",
       "confidence": "Analyzer",
@@ -1624,22 +1576,6 @@
       "symbol": "16029:53",
       "startLine": 338,
       "endLine": 338,
-      "descriptionHash": "7693516307c2a60ab6ebfa5254c925247815551cded04546abe5f11931bf942f",
-      "rationaleId": "aderyn:require-revert-in-loop",
-      "reviewProfileId": "bounded-or-escapable-loops",
-      "reviewerId": "internal-protocol-security",
-      "reviewedAt": "2026-08-16"
-    },
-    {
-      "tool": "aderyn",
-      "detector": "require-revert-in-loop",
-      "severity": "Low",
-      "confidence": "Analyzer",
-      "path": "src/governance/ProtocolGovernor.sol",
-      "symbolType": "source",
-      "symbol": "6828:1076",
-      "startLine": 133,
-      "endLine": 133,
       "descriptionHash": "7693516307c2a60ab6ebfa5254c925247815551cded04546abe5f11931bf942f",
       "rationaleId": "aderyn:require-revert-in-loop",
       "reviewProfileId": "bounded-or-escapable-loops",
@@ -1935,38 +1871,6 @@
       "reviewedAt": "2026-08-16"
     },
     {
-      "tool": "aderyn",
-      "detector": "unused-public-function",
-      "severity": "Low",
-      "confidence": "Analyzer",
-      "path": "src/governance/ProtocolGovernor.sol",
-      "symbolType": "source",
-      "symbol": "5742:15",
-      "startLine": 106,
-      "endLine": 106,
-      "descriptionHash": "14995232ba86f4324eb5c45290ec395fc9180e3e51d5dd7cff0835fd37dcf224",
-      "rationaleId": "aderyn:unused-public-function",
-      "reviewProfileId": "intentional-interface-shape",
-      "reviewerId": "internal-protocol-security",
-      "reviewedAt": "2026-08-16"
-    },
-    {
-      "tool": "aderyn",
-      "detector": "unused-public-function",
-      "severity": "Low",
-      "confidence": "Analyzer",
-      "path": "src/governance/ProtocolGovernor.sol",
-      "symbolType": "source",
-      "symbol": "5910:17",
-      "startLine": 111,
-      "endLine": 111,
-      "descriptionHash": "14995232ba86f4324eb5c45290ec395fc9180e3e51d5dd7cff0835fd37dcf224",
-      "rationaleId": "aderyn:unused-public-function",
-      "reviewProfileId": "intentional-interface-shape",
-      "reviewerId": "internal-protocol-security",
-      "reviewedAt": "2026-08-16"
-    },
-    {
       "tool": "slither",
       "detector": "assembly",
       "severity": "Informational",
@@ -1993,22 +1897,6 @@
       "startLine": 180,
       "endLine": 184,
       "descriptionHash": "cb261597c210117c575ccee424486857f03b258cea0f2fcfef8103b23c6e3a35",
-      "rationaleId": "slither:assembly",
-      "reviewProfileId": "transient-redemption-marks",
-      "reviewerId": "internal-protocol-security",
-      "reviewedAt": "2026-08-16"
-    },
-    {
-      "tool": "slither",
-      "detector": "assembly",
-      "severity": "Informational",
-      "confidence": "High",
-      "path": "src/governance/ProtocolGovernor.sol",
-      "symbolType": "function",
-      "symbol": "_propose",
-      "startLine": 121,
-      "endLine": 155,
-      "descriptionHash": "54fd93f602d030a297e52b2e38793095063f2e4575651f01b06c9d13496c276b",
       "rationaleId": "slither:assembly",
       "reviewProfileId": "transient-redemption-marks",
       "reviewerId": "internal-protocol-security",

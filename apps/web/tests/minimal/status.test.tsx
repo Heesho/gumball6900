@@ -23,7 +23,7 @@ describe('core starting-point status page', () => {
     expect(screen.queryByRole('button', { name: /connect wallet/i })).toBeNull();
   });
 
-  it('limits token governance to three immutable timelocked actions without a multisig bypass', () => {
+  it('shows the bounded Resonance administration and unresolved external governance gate', () => {
     render(<HomePage />);
 
     expect(screen.getByText('Add a Strategy.')).toBeTruthy();
@@ -31,9 +31,9 @@ describe('core starting-point status page', () => {
     expect(screen.getByText('Add Bribe rewards.')).toBeTruthy();
     expect(screen.queryByText(/Increase Mine capacity/i)).toBeNull();
     expect(
-      screen.getByText(/SignalGBX voting power operates an immutable ProtocolGovernor, the Timelock's sole proposer/i),
+      screen.getByText(/does not select or implement the governance system that will own Resonance/i),
     ).toBeTruthy();
-    expect(screen.getByText(/no multisig bypass, guardian, or queued-proposal veto/i)).toBeTruthy();
+    expect(screen.getByText(/Deployment remains blocked until the exact external executor/i)).toBeTruthy();
     expect(screen.getByText(/internally hardened deployment candidate/i)).toBeTruthy();
   });
 });

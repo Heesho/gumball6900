@@ -12,6 +12,7 @@ import { Mine } from "../../../src/core/Mine.sol";
 import { Resonance } from "../../../src/core/Resonance.sol";
 import { SignalGBX } from "../../../src/core/SignalGBX.sol";
 import { Strategy } from "../../../src/core/Strategy.sol";
+import { StrategyRegistry } from "./StrategyRegistry.sol";
 
 /// @title ProtocolWorkflowHandler
 /// @notice Revert-free signal workflows split from ProtocolHandler to keep both test runtimes deployable.
@@ -23,8 +24,8 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
     SignalGBX private immutable signalGBX;
     Resonance private immutable resonance;
     Mine private immutable mineContract;
+    StrategyRegistry private immutable strategyRegistry;
 
-    address[] private strategies;
     bool private addedStrategy;
 
     /// @notice Number of times each workflow actually executed rather than short-circuiting.
@@ -36,17 +37,14 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
         SignalGBX signalGBX_,
         Resonance resonance_,
         Mine mine_,
-        address[] memory strategies_
+        StrategyRegistry strategyRegistry_
     ) {
         gbx = gbx_;
         target = target_;
         signalGBX = signalGBX_;
         resonance = resonance_;
         mineContract = mine_;
-
-        for (uint256 i; i < strategies_.length; ++i) {
-            strategies.push(strategies_[i]);
-        }
+        strategyRegistry = strategyRegistry_;
     }
 
     function signal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
@@ -97,19 +95,23 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function claimRewards(uint256 actorSeed, uint256 strategySeed) external {
-        if (strategies.length == 0) return;
+        uint256 strategyCount = strategyRegistry.length();
+        if (strategyCount == 0) return;
 
         address actor = _actor(actorSeed);
-        Bribe(resonance.bribeFor(strategies[_bound(strategySeed, 0, strategies.length - 1)])).claimRewards(actor);
+        address strategy = strategyRegistry.at(_bound(strategySeed, 0, strategyCount - 1));
+        Bribe(resonance.bribeFor(strategy)).claimRewards(actor);
 
         ghostCalls["claimRewards"] += 1;
     }
 
     function claimSelectiveReward(uint256 actorSeed, uint256 strategySeed, uint256 tokenSeed) external {
-        if (strategies.length == 0) return;
+        uint256 strategyCount = strategyRegistry.length();
+        if (strategyCount == 0) return;
 
         address actor = _actor(actorSeed);
-        Bribe bribe = Bribe(resonance.bribeFor(strategies[_bound(strategySeed, 0, strategies.length - 1)]));
+        address strategy = strategyRegistry.at(_bound(strategySeed, 0, strategyCount - 1));
+        Bribe bribe = Bribe(resonance.bribeFor(strategy));
         address[] memory tokens = bribe.rewardTokens();
         if (tokens.length == 0) return;
 
@@ -123,12 +125,13 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
         if (addedStrategy) return;
 
         vm.prank(resonance.owner());
-        resonance.addStrategy(
+        (address strategy,,) = resonance.addStrategy(
             target,
             Strategy.Config({
                 initialPrice: 10 ether, epochDuration: 1 days, priceMultiplier: 1.5e18, minimumPrice: 1e6
             })
         );
+        strategyRegistry.add(strategy);
         addedStrategy = true;
         ghostCalls["addStrategy"] += 1;
     }
@@ -155,21 +158,21 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
     }
 
     function _liveStrategy(uint256 seed, address excluded) private view returns (address selected) {
-        uint256 length = strategies.length;
+        uint256 length = strategyRegistry.length();
         if (length == 0) return address(0);
         uint256 start = seed % length;
         for (uint256 i; i < length; ++i) {
-            address candidate = strategies[(start + i) % length];
+            address candidate = strategyRegistry.at((start + i) % length);
             if (candidate != excluded && resonance.isStrategyAlive(candidate)) return candidate;
         }
     }
 
     function _allocatedStrategy(address actor, uint256 seed) private view returns (address selected) {
-        uint256 length = strategies.length;
+        uint256 length = strategyRegistry.length();
         if (length == 0) return address(0);
         uint256 start = seed % length;
         for (uint256 i; i < length; ++i) {
-            address candidate = strategies[(start + i) % length];
+            address candidate = strategyRegistry.at((start + i) % length);
             if (resonance.accountSignals(actor, candidate) != 0) return candidate;
         }
     }

@@ -152,6 +152,15 @@ contract BribeTest is Test {
         assertEq(bribe.queuedRewards(address(reward)), 1);
     }
 
+    function test_ZeroSupplyNotificationConsumesLifetimeCapacityImmediately() external {
+        _notify(70 ether);
+
+        assertEq(bribe.lifetimeRewardNotified(address(reward)), 70 ether);
+        assertEq(bribe.accountedRewardBalance(address(reward)), 70 ether);
+        assertEq(bribe.queuedRewards(address(reward)), 70 ether);
+        assertEq(bribe.scheduledRewards(address(reward)), 0);
+    }
+
     function test_NotifyRejectsAFeeOnTransferRewardToken() external {
         FeeOnTransferToken feeToken = new FeeOnTransferToken(18);
         bribe.addRewardToken(address(feeToken));
@@ -165,6 +174,9 @@ contract BribeTest is Test {
             )
         );
         bribe.notifyRewardAmount(address(feeToken), 70 ether);
+
+        assertEq(bribe.lifetimeRewardNotified(address(feeToken)), 0);
+        assertEq(bribe.accountedRewardBalance(address(feeToken)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

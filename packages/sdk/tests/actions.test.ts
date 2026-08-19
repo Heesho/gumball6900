@@ -1,29 +1,21 @@
-import { decodeFunctionData, getAddress, keccak256, toBytes } from 'viem';
+import { decodeFunctionData, getAddress } from 'viem';
 import { describe, expect, it } from 'vitest';
 
 import {
-  buildAddBribeRewardProposalCall,
-  buildAddStrategyProposalCall,
   buildApproval,
-  buildCancelPendingProtocolProposal,
-  buildCastProtocolVote,
   buildClaimBribeReward,
   buildClaimMiningPayment,
   buildClaimSelectedBribeRewards,
   buildDelegateSignalVotes,
   buildDistributeRevenue,
-  buildExecuteProtocolProposal,
   buildFundBurn,
   buildHarvestLiquidityFees,
-  buildKillStrategyProposalCall,
   buildMine,
   buildMoveSignal,
   buildNotifyRouterBribeReward,
   buildNotifyRevenue,
   buildPayBribeFundReward,
   buildPayRouterFundPayment,
-  buildProtocolProposal,
-  buildQueueProtocolProposal,
   buildRedemption,
   buildRouteRevenue,
   buildSignal,
@@ -36,7 +28,6 @@ import {
   gbxAbi,
   liquidityPositionAbi,
   mineAbi,
-  protocolGovernorAbi,
   resonanceAbi,
   resonanceRouterAbi,
   signalGbxAbi,
@@ -120,72 +111,6 @@ describe('minimal typed transaction builders', () => {
       args: [11n],
       functionName: 'notifyRevenue',
     });
-  });
-
-  it('composes the three bounded admin calls into a ProtocolGovernor lifecycle', () => {
-    const config = {
-      epochDuration: 86_400n,
-      initialPrice: 10_000_000n,
-      minimumPrice: 1_000_000n,
-      priceMultiplier: 1_100_000_000_000_000_000n,
-    } as const;
-
-    const addStrategy = buildAddStrategyProposalCall(A, B, config);
-    const killStrategy = buildKillStrategyProposalCall(A, C);
-    const addBribeReward = buildAddBribeRewardProposalCall(A, B, C);
-    expect(decodeFunctionData({ abi: resonanceAbi, data: addStrategy.calldata })).toMatchObject({
-      args: [getAddress(B), config],
-      functionName: 'addStrategy',
-    });
-    expect(decodeFunctionData({ abi: resonanceAbi, data: killStrategy.calldata })).toMatchObject({
-      args: [getAddress(C)],
-      functionName: 'killStrategy',
-    });
-    expect(decodeFunctionData({ abi: resonanceAbi, data: addBribeReward.calldata })).toMatchObject({
-      args: [getAddress(B), getAddress(C)],
-      functionName: 'addBribeReward',
-    });
-    for (const call of [addStrategy, killStrategy, addBribeReward]) {
-      expect(call.target).toBe(getAddress(A));
-      expect(call.value).toBe(0n);
-    }
-
-    const calls = [addStrategy, killStrategy, addBribeReward] as const;
-    const description = 'Update the Resonance strategy set';
-    const descriptionHash = keccak256(toBytes(description));
-    expect(
-      decodeFunctionData({ abi: protocolGovernorAbi, data: buildProtocolProposal(C, calls, description).data }),
-    ).toMatchObject({
-      args: [
-        [getAddress(A), getAddress(A), getAddress(A)],
-        [0n, 0n, 0n],
-        [addStrategy.calldata, killStrategy.calldata, addBribeReward.calldata],
-        description,
-      ],
-      functionName: 'propose',
-    });
-    expect(decodeFunctionData({ abi: protocolGovernorAbi, data: buildCastProtocolVote(C, 7n, 1).data })).toMatchObject({
-      args: [7n, 1],
-      functionName: 'castVote',
-    });
-    expect(
-      decodeFunctionData({
-        abi: protocolGovernorAbi,
-        data: buildQueueProtocolProposal(C, calls, descriptionHash).data,
-      }),
-    ).toMatchObject({ functionName: 'queue' });
-    expect(
-      decodeFunctionData({
-        abi: protocolGovernorAbi,
-        data: buildExecuteProtocolProposal(C, calls, descriptionHash).data,
-      }),
-    ).toMatchObject({ functionName: 'execute' });
-    expect(
-      decodeFunctionData({
-        abi: protocolGovernorAbi,
-        data: buildCancelPendingProtocolProposal(C, calls, descriptionHash).data,
-      }),
-    ).toMatchObject({ functionName: 'cancel' });
   });
 
   it('encodes caller-selected Fund redemption and accumulated GBX burning', () => {

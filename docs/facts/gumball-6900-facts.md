@@ -1,5 +1,12 @@
 # GUM BALL 6900 internal fact registry
 
+> **Historical registry — governance design superseded by ADR 0034.** This registry is pinned to commit `95ed60e` and
+> intentionally preserves evidence for the former in-repository `ProtocolGovernor` and Timelock design. It is not a
+> fact registry for the current tree. [ADR 0034](../adr/0034-external-governance-ownership.md) removed both contracts;
+> current `SignalGBX` checkpoints remain available for a separately selected external governance system, and the
+> future `Resonance` owner remains unselected. Every Governor, Timelock, proposal-lifecycle, quorum, and cancellation
+> claim below is historical unless it explicitly cites later evidence.
+
 > Internal working document. This registry is the evidence base for the public one-pager, layman's article, and
 > technical whitepaper. It is engineering evidence only: it is not an audit, a deployment authorization, a legal
 > conclusion, or a claim that the protocol is safe for user funds.

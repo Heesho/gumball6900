@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = { title: 'Governance-minimized final design' };
+export const metadata: Metadata = { title: 'Governance-minimized development design' };
 
 const contracts = [
   'GBX',
@@ -15,12 +15,11 @@ const contracts = [
   'BribeRouter',
   'Bribe',
   'Fund',
-  'ProtocolGovernor',
 ] as const;
 
 const deploymentInputs = [
   'USDG, Uniswap v4, genesis price, and single-sided range inputs',
-  'Timelock delay and immutable block-clock voting delay, period, threshold, and quorum',
+  'Exact external governance release, plugins, permissions, voting parameters, and execution semantics',
   'Mine multiplier, minimum USDG price, initial GBX/second, halving amount, and positive tail',
   'Initial Strategy payment tokens and bounded auction parameters',
   'Independent security review of the immutable final bytecode',
@@ -38,9 +37,9 @@ export default function HomePage() {
           The governance-minimized GBX protocol.
         </h1>
         <p className="mt-6 max-w-3xl text-sm leading-7 text-[#a5b3b2] sm:text-base">
-          Deposit GBX directly into a Strategy signal to mint non-transferable sGBX and vote on four bounded protocol
-          actions. Every completed Strategy payment is split 90% to Fund and 10% to that Strategy&apos;s Bribe, while
-          holders can redeem a caller-selected pro-rata basket without an asset registry.
+          Deposit GBX directly into a Strategy signal to mint non-transferable sGBX with voting checkpoints for a future
+          external governance integration. Every completed Strategy payment is split 90% to Fund and 10% to that
+          Strategy&apos;s Bribe, while holders can redeem a caller-selected pro-rata basket without an asset registry.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Metric label="Genesis GBX supply" value="20,000,000 GBX" />
@@ -50,7 +49,7 @@ export default function HomePage() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
-        <Panel eyebrow="Architecture" title="Thirteen direct, non-upgradeable contracts">
+        <Panel eyebrow="Architecture" title="Twelve direct, non-upgradeable contracts">
           <div className="grid gap-2 sm:grid-cols-2">
             {contracts.map((contract, index) => (
               <div
@@ -94,16 +93,16 @@ export default function HomePage() {
           </ul>
         </Panel>
 
-        <Panel eyebrow="Governance" title="Three narrow timelocked actions">
+        <Panel eyebrow="Governance" title="External integration pending">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
             <li>Add a Strategy.</li>
             <li>Kill a Strategy.</li>
             <li>Add Bribe rewards.</li>
           </ul>
           <p className="mt-5 text-xs leading-5 text-[#778786]">
-            SignalGBX voting power operates an immutable ProtocolGovernor, the Timelock&apos;s sole proposer. Its
-            target, block-clock voting configuration, and three zero-value selectors cannot change. Execution is
-            permissionless after the delay, with no multisig bypass, guardian, or queued-proposal veto.
+            SignalGBX exposes ERC20Votes checkpoints, but this repository does not select or implement the governance
+            system that will own Resonance. Deployment remains blocked until the exact external executor, permissions,
+            voting rules, upgrade model, delay, cancellation behavior, and ownership handoff are reviewed.
           </p>
         </Panel>
       </section>

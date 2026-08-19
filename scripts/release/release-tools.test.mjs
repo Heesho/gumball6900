@@ -1341,7 +1341,7 @@ test('prepare-release rejects archived evidence before writing current release o
     { encoding: 'utf8' },
   );
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /Current ProtocolGovernor deployment\/release tooling is unavailable/);
+  assert.match(result.stderr, /Current external-governance deployment\/release tooling is unavailable/);
   assert.deepEqual(await readdir(outputDirectory), []);
 });
 
@@ -1442,7 +1442,7 @@ test('archived release manifest validation remains inspectable while current sub
     manifest,
   );
   assert.equal(deriveArchivedSubgraphNetworks(manifest).robinhood.GBXToken.startBlock, 100);
-  assert.throws(() => deriveSubgraphNetworks(manifest), /Current ProtocolGovernor deployment\/release tooling/);
+  assert.throws(() => deriveSubgraphNetworks(manifest), /Current external-governance deployment\/release tooling/);
   assert.throws(
     () =>
       validateManifestBinding(

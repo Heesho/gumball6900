@@ -3,8 +3,9 @@
 > This is an unexecuted development outline, not a deployment manifest or release authorization.
 
 Required inputs include reviewed USDG and Uniswap v4 addresses, the hookless pool configuration, genesis price and
-one-sided range, initial Strategies, Timelock delay, immutable Governor voting delay, voting period, proposal threshold,
-quorum percentage, all immutable Mine parameters, provenance clearance, and independent security evidence.
+one-sided range, initial Strategies, all immutable Mine parameters, provenance clearance, independent security evidence,
+and a later ADR selecting the exact external governance provider, release, executor, plugins, voting configuration,
+permission graph, upgrade model, execution delay, cancellation rules, and ownership-handoff evidence.
 
 The intended order is:
 
@@ -23,25 +24,24 @@ The intended order is:
    minter, `Mine.gbx()` equals GBX, and no alternative mint authority exists. This step is irreversible.
 6. While the temporary setup owner still controls Resonance, create every reviewed initial Strategy and register any
    reviewed initial Bribe reward tokens. Verify the complete Strategy, BribeRouter, and Bribe graph. Do not defer
-   bootstrap membership until after governance handoff.
+   bootstrap membership until after ownership handoff.
 7. Initialize the reviewed hookless GBX/USDG v4 pool and create the precommitted out-of-range position using only the
    20 million GBX allocation. Verify ordering, price, ticks, liquidity, NFT ID, and any deterministic residual.
 8. Deploy LiquidityPosition with that exact pool, range, NFT ID, PositionManager, and Permit2. Verify every immutable
    before safe-transferring the NFT, then prove custody and zero genesis USDG. The NFT can never be recovered.
-9. Deploy OpenZeppelin `TimelockController` with no initial proposer, the zero address as open executor, and the
-   deployment coordinator as temporary setup admin. Deploy ProtocolGovernor with exact SignalGBX, Timelock,
-   Resonance, block-clock voting parameters, and quorum. Grant only ProtocolGovernor the Timelock proposer and
-   canceller roles.
-10. Transfer Resonance ownership to TimelockController. Verify ProtocolGovernor accepts only exact zero-value calls to
-    the three Resonance actions; then renounce the coordinator's Timelock default
-    admin role. Confirm there is no external admin, alternate proposer, multisig bypass, guardian, queued cancellation
-    route, or pre-scheduled operation.
-11. Reconcile runtime bytecode, constructor arguments, one-time bindings, bootstrap Strategies, ownership, immutable
-    Governor dependencies and voting configuration, Timelock roles and delay, the 20-million allocation, permanent
-    Mine authority, fixed slot count sixteen, PoolKey, ticks, NFT ID, and NFT custody.
+9. Stop unless a later ADR has selected and reviewed the external governance integration. This repository deploys no
+   Governor or Timelock and currently has no authorized production Resonance owner. Verify the selected integration's
+   exact provider release, deployed bytecode or proxy implementation, plugins, SignalGBX compatibility, permission and
+   admin graph, upgrade and emergency paths, proposal rules, batching, execution delay, and cancellation semantics.
+10. Transfer Resonance directly from the temporary setup owner to the exact reviewed external governance executor.
+    Verify `Resonance.owner()` and the handoff receipt, and prove that the deployment coordinator retains no authority.
+11. Reconcile runtime bytecode, constructor arguments, one-time bindings, bootstrap Strategies, external governance
+    configuration and ownership, the 20-million allocation, permanent Mine authority, fixed slot count sixteen,
+    PoolKey, ticks, NFT ID, and NFT custody.
 
 The frontend must remain read-only until a signed manifest proves those facts. Exact Mine parameters are release
-inputs, not values to infer from tests or examples. No signed manifest exists for this repository state.
+inputs, not values to infer from tests or examples. The external governance integration is unselected, and no signed
+manifest exists for this repository state; deployment is therefore blocked.
 
 No script in this repository is authorized to broadcast these steps. A failed setup must be abandoned before use;
 the immutable deployed system has no migration or repair authority.

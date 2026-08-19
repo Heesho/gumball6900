@@ -16,10 +16,8 @@ const contracts = [
   'GBX',
   'LiquidityPosition',
   'Mine',
-  'ProtocolGovernor',
   'SignalGBX',
   'Strategy',
-  'TimelockController',
   'Resonance',
   'ResonanceRouter',
 ];

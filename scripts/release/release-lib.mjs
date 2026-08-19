@@ -30,11 +30,12 @@ export const releaseManifestSignerRoles = Object.freeze([
 ]);
 
 export const currentReleaseToolingBlocker =
-  'Current ProtocolGovernor deployment/release tooling is unavailable: the retained schema-v3 and Safe validators ' +
-  'describe the removed AllocationVoter graph. A separately reviewed current manifest and evidence schema is ' +
-  'required before deployment or subgraph outputs can be derived.';
+  'Current external-governance deployment/release tooling is unavailable: the retained schema-v3 and Safe validators ' +
+  'describe the removed AllocationVoter graph, while the external Resonance owner and governance integration remain ' +
+  'unselected. A separately reviewed current manifest and evidence schema is required before deployment or subgraph ' +
+  'outputs can be derived.';
 
-/** Fails closed until the ProtocolGovernor graph has a reviewed manifest/evidence format. */
+/** Fails closed until the external-governance graph has a reviewed manifest/evidence format. */
 export function assertCurrentReleaseToolingAvailable() {
   throw new Error(currentReleaseToolingBlocker);
 }
@@ -1651,7 +1652,7 @@ export function evaluateReleaseReadiness({
   security,
 }) {
   // The checks below validate retained Safe-era evidence only. They cannot authorize
-  // the current ProtocolGovernor graph until that graph has its own reviewed schema.
+  // the external-governance graph until that graph has its own reviewed schema.
   const blockers = [currentReleaseToolingBlocker];
   try {
     validateSafeControlPlanePolicyShape(safeControlPlanePolicy);
