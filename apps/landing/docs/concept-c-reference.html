@@ -1,0 +1,822 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GumBall6900 — Concept C — Serious money, candy soul</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Modak&family=Schibsted+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   CONCEPT C — SERIOUS MONEY, CANDY SOUL
+   Financial-editorial art direction. Asymmetric spreads,
+   full-bleed colour fields, oversized Modak numerals,
+   rules instead of boxes.
+   ============================================================ */
+
+:root{
+  /* brand */
+  --pink:#F92B92;
+  --blue:#29B6F0;
+  --black:#0C0C0C;
+  --white:#FFFFFF;
+
+  /* ground + surfaces (blue-biased neutrals) */
+  --bg:#0C0C0C;
+  --panel:#101017;
+  --raised:#17171F;
+  --rule:#26262F;
+  --rule-strong:#3B3B48;
+
+  /* ink */
+  --hi:#FFFFFF;
+  --text:#EFEFF4;
+  --muted:#ADADC0;
+  --faint:#8A8AA0;
+
+  /* ink on colour fields */
+  --on-field:#0C0C0C;
+
+  /* tints */
+  --pink-soft:rgba(249,43,146,.13);
+  --blue-soft:rgba(41,182,240,.13);
+  --pink-line:rgba(249,43,146,.45);
+  --blue-line:rgba(41,182,240,.45);
+
+  /* editorial metrics */
+  --marg:clamp(20px, 4.4vw, 64px);
+  --maxw:1312px;
+  --bleed:max(0px,(100vw - 1312px)/2);
+  --hair:1px;
+
+  --t-fast:140ms; --t-base:200ms; --ease:cubic-bezier(.2,.6,.2,1);
+}
+
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;overflow-x:clip}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:"Schibsted Grotesk",system-ui,sans-serif;
+  font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:clip;
+}
+img{max-width:100%;display:block}
+a{color:inherit}
+h1,h2,h3,h4,p,dl,dd,dt,figure,ul{margin:0}
+ul{padding:0;list-style:none}
+
+/* ---------- type primitives ---------- */
+.mono{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums}
+.wordmark,.dnum{font-family:"Modak",system-ui,cursive;font-weight:400;font-synthesis:none;line-height:1}
+.eyebrow{
+  font-family:"JetBrains Mono",ui-monospace,monospace;
+  font-size:11.5px;letter-spacing:.19em;text-transform:uppercase;color:var(--faint);
+}
+.eyebrow--blue{color:var(--blue)}
+.eyebrow--pink{color:var(--pink)}
+.display{
+  font-size:clamp(32px,4.7vw,60px);font-weight:800;letter-spacing:-.03em;line-height:1.02;color:var(--hi);
+}
+.h2{font-size:clamp(20px,2vw,26px);font-weight:700;letter-spacing:-.018em;line-height:1.15;color:var(--hi)}
+.h3{font-size:21px;font-weight:700;letter-spacing:-.012em;color:var(--hi)}
+.lede{font-size:clamp(16.5px,1.35vw,20px);line-height:1.55;color:var(--muted)}
+.small{font-size:14px;line-height:1.62}
+.note{font-size:12.5px;line-height:1.55;color:var(--faint)}
+.mnote{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;line-height:1.55;color:var(--faint);letter-spacing:.02em}
+
+.shell{max-width:var(--maxw);margin-inline:auto;padding-inline:var(--marg)}
+
+/* ---------- focus ---------- */
+:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.field :focus-visible{outline-color:var(--black)}
+
+/* ============================================================
+   MASTHEAD
+   ============================================================ */
+.masthead{border-bottom:var(--hair) solid var(--rule);position:relative;z-index:3}
+.masthead__in{
+  max-width:var(--maxw);margin-inline:auto;padding:14px var(--marg);
+  display:flex;align-items:center;gap:16px;
+}
+.masthead__mark{width:34px;height:34px;flex:none}
+.masthead__name{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-weight:600;
+  font-size:12.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--hi);
+}
+.masthead__spacer{flex:1}
+.masthead__meta{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;letter-spacing:.14em;
+  text-transform:uppercase;color:var(--faint);display:flex;gap:18px;align-items:center;
+}
+.masthead__meta b{color:var(--muted);font-weight:500}
+.masthead__meta .dot{width:5px;height:5px;border-radius:50%;background:var(--pink);display:inline-block}
+
+/* ============================================================
+   HERO — asymmetric spread: type field left, colour plane right
+   ============================================================ */
+.hero{position:relative;border-bottom:var(--hair) solid var(--rule)}
+.hero__grid{
+  max-width:var(--maxw);margin-inline:auto;
+  display:grid;grid-template-columns:minmax(0,1fr) 400px;align-items:stretch;
+}
+.hero__left{padding:clamp(30px,3.6vw,52px) clamp(28px,3.4vw,56px) clamp(24px,2.4vw,32px) var(--marg);min-width:0}
+
+/* kicker */
+.kicker{display:flex;align-items:center;gap:12px;margin-bottom:clamp(20px,2.6vw,34px)}
+.kicker__rule{height:3px;width:56px;background:var(--pink);flex:none}
+.kicker__txt{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--muted);
+}
+
+/* the wordmark — riso misregistration in pink + blue */
+.wm{
+  display:block;font-family:"Modak",system-ui,cursive;font-weight:400;font-synthesis:none;
+  font-size:clamp(50px,11.3vw,164px);line-height:.88;letter-spacing:.01em;color:var(--hi);
+  margin:0 0 clamp(8px,1vw,14px);
+}
+.wm__line{display:block;position:relative;isolation:isolate;width:max-content;max-width:100%}
+.wm__line span{position:relative;z-index:2;display:block}
+.wm__line::before,.wm__line::after{
+  content:attr(data-t);position:absolute;left:0;top:0;z-index:1;pointer-events:none;
+  white-space:nowrap;
+}
+.wm__line::before{color:var(--blue);transform:translate(-.026em,-.016em)}
+.wm__line::after{color:var(--pink);transform:translate(.026em,.016em)}
+
+/* body of the hero: wide type column against a narrow marginal column */
+.hero__body{
+  display:grid;grid-template-columns:minmax(0,1fr) 246px;
+  gap:clamp(24px,3.2vw,48px);margin-top:clamp(18px,2vw,26px);align-items:start;
+}
+.hero__margin{border-left:var(--hair) solid var(--rule);padding-left:clamp(18px,2vw,28px);align-self:stretch}
+
+.status{padding-top:2px}
+.status__cap{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--faint);padding-bottom:9px;
+  border-bottom:var(--hair) solid var(--rule-strong);margin-bottom:10px;
+}
+.status__row{
+  display:flex;align-items:flex-start;gap:10px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;line-height:1.45;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--text);padding:6px 0;
+}
+.status__row i{width:7px;height:7px;flex:none;margin-top:5px;background:transparent;box-shadow:inset 0 0 0 1.5px var(--muted)}
+.status__note{margin-top:14px;padding-top:12px;border-top:var(--hair) solid var(--rule)}
+
+.hero__lede{
+  font-size:clamp(17px,1.62vw,23px);line-height:1.48;color:var(--text);
+  max-width:34ch;font-weight:400;
+}
+.hero__lede b{color:var(--hi);font-weight:600}
+
+/* buttons */
+.actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:clamp(20px,2.4vw,30px)}
+.btn{
+  display:inline-flex;align-items:center;gap:10px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;font-weight:600;
+  letter-spacing:.11em;text-transform:uppercase;text-decoration:none;
+  padding:13px 20px;border:var(--hair) solid var(--rule-strong);border-radius:2px;
+  color:var(--text);background:transparent;cursor:pointer;
+  transition:background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease),color var(--t-fast) var(--ease);
+}
+.btn:hover{border-color:var(--white);color:var(--hi)}
+.btn--primary{background:var(--pink);border-color:var(--pink);color:var(--black)}
+.btn--primary:hover{background:#ff53a8;border-color:#ff53a8;color:var(--black)}
+.btn--sm{padding:9px 14px;font-size:11px}
+.btn--blue{background:var(--blue-soft);border-color:var(--blue-line);color:#9BDDFA}
+.btn--blue:hover{background:rgba(41,182,240,.22);border-color:var(--blue);color:#CDEEFC}
+.btn .arw{opacity:.82}
+
+/* ---------- the colour plane ---------- */
+.plane{
+  position:relative;background:var(--pink);color:var(--on-field);
+  padding:clamp(28px,3vw,40px) calc(clamp(24px,2.4vw,36px) + var(--bleed)) 0 clamp(24px,2.4vw,36px);
+  margin-right:calc(-1 * var(--bleed));
+  overflow:hidden;isolation:isolate;
+}
+.plane__cap{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--on-field);
+  padding-bottom:10px;border-bottom:1px solid rgba(12,12,12,.28);
+}
+.toc{margin-top:2px}
+.toc__item{
+  display:flex;align-items:flex-start;gap:14px;padding:15px 0;
+  border-bottom:1px solid rgba(12,12,12,.28);text-decoration:none;color:var(--on-field);
+  transition:padding-left var(--t-fast) var(--ease);
+}
+.toc__item:hover{padding-left:6px}
+.toc__n{font-family:"Modak",system-ui,cursive;font-weight:400;font-synthesis:none;font-size:32px;line-height:.78;flex:none;width:38px;margin-top:1px}
+.toc__txt{min-width:0}
+.toc__t{display:block;font-size:16.5px;font-weight:700;letter-spacing:-.012em;line-height:1.2}
+.toc__d{display:block;font-size:13px;line-height:1.42;margin-top:5px}
+.toc__arw{margin-left:auto;padding-left:10px;font-size:15px;opacity:.72;flex:none}
+
+/* the gumball: a black disc carrying the mark, cropped by the plane */
+.gumball{
+  position:absolute;right:-84px;bottom:-136px;width:376px;height:376px;border-radius:50%;
+  background:radial-gradient(circle at 34% 24%, #26262F 0%, #131319 46%, #08080B 100%);
+  box-shadow:inset 0 3px 22px rgba(255,255,255,.13), 0 -8px 40px rgba(12,12,12,.35);
+  display:grid;place-items:center;z-index:-1;
+}
+.gumball img{width:172px;height:172px;transform:translate(-50px,-62px);opacity:.98}
+
+/* ---------- the data rail ---------- */
+.rail{border-top:var(--hair) solid var(--rule);background:var(--bg)}
+.rail__in{
+  max-width:var(--maxw);margin-inline:auto;padding-inline:var(--marg);
+  display:grid;grid-template-columns:repeat(4,1fr);
+}
+.rail__cell{padding:clamp(16px,1.7vw,22px) clamp(14px,1.6vw,28px) clamp(16px,1.7vw,22px) 0;border-left:var(--hair) solid var(--rule)}
+.rail__cell:first-child{border-left:0;padding-left:0}
+.rail__cell:not(:first-child){padding-left:clamp(14px,1.6vw,28px)}
+.rail__n{font-size:clamp(34px,3.4vw,48px);color:var(--hi);display:block;margin-bottom:6px}
+.rail__n.is-pink{color:var(--pink)}
+.rail__n.is-blue{color:var(--blue)}
+.rail__l{
+  display:block;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;line-height:1.5;
+  letter-spacing:.06em;color:var(--muted);text-transform:uppercase;
+}
+
+/* ============================================================
+   SECTION SKELETON
+   ============================================================ */
+.section{padding-block:clamp(56px,7vw,104px);border-bottom:var(--hair) solid var(--rule)}
+.sec-head{
+  display:grid;grid-template-columns:180px minmax(0,1fr);gap:clamp(20px,3vw,48px);
+  align-items:start;margin-bottom:clamp(30px,3.6vw,52px);
+}
+.sec-head__index{position:relative;padding-top:6px}
+.sec-head__num{
+  font-size:clamp(58px,6vw,92px);line-height:.8;color:transparent;
+  -webkit-text-stroke:2px #4C4C5E;display:block;
+}
+.sec-head__eyebrow{margin-top:12px;display:block}
+.sec-head__body{max-width:none}
+.sec-head__rule{height:3px;margin-right:calc(-1 * (var(--marg) + max(0px,(100vw - var(--maxw))/2)));background:var(--blue);margin-bottom:clamp(16px,1.8vw,24px)}
+.sec-head__body{overflow:visible}
+.sec-head .lede{margin-top:clamp(12px,1.4vw,18px);max-width:62ch}
+
+/* ============================================================
+   SIM PANEL CHROME
+   ============================================================ */
+.sim{
+  position:relative;background:
+    radial-gradient(120% 90% at 12% 0%, rgba(41,182,240,.09) 0%, rgba(41,182,240,0) 58%),
+    linear-gradient(180deg,#14141C 0%, var(--panel) 34%);
+  border:var(--hair) solid var(--rule);border-radius:3px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 24px 60px -40px rgba(0,0,0,.9);
+  isolation:isolate;
+}
+.sim::before{
+  content:"";position:absolute;inset:0;pointer-events:none;z-index:0;border-radius:3px;
+  background:repeating-linear-gradient(0deg,rgba(255,255,255,.014) 0 1px,transparent 1px 3px);
+}
+.sim > *{position:relative;z-index:1}
+.sim__head{
+  position:relative;display:flex;align-items:center;gap:14px;flex-wrap:wrap;row-gap:10px;
+  padding:11px 16px;border-bottom:var(--hair) solid var(--rule);min-height:48px;
+}
+.sim__flag{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--blue)}
+.sim__title{
+  display:flex;align-items:center;gap:9px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;font-weight:600;
+  letter-spacing:.16em;text-transform:uppercase;color:var(--hi);
+}
+.sim__title i{width:7px;height:7px;border-radius:50%;background:var(--blue);box-shadow:0 0 10px var(--blue)}
+.sim__spacer{flex:1}
+.chip{
+  display:inline-flex;align-items:center;gap:8px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;font-weight:600;
+  letter-spacing:.15em;text-transform:uppercase;color:var(--muted);
+  border:var(--hair) solid var(--rule-strong);border-radius:2px;padding:6px 10px;background:var(--raised);
+}
+.chip i{width:6px;height:6px;background:var(--faint);flex:none}
+.sim__body{padding:clamp(18px,2vw,26px)}
+.sim__cap{margin-bottom:18px;max-width:64ch;color:var(--muted);font-size:14px;line-height:1.6}
+/* the board: cells divided by hairlines, not floating cards */
+.board{
+  display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:var(--hair);
+  background:var(--rule);border:var(--hair) solid var(--rule);border-radius:2px;overflow:hidden;
+}
+.cell--ghost{
+  grid-column:1/-1;background:var(--panel);padding:12px 15px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.09em;
+  text-transform:uppercase;color:var(--faint);display:flex;align-items:center;gap:10px;
+}
+.cell--ghost i{flex:1;height:1px;min-width:24px;background:repeating-linear-gradient(90deg,var(--rule-strong) 0 6px,transparent 6px 12px)}
+.cell--ghost em{font-style:normal}
+
+/* money strip below the board */
+.money{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:clamp(16px,1.8vw,26px);margin-top:clamp(16px,1.8vw,24px);align-items:start}
+.cell{background:var(--panel);padding:14px 15px 15px;position:relative}
+.cell--open{background:linear-gradient(180deg,rgba(41,182,240,.05),rgba(41,182,240,0) 70%),var(--panel)}
+.cell__top{
+  display:flex;align-items:center;justify-content:space-between;gap:8px;
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;letter-spacing:.06em;
+}
+.cell__id{color:var(--faint)}
+.cell__owner{color:var(--muted)}
+.cell__owner.is-open{color:var(--blue)}
+.cell__price{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;
+  font-size:clamp(22px,2.1vw,29px);font-weight:500;letter-spacing:-.02em;color:var(--hi);
+  margin:9px 0 10px;
+}
+.meter{height:3px;background:var(--rule);border-radius:0;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--faint)}
+.meter--blue i{background:var(--blue)}
+.meter--pink i{background:var(--pink)}
+.meter--thick{height:7px}
+.cell__sub{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;letter-spacing:.04em;
+  color:var(--faint);margin-top:9px;
+}
+
+/* the money side */
+.transfer{border:var(--hair) solid var(--rule);border-left:2px solid var(--blue-line);border-radius:2px;background:var(--raised);padding:16px}
+.transfer__cap{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.19em;
+  text-transform:uppercase;color:var(--faint);margin-bottom:10px;
+}
+.transfer__line{font-size:15px;color:var(--hi);font-weight:600;letter-spacing:-.01em;margin-bottom:16px}
+.route{margin-bottom:14px}
+.route__top{display:flex;align-items:baseline;justify-content:space-between;gap:12px;font-size:13px;color:var(--muted);margin-bottom:7px}
+.route__val{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;color:var(--hi);font-size:14px}
+.route__val.is-blue{color:var(--blue)}
+.tallies{display:grid;grid-template-columns:1fr 1fr;gap:var(--hair);background:var(--rule);border:var(--hair) solid var(--rule);border-radius:2px;overflow:hidden}
+.tally{background:var(--panel);padding:13px 15px 15px;margin:0;display:flex;flex-direction:column}
+.tally dt{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--faint);line-height:1.45;flex:1}
+.tally dd{font-family:"JetBrains Mono",ui-monospace,monospace;font-variant-numeric:tabular-nums;font-size:20px;color:var(--hi);margin:6px 0 0;letter-spacing:-.02em}
+.tally dd.is-blue{color:var(--blue)}
+.sim__foot{
+  display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  padding:14px clamp(18px,2vw,26px);border-top:var(--hair) solid var(--rule);background:rgba(0,0,0,.24);
+}
+.sim__clock{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:12px;letter-spacing:.1em;color:var(--faint);
+}
+.sim__note{margin-left:auto;max-width:52ch;text-align:right}
+
+/* ============================================================
+   CARD ROW — columns divided by rules, not boxes
+   ============================================================ */
+.cardrow{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:2px solid var(--pink)}
+.col{
+  padding:clamp(22px,2.4vw,32px) clamp(18px,2vw,30px) 0;border-left:var(--hair) solid var(--rule);
+  position:relative;display:flex;flex-direction:column;
+}
+.col:first-child{border-left:0;padding-left:0}
+.col:last-child{padding-right:0}
+.col__n{
+  font-size:clamp(52px,4.6vw,70px);line-height:.78;color:transparent;
+  -webkit-text-stroke:2px rgba(249,43,146,.62);display:block;margin-bottom:16px;
+}
+.col__t{margin-bottom:10px}
+.col__b{color:var(--muted);font-size:15px;line-height:1.62;flex:1}
+.trade{
+  margin-top:22px;margin-bottom:clamp(20px,2.4vw,30px);
+  background:rgba(249,43,146,.055);border-top:1px solid var(--pink-line);
+  padding:15px 16px 17px;
+}
+.trade__l{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--pink);margin-bottom:8px;
+}
+.trade__b{font-size:14px;line-height:1.6;color:var(--text)}
+
+/* ============================================================
+   LEGEND
+   ============================================================ */
+.legend{padding-block:clamp(48px,6vw,84px)}
+.legend__grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(28px,3.4vw,56px);margin-top:clamp(24px,3vw,40px)}
+.leg-h{
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--faint);padding-bottom:9px;border-bottom:var(--hair) solid var(--rule-strong);margin-bottom:16px;
+}
+.sw{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.sw__c{border:var(--hair) solid var(--rule);border-radius:2px;overflow:hidden;background:var(--panel)}
+.sw__chip{height:56px;display:flex;align-items:flex-end;padding:8px}
+.sw__chip span{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.08em}
+.sw__m{padding:9px 10px;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11px;color:var(--muted);line-height:1.45}
+.sw__m b{color:var(--text);display:block;font-weight:500;letter-spacing:.06em;text-transform:uppercase;font-size:10.5px;margin-bottom:2px}
+
+.spec{border-bottom:var(--hair) solid var(--rule);padding:12px 0;display:grid;grid-template-columns:120px minmax(0,1fr);gap:16px;align-items:baseline}
+.spec__k{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint)}
+.rules{counter-reset:r}
+.rules li{
+  display:grid;grid-template-columns:34px minmax(0,1fr);gap:12px;padding:12px 0;
+  border-bottom:var(--hair) solid var(--rule);font-size:14.5px;line-height:1.55;color:var(--text);
+}
+.rules li::before{
+  counter-increment:r;content:counter(r,decimal-leading-zero);
+  font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;color:var(--pink);letter-spacing:.08em;padding-top:3px;
+}
+.rules b{color:var(--hi);font-weight:600}
+
+.kit{border:var(--hair) solid var(--rule);border-radius:2px;background:var(--panel);padding:16px}
+.kit__row{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px}
+.kit__meters{display:grid;gap:10px;margin:16px 0 14px}
+.kit__l{display:block;font-family:"JetBrains Mono",ui-monospace,monospace;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--faint);margin-bottom:6px}
+.kit__note{border-top:var(--hair) solid var(--rule);padding-top:12px}
+
+.colophon{padding-block:26px;border-top:var(--hair) solid var(--rule);display:flex;gap:16px;flex-wrap:wrap;align-items:center}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width:1180px){
+  .hero__body{grid-template-columns:minmax(0,1fr) 210px}
+}
+@media (max-width:1080px){
+  .hero__grid{grid-template-columns:minmax(0,1fr) 330px}
+  .hero__body{grid-template-columns:1fr;gap:26px}
+  .hero__margin{border-left:0;border-top:var(--hair) solid var(--rule);padding-left:0;padding-top:18px;max-width:520px}
+  .board{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .sec-head{grid-template-columns:120px minmax(0,1fr)}
+}
+@media (max-width:880px){
+  .hero__grid{grid-template-columns:1fr}
+  .hero__left{padding:clamp(28px,5vw,44px) var(--marg)}
+  .wm{font-size:clamp(64px,20vw,190px)}
+  .plane{padding:28px var(--marg) 112px;margin:0}
+  .gumball{right:-58px;bottom:-64px;width:214px;height:214px}
+  .gumball img{width:100px;height:100px;transform:translate(-26px,-30px)}
+  .rail__l br{display:none}
+  .rail__l{line-height:1.45}
+  .rail__in{grid-template-columns:1fr 1fr}
+  .rail__cell{padding:16px 14px;border-top:var(--hair) solid var(--rule)}
+  .rail__cell:nth-child(odd){border-left:0;padding-left:0}
+  .rail__cell:nth-child(even){padding-right:0}
+  .rail__cell:nth-child(-n+2){border-top:0}
+  .money{grid-template-columns:1fr}
+  .cardrow{grid-template-columns:1fr}
+  .col{border-left:0;border-top:var(--hair) solid var(--rule);padding-left:0;padding-right:0}
+  .col:first-child{border-top:0}
+  .col::before{width:36px}
+  .legend__grid{grid-template-columns:1fr}
+  .sim__note{margin-left:0;text-align:left}
+  .sec-head{grid-template-columns:1fr;gap:14px}
+  .sec-head__index{display:flex;align-items:center;gap:14px;padding-top:0}
+  .sec-head__num{font-size:44px}
+  .sec-head__eyebrow{margin-top:0}
+}
+@media (max-width:640px){
+  .cell--ghost i{display:none}
+  .cell--ghost em + em::before{content:", "}
+  .masthead__meta .hide-sm{display:none}
+  .masthead__meta{font-size:10.5px;letter-spacing:.12em}
+}
+@media (max-width:560px){
+  .money{grid-template-columns:1fr}
+  .sw{grid-template-columns:1fr}
+  .spec{grid-template-columns:1fr;gap:4px}
+  .sim__foot{gap:12px}
+  .sim__foot .btn{width:100%;justify-content:center}
+  .hero__lede{max-width:none}
+  .toc__d{font-size:12.5px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== MASTHEAD ===================== -->
+<header class="masthead">
+  <div class="masthead__in">
+    <img class="masthead__mark" src="gumball-logo.png" alt="" width="34" height="34">
+    <span class="masthead__name">GumBall6900</span>
+    <span class="masthead__spacer"></span>
+    <span class="masthead__meta"><span class="dot" aria-hidden="true"></span><b class="hide-sm">Onchain index fund</b><span class="hide-sm"> · </span>Pre-deployment</span>
+  </div>
+</header>
+
+<!-- ===================== HERO ===================== -->
+<section class="hero" aria-labelledby="h-hero">
+  <div class="hero__grid">
+    <div class="hero__left">
+      <div class="kicker">
+        <span class="kicker__rule" aria-hidden="true"></span>
+        <span class="kicker__txt">A fund with no manager</span>
+      </div>
+
+      <h1 class="wm" id="h-hero">
+        <span class="wm__line" data-t="GumBall"><span>GumBall</span></span>
+        <span class="wm__line" data-t="6900"><span>6900</span></span>
+      </h1>
+
+      <div class="hero__body">
+        <div>
+          <p class="hero__lede">An index fund that lives onchain: it holds <b>real tokenized assets</b>,
+            its holders steer what it buys, and any holder can burn their tokens to walk away with
+            their share of everything inside.</p>
+
+          <div class="actions">
+            <a class="btn btn--primary" href="#">Read the whitepaper <span class="arw" aria-hidden="true">↗</span></a>
+            <a class="btn" href="#">Read the contracts <span class="arw" aria-hidden="true">↗</span></a>
+          </div>
+        </div>
+
+        <div class="hero__margin">
+          <div class="status">
+            <div class="status__cap">Status</div>
+            <div class="status__row"><i aria-hidden="true"></i>Not deployed on any network</div>
+            <div class="status__row"><i aria-hidden="true"></i>Not independently audited</div>
+            <p class="note status__note">Robinhood Chain is the intended target, not a commitment.
+              Every figure on this page is illustrative.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- the colour plane -->
+    <aside class="plane field" aria-label="Contents">
+      <div class="plane__cap">How it works — three moves</div>
+      <nav class="toc">
+        <a class="toc__item" href="#sec-mining">
+          <span class="toc__n dnum">1</span>
+          <span class="toc__txt">
+            <span class="toc__t">Miners pay</span>
+            <span class="toc__d">Sixteen permanent slots. Their USDG is the fund's only money.</span>
+          </span>
+          <span class="toc__arw" aria-hidden="true">→</span>
+        </a>
+        <a class="toc__item" href="#sec-why">
+          <span class="toc__n dnum">2</span>
+          <span class="toc__txt">
+            <span class="toc__t">Holders steer</span>
+            <span class="toc__d">Signal points the stream. No committee picks the holdings.</span>
+          </span>
+          <span class="toc__arw" aria-hidden="true">→</span>
+        </a>
+        <a class="toc__item" href="#sec-why">
+          <span class="toc__n dnum">3</span>
+          <span class="toc__txt">
+            <span class="toc__t">Anyone burns out</span>
+            <span class="toc__d">Burn GBX, take that share of every holding, one transaction.</span>
+          </span>
+          <span class="toc__arw" aria-hidden="true">→</span>
+        </a>
+      </nav>
+      <div class="gumball" aria-hidden="true"><img src="gumball-logo.png" alt="" width="150" height="150"></div>
+    </aside>
+  </div>
+
+  <!-- data rail -->
+  <div class="rail">
+    <div class="rail__in">
+      <div class="rail__cell">
+        <span class="rail__n dnum is-blue">16</span>
+        <span class="rail__l">Permanent mining slots <br>always for sale</span>
+      </div>
+      <div class="rail__cell">
+        <span class="rail__n dnum is-blue">1h</span>
+        <span class="rail__l">Every slot's price falls <br>in a straight line to zero</span>
+      </div>
+      <div class="rail__cell">
+        <span class="rail__n dnum">0</span>
+        <span class="rail__l">Oracles anywhere <br>in the protocol</span>
+      </div>
+      <div class="rail__cell">
+        <span class="rail__n dnum">20M</span>
+        <span class="rail__l">GBX locked into liquidity <br>at deployment, forever</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== MINING ===================== -->
+<section class="section" id="sec-mining" aria-labelledby="h-mining">
+  <div class="shell">
+    <header class="sec-head">
+      <div class="sec-head__index">
+        <span class="sec-head__num dnum" aria-hidden="true">01</span>
+        <span class="eyebrow eyebrow--blue sec-head__eyebrow">Mining</span>
+      </div>
+      <div class="sec-head__body">
+        <div class="sec-head__rule" aria-hidden="true"></div>
+        <h2 class="display" id="h-mining">Sixteen slots pay for everything</h2>
+        <p class="lede">Mining is where the fund's money comes from. Miners pay USDG for one of sixteen
+          permanent slots, and that USDG is the fund's buying power. There is no other source — no
+          team allocation, no presale.</p>
+      </div>
+    </header>
+
+    <div class="sim">
+      <div class="sim__head">
+        <span class="sim__flag" aria-hidden="true"></span>
+        <span class="sim__title"><i aria-hidden="true"></i>Mine — live model</span>
+        <span class="sim__spacer"></span>
+        <span class="chip"><i aria-hidden="true"></i>Illustrative parameters</span>
+      </div>
+
+      <div class="sim__body">
+        <p class="sim__cap">All sixteen slots, each on its own clock. Every one is always for sale:
+          its price falls in a straight line to zero over one hour and restarts when taken.</p>
+
+        <div class="board">
+            <div class="cell">
+              <div class="cell__top"><span class="cell__id">01</span><span class="cell__owner">@odin</span></div>
+              <div class="cell__price">$7.55</div>
+              <div class="meter meter--blue"><i style="width:62%"></i></div>
+              <div class="cell__sub">51.7 GBX · 250/h</div>
+            </div>
+            <div class="cell">
+              <div class="cell__top"><span class="cell__id">02</span><span class="cell__owner">@kai</span></div>
+              <div class="cell__price">$10.61</div>
+              <div class="meter meter--blue"><i style="width:41%"></i></div>
+              <div class="cell__sub">82.2 GBX · 250/h</div>
+            </div>
+            <div class="cell cell--open">
+              <div class="cell__top"><span class="cell__id">03</span><span class="cell__owner is-open">open</span></div>
+              <div class="cell__price">$4.04</div>
+              <div class="meter meter--blue"><i style="width:87%"></i></div>
+              <div class="cell__sub">never taken · 0/h</div>
+            </div>
+            <div class="cell">
+              <div class="cell__top"><span class="cell__id">04</span><span class="cell__owner">@wren</span></div>
+              <div class="cell__price">$15.63</div>
+              <div class="meter meter--blue"><i style="width:24%"></i></div>
+              <div class="cell__sub">51.7 GBX · 250/h</div>
+            </div>
+            <div class="cell--ghost"><em>+ twelve more slots</em><i aria-hidden="true"></i><em>each on its own clock</em></div>
+          </div>
+
+          <div class="money">
+            <div class="transfer">
+              <div class="transfer__cap">Where the money goes</div>
+              <p class="transfer__line">@moss takes slot 06 for $9.79.</p>
+              <div class="route">
+                <div class="route__top"><span>80% → @pike, displaced</span><span class="route__val">$7.83</span></div>
+                <div class="meter meter--thick"><i style="width:80%"></i></div>
+              </div>
+              <div class="route">
+                <div class="route__top"><span>20% → the fund's buying power</span><span class="route__val is-blue">$1.96</span></div>
+                <div class="meter meter--thick meter--blue"><i style="width:20%"></i></div>
+              </div>
+              <p class="note">@pike exits with 40.8 GBX, minted on the spot.</p>
+            </div>
+            <dl class="tallies" aria-label="Running totals">
+              <div class="tally"><dt>USDG to the fund's buying power</dt><dd class="is-blue">$18.65</dd></div>
+              <div class="tally"><dt>Paid back to displaced miners</dt><dd>$38.09</dd></div>
+              <div class="tally"><dt>GBX mined so far</dt><dd>83.8</dd></div>
+              <div class="tally"><dt>GBX per hour, all slots</dt><dd>4,000</dd></div>
+            </dl>
+          </div>
+      </div>
+
+      <div class="sim__foot">
+        <button class="btn btn--sm btn--blue" type="button">Take the cheapest slot · pay USDG</button>
+        <span class="sim__clock">day 3, 14:08</span>
+        <p class="note sim__note">Sped up ~60×. Production parameters are unselected; figures shown are illustrative.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== WHY ===================== -->
+<section class="section" id="sec-why" aria-labelledby="h-why">
+  <div class="shell">
+    <header class="sec-head">
+      <div class="sec-head__index">
+        <span class="sec-head__num dnum" aria-hidden="true">02</span>
+        <span class="eyebrow sec-head__eyebrow">Why this doesn't already exist</span>
+      </div>
+      <div class="sec-head__body">
+        <div class="sec-head__rule" style="background:var(--pink)" aria-hidden="true"></div>
+        <h2 class="display" id="h-why">Onchain index funds keep failing in the same four places.</h2>
+        <p class="lede">Each one is a place where a person had to be trusted after all. This design
+          removes the person all four times — and each removal costs something real. Here is what
+          was traded, and for what.</p>
+      </div>
+    </header>
+
+    <div class="cardrow">
+      <article class="col">
+        <span class="col__n dnum" aria-hidden="true">1</span>
+        <h3 class="h3 col__t">Managers</h3>
+        <p class="col__b">Picking the constituents usually lands with a multisig or a foundation
+          committee, deciding off-chain what the fund holds. That is a manager wearing a different
+          hat. Here, holders steer every purchase by where they point their signal, continuously —
+          nobody can add or weight an asset by decree.</p>
+        <div class="trade">
+          <div class="trade__l">The trade</div>
+          <p class="trade__b">No curation. No expert filters the list and no benchmark is tracked. The
+            portfolio is exactly as good as the collective judgment of the people holding it — and no
+            better.</p>
+        </div>
+      </article>
+
+      <article class="col">
+        <span class="col__n dnum" aria-hidden="true">2</span>
+        <h3 class="h3 col__t">Redemption games</h3>
+        <p class="col__b">Getting out is gated, batched, or reserved for whitelisted market makers — so
+          the real exit is selling the fund token into a thin secondary market. Here, any holder burns
+          any amount at any moment and takes that share of every holding, in one transaction.</p>
+        <div class="trade">
+          <div class="trade__l">The trade</div>
+          <p class="trade__b">You are paid in the holdings themselves, not dollars. If an asset in the
+            fund is illiquid, your redemption includes it anyway — converting it is your problem, by
+            design.</p>
+        </div>
+      </article>
+
+      <article class="col">
+        <span class="col__n dnum" aria-hidden="true">3</span>
+        <h3 class="h3 col__t">Oracles</h3>
+        <p class="col__b">A price feed decides what everything is worth, so the whole structure inherits
+          that feed's failure modes and whoever controls it. Here, every purchase is a falling-price
+          auction asking to be paid in the asset itself. The fill is the price — no oracle exists
+          anywhere in the protocol.</p>
+        <div class="trade">
+          <div class="trade__l">The trade</div>
+          <p class="trade__b">No immediacy. The fund waits for a trader to fill each lot and concedes
+            them a margin for doing it. Acquisition is patient by construction, never instant.</p>
+        </div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== LEGEND ===================== -->
+<section class="legend" aria-labelledby="h-legend">
+  <div class="shell">
+    <div class="kicker"><span class="kicker__rule" aria-hidden="true"></span><span class="kicker__txt">Concept C · Token legend</span></div>
+    <h2 class="h2" id="h-legend">Serious money, candy soul</h2>
+
+    <div class="legend__grid">
+      <div>
+        <div class="leg-h">Palette</div>
+        <div class="sw">
+          <div class="sw__c"><div class="sw__chip" style="background:#F92B92"><span style="color:#0C0C0C">#F92B92</span></div><div class="sw__m"><b>Pink</b>Signal, and what it buys. The plane colour: black type on pink = 5.39:1.</div></div>
+          <div class="sw__c"><div class="sw__chip" style="background:#29B6F0"><span style="color:#0C0C0C">#29B6F0</span></div><div class="sw__m"><b>Blue</b>USDG capital arriving. Sim flags, slot clocks, focus ring.</div></div>
+          <div class="sw__c"><div class="sw__chip" style="background:#FFFFFF"><span style="color:#0C0C0C">#FFFFFF</span></div><div class="sw__m"><b>Neutral</b>GBX supply and burns. Never an accent.</div></div>
+          <div class="sw__c"><div class="sw__chip" style="background:#0C0C0C;box-shadow:inset 0 0 0 1px var(--rule)"><span style="color:#EFEFF4">#0C0C0C</span></div><div class="sw__m"><b>Ground</b>Sections never repaint it. Colour arrives as fields, not washes.</div></div>
+        </div>
+
+        <div class="leg-h" style="margin-top:32px">Surfaces</div>
+        <div class="sw">
+          <div class="sw__c"><div class="sw__chip" style="background:#101017;box-shadow:inset 0 1px 0 rgba(255,255,255,.07),inset 0 0 0 1px var(--rule)"><span style="color:#ADADC0">#101017 panel</span></div><div class="sw__m"><b>Sim panel</b>1px rule, 3px radius, lit top edge, blue haze at the head.</div></div>
+          <div class="sw__c"><div class="sw__chip" style="background:#17171F;box-shadow:inset 0 0 0 1px var(--rule)"><span style="color:#ADADC0">#17171F raised</span></div><div class="sw__m"><b>Raised</b>Transfer block, chips. Second step only — never a third.</div></div>
+        </div>
+
+        <div class="leg-h" style="margin-top:32px">Components</div>
+        <div class="kit">
+          <div class="kit__row">
+            <a class="btn btn--primary" href="#">Primary</a>
+            <a class="btn" href="#">Ghost</a>
+            <button class="btn btn--sm btn--blue" type="button">Sim control</button>
+          </div>
+          <div class="kit__row">
+            <span class="chip"><i aria-hidden="true"></i>Illustrative parameters</span>
+            <span class="status__row" style="padding:0"><i aria-hidden="true"></i>Honesty flag</span>
+          </div>
+          <div class="kit__meters">
+            <div><span class="kit__l">Capital / price</span><div class="meter meter--blue"><i style="width:64%"></i></div></div>
+            <div><span class="kit__l">Signal</span><div class="meter meter--pink"><i style="width:38%"></i></div></div>
+            <div><span class="kit__l">GBX / neutral</span><div class="meter"><i style="width:52%"></i></div></div>
+          </div>
+          <p class="note kit__note">Radii: 2px on controls, 3px on panels, 50% on the gumball. Nothing else is round.
+            Motion: 140ms hover, 200ms state, 320ms entrance — and nothing loops.</p>
+        </div>
+      </div>
+
+      <div>
+        <div class="leg-h">Type</div>
+        <div class="spec"><span class="spec__k">Wordmark</span><span class="wordmark" style="font-size:34px;color:var(--hi)">GumBall6900</span></div>
+        <div class="spec"><span class="spec__k">Display num</span><span class="dnum" style="font-size:34px;color:var(--pink)">16 · 0 · 20M</span></div>
+        <div class="spec"><span class="spec__k">Display 60/800</span><span style="font-size:26px;font-weight:800;letter-spacing:-.03em;color:var(--hi)">Sixteen slots pay</span></div>
+        <div class="spec"><span class="spec__k">Lede 20/1.55</span><span class="lede" style="font-size:16px">Mining is where the money comes from.</span></div>
+        <div class="spec"><span class="spec__k">Body 16/1.6</span><span class="small">Schibsted Grotesk — kept. The voice comes from scale and colour, not a novelty face.</span></div>
+        <div class="spec"><span class="spec__k">Mono / num</span><span class="mono" style="font-size:15px;color:var(--hi)">$10.61 · 250/h · day 3, 14:08</span></div>
+        <div class="spec"><span class="spec__k">Eyebrow</span><span class="eyebrow">Mining · JetBrains Mono, .19em</span></div>
+
+        <div class="leg-h" style="margin-top:32px">The five rules</div>
+        <ol class="rules">
+          <li><span><b>Colour is a plane, not a garnish.</b> Brand hue arrives as a full-bleed field carrying black type — never as a wash behind grey cards.</span></li>
+          <li><span><b>Nothing is centred.</b> Every spread is a wide column against a narrow one, and something always bleeds off an edge.</span></li>
+          <li><span><b>Rules divide; boxes don't.</b> Cards are columns split by hairlines. A border is only drawn where the content is a live instrument.</span></li>
+          <li><span><b>One wordmark, misregistered.</b> Modak 400, synthesis off, with a blue and a pink copy offset .026em — the mark's own outline, printed.</span></li>
+          <li><span><b>Numbers are the imagery.</b> Modak numerals at display scale carry the facts; there is no illustration anywhere on the page.</span></li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="colophon">
+      <span class="note">Concept C · Serious money, candy soul</span>
+      <span class="masthead__spacer"></span>
+      <span class="note">Schibsted Grotesk + JetBrains Mono retained · Modak 400, font-synthesis: none</span>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

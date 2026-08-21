@@ -81,3 +81,76 @@ with Linear's restraint and Stripe's typographic discipline.
   logo. No stock art, no AI-image placeholders, no fake screenshots.
 - Performance: no heavy always-on animation; decorative motion must be subtle, GPU-cheap, and
   disabled under `prefers-reduced-motion`. The one shared rAF harness stays as-is.
+
+---
+
+# CHOSEN DIRECTION — "Serious money, candy soul"
+
+**Decided by the owner on 21 Aug 2026.** Three directions were built and compared: "The Machine"
+(a rendered gumball machine), "Neon on wet asphalt" (brand colour as light), and this one. This is
+the direction. Build everything to it; do not re-litigate it.
+
+The reference mock is vendored at `concept-c-reference.html` in this directory — open it in a
+browser. It is a **mock, not a component library**: it shows the hero, a section head, the sim
+panel chrome, the card material, and a token legend. Where the mock and the live app disagree about
+content, the app wins; where they disagree about _look_, the mock wins.
+
+**One correction to the mock:** it still draws a "TAKE THE CHEAPEST SLOT · PAY USDG" button,
+because it was built alongside the autonomy change. There are no buttons any more — see the owner
+directive above. Style the panel foot as narration, not controls.
+
+## The thesis
+
+A financial-editorial spread, not a page of cards. The saturation and the bubble letters carry the
+candy; the grid, the hairlines, the tabular mono, and the instrument-grade panels carry the money.
+It should sit comfortably next to a Bloomberg feature and still be identifiable from across a room
+— because the page is _pink_, not because a logo is.
+
+## The five rules
+
+1. **Colour is a plane, not a garnish.** Brand hue arrives as a full-bleed field carrying black
+   type (`--on-field: #0C0C0C` on pink is 5.39:1), never as a wash behind grey cards.
+2. **Nothing is centred.** Every spread is a wide column against a narrow one, and something always
+   bleeds off an edge — the pink plane, the section rules running past the container.
+3. **Rules divide; boxes don't.** Cards become columns split by hairlines with oversized outlined
+   ordinals. A border is drawn only where the content is a live instrument.
+4. **One wordmark, misregistered.** Modak 400, `font-synthesis: none`, with a cyan copy offset
+   up-left and a magenta copy down-right (±.026em) — the roundel's own outline, printed.
+5. **Numbers are the imagery.** Modak numerals at display scale carry the facts; the data ribbon
+   under the hero is the hero's illustration.
+
+## Tokens (from the mock — port these into `app/globals.css`)
+
+```
+brand      --pink #F92B92   --blue #29B6F0   --black #0C0C0C   --white #FFFFFF
+surfaces   --bg #0C0C0C  --panel #101017  --raised #17171F  --rule #26262F  --rule-strong #3B3B48
+ink        --hi #FFFFFF  --text #EFEFF4  --muted #ADADC0  --faint #8A8AA0
+on-field   --on-field #0C0C0C          (black type on a pink or blue plane)
+tints      --pink-soft/--blue-soft rgba(…,.13)   --pink-line/--blue-line rgba(…,.45)
+editorial  --marg clamp(20px,4.4vw,64px)   --maxw 1312px   --bleed max(0px,(100vw - 1312px)/2)
+motion     --t-fast 140ms  --t-base 200ms  --ease cubic-bezier(.2,.6,.2,1)
+```
+
+Faces stay Schibsted Grotesk + JetBrains Mono + Modak — the voice comes from scale and colour, not
+a novelty face. Eyebrows are **mono**, 11.5px, .19em tracking, uppercase.
+
+## Section and panel treatment
+
+- **Section head**: an outlined Modak ordinal (`01`, `02`, …) in the left margin with the mono
+  eyebrow beneath it; the headline in the wide column; a 1px brand rule above the headline running
+  **past** the container to the viewport edge (blue for capital sections, pink for signal).
+- **Sim panel**: square corners, `--panel` ground with a lit top edge and a faint scanline, a 3px
+  brand flag on the left edge (blue = capital, pink = signal), a mono `■ ILLUSTRATIVE PARAMETERS`
+  chip on the head rail. It should read as an instrument, not a card.
+- **Slot board**: cells divided by hairlines rather than boxed, oversized tabular prices, 3px clock
+  bars. Where a sim shows a subset, say so in a ghost row (`+ TWELVE MORE SLOTS … EACH ON ITS OWN
+CLOCK`) rather than silently truncating.
+- **Tallies**: a bordered ribbon of mono label/value pairs.
+- **"Why" cards**: hairline-divided columns with oversized outlined ordinals — not bordered boxes.
+
+## What did not win, and is not to be smuggled back in
+
+No rendered gumball machine, no glass dome, no chrome. Decorative gumball spheres are allowed only
+where they cannot be mistaken for data, and never as the page's main image. Neon glow is not the
+material of this direction: light is used sparingly, and colour is delivered as flat, confident
+planes.

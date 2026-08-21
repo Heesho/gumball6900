@@ -26,3 +26,4 @@ packages/subgraph/abis/**
 packages/subgraph/tests/.bin/**
 packages/sdk/src/generated-abis.ts
 docs/deck/*.html
+apps/landing/docs/concept-c-reference.html
