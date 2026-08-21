@@ -971,19 +971,20 @@
   <section class="slide" aria-label="Acquisition, live">
     <div class="stage">
       <p class="eyebrow">Acquisition &mdash; running live</p>
-      <h2>It lowers its price until a trader sells to it. No oracle is ever consulted.</h2>
+      <h2>The pile of USDG grows. The price to take it falls. Somebody takes it.</h2>
       <p class="lede">
-        A Strategy pools the USDG it was signalled, then offers all of it at a price that falls in a
-        straight line. Whoever thinks it is cheap enough hands over the asset. Most of what arrives
-        backs your token; the rest pays the people who chose it.
+        A Strategy pools the USDG it was signalled and offers the whole lot &mdash; asking to be paid in
+        <strong>QQQ itself</strong>, never in dollars. The ask falls in a straight line while the lot keeps
+        growing, so a trader fills the moment paying that much QQQ is worth it. That crossing is the
+        price discovery: no oracle is consulted anywhere.
       </p>
       <div class="sim">
         <div class="sim__bar">
           <button class="sim__btn" id="aucToggle" type="button">Pause</button>
           <span class="sim__clock" id="aucState">waiting for revenue</span>
-          <span class="sim__note">Fills are driven by a simulated trader's reservation price.</span>
+          <span class="sim__note">A trader fills once the ask falls far enough below what the lot is worth.</span>
         </div>
-        <canvas class="flow__canvas" id="aucCanvas" width="1600" height="520" aria-label="A Strategy auction price falling until a trader fills it, and the acquired asset splitting to the treasury and to signalers"></canvas>
+        <canvas class="flow__canvas" id="aucCanvas" width="1600" height="560" aria-label="A Strategy auction price falling until a trader fills it, and the acquired asset splitting to the treasury and to signalers"></canvas>
       </div>
     </div>
     <span class="slideno">12</span>
@@ -1542,86 +1543,148 @@
     var auc = null;
     if (aucCanvas) {
       var actx = aucCanvas.getContext('2d');
+      // Strategy.buy takes payment in the ASSET being acquired, not in dollars, and it calls
+      // distribute() first - so the USDG lot keeps growing right up to the moment of the fill
+      // while the asking price in QQQ falls. The crossing is why anybody fills.
+      var QQQ = 486;
       auc = {
-        running: !reduced, t: 0, pot: 0, phase: 'filling',
-        start: 0, price: 0, initial: 2400, reserve: 0,
-        fundTotal: 0, sigTotal: 0, flash: 0, asset: 'NVDA', assetPrice: 118,
+        running: !reduced,
+        t: 0,
+        epoch: 0,
+        lot: 620,          // USDG in the lot
+        inflow: 0.95,      // USDG per sim-second arriving from the stream
+        ask: 0,            // asking price, denominated in QQQ
+        initialAsk: 0,
+        started: 0,
+        margin: 0.12,
+        fills: [],
+        treasury: 0,
+        signalers: 0,
+        flash: 0,
       };
+      auc.fair = function () { return auc.lot / QQQ; };   // what the lot is worth in QQQ
+      auc.reset = function () {
+        auc.started = auc.t;
+        auc.initialAsk = Math.max(auc.fair() * 2.6, 0.5);
+        auc.margin = 0.06 + Math.random() * 0.22;
+      };
+      auc.reset();
+
       auc.step = function (dt) {
         auc.t += dt;
-        if (auc.phase === 'filling') {
-          auc.pot += 3.2 * dt;                 // USDG arriving from the stream
-          if (auc.pot > 900) {
-            auc.phase = 'selling';
-            auc.start = auc.t;
-            auc.initial = Math.max(600, auc.pot * 2.4);
-            auc.reserve = auc.pot * (0.55 + Math.random() * 0.5);
-          }
-        } else if (auc.phase === 'selling') {
-          var el = auc.t - auc.start;
-          auc.price = el >= 3600 ? 0 : auc.initial * (1 - el / 3600);
-          if (auc.price <= auc.reserve) {
-            var units = auc.pot / auc.assetPrice;
-            auc.fundTotal += units * (1 - BRIBE_BPS / BPS);
-            auc.sigTotal += units * (BRIBE_BPS / BPS);
-            auc.pot = 0; auc.flash = 1; auc.phase = 'filling';
-          }
+        auc.lot += auc.inflow * dt;                       // keeps piling up, even mid-auction
+        var el = auc.t - auc.started;
+        auc.ask = el >= 3600 ? 0 : auc.initialAsk * (1 - el / 3600);
+        // A trader fills once paying `ask` QQQ for the lot is clearly profitable for them.
+        if (auc.ask <= auc.fair() * (1 - auc.margin)) {
+          var received = auc.ask;
+          auc.treasury += received * (1 - BRIBE_BPS / BPS);
+          auc.signalers += received * (BRIBE_BPS / BPS);
+          auc.fills.push({ lot: auc.lot, paid: received });
+          if (auc.fills.length > 3) auc.fills.shift();
+          auc.flash = 1;
+          auc.epoch++;
+          auc.lot = 380 + Math.random() * 320;            // the lot leaves with the buyer
+          auc.reset();
         }
-        if (auc.flash > 0) auc.flash = Math.max(0, auc.flash - dt / 900);
+        if (auc.flash > 0) auc.flash = Math.max(0, auc.flash - dt / 500);
       };
+
       auc.paint = function () {
         var W = aucCanvas.width, H = aucCanvas.height;
         actx.clearRect(0, 0, W, H);
-        var ox = 90, oy = H - 120, w = 760, h = H - 220;
+        var ox = 300, oy = H - 96, w = W - 760, h = H - 210;
+        var el = Math.min(3600, auc.t - auc.started);
+        var top = Math.max(auc.initialAsk, auc.fair() * 1.35, 0.001);
 
-        actx.strokeStyle = '#3A3A42'; actx.lineWidth = 2;
-        actx.beginPath(); actx.moveTo(ox, oy); actx.lineTo(ox + w, oy); actx.moveTo(ox, oy); actx.lineTo(ox, oy - h); actx.stroke();
-
-        if (auc.phase === 'selling') {
-          var el = Math.min(3600, auc.t - auc.start);
-          var px = ox + (el / 3600) * w;
-          var py = oy - (auc.price / auc.initial) * h;
-          actx.strokeStyle = '#29B6F0'; actx.lineWidth = 4;
-          actx.beginPath(); actx.moveTo(ox, oy - h); actx.lineTo(ox + w, oy); actx.stroke();
-          actx.fillStyle = '#F92B92';
-          actx.beginPath(); actx.arc(px, py, 11, 0, Math.PI * 2); actx.fill();
-          actx.fillStyle = '#FFFFFF'; actx.font = '600 26px Archivo, sans-serif'; actx.textAlign = 'left';
-          actx.fillText('asking ' + money(auc.price), px + 20, py - 12);
-        }
-        if (auc.phase === 'filling') {
-          // Something to watch while the Strategy is still accumulating.
-          var frac = Math.min(1, auc.pot / 900);
-          actx.fillStyle = '#26262B';
-          actx.beginPath(); actx.roundRect(ox, oy - 74, w, 42, 8); actx.fill();
-          actx.fillStyle = '#29B6F0';
-          actx.beginPath(); actx.roundRect(ox, oy - 74, Math.max(6, w * frac), 42, 8); actx.fill();
-          actx.fillStyle = '#FFFFFF'; actx.font = '600 22px Archivo, sans-serif'; actx.textAlign = 'center';
-          actx.fillText('collecting the USDG this Strategy was signalled', ox + w / 2, oy - 46);
-        }
-        actx.fillStyle = '#6C6C77'; actx.font = '400 20px Archivo, sans-serif'; actx.textAlign = 'center';
-        actx.fillText('taken', ox, oy + 34); actx.fillText('one hour', ox + w, oy + 34);
-
-        actx.textAlign = 'left'; actx.fillStyle = '#FFFFFF'; actx.font = '600 26px Archivo, sans-serif';
-        actx.fillText(auc.phase === 'filling' ? 'Pooling USDG to sell' : 'Selling ' + money(auc.pot) + ' of USDG', ox, 52);
-        actx.fillStyle = '#9E9EA8'; actx.font = '400 21px Archivo, sans-serif';
-        actx.fillText(auc.phase === 'filling' ? money(auc.pot) + ' pooled so far' : 'for ' + auc.asset, ox, 84);
-
-        var bx = W - 470;
-        actx.fillStyle = auc.flash > 0 ? 'rgba(249,43,146,0.20)' : '#1B1B1F';
-        actx.strokeStyle = '#3A3A42'; actx.lineWidth = 2;
-        actx.beginPath(); actx.roundRect(bx, 40, 420, 190, 12); actx.fill(); actx.stroke();
-        actx.fillStyle = '#FFFFFF'; actx.font = '600 24px Archivo, sans-serif';
-        actx.fillText('Where each fill lands', bx + 26, 82);
-        actx.font = '400 22px Archivo, sans-serif'; actx.fillStyle = '#FFFFFF';
-        actx.fillText('Treasury  ' + auc.fundTotal.toFixed(3) + ' ' + auc.asset, bx + 26, 132);
-        actx.fillStyle = '#F92B92';
-        actx.fillText('Signalers  ' + auc.sigTotal.toFixed(3) + ' ' + auc.asset, bx + 26, 176);
+        // the two headline numbers
+        actx.textAlign = 'left';
+        actx.fillStyle = '#6C6C77'; actx.font = '600 17px Archivo, sans-serif';
+        actx.fillText('THE LOT, STILL FILLING', 40, 60);
+        actx.fillStyle = '#29B6F0'; actx.font = '600 46px "JetBrains Mono", monospace';
+        actx.fillText(money(auc.lot), 40, 108);
         actx.fillStyle = '#6C6C77'; actx.font = '400 18px Archivo, sans-serif';
-        actx.fillText('90% and 10% of every fill', bx + 26, 210);
+        actx.fillText('of USDG, growing every second', 40, 136);
+
+        actx.fillStyle = '#6C6C77'; actx.font = '600 17px Archivo, sans-serif';
+        actx.fillText('ASKING PRICE, FALLING', 40, 210);
+        actx.fillStyle = '#F92B92'; actx.font = '600 46px "JetBrains Mono", monospace';
+        actx.fillText(auc.ask.toFixed(3), 40, 258);
+        actx.fillStyle = '#FFFFFF'; actx.font = '400 20px Archivo, sans-serif';
+        actx.fillText('QQQ for the whole lot', 40, 288);
+        actx.fillStyle = '#6C6C77'; actx.font = '400 18px Archivo, sans-serif';
+        actx.fillText('worth ' + auc.fair().toFixed(3) + ' QQQ at spot', 40, 316);
+
+        // axes
+        actx.strokeStyle = '#3A3A42'; actx.lineWidth = 2;
+        actx.beginPath(); actx.moveTo(ox, oy); actx.lineTo(ox + w, oy);
+        actx.moveTo(ox, oy); actx.lineTo(ox, oy - h); actx.stroke();
+        actx.fillStyle = '#6C6C77'; actx.font = '400 18px Archivo, sans-serif'; actx.textAlign = 'center';
+        actx.fillText('auction opens', ox, oy + 32);
+        actx.fillText('one hour', ox + w, oy + 32);
+
+        var yOf = function (q) { return oy - Math.min(1, q / top) * h; };
+
+        // What the lot is worth, projected across the whole hour so the crossing is visible:
+        // it rises as USDG keeps arriving, while the ask falls toward it.
+        var worthAtOpen = Math.max(0, (auc.lot - auc.inflow * el) / QQQ);
+        var worthAtEnd = (auc.lot + auc.inflow * (3600 - el)) / QQQ;
+        actx.strokeStyle = '#29B6F0'; actx.lineWidth = 3; actx.setLineDash([7, 6]);
+        actx.beginPath();
+        actx.moveTo(ox, yOf(worthAtOpen));
+        actx.lineTo(ox + w, yOf(worthAtEnd));
+        actx.stroke(); actx.setLineDash([]);
+
+        // Where the two lines meet is the moment a fill becomes worthwhile.
+        var denom = (auc.initialAsk - 0) + (worthAtEnd - worthAtOpen);
+        if (denom > 0) {
+          var cf = (auc.initialAsk - worthAtOpen) / denom;
+          if (cf > 0.06 && cf < 0.94) {
+            var cx = ox + cf * w, cy = yOf(worthAtOpen + (worthAtEnd - worthAtOpen) * cf);
+            actx.strokeStyle = '#4A4A54'; actx.lineWidth = 1.5; actx.setLineDash([3, 4]);
+            actx.beginPath(); actx.moveTo(cx, cy); actx.lineTo(cx, oy); actx.stroke();
+            actx.setLineDash([]);
+            actx.fillStyle = '#6C6C77'; actx.font = '400 16px Archivo, sans-serif'; actx.textAlign = 'center';
+            actx.fillText('worth filling from about here', cx, oy + 56);
+          }
+        }
+
+        // the asking price, falling
+        actx.strokeStyle = '#F92B92'; actx.lineWidth = 4;
+        actx.beginPath(); actx.moveTo(ox, yOf(auc.initialAsk));
+        actx.lineTo(ox + w, yOf(0)); actx.stroke();
+
+        var px = ox + (el / 3600) * w, py = yOf(auc.ask);
+        actx.fillStyle = auc.flash > 0 ? '#FFFFFF' : '#F92B92';
+        actx.beginPath(); actx.arc(px, py, auc.flash > 0 ? 16 : 10, 0, Math.PI * 2); actx.fill();
+
+        actx.textAlign = 'left';
+        actx.fillStyle = '#29B6F0'; actx.font = '600 18px Archivo, sans-serif';
+        actx.fillText('what the lot is worth', ox + 16, yOf((auc.lot - auc.inflow * el) / QQQ) - 16);
+        actx.fillStyle = '#F92B92';
+        actx.fillText('what it is asking', ox + w - 220, yOf(auc.initialAsk) + 34);
+
+        // where the last fills landed
+        actx.textAlign = 'left';
+        actx.fillStyle = '#6C6C77'; actx.font = '600 17px Archivo, sans-serif';
+        actx.fillText('EVERY FILL SPLITS', W - 400, 60);
+        actx.fillStyle = '#FFFFFF'; actx.font = '400 22px Archivo, sans-serif';
+        actx.fillText('Treasury  ' + auc.treasury.toFixed(3) + ' QQQ', W - 400, 104);
+        actx.fillStyle = '#F92B92';
+        actx.fillText('Signalers  ' + auc.signalers.toFixed(3) + ' QQQ', W - 400, 140);
+        actx.fillStyle = '#6C6C77'; actx.font = '400 17px Archivo, sans-serif';
+        actx.fillText(auc.epoch + ' lots sold so far', W - 400, 176);
+        for (var i = 0; i < auc.fills.length; i++) {
+          var f = auc.fills[auc.fills.length - 1 - i];
+          actx.fillStyle = i === 0 ? '#9E9EA8' : '#4A4A54';
+          actx.font = '400 17px "JetBrains Mono", monospace';
+          actx.fillText(money(f.lot) + '  for  ' + f.paid.toFixed(3) + ' QQQ', W - 400, 214 + i * 26);
+        }
 
         document.getElementById('aucState').textContent =
-          auc.phase === 'filling' ? 'pooling revenue' : 'auction live, price falling';
+          'lot ' + money(auc.lot) + '  ·  asking ' + auc.ask.toFixed(3) + ' QQQ';
       };
+
       document.getElementById('aucToggle').addEventListener('click', function () {
         auc.running = !auc.running;
         this.textContent = auc.running ? 'Pause' : 'Play';
