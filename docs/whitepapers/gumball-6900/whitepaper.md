@@ -1,30 +1,28 @@
 ---
-title: 'GUM BALL 6900: Historical Pre-ADR 0034 Technical Whitepaper'
-version: 1.2.0
-date: 2026-08-18
-source_commit: working tree — not release pinned
-protocol_status: Historical pre-ADR 0034 snapshot. Its governance design is superseded and does not describe the current working tree; not approved for user funds.
+title: 'GUM BALL 6900: Technical Whitepaper'
+version: 2.0.0
+date: 2026-08-20
+source_commit: dc67d7c4d634097fa6e285fa33ce964d591d2bd2
+protocol_status: Development snapshot at the pinned commit. Describes the current core after ADR 0033, ADR 0034, and ADR 0035; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: Historical internal engineering evidence only. Current release gates are recorded separately and remain open.
+internal_review_status: Internal engineering evidence at the pinned commit. Static-analysis, mutation, and external-fuzzing campaigns predate ADR 0034 and ADR 0035 and are historical. Release gates remain open.
 independent_audit_status: No independent external audit has been performed.
 ---
 
-# GUM BALL 6900: Historical Pre-ADR 0034 Technical Whitepaper
-
-> **Historical edition — governance design superseded by ADR 0034.** This uncommitted snapshot predates
-> [ADR 0034](../../adr/0034-external-governance-ownership.md) and is preserved only as prior development evidence. It
-> does **not** describe the current working tree: the core now contains no `ProtocolGovernor`, `TimelockController`,
-> governance adapter, or provider-specific plugin. `SignalGBX` retains IVotes-compatible checkpoints, while the exact
-> external owner and governance system for `Resonance` remain unselected. Every present-tense Governor or Timelock
-> statement below describes the retired design, not current code.
+# GUM BALL 6900: Technical Whitepaper
 
 > **Safety status.** The protocol is **not deployed, not independently audited, and not approved for user funds.**
-> Non-governance claims in this edition were verified against the then-current Solidity tree; this source was not
-> release-pinned, so it must not be used as current implementation or release evidence.
+> Every claim in this edition was verified against the Solidity tree at commit `dc67d7c`. A local green build is
+> engineering evidence, never a safety, audit, or release claim.
 
-> **Current presentation sources.** The compact whitepaper and one-page sheet are built from `docs/whitepaper/` and
-> `docs/one-pager/gumball6900/` via `pnpm docs:whitepaper` and `pnpm docs:one-pager`. Rebuilding this long-form
-> historical source is archival reproduction only and does not make its retired governance design current.
+> **Governance is unselected.** The core contains no `ProtocolGovernor`, `TimelockController`, generic executor, or
+> provider-specific governance adapter; [ADR 0034](../../adr/0034-external-governance-ownership.md) removed them.
+> `Resonance` is the only owned core contract, and the external governance system that will own it has not been
+> selected. §15 and §27 specify exactly what the core does and does not guarantee as a consequence.
+
+> **Companion sources.** The compact whitepaper and one-page sheet are built from `docs/whitepaper/` and
+> `docs/one-pager/gumball6900/` via `pnpm docs:whitepaper` and `pnpm docs:one-pager`. This long-form source builds to
+> `output/pdf/GumBall6900-whitepaper.pdf` via `pnpm docs:longform`.
 
 ## 1. Abstract
 
@@ -49,10 +47,13 @@ each the floored pro-rata share of Fund's balance against a single effective pre
 all accrued unminted mining. Signaler compensation has two sources: the automatic 10% acquisition share, and
 **Bribes**, permissionlessly funded reward streams attached to each Strategy, capped at eight reward tokens.
 
-The retired governance design captured by this edition routed three selector-bounded, zero-value calls through a
-Timelock whose sole proposer was an immutable **ProtocolGovernor** reading sGBX ERC20Votes checkpoints. ADR 0034
-removed both contracts from the current core and left selection and review of the external `Resonance` owner as a
-deployment blocker. The remaining immutability claims in this edition describe the pre-ADR 0034 snapshot only.
+Protocol administration is reduced to three owner-gated calls on a single contract: `Resonance.addStrategy`,
+`Resonance.killStrategy`, and `Resonance.addBribeReward`. Every other core contract is ownerless or has consumed its
+one-time binding. The core implements no proposal, quorum, voting, delay, or cancellation semantics of its own;
+ADR 0034 removed the in-repository Governor and Timelock in favour of an external governance system that has not yet
+been selected. `SignalGBX` retains non-transferable ERC20Votes checkpoints for that future integration, and the core
+assigns them no meaning. Selection, review, and the ownership handoff that removes the temporary deployment owner
+remain deployment blockers.
 
 This document specifies the implemented mathematics exactly, states the accounting identities the implementation can
 actually prove (and explicitly declines to assert those it cannot), enumerates state transitions, and presents the
@@ -117,8 +118,8 @@ These are stated in §38 and §39 rather than minimized.
   by registration in `Resonance`, never by a Fund balance (§24.2).
 - **N2 — Not a valuation system.** The protocol never computes NAV, backing-per-token, or asset prices onchain.
 - **N3 — Not a yield product.** No return, distribution, or performance is promised or engineered.
-- **N4 — Not a general DAO.** Governance cannot execute arbitrary calls; the proposal filter is a whitelist of three
-  selectors at one immutable address.
+- **N4 — Not a general DAO.** The core implements no voting, proposal, or execution machinery at all. Protocol
+  administration is three owner-gated calls on one contract (§15.1).
 - **N5 — Not fee-on-transfer or rebase compatible.** Exact-delta checks make such tokens revert; this is fail-closed
   evidence, not support.
 - **N6 — No emergency response.** There is deliberately no guardian, veto, circuit breaker, or recovery path.
@@ -128,26 +129,26 @@ These are stated in §38 and §39 rather than minimized.
 
 ## 5. Terminology
 
-| Term                       | Definition                                                                                                  |
-| -------------------------- | ----------------------------------------------------------------------------------------------------------- |
-| **GBX**                    | Transferable ERC-20 with ERC-2612 permit, 18 decimals. No vote checkpoints. Mined, staked, burned.          |
-| **sGBX / SignalGBX**       | Non-transferable ERC-20 with ERC20Votes, 18 decimals. Minted 1:1 against staked GBX.                        |
-| **USDG**                   | External stablecoin used for revenue. Six decimals **by deployment assumption**, not by code enforcement.   |
-| **Signal**                 | An absolute quantity of sGBX a specific account has allocated to a specific Strategy.                       |
-| **Allocated balance**      | The aggregate sGBX an account has committed across all live and killed Strategies; not withdrawable.        |
-| **Strategy**               | A bounded descending-price auction exchanging accumulated USDG for one fixed payment token.                 |
-| **Live / killed Strategy** | A Strategy accepting new signal and future revenue / one permanently excluded from both.                    |
-| **Bribe**                  | Per-Strategy multi-token reward stream, permissionlessly funded, paid to that Strategy's signalers.         |
-| **BribeRouter**            | Per-Strategy contract converting an auction payment into an irrevocable Fund liability.                     |
-| **Fund**                   | Ownerless raw-token treasury. Redemption and GBX burning are its only value exits.                          |
-| **Slot**                   | One mining position accruing GBX at a tenure-locked rate; occupancy sold by hourly auction.                 |
-| **Epoch**                  | One auction round, identified by a monotonically increasing `epochId` used for fill-race protection.        |
-| **Reverse Dutch auction**  | The repository's term for the descending-price mechanism in `Mine` and `Strategy`. See §43 discrepancy D-1. |
-| **Reward period / stream** | A fixed seven-day emission schedule with a base rate plus a front-loaded remainder.                         |
-| **Carry**                  | Sub-unit reward precision retained across checkpoints rather than discarded.                                |
-| **Surplus**                | Value held by a contract that is not a liability to anyone and has no recovery path.                        |
-| **Checkpoint**             | Advancing lazily-accrued state to the current timestamp before mutating weights or balances.                |
-| **Timelock**               | OpenZeppelin `TimelockController` holding approved governance actions for a fixed delay before execution.   |
+| Term                       | Definition                                                                                                                             |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **GBX**                    | Transferable ERC-20 with ERC-2612 permit, 18 decimals. No vote checkpoints. Mined, staked, burned.                                     |
+| **sGBX / SignalGBX**       | Non-transferable ERC-20 with ERC20Votes, 18 decimals. Minted 1:1 against staked GBX.                                                   |
+| **USDG**                   | External stablecoin used for revenue. Six decimals **by deployment assumption**, not by code enforcement.                              |
+| **Signal**                 | An absolute quantity of sGBX a specific account has allocated to a specific Strategy.                                                  |
+| **Allocated balance**      | The aggregate sGBX an account has committed across all live and killed Strategies; not withdrawable.                                   |
+| **Strategy**               | A bounded descending-price auction exchanging accumulated USDG for one fixed payment token.                                            |
+| **Live / killed Strategy** | A Strategy accepting new signal and future revenue / one permanently excluded from both.                                               |
+| **Bribe**                  | Per-Strategy multi-token reward stream, permissionlessly funded, paid to that Strategy's signalers.                                    |
+| **BribeRouter**            | Per-Strategy contract converting an auction payment into an irrevocable Fund liability.                                                |
+| **Fund**                   | Ownerless raw-token treasury. Redemption and GBX burning are its only value exits.                                                     |
+| **Slot**                   | One mining position accruing GBX at a tenure-locked rate; occupancy sold by hourly auction.                                            |
+| **Epoch**                  | One auction round, identified by a monotonically increasing `epochId` used for fill-race protection.                                   |
+| **Reverse Dutch auction**  | The repository's term for the descending-price mechanism in `Mine` and `Strategy`. See §43 discrepancy D-1.                            |
+| **Reward period / stream** | A fixed seven-day emission schedule with a base rate plus a front-loaded remainder.                                                    |
+| **Carry**                  | Sub-unit reward precision retained across checkpoints rather than discarded.                                                           |
+| **Surplus**                | Value held by a contract that is not a liability to anyone and has no recovery path.                                                   |
+| **Checkpoint**             | Advancing lazily-accrued state to the current timestamp before mutating weights or balances.                                           |
+| **Resonance owner**        | The single address holding the three continuing administration capabilities; intended to become an external governance executor (§15). |
 
 ### 5.1 Notation
 
@@ -158,27 +159,25 @@ computes `⌊a·b/c⌋` at 512-bit intermediate precision and therefore cannot o
 
 ## 6. Actors
 
-| Actor                      | Capability                                                                                        | Trusted for                           |
-| -------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| **Miner**                  | Pays USDG to occupy a slot; accrues GBX at a tenure-locked rate; claims displaced-miner payments. | Nothing                               |
-| **Staker**                 | Stakes GBX for sGBX; holds voting weight; may keep sGBX idle.                                     | Nothing                               |
-| **Signaler**               | Allocates sGBX to Strategies, directing revenue and earning Bribe rewards.                        | Nothing                               |
-| **Strategy buyer**         | Fills a Strategy auction, paying the target asset and receiving accumulated USDG.                 | Nothing                               |
-| **Bribe funder**           | Permissionlessly streams reward tokens to a Strategy's signalers.                                 | Nothing                               |
-| **Redeemer**               | Burns GBX and nominates assets to withdraw pro rata from Fund.                                    | Nothing                               |
-| **Harvester**              | Permissionlessly collects Uniswap v4 fees into the protocol.                                      | Nothing                               |
-| **Checkpointer / router**  | Permissionlessly advances lazy state and forwards qualifying revenue.                             | Liveness only                         |
-| **Voter**                  | Votes sGBX weight on proposals restricted to three selectors.                                     | Governance correctness                |
-| **Timelock**               | Owns `Resonance`; executes approved proposals after a delay.                                      | Correct role configuration            |
-| **Deployment coordinator** | Executes the one-time bindings, creates bootstrap Strategies, then renounces all authority.       | **Fully trusted, once, irreversibly** |
+| Actor                      | Capability                                                                                        | Trusted for                                    |
+| -------------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| **Miner**                  | Pays USDG to occupy a slot; accrues GBX at a tenure-locked rate; claims displaced-miner payments. | Nothing                                        |
+| **Staker**                 | Stakes GBX for sGBX; holds voting weight; may keep sGBX idle.                                     | Nothing                                        |
+| **Signaler**               | Allocates sGBX to Strategies, directing revenue and earning Bribe rewards.                        | Nothing                                        |
+| **Strategy buyer**         | Fills a Strategy auction, paying the target asset and receiving accumulated USDG.                 | Nothing                                        |
+| **Bribe funder**           | Permissionlessly streams reward tokens to a Strategy's signalers.                                 | Nothing                                        |
+| **Redeemer**               | Burns GBX and nominates assets to withdraw pro rata from Fund.                                    | Nothing                                        |
+| **Harvester**              | Permissionlessly collects Uniswap v4 fees into the protocol.                                      | Nothing                                        |
+| **Checkpointer / router**  | Permissionlessly advances lazy state and forwards qualifying revenue.                             | Liveness only                                  |
+| **Resonance owner**        | Adds Strategies, kills Strategies, and registers Bribe reward tokens (§15.1).                     | **Fully trusted for those three capabilities** |
+| **Deployment coordinator** | Executes the one-time bindings, creates bootstrap Strategies, then renounces all authority.       | **Fully trusted, once, irreversibly**          |
 
 The deployment coordinator is the protocol's single unavoidable trusted party. Its authority is temporary by procedure
 rather than by code (§28.4), and every error it can make is permanent.
 
 ## 7. System overview
 
-The protocol comprises eleven deployed contract types plus an OpenZeppelin `TimelockController`. The economic cycle
-has five stages.
+The protocol comprises eleven deployed contract types. The economic cycle has five stages.
 
 **Stage 1 — Issuance and revenue origination.** `Mine` holds exactly sixteen permanent slots. Each
 slot continuously accrues GBX at a rate fixed for its occupant's tenure. Occupancy is transferred by paying the slot's
@@ -229,10 +228,9 @@ flowchart TB
     BR[BribeRouter]
     BRIBE[Bribe<br/>≤8 reward tokens, 1e18]
   end
-  subgraph Custody["Custody and governance"]
+  subgraph Custody["Custody and administration"]
     FUND[Fund<br/>ownerless treasury]
-    GOV[ProtocolGovernor<br/>4 selectors]
-    TL[TimelockController]
+    OWNER[Resonance owner<br/>external, unselected]
   end
 
   GBX -->|mint authority, one-time| MINE
@@ -242,7 +240,7 @@ flowchart TB
   LP -->|GBX burn| FUND
   RR -->|notifyRevenue| RES
   SGBX -->|addSignalFor / removeSignalFor / moveSignalFor| RES
-  SGBX -->|IVotes checkpoints| GOV
+  SGBX -.->|IVotes checkpoints, unread by the core| OWNER
   RES -->|createStrategy| SF
   RES -->|createBribe| BF
   SF -->|deploys| STR
@@ -253,53 +251,51 @@ flowchart TB
   STR -->|routePayment| BR
   BR -->|payFundPayment| FUND
   BRIBE -->|payFundReward| FUND
-  GOV -->|sole proposer| TL
-  TL -->|owns| RES
-  TL -->|owns| MINE
+  OWNER -->|owns: addStrategy / killStrategy / addBribeReward| RES
   FUND -->|redeem| GBX
 ```
 
 ### 8.1 Cardinality
 
-| Contract             | Instances                               |
-| -------------------- | --------------------------------------- |
-| `GBX`                | 1                                       |
-| `SignalGBX`          | 1                                       |
-| `Mine`               | 1                                       |
-| `LiquidityPosition`  | 1                                       |
-| `ResonanceRouter`    | 1                                       |
-| `Resonance`          | 1                                       |
-| `StrategyFactory`    | 1                                       |
-| `BribeFactory`       | 1                                       |
-| `Fund`               | 1                                       |
-| `ProtocolGovernor`   | 1                                       |
-| `TimelockController` | 1                                       |
-| `Strategy`           | n, one per registered Strategy          |
-| `BribeRouter`        | n, one per Strategy, deployed with it   |
-| `Bribe`              | n, one per Strategy, deployed before it |
+| Contract            | Instances                               |
+| ------------------- | --------------------------------------- |
+| `GBX`               | 1                                       |
+| `SignalGBX`         | 1                                       |
+| `Mine`              | 1                                       |
+| `LiquidityPosition` | 1                                       |
+| `ResonanceRouter`   | 1                                       |
+| `Resonance`         | 1                                       |
+| `StrategyFactory`   | 1                                       |
+| `BribeFactory`      | 1                                       |
+| `Fund`              | 1                                       |
+| `Strategy`          | n, one per registered Strategy          |
+| `BribeRouter`       | n, one per Strategy, deployed with it   |
+| `Bribe`             | n, one per Strategy, deployed before it |
 
 ## 9. Authority and ownership graph
 
+<!-- figure: authority-map -->
+
 ### 9.1 Owned contracts and their permanent authority
 
-| Contract            | Owner after setup | Continuing owner-gated functions                             |
-| ------------------- | ----------------- | ------------------------------------------------------------ |
-| `Resonance`         | Timelock          | `addStrategy`, `killStrategy`, `addBribeReward`              |
-| `Mine`              | **none**          | none — sixteen slots are fixed at construction               |
-| `SignalGBX`         | (setup owner)     | none remaining — `setResonance` is consumed at deployment    |
-| `StrategyFactory`   | (setup owner)     | none remaining — `setResonance` is consumed at deployment    |
-| `BribeFactory`      | (setup owner)     | none remaining — `setResonance` is consumed at deployment    |
-| `GBX`               | —                 | none — `setMinter` is single-use and permanently locks       |
-| `Fund`              | **none**          | none — contract is not `Ownable`                             |
-| `LiquidityPosition` | **none**          | none — contract is not `Ownable`                             |
-| `Strategy`          | **none**          | none                                                         |
-| `BribeRouter`       | **none**          | none                                                         |
-| `Bribe`             | **none**          | `addRewardToken`, callable only by the immutable `Resonance` |
+| Contract            | Owner after setup                  | Continuing owner-gated functions                                                                          |
+| ------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| `Resonance`         | External executor (**unselected**) | `addStrategy`, `killStrategy`, `addBribeReward`, plus inherited `transferOwnership` / `renounceOwnership` |
+| `Mine`              | **none**                           | none — sixteen slots are fixed at construction                                                            |
+| `SignalGBX`         | (setup owner)                      | none remaining — `setResonance` is consumed at deployment                                                 |
+| `StrategyFactory`   | (setup owner)                      | none remaining — `setResonance` is consumed at deployment                                                 |
+| `BribeFactory`      | (setup owner)                      | none remaining — `setResonance` is consumed at deployment                                                 |
+| `GBX`               | —                                  | none — `setMinter` is single-use and permanently locks                                                    |
+| `Fund`              | **none**                           | none — contract is not `Ownable`                                                                          |
+| `LiquidityPosition` | **none**                           | none — contract is not `Ownable`                                                                          |
+| `Strategy`          | **none**                           | none                                                                                                      |
+| `BribeRouter`       | **none**                           | none                                                                                                      |
+| `Bribe`             | **none**                           | `addRewardToken`, callable only by the immutable `Resonance`                                              |
 
 `SignalGBX`, `StrategyFactory`, and `BribeFactory` retain a nominal `Ownable` owner after their one-time binding is
 consumed, but that owner has no remaining function to call. `Resonance.setResonanceRouter` is likewise single-use.
 
-### 9.2 The three continuing governance actions
+### 9.2 The three continuing administration actions
 
 | Selector                   | Target      | Effect                                                              | Reversible? |
 | -------------------------- | ----------- | ------------------------------------------------------------------- | ----------- |
@@ -314,8 +310,12 @@ be killed; the deployed contracts persist forever.
 
 No contract in `packages/contracts/src` contains a proxy, `Initializable`, `UUPSUpgradeable`, `Pausable`, a
 `delegatecall`, a sweep or rescue function, a successor binding, a migration routine, an emission setter, a fee
-setter, a price oracle, an entropy source, or a claim-redirection path. `ProtocolGovernor` additionally reverts
-permanently on `relay`, `updateTimelock`, `receive`, and any `execute` carrying nonzero `msg.value`.
+setter, a price oracle, an entropy source, or a claim-redirection path.
+
+There is also no governance machinery: no `Governor`, no `TimelockController`, no generic executor, and no
+provider-specific adapter. ADR 0034 removed them, so the guarantees such a stack would have supplied — proposal
+filtering, quorum, voting periods, execution delay, cancellation rules — are supplied by nothing in this repository.
+They become properties of whichever external system is later given ownership of `Resonance` (§15.2).
 
 ## 10. Token and asset-flow graph
 
@@ -570,6 +570,8 @@ No other handoff, threshold crossing, or redemption modifies it. Verified by
 _current_ global rate by sixteen, aggregate issuance can exceed the current global rate after a halving. The excess
 persists until the legacy tenures turn over.
 
+<!-- figure: tenure-lock -->
+
 ### 12.7 Next opening price
 
 **Formula F-6.**
@@ -587,6 +589,10 @@ rate `m` per fill, not immediate. Verified by `test_AFreeFillAtFullDecayRestarts
 Mine constructs exactly sixteen empty slots and exposes no owner or capacity mutation. This permanent topology maps
 directly to a 4-by-4 market. Pending-emission and redemption-supply reads remain constant time regardless of how many
 slots are occupied.
+
+<!-- figure: mine-grid -->
+
+<!-- figure: pending-emission -->
 
 ## 13. SignalGBX
 
@@ -661,16 +667,21 @@ keeps it; an account that explicitly delegated to zero re-self-delegates on its 
 `SignalGBX` has **no ERC-2612 permit**. It inherits `EIP712` solely for ERC20Votes delegation signatures. This is
 deliberate: a permit authorizes spending, and sGBX cannot be spent.
 
-**Consequence of I-4 for governance.** Because no sGBX can be idle, the ERC20Votes supply used by
-`ProtocolGovernor.quorum` is exactly the total signal committed across all Strategies. Under the superseded ADR 0030
-design these were different quantities. §38.2 analyzes what this does and does not fix.
+**Consequence of I-4 for a future integration.** Because no sGBX can be idle, the ERC20Votes total supply is exactly
+the total signal committed across all Strategies. Any external system that uses `getPastTotalSupply` as a quorum
+denominator therefore measures against economically active weight only, with no idle receipts inflating it. That is a
+useful token property, not a quorum guarantee — the core defines no quorum (§15.2, §15.3).
 
 ### 13.5 No lock
 
 There is no timestamp, epoch, cooldown, or lock state anywhere in `SignalGBX`. Signaling, moving, and withdrawing may
-occur in consecutive blocks or the same transaction. §35.3 and §38.2 analyze the governance consequence.
+occur in consecutive blocks or the same transaction. Combined with checkpoints that survive withdrawal (§15.3), this
+means an external system must not assume that recorded voting weight implies a currently held position. §35.3 and
+§38.2 analyze the consequence.
 
 ## 14. Signaling lifecycle
+
+<!-- figure: signal-lifecycle -->
 
 ### 14.1 Entry points
 
@@ -739,83 +750,108 @@ A signal held across real elapsed time legitimately earns that interval's flow �
 cooldown, or anti-churn guarantee beyond this ordering.
 
 Verified by `test_FlashSignalWeightCannotRedirectANewNotification`,
-`test_FlashSignalWeightCannotStealAccruedBribeRewards`, `test_NewStrategyWeightReceivesOnlyPostEntryRevenue`, and the
-named A-11 regression `test_SameTransactionSignalAndPurchaseCannotCaptureNewlyNotifiedRevenue`.
+`test_FlashSignalWeightCannotStealAccruedBribeRewards`, `test_NewStrategyWeightReceivesOnlyPostEntryRevenue`, and
+`test_StrategyAddedAfterAccrualCannotClaimHistoricRevenue` (finding A-11).
 
-## 15. Historical onchain governance design (superseded)
+## 15. Protocol administration and external governance
 
-> **Removed by ADR 0034.** This section documents the former in-repository `ProtocolGovernor` and Timelock design for
-> provenance only. Neither contract exists in the current core, and these parameters are not current protocol facts.
+ADR 0034 removed `ProtocolGovernor` and the protocol `TimelockController` from the core. This section specifies the
+administration surface that remains and states precisely which guarantees the core does **not** provide as a result.
 
-`ProtocolGovernor` is `Governor, GovernorCountingSimple, GovernorVotes, GovernorTimelockControl`.
+### 15.1 The complete owner-gated surface
 
-### 15.1 Immutable configuration
+`Resonance` is the only owned core contract. Its owner-gated functions are:
 
-| Field                     | Type                 | Set at      | Mutable? |
-| ------------------------- | -------------------- | ----------- | -------- |
-| voting token (sGBX)       | `IVotes`             | constructor | No       |
-| Timelock                  | `TimelockController` | constructor | No       |
-| `resonance`               | `Resonance`          | constructor | No       |
-| `mine`                    | `Mine`               | constructor | No       |
-| `_votingDelayBlocks`      | `uint48`             | constructor | No       |
-| `_votingPeriodBlocks`     | `uint32`             | constructor | No       |
-| `_proposalThresholdVotes` | `uint256`            | constructor | No       |
-| `_quorumNumerator`        | `uint256`            | constructor | No       |
+| Function                                  | Source                 | Effect                                                                   | Reversible?             |
+| ----------------------------------------- | ---------------------- | ------------------------------------------------------------------------ | ----------------------- |
+| `addStrategy(IERC20, Config)`             | `Resonance.sol`        | Deploys Strategy, BribeRouter, and Bribe; registers the payment token    | No (kill only)          |
+| `killStrategy(address)`                   | `Resonance.sol`        | Permanently excludes a Strategy from new signal and future revenue       | **No**                  |
+| `addBribeReward(address, address)`        | `Resonance.sol`        | Appends a reward token to a Strategy's Bribe, within `MAX_REWARD_TOKENS` | **No**                  |
+| `setResonanceRouter(address)`             | `Resonance.sol`        | Binds the sole ResonanceRouter                                           | Single-use, then closed |
+| `transferOwnership` / `renounceOwnership` | OpenZeppelin `Ownable` | Moves or destroys the owner role                                         | Not by the protocol     |
 
-Constructor validation: all four dependencies nonzero and code-bearing; `resonance.signalGBX() == votingToken`;
-`votingPeriodBlocks ≠ 0`; `0 < quorumNumerator ≤ 100`.
+`setResonanceRouter` reverts with `ResonanceRouterAlreadySet` after its first success, so it is a deployment binding
+rather than a continuing authority. The three continuing capabilities are therefore exactly `addStrategy`,
+`killStrategy`, and `addBribeReward`.
 
-> The actual parameter values are **unselected**. Voting delay, period, threshold, quorum, and the target chain's
-> block-time assumption remain unresolved production inputs (finding **G-03**).
+**Enforced constraints on those calls.** These are Solidity checks, not procedural expectations:
 
-### 15.2 Proposal filter
+| Constraint                                              | Mechanism                                                        |
+| ------------------------------------------------------- | ---------------------------------------------------------------- |
+| The final live Strategy cannot be killed                | `if (liveStrategyCount == 1) revert FinalLiveStrategy(strategy)` |
+| A Strategy cannot be killed twice                       | `isStrategyAlive` check, `StrategyAlreadyDead`                   |
+| sGBX cannot be a payment token or Bribe reward token    | `ForbiddenPaymentToken`, `ForbiddenRewardToken`                  |
+| Payment and reward tokens must be deployed code         | `code.length == 0` rejection                                     |
+| Bribe reward tokens are append-only and capped at eight | `Bribe.MAX_REWARD_TOKENS`, `RewardAlreadyAdded`                  |
+| Strategy auction parameters are bounded at construction | `Strategy` constructor range checks (§21.1)                      |
 
-**Rule.** `_propose` reverts unless, for every call `i`, `values[i] == 0` and `(target, selector, calldata length)`
-matches one row exactly:
+### 15.2 Authority the core does not implement
 
-| Target      | Selector         | Required `calldata.length` |
-| ----------- | ---------------- | -------------------------- |
-| `resonance` | `addStrategy`    | `4 + 5·32 = 164`           |
-| `resonance` | `killStrategy`   | `4 + 32 = 36`              |
-| `resonance` | `addBribeReward` | `4 + 2·32 = 68`            |
+The core contains **no** Governor, Timelock, generic executor, multicall relay, or provider-specific governance
+adapter. It therefore makes none of the following guarantees, and no repository document should assert them:
 
-`addStrategy(IERC20, Strategy.Config)` encodes as five words because `Config` is a static four-`uint256` struct
-encoded inline. An empty proposal reverts `GovernorInvalidProposalLength`. Any other target, selector, length, or
-nonzero value reverts `UnsupportedProposalCall`.
+| Absent guarantee                       | Consequence                                                             |
+| -------------------------------------- | ----------------------------------------------------------------------- |
+| Selector-bounded proposal filtering    | The owner calls the three functions directly; no calldata filter exists |
+| Proposal threshold, quorum, or support | The core defines none; `liveStrategyCount` is the only counting rule    |
+| Voting period or voting delay          | The core defines none                                                   |
+| Post-approval execution delay          | Owner calls take effect in the calling transaction                      |
+| Permissionless execution after a delay | Not applicable; there is no queue                                       |
+| Cancellation, veto, or guardian        | No such role exists in the core                                         |
+| Sole-proposer closure                  | Not applicable                                                          |
+| Immutable governance parameters        | Not applicable; the core has no governance parameters to fix            |
 
-### 15.3 Quorum
+The owner address itself is the entire authority model at this commit. Nothing in `packages/contracts/src` constrains
+who or what that address is.
 
-**Formula F-8.**
+### 15.3 SignalGBX voting checkpoints
 
-```text
-quorum(t) = ⌊ sGBX.getPastTotalSupply(t) · quorumNumerator / 100 ⌋
-```
+`SignalGBX` is `ERC20, ERC20Votes, ReentrancyGuard, Ownable`. It retains vote checkpoints deliberately, for a future
+external integration, and the core assigns them no semantics.
 
-The denominator is **total sGBX supply at the snapshot**, which includes idle and undelegated receipts that will never
-vote. §38.2 analyzes the liveness consequence (finding **G-03**).
+| Property            | Value                                                                                    |
+| ------------------- | ---------------------------------------------------------------------------------------- |
+| Interface           | `IVotes` via OpenZeppelin `ERC20Votes`                                                   |
+| Clock               | Default block-number clock; no `clock()` or `CLOCK_MODE` override                        |
+| Transferability     | None — `_update` reverts `TransferDisabled` unless `from` or `to` is zero                |
+| Delegation          | Standard; `_depositAndMint` self-delegates any account with no delegate                  |
+| Approval permit     | Not implemented on sGBX; the underlying GBX carries `ERC20Permit`                        |
+| Supply relationship | Every sGBX unit is backed one-for-one by escrowed GBX and assigned to one Strategy (§14) |
 
-### 15.4 Disabled surfaces
+Because `_depositAndMint` self-delegates on first deposit, an account that has never delegated still accrues voting
+weight from its first signal without a second transaction. This removes the former undelegated-supply liveness concern
+**as a property of the token**; it does not constitute a quorum guarantee, because the core defines no quorum.
 
-| Function                  | Behavior                                    |
-| ------------------------- | ------------------------------------------- |
-| `relay(...)`              | Always reverts `ImmutableGovernanceSurface` |
-| `updateTimelock(...)`     | Always reverts `ImmutableGovernanceSurface` |
-| `receive()`               | Always reverts `ImmutableGovernanceSurface` |
-| `execute(...)` with value | Reverts when `msg.value ≠ 0`                |
+**Checkpoints survive withdrawal.** `withdrawSignal` burns sGBX and writes a new checkpoint, but historical
+checkpoints at earlier blocks are immutable by construction. An account may acquire GBX, signal it, allow a block to
+pass, withdraw, and retain its recorded weight at that past block. Whether that is exploitable depends entirely on
+whether the selected external system reads historical balances and how it spaces its snapshot from its voting window.
+This is finding **G-01**, retained as an integration property rather than a core defect.
 
-The `execute` guard exists because `GovernorTimelockControl` forwards `msg.value` to the Timelock independently of
-proposal call values; rejecting it prevents accidental ETH from becoming permanently stranded while preserving
-permissionless execution.
+### 15.4 Requirements on the future integration
 
-### 15.5 Cancellation
+ADR 0034 makes deployment conditional on a later ADR that pins and reviews at least:
 
-Inherited `Governor.cancel` is proposer-only and valid only in `Pending` state. `ProtocolGovernor` exposes **no public
-function that calls `TimelockController.cancel`**, even though deployment grants it `CANCELLER_ROLE`. Therefore a
-queued proposal cannot be cancelled by anyone: not the proposer, not a guardian, not a multisig, not the public.
+1. provider, exact release, deployed bytecode, and proxy or upgrade model;
+2. plugin set, permission graph, root and admin holders, and any emergency path;
+3. direct compatibility with SignalGBX voting checkpoints and delegation, including snapshot-to-vote spacing (G-01);
+4. proposal creation, quorum, support, voting duration, execution, batching, cancellation, and delay semantics; and
+5. the exact `Resonance` owner address and the transaction evidence proving the handoff.
 
-This is finding **G-02**, accepted by ADR 0030. A stale or conflicting queued operation can remain queued
-indefinitely and revert on execution; it does not block a differently-described replacement proposal. The Timelock
-delay is an observation and exit window, not an emergency veto.
+Until every item is selected, tested, and recorded, no deployment is authorized. Aragon is under consideration; no
+provider is part of the reviewed protocol graph, and this document must not be read as selecting one.
+
+### 15.5 Security consequences
+
+- Analysis of snapshot borrowing, quorum liveness, permission graphs, upgrade authority, and execution behavior does
+  not apply to this repository and must be repeated against the selected system's exact release.
+- A compromised or careless `Resonance` owner can add Strategies, kill any Strategy except the last live one, register
+  reward tokens up to the eight-token cap, transfer ownership, or renounce it. `renounceOwnership` would permanently
+  freeze the Strategy set at its current membership.
+- Owner authority does not reach mining parameters, the 90/10 settlement split, mint authority, Fund assets, liquidity
+  custody, auction mechanics, or the sixteen-slot count. Those are immutable or held by ownerless contracts (§9).
+- A production deployment that retains the temporary setup owner is a protocol with an ordinary admin key. Removing
+  that owner is a release gate, not a recommendation (findings **M-03**, **G-01**, **G-03**).
 
 ## 16. Resonance
 
@@ -1145,7 +1181,7 @@ at all: `liveStrategyCount == 1` reverts `FinalLiveStrategy`, so at least one va
 
 The asymmetry is essential: subtracting on `removeSignalFor` would double-subtract weight already removed by
 `killStrategy`. Verified by `test_DeadStrategySignalCanExitWithoutSubtractingActiveSupplyTwice` and
-`test_MoveSignalFromAKilledStrategyReentersTheLiveDenominatorOnce`.
+`test_MoveFromKilledStrategyReentersLiveWeightExactlyOnce`.
 
 ### 20.4 The closed-pool consequence (finding BR-1)
 
@@ -1419,6 +1455,7 @@ Constants: `REWARD_DURATION = 7 days`, `REWARD_PRECISION = 10^18`, `MAX_REWARD_T
 | `fundRewardLiability[t]`    | Whole-unit liability irrevocably owed to Fund                    |
 | `fundRewardRemainder[t]`    | Sub-unit Fund carry awaiting a whole unit                        |
 | `accountedRewardBalance[t]` | Notified minus paid out (user + Fund)                            |
+| `lifetimeRewardNotified[t]` | Monotonic cumulative raw units ever admitted for `t` (ADR 0035)  |
 
 ### 23.2 Stream mathematics
 
@@ -1523,18 +1560,66 @@ Verified by `test_NewSignalerCannotReceivePreEntryRewardCarry`,
 `_fundAllPendingRewards`, the exit carry loop, the pause loop, the resume loop — constant-bounded (finding **A-08**).
 Gas is measured by `test_MaximumRewardTokenGasStaysFarBelowABlock` and `test_RewardTokenGasSlopeIsRecordedAndBounded`.
 
-### 23.6 Claim isolation
+### 23.6 Lifetime notification cap (ADR 0035)
+
+Each `(Bribe, token)` pair carries a monotonic counter of every raw unit ever admitted through
+`notifyRewardAmount`, whether the notifier is a `BribeRouter` settling the automatic 10% share or an independent
+funder. The immutable ceiling is:
+
+**Formula F-24.**
+
+```text
+P    = REWARD_PRECISION = 1e18
+MAX_LIFETIME_REWARD_AMOUNT = ⌊(2²⁵⁶ − 1) / P⌋
+```
+
+A notification is rejected with `RewardLifetimeCapExceeded(token, notified, requested, maximum)` when
+
+```text
+amount > MAX_LIFETIME_REWARD_AMOUNT − lifetimeRewardNotified[t]
+```
+
+The check runs **before** any checkpoint or token interaction, so a rejection leaves the caller's balance, every
+schedule, and every liability untouched.
+
+**Why the counter is monotonic.** Claims, Fund classification, Fund payment, stream completion, Strategy death, and a
+return to zero signal supply all reduce `accountedRewardBalance[t]`, but none of them reduces the cumulative
+reward-per-signal index. The pre-existing balance-scale guard (`RewardScaleOverflow`) therefore reopened capacity that
+the index had already consumed. A token with an extremely large raw-unit supply could fill the index near `uint256`
+maximum, reclaim its reward, and notify again; the next checkpoint would overflow. Because every signal deposit, move,
+and withdrawal checkpoints all registered tokens, that overflow would strand escrowed GBX. This was finding **BR-2**.
+
+**Safety argument.** One admitted raw unit contributes at most `P` scaled units to the global index, and the smallest
+possible virtual supply is one raw signal unit, which assigns the whole scaled amount. With lifetime notifications
+`N`:
+
+```text
+rewardPerTokenStored ≤ N · P     and     N ≤ ⌊(2²⁵⁶ − 1) / P⌋
+```
+
+so the stored and previewed index remain representable. A one-unit virtual supply attains the bound, making this the
+largest history-independent limit that is safe under arbitrary supply changes.
+
+**Consequences.** At 18 decimals the cap is approximately `1.158 × 10⁴¹` whole tokens and constrains no conventional
+asset; the limit is deliberately measured in raw units, so it can bind an unusually high-decimal token. Reaching it
+blocks only new notifications for that one token in that one Bribe — existing rewards, claims, signal moves, and
+withdrawals continue (§32, L-9). If an automatic Strategy-payment reward is rejected, its `BribeRouter` preserves the
+unpaid Bribe liability and the independently settleable Fund liability, so no value is consumed or redirected
+(§22.4). Direct token donations never enter the index and never consume the cap. The balance-scale guard remains as
+defense in depth, and no unchecked wrapping, epoch reset, retirement withdrawal, or rescue path is introduced.
+
+### 23.7 Claim isolation
 
 Three claim entry points: all-tokens, single-token, and caller-selected list (with duplicate and registration
 validation performed **before** any token interaction). All pay the entitled `account`, never `msg.sender`. Selective
 claiming is what lets a signaler omit a broken reward token without losing access to the others.
 
-### 23.7 Exit liveness
+### 23.8 Exit liveness
 
 `Bribe.withdraw` performs **only** accounting: checkpoints, carry classification, balance decrements, and stream
 pauses. It contains no `transfer`, `transferFrom`, or `safeTransfer`. Therefore signal withdrawal can never
 fail because a reward, payment, or revenue token is frozen — design goal G4. Verified by
-`invariant_EveryActorCanFullyRemoveSignalsAndUnstake`.
+`invariant_EveryActorCanFullyWithdrawSignals`.
 
 ## 24. Fund custody
 
@@ -1718,53 +1803,74 @@ into demand as price rises.
 > market, or the deposited amount. An incorrect genesis price or range strands the position permanently and cannot be
 > corrected.
 
-## 27. Historical Timelock and ProtocolGovernor design (superseded)
+## 27. Ownership lifecycle and the enforcement boundary
 
-> **Removed by ADR 0034.** The role configuration and flow below describe the retired design only. Current deployment
-> remains blocked until a later ADR selects and reviews the exact external governance executor that will own
-> `Resonance`.
+§15 specifies the owner-gated surface. This section specifies **who holds that owner role over time**, and draws the
+line between what Solidity enforces and what a deployment must prove.
 
-### 27.1 Intended role configuration
+### 27.1 Ownership at each stage
 
-| Role                 | Holder after setup      | Consequence                                            |
-| -------------------- | ----------------------- | ------------------------------------------------------ |
-| `PROPOSER_ROLE`      | `ProtocolGovernor` only | No alternate scheduling path                           |
-| `CANCELLER_ROLE`     | `ProtocolGovernor` only | Held but **unreachable** — no public function calls it |
-| `EXECUTOR_ROLE`      | `address(0)`            | Execution is permissionless after the delay            |
-| `DEFAULT_ADMIN_ROLE` | **nobody**              | Renounced by the coordinator; roles are frozen forever |
+| Stage                        | `Resonance.owner()`                    | Capability held                                       |
+| ---------------------------- | -------------------------------------- | ----------------------------------------------------- |
+| Construction                 | `initialOwner` constructor argument    | All owner-gated calls, including `setResonanceRouter` |
+| Bootstrap                    | Temporary deployment setup owner       | Binds the Router; creates reviewed initial Strategies |
+| After handoff (**required**) | Exact reviewed external executor       | `addStrategy`, `killStrategy`, `addBribeReward`       |
+| Optional terminal state      | `address(0)` after `renounceOwnership` | None; Strategy membership is frozen permanently       |
 
-The Timelock owns `Resonance` and `Mine`.
+`SignalGBX`, `StrategyFactory`, and `BribeFactory` each retain a nominal `Ownable` owner after their one-time
+`setResonance` binding is consumed, but no remaining function is gated on it (§9.1). `Mine`, `Fund`,
+`LiquidityPosition`, `Strategy`, and `BribeRouter` are not `Ownable` at all. `Bribe` gates `addRewardToken` on the
+immutable `resonance` address rather than on an owner.
 
-### 27.2 This configuration is procedural, not enforced
+### 27.2 What Solidity enforces, and what it does not
 
-> **No Solidity in this repository enforces any row of the table above.** `Resonance` and `Mine` are plain `Ownable`;
-> role grants and renunciations occur in deployment steps 9–10 of `docs/DEPLOYMENT.md`. The test fixtures prove the
-> wiring is _achievable_, not that any deployment _achieved_ it.
+This distinction is the single most important qualification in this document.
 
-Several repository documents state these as "invariants". They are correctly understood as **deployment obligations
-that must be proven by signed deployment evidence**. This is discrepancy D-5 (§43) and part of findings **M-03** and
-**E-02**.
+**Enforced by the contracts**, unconditionally and without reference to any deployment procedure:
 
-### 27.3 Historical governance flow
+- `GBX.setMinter` succeeds at most once and permanently sets `minterLocked` (§11).
+- `Mine` has no owner and no capacity-changing function; `SLOT_COUNT` is `constant` (§12).
+- `Resonance.setResonanceRouter`, `SignalGBX.setResonance`, `StrategyFactory.setResonance`, and
+  `BribeFactory.setResonance` each revert after their first success.
+- One-time bindings validate reciprocal identity — a Mine must report the same GBX, a Router the same Resonance and
+  USDG, a Resonance the same SignalGBX and factory pair (§28.1).
+- `killStrategy` reverts on the final live Strategy.
+- `Fund`, `LiquidityPosition`, `Strategy`, and `BribeRouter` expose no owner, sweep, rescue, or migration path.
+
+**Not enforced by any contract in this repository**, and therefore a deployment obligation that must be proven by
+signed evidence rather than asserted:
+
+- That the `Resonance` owner after handoff is the intended external governance executor rather than an EOA, a
+  compromised address, or a lookalike contract.
+- That the temporary setup owner retains no authority afterward.
+- That constructor arguments — mining rate, halving amount, tail rate, price multiplier, minimum initial price, pool
+  key, tick range, precommitted position token ID — carry the exact reviewed values.
+- That the deployed dependencies are the canonical USDG and Uniswap v4 contracts on the target chain.
+
+Reciprocal identity checks reject a _crossed_ protocol graph. They cannot distinguish a malicious lookalike that
+returns the expected identities, and the protocol has no upgrade, successor, or migration authority with which to
+repair a wrong value. This is finding **M-03** — an open High release gate — and the residue of **E-02**.
+
+Where any repository document states an ownership or role condition as an "invariant", it is correctly read as a
+**deployment obligation**. This was recorded as discrepancy D-5 (§43).
+
+### 27.3 Handoff sequence and evidence
+
+Ownership handoff is step 10 of `docs/DEPLOYMENT.md`, and it is gated on step 9: deployment stops unless a later ADR
+has selected and reviewed the external governance integration. The sequence is:
 
 ```text
-stateDiagram-v2
-    [*] --> Pending: propose (filter passes)
-    Pending --> Active: votingDelay blocks elapse
-    Pending --> Canceled: proposer cancels
-    Active --> Defeated: quorum unmet or against ≥ for
-    Active --> Succeeded: quorum met and for > against
-    Succeeded --> Queued: queue into Timelock
-    Queued --> Executed: after minDelay, by anyone
-    Defeated --> [*]
-    Canceled --> [*]
-    Executed --> [*]
-    note right of Queued
-      No cancellation path exists.
-      A stale operation stays queued forever
-      and may revert on execution.
-    end note
+1. Setup owner binds ResonanceRouter (single-use).
+2. Setup owner creates every reviewed bootstrap Strategy and registers reviewed Bribe reward tokens.
+3. A later ADR pins the external governance provider, release, bytecode, permission graph, and voting semantics.
+4. Setup owner calls transferOwnership(exact reviewed executor). No intermediate custodian.
+5. Verify Resonance.owner(), the handoff receipt, and that the coordinator retains no authority.
 ```
+
+Bootstrap Strategies are created **before** handoff deliberately: the initial membership is part of the reviewed
+deployment rather than the first act of an unreviewed governance system. The consequence is that the setup owner's
+key is a full-authority key until step 4 completes, and a deployment interrupted between steps 2 and 4 leaves a
+protocol with a live admin key. There is no contract-level timeout, escrow, or forced handoff.
 
 ## 28. Deployment and immutable bindings
 
@@ -1800,9 +1906,10 @@ The intended sequence from `docs/DEPLOYMENT.md`: deploy GBX with a temporary coo
 SignalGBX, both factories → deploy Resonance with a temporary setup owner, bind it into SignalGBX and both factories,
 deploy ResonanceRouter and bind it → deploy Mine and verify its identities → `GBX.setMinter(Mine)` **irreversibly** →
 create every reviewed bootstrap Strategy while the setup owner still controls Resonance → initialize the pool and
-create the precommitted position → deploy LiquidityPosition and safe-transfer the NFT → deploy Timelock and
-ProtocolGovernor and grant roles → transfer Resonance ownership to the Timelock and renounce the
-coordinator's admin role → reconcile all runtime bytecode, arguments, bindings, ownership, and custody.
+create the precommitted position → deploy LiquidityPosition and safe-transfer the NFT → **stop** unless a later ADR
+has selected and reviewed the external governance integration → transfer Resonance ownership directly to the exact
+reviewed external executor and prove the coordinator retains no authority → reconcile all runtime bytecode,
+arguments, bindings, ownership, and custody (§27.3).
 
 ### 28.4 The irreversibility budget
 
@@ -1813,10 +1920,10 @@ Every one of the following is permanent and unrepairable once executed:
 | `GBX.setMinter`                        | Wrong or malicious issuer forever; no second minter possible |
 | Any `setResonance` / router binding    | Permanently crossed graph                                    |
 | Mine constructor economics             | Wrong emission curve forever                                 |
-| Governor voting parameters             | Ungovernable or capturable forever                           |
+| `Resonance` ownership handoff          | Wrong or hostile administrator for the three capabilities    |
 | Pool key, tick range, NFT ID           | Genesis liquidity stranded permanently                       |
 | NFT safe-transfer to LiquidityPosition | Position locked forever regardless of correctness            |
-| Timelock role grants and renunciation  | Alternate proposer or lingering admin, forever               |
+| Retaining the temporary setup owner    | A live admin key in a protocol that claims to have none      |
 | Bootstrap Strategy set                 | Unwanted Strategies exist forever (killable, not removable)  |
 
 A failed setup must be abandoned entirely before use. There is no repair authority.
@@ -1859,8 +1966,9 @@ some Strategy or the sGBX does not exist.
 | Dead | —                                           | Dead | No revive transition exists                                                                 |
 
 The final-live-Strategy guard (ADR 0031, superseding ADR 0029's permission to kill it) guarantees a valid signal
-destination always exists — necessary now that signaling is the only way to hold sGBX. Governance replaces the last
-Strategy by batching `addStrategy(replacement)` before `killStrategy(previous)` in one proposal. Verified by
+destination always exists — necessary now that signaling is the only way to hold sGBX. The owner replaces the last
+Strategy by calling `addStrategy(replacement)` before `killStrategy(previous)`; whether those two calls can be
+atomically batched is a property of the external governance system, not of the core. Verified by
 `test_KillingTheFinalLiveStrategyRevertsAfterBootstrap`.
 
 ### 29.4 Strategy auction epoch
@@ -1893,9 +2001,17 @@ Strategy by batching `addStrategy(replacement)` before `killStrategy(previous)` 
 | Outstanding | `payFundPayment` succeeds    | Zero        | Exact transfer verified                    |
 | Outstanding | `payFundPayment` reverts     | Outstanding | Atomically restored; permanently retryable |
 
-### 29.7 Governance proposal
+### 29.7 `Resonance` ownership
 
-See §27.3. Note the absence of any transition out of `Queued` other than `Executed`.
+| From              | Transition                    | To                | Notes                                                    |
+| ----------------- | ----------------------------- | ----------------- | -------------------------------------------------------- |
+| Constructor owner | Deployment bootstrap (§27.3)  | Setup owner       | Binds Router; creates reviewed bootstrap Strategies      |
+| Setup owner       | `transferOwnership(executor)` | External executor | Required before any user funds; step 10 of deployment    |
+| Any owner         | `transferOwnership(other)`    | Other owner       | Unconstrained by the core                                |
+| Any owner         | `renounceOwnership()`         | `address(0)`      | **Irreversible**; Strategy membership frozen permanently |
+
+The core imposes no delay, approval, confirmation, or two-step acceptance on any of these transitions. There is no
+state in which an ownership change is pending and observable before it takes effect.
 
 ## 30. Accounting identities
 
@@ -1995,63 +2111,63 @@ legs and `RevenueRetained` reverting any shortfall. Verified by `invariant_USDGI
 | Every Bribe reward is eventually claimable                  | False after BR-1 abandonment (§20.4)                                                    |
 | Fund backing per GBX is non-decreasing under all operations | Only proven for redemption; unsolicited transfers and burns move it in either direction |
 | Aggregate GBX issuance ≤ current global rate                | False while pre-halving tenure rates remain locked (M-01, §12.6)                        |
-| Timelock roles are correctly configured                     | Procedural, not code-enforced (§27.2)                                                   |
+| The `Resonance` owner is the intended administrator         | Procedural, not code-enforced (§27.2)                                                   |
 
 ## 31. Security invariants
 
-| ID   | Invariant                                                                        | Evidence                                                                                                         |
-| ---- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| S-1  | Only the permanently bound Mine can mint GBX, and only after `minterLocked`      | `test_OnlyPermanentlyBoundMineCanMint`                                                                           |
-| S-2  | `slot.tps` is never rewritten during a tenure                                    | `test_HalvingUsesEconomicAccrualAndNeverRepricesAnIncumbent`                                                     |
-| S-3  | Mine always has exactly 16 slots and no capacity mutation                        | `test_LaunchesWithSixteenEmptySlotsAndPermanentMiningAuthority`                                                  |
-| S-4  | sGBX is non-transferable in every path, including self and zero-value            | `test_TransferIsPermanentlyDisabled`, `test_SelfTransferIsAlsoDisabled`, `test_ZeroValueTransferIsStillDisabled` |
-| S-5  | Only SignalGBX may mutate signal state on Resonance                              | `test_OnlySignalGBXCanMutateAnotherAccountsSignal`                                                               |
-| S-6  | Only Resonance may mutate Bribe virtual balances or append reward tokens         | `test_VirtualBalanceMutationIsResonanceOnly`                                                                     |
-| S-7  | Only the bound Resonance may deploy through either factory                       | `test_FactoriesAreResonanceOnly`                                                                                 |
-| S-8  | Only the immutable Strategy may call `BribeRouter.routePayment`                  | `test_RoutePaymentIsStrategyOnly`                                                                                |
-| S-9  | Only the bound Router may call `Resonance.notifyRevenue`                         | `test_NotifyRevenueIsRouterOnlyAndRejectsZero`                                                                   |
-| S-10 | A same-transaction signal cannot capture newly notified revenue or Bribe rewards | `test_FlashSignalWeightCannotRedirectANewNotification`, `test_FlashSignalWeightCannotStealAccruedBribeRewards`   |
-| S-11 | Bribe carry cannot cross a signal-supply boundary to a later entrant             | `test_NewSignalerCannotReceivePreEntryRewardCarry`                                                               |
-| S-12 | An exiting account's remainder cannot be reallocated to remaining signalers      | `test_FullExitCannotReallocateUserRewardRemainder`                                                               |
-| S-13 | Every value transfer verifies exact sender debit and receiver credit             | the full fee-on-transfer rejection family (§36)                                                                  |
-| S-14 | Redemption rejects GBX, zero, and duplicates in any position                     | `test_RedeemRejectsDuplicatesInAnyPosition`                                                                      |
-| S-15 | A redemption basket cannot double-consume one shared backing ledger              | `test_RedeemRejectsDifferentAddressesThatDebitOneSharedLedger`                                                   |
-| S-16 | Redemption is atomic: any failure reverts the burn and all transfers             | `test_ASelectedFailingTransferRollsBackTheEntireRedemption`                                                      |
-| S-17 | Redemption includes all pending mining in a constant-time denominator            | `test_RedemptionUsesEffectiveSupplyWithoutSettlingAnyMiner`                                                      |
-| S-18 | Reentrancy cannot double-claim a reward or double-fill an auction                | `test_ReentrantRewardPayoutCannotDoubleClaim`, `test_AHostilePaymentTokenCannotReenterTheSameStrategy`           |
-| S-19 | Harvesting never changes principal liquidity                                     | `testFuzz_HarvestIsExactAndPrincipalIsFixed`                                                                     |
-| S-20 | The canonical NFT can never leave LiquidityPosition                              | `test_TheCanonicalNFTCanNeverLeaveOnceAdmitted`                                                                  |
-| S-21 | Only the three exact zero-value calls can be proposed                            | `test_OnlyTheThreeExactZeroValueCallsCanBeProposed`                                                              |
-| S-22 | Governor rejects nonzero `msg.value`, relay, and Timelock replacement            | `test_DirectOwnerAndTimelockSchedulingBypassIsClosed`                                                            |
-| S-23 | Fund has no administrative surface                                               | `test_FundHasNoAdministrativeSurfaceLeft`                                                                        |
-| S-24 | Redemption and GBX burning are the only ways assets leave Fund                   | `test_RedemptionIsTheOnlyWayAssetsCanEverLeaveFund`                                                              |
-| S-25 | Reward-token registry is capped at 8 and append-only                             | `test_RewardTokenCountIsPermanentlyCappedAtEight`                                                                |
+| ID   | Invariant                                                                        | Evidence                                                                                                                                                                         |
+| ---- | -------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S-1  | Only the permanently bound Mine can mint GBX, and only after `minterLocked`      | `test_OnlyPermanentlyBoundMineCanMint`                                                                                                                                           |
+| S-2  | `slot.tps` is never rewritten during a tenure                                    | `test_HalvingUsesEconomicAccrualAndNeverRepricesAnIncumbent`                                                                                                                     |
+| S-3  | Mine always has exactly 16 slots and no capacity mutation                        | `test_LaunchesWithSixteenEmptySlotsAndPermanentMiningAuthority`                                                                                                                  |
+| S-4  | sGBX is non-transferable in every path, including self and zero-value            | `test_TransfersRemainPermanentlyDisabled`                                                                                                                                        |
+| S-5  | Only SignalGBX may mutate signal state on Resonance                              | `test_OnlySignalGBXCanMutateAnotherAccountsSignal`                                                                                                                               |
+| S-6  | Only Resonance may mutate Bribe virtual balances or append reward tokens         | `test_VirtualBalanceMutationIsResonanceOnly`                                                                                                                                     |
+| S-7  | Only the bound Resonance may deploy through either factory                       | `test_FactoriesAreResonanceOnly`                                                                                                                                                 |
+| S-8  | Only the immutable Strategy may call `BribeRouter.routePayment`                  | `test_RoutePaymentIsStrategyOnly`                                                                                                                                                |
+| S-9  | Only the bound Router may call `Resonance.notifyRevenue`                         | `test_NotifyRevenueIsRouterOnlyAndRejectsZero`                                                                                                                                   |
+| S-10 | A same-transaction signal cannot capture newly notified revenue or Bribe rewards | `test_FlashSignalWeightCannotRedirectANewNotification`, `test_FlashSignalWeightCannotStealAccruedBribeRewards`                                                                   |
+| S-11 | Bribe carry cannot cross a signal-supply boundary to a later entrant             | `test_NewSignalerCannotReceivePreEntryRewardCarry`                                                                                                                               |
+| S-12 | An exiting account's remainder cannot be reallocated to remaining signalers      | `test_FullExitCannotReallocateUserRewardRemainder`                                                                                                                               |
+| S-13 | Every value transfer verifies exact sender debit and receiver credit             | the full fee-on-transfer rejection family (§36)                                                                                                                                  |
+| S-14 | Redemption rejects GBX, zero, and duplicates in any position                     | `test_RedeemRejectsDuplicatesInAnyPosition`                                                                                                                                      |
+| S-15 | A redemption basket cannot double-consume one shared backing ledger              | `test_RedeemRejectsDifferentAddressesThatDebitOneSharedLedger`                                                                                                                   |
+| S-16 | Redemption is atomic: any failure reverts the burn and all transfers             | `test_ASelectedFailingTransferRollsBackTheEntireRedemption`                                                                                                                      |
+| S-17 | Redemption includes all pending mining in a constant-time denominator            | `test_RedemptionUsesEffectiveSupplyWithoutSettlingAnyMiner`                                                                                                                      |
+| S-18 | Reentrancy cannot double-claim a reward or double-fill an auction                | `test_ReentrantRewardPayoutCannotDoubleClaim`, `test_AHostilePaymentTokenCannotReenterTheSameStrategy`                                                                           |
+| S-19 | Harvesting never changes principal liquidity                                     | `testFuzz_HarvestIsExactAndPrincipalIsFixed`                                                                                                                                     |
+| S-20 | The canonical NFT can never leave LiquidityPosition                              | `test_TheCanonicalNFTCanNeverLeaveOnceAdmitted`                                                                                                                                  |
+| S-21 | Each continuing administration call is owner-gated                               | `test_AddStrategyIsOwnerOnlyAndCreatesTheCompleteGraph`, `test_KillStrategyIsOwnerOnlyPermanentAndBlocksNewSignal`, `test_AddBribeRewardIsOwnerOnlyAndDelegatesToThePairedBribe` |
+| S-22 | Cumulative reward notifications per token cannot exhaust the reward index        | `test_LifetimeRewardCapAcceptsTheExactLimitAndRejectsTheFirstExcessUnit`, `test_LifetimeRewardCapStillBlocksAfterTheMaximumWasClaimed`                                           |
+| S-23 | Fund has no administrative surface                                               | `test_FundHasNoAdministrativeSurfaceLeft`                                                                                                                                        |
+| S-24 | Redemption and GBX burning are the only ways assets leave Fund                   | `test_RedemptionIsTheOnlyWayAssetsCanEverLeaveFund`                                                                                                                              |
+| S-25 | Reward-token registry is capped at 8 and append-only                             | `test_RewardTokenCountIsPermanentlyCappedAtEight`                                                                                                                                |
 
 ## 32. Liveness properties
 
-| ID   | Property                                                                     | Depends on                                             |
-| ---- | ---------------------------------------------------------------------------- | ------------------------------------------------------ |
-| L-1  | An account can always withdraw signal it holds                               | GBX transferability only                               |
-| L-2  | An account can always remove signal, including from a dead Strategy          | **Nothing** — pure accounting (§23.7)                  |
-| L-3  | Redemption cannot be paused, gated, or blocked by any party                  | The redeemer's own token selection                     |
-| L-4  | A redeemer can route around a broken asset by omitting it                    | Caller-selected basket                                 |
-| L-5  | A signaler can claim one reward token while another is frozen                | Selective claim                                        |
-| L-6  | A Fund liability blocked by a hostile token remains observable and retryable | Token eventually functioning                           |
-| L-7  | Auction fills are never blocked by a frozen Fund                             | Deferred settlement (§22.2)                            |
-| L-8  | Sub-threshold revenue eventually enters the stream without action            | `left()` decaying to zero (§18.1)                      |
-| L-9  | Governance execution is permissionless after the Timelock delay              | Zero-address executor **(procedural)**                 |
-| L-10 | Every mandatory loop is bounded                                              | `MAX_REWARD_TOKENS = 8`; Fund does not loop Mine slots |
+| ID   | Property                                                                     | Depends on                                                           |
+| ---- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| L-1  | An account can always withdraw signal it holds                               | GBX transferability only                                             |
+| L-2  | An account can always remove signal, including from a dead Strategy          | **Nothing** — pure accounting (§23.7)                                |
+| L-3  | Redemption cannot be paused, gated, or blocked by any party                  | The redeemer's own token selection                                   |
+| L-4  | A redeemer can route around a broken asset by omitting it                    | Caller-selected basket                                               |
+| L-5  | A signaler can claim one reward token while another is frozen                | Selective claim                                                      |
+| L-6  | A Fund liability blocked by a hostile token remains observable and retryable | Token eventually functioning                                         |
+| L-7  | Auction fills are never blocked by a frozen Fund                             | Deferred settlement (§22.2)                                          |
+| L-8  | Sub-threshold revenue eventually enters the stream without action            | `left()` decaying to zero (§18.1)                                    |
+| L-9  | Signal exit stays available after a Bribe reaches its lifetime reward cap    | `test_KilledStrategyExitRemainsLiveAfterRewardLifetimeCapIsConsumed` |
+| L-10 | Every mandatory loop is bounded                                              | `MAX_REWARD_TOKENS = 8`; Fund does not loop Mine slots               |
 
 ### 32.1 Liveness properties that do **not** hold
 
-| Non-property                                            | Reason                                                                  |
-| ------------------------------------------------------- | ----------------------------------------------------------------------- |
-| Rewards in a dead Strategy's Bribe are always claimable | BR-1 terminal state (§20.4)                                             |
-| Resonance surplus is always recoverable                 | No recovery path exists (§17.5)                                         |
-| Uniswap fees are always harvested                       | No caller bounty; harvesting is voluntary                               |
-| Mining accrual is always current                        | Lazy; requires a voluntary checkpoint                                   |
-| Governance can always act                               | Undelegated sGBX can raise quorum beyond reachable participation (G-03) |
-| A queued proposal can be stopped                        | No cancellation path (G-02)                                             |
+| Non-property                                            | Reason                                                        |
+| ------------------------------------------------------- | ------------------------------------------------------------- |
+| Rewards in a dead Strategy's Bribe are always claimable | BR-1 terminal state (§20.4)                                   |
+| Resonance surplus is always recoverable                 | No recovery path exists (§17.5)                               |
+| Uniswap fees are always harvested                       | No caller bounty; harvesting is voluntary                     |
+| Mining accrual is always current                        | Lazy; requires a voluntary checkpoint                         |
+| Administration is always available                      | Depends entirely on the unselected external owner (§15, G-03) |
+| An administration call can be observed before it lands  | The core provides no delay, queue, or pending state (§29.7)   |
 
 ## 33. Precision and rounding analysis
 
@@ -2115,9 +2231,11 @@ high-decimal ones.
 | `elapsed · slot.tps`          | `uint256`           | `tps ≤ 10^24`; overflow needs ~10^52 s                 |
 | `balanceOf(a) · (rpt − paid)` | `uint256`           | bounded by conserved accounted balance                 |
 
-`Bribe._requireScalableBalance` explicitly rejects any `accountedRewardBalance` exceeding
-`type(uint256).max / 10^18` with `RewardScaleOverflow`, rejecting the first excess unit without consuming it
-(`test_RewardScaleCeilingRejectsTheFirstExcessUnitWithoutConsumingIt`).
+`Bribe._requireScalableBalance` rejects any `accountedRewardBalance` exceeding `type(uint256).max / 10^18` with
+`RewardScaleOverflow`. Since ADR 0035 this is defense in depth rather than the primary bound: the monotonic lifetime
+cap of §23.6 is checked first and is the guard with direct test coverage
+(`test_LifetimeRewardCapAcceptsTheExactLimitAndRejectsTheFirstExcessUnit`). No current test drives
+`RewardScaleOverflow` in isolation.
 
 Solidity 0.8.26 provides checked arithmetic throughout; there are no `unchecked` blocks in the value-bearing paths.
 
@@ -2305,7 +2423,6 @@ USDG is the single external token whose failure is systemic and unrecoverable.
 | Dependency                                          | Version/source            | Trust required                                    | Failure impact       |
 | --------------------------------------------------- | ------------------------- | ------------------------------------------------- | -------------------- |
 | OpenZeppelin ERC20/Permit/Votes                     | `@openzeppelin/contracts` | Library correctness                               | Systemic             |
-| OpenZeppelin `Governor*`, `TimelockController`      | same                      | Library correctness                               | Governance only      |
 | OpenZeppelin `SafeERC20`, `Math`, `ReentrancyGuard` | same                      | Library correctness                               | Systemic             |
 | Uniswap v4 `IPositionManager`, `Actions`            | `@uniswap/v4-periphery`   | Correct fee accounting on zero-liquidity decrease | LP revenue only      |
 | Uniswap v4 core types                               | `@uniswap/v4-core`        | Pool key semantics                                | LP revenue only      |
@@ -2330,25 +2447,37 @@ reentrancy guards, extensive fuzz and stateful-invariant coverage (§40).
 **Residual.** **No independent audit has been performed.** A discovered bug cannot be patched, paused, or worked
 around. This is the single largest unmitigated risk in the system.
 
-### 38.2 Governance capture and deadlock
+### 38.2 The `Resonance` owner (findings G-01, G-03, open)
 
-**Capture.** An actor accumulating sufficient sGBX can add Strategies, retire Strategies, and register Bribe reward
-tokens. They **cannot** reach any other target or selector, drain Fund, mint GBX, alter
-economics, or move the liquidity position. Retiring a Strategy is irreversible, making it the highest-impact
-capture target.
-**Low participation lowers the capture cost**, since quorum is a fixed percentage of staked supply.
+**The core's threat model for administration is exactly one address.** Whoever holds `Resonance.owner()` can add
+Strategies, kill any Strategy except the final live one, register Bribe reward tokens up to the eight-token cap,
+transfer ownership onward, or renounce it. They **cannot** drain Fund, mint GBX, alter mining economics, reprice
+incumbents, move the liquidity position, or change the 90/10 settlement split — those surfaces are ownerless or
+immutable (§9.3). Killing a Strategy is irreversible, making it the highest-impact capture target; renouncing
+ownership is equally irreversible and permanently freezes Strategy membership.
 
-**Deadlock (finding G-03, open).** Quorum uses `getPastTotalSupply`, which includes idle and undelegated sGBX. If
-enough stake is undelegated, no proposal can reach quorum and **all three maintenance actions become permanently
-unreachable**. There is no fallback authority. Exact voting parameters are unselected, so this risk is currently
-unquantified.
+Because ADR 0034 removed the in-repository Governor and Timelock, the core supplies **no** mitigation of its own: no
+proposal filter, no quorum, no voting period, no execution delay, no cancellation, and no observable pending state.
+An owner call takes effect in the transaction that makes it. Every capture, collusion, and liveness question therefore
+transfers wholesale to the external governance system that has not been selected, and must be re-analyzed against that
+system's exact release rather than against this repository.
 
-### 38.3 Short-duration voting power (finding G-01)
+**Two properties of sGBX will shape that analysis.** First, because no sGBX can be idle (§13.4), `getPastTotalSupply`
+measures economically active weight only — an external system using it as a quorum denominator is not diluted by
+parked receipts, and the former undelegated-supply deadlock concern does not arise from the token. Second, and less
+comfortably, checkpoints survive withdrawal.
 
-sGBX has no staking or withdrawal lock and voting uses historical block snapshots. An account may acquire or **borrow**
-GBX, signal before the snapshot, vote, and withdraw immediately afterwards, bearing only borrowing cost and price risk
-for a few blocks. Combined with the irreversibility of `killStrategy`, this permits a low-cost, permanent hostile
-action. Accepted for development by ADR 0030; flagged as requiring independent review of the capture model.
+### 38.3 Short-duration voting weight (finding G-01)
+
+sGBX has no staking or withdrawal lock, and its checkpoints record historical block balances permanently. An account
+may acquire or **borrow** GBX, signal it, allow the snapshot block to pass, and withdraw immediately afterwards,
+bearing only borrowing cost and price risk for a few blocks while retaining the recorded weight.
+
+Nothing in the core acts on that weight today, so this is not presently exploitable. It becomes exploitable exactly
+when an external system is attached that reads historical balances, and its severity then depends on that system's
+snapshot-to-vote spacing and its proposal threshold. Combined with the irreversibility of `killStrategy`, an
+inadequately spaced integration would permit a low-cost, permanent hostile action. This is why snapshot compatibility
+is an explicit item in the ADR 0034 selection requirements (§15.4).
 
 ### 38.4 Oracle and external-price assumptions
 
@@ -2434,15 +2563,16 @@ boundary, not merely a usability concern.
 ### 38.15 Incorrect deployment parameters
 
 Finding **M-04**, open High release gate. The Mine's initial rate, halving amount, tail rate, price multiplier, and
-minimum price, plus every Governor voting parameter, are unselected. Wrong values produce unsafe or unusable
-economics even with perfectly correct Solidity.
+minimum price are unselected. Wrong values produce unsafe or unusable economics even with perfectly correct Solidity.
+The external governance system's own parameters are equally unselected, but they are outside this repository (§15.4).
 
 ### 38.16 Loss of keys
 
-The deployment coordinator's key is critical **only during setup**. After renunciation there is no privileged key
-whose loss affects the protocol: Mine, Fund, and LiquidityPosition are ownerless, and Resonance is owned by a Timelock
-driven by token voting. Loss of a _user's_ key loses that user's GBX and any allocated stake permanently,
-with no recovery mechanism.
+The deployment coordinator's key is critical **only during setup**, and only until ownership is handed to the external
+executor (§27.3). Mine, Fund, and LiquidityPosition are ownerless, so no key loss affects them. Resonance's owner key
+is exactly as critical as the external system that holds it, which is unselected; a lost owner key permanently freezes
+Strategy membership in the same way `renounceOwnership` would. Loss of a _user's_ key loses that user's GBX and any
+allocated stake permanently, with no recovery mechanism.
 
 ### 38.17 Legal and regulatory risk
 
@@ -2464,13 +2594,17 @@ substitute. **Open.**
 
 Immutability means any defect — in code, parameters, or deployment — is permanent. **Accepted by ADR 0016/0017.**
 
-### 39.3 Governance deadlock via idle stake
+### 39.3 Unselected external governance
 
-Finding **G-03**. Unquantified because voting parameters are unselected. **Open release gate.**
+Finding **G-03**. The core has no governance of its own, and the system that will own `Resonance` has not been chosen.
+Until it is, the protocol's capture resistance, liveness, delay, and accountability properties are undefined rather
+than weak. A deployment that skipped the handoff would ship an ordinary admin key. **Open release gate.**
 
-### 39.4 Uncancellable queued proposals
+### 39.4 Historical voting weight outlives the position
 
-Finding **G-02**. A stale or hostile queued operation cannot be stopped by anyone. **Accepted by ADR 0030.**
+Finding **G-01**. sGBX checkpoints survive withdrawal, so any external system reading historical balances must space
+its snapshot and voting window deliberately. Not exploitable in the core, which reads no checkpoints.
+**Open integration gate.**
 
 ### 39.5 Unbounded Resonance surplus
 
@@ -2524,9 +2658,11 @@ systemic and unrecoverable.
 
 ## 40. Testing and verification evidence
 
-> **Every figure in §40.1 was produced by executing the suites against the working tree at commit
-> `281e601ecb3f3989da826a8a7dfba37b63b55ca0`.** Figures from earlier commits are segregated into §40.4 and labelled
-> with their own commit and date. **None of this constitutes formal proof or an independent audit.**
+> **Every figure in §40.1 was produced by executing the suites against the tree at commit
+> `dc67d7c4d634097fa6e285fa33ce964d591d2bd2` on 20 August 2026.** Figures from earlier commits are segregated into
+> §40.4 and labelled with their own commit and date. Static analysis, mutation testing, and external fuzzing were
+> **not** re-run at this commit; §40.4 records their pinned results and their staleness explicitly.
+> **None of this constitutes formal proof or an independent audit.**
 
 ### 40.1 Verified at the reviewed commit
 
@@ -2534,39 +2670,40 @@ systemic and unrecoverable.
 
 | Result  | Value   |
 | ------- | ------- |
-| Suites  | 22      |
-| Passed  | **335** |
+| Suites  | 21      |
+| Passed  | **329** |
 | Failed  | 0       |
 | Skipped | 0       |
 
 | Suite                                      | Passed | Suite                       | Passed |
 | ------------------------------------------ | ------ | --------------------------- | ------ |
 | `AdversarialTest`                          | 18     | `LiquidityPositionDeepTest` | 18     |
-| `ArchitectureReconciliationRegressionTest` | 4      | `MineTest`                  | 23     |
-| `BribeTest`                                | 31     | `ProtocolGovernorTest`      | 11     |
-| `BribeRetirementRiskTest`                  | 1      | `ResonanceTest`             | 35     |
-| `BribeRewardFlowTest`                      | 8      | `BribeRouterTest`           | 14     |
-| `CarryReallocationTest`                    | 4      | `ResonanceRouterTest`       | 8      |
-| `FactoriesTest`                            | 8      | `SignalGBXTest`             | 21     |
-| `FundTest`                                 | 26     | `SignalGasTest`             | 4      |
-| `GBXTest`                                  | 10     | `StartingPointTest`         | 15     |
-| `HistoricalBribeDifferentialTest`          | 3      | `StrategyTest`              | 40     |
-| `ProtocolInvariantsTest`                   | 28     | `USDGFlowTest`              | 5      |
+| `ArchitectureReconciliationRegressionTest` | 4      | `MineTest`                  | 21     |
+| `BribeTest`                                | 32     | `ResonanceTest`             | 35     |
+| `BribeRetirementRiskTest`                  | 1      | `BribeRouterTest`           | 15     |
+| `BribeRewardFlowTest`                      | 10     | `ResonanceRouterTest`       | 8      |
+| `CarryReallocationTest`                    | 4      | `SignalGBXTest`             | 23     |
+| `FactoriesTest`                            | 8      | `SignalGasTest`             | 4      |
+| `FundTest`                                 | 26     | `StartingPointTest`         | 15     |
+| `GBXTest`                                  | 10     | `StrategyTest`              | 40     |
+| `HistoricalBribeDifferentialTest`          | 3      | `USDGFlowTest`              | 5      |
+| `ProtocolInvariantsTest`                   | 29     |                             |        |
 
-This figure **matches `FINDINGS.md` at this commit exactly.** Two suites are new for the ADR 0031/0032 work:
-`ArchitectureReconciliationRegressionTest` (which asserts the removed idle-receipt selectors are absent from deployed
-runtime and that ten one-unit payments classify 9/1) and `HistoricalBribeDifferentialTest`.
+This figure **matches `FINDINGS.md` at this commit exactly.** `ProtocolGovernorTest` and its 11 tests were removed
+with the Governor itself (ADR 0034). The ADR 0035 lifetime reward cap added coverage to `BribeTest`,
+`BribeRewardFlowTest`, and `BribeRouterTest`; ADR 0034's checkpoint-retention behavior added coverage to
+`SignalGBXTest`.
 
 **Command:** `FOUNDRY_PROFILE=integration forge test --summary`
 
 | Result  | Value  |
 | ------- | ------ |
 | Suites  | 2      |
-| Passed  | **17** |
+| Passed  | **18** |
 | Failed  | 0      |
 | Skipped | 0      |
 
-`CampaignHarnessTest` 6, `LiquidityFeeHarvestTest` 11.
+`CampaignHarnessTest` 7, `LiquidityFeeHarvestTest` 11.
 
 ### 40.2 Campaign configuration
 
@@ -2586,28 +2723,29 @@ Compiler: Solidity 0.8.26, Cancun, optimizer enabled at 10,000 runs, no metadata
 
 ### 40.3 Evidence by method
 
-**Unit and negative testing.** 335 default-profile tests spanning constructor validation, authorization, degenerate
+**Unit and negative testing.** 329 default-profile tests spanning constructor validation, authorization, degenerate
 arguments, revert paths, and behavioral regressions for every accepted finding.
 
-**Property-based fuzzing.** **21** `testFuzz_` properties in the default profile at 10,000 runs each — **210,000
+**Property-based fuzzing.** **22** `testFuzz_` properties in the default profile at 10,000 runs each — **220,000
 configured fuzz cases**. Properties cover supply reconciliation (I-1), receipt collateralization (I-3),
 signal-backing (I-4), 90/10 frequency-independence (F-21), routing conservation (I-11), redemption pro-rata exactness
 and monotone backing (I-9), price-curve exactness and monotonicity, next-price bounds, Bribe solvency (I-8), and
 Resonance non-overpayment (I-7).
 
-**Stateful invariant testing.** **27** `invariant_` properties plus one deterministic handler-reachability test
-(`test_EveryHandlerActionIsReachable`), each at 1,000 runs × depth 500 with `fail_on_revert = true` — **500,000 calls
-per property**, **13,500,000 aggregate state-machine transitions**. `FINDINGS.md` records that all **31 handler
-selectors** were reached approximately 16,000 times each with **zero handler reverts or discards**. The reachability
-regression exists specifically to prevent a permanently short-circuited handler action from producing false
-confidence.
+**Stateful invariant testing.** `ProtocolInvariantsTest` contains **27** `invariant_` entries — 26 asserting
+properties plus `invariant_CallSummary`, which reports selector coverage — and two deterministic regressions
+(`test_EveryHandlerActionIsReachable`, `test_DynamicallyAddedStrategyEntersEveryHarnessPath`), for the 29 tests
+reported above. Each invariant entry runs at 1,000 runs × depth 500 with `fail_on_revert = true` — **500,000 calls
+per entry**, **13,500,000 aggregate state-machine transitions**. This run reached all **29 handler selectors**
+between 16,989 and 17,470 times each, with **zero handler reverts and zero discards**. The reachability regression
+exists specifically to prevent a permanently short-circuited handler action from producing false confidence.
 
 **Integration testing against real Uniswap v4.** `LiquidityFeeHarvestTest` (11 tests) deploys real Uniswap v4 and
 exercises the zero-liquidity `DECREASE_LIQUIDITY` fee-collection path, principal preservation across repeated
 harvests, harvesting after price leaves the range, and atomic rollback of routing failure. This suite lives in a
 separate profile because Uniswap's `PositionManager` exceeds EIP-170 when built at this project's optimizer settings.
 
-**Randomized action-sequence campaign.** `CampaignHarnessTest` (6 tests) wires the complete protocol graph from a
+**Randomized action-sequence campaign.** `CampaignHarnessTest` (7 tests) wires the complete protocol graph from a
 single constructor and runs `testFuzz_RandomActionSequencesPreserveEveryProperty` over 256 randomized 12-action
 sequences, asserting every property after each action.
 
@@ -2626,20 +2764,28 @@ supply identity, and effective-supply redemption dilution.
 `test_ScalarSignalEntryAndExitRemainCheapInTheShippedConfiguration`, and `test_FixedLiabilityAndGovernanceGasIsRecorded`
 bound the mandatory loops of §32 (L-10).
 
-**Static analysis — now a passing gate.** `FINDINGS.md` at this commit records pinned **Slither 0.11.5, Aderyn 0.6.8,
-Semgrep 1.162.0, Gitleaks 8.30.1**, plus compiler/size, dependency, and license gates, all passing. The exact
-fingerprint register accepts **177 current-source findings across 28 reviewed detector classes**; Semgrep and Gitleaks
-raw reports contain **zero** findings. Mythril 0.24.8 remains incompatible with constructor-resolved immutable/Cancun
-runtimes and **is not a proof**.
+**Reward-cap regressions (ADR 0035).** `test_LifetimeRewardCapAcceptsTheExactLimitAndRejectsTheFirstExcessUnit`,
+`test_LifetimeRewardCapStillBlocksAfterTheMaximumWasClaimed`,
+`test_LifetimeRewardCapFailurePreservesRouterStateAndFundSettlement`, and
+`test_KilledStrategyExitRemainsLiveAfterRewardLifetimeCapIsConsumed` establish that the monotonic per-token counter
+is not reset by claims, Fund payment, stream completion, or Strategy death, that a rejected notification leaves the
+caller's tokens and every liability untouched, and that signal exit stays available after the cap is consumed
+(§23, L-9).
 
-**External fuzzing — now a passing gate.** Native **Medusa 1.5.1** completed **101,602 calls** with zero failures
-across 65 surfaces. Pinned **Echidna 2.3.2** completed **100,213 calls** with all **25 properties** passing.
+**Checkpoint-retention regressions (ADR 0034).** `test_HistoricalVotingCheckpointsSurviveImmediateSignalWithdrawal`
+and `test_LaterSignalPreservesExplicitDelegateAndSelfDelegatesAgainAfterZeroDelegation` establish the two checkpoint
+properties §15.3 relies on, and `test_DirectDonationIsSurplusAndCreatesNoSignalVotesOrWithdrawalEntitlement`
+establishes that a direct GBX donation creates no voting weight.
 
-**Mutation testing — now a passing gate.** The current focused campaign of **43 mutants killed every mutant**.
+**Static analysis, external fuzzing, and mutation testing — pinned to an earlier tree.** These three campaigns were
+last executed before ADR 0034 removed the Governor and ADR 0035 added the Bribe lifetime cap. `FINDINGS.md` states
+explicitly that their results "predate ADRs 0034 and 0035 and remain historical engineering evidence." They are
+reported in §40.4 rather than here, and **must not be cited as current-tree evidence**. Re-running them at this
+commit is an open task.
 
-> These three gates were explicitly _not_ passing at the superseded commit `281e601`. Their passing is a meaningful
-> increase in engineering confidence. It remains engineering evidence: none of it is formal proof, and none of it is
-> an independent audit.
+**Adjacent gates that do pass at this commit.** Hardhat bytecode parity, the SDK test suite and ABI check, the
+subgraph build and tests, the independent TypeScript and Python simulation fixtures, contract and SDK documentation
+generation, formatting, linting, type checking, and the workspace build.
 
 ### 40.4 Historical evidence — explicitly not current
 
@@ -2648,23 +2794,35 @@ across 65 surfaces. Pinned **Echidna 2.3.2** completed **100,213 calls** with al
 which **predates** the ADR 0024 Mine redesign and the ADR 0029/0030/0031/0032 changes. Their reported figures —
 including **340 default Foundry tests** — describe a superseded contract graph and must not be read as current.
 
-At this commit the register and the executed suites agree exactly: `FINDINGS.md` (2026-08-16) reports **335** default
-and **17** integration tests, and both were reproduced by running the suites (§40.1). See discrepancy D-4 for the
-history of this figure.
+At this commit the register and the executed suites agree exactly: `FINDINGS.md` reports **329** default and **18**
+integration tests, and both were reproduced by running the suites (§40.1). See discrepancy D-4 for the history of
+this figure.
+
+**Static analysis, external fuzzing, and mutation results are also historical.** Their last recorded pass covered a
+tree predating ADR 0034 and ADR 0035: pinned **Slither 0.11.5, Aderyn 0.6.8, Semgrep 1.162.0, Gitleaks 8.30.1** with
+a register of 177 accepted source findings across 28 detector classes and zero raw Semgrep/Gitleaks findings; native
+**Medusa 1.5.1** at **101,602 calls** with zero failures across 65 surfaces; **Echidna 2.3.2** at **100,213 calls**
+with all **25 properties** passing; and a focused **43-mutant** campaign that killed every mutant. Mythril 0.24.8 was
+incompatible with constructor-resolved immutable/Cancun runtimes and was never a proof. Because the Governor removal
+deleted a contract and the reward cap added a new state variable and revert path, these figures describe a different
+contract graph than the one this document specifies.
 
 ### 40.5 Verification methods absent
 
-| Method                         | Status at this commit                                   |
-| ------------------------------ | ------------------------------------------------------- |
-| Independent external audit     | **Not performed**                                       |
-| Symbolic execution             | Not performed (Mythril incompatible with this runtime)  |
-| Formal verification            | Not performed                                           |
-| Second external-fuzzer seed    | Not performed                                           |
-| Fork validation                | Not completed; no RPC capability and block pin recorded |
-| Monitored testnet rehearsal    | Not performed                                           |
-| Reviewed production parameters | Not selected                                            |
-| Release review                 | Not performed                                           |
-| Signed deployment manifest     | Does not exist                                          |
+| Method                          | Status at this commit                                   |
+| ------------------------------- | ------------------------------------------------------- |
+| Independent external audit      | **Not performed**                                       |
+| Static analysis at this commit  | **Not re-run** since ADR 0034 and ADR 0035 (§40.4)      |
+| External fuzzing at this commit | **Not re-run** since ADR 0034 and ADR 0035 (§40.4)      |
+| Mutation testing at this commit | **Not re-run** since ADR 0034 and ADR 0035 (§40.4)      |
+| Symbolic execution              | Not performed (Mythril incompatible with this runtime)  |
+| Formal verification             | Not performed                                           |
+| Second external-fuzzer seed     | Not performed                                           |
+| Fork validation                 | Not completed; no RPC capability and block pin recorded |
+| Monitored testnet rehearsal     | Not performed                                           |
+| Reviewed production parameters  | Not selected                                            |
+| Release review                  | Not performed                                           |
+| Signed deployment manifest      | Does not exist                                          |
 
 > A skipped fork run is not a pass. Fork results count only when the exact RPC capability and block pin are recorded.
 
@@ -2683,8 +2841,8 @@ authorization," and no script in the repository is authorized to broadcast it.
 ### 41.2 Review
 
 Internal engineering review only. Dispositions are recorded in `packages/contracts/audit/FINDINGS.md`
-(2026-08-16), with campaign-specific findings for the ADR 0031/0032 work in
-`packages/contracts/audit/SIGNAL-RESONANCE-FINDINGS.md`.
+(2026-08-16, with governance and Bribe-cap dispositions reconciled 2026-08-19 for ADRs 0034 and 0035), with
+campaign-specific findings in `packages/contracts/audit/SIGNAL-RESONANCE-FINDINGS.md`.
 
 ### 41.3 Open release gates
 
@@ -2692,8 +2850,8 @@ Internal engineering review only. Dispositions are recorded in `packages/contrac
 | -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **M-03** | High     | Immutable bindings cannot detect a malicious lookalike. Requires signed manifest, exact runtime code hashes, constructor arguments, and receipts. |
 | **M-04** | High     | Mine's initial rate, halving amount, tail rate, price multiplier, and minimum price are unselected and unmodelled.                                |
-| **G-03** | High     | Governor voting delay, period, threshold, quorum, and block-time assumptions unresolved; undelegated sGBX can deadlock governance.                |
-| **G-01** | High     | Short-duration voting power accepted by ADR 0030 but requires independent review of the capture/liveness model.                                   |
+| **G-03** | High     | The external governance system that will own `Resonance` is unselected; its voting, delegation, permission, and delay semantics are unreviewed.   |
+| **G-01** | High     | sGBX checkpoints survive withdrawal; the selected external system's snapshot-to-vote spacing requires independent review of the capture model.    |
 | **E-02** | High     | Materially reduced by reciprocal identity checks, but codehash, parameter, and manifest review remains external.                                  |
 
 ### 41.4 Accepted findings (not gates)
@@ -2725,28 +2883,27 @@ _permissionless_ (of the named user-facing operations), and _non-transferable_ (
 
 ## 42. Contract reference
 
-| Contract            | Path (under `packages/contracts/src`) | Lines | Inherits                                                                         | Key constants                                                                                                                      |
-| ------------------- | ------------------------------------- | ----- | -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `GBX`               | `core/GBX.sol`                        | 95    | `ERC20`, `ERC20Permit`                                                           | `GENESIS_LIQUIDITY_ALLOCATION = 20_000_000 ether`                                                                                  |
-| `Mine`              | `core/Mine.sol`                       | —     | `ReentrancyGuard`                                                                | `BPS 10_000`, `PREVIOUS_MINER_BPS 8_000`, `PRICE_DECAY_PERIOD 1 hours`, `SLOT_COUNT 16`, `MIN_TAIL_TPS 16`, `MAX_INITIAL_TPS 1e24` |
-| `SignalGBX`         | `core/SignalGBX.sol`                  | 195   | `ERC20`, `ERC20Votes`, `ReentrancyGuard`, `Ownable`                              | —                                                                                                                                  |
-| `Resonance`         | `core/Resonance.sol`                  | 459   | `ReentrancyGuard`, `Ownable`                                                     | `DURATION 7 days`, `REWARD_PRECISION 1e36`                                                                                         |
-| `ResonanceRouter`   | `core/ResonanceRouter.sol`            | 83    | `IResonanceRouter`, `ReentrancyGuard`                                            | —                                                                                                                                  |
-| `Strategy`          | `core/Strategy.sol`                   | 238   | `ReentrancyGuard`                                                                | `MIN_EPOCH_DURATION 1 hours`, `MAX_EPOCH_DURATION 365 days`, `PRICE_SCALE 1e18`, `ABSOLUTE_MINIMUM_PRICE 1e6`                      |
-| `StrategyFactory`   | `core/StrategyFactory.sol`            | 82    | `Ownable`                                                                        | —                                                                                                                                  |
-| `Bribe`             | `core/Bribe.sol`                      | 730   | `ReentrancyGuard`                                                                | `REWARD_DURATION 7 days`, `REWARD_PRECISION 1e18`, `MAX_REWARD_TOKENS 8`                                                           |
-| `BribeFactory`      | `core/BribeFactory.sol`               | 65    | `Ownable`                                                                        | —                                                                                                                                  |
-| `BribeRouter`       | `core/BribeRouter.sol`                | 203   | `ReentrancyGuard`                                                                | `BPS 10_000`, `FUND_BPS 9_000`, `BRIBE_BPS 1_000`                                                                                  |
-| `Fund`              | `core/Fund.sol`                       | 195   | `ReentrancyGuard`                                                                | `REDEMPTION_NAMESPACE`                                                                                                             |
-| `LiquidityPosition` | `core/LiquidityPosition.sol`          | 342   | `IERC721Receiver`, `ReentrancyGuard`                                             | —                                                                                                                                  |
-| `ProtocolGovernor`  | `governance/ProtocolGovernor.sol`     | 246   | `Governor`, `GovernorCountingSimple`, `GovernorVotes`, `GovernorTimelockControl` | `QUORUM_DENOMINATOR 100`                                                                                                           |
+| Contract            | Path (under `packages/contracts/src`) | Lines | Inherits                                            | Key constants                                                                                                                      |
+| ------------------- | ------------------------------------- | ----- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `GBX`               | `core/GBX.sol`                        | 95    | `ERC20`, `ERC20Permit`                              | `GENESIS_LIQUIDITY_ALLOCATION = 20_000_000 ether`                                                                                  |
+| `Mine`              | `core/Mine.sol`                       | 375   | `ReentrancyGuard`                                   | `BPS 10_000`, `PREVIOUS_MINER_BPS 8_000`, `PRICE_DECAY_PERIOD 1 hours`, `SLOT_COUNT 16`, `MIN_TAIL_TPS 16`, `MAX_INITIAL_TPS 1e24` |
+| `SignalGBX`         | `core/SignalGBX.sol`                  | 195   | `ERC20`, `ERC20Votes`, `ReentrancyGuard`, `Ownable` | —                                                                                                                                  |
+| `Resonance`         | `core/Resonance.sol`                  | 459   | `ReentrancyGuard`, `Ownable`                        | `DURATION 7 days`, `REWARD_PRECISION 1e36`                                                                                         |
+| `ResonanceRouter`   | `core/ResonanceRouter.sol`            | 83    | `IResonanceRouter`, `ReentrancyGuard`               | —                                                                                                                                  |
+| `Strategy`          | `core/Strategy.sol`                   | 238   | `ReentrancyGuard`                                   | `MIN_EPOCH_DURATION 1 hours`, `MAX_EPOCH_DURATION 365 days`, `PRICE_SCALE 1e18`, `ABSOLUTE_MINIMUM_PRICE 1e6`                      |
+| `StrategyFactory`   | `core/StrategyFactory.sol`            | 82    | `Ownable`                                           | —                                                                                                                                  |
+| `Bribe`             | `core/Bribe.sol`                      | 747   | `ReentrancyGuard`                                   | `REWARD_DURATION 7 days`, `REWARD_PRECISION 1e18`, `MAX_REWARD_TOKENS 8`, `MAX_LIFETIME_REWARD_AMOUNT ⌊(2²⁵⁶−1)/1e18⌋`             |
+| `BribeFactory`      | `core/BribeFactory.sol`               | 65    | `Ownable`                                           | —                                                                                                                                  |
+| `BribeRouter`       | `core/BribeRouter.sol`                | 203   | `ReentrancyGuard`                                   | `BPS 10_000`, `FUND_BPS 9_000`, `BRIBE_BPS 1_000`                                                                                  |
+| `Fund`              | `core/Fund.sol`                       | 193   | `ReentrancyGuard`                                   | `REDEMPTION_NAMESPACE`                                                                                                             |
+| `LiquidityPosition` | `core/LiquidityPosition.sol`          | 342   | `IERC721Receiver`, `ReentrancyGuard`                | —                                                                                                                                  |
 
-**Interfaces:** `ICoreResonance` (54), `IResonanceIdentity` (25), `IBribe` (21), `IMine` (19), `IFund` (16),
+**Interfaces:** `ICoreResonance` (54), `IResonanceIdentity` (25), `IBribe` (21), `IFund` (16), `IMine` (15),
 `IResonanceRouter` (12). `ISignalGBXAllocation` was **deleted** by ADR 0031.
 
-**Total protocol Solidity: 3,508 lines across 19 files** — 12 core contracts, 1 governance contract, and 6
-interfaces. (`ISignalGBXAllocation.sol` was deleted by ADR 0031, so the interface count fell from 7 to 6 while
-`BribeRouter` and `Resonance` grew.)
+**Total protocol Solidity: 3,220 lines across 18 files** — 12 core contracts and 6 interfaces. There is no
+`governance/` source tree: ADR 0034 deleted `ProtocolGovernor.sol` (246 lines) along with its tests, ABIs, SDK
+lifecycle helpers, and subgraph data sources.
 
 ### 42.1 Permissionless entry points
 
@@ -2754,7 +2911,7 @@ interfaces. (`ISignalGBXAllocation.sol` was deleted by ADR 0031, so the interfac
 `SignalGBX.signal`/`signalWithPermit`/`moveSignal`/`withdrawSignal`; `Strategy.buy`;
 `Bribe.notifyRewardAmount`/`claimReward`/`claimRewards`/`payFundReward`;
 `BribeRouter.payFundPayment`/`notifyBribeReward`; `Fund.burnGBX`/`redeem`; `LiquidityPosition.harvestFees`;
-`GBX.burn`; `ProtocolGovernor.propose`/`castVote`/`queue`/`execute`.
+`GBX.burn`. `SignalGBX.delegate`/`delegateBySig` are permissionless but read by nothing in the core (§15.3).
 
 ### 42.2 Restricted entry points
 
@@ -2764,7 +2921,7 @@ interfaces. (`ISignalGBXAllocation.sol` was deleted by ADR 0031, so the interfac
 | `GBX.setMinter`                                              | current `minter`, once   |
 | `Resonance.addSignalFor`/`removeSignalFor`/`moveSignalFor`   | `SignalGBX`              |
 | `Resonance.notifyRevenue`                                    | `ResonanceRouter`        |
-| `Resonance.addStrategy`/`killStrategy`/`addBribeReward`      | owner (Timelock)         |
+| `Resonance.addStrategy`/`killStrategy`/`addBribeReward`      | owner (**unselected**)   |
 | `Resonance.setResonanceRouter`                               | owner, once              |
 | `Bribe.deposit`/`withdraw`/`addRewardToken`                  | `Resonance`              |
 | `BribeRouter.routePayment`                                   | its immutable `Strategy` |
@@ -2789,9 +2946,11 @@ ADR 0017 (ownerless Fund and LiquidityPosition, no successor) ·
 ADR 0022 (fixed-principal LP fee routing) · ADR 0024 (immutable multislot Mine; its GBX-ERC20Votes statement
 superseded by ADR 0030) · ADR 0027 (Bribe carry boundaries) · ADR 0028 (closed Bribe pools after Strategy death) ·
 ADR 0029 (Bribe-based Resonance; signal entrypoints superseded by 0030 then 0031, kill-final-Strategy by 0031,
-100%-Fund by 0032) · ADR 0030 (ProtocolGovernor, Timelock, voting token, selector-bounded filter; its idle-sGBX and
-`allocatedBalance` decisions superseded by ADR 0031) · **ADR 0031 (mandatory signal-backed SignalGBX)** ·
-**ADR 0032 (fixed 90/10 acquired-asset settlement)**.
+100%-Fund by 0032, intended Timelock owner by 0034) · ADR 0030 (non-transferable ERC20Votes sGBX; its
+`ProtocolGovernor`, Timelock, selector-filter, and cancellation decisions superseded by ADR 0034, and its idle-sGBX
+and `allocatedBalance` decisions by ADR 0031) · **ADR 0031 (mandatory signal-backed SignalGBX)** ·
+**ADR 0032 (fixed 90/10 acquired-asset settlement)** · **ADR 0033 (fixed sixteen Mine slots and constant-time
+pending emission)** · **ADR 0034 (external governance ownership)** · **ADR 0035 (Bribe lifetime reward cap)**.
 
 ### 43.3 Superseded ADRs excluded from this document
 
@@ -2830,14 +2989,17 @@ compiler output with no corresponding source; the design was superseded by ADR 0
 Regenerating Hardhat artifacts would clear it; generated artifacts were out of scope for this documentation work.
 
 **D-4 — Test-count drift (now resolved).** `TEST-CAMPAIGN.md` reports 340 at commit `54e3f2c3` (2026-08-09);
-`FINDINGS.md` reported 322 at `281e601` while the actual figure there was 339. **At this commit the register and the
-executed suites agree exactly at 335 default and 17 integration.** _Resolution:_ only figures verified by running the
-suites are reported as current; historical figures carry their own commit and date. See §40.1 and §40.4.
+`FINDINGS.md` reported 322 at `281e601` while the actual figure there was 339; the pre-ADR-0034 campaign recorded 335
+default and 17 integration. **At this commit the register and the executed suites agree exactly at 329 default and 18
+integration.** _Resolution:_ only figures verified by running the suites are reported as current; historical figures
+carry their own commit and date. See §40.1 and §40.4.
 
-**D-5 — Timelock role closure is procedural.** `docs/ACCESS_CONTROL.md`, `docs/INVARIANTS.md`, and
-`docs/TRUST_ASSUMPTIONS.md` state sole-proposer, open-executor, and no-external-admin as invariants. **No Solidity
-enforces them**; they are deployment steps 9–10. _Resolution:_ described throughout as deployment obligations
-requiring signed evidence. See §27.2.
+**D-5 — Ownership closure is procedural.** `docs/ACCESS_CONTROL.md`, `docs/INVARIANTS.md`, and
+`docs/TRUST_ASSUMPTIONS.md` state ownership and administrator conditions as invariants. **No Solidity enforces
+them**; they are deployment steps 9–10. Under ADR 0034 the specific obligation changed — from Timelock role closure
+to transferring `Resonance` to a reviewed external executor and proving the setup owner retains nothing — but its
+procedural character did not. _Resolution:_ described throughout as deployment obligations requiring signed
+evidence. See §27.2 and §27.3.
 
 **D-7 — Documents were re-derived after a mid-work protocol change.** An earlier version of this whitepaper, the
 one-pager, the article, and the fact registry described commit `281e601`. That commit was superseded by ADR 0031
@@ -2846,6 +3008,15 @@ superseded drafts asserted that 100% of every auction payment became a Fund liab
 Bribes, that idle sGBX could vote without earning, and that a standalone staking surface existed — **all four are now
 false**. _Resolution:_ every affected claim was re-derived against `95ed60e` and the suites re-run. Any copy of these
 documents citing `281e601` should be discarded.
+
+**D-8 — Governance was removed after the previous edition was written.** Edition 1.x of this whitepaper, the
+one-pager, the article, and the fact registry documented an in-repository `ProtocolGovernor` and `TimelockController`,
+including quorum formula F-8, the selector-bounded proposal filter, disabled-surface behavior, and the uncancellable
+queued-operation finding G-02. ADR 0034 deleted both contracts. Those sections previously carried "superseded"
+banners while retaining present-tense claims; in this edition they are **replaced** by §15 and §27, which specify the
+owner-gated surface that actually exists and state explicitly which guarantees no longer have any source of
+enforcement. Findings **G-02** and the local-parameter form of **G-03** are superseded by removal, not proven safe.
+Any copy of these documents describing a Governor or Timelock as current is stale.
 
 **D-6 — "Index protocol" framing.** `README.md` calls the protocol an "onchain index protocol," while
 `AGENTS.md:72` uses the narrower and more precise formulation: "Official protocol/index membership is represented by

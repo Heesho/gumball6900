@@ -41,16 +41,17 @@ export const contractConstants = {
 };
 
 export const status = {
-  editionVersion: 'v0.6',
-  editionDate: '16 August 2026',
-  contractsCommit: 'working tree — not release pinned',
-  contractsCommitShort: 'uncommitted',
-  auditCandidateCommit: 'none for the Mine redesign',
+  editionVersion: 'v0.7',
+  editionDate: '20 August 2026',
+  contractsCommit: 'dc67d7c4d634097fa6e285fa33ce964d591d2bd2',
+  contractsCommitShort: 'dc67d7c',
+  auditCandidateCommit: 'none for the current architecture',
   auditCandidateCommitShort: 'none',
   deployment: 'Not deployed and not authorized for user funds',
   externalAudit: 'Independent external audit not completed',
   licensing: 'Farplace, give.fun, Liquid Signal, and transitive lineage remain unresolved release blockers',
-  architectureImplementation: 'ADR 0031 and ADR 0032 implemented in the development tree; review pending',
+  architectureImplementation:
+    'ADRs 0031-0035 implemented in the development tree; external governance owner unselected and review pending',
 };
 
 export function verifyProtocolFacts() {

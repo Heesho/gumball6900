@@ -1,24 +1,18 @@
 ---
 title: How GUM BALL 6900 Turns Community Conviction Into an Onchain Portfolio
-version: 1.1.0
-date: 2026-08-16
-source_commit: 95ed60efe333d875f7a66da7853eebdf5384e956
-protocol_status: Historical development snapshot at the pinned commit. Governance architecture superseded by ADR 0034; not current and not approved for user funds.
+version: 2.0.0
+date: 2026-08-20
+source_commit: dc67d7c4d634097fa6e285fa33ce964d591d2bd2
+protocol_status: Development snapshot at the pinned commit. Describes the current core after ADR 0033, ADR 0034, and ADR 0035; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: Internal engineering review and automated test campaigns, including passing static-analysis, mutation, and external-fuzzing gates. Open release gates recorded in packages/contracts/audit/FINDINGS.md.
+internal_review_status: Internal engineering review and automated test campaigns at the pinned commit. Open release gates recorded in packages/contracts/audit/FINDINGS.md.
 independent_audit_status: No independent external audit has been performed.
 ---
 
 # How GUM BALL 6900 Turns Community Conviction Into an Onchain Portfolio
 
 > **Before you read on:** this protocol is not deployed, not audited, and not approved for user funds. This article
-> describes what the code at commit `95ed60e` does, not a live product. Nothing here is investment advice.
-
-> **Governance supersession notice.** This commit-pinned article preserves the former in-repository
-> `ProtocolGovernor` and Timelock design as historical evidence. [ADR 0034](../adr/0034-external-governance-ownership.md)
-> later removed both from the core. In the current tree, `SignalGBX` keeps IVotes-compatible checkpoints, but the exact
-> external owner and governance system for `Resonance` remain unselected. All Governor, Timelock, proposal-lifecycle,
-> quorum, and cancellation claims below apply only to commit `95ed60e`.
+> describes what the code at commit `dc67d7c` does, not a live product. Nothing here is investment advice.
 
 ## 1. The central idea
 
@@ -75,7 +69,7 @@ permanent floor that is strictly positive rather than falling to zero. GBX infla
 
 Holding GBX gives you two rights, and it is worth being precise about which is which:
 
-- **Signal with it**, and you direct protocol revenue, earn rewards, and vote in governance.
+- **Signal with it**, and you direct protocol revenue and earn rewards.
 - **Burn it**, and you withdraw your share of the treasury.
 
 Holding GBX in your wallet does neither of those things by itself.
@@ -94,9 +88,11 @@ bitcoin. A Strategy for a staked-ETH token. And so on.
 Withdrawing reverses all three at once. There is deliberately **no in-between state**: you cannot hold sGBX that isn't
 committed to something. Every sGBX unit in existence is assigned to exactly one Strategy at all times.
 
-That is a real design choice with consequences, so it's worth stating plainly. It means the protocol's voting supply
-and its economically active signal are the _same number_ — everyone who can vote is also directing revenue and earning
-rewards. It also means there is no way to hold voting power without also putting it to work.
+<!-- figure: signal-lifecycle -->
+
+That is a real design choice with consequences, so it's worth stating plainly. It means every unit of signal that
+exists is a unit of signal doing work — there is no parked, idle, or purely symbolic position. The amount of sGBX in
+existence and the amount actually directing revenue are the same number, always.
 
 sGBX is **non-transferable**. You cannot send it, sell it, or lend it. Any transfer attempt reverts.
 
@@ -105,7 +101,7 @@ You can spread your position across Strategies by signaling each one separately 
 
 Three properties matter:
 
-- **There is no lock-up, cooldown, or voting epoch.** You can signal, move, and withdraw in consecutive blocks.
+- **There is no lock-up, cooldown, or epoch.** You can signal, move, and withdraw in consecutive blocks.
 - **You can always withdraw.** Withdrawal is bounded only by what you actually have committed to the Strategy you're
   withdrawing from.
 - **Every signal change first settles the revenue that accrued under the old weights.** Moving your signal never
@@ -114,27 +110,32 @@ Three properties matter:
 The complete user surface is four functions: signal, signal using a gasless approval on the underlying GBX, move
 signal between Strategies, and withdraw signal.
 
-## 5. How SignalGBX and governance relate to signaling
+## 5. What sGBX is, and what it is not
 
-Signaling GBX gives you **voting power** in protocol governance. That power is measured using historical snapshots:
-when a proposal is created, the system records everyone's sGBX balance at a specific past block, and votes are
-weighted by that record. Your first signal automatically activates your voting power without a second transaction.
+sGBX is a **receipt**, not a second tradeable token. It exists to record two things: that you deposited GBX, and which
+Strategy you pointed it at. It cannot leave your wallet, and it has no market.
 
-Because there is no idle sGBX, governance participation and economic participation are bundled: you cannot vote
-without also directing revenue, and you cannot direct revenue without also being able to vote.
+So there are two positions a person can hold, and they are not interchangeable:
 
-So there are three distinct positions a person can hold, and they are not interchangeable:
+| Position                       | Directs revenue? | Earns Strategy rewards? | Can redeem from the Fund? |
+| ------------------------------ | ---------------- | ----------------------- | ------------------------- |
+| Holding liquid GBX in a wallet | No               | No                      | Yes (by burning)          |
+| Signaling a Strategy with sGBX | Yes              | Yes                     | No (withdraw first)       |
 
-| Position                        | Can vote? | Directs revenue? | Earns rewards? | Can redeem?         |
-| ------------------------------- | --------- | ---------------- | -------------- | ------------------- |
-| Holding liquid GBX in a wallet  | No        | No               | No             | Yes (by burning)    |
-| Signaling a Strategy with sGBX  | Yes       | Yes              | Yes            | No (withdraw first) |
-| Voting on a governance proposal | —         | No               | No             | —                   |
+There is one more thing sGBX quietly does. It keeps **vote checkpoints** — a standing record of how much sGBX each
+account held at each past block, in the standard format governance systems read. Your first signal switches that
+recording on automatically, with no second transaction.
 
-Two wrinkles remain, and they're the reason governance risk hasn't gone away. Signal that is committed but never
-_delegated_ still counts toward the _quorum denominator_ — the participation a proposal needs to pass — while never
-voting. And signal sitting on a **retired** Strategy still counts toward quorum while directing no revenue at all.
-Enough of either could make governance unreachable. This is a known, open concern, tracked internally as finding G-03.
+Nothing in the protocol reads those checkpoints today. They are there because the protocol expects an external
+governance system to be attached later, and that system will need them. Which system, and on what rules, is not
+decided — §13 is honest about what that means.
+
+One property worth understanding now, because it does not go away: **checkpoints survive withdrawal.** Once a block
+has passed, the record of what you held at that block is permanent history, even if you withdrew everything
+afterwards. If a governance system is later attached that grants power based on past blocks, someone could borrow GBX,
+signal it, let a block pass, withdraw, and still carry the recorded weight. Whether that is exploitable depends
+entirely on the system chosen. It is tracked internally as finding G-01 and is one of the reasons that choice has not
+been rushed.
 
 ## 6. Where the money comes from
 
@@ -159,6 +160,8 @@ current global TPS divided by sixteen. Second, less comfortably: **the 80% hando
 someone later replaces you at a nonzero price, and since the price falls to zero after an hour, a successor can
 replace you having paid nothing. You keep the GBX you accrued, but no handoff payment. Interfaces must not present
 that 80% as principal, yield, or a refund.
+
+<!-- figure: mine-grid -->
 
 <!-- figure: mining-split -->
 
@@ -350,8 +353,8 @@ It has no administrator, no roles, and no asset registry. Assets can leave in ex
 or someone burns Fund-held GBX. There is no sweep, rescue, recovery, or migration function of any kind.
 
 The consequence of having no registry is that **anyone can send any ERC-20 to the Fund and it becomes redeemable
-backing**, reviewed or not. Being in the Fund does not make a token official. Official membership means being a
-Strategy registered by governance — nothing more. That registered set is the closest thing the protocol has to an
+backing**, reviewed or not. Being in the Fund does not make a token official. Official membership means having a
+registered Strategy — nothing more. That registered set is the closest thing the protocol has to an
 index: it is the curated list of assets the protocol is trying to acquire. But it is only a list. There are no target
 weights, no rebalancing, and no valuation — whatever proportions the Fund ends up holding are an outcome, not a plan.
 Interfaces must label unsolicited Fund balances separately.
@@ -379,7 +382,7 @@ long-term treasury; a market maker who benefits from the auction flow. The proto
 Some deliberate details, which apply to both sources:
 
 - **At most eight reward tokens per Strategy**, hard-coded, append-only. The cap exists so that entering, leaving, and
-  settling a signal position stay bounded in gas no matter what governance does.
+  settling a signal position stay bounded in gas no matter what anyone registers.
 - **You cannot disturb someone else's live stream.** Adding rewards while a stream is running queues them behind it
   rather than restarting or slowing it. (This is the opposite of Resonance's behavior — the two are genuinely
   different mechanisms.)
@@ -388,37 +391,58 @@ Some deliberate details, which apply to both sources:
 - **You can claim one token at a time**, so a single frozen reward token cannot block the rest.
 - **Rewards you arrived too late for are not yours.** Fractional amounts that cannot be fairly assigned are routed to
   the Fund rather than redistributed to whoever happens to still be signaling.
+- **Each reward token has a lifetime ceiling on how much can ever be streamed through it.** The number is
+  astronomically large — for a normal eighteen-decimal token, far more than any real supply — and exists purely so
+  that a token with an absurd unit count cannot be used to jam the reward arithmetic and trap other people's
+  deposits. Reaching it would block further funding of that one token only; existing rewards, claims, and withdrawals
+  keep working.
 
-## 13. How governance works
+## 13. How governance works — and what is still missing
 
-Governance can do **three things**, and the contract rejects any proposal that tries to do anything else — checked by
-target address, function selector, and even calldata length, before the proposal can be created:
+Start with the good news, because it is the larger part. There are exactly **three things** about this protocol that
+anyone can ever change:
 
 1. Add a Strategy.
 2. Permanently retire a Strategy.
 3. Register a Bribe reward token (within the eight-token cap).
 
-Voting power comes from signalled sGBX measured at a historical snapshot block. A passing proposal goes into a
-**Timelock** — a contract that holds an approved action for a fixed delay before it can be executed. After the delay,
-anyone can execute it.
+<!-- figure: authority-map -->
 
-There is one guard rail on retirement: **the final live Strategy cannot be retired.** If only one remains, the
-proposal reverts. To replace it, governance must add the replacement first — both actions can sit in the same
-proposal. This guarantees there is always somewhere valid to signal, which matters now that signaling is the only way
-to hold sGBX at all.
+That is the complete list. All three live on **Resonance**, and Resonance is the only contract in the protocol that
+has an owner at all. The Mine has no owner. The Fund has no owner. The liquidity position has no owner. Nobody — not a
+developer, not a voter, not a future administrator — can change mining prices, issuance rates, halving parameters, the
+tail rate, the 90/10 acquisition split, mint authority, Fund assets, liquidity custody, the auction mechanism, or the
+sixteen-slot count. There is no upgrade path, no pause switch, and no sweep function to add one later.
 
-Governance **cannot** change mining prices, the 90/10 acquisition split, halving parameters, the tail rate, mint
-authority, Fund assets, liquidity custody, the auction mechanism, or any voting parameter. The Governor's own settings
-are fixed at deployment. The generic escape hatches that most DAO frameworks ship with — arbitrary relay calls,
-replacing the timelock, accepting ETH — are all wired to revert permanently.
+There is one guard rail on retirement: **the final live Strategy cannot be retired.** If only one remains, the call
+reverts. To replace it, the replacement must be added first. This guarantees there is always somewhere valid to
+signal, which matters because signaling is the only way to hold sGBX at all.
 
-Three honest limitations:
+### The part that is not finished
 
-- **The timelock delay is a warning window, not an emergency brake.** Once a proposal is queued, nobody can cancel it.
-  There is no guardian and no veto. Cancellation is available only to the proposer, and only before voting starts.
-- **Voting power is not locked.** Because votes use a historical snapshot and withdrawal is unrestricted, someone can
-  signal across the snapshot, vote, and withdraw immediately. Borrowed GBX can vote.
-- **Retiring a Strategy is irreversible**, which makes the point above materially more serious.
+Those three actions sit behind a **single owner address** on Resonance. Who holds that address has not been decided.
+
+The protocol used to ship its own voting contract and its own timelock. Both were removed
+([ADR 0034](../adr/0034-external-governance-ownership.md)), because the intended deployment will hand ownership to an
+established external governance system instead — and maintaining a second, home-grown voting stack that was never
+going to be deployed meant carrying security surface for nothing. Removing it was the right call. But it does mean
+that today the protocol contains **no voting rules, no quorum, no proposal filter, and no execution delay of its own**.
+What sGBX offers is the vote checkpoints described in §5, sitting ready for a system that has not yet been attached.
+
+Concretely, at this commit: whoever holds the Resonance owner address can add a Strategy, retire a Strategy, or
+register a reward token immediately — no vote, no waiting period, no way for anyone to object. They can also hand that
+address to someone else, or throw it away permanently. In development that address is simply the deployment fixture.
+
+Four honest limitations follow:
+
+- **Governance is a placeholder, not a mechanism.** Until an external system is chosen, reviewed, and actually given
+  ownership, there is no meaningful answer to "who decides." Deploying without finishing that step would produce a
+  protocol with an ordinary admin key — precisely the thing this design exists to avoid.
+- **The protocol guarantees no delay, no veto, and no cancellation.** Whatever protections eventually exist will be
+  properties of the external system, not of this code, and they will need reviewing on their own terms.
+- **Retiring a Strategy is irreversible**, which makes both points above materially more serious.
+- **Vote checkpoints survive withdrawal** (§5), so any system attached later must decide deliberately how much weight
+  to give historical balances.
 
 ## 14. What happens when something fails
 
@@ -449,7 +473,7 @@ Read this section twice.
   redemption is a share of whatever the Fund happens to hold, which may be worth less than you paid.
 - **It does not guarantee auction liquidity.** An auction fills only if someone chooses to fill it. A price falling to
   zero guarantees a _price_, not a _buyer_.
-- **It does not guarantee good signal choices.** There is no quality filter beyond governance approval, no
+- **It does not guarantee good signal choices.** There is no quality filter beyond whoever approves a Strategy, no
   diversification requirement, and no risk framework.
 - **It does not guarantee safe external tokens.** USDG and every payment and reward token are third-party contracts
   that may be upgradeable, pausable, blocklisting, or malicious. The Fund accepts any ERC-20 without review.
@@ -457,8 +481,8 @@ Read this section twice.
   indexer, or API is guaranteed to exist. You may need to interact with contracts directly.
 - **It does not eliminate smart-contract risk.** The code has not been independently audited, and because nothing is
   upgradeable, a discovered bug cannot be patched.
-- **It does not eliminate governance risk.** Capture, deadlock through undelegated signal, and uncancellable queued proposals
-  are all live concerns (section 13).
+- **It does not eliminate governance risk.** The system that will own Resonance is unselected, so capture, delay,
+  veto, and accountability are all open questions rather than settled properties (section 13).
 - **It does not eliminate chain, MEV, or timing risk.** Auctions and mining slots are competitive, publicly visible
   opportunities. Transactions can be reordered, front-run, or censored, and chains can reorganize.
 - **It does not eliminate regulatory risk.** Legal treatment in any jurisdiction is unresolved.
@@ -468,38 +492,42 @@ Read this section twice.
 
 ## 16. Major risks, summarized
 
-| Risk                            | What it means                                                                                       |
-| ------------------------------- | --------------------------------------------------------------------------------------------------- |
-| No independent audit            | No third party has reviewed this code. The single largest unknown.                                  |
-| Immutability                    | No patch, no pause, no rescue. A bug or deployment error is permanent.                              |
-| Deployment correctness          | Parameters, pool configuration, and role setup must be right the first time, forever.               |
-| Unresolved economics            | Mining rate, halving threshold, tail rate, and price parameters not yet selected or modelled.       |
-| Governance capture and deadlock | Unlocked snapshot voting; undelegated signal inflates quorum; queued proposals cannot be cancelled. |
-| Miner rollover                  | The 80% handoff arrives only if a successor pays. It can be zero.                                   |
-| Abandoned rewards               | A retired Strategy's last signaler can strand an unbounded amount of rewards.                       |
-| Accepted dust                   | Rounding and zero-signal intervals accumulate unrecoverable USDG in Resonance.                      |
-| Third-party tokens              | USDG and every acquired asset carry independent freeze, upgrade, and solvency risk.                 |
-| Legal and provenance            | Upstream code lineage and license reconciliation are unresolved release blockers.                   |
+| Risk                   | What it means                                                                                     |
+| ---------------------- | ------------------------------------------------------------------------------------------------- |
+| No independent audit   | No third party has reviewed this code. The single largest unknown.                                |
+| Immutability           | No patch, no pause, no rescue. A bug or deployment error is permanent.                            |
+| Deployment correctness | Parameters, pool configuration, and role setup must be right the first time, forever.             |
+| Unresolved economics   | Mining rate, halving threshold, tail rate, and price parameters not yet selected or modelled.     |
+| Unfinished governance  | The external owner of Resonance is unselected; today one address holds all three powers outright. |
+| Miner rollover         | The 80% handoff arrives only if a successor pays. It can be zero.                                 |
+| Abandoned rewards      | A retired Strategy's last signaler can strand an unbounded amount of rewards.                     |
+| Accepted dust          | Rounding and zero-signal intervals accumulate unrecoverable USDG in Resonance.                    |
+| Third-party tokens     | USDG and every acquired asset carry independent freeze, upgrade, and solvency risk.               |
+| Legal and provenance   | Upstream code lineage and license reconciliation are unresolved release blockers.                 |
 
 ## 17. Current project status
 
-To be exact about where this stands at commit `95ed60e`:
+To be exact about where this stands at commit `dc67d7c`:
 
 - **Not deployed.** No contract is live on any network. No signed deployment manifest exists. The intended target
   chain and the canonical USDG and Uniswap v4 addresses remain unresolved candidates.
 - **Not audited.** No independent external audit has been performed, and symbolic analysis and formal verification
   have not been completed.
-- **Internally tested.** At this commit the default test suite passes 335 tests and the integration suite passes 17,
-  with zero failures and zero skips. That includes 21 property-based fuzz tests at 10,000 runs each and 27 stateful
-  invariants each run 1,000 times to a depth of 500 transitions — 13.5 million state transitions in total. Real
+- **Internally tested.** At this commit the default test suite passes 329 tests and the integration suite passes 18,
+  with zero failures and zero skips. That includes 29 stateful invariants each run 1,000 times to a depth of 500
+  transitions, with zero handler reverts. Hardhat bytecode parity, the SDK, the subgraph, the independent
+  TypeScript and Python economic simulations, documentation generation, linting, and type checking all pass. Real
   Uniswap v4 fee harvesting is exercised.
-- **Static analysis, mutation testing, and external fuzzing now pass.** Pinned Slither, Aderyn, Semgrep, and Gitleaks
-  gates pass; Medusa completed 101,602 calls and Echidna 100,213 calls with all 25 properties holding; a 43-mutant
-  campaign killed every mutant. This is a meaningful step up from the previous internal state, and it is still
-  engineering evidence rather than a security guarantee.
-- **Five High-severity release gates remain open**, covering deployment verification, unselected economic parameters,
-  and the governance capture and liveness model. Also outstanding: a second external-fuzzer seed, reviewed production
-  parameters, a monitored testnet rehearsal, and release review.
+- **Static analysis, mutation testing, and external fuzzing are pinned to an older tree.** Those campaigns — Slither,
+  Aderyn, Semgrep, Gitleaks, a Medusa run of 101,602 calls, an Echidna run of 100,213 calls, and a 43-mutant campaign
+  that killed every mutant — were last executed before the governance removal (ADR 0034) and the Bribe reward cap
+  (ADR 0035) landed. They remain useful engineering history. They are **not** current evidence for the code described
+  in this article, and re-running them is an open task.
+- **Four High-severity release gates remain open.** Two concern deployment: production mining and pricing parameters
+  have not been selected or independently modelled, and no signed manifest yet proves the deployed bytecode,
+  constructor arguments, and dependency addresses. Two concern governance: the external system that will own Resonance
+  is unselected, and its voting, delegation, and delay semantics therefore remain unreviewed. Also outstanding: a
+  second external-fuzzer seed, a monitored testnet rehearsal, and release review.
 - **Legal and provenance clearance is outstanding.** The protocol's contracts adapt several upstream codebases whose
   licensing chain has not been resolved, including one with a GPL ancestor.
 

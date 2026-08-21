@@ -313,6 +313,8 @@ function findChrome() {
   return found;
 }
 
+const PRINT_TIMEOUT_MS = 180_000;
+
 async function printPdf(chrome, htmlPath, pdfPath) {
   mkdirSync(dirname(pdfPath), { recursive: true });
   const profile = resolve(tmpdir(), `gumball-longform-${process.pid}`);
@@ -330,15 +332,40 @@ async function printPdf(chrome, htmlPath, pdfPath) {
     `--print-to-pdf=${pdfPath}`,
     `file://${htmlPath}`,
   ];
-  await new Promise((res, rej) => {
-    const proc = spawn(chrome, args, { stdio: 'ignore' });
-    proc.on('error', rej);
-    proc.on('exit', (code) => (code === 0 ? res() : rej(new Error(`Chrome exited ${code}`))));
-  });
-  rmSync(profile, { recursive: true, force: true });
-  // Chrome writes the file after the process reports exit on some platforms.
-  for (let i = 0; i < 40 && !existsSync(pdfPath); i++) await sleep(50);
-  if (!existsSync(pdfPath)) throw new Error(`Chrome produced no PDF at ${pdfPath}`);
+  // Headless Chrome writes the PDF and then, on some builds, never exits. Wait for the file to stop growing
+  // rather than for the process, exactly as docs/one-pager/gumball6900/build.mjs does, then terminate it.
+  rmSync(pdfPath, { force: true });
+  const child = spawn(chrome, args, { stdio: ['ignore', 'ignore', 'pipe'] });
+  let stderr = '';
+  child.stderr.on('data', (chunk) => (stderr += chunk.toString()));
+  let exited = false;
+  let spawnError = null;
+  child.on('error', (error) => (spawnError = error));
+  child.on('exit', () => (exited = true));
+
+  const deadline = Date.now() + PRINT_TIMEOUT_MS;
+  let lastSize = -1;
+  let stableFor = 0;
+
+  try {
+    while (Date.now() < deadline) {
+      await sleep(300);
+      if (spawnError) throw spawnError;
+      const size = existsSync(pdfPath) ? statSync(pdfPath).size : -1;
+      if (size > 0 && size === lastSize) {
+        stableFor += 300;
+        if (stableFor >= 1_200) return;
+      } else {
+        stableFor = 0;
+      }
+      lastSize = size;
+      if (exited && size <= 0) throw new Error(`Chrome exited without writing a PDF.\n${stderr.trim()}`);
+    }
+    throw new Error(`Chrome did not produce a PDF within ${PRINT_TIMEOUT_MS / 1000}s.\n${stderr.trim()}`);
+  } finally {
+    if (!exited) child.kill('SIGKILL');
+    rmSync(profile, { recursive: true, force: true });
+  }
 }
 
 function pdfPageCount(pdfPath) {

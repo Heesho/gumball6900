@@ -453,6 +453,383 @@ const redemption = () => {
   );
 };
 
+/* ------------------------------------------------------- 9. the slot grid ---- */
+
+/**
+ * The mine as an interface rather than a formula. ADR 0033 fixed the market at sixteen
+ * permanent slots specifically so it maps to a 4-by-4 board, and no other figure in the
+ * set shows that the slots are independent: sixteen auctions, sixteen tenures, sixteen
+ * locked rates, none of which interact.
+ */
+const mineGrid = () => {
+  const { slotCount, priceDecaySeconds, previousMinerBps } = contractConstants.mine;
+  const cols = 4;
+  const cellW = 78;
+  const cellH = 44;
+  const gapX = 10;
+  const gapY = 9;
+  const x0 = 8;
+  const y0 = 34;
+
+  // Illustrative board state: most slots held at differing tenure rates, one empty, one
+  // mid-auction. The rates are relative labels, not protocol constants — production
+  // values are unselected (finding M-04), so no absolute figure is printed.
+  const board = [
+    ['held', '1.00×'],
+    ['held', '1.00×'],
+    ['auction', ''],
+    ['held', '0.50×'],
+    ['held', '1.00×'],
+    ['held', '0.50×'],
+    ['held', '0.50×'],
+    ['held', '0.25×'],
+    ['held', '0.50×'],
+    ['empty', ''],
+    ['held', '0.25×'],
+    ['held', '0.25×'],
+    ['held', '0.25×'],
+    ['held', '0.25×'],
+    ['held', '0.25×'],
+    ['held', '0.25×'],
+  ];
+
+  const cells = board.slice(0, slotCount).flatMap(([state, rate], i) => {
+    const x = x0 + (i % cols) * (cellW + gapX);
+    const y = y0 + Math.floor(i / cols) * (cellH + gapY);
+    if (state === 'empty') {
+      return [
+        `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="3" fill="none" stroke="${rule}" stroke-width="1" stroke-dasharray="3 2" />`,
+        txt(x + cellW / 2, y + 20, 'empty', { anchor: 'middle', size: 9.5, fill: faint }),
+        txt(x + cellW / 2, y + 33, 'routes 100%', { anchor: 'middle', size: 8.5, fill: faint }),
+      ];
+    }
+    if (state === 'auction') {
+      return [
+        rect(x, y, cellW, cellH, pink, { rx: 3 }),
+        txt(x + cellW / 2, y + 20, 'for sale', { anchor: 'middle', size: 9.5, fill: '#fff', weight: 600 }),
+        txt(x + cellW / 2, y + 33, 'price falling', { anchor: 'middle', size: 8.5, fill: '#fff' }),
+      ];
+    }
+    return [
+      rect(x, y, cellW, cellH, palette.paperTint, { rx: 3 }),
+      `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="3" fill="none" stroke="${rule}" stroke-width="0.8" />`,
+      rect(x, y, 3, cellH, ink, { rx: 0 }),
+      txt(x + 10, y + 20, 'held', { size: 9.5, fill: ink }),
+      txt(x + 10, y + 33, rate, { size: 9, fill: muted, family: MONO }),
+    ];
+  });
+
+  const gridBottom = y0 + 4 * cellH + 3 * gapY;
+
+  return svg(
+    gridBottom + 58,
+    [
+      txt(x0, 16, `${slotCount} PERMANENT SLOTS`, { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
+      txt(W - 8, 16, 'fixed at construction · no owner · no capacity setter', {
+        size: 9,
+        fill: faint,
+        anchor: 'end',
+      }),
+      ...cells,
+      txt(
+        x0,
+        gridBottom + 20,
+        'Each slot runs its own auction, falling to zero over ' +
+          `${priceDecaySeconds / 3600} hour, and pays ${previousMinerBps / 100}% to whoever it displaces.`,
+        {
+          size: 9.5,
+          fill: ink,
+        },
+      ),
+      txt(x0, gridBottom + 33, 'A slot’s issuance rate is fixed when it is taken and never moves again. The mixed', {
+        size: 9.5,
+        fill: muted,
+      }),
+      txt(x0, gridBottom + 46, 'rates above are incumbents who took their slots under different halvings.', {
+        size: 9.5,
+        fill: muted,
+      }),
+    ].join(''),
+    'The sixteen mining slots',
+  );
+};
+
+/* ------------------------------------------------------ 10. tenure lock ---- */
+
+/**
+ * Why the aggregate can exceed the global rate (finding M-01). The global rate halves on
+ * a threshold, but nobody is repriced: incumbents keep the rate they were sold. The
+ * shaded band is the transitional excess, and it is a fairness decision rather than a
+ * defect, which is exactly the thing prose struggles to make legible.
+ */
+const tenureLock = () => {
+  const ox = 44;
+  const oy = 116;
+  const w = 300;
+  const h = 72;
+  const halvingX = ox + w * 0.42;
+  const yFor = (frac) => oy - h * frac;
+
+  return svg(
+    196,
+    [
+      txt(8, 16, 'A HALVING DOES NOT REPRICE ANYONE', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
+
+      // axes
+      line(ox, oy, ox + w, oy, { stroke: rule }),
+      line(ox, oy, ox, yFor(1) - 12, { stroke: rule }),
+      txt(ox - 6, yFor(1) + 3, 'r', { anchor: 'end', size: 9, fill: faint, family: MONO }),
+      txt(ox - 6, yFor(0.5) + 3, 'r/2', { anchor: 'end', size: 9, fill: faint, family: MONO }),
+      txt(ox + w, oy + 26, 'cumulative GBX mined', { anchor: 'end', size: 9, fill: faint }),
+
+      // the transitional excess, which is the whole point of the figure
+      rect(halvingX, yFor(1), 84, h * 0.5, pink, { rx: 0, opacity: 0.16 }),
+
+      // global rate, stepping down at the threshold
+      `<path d="M ${ox} ${yFor(1)} L ${halvingX} ${yFor(1)} L ${halvingX} ${yFor(0.5)} L ${ox + w} ${yFor(0.5)}" fill="none" stroke="${ink}" stroke-width="1.6" />`,
+
+      // one incumbent carrying its pre-halving rate past the threshold
+      `<path d="M ${halvingX - 46} ${yFor(1) - 7} L ${halvingX + 84} ${yFor(1) - 7}" fill="none" stroke="${pink}" stroke-width="1.6" stroke-dasharray="4 2.5" />`,
+      `<circle cx="${halvingX + 84}" cy="${yFor(1) - 7}" r="2.6" fill="${pink}" />`,
+
+      // threshold marker, labelled below the axis so it clears the title and the curve
+      line(halvingX, oy, halvingX, yFor(1) - 4, { stroke: rule, width: 0.8, dash: '2 2' }),
+      txt(halvingX, oy + 13, 'halving threshold', { anchor: 'middle', size: 8.5, fill: faint }),
+
+      txt(ox + w + 6, yFor(0.5) + 3, 'new tenures', { size: 9, fill: ink }),
+      txt(halvingX + 92, yFor(1) - 4, 'incumbent, unchanged', { size: 9, fill: pink, weight: 600 }),
+      txt(halvingX + 92, yFor(1) + 8, 'until replaced', { size: 8.5, fill: muted }),
+
+      txt(
+        8,
+        168,
+        'The shaded band is real: while pre-halving tenures survive, total issuance sits above the current global rate.',
+        {
+          size: 9.5,
+          fill: ink,
+        },
+      ),
+      txt(8, 181, 'Accepted deliberately, so that nobody can change the deal a miner already paid for.', {
+        size: 9.5,
+        fill: muted,
+      }),
+    ].join(''),
+    'Tenure-locked rates across a halving',
+  );
+};
+
+/* ----------------------------------------------------- 11. authority map ---- */
+
+/**
+ * The governance answer as a picture. With ADR 0034 the interesting fact is negative
+ * space: one contract has an owner and ten do not, and the owner's reach stops at three
+ * calls. A reader who takes nothing else from the governance section should take this.
+ */
+const authorityMap = () => {
+  const ownerless = [
+    ['Mine', 'sixteen slots, fixed'],
+    ['Fund', 'the treasury itself'],
+    ['LiquidityPosition', 'the v4 position'],
+    ['GBX', 'minter locked once'],
+    ['Strategy', 'auction parameters fixed'],
+    ['BribeRouter', '90/10 hard-coded'],
+  ];
+  const rowH = 21;
+  const x0 = 8;
+  const colW = 226;
+  const rx = x0 + colW + 20;
+  const top = 44;
+
+  const left = ownerless.flatMap(([name, note], i) => {
+    const y = top + i * rowH;
+    return [
+      txt(x0 + 2, y + 11, name, { size: 10, weight: 600, fill: ink }),
+      txt(x0 + 110, y + 11, note, { size: 9, fill: muted }),
+      line(x0, y + 17, x0 + colW - 8, y + 17, { stroke: palette.rule, width: 0.6 }),
+    ];
+  });
+
+  const actions = ['add a Strategy', 'retire a Strategy', 'register a Bribe reward token'];
+  const right = actions.flatMap((a, i) => [txt(rx + 14, top + 32 + i * 16, `— ${a}`, { size: 9.5, fill: ink })]);
+
+  const bottom = top + ownerless.length * rowH;
+
+  return svg(
+    bottom + 62,
+    [
+      txt(x0, 16, 'NO OWNER', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
+      txt(x0, 30, 'Nothing can be changed by anyone, ever.', { size: 9.5, fill: muted }),
+      ...left,
+
+      txt(rx, 16, 'ONE OWNER', { size: 9, fill: pink, tracking: 0.6, weight: 600 }),
+      txt(rx, 30, 'Resonance, and only these three calls:', { size: 9.5, fill: muted }),
+      rect(rx, top + 12, colW - 40, 56, palette.paperTint, { rx: 3 }),
+      rect(rx, top + 12, 3, 56, pink, { rx: 0 }),
+      ...right,
+      txt(rx, top + 82, 'The holder of that address is', { size: 9.5, fill: ink }),
+      txt(rx, top + 95, 'not yet chosen.', { size: 9.5, fill: pink, weight: 600 }),
+
+      line(x0, bottom + 22, W - 8, bottom + 22, { stroke: palette.rule, width: 0.6 }),
+      txt(
+        x0,
+        bottom + 40,
+        'There is no upgrade path, pause switch, sweep, or migration route anywhere in the protocol —',
+        {
+          size: 9.5,
+          fill: ink,
+        },
+      ),
+      txt(x0, bottom + 53, 'so this map is the complete authority surface, not a summary of it.', {
+        size: 9.5,
+        fill: muted,
+      }),
+    ].join(''),
+    'What can and cannot be changed',
+  );
+};
+
+/* -------------------------------------------- 12. constant-time accounting ---- */
+
+/**
+ * The accounting trick behind ADR 0033. Sixteen slots start at different times and hold
+ * different rates, yet total pending emission is one multiplication, and a handoff mints
+ * for exactly one slot. Redemption depends on the first property; miner fairness on the
+ * second.
+ */
+const pendingEmission = () => {
+  const x0 = 8;
+  const barY = 46;
+  const barH = 40;
+  const n = 16;
+  const slotW = 17;
+  const gap = 4;
+  const heights = [34, 20, 28, 12, 38, 24, 30, 16, 22, 36, 14, 26, 32, 18, 28, 22];
+
+  const bars = heights.slice(0, n).flatMap((hgt, i) => {
+    const x = x0 + i * (slotW + gap);
+    const settled = i === 9;
+    return [
+      rect(x, barY + barH - hgt, slotW, hgt, settled ? pink : ink, { rx: 1, opacity: settled ? 1 : 0.16 }),
+      settled ? rect(x, barY + barH - hgt, slotW, hgt, pink, { rx: 1 }) : '',
+    ];
+  });
+
+  const boxY = barY + barH + 34;
+
+  return svg(
+    boxY + 96,
+    [
+      txt(x0, 16, 'PENDING EMISSION, ALL SIXTEEN SLOTS', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
+      txt(x0, 30, 'Different start times, different locked rates, all accruing at once.', { size: 9.5, fill: muted }),
+      ...bars,
+      line(x0, barY + barH + 1, x0 + n * (slotW + gap) - gap, barY + barH + 1, { stroke: rule, width: 0.8 }),
+      txt(x0 + 9 * (slotW + gap) + slotW / 2, barY + barH + 15, 'replaced', {
+        anchor: 'middle',
+        size: 8.5,
+        fill: pink,
+        weight: 600,
+      }),
+
+      rect(x0, boxY, W - 16, 34, palette.paperTint, { rx: 3 }),
+      txt(x0 + 12, boxY + 21, 'pendingEmission  =  stored + (now − updatedAt) × aggregateTps', {
+        size: 10.5,
+        fill: ink,
+        family: MONO,
+      }),
+
+      txt(
+        x0,
+        boxY + 56,
+        'The total is one multiplication no matter how many slots are occupied, which is why redemption can',
+        {
+          size: 9.5,
+          fill: ink,
+        },
+      ),
+      txt(x0, boxY + 69, 'count unminted mining without touching the mine.', { size: 9.5, fill: ink }),
+      txt(
+        x0,
+        boxY + 86,
+        'A handoff mints for the replaced slot only. The other fifteen are not read, checkpointed, or disturbed.',
+        {
+          size: 9.5,
+          fill: muted,
+        },
+      ),
+    ].join(''),
+    'Constant-time pending emission',
+  );
+};
+
+/* -------------------------------------------------- 13. signal lifecycle ---- */
+
+/**
+ * ADR 0031's central claim is an absence: there is no state between "holding GBX" and
+ * "committed to a Strategy". Three boxes joined by one bracket say that faster than the
+ * paragraph explaining that idle sGBX is unreachable.
+ */
+const signalLifecycle = () => {
+  const x0 = 8;
+  const boxW = 138;
+  const boxH = 46;
+  const gap = 26;
+  const y = 44;
+  const xs = [x0, x0 + boxW + gap, x0 + 2 * (boxW + gap)];
+
+  const steps = [
+    ['Deposit GBX', 'held by the receipt contract'],
+    ['Receive sGBX', 'same amount, non-transferable'],
+    ['Assign to a Strategy', 'named at the same moment'],
+  ];
+
+  const boxes = steps.flatMap(([title, note], i) => [
+    rect(xs[i], y, boxW, boxH, palette.paperTint, { rx: 3 }),
+    rect(xs[i], y, 3, boxH, i === 2 ? pink : ink, { rx: 0 }),
+    txt(xs[i] + 12, y + 20, title, { size: 10, weight: 600, fill: ink }),
+    txt(xs[i] + 12, y + 34, note, { size: 8.8, fill: muted }),
+  ]);
+
+  const arrows = [0, 1].map((i) => {
+    const ax = xs[i] + boxW + 5;
+    return `<path d="M ${ax} ${y + boxH / 2} L ${ax + gap - 10} ${y + boxH / 2}" stroke="${rule}" stroke-width="1.1" fill="none" marker-end="url(#chartAh)" />`;
+  });
+
+  const braceY = y + boxH + 12;
+  const braceRight = xs[2] + boxW;
+
+  return svg(
+    braceY + 74,
+    [
+      `<defs><marker id="chartAh" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5" markerHeight="5" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="${rule}" /></marker></defs>`,
+      txt(x0, 16, 'SIGNALING IS ONE STEP, NOT THREE', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
+      txt(x0, 30, 'All of this happens in a single transaction, or none of it happens.', { size: 9.5, fill: muted }),
+      ...boxes,
+      ...arrows,
+      `<path d="M ${x0} ${braceY + 8} L ${x0} ${braceY} L ${braceRight} ${braceY} L ${braceRight} ${braceY + 8}" fill="none" stroke="${rule}" stroke-width="0.9" />`,
+      txt((x0 + braceRight) / 2, braceY + 22, 'one transaction · withdrawing reverses all three', {
+        anchor: 'middle',
+        size: 9,
+        fill: faint,
+      }),
+
+      txt(
+        x0,
+        braceY + 48,
+        'There is deliberately no state in between. You cannot hold sGBX that is not pointed at something,',
+        {
+          size: 9.5,
+          fill: ink,
+        },
+      ),
+      txt(x0, braceY + 61, 'so every unit of signal that exists is a unit of signal doing work.', {
+        size: 9.5,
+        fill: muted,
+      }),
+    ].join(''),
+    'The signaling lifecycle',
+  );
+};
+
 /* -------------------------------------------------------------- registry ---- */
 
 const CHARTS = {
@@ -492,6 +869,31 @@ const CHARTS = {
   redemption: {
     svg: redemption,
     caption: 'Redemption in full. No queue, no gate, no discretion — only arithmetic against a snapshot.',
+  },
+  'mine-grid': {
+    svg: mineGrid,
+    caption:
+      'The mining market is a fixed board of sixteen independent slots. Nothing can add a seventeenth, and no slot’s rate can be changed by anyone once it is taken.',
+  },
+  'tenure-lock': {
+    svg: tenureLock,
+    caption:
+      'Halvings apply to newly taken slots, never to sitting miners. The excess is transitional, bounded by turnover, and accepted as the price of not changing a deal after it is paid for.',
+  },
+  'authority-map': {
+    svg: authorityMap,
+    caption:
+      'The complete authority surface. One contract has an owner; the rest cannot be altered by anyone. Who holds that owner address is the protocol’s largest open question.',
+  },
+  'pending-emission': {
+    svg: pendingEmission,
+    caption:
+      'Sixteen independent tenures, one constant-time total. Redemption reads the accumulator; a handoff settles only the slot that changed hands.',
+  },
+  'signal-lifecycle': {
+    svg: signalLifecycle,
+    caption:
+      'Deposit, receipt, and commitment are one atomic step. The absence of an in-between state is what makes the amount of signal that exists and the amount doing work the same quantity.',
   },
 };
 

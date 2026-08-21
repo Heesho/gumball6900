@@ -110,6 +110,23 @@ apps/web              Development status interface
 docs                  Architecture, economics, security, ADRs, and release evidence
 ```
 
+### Reading it in plain English
+
+Four editions describe the protocol for non-Solidity readers, in increasing depth:
+
+```text
+docs/deck                     21-slide pitch deck, self-contained HTML
+docs/one-pager/gumball6900    One-page sheet, built to PDF and PNG
+docs/articles                 Explainer article, built to PDF
+docs/whitepapers/gumball-6900 Technical whitepaper, built to PDF
+```
+
+```bash
+pnpm docs:one-pager
+pnpm docs:longform
+pnpm docs:whitepaper
+```
+
 The repository requires Node.js 22.23.1, pnpm 10.14.0, Foundry, and Solidity 0.8.26.
 
 ```bash

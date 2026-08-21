@@ -36,9 +36,9 @@ export const hero = {
   definition: 'An index fund. The people who own it decide what goes in.',
   chips: [
     { label: "Who it's for", body: 'Anyone who wants a diversified stake, without a manager.' },
-    { label: 'You hold', body: 'GBX: a share of the fund. Deposit it as sGBX to signal and vote.' },
+    { label: 'You hold', body: 'GBX: a share of the fund. Deposit it as sGBX to aim what it buys.' },
     { label: 'You get back', body: 'Your share of the real assets, whichever ones you pick.' },
-    { label: "What's in it", body: 'Tokenized stocks, ETFs and crypto on Robinhood Chain.' },
+    { label: "What's in it", body: 'Tokenized stocks, ETFs, crypto: whatever holders pick.' },
   ],
 };
 
@@ -68,7 +68,7 @@ export const story = {
     {
       n: '2',
       verb: 'She points it',
-      body: 'She deposits GBX into voting sGBX signals for the assets she wants bought.',
+      body: 'She deposits GBX as sGBX signals for the assets she wants bought.',
       tech: 'sGBX',
     },
     {
@@ -108,7 +108,7 @@ export const story = {
  */
 export const signal = {
   title: 'How signaling works',
-  lead: 'Deposit GBX as voting sGBX signals. Every unit points to an asset until moved or withdrawn. Fund purchases back redeemable GBX.',
+  lead: 'Deposit GBX as sGBX signals. Every unit points to an asset until moved or withdrawn. Fund purchases back redeemable GBX.',
   splitLabel: "This round's signal",
   splitNote: 'All sGBX stays signaled. The next dollar follows the pool; move or withdraw any time.',
   segments: [
@@ -199,6 +199,6 @@ export const reasons = {
  * and dropping it would let the sheet read as a live product.
  */
 export const status = {
-  note: 'Experimental software. Not deployed, and pending independent review.',
+  note: 'Experimental software. Not deployed, pending independent review; Robinhood Chain is the intended target, not a commitment.',
   more: 'Full detail: docs/WHITEPAPER.md',
 };
