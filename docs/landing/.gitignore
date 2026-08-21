@@ -1,0 +1,4 @@
+# Build-time artifacts — regenerate with `node src/assemble.mjs [--only <fragment>]`
+preview-*.html
+# Screenshot evidence from the build gauntlet — regenerable, 20MB+
+src/shots/

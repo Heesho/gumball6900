@@ -1,0 +1,408 @@
+<style>
+  /* ============================================================ overview ==
+     The whole loop in one picture. Words live in HTML cards; the SVG overlay
+     draws only shapes — links, arrowheads, and the value pulse the harness
+     drives along them. Paths are measured from the cards' real positions, so
+     the same code lays the loop out as a row (desktop) or a column (mobile). */
+  #sec-overview .ov-map { position: relative; }
+  #sec-overview .ov-links {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    overflow: visible; pointer-events: none;
+  }
+  #sec-overview .ov-stages {
+    list-style: none; margin: 0; padding: 0;
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    /* wide chain gaps so the pulse has visible travel room between cards */
+    gap: clamp(var(--s8), 6vw, var(--s9));
+  }
+  #sec-overview .ov-stage { position: relative; z-index: 1; }
+  #sec-overview .ov-stage__tag {
+    display: block;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+    color: var(--text-faint);
+    margin-bottom: var(--s3);
+  }
+  #sec-overview .ov-stage--blue .ov-stage__tag { color: var(--blue); }
+  #sec-overview .ov-stage--pink .ov-stage__tag { color: var(--pink); }
+  #sec-overview .ov-stage .card__head { margin-bottom: var(--s2); }
+
+  #sec-overview .ov-you {
+    position: relative; z-index: 1;
+    display: flex; align-items: center; gap: var(--s4);
+    width: min(400px, 100%);
+    margin: var(--s9) auto 0;
+    background: var(--bg-raised);
+    border: 1px solid var(--rule-strong);
+    border-radius: var(--r-m);
+    padding: var(--s4) var(--s5);
+  }
+  #sec-overview .ov-you__dot {
+    width: 9px; height: 9px; border-radius: 50%;
+    background: var(--text-hi); flex: none;
+  }
+  #sec-overview .ov-you__title {
+    font-size: 15.5px; font-weight: 700; letter-spacing: -0.005em;
+    color: var(--text-hi); line-height: 1.3;
+  }
+  #sec-overview .ov-you .note { margin-top: 2px; }
+
+  /* links */
+  #sec-overview .ov-link { fill: none; stroke-width: 1.7; }
+  #sec-overview .ov-link--blue { stroke: var(--blue-line); }
+  #sec-overview .ov-link--pink { stroke: var(--pink-line); }
+  #sec-overview .ov-link--wht  { stroke: var(--rule-strong); }
+  #sec-overview .ov-link--dash { stroke-dasharray: 5 4; }
+  #sec-overview .ov-mkfill--blue { fill: var(--blue-line); }
+  #sec-overview .ov-mkfill--pink { fill: var(--pink-line); }
+  #sec-overview .ov-mkfill--wht  { fill: var(--rule-strong); }
+
+  /* the pulse — it IS the argument, so it rides its own layer above the
+     labels, with a thin page-ground knockout ring so it reads over a pill */
+  #sec-overview .ov-dotlayer {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    overflow: visible; pointer-events: none; z-index: 3;
+  }
+  #sec-overview .ov-dot[hidden] { display: none; } /* [hidden] has no UA style on SVG */
+  #sec-overview .ov-dot__glow { opacity: 0.22; }
+  #sec-overview .ov-dot__ring { fill: var(--bg); }
+  #sec-overview .ov-dot--blue .ov-dot__core,
+  #sec-overview .ov-dot--blue .ov-dot__glow { fill: var(--blue); }
+  #sec-overview .ov-dot--pink .ov-dot__core,
+  #sec-overview .ov-dot--pink .ov-dot__glow { fill: var(--pink); }
+  #sec-overview .ov-dot--wht .ov-dot__core,
+  #sec-overview .ov-dot--wht .ov-dot__glow { fill: var(--text-hi); }
+
+  /* path labels — HTML, knocked out of the line by the page ground */
+  #sec-overview .ov-labels { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+  #sec-overview .ov-lab {
+    position: absolute; translate: -50% -50%;
+    font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    background: var(--bg);
+    padding: 2px 8px; border-radius: var(--r-full);
+    white-space: nowrap;
+    color: var(--text-faint);
+  }
+  #sec-overview .ov-lab--blue { color: var(--blue); }
+  #sec-overview .ov-lab--pink { color: var(--pink); }
+  #sec-overview .ov-lab[hidden] { display: none; }
+
+  #sec-overview .ov-note {
+    margin-top: var(--s6);
+    max-width: 62ch;
+  }
+
+  /* burn arrival — neutral edition of the shared event flash (GBX is neutral).
+     White needs more weight than the saturated accents to read on a dark
+     ground, so the ring is heavier and carries a short glow. */
+  @keyframes ov-evt-burn {
+    0%   { box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.2), 0 0 0 2px var(--text-hi), 0 0 26px rgba(255, 255, 255, 0.35); }
+    100% { box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0), 0 0 0 2px rgba(255, 255, 255, 0), 0 0 26px rgba(255, 255, 255, 0); }
+  }
+  #sec-overview .evt-burn { animation: ov-evt-burn var(--t-event) var(--ease-out); }
+
+  /* column layout — the loop restacks vertically */
+  @media (max-width: 880px) {
+    #sec-overview .ov-stages { grid-template-columns: 1fr; gap: var(--s7); }
+    #sec-overview .ov-map { padding-left: var(--s6); } /* rail room for the aim curve */
+    #sec-overview .ov-you { width: 100%; margin-top: var(--s7); }
+    /* the burn leg is short and centered here — its label wraps and rides
+       BESIDE the arrow, so the pulse never crosses the text */
+    #sec-overview #ovLRet {
+      white-space: normal; text-align: center;
+      max-width: 100px; line-height: 1.45; border-radius: var(--r-m);
+    }
+  }
+</style>
+<section id="sec-overview" class="section section--rule" aria-labelledby="sec-overview-h">
+  <div class="container">
+    <header class="sec-head reveal">
+      <p class="eyebrow">How it works</p>
+      <h2 class="h1" id="sec-overview-h">Money in, aimed by holders, out as assets you can claim</h2>
+      <p class="lede">Miners pay USDG for mining slots — the only money in. Holders point that
+        stream at assets, falling-price auctions convert it, and burning GBX takes your share
+        out at any time.</p>
+    </header>
+
+    <div class="reveal" style="--d: 90ms">
+      <div class="ov-map" id="ovMap">
+        <svg class="ov-links" aria-hidden="true">
+          <defs>
+            <marker id="ovMkBlue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" class="ov-mkfill--blue"></path>
+            </marker>
+            <marker id="ovMkPink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" class="ov-mkfill--pink"></path>
+            </marker>
+            <marker id="ovMkWht" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+              <path d="M0 0 L10 5 L0 10 z" class="ov-mkfill--wht"></path>
+            </marker>
+          </defs>
+          <path id="ovP1" class="ov-link ov-link--blue" marker-end="url(#ovMkBlue)"></path>
+          <path id="ovP2" class="ov-link ov-link--blue" marker-end="url(#ovMkBlue)"></path>
+          <path id="ovP3" class="ov-link ov-link--pink" marker-end="url(#ovMkPink)"></path>
+          <path id="ovAim" class="ov-link ov-link--pink ov-link--dash" marker-end="url(#ovMkPink)"></path>
+          <path id="ovRet" class="ov-link ov-link--wht ov-link--dash" marker-end="url(#ovMkWht)"></path>
+        </svg>
+
+        <ol class="ov-stages">
+          <li class="card ov-stage ov-stage--blue" id="ovS1">
+            <span class="ov-stage__tag num">01 · Money in</span>
+            <h3 class="card__head">Miners pay in</h3>
+            <p class="card__body">Sixteen mining slots, every one always for sale. The USDG
+              miners pay is the fund's only buying power.</p>
+          </li>
+          <li class="card ov-stage ov-stage--pink" id="ovS2">
+            <span class="ov-stage__tag num">02 · Aimed</span>
+            <h3 class="card__head">Holders aim it</h3>
+            <p class="card__body">Revenue releases as a rolling seven-day stream, split moment
+              to moment by where holders point their GBX.</p>
+          </li>
+          <li class="card ov-stage ov-stage--pink" id="ovS3">
+            <span class="ov-stage__tag num">03 · Converted</span>
+            <h3 class="card__head">Auctions convert it</h3>
+            <p class="card__body">Each Strategy sells its USDG at a falling price — paid in
+              the target asset itself, never in dollars. No oracle anywhere.</p>
+          </li>
+          <li class="card ov-stage" id="ovS4">
+            <span class="ov-stage__tag num">04 · Yours</span>
+            <h3 class="card__head">The fund holds it</h3>
+            <p class="card__body">At least 80% of every purchase, in code. Ownerless — assets
+              leave only when a holder burns GBX for their share.</p>
+          </li>
+        </ol>
+
+        <div class="ov-you" id="ovYou">
+          <span class="ov-you__dot" aria-hidden="true"></span>
+          <div>
+            <p class="ov-you__title">You hold GBX</p>
+            <p class="note">Aim the stream any time · burn to claim your share of everything</p>
+          </div>
+        </div>
+
+        <div class="ov-labels" aria-hidden="true">
+          <span class="ov-lab ov-lab--blue" id="ovL1">USDG</span>
+          <span class="ov-lab ov-lab--blue" id="ovL2">USDG</span>
+          <span class="ov-lab ov-lab--pink" id="ovL3">Asset</span>
+          <span class="ov-lab ov-lab--pink" id="ovLAim">You aim it</span>
+          <span class="ov-lab" id="ovLRet">Burn GBX · your share</span>
+        </div>
+
+        <svg class="ov-dotlayer" aria-hidden="true">
+          <g id="ovDot" class="ov-dot" hidden>
+            <circle r="9" class="ov-dot__glow"></circle>
+            <circle r="6.5" class="ov-dot__ring"></circle>
+            <circle r="4.5" class="ov-dot__core"></circle>
+          </g>
+        </svg>
+      </div>
+
+      <p class="note ov-note">Every arrow is a contract call anyone can make — no step waits on
+        a person. The sections below zoom in: the money, the aim, the assets.</p>
+    </div>
+  </div>
+</section>
+<script>
+(function () {
+  'use strict';
+  var map  = document.getElementById('ovMap');
+  var dotG = document.getElementById('ovDot');
+  var els = {
+    s1: document.getElementById('ovS1'), s2: document.getElementById('ovS2'),
+    s3: document.getElementById('ovS3'), s4: document.getElementById('ovS4'),
+    you: document.getElementById('ovYou')
+  };
+  var paths = {
+    p1: document.getElementById('ovP1'), p2: document.getElementById('ovP2'),
+    p3: document.getElementById('ovP3'), aim: document.getElementById('ovAim'),
+    ret: document.getElementById('ovRet')
+  };
+  var labels = {
+    p1: document.getElementById('ovL1'), p2: document.getElementById('ovL2'),
+    p3: document.getElementById('ovL3'), aim: document.getElementById('ovLAim'),
+    ret: document.getElementById('ovLRet')
+  };
+
+  /* ------------------------------------------------------------ layout -- */
+  var sizeKey = '';
+  var column = false;
+
+  function rectOf(el) {
+    var m = map.getBoundingClientRect(), r = el.getBoundingClientRect();
+    return { x: r.left - m.left, y: r.top - m.top, w: r.width, h: r.height };
+  }
+  function bezH(x1, y1, x2, y2) { // left-to-right S-curve
+    var c = Math.max(24, (x2 - x1) * 0.45);
+    return 'M' + x1 + ' ' + y1 + ' C ' + (x1 + c) + ' ' + y1 + ', ' + (x2 - c) + ' ' + y2 + ', ' + x2 + ' ' + y2;
+  }
+  function bezV(x1, y1, x2, y2) { // top-to-bottom S-curve
+    var c = Math.max(18, (y2 - y1) * 0.45);
+    return 'M' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1 + c) + ', ' + x2 + ' ' + (y2 - c) + ', ' + x2 + ' ' + y2;
+  }
+
+  function relayout() {
+    /* Full-page screenshot capture bounces the viewport through a transient
+       degenerate size (1×1) before restoring it; recomputing from that frame
+       paints garbage that the capture then renders. Keep the last good
+       layout — the restore pass re-measures identically and early-returns. */
+    if (map.offsetWidth < 200) return;
+    var key = map.offsetWidth + 'x' + map.offsetHeight;
+    if (key === sizeKey) return;
+    sizeKey = key;
+
+    var r1 = rectOf(els.s1), r2 = rectOf(els.s2), r3 = rectOf(els.s3),
+        r4 = rectOf(els.s4), ry = rectOf(els.you);
+    column = r2.y > r1.y + r1.h - 4; // stacked?
+
+    if (!column) {
+      paths.p1.setAttribute('d', bezH(r1.x + r1.w, r1.y + r1.h / 2, r2.x - 3, r2.y + r2.h / 2));
+      paths.p2.setAttribute('d', bezH(r2.x + r2.w, r2.y + r2.h / 2, r3.x - 3, r3.y + r3.h / 2));
+      paths.p3.setAttribute('d', bezH(r3.x + r3.w, r3.y + r3.h / 2, r4.x - 3, r4.y + r4.h / 2));
+      /* you → stage 2 (aim), stage 4 → you (burn) */
+      var ax = ry.x + ry.w * 0.2, ay = ry.y;
+      var tx = r2.x + r2.w / 2, ty = r2.y + r2.h;
+      paths.aim.setAttribute('d', 'M' + ax + ' ' + ay + ' C ' + ax + ' ' + (ay - 44) + ', ' + tx + ' ' + (ty + 52) + ', ' + tx + ' ' + (ty + 3));
+      var bx = r4.x + r4.w / 2, by = r4.y + r4.h;
+      var ux = ry.x + ry.w, uy = ry.y + ry.h * 0.5;
+      paths.ret.setAttribute('d', 'M' + bx + ' ' + by + ' C ' + bx + ' ' + (by + 64) + ', ' + (ux + 72) + ' ' + uy + ', ' + (ux + 3) + ' ' + uy);
+    } else {
+      paths.p1.setAttribute('d', bezV(r1.x + r1.w / 2, r1.y + r1.h, r2.x + r2.w / 2, r2.y - 3));
+      paths.p2.setAttribute('d', bezV(r2.x + r2.w / 2, r2.y + r2.h, r3.x + r3.w / 2, r3.y - 3));
+      paths.p3.setAttribute('d', bezV(r3.x + r3.w / 2, r3.y + r3.h, r4.x + r4.w / 2, r4.y - 3));
+      /* burn: fund straight down into the you strip */
+      paths.ret.setAttribute('d', bezV(r4.x + r4.w / 2, r4.y + r4.h, ry.x + ry.w / 2, ry.y - 3));
+      /* aim: back up the left rail from you to stage 2 */
+      var y1 = ry.y + ry.h * 0.5, y2 = r2.y + r2.h * 0.5;
+      var ctrl = Math.max(6, r2.x - 30);
+      paths.aim.setAttribute('d', 'M' + ry.x + ' ' + y1 + ' C ' + ctrl + ' ' + y1 + ', ' + ctrl + ' ' + y2 + ', ' + (r2.x - 3) + ' ' + y2);
+    }
+
+    /* labels sit at each path's midpoint, offset off the line so the pulse
+       never crosses the text: chain labels ride just ABOVE the line in row
+       mode; the near-vertical aim leg (and the column burn leg) carry their
+       labels BESIDE the line instead */
+    Object.keys(labels).forEach(function (k) {
+      var el = labels[k], p = paths[k];
+      if (k === 'aim' && column) { el.hidden = true; return; } /* rail is too tight; the strip carries the words */
+      el.hidden = false;
+      var pt = p.getPointAtLength(p.getTotalLength() * 0.5);
+      var chain = (k === 'p1' || k === 'p2' || k === 'p3');
+      el.style.left = pt.x + 'px';
+      el.style.top = (chain && !column ? pt.y - 17 : pt.y) + 'px';
+      el.style.translate = (k === 'aim') ? '18px -50%'
+        : (k === 'ret' && column) ? '16px -50%' : '';
+    });
+  }
+
+  /* --------------------------------------------------------------- dots -- */
+  function setDot(g, pathKey, prog, color) {
+    var p = paths[pathKey];
+    var pt = p.getPointAtLength(p.getTotalLength() * Math.min(1, Math.max(0, prog)));
+    g.setAttribute('transform', 'translate(' + pt.x + ' ' + pt.y + ')');
+    g.setAttribute('class', 'ov-dot ov-dot--' + color);
+    g.removeAttribute('hidden');
+  }
+
+  function flash(el, cls) {
+    el.classList.remove('evt-blue', 'evt-pink', 'evt-burn');
+    void el.offsetWidth; /* restart the animation on repeat events */
+    el.classList.add(cls);
+    if (el.__ovT) clearTimeout(el.__ovT);
+    el.__ovT = setTimeout(function () { el.classList.remove(cls); }, 1100);
+  }
+
+  /* ----------------------------------------------------------- timeline --
+     One pulse at a time, so the eye follows the money: USDG runs the chain
+     and turns into the asset at the auction; then, EVERY cycle, you aim the
+     stream (pink) and a holder burns and value walks back out (neutral) —
+     a ten-second look always sees the full loop, burn included. */
+  var TIMELINE = [
+    { move: 'p1', color: 'blue', t0: 0.35, dur: 1.15 },
+    { flash: 's2', cls: 'evt-blue', at: 1.5 },
+    { move: 'p2', color: 'blue', t0: 1.7, dur: 1.15 },
+    { flash: 's3', cls: 'evt-blue', at: 2.85 },
+    { move: 'p3', color: 'pink', t0: 3.05, dur: 1.15 },
+    { flash: 's4', cls: 'evt-pink', at: 4.2 },
+    { move: 'aim', color: 'pink', t0: 4.75, dur: 1.15 },
+    { flash: 's2', cls: 'evt-pink', at: 5.9 },
+    { move: 'ret', color: 'wht', t0: 6.45, dur: 1.35 },
+    { flash: 'you', cls: 'evt-burn', at: 7.8 }
+  ];
+  var CYCLE = 8.6;
+
+  var t = 0, fired = {};
+  var active = null; /* {path, color, prog} */
+
+  function step(dt) {
+    t += dt;
+    if (t >= CYCLE) { t -= CYCLE; fired = {}; }
+    active = null;
+    for (var i = 0; i < TIMELINE.length; i++) {
+      var ev = TIMELINE[i];
+      if (ev.move !== undefined) {
+        if (t >= ev.t0 && t < ev.t0 + ev.dur) {
+          active = { path: ev.move, color: ev.color, prog: (t - ev.t0) / ev.dur };
+        }
+      } else if (dt > 0 && !fired[i] && t >= ev.at && t - ev.at < 0.5) {
+        fired[i] = true;
+        flash(els[ev.flash], ev.cls);
+      }
+    }
+  }
+
+  function paint() {
+    relayout();
+    if (active) setDot(dotG, active.path, active.prog, active.color);
+    else dotG.setAttribute('hidden', '');
+  }
+
+  /* Reduced motion: the still carries the whole loop — a pulse mid-flight on
+     every leg, colored by what it is at that point. */
+  var staticDots = null;
+  var staticMode = false;
+  function paintStatic() {
+    staticMode = true;
+    relayout();
+    dotG.setAttribute('hidden', '');
+    if (!staticDots) {
+      staticDots = ['aim', 'ret'].map(function () {
+        var g = dotG.cloneNode(true);
+        g.removeAttribute('id');
+        dotG.parentNode.appendChild(g);
+        return g;
+      });
+    }
+    /* the two long legs have room for a frozen pulse; the chain legs are
+       carried by their colored, labeled arrows. Freeze the aim dot mid-leg,
+       right beside its offset label; the burn dot rests mid-leg in column
+       mode (clear of label and arrowhead) and at 0.74 in row mode, past the
+       on-line label. */
+    var spec = [['aim', 0.5, 'pink'], ['ret', column ? 0.5 : 0.74, 'wht']];
+    spec.forEach(function (s, i) { setDot(staticDots[i], s[0], s[1], s[2]); });
+  }
+
+  /* Font swap and viewport changes reflow the cards after first paint. Live
+     mode re-measures every frame; static mode must be re-driven by events.
+     relayout()'s own size guard stays the gate: any reflow that moves the
+     cards also changes the map's offset size, while full-page screenshot
+     capture rescales the visual viewport — DOM rects read scaled garbage
+     mid-capture — without touching offset size. Never force the guard open. */
+  function remeasure() {
+    if (staticMode) paintStatic();
+  }
+  window.addEventListener('load', remeasure);
+  window.addEventListener('resize', remeasure);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(remeasure);
+  if (window.ResizeObserver) new ResizeObserver(remeasure).observe(map);
+
+  SIMS.register('overview', {
+    el: document.getElementById('sec-overview'),
+    step: step,
+    paint: paint,
+    reset: function () { t = 0; fired = {}; active = null; },
+    static: paintStatic
+  });
+}());
+</script>

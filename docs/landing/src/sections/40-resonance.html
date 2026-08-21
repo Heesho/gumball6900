@@ -1,0 +1,543 @@
+<style>
+/* ============================== 40 · resonance ==========================
+   Signal weights (pink, HTML) on the left; the USDG stream they split
+   (blue, canvas) on the right. One idea: move a signal, the split follows
+   within the second. */
+#sec-resonance .rz-how {
+  margin-top: calc(-1 * var(--s4));
+  margin-bottom: var(--s6);
+}
+#sec-resonance .rz-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 330px) 1fr;
+  gap: var(--s6);
+  align-items: start;
+}
+#sec-resonance .rz-cap {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: var(--s3);
+}
+#sec-resonance .rz-rows { display: grid; gap: var(--s3); }
+#sec-resonance .rz-row {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  background: var(--bg-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-s);
+}
+#sec-resonance .rz-row__top {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 30px;
+}
+#sec-resonance .rz-row__sym { font-size: 13px; font-weight: 600; color: var(--text-hi); }
+#sec-resonance .rz-row__pct { font-size: 13px; font-weight: 600; color: var(--text-hi); }
+#sec-resonance .rz-row__delta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pink);
+  opacity: 0;
+}
+#sec-resonance .rz-row__btn { margin-left: auto; }
+#sec-resonance .rz-row .meter > i { transition: width var(--t-slow) var(--ease); }
+#sec-resonance .rz-row__sub { font-size: 12px; color: var(--text-faint); }
+#sec-resonance .rz-hint { margin-top: var(--s3); }
+#sec-resonance .rz-canvas-wrap { min-width: 0; }
+#sec-resonance canvas { width: 100%; }
+@media (max-width: 880px) {
+  #sec-resonance .rz-grid { grid-template-columns: 1fr; gap: var(--s5); }
+}
+@media (max-width: 480px) {
+  #sec-resonance .sim-panel__body { padding: var(--s4) var(--s3); }
+}
+</style>
+<section id="sec-resonance" class="section section--rule" aria-labelledby="sec-resonance-h">
+  <div class="container">
+    <header class="sec-head reveal">
+      <p class="eyebrow eyebrow--pink">Resonance</p>
+      <h2 class="h1" id="sec-resonance-h">Where the signal sits is where the money goes</h2>
+      <p class="lede">Deposit GBX and point it at a Strategy — that is the whole vote. The
+        fund's buying power follows the signal moment to moment: no proposals, no ballots,
+        no waiting for anyone.</p>
+    </header>
+
+    <p class="small muted measure rz-how reveal" style="--d: 90ms">
+      Underneath, mining revenue is released as a rolling seven-day stream, and the stream is
+      split across Strategies by live signal weights — the instant a holder moves signal, the
+      split moves with it. Each Strategy collects its share as USDG; turning that USDG into
+      the asset is the next section.
+    </p>
+
+    <div class="sim-panel reveal" style="--d: 180ms">
+      <div class="sim-panel__head">
+        <span class="sim-panel__title">Resonance — live model</span>
+        <span class="chip chip--warn">Illustrative parameters</span>
+      </div>
+      <div class="sim-panel__body">
+        <div class="rz-grid">
+          <div class="rz-weights">
+            <p class="rz-cap">Signal — <span class="num">31,500</span> GBX pointed</p>
+            <div class="rz-rows" id="rzRows"></div>
+            <p class="note rz-hint">“Signal here” moves a 2,000 GBX lot from the largest other
+              Strategy — watch the stream re-split.</p>
+            <span class="sr-only" aria-live="polite" id="rzLive"></span>
+          </div>
+          <div class="rz-canvas-wrap">
+            <p class="rz-cap">The stream — USDG, split by signal</p>
+            <canvas id="rzCanvas" aria-label="USDG flowing from the Resonance seven-day stream to four strategies, each lane's thickness proportional to its live signal weight"></canvas>
+          </div>
+        </div>
+      </div>
+      <div class="sim-panel__foot">
+        <div class="sim-panel__controls">
+          <span class="sim-clock" id="rzClock">week 1 · day 1</span>
+        </div>
+        <p class="sim-note">Weights, amounts and symbols are illustrative — the tickers are
+          example strategies, not holdings. The seven-day stream is fixed in code; production
+          revenue is unselected.</p>
+      </div>
+    </div>
+  </div>
+</section>
+<script>
+(function () {
+  'use strict';
+  /* Lifted from the deck's flow sim (docs/deck/gumball6900-deck.html, lines 1365–1589) and
+     adapted: the flow ends at each Strategy holding USDG — the purchase is the next section.
+     Sim time ×900 like the deck; particles advance in real time so the flow reads at a
+     human pace whatever the sim clock does. */
+  var el = document.getElementById('sec-resonance');
+  var canvas = document.getElementById('rzCanvas');
+  var ctx = canvas.getContext('2d');
+  var rowsEl = document.getElementById('rzRows');
+  var clockEl = document.getElementById('rzClock');
+  var liveEl = document.getElementById('rzLive');
+
+  var css = getComputedStyle(document.documentElement);
+  var C = {
+    pink: css.getPropertyValue('--pink').trim() || '#F92B92',
+    blue: css.getPropertyValue('--blue').trim() || '#29B6F0',
+    raised: css.getPropertyValue('--bg-raised').trim() || '#1C1C24',
+    rule: css.getPropertyValue('--rule').trim() || '#2A2A36',
+    ruleStrong: css.getPropertyValue('--rule-strong').trim() || '#3C3C4C',
+    hi: css.getPropertyValue('--text-hi').trim() || '#FFFFFF',
+    muted: css.getPropertyValue('--text-muted').trim() || '#ADADC0',
+    faint: css.getPropertyValue('--text-faint').trim() || '#8A8AA0',
+  };
+  var MONO = '"JetBrains Mono", monospace';
+  var SANS = '"Schibsted Grotesk", sans-serif';
+
+  var STREAM = 7 * 86400;               /* Resonance.DURATION — seven days, fixed in code */
+  var TIME_SCALE = 900;
+
+  /* Illustrative strategies. Stakes in GBX; weights are stake shares. */
+  var ASSETS = [
+    { sym: 'NVDA', stake: 12400 },
+    { sym: 'QQQ',  stake: 9200 },
+    { sym: 'WBTC', stake: 6100 },
+    { sym: 'AAPL', stake: 3800 },
+  ];
+  ASSETS.forEach(function (a, i) {
+    a.pot = 0;                 /* USDG waiting at the Strategy */
+    a.disp = a.stake;          /* displayed stake — lerps toward stake so lanes reshape */
+    a.delta = 0;               /* last move, ±GBX */
+    a.moved = 0;               /* 1 → 0 decay while a move is fresh */
+    a.flash = 0;               /* 1 → 0 decay after the auction takes the lot */
+    a.lastLot = 0;
+    a.epochEnd = 6000 + i * 4200;   /* each auction flushes on its own clock */
+  });
+
+  var flow = {
+    t: 0, pending: 46000, rate: 0, finish: 0,
+    nextShift: 3600, parts: [], spawnAcc: 0,
+    refill: 0, refillAmt: 0,   /* 1 → 0 beat while a weekly refill is fresh, and its size */
+  };
+
+  function totalStake() { return ASSETS.reduce(function (n, a) { return n + a.stake; }, 0) || 1; }
+  function totalDisp() { return ASSETS.reduce(function (n, a) { return n + a.disp; }, 0) || 1; }
+  function money(x) {
+    x = Math.max(0, x);
+    return '$' + (x >= 100 ? Math.round(x).toLocaleString('en-US') : x.toFixed(2));
+  }
+
+  /* ------------------------------------------------------------ weight rows */
+  ASSETS.forEach(function (a, i) {
+    var row = document.createElement('div');
+    row.className = 'rz-row';
+    row.innerHTML =
+      '<div class="rz-row__top">' +
+        '<span class="rz-row__sym num">' + a.sym + '</span>' +
+        '<span class="rz-row__pct num"></span>' +
+        '<span class="rz-row__delta num" aria-hidden="true"></span>' +
+        '<button type="button" class="btn btn--sm btn--pink rz-row__btn" ' +
+          'aria-label="Move 2,000 GBX of signal to the ' + a.sym + ' strategy">Signal here</button>' +
+      '</div>' +
+      '<div class="meter meter--pink meter--thick"><i></i></div>' +
+      '<div class="rz-row__sub num"></div>';
+    rowsEl.appendChild(row);
+    a.row = row;
+    a.pctEl = row.querySelector('.rz-row__pct');
+    a.deltaEl = row.querySelector('.rz-row__delta');
+    a.barEl = row.querySelector('.meter > i');
+    a.subEl = row.querySelector('.rz-row__sub');
+    row.querySelector('button').addEventListener('click', function () { signalTo(i); });
+  });
+
+  function flashRow(a) {
+    a.row.classList.remove('evt-pink');
+    void a.row.offsetWidth;                       /* restart the one-shot animation */
+    a.row.classList.add('evt-pink');
+    clearTimeout(a.rowTimer);
+    a.rowTimer = setTimeout(function () { a.row.classList.remove('evt-pink'); }, 1100);
+  }
+
+  function applyMove(from, to, lot) {
+    from.stake -= lot; to.stake += lot;
+    from.delta = -lot; to.delta = lot;
+    from.moved = 1; to.moved = 1;
+    flashRow(from); flashRow(to);
+  }
+
+  function signalTo(i) {
+    var to = ASSETS[i];
+    var lot = 2000;
+    var from = null;
+    ASSETS.forEach(function (a) {
+      if (a !== to && a.stake - lot > 800 && (!from || a.stake > from.stake)) from = a;
+    });
+    if (!from) return;
+    applyMove(from, to, lot);
+    flow.nextShift = flow.t + 7000;               /* hold the auto-mover back a beat */
+    var total = totalStake();
+    liveEl.textContent = 'Moved 2,000 GBX of signal from ' + from.sym + ' to ' + to.sym +
+      '. ' + to.sym + ' now takes ' + Math.round((to.stake / total) * 100) + '% of the stream.';
+    if (reduced()) {
+      /* No loop to decay the emphasis — snap the lanes, then clear the move
+         markers with a one-shot so lit states never pile up. */
+      ASSETS.forEach(function (a) { a.disp = a.stake; });
+      clearTimeout(signalTo.rmTimer);
+      signalTo.rmTimer = setTimeout(function () {
+        ASSETS.forEach(function (a) { a.moved = 0; a.delta = 0; });
+        paintFrame();
+        updateRows();
+      }, 1800);
+    }
+    paintFrame();                                 /* respond even while the loop is paused */
+    updateRows();
+  }
+
+  function reduced() { return window.matchMedia('(prefers-reduced-motion: reduce)').matches; }
+
+  /* ------------------------------------------------------------------ model */
+  function step(dt) {
+    var realDt = dt / TIME_SCALE;
+    flow.t += dt;
+
+    /* Signalers move stake in discrete whole lots, not a continuous trickle. */
+    if (flow.t >= flow.nextShift) {
+      var LOTS = [1000, 1500, 2000, 3000];
+      var lot = LOTS[Math.floor(Math.random() * LOTS.length)];
+      var from = ASSETS[Math.floor(Math.random() * ASSETS.length)];
+      var to = ASSETS[Math.floor(Math.random() * ASSETS.length)];
+      if (from !== to && from.stake - lot > 800) applyMove(from, to, lot);
+      flow.nextShift = flow.t + 3200 + Math.random() * 5200;
+    }
+    ASSETS.forEach(function (a) {
+      if (a.moved > 0) {
+        a.moved = Math.max(0, a.moved - dt / 2600);
+        if (a.moved === 0) a.delta = 0;
+      }
+      if (a.flash > 0) a.flash = Math.max(0, a.flash - dt / 1500);
+      /* Lanes reshape toward the new weights within ~a second of a move. */
+      a.disp += (a.stake - a.disp) * Math.min(1, realDt * 6);
+    });
+
+    /* Mining revenue restarts the seven-day stream once the last one ends. */
+    if (flow.pending > 0 && flow.t >= flow.finish) {
+      flow.rate = flow.pending / STREAM;
+      flow.finish = flow.t + STREAM;
+      flow.refillAmt = flow.pending;   /* the refill beat — drawn at the Resonance box */
+      flow.refill = 1;
+      flow.pending = 0;
+    }
+    /* Mining revenue keeps accruing for next week's stream (in the deck the mine sim
+       feeds this directly; here it accrues at the illustrative weekly rate). */
+    flow.pending += 46000 * dt / STREAM;
+    if (flow.refill > 0) flow.refill = Math.max(0, flow.refill - dt / 1500);
+
+    /* Split the released USDG by the weights as they are right now. */
+    var released = flow.t < flow.finish ? flow.rate * dt : 0;
+    var total = totalStake();
+    ASSETS.forEach(function (a) {
+      a.pot += released * (a.stake / total);
+      if (flow.t >= a.epochEnd && a.pot > 0) {    /* its auction takes the lot */
+        a.lastLot = a.pot;
+        a.pot = 0;
+        a.flash = 1;
+        a.epochEnd = flow.t + 9000 + Math.random() * 9000;
+      }
+    });
+
+    /* Particles: blue USDG, lane picked by live weight — the re-split is instant. */
+    if (flow.t < flow.finish && flow.parts.length < 110) {
+      flow.spawnAcc += realDt * 26;
+      while (flow.spawnAcc >= 1) {
+        flow.spawnAcc -= 1;
+        var r = Math.random() * total, acc = 0, pick = 0;
+        for (var i = 0; i < ASSETS.length; i++) { acc += ASSETS[i].stake; if (r <= acc) { pick = i; break; } }
+        flow.parts.push({ p: 0, lane: pick });
+      }
+    }
+    for (var j = flow.parts.length - 1; j >= 0; j--) {
+      flow.parts[j].p += 0.30 * realDt;
+      if (flow.parts[j].p >= 1) flow.parts.splice(j, 1);
+    }
+  }
+
+  /* ----------------------------------------------------------------- canvas */
+  var view = { w: 0, h: 0, dpr: 1 };
+  function resize() {
+    var wrap = canvas.parentElement;
+    var w = wrap.clientWidth;
+    if (w <= 0) return;
+    var h = w < 480 ? 340 : 420;
+    var dpr = Math.min(2.5, window.devicePixelRatio || 1);
+    if (w === view.w && h === view.h && dpr === view.dpr) return;
+    view.w = w; view.h = h; view.dpr = dpr;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.height = h + 'px';
+  }
+
+  function paintFrame() {
+    if (!view.w) resize();
+    if (!view.w) return;
+    var W = view.w, H = view.h, m = W < 480;
+    ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    ctx.clearRect(0, 0, W, H);
+
+    var srcW = m ? 86 : 172, srcH = m ? 92 : 108;
+    var stratW = m ? 126 : 226, stratH = m ? 66 : 84;
+    var srcX = 1.5, srcR = srcX + srcW;
+    var stratX = W - stratW - 1.5;
+    var laneH = (H - 8) / ASSETS.length;
+    var laneY = function (i) { return 4 + laneH * i + laneH / 2; };
+    var srcY = H / 2;
+    var totalD = totalDisp();
+    var streaming = flow.t < flow.finish;
+
+    /* lanes — width IS the live weight; a fresh signal move rims its lane pink */
+    ASSETS.forEach(function (a, i) {
+      var y = laneY(i);
+      var share = a.disp / totalD;
+      var lane = function () {
+        ctx.beginPath();
+        ctx.moveTo(srcR, srcY);
+        ctx.bezierCurveTo((srcR + stratX) / 2, srcY, (srcR + stratX) / 2, y, stratX, y);
+        ctx.stroke();
+      };
+      var wdt = Math.max(2, share * (m ? 34 : 52));
+      if (a.moved > 0) {
+        ctx.globalAlpha = Math.min(0.85, a.moved * 1.2);
+        ctx.strokeStyle = C.pink;
+        ctx.lineWidth = wdt + 3;
+        lane();
+        ctx.globalAlpha = 1;
+      }
+      ctx.strokeStyle = a.moved > 0 ? C.ruleStrong : C.rule;
+      ctx.lineWidth = wdt;
+      lane();
+    });
+
+    /* Resonance — the source of the stream; rims blue for a beat when mining
+       revenue refills it (flow.refill is set only by an actual model refill). */
+    ctx.fillStyle = C.raised;
+    ctx.strokeStyle = flow.refill > 0
+      ? 'rgba(41,182,240,' + (0.45 + 0.55 * flow.refill).toFixed(3) + ')'   /* --blue */
+      : C.ruleStrong;
+    ctx.lineWidth = flow.refill > 0 ? 2 : 1.5;
+    ctx.beginPath(); ctx.roundRect(srcX, srcY - srcH / 2, srcW, srcH, 9); ctx.fill(); ctx.stroke();
+    ctx.textAlign = 'center';
+    var scx = srcX + srcW / 2;
+    if (flow.refill > 0) {
+      /* the inflow, named: this week's mining revenue arriving at the stream */
+      ctx.globalAlpha = Math.min(1, flow.refill * 1.4);
+      ctx.fillStyle = C.blue; ctx.font = '600 ' + (m ? 10 : 11.5) + 'px ' + MONO;
+      if (m) ctx.textAlign = 'left';                /* centred it would clip the canvas edge */
+      ctx.fillText('+' + money(flow.refillAmt) + ' from mining',
+        m ? srcX + 1 : scx, srcY - srcH / 2 - (m ? 8 : 10));
+      if (m) ctx.textAlign = 'center';
+      ctx.globalAlpha = 1;
+    }
+    var left = money(streaming ? flow.rate * Math.max(0, flow.finish - flow.t) : 0);
+    if (m) {
+      ctx.fillStyle = C.hi; ctx.font = '700 12.5px ' + SANS;
+      ctx.fillText('Resonance', scx, srcY - 22);
+      ctx.fillStyle = C.faint; ctx.font = '400 10px ' + SANS;
+      ctx.fillText('7-day stream', scx, srcY - 5);
+      ctx.fillStyle = C.blue; ctx.font = '600 11.5px ' + MONO;
+      ctx.fillText(left, scx, srcY + 15);
+      ctx.fillStyle = C.faint; ctx.font = '400 9.5px ' + SANS;
+      ctx.fillText('left this week', scx, srcY + 31);
+    } else {
+      ctx.fillStyle = C.hi; ctx.font = '700 15px ' + SANS;
+      ctx.fillText('Resonance', scx, srcY - 26);
+      ctx.fillStyle = C.faint; ctx.font = '400 11.5px ' + SANS;
+      ctx.fillText('7-day stream', scx, srcY - 7);
+      ctx.fillStyle = C.blue; ctx.font = '600 15px ' + MONO;
+      ctx.fillText(left, scx, srcY + 18);
+      ctx.fillStyle = C.faint; ctx.font = '400 10.5px ' + SANS;
+      ctx.fillText('left this week', scx, srcY + 36);
+    }
+
+    /* strategies — each one holds USDG for its own auction */
+    ASSETS.forEach(function (a, i) {
+      var y = laneY(i);
+      var top = y - stratH / 2;
+      ctx.fillStyle = C.raised;
+      ctx.strokeStyle = a.flash > 0 ? 'rgba(255,255,255,' + (0.28 + 0.5 * a.flash).toFixed(3) + ')' : C.ruleStrong;
+      ctx.lineWidth = a.flash > 0 ? 2 : 1.5;
+      ctx.beginPath(); ctx.roundRect(stratX, top, stratW, stratH, 8); ctx.fill(); ctx.stroke();
+      ctx.textAlign = 'left';
+      var pad = m ? 12 : 16;
+      ctx.fillStyle = C.hi; ctx.font = '600 ' + (m ? 11 : 12.5) + 'px ' + MONO;
+      ctx.fillText(a.sym, stratX + pad, top + (m ? 20 : 24));
+      ctx.fillStyle = C.blue; ctx.font = '600 ' + (m ? 14 : 17) + 'px ' + MONO;
+      ctx.fillText(money(a.pot), stratX + pad, top + (m ? 44 : 48));
+      if (!m) {
+        if (a.flash > 0) {
+          /* the flush beat — the departing lot named in blue while it is fresh */
+          ctx.globalAlpha = Math.min(1, a.flash * 1.4);
+          ctx.fillStyle = C.blue; ctx.font = '600 10.5px ' + SANS;
+          ctx.fillText(money(a.lastLot) + ' → its auction', stratX + pad, top + 68);
+          ctx.globalAlpha = 1;
+        } else {
+          ctx.fillStyle = C.faint; ctx.font = '400 10.5px ' + SANS;
+          ctx.fillText('USDG for its auction', stratX + pad, top + 68);
+        }
+      }
+      if (a.flash > 0) {
+        /* the USDG itself leaving the card, downward — its auction is the next section */
+        var q = 1 - a.flash;
+        ctx.globalAlpha = a.flash * 0.9;
+        ctx.fillStyle = C.blue;
+        ctx.beginPath();
+        ctx.arc(stratX + stratW - pad, top + stratH - 6 + q * (m ? 14 : 18),
+          m ? 3 : 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+      }
+      /* the signal move, named in pink, right where the flow changes */
+      if (a.moved > 0 && a.delta) {
+        ctx.globalAlpha = Math.min(1, a.moved * 1.6);
+        ctx.textAlign = 'right';
+        ctx.fillStyle = C.pink; ctx.font = '600 ' + (m ? 10 : 11.5) + 'px ' + MONO;
+        ctx.fillText((a.delta > 0 ? '+' : '−') + Math.abs(a.delta).toLocaleString('en-US') + ' GBX',
+          stratX + stratW - pad, top + (m ? 20 : 24));
+        ctx.globalAlpha = 1;
+        ctx.textAlign = 'left';
+      }
+    });
+
+    /* the USDG itself, in motion */
+    var r = m ? 3 : 4;
+    ctx.fillStyle = C.blue;
+    ctx.globalAlpha = 0.9;
+    flow.parts.forEach(function (pt) {
+      var y = laneY(pt.lane), t = pt.p, mt = 1 - t, cx = (srcR + stratX) / 2;
+      var x = mt * mt * mt * srcR + 3 * mt * mt * t * cx + 3 * mt * t * t * cx + t * t * t * stratX;
+      var yy = mt * mt * mt * srcY + 3 * mt * mt * t * srcY + 3 * mt * t * t * y + t * t * t * y;
+      ctx.beginPath(); ctx.arc(x, yy, r, 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+
+    /* clock */
+    var week = Math.max(1, Math.ceil(flow.t / STREAM));
+    var day = streaming ? Math.min(7, Math.floor((flow.t - (flow.finish - STREAM)) / 86400) + 1) : 7;
+    var clock = 'week ' + week + ' · day ' + day;
+    if (clock !== paintFrame.lastClock) { clockEl.textContent = clock; paintFrame.lastClock = clock; }
+  }
+
+  function updateRows() {
+    var total = totalStake();
+    var weekly = flow.rate * STREAM;
+    ASSETS.forEach(function (a) {
+      var share = a.stake / total;
+      var pct = Math.round(share * 100) + '%';
+      if (pct !== a.lastPct) { a.pctEl.textContent = pct; a.lastPct = pct; }
+      a.barEl.style.width = (share * 100).toFixed(1) + '%';
+      var d = a.moved > 0 && a.delta
+        ? (a.delta > 0 ? '+' : '−') + Math.abs(a.delta).toLocaleString('en-US')
+        : '';
+      if (d !== a.lastDelta) { a.deltaEl.textContent = d; a.lastDelta = d; }
+      a.deltaEl.style.opacity = a.moved > 0 ? Math.min(1, a.moved * 1.6).toFixed(2) : '0';
+      var est = Math.round((weekly * share) / 100) * 100;
+      var sub = a.stake.toLocaleString('en-US') + ' GBX · ≈$' +
+        est.toLocaleString('en-US') + '/wk at this weight';
+      if (sub !== a.lastSub) { a.subEl.textContent = sub; a.lastSub = sub; }
+    });
+  }
+
+  function paint() { resize(); paintFrame(); updateRows(); }
+
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(function () {
+      var w = view.w;
+      resize();
+      if (view.w !== w) { paintFrame(); }
+    }).observe(canvas.parentElement);
+  }
+
+  /* Seed so the first visible frame is already mid-flow. */
+  step(1);            /* starts the stream from the pending seed */
+  step(3600);         /* an hour in: pots visibly filling */
+  updateRows();       /* rows carry real text at load — no shift on first paint */
+
+  SIMS.register('resonance', {
+    el: el,
+    timeScale: TIME_SCALE,
+    step: step,
+    paint: paint,
+    reset: function () {
+      flow.parts.length = 0;
+      flow.spawnAcc = 0;
+      flow.refill = 0;
+      ASSETS.forEach(function (a) { a.moved = 0; a.delta = 0; a.flash = 0; a.disp = a.stake; });
+    },
+    static: function () {
+      /* A meaningful mid-stream still: day 3 of the week, pots part-filled,
+         one signal move fresh enough that its delta and re-split are visible. */
+      flow.t = 2.4 * 86400;
+      flow.finish = flow.t + STREAM - 2.4 * 86400;
+      flow.rate = 46000 / STREAM;
+      flow.refill = 0;                              /* still frame — no event beats */
+      var total = totalStake();
+      ASSETS.forEach(function (a, i) {
+        a.pot = flow.rate * (a.stake / total) * (5200 + i * 2400);
+        a.disp = a.stake;
+        a.moved = 0; a.delta = 0; a.flash = 0;
+      });
+      applyMove(ASSETS[1], ASSETS[0], 2000);        /* QQQ → NVDA, fresh */
+      ASSETS[0].moved = 0.8; ASSETS[1].moved = 0.8;
+      ASSETS.forEach(function (a) { a.disp = a.stake; });
+      flow.parts.length = 0;
+      total = totalStake();
+      for (var k = 0; k < 26; k++) {
+        var r = ((k * 0.618) % 1) * total, acc = 0, pick = 0;
+        for (var i = 0; i < ASSETS.length; i++) { acc += ASSETS[i].stake; if (r <= acc) { pick = i; break; } }
+        flow.parts.push({ p: (k * 0.137) % 0.97, lane: pick });
+      }
+      paint();
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function () { paintFrame(); });
+      }
+    },
+  });
+}());
+</script>

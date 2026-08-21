@@ -1,0 +1,202 @@
+<style>
+  /* ---------------------------------------------------------- 60-extras --
+     Fully static section: five facts between the simulations and the
+     argument. The only visual is the split bar — contract constants
+     (10% default / 20% cap / 80% floor), so no illustrative flag needed. */
+  #sec-extras .extras-row { margin-bottom: var(--s4); }
+  #sec-extras .extras-row:last-child { margin-bottom: 0; }
+  /* cards hug their own content — no stretched voids beside a taller twin */
+  #sec-extras .extras-row.cols { align-items: start; }
+
+  /* the split visual */
+  #sec-extras .split-grid {
+    display: grid; grid-template-columns: 1fr 360px;
+    gap: var(--s4) var(--s7); align-items: end;
+  }
+  @media (max-width: 880px) {
+    #sec-extras .split-grid { grid-template-columns: 1fr; }
+  }
+  #sec-extras .split { margin-top: var(--s6); padding-bottom: var(--s5); }
+  #sec-extras .split__labels {
+    display: flex; justify-content: space-between; gap: var(--s4);
+    margin-bottom: var(--s3);
+  }
+  #sec-extras .split__side {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.11em;
+    text-transform: uppercase; color: var(--text-faint);
+  }
+  #sec-extras .split__viz { position: relative; }
+  #sec-extras .split__bar {
+    position: relative; height: 30px;
+    border-radius: var(--r-s); overflow: hidden;
+    background: var(--bg-raised);
+  }
+  #sec-extras .split__seg { position: absolute; top: 0; bottom: 0; }
+  #sec-extras .split__seg--fund { left: 0; width: 80%; background: var(--text-faint); }
+  #sec-extras .split__seg--band {
+    left: 80%; width: 10%;
+    background:
+      repeating-linear-gradient(-45deg, var(--pink-line) 0 5px, transparent 5px 12px),
+      var(--text-faint);
+  }
+  #sec-extras .split__seg--sig { left: 90%; width: 10%; background: var(--pink); }
+  #sec-extras .split__cap,
+  #sec-extras .split__today {
+    position: absolute; top: -7px; bottom: -7px; width: 0;
+  }
+  #sec-extras .split__cap { left: 80%; border-left: 2px dashed var(--text-hi); }
+  #sec-extras .split__today { left: 90%; border-left: 2px solid var(--text-hi); }
+  #sec-extras .split__caplabel,
+  #sec-extras .split__todaylabel {
+    position: absolute;
+    transform: translateX(-50%);
+    font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--text-hi);
+    white-space: nowrap;
+  }
+  #sec-extras .split__caplabel { left: 80%; top: calc(100% + 12px); }
+  /* Right-anchored so it names the pink region and can never collide with the bar edge. */
+  #sec-extras .split__todaylabel { left: auto; right: 0; transform: none; bottom: calc(100% + 12px); }
+  #sec-extras .split__legend { display: grid; gap: var(--s2); }
+  #sec-extras .split__key {
+    display: flex; align-items: baseline; gap: var(--s3);
+    font-size: 13.5px; line-height: 1.55; color: var(--text-muted);
+  }
+  #sec-extras .split__swatch {
+    flex: none; width: 12px; height: 12px; border-radius: 3px;
+    position: relative; top: 1px;
+  }
+  #sec-extras .split__swatch--fund { background: var(--text-faint); }
+  #sec-extras .split__swatch--band {
+    background:
+      repeating-linear-gradient(-45deg, var(--pink-line) 0 3px, transparent 3px 7px),
+      var(--text-faint);
+  }
+  #sec-extras .split__swatch--sig { background: var(--pink); }
+
+  /* the four powers, inside the authority card */
+  #sec-extras .powers {
+    margin: var(--s3) 0 0; padding: 0; list-style: none;
+    display: grid; gap: var(--s2);
+    font-size: 14px; line-height: 1.55; color: var(--text-muted);
+  }
+  #sec-extras .powers li { position: relative; padding-left: 18px; }
+  #sec-extras .powers li::before {
+    content: ''; position: absolute; left: 0; top: 0.66em;
+    width: 7px; height: 2px; background: var(--text-faint);
+  }
+</style>
+
+<section id="sec-extras" class="section section--rule" aria-labelledby="sec-extras-h">
+  <div class="container">
+    <header class="sec-head reveal">
+      <p class="eyebrow">Worth knowing</p>
+      <h2 class="h1" id="sec-extras-h">No lock-ups, no oracle, no keys</h2>
+      <p class="lede">
+        Five short facts before the argument: what signaling asks of you, why a listing
+        can't be bought, and how little of this anyone can ever change.
+      </p>
+    </header>
+
+    <div class="cols cols--2 extras-row">
+      <div class="card card--pink reveal">
+        <p class="card__head">Signal earns, and never locks</p>
+        <p class="card__body">
+          Deposit GBX, receive a non-transferable receipt, and point it at one Strategy
+          — all in a single transaction. There is no idle state to park in, and no
+          lock-up to wait out: withdraw the moment you change your mind. While your
+          signal stands, you earn a share of whatever your Strategy acquires, paid in
+          that asset.
+        </p>
+      </div>
+      <div class="card reveal" style="--d: 90ms">
+        <p class="card__head">Getting listed means getting bought</p>
+        <p class="card__body">
+          A Strategy is a permanent mandate to acquire one asset. While it carries
+          signal, part of everything the fund earns is spent on that asset, week after
+          week. So a project that wants the fund to hold its token cannot pay a
+          gatekeeper — it has to persuade the people holding GBX to point their signal
+          at it. Demand for the fund's attention is demand aimed at its holders.
+        </p>
+        <p class="note" style="margin-top: var(--s3)">
+          A description of where revenue mechanically goes and who directs it — not a
+          claim about anyone's token price.
+        </p>
+      </div>
+    </div>
+
+    <div class="card extras-row reveal">
+      <p class="card__head">The treasury always keeps at least <span class="num">80%</span></p>
+      <div class="split-grid">
+        <p class="card__body measure">
+          Only one economic number in the whole protocol can ever be changed: the share of
+          each purchase that goes to signalers. It defaults to
+          <span class="num">10%</span>, and the code refuses anything above
+          <span class="num">20%</span> — so the treasury receives at least
+          <span class="num">80%</span> of every purchase, no matter who ever holds the
+          levers. Where each share is sent cannot be changed at all, and a new share
+          applies to later purchases only.
+        </p>
+        <div class="split__legend" aria-hidden="true">
+          <p class="split__key">
+            <span class="split__swatch split__swatch--fund"></span>
+            <span>The guaranteed floor — the treasury never takes less than <span class="num">80%</span>.</span>
+          </p>
+          <p class="split__key">
+            <span class="split__swatch split__swatch--band"></span>
+            <span>The adjustable band — the room between today's share and the cap; today it sits with the treasury. The share can also fall, to zero.</span>
+          </p>
+          <p class="split__key">
+            <span class="split__swatch split__swatch--sig"></span>
+            <span>Signalers — <span class="num">10%</span> today, paid in the asset itself.</span>
+          </p>
+        </div>
+      </div>
+      <div class="split">
+        <div class="split__labels" aria-hidden="true">
+          <span class="split__side">The treasury</span>
+        </div>
+        <div class="split__viz">
+          <div class="split__bar" role="img"
+               aria-label="How every purchase splits: today the treasury takes 90 percent and signalers take 10 percent. The signaler share can be set anywhere from zero to a hard cap of 20 percent, enforced in code, so the treasury never receives less than 80 percent.">
+            <i class="split__seg split__seg--fund"></i>
+            <i class="split__seg split__seg--band"></i>
+            <i class="split__seg split__seg--sig"></i>
+          </div>
+          <span class="split__today" aria-hidden="true"></span>
+          <span class="split__todaylabel num" aria-hidden="true">signalers &middot; 10% today</span>
+          <span class="split__cap" aria-hidden="true"></span>
+          <span class="split__caplabel num" aria-hidden="true">hard cap &middot; 20%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="cols cols--2 extras-row">
+      <div class="card card--ghost reveal">
+        <p class="card__head">No oracle, anywhere</p>
+        <p class="card__body">
+          The protocol never asks a feed what anything is worth. Every acquisition is a
+          falling-price auction: the ask drops until a trader decides the lot is worth
+          filling, and that fill is the price. The only price the protocol ever knows
+          is the one a trader just paid.
+        </p>
+      </div>
+      <div class="card card--ghost reveal" style="--d: 90ms">
+        <p class="card__head">No admin keys — one narrow exception</p>
+        <p class="card__body">
+          Ten contracts have no owner at all. One — Resonance — answers to a single
+          address with exactly four powers:
+        </p>
+        <ul class="powers">
+          <li>add a Strategy</li>
+          <li>retire a Strategy — never the last one</li>
+          <li>register a reward token</li>
+          <li>set the signaler share, inside its <span class="num">20%</span> bound</li>
+        </ul>
+        <p class="card__body" style="margin-top: var(--s3)">
+          Who will hold that address has not been decided. There is no DAO today.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>

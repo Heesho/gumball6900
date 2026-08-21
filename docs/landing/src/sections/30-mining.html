@@ -1,0 +1,459 @@
+<style>
+/* ------------------------------------------------------------ 30-mining -- */
+#sec-mining .mn-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--s5);
+  align-items: start;
+}
+#sec-mining .mn-cap { margin-bottom: var(--s3); }
+
+/* The board: sixteen cells, each one slot mid-cycle. */
+#sec-mining .mn-board {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--s2);
+}
+#sec-mining .mn-cell {
+  background: var(--bg-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-s);
+  padding: var(--s3);
+  display: grid;
+  gap: var(--s2);
+  align-content: start;
+}
+#sec-mining .mn-cell__top {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2);
+  font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+}
+#sec-mining .mn-cell__id { color: var(--text-faint); }
+#sec-mining .mn-cell__owner { color: var(--text-muted); text-transform: none; }
+#sec-mining .mn-cell__owner.is-you { color: var(--blue); }
+#sec-mining .mn-cell__owner.is-open { color: var(--text-faint); }
+#sec-mining .mn-cell__price { font-size: 17px; font-weight: 600; line-height: 1.1; color: var(--text-hi); }
+#sec-mining .mn-cell__sub { font-size: 11px; color: var(--text-faint); }
+#sec-mining .mn-cell__fx { font-size: 11px; font-weight: 500; min-height: 17px; color: var(--blue); }
+
+/* The transfer panel: where the last payment actually went. */
+#sec-mining .mn-transfer {
+  background: var(--bg-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-m);
+  padding: var(--s4);
+  display: grid;
+  gap: var(--s3);
+}
+#sec-mining .mn-transfer__cap {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase;
+  color: var(--text-faint);
+}
+#sec-mining .mn-transfer__line { font-size: 13px; line-height: 1.45; color: var(--text); min-height: 38px; }
+#sec-mining .mn-route { display: grid; gap: var(--s1); }
+#sec-mining .mn-route__top {
+  display: flex; justify-content: space-between; gap: var(--s2);
+  font-size: 12px; line-height: 1.4; color: var(--text-muted);
+}
+#sec-mining .mn-route__val { color: var(--text-hi); flex: none; }
+/* Route meters grow when a purchase routes money — the one width that transitions. */
+#sec-mining .mn-route .meter > i { transition: width var(--t-event) var(--ease-out); }
+/* Exit leg (USDG leaving to a person) is the soft blue; the fund's leg is full blue. */
+#sec-mining .mn-meter--exit > i { background: var(--blue-line); }
+#sec-mining .mn-exitline { min-height: 38px; }
+
+#sec-mining .mn-tallies { margin: var(--s4) 0 0; display: grid; gap: var(--s2); }
+#sec-mining .mn-tallies dt, #sec-mining .mn-tallies dd { margin: 0; }
+#sec-mining .mn-tally {
+  display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3);
+  font-size: 12.5px; padding-bottom: var(--s2);
+  border-bottom: 1px solid var(--rule);
+}
+#sec-mining .mn-tally dt { color: var(--text-muted); }
+#sec-mining .mn-tally dd { color: var(--text-hi); font-weight: 600; }
+#sec-mining .mn-tally dd.blue { color: var(--blue); }
+
+#sec-mining .mn-facts { margin-top: var(--s6); }
+
+@media (max-width: 880px) {
+  #sec-mining .mn-layout { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  #sec-mining .mn-board { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+
+<section id="sec-mining" class="section section--rule" aria-labelledby="sec-mining-h">
+  <div class="container">
+    <header class="sec-head reveal">
+      <p class="eyebrow eyebrow--blue">Mining</p>
+      <h2 class="h1" id="sec-mining-h">Sixteen slots pay for everything</h2>
+      <p class="lede">
+        Mining is where the fund's money comes from. Miners pay USDG for one of sixteen permanent
+        slots, and that USDG is the fund's buying power. There is no other source &mdash; no team
+        allocation, no presale.
+      </p>
+    </header>
+
+    <div class="sim-panel reveal" style="--d: 90ms">
+      <div class="sim-panel__head">
+        <span class="sim-panel__title sim-panel__title--blue">Mine &mdash; live model</span>
+        <span class="chip chip--warn">Illustrative parameters</span>
+      </div>
+      <div class="sim-panel__body">
+        <div class="mn-layout">
+          <div>
+            <p class="note mn-cap">
+              All sixteen slots, each on its own clock. Every one is always for sale: its price falls
+              in a straight line to zero over one hour and restarts when taken.
+            </p>
+            <div class="mn-board" id="mn-board"></div>
+          </div>
+          <aside aria-label="Where the money goes">
+            <div class="mn-transfer" id="mn-transfer">
+              <p class="mn-transfer__cap">Where the money goes</p>
+              <p class="mn-transfer__line" id="mn-buyline">Waiting for the first purchase&hellip;</p>
+              <div class="mn-route">
+                <div class="mn-route__top">
+                  <span id="mn-lab-miner">80% &rarr; the displaced miner</span>
+                  <span class="mn-route__val num" id="mn-val-miner">&mdash;</span>
+                </div>
+                <div class="meter meter--thick mn-meter--exit"><i id="mn-bar-miner"></i></div>
+              </div>
+              <div class="mn-route">
+                <div class="mn-route__top">
+                  <span id="mn-lab-fund">20% &rarr; the fund's buying power</span>
+                  <span class="mn-route__val num" id="mn-val-fund">&mdash;</span>
+                </div>
+                <div class="meter meter--thick meter--blue"><i id="mn-bar-fund"></i></div>
+              </div>
+              <p class="note mn-exitline" id="mn-exitline">&nbsp;</p>
+            </div>
+            <dl class="mn-tallies">
+              <div class="mn-tally"><dt>USDG to the fund's buying power</dt><dd class="num blue" id="mn-t-fund">$0</dd></div>
+              <div class="mn-tally"><dt>Paid back to displaced miners</dt><dd class="num" id="mn-t-paid">$0</dd></div>
+              <div class="mn-tally"><dt>GBX mined so far</dt><dd class="num" id="mn-t-gbx">0</dd></div>
+              <div class="mn-tally"><dt>GBX per hour, all slots</dt><dd class="num" id="mn-t-rate">&mdash;</dd></div>
+            </dl>
+          </aside>
+        </div>
+      </div>
+      <div class="sim-panel__foot">
+        <div class="sim-panel__controls">
+          <button type="button" class="btn btn--sm btn--blue" id="mn-take">Take the cheapest slot &middot; pay USDG</button>
+          <span class="sim-clock" id="mn-clock">day 0, 00:00</span>
+        </div>
+        <p class="sim-note">
+          Sped up ~60&times;. Restart multiplier shown as &times;2 &mdash; the contract fixes it at deployment,
+          anywhere from 1.1&times; to 3&times;, with a $1 floor. Production parameters are unselected; figures are illustrative.
+        </p>
+      </div>
+    </div>
+
+    <div class="cols cols--3 mn-facts">
+      <div class="card reveal" style="--d: 180ms">
+        <div class="card__head">One hour to zero</div>
+        <div class="card__body">
+          Every slot's price falls in a straight line to zero over one hour, forever. Take one and it
+          restarts at a multiple of what you paid &mdash; so a slot nobody wants gets cheap and a
+          contested slot gets expensive, with no oracle and no admin.
+        </div>
+      </div>
+      <div class="card card--blue reveal" style="--d: 270ms">
+        <div class="card__head">80% cash-out, 20% buying power</div>
+        <div class="card__body">
+          Taking an occupied slot pays 80% of the price to the miner you displace &mdash; that is how
+          miners exit with cash &mdash; and 20% to the fund. A slot taken for the first time sends
+          100% to the fund.
+        </div>
+      </div>
+      <div class="card reveal" style="--d: 360ms">
+        <div class="card__head">Your rate is locked</div>
+        <div class="card__body">
+          GBX issuance splits evenly across the sixteen slots. The per-second rate you get when you
+          take a slot is fixed for your entire tenure, and what you mined is minted to you when your
+          tenure ends. GBX itself begins as a single 20,000,000 allocation locked forever into
+          market liquidity; every token after that is mined.
+        </div>
+      </div>
+    </div>
+    <p class="small muted measure reveal" style="--d: 450ms">
+      Where that USDG goes next is decided by the holders &mdash; that&rsquo;s Resonance.
+    </p>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+  /* The mine — sixteen reverse Dutch auctions, lifted from docs/deck (mine sim).
+     Mirrors Mine.sol mechanics: linear decay to zero over PRICE_DECAY_PERIOD,
+     80/20 vs 100% payment routing, tenure-locked tps, halving thresholds that
+     themselves halve. Illustrative parameters only. */
+
+  // Contract constants the sim is bound by.
+  var SLOTS = 16;
+  var DECAY = 3600;          // Mine.PRICE_DECAY_PERIOD, seconds
+  var MINER_BPS = 8000;      // Mine.PREVIOUS_MINER_BPS
+  var BPS = 10000;
+  var MULT = 2.0;            // illustrative pick inside Mine's 1.1–3.0 bound
+  var MIN_PRICE = 1;         // Mine.MIN_INITIAL_PRICE, in dollars
+  var MAX_PRICE = 60;        // stands in for Mine's MAX_INITIAL_PRICE cap
+
+  // Illustrative emission curve.
+  var INITIAL_TPS = 4000 / 3600;   // GBX/s, all slots combined
+  var HALVING = 250000;
+  var TAIL = 200 / 3600;
+
+  var NAMES = ['ava','kai','rin','moss','juno','pike','wren','isla','odin','nix','sol','vega','bex','tao','koi','lux'];
+  var OPEN_AT_START = { 2: true, 9: true, 13: true };  // never-taken slots: the 100% route
+
+  function globalTps(mined) {
+    // Mirrors Mine._rateState: thresholds halve alongside the rate.
+    var halvings = 0, next = HALVING, tps = INITIAL_TPS;
+    while (mined >= next && halvings < 64) {
+      halvings++;
+      tps = INITIAL_TPS / Math.pow(2, halvings);
+      if (tps <= TAIL) return TAIL;
+      next += HALVING / Math.pow(2, halvings);
+    }
+    tps = INITIAL_TPS / Math.pow(2, halvings);
+    return tps <= TAIL ? TAIL : tps;
+  }
+
+  function money(n) {
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
+    if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'k';
+    return '$' + n.toFixed(2);
+  }
+  function gbx(n) {
+    if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
+    if (n >= 1000) return Math.round(n).toLocaleString();
+    return n.toFixed(1);
+  }
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  var board = document.getElementById('mn-board');
+  var els = {
+    clock: document.getElementById('mn-clock'),
+    buyline: document.getElementById('mn-buyline'),
+    labMiner: document.getElementById('mn-lab-miner'),
+    valMiner: document.getElementById('mn-val-miner'),
+    barMiner: document.getElementById('mn-bar-miner'),
+    labFund: document.getElementById('mn-lab-fund'),
+    valFund: document.getElementById('mn-val-fund'),
+    barFund: document.getElementById('mn-bar-fund'),
+    exitline: document.getElementById('mn-exitline'),
+    transfer: document.getElementById('mn-transfer'),
+    tFund: document.getElementById('mn-t-fund'),
+    tPaid: document.getElementById('mn-t-paid'),
+    tGbx: document.getElementById('mn-t-gbx'),
+    tRate: document.getElementById('mn-t-rate'),
+    take: document.getElementById('mn-take'),
+  };
+
+  var S = { t: 0, totalMined: 0, revenue: 0, paidToMiners: 0, slots: [], cells: [] };
+  // While the reader's own purchase is on the transfer panel, auto purchases
+  // may not overwrite it — an action's consequence must stay visible.
+  var holdTransferUntil = 0;
+
+  for (var i = 0; i < SLOTS; i++) {
+    var open = !!OPEN_AT_START[i];
+    S.slots.push({
+      // Start every slot at its own point in its own cycle, otherwise the whole
+      // board reaches its reservation together and all sixteen change hands at once.
+      owner: open ? null : NAMES[i],
+      initialPrice: 4 + Math.random() * 26,
+      startedAt: -Math.random() * DECAY * 0.9,
+      lastAccruedAt: 0,
+      tps: open ? 0 : INITIAL_TPS / SLOTS,   // vacant slots emit nothing (Mine.sol)
+      mined: open ? 0 : Math.random() * 40,
+      // Reservation as a fraction of the slot's own price, redrawn per tenure —
+      // the desync that keeps the board from churning in lockstep.
+      reserve: 0,
+    });
+    var s0 = S.slots[i];
+    s0.reserve = s0.initialPrice * (0.25 + Math.random() * 0.55);
+    var cell = document.createElement('div');
+    cell.className = 'mn-cell';
+    cell.innerHTML =
+      '<div class="mn-cell__top"><span class="mn-cell__id num">' + pad2(i + 1) + '</span>' +
+      '<span class="mn-cell__owner num"></span></div>' +
+      '<div class="mn-cell__price num"></div>' +
+      '<div class="meter meter--blue"><i></i></div>' +
+      '<div class="mn-cell__sub num"></div>' +
+      '<div class="mn-cell__fx num"></div>';
+    board.appendChild(cell);
+    S.cells.push({
+      root: cell,
+      owner: cell.querySelector('.mn-cell__owner'),
+      price: cell.querySelector('.mn-cell__price'),
+      bar: cell.querySelector('.meter i'),
+      sub: cell.querySelector('.mn-cell__sub'),
+      fx: cell.querySelector('.mn-cell__fx'),
+      timer: null,
+    });
+  }
+
+  function priceOf(slot) {
+    var elapsed = S.t - slot.startedAt;
+    if (elapsed >= DECAY) return 0;
+    return slot.initialPrice * (1 - elapsed / DECAY);
+  }
+
+  function flash(el, timerHolder, key) {
+    el.classList.remove('evt-blue');
+    void el.offsetWidth;                 // restart the animation on repeat events
+    el.classList.add('evt-blue');
+    clearTimeout(timerHolder[key]);
+    timerHolder[key] = setTimeout(function () { el.classList.remove('evt-blue'); }, 1100);
+  }
+
+  function showTransfer(index, buyer, displaced, paid, toMiner, toFund, accrued) {
+    // The cell names its own consequence for ~1s…
+    var cell = S.cells[index];
+    cell.fx.textContent = displaced
+      ? '+' + money(toMiner) + ' → @' + displaced
+      : '100% → fund';
+    cell.root.classList.remove('evt-blue');
+    void cell.root.offsetWidth;
+    cell.root.classList.add('evt-blue');
+    clearTimeout(cell.timer);
+    cell.timer = setTimeout(function () {
+      cell.root.classList.remove('evt-blue');
+      cell.fx.textContent = '';
+    }, 1100);
+
+    // …and the transfer panel shows where the money went.
+    var isUser = buyer === 'you';
+    var now = (window.performance && performance.now()) || Date.now();
+    if (!isUser && now < holdTransferUntil) return;
+    if (isUser) holdTransferUntil = now + 2500;
+    var who = isUser ? 'You' : '@' + buyer;
+    els.buyline.textContent = who + ' take' + (buyer === 'you' ? '' : 's') + ' slot ' +
+      pad2(index + 1) + ' for ' + money(paid) + '.';
+    if (displaced) {
+      els.labMiner.textContent = '80% → @' + displaced + ', displaced';
+      els.valMiner.textContent = money(toMiner);
+      els.labFund.textContent = '20% → the fund’s buying power';
+      els.valFund.textContent = money(toFund);
+      els.exitline.textContent = '@' + displaced + ' exits with ' + gbx(accrued) + ' GBX, minted on the spot.';
+    } else {
+      els.labMiner.textContent = 'no one displaced — first-ever take';
+      els.valMiner.textContent = '—';
+      els.labFund.textContent = '100% → the fund’s buying power';
+      els.valFund.textContent = money(toFund);
+      els.exitline.textContent = 'The whole payment becomes buying power.';
+    }
+    // Animate the split growing from zero.
+    els.barMiner.style.width = '0%';
+    els.barFund.style.width = '0%';
+    void els.barMiner.offsetWidth;
+    els.barMiner.style.width = displaced ? '80%' : '0%';
+    els.barFund.style.width = displaced ? '20%' : '100%';
+    flash(els.transfer, els, 'transferTimer');
+  }
+
+  function buy(index, forcedOwner) {
+    var slot = S.slots[index];
+    var paid = priceOf(slot);
+    var displaced = slot.owner;
+
+    // Settle the outgoing tenure: its accrual mints to the displaced miner.
+    var accrued = 0;
+    if (displaced !== null) {
+      accrued = (S.t - slot.lastAccruedAt) * slot.tps;
+      S.totalMined += accrued;
+    }
+
+    // Route the payment: vacant slot → 100% revenue; occupied → 80/20.
+    var toMiner = 0, toFund = 0;
+    if (paid > 0) {
+      if (displaced === null) {
+        toFund = paid;
+      } else {
+        toMiner = (paid * MINER_BPS) / BPS;
+        toFund = paid - toMiner;
+      }
+      S.revenue += toFund;
+      S.paidToMiners += toMiner;
+    }
+
+    // New tenure: restart price at paid × MULT with the $1 floor; the new rate
+    // re-divides the current global rate by sixteen and is locked until replaced.
+    slot.owner = forcedOwner || NAMES[Math.floor(Math.random() * NAMES.length)];
+    slot.initialPrice = Math.min(Math.max(paid * MULT, MIN_PRICE), MAX_PRICE);
+    slot.startedAt = S.t;
+    slot.lastAccruedAt = S.t;
+    slot.tps = globalTps(S.totalMined) / SLOTS;
+    slot.mined = 0;
+    slot.reserve = slot.initialPrice * (0.3 + Math.random() * 0.55);
+
+    showTransfer(index, slot.owner, displaced, paid, toMiner, toFund, accrued);
+  }
+
+  function stepSim(dt) {
+    S.t += dt;
+    for (var i = 0; i < SLOTS; i++) {
+      var slot = S.slots[i];
+      if (slot.owner !== null) slot.mined += dt * slot.tps;
+      // Never inside the first stretch of a tenure, so slots cannot churn in lockstep.
+      if (S.t - slot.startedAt > 240 && priceOf(slot) <= slot.reserve) buy(i);
+    }
+  }
+
+  function paintSim() {
+    var live = 0;
+    for (var i = 0; i < SLOTS; i++) {
+      var slot = S.slots[i], c = S.cells[i];
+      var frac = 1 - Math.min(1, Math.max(0, (S.t - slot.startedAt) / DECAY));
+      c.owner.textContent = slot.owner === null ? 'open' : (slot.owner === 'you' ? 'you' : '@' + slot.owner);
+      c.owner.classList.toggle('is-you', slot.owner === 'you');
+      c.owner.classList.toggle('is-open', slot.owner === null);
+      c.price.textContent = '$' + priceOf(slot).toFixed(2);
+      // Price remaining — the bar SHRINKS as the slot gets cheaper.
+      c.bar.style.width = (frac * 100).toFixed(1) + '%';
+      c.sub.textContent = slot.owner === null
+        ? 'never taken · 0/h'
+        : gbx(slot.mined) + ' GBX · ' + Math.round(slot.tps * 3600) + '/h';
+      live += slot.tps;
+    }
+    var d = Math.floor(S.t / 86400), h = Math.floor((S.t % 86400) / 3600), m = Math.floor((S.t % 3600) / 60);
+    els.clock.textContent = 'day ' + d + ', ' + pad2(h) + ':' + pad2(m);
+    els.tFund.textContent = money(S.revenue);
+    els.tPaid.textContent = money(S.paidToMiners);
+    els.tGbx.textContent = gbx(S.totalMined);
+    els.tRate.textContent = Math.round(live * 3600).toLocaleString();
+  }
+
+  // Interactive: take the slot that is cheapest right now. Works while paused —
+  // it needs no loop, just a buy and a repaint.
+  els.take.addEventListener('click', function () {
+    var best = 0, bp = Infinity;
+    for (var i = 0; i < SLOTS; i++) {
+      var p = priceOf(S.slots[i]);
+      if (p < bp) { bp = p; best = i; }
+    }
+    buy(best, 'you');
+    paintSim();
+  });
+
+  // Arrive mid-life: pre-run ten sim minutes so the reader lands on a board with
+  // history — tallies non-zero, the transfer panel showing a real split — and
+  // then watches live purchases happen on top of it.
+  for (var k = 0; k < 100; k++) stepSim(6);
+  paintSim();
+
+  SIMS.register('mining', {
+    el: document.getElementById('sec-mining'),
+    timeScale: 60,                       // one real second ≈ one sim minute
+    step: stepSim,
+    paint: paintSim,
+    static: function () {
+      // A meaningful mid-simulation still: advance another stretch so more
+      // purchases have landed, but not so far that every slot has churned.
+      for (var k = 0; k < 200; k++) stepSim(6);
+      paintSim();
+    },
+  });
+}());
+</script>

@@ -1,0 +1,65 @@
+<script>
+/* Shared simulation driver — owned by the lead agent. One rAF loop for the whole page,
+   IntersectionObserver pausing off-screen work, prefers-reduced-motion honoured. */
+(function () {
+  'use strict';
+  var sims = (window.SIMS && window.SIMS.list) || [];
+  var reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function staticPass() {
+    sims.forEach(function (sim) {
+      try {
+        if (sim.static) sim.static();
+        else { if (sim.step) sim.step(0); if (sim.paint) sim.paint(); }
+      } catch (err) { console.error('sim ' + sim.name + ' static failed', err); }
+    });
+  }
+
+  if (reduced.matches) { staticPass(); return; }
+
+  sims.forEach(function (sim) { sim.visible = false; sim.lastSeen = 0; });
+
+  var io = new IntersectionObserver(function (entries) {
+    entries.forEach(function (entry) {
+      var sim = entry.target.__sim;
+      if (!sim) return;
+      if (entry.isIntersecting) {
+        if (sim.reset && sim.lastSeen && performance.now() - sim.lastSeen > 30000) {
+          try { sim.reset(); } catch (err) { console.error('sim ' + sim.name + ' reset failed', err); }
+        }
+        sim.visible = true;
+      } else {
+        sim.visible = false;
+        sim.lastSeen = performance.now();
+      }
+    });
+  }, { rootMargin: '80px 0px' });
+
+  sims.forEach(function (sim) {
+    if (sim.el) { sim.el.__sim = sim; io.observe(sim.el); }
+    else console.error('sim ' + sim.name + ' registered without el');
+  });
+
+  var last = 0;
+  function frame(ts) {
+    var dt = last ? Math.min((ts - last) / 1000, 0.1) : 0;
+    last = ts;
+    sims.forEach(function (sim) {
+      if (!sim.visible) return;
+      try {
+        if (sim.step) sim.step(dt * (sim.timeScale || 1));
+        if (sim.paint) sim.paint();
+      } catch (err) {
+        console.error('sim ' + sim.name + ' failed', err);
+        sim.visible = false; /* quarantine a throwing sim instead of spamming */
+      }
+    });
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  reduced.addEventListener('change', function (event) {
+    if (event.matches) { sims.forEach(function (s) { s.visible = false; }); staticPass(); }
+  });
+}());
+</script>
