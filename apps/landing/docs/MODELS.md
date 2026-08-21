@@ -21,7 +21,7 @@ animation. Shared scaffolding:
 - **Frame loop** (1947–1974): rAF, `dtms` clamped to 64ms. Time scales differ per sim:
   mine `dt*60`, flow `step(dt*900)` + `animate(realDt)`, sig `dt*3600`, auc `step(dt*450)` +
   `animate(realDt)`, red runs in real time. Seed before first frame (1971): `flow.pending=46000;
-  flow.step(1)` so the flow diagram is not empty on first view.
+flow.step(1)` so the flow diagram is not empty on first view.
 
 Honest-register comment worth copying (1175–1182): "Both mirror the contract mechanics rather
 than replaying a canned animation … Illustrative parameters only. The production rate, halving
@@ -48,6 +48,7 @@ Step (1327–1339): accrue `dt*tps` to each occupied slot's `mined`; a slot is b
 lockstep churn, 1335–1336).
 
 Buy event (1282–1325) — the exact contract-shaped order:
+
 1. Settle the outgoing tenure: `accrued = (t - lastAccruedAt) * tps` is "minted" to the displaced
    miner (`totalMined += accrued`) — issuance is realized only at replacement, as in the contract.
 2. Route the payment: **vacant slot → 100% to `revenue`; occupied → 80% to `paidToMiners`,
@@ -105,6 +106,7 @@ GBX — each augmented with `{ pot, held, flash, epochEnd, lastFill, delta, move
 `flow = { t, running, pending, rate, finish, parts[], assets }`.
 
 Step (1409–1462), sim time ×900:
+
 - **Discrete stake moves** (1416–1436): when `t >= nextShift`, pick a random whole lot from
   `[500, 1000, 1500, 2000, 3000]` and move it from one asset to another (guard:
   `from.stake - lot > 800`; a `holdUntil` filter exists but nothing ever sets it — dead code).
@@ -155,6 +157,7 @@ Everything is measured **in QQQ units, never dollars**: `fair() = lot / QQQ` (wh
 is worth in QQQ); `open()` sets `initialAsk = fair() * (1.85 + rand*0.35)`.
 
 Step (1696–1715), sim time ×450, only while `phase === 'open'`:
+
 - **The lot keeps growing during the auction**: `lot += inflow * dt` (0.045 USDG/sim-s — the
   stream keeps signalling USDG in), so the worth stack rises while the ask falls.
 - Ask decays linearly to zero over EPOCH: `ask = initialAsk * (1 - elapsed/EPOCH)`.
@@ -173,9 +176,9 @@ asking (pink, falling), both scaled by `scale = max(initialAsk, worth, 0.001)` s
 at full height and **must visibly shrink** while worth grows; min bar height 4px; numeric labels
 above each bar; captions "worth, rising" / "asking, falling". A horizontal meet-line sits at the
 lower of the two bar tops — dashed grey "settles when they meet" while open, solid white
-"THEY MET  ·  SETTLED" while trading. Top-right "A TRADER" box ("takes the USDG, hands over the
-QQQ"). Bottom-right two destination boxes: "The fund / QQQ backing GBX  ·  90%" (`fundTotal`)
-and "The signalers / QQQ to signalers  ·  10%" (`sigTotal`, pink). During trade, coins fly on
+"THEY MET · SETTLED" while trading. Top-right "A TRADER" box ("takes the USDG, hands over the
+QQQ"). Bottom-right two destination boxes: "The fund / QQQ backing GBX · 90%" (`fundTotal`)
+and "The signalers / QQQ to signalers · 10%" (`sigTotal`, pink). During trade, coins fly on
 quadratic arcs (helper at 1729–1733, lifted control point so they never cut across the chart):
 blue USDG auction→trader, white QQQ trader→fund, pink QQQ trader→signalers, with caption
 "USDG to the buyer". Footer: `N lots settled so far`. The `#aucState` clock line reads
@@ -193,6 +196,7 @@ holdings `{ NVDA 1200, QQQ 400, WBTC 2.4, AAPL 860 }`, each DOM `.hold` cell kee
 for its bar scale. Runs in **real time** (no sim clock).
 
 Step (1883–1927): a two-phase self-running loop.
+
 - idle → at `t >= next`, start a burn: random holder from six names, `pct = 0.4% + rand*2.0%`
   of supply; `burned = supply*pct`; `taken[i] = holds[i].amt * pct`; the `#redOut` line announces
   "**@who** burns **N GBX**, which is P.PP% of everything in existence."
@@ -218,6 +222,7 @@ state (display interpolates with `k`; the decrement happens once at the end); re
 ## CONTRACT FACTS (verified against the Solidity — do not guess)
 
 `packages/contracts/src/core/Mine.sol`:
+
 - 16 slots, permanent: `SLOT_COUNT = 16` (Mine.sol:32).
 - Linear decay to zero over one hour: `PRICE_DECAY_PERIOD = 1 hours` (Mine.sol:30);
   `_price` returns 0 when `elapsed >= PRICE_DECAY_PERIOD`, else
@@ -247,6 +252,7 @@ state (display interpolates with `k`; the decrement happens once at the end); re
   unset deployment parameters (Config, Mine.sol:83–89) — hence the deck's "illustrative" labels.
 
 `packages/contracts/src/core/Resonance.sol`:
+
 - Seven-day stream: `DURATION = 7 days` (Resonance.sol:28). `notifyRevenue` restarts the period:
   new reward must be `>= left()` (the exact reward remaining in an active period,
   Resonance.sol:230–241, 398–402); `_restartRewardPeriod` schedules `reward + remainder` at

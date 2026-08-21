@@ -5,7 +5,9 @@
   gap: var(--s5);
   align-items: start;
 }
-#sec-mining .mn-cap { margin-bottom: var(--s3); }
+#sec-mining .mn-cap {
+  margin-bottom: var(--s3);
+}
 
 /* The board: sixteen cells, each one slot mid-cycle. */
 #sec-mining .mn-board {
@@ -23,16 +25,44 @@
   align-content: start;
 }
 #sec-mining .mn-cell__top {
-  display: flex; justify-content: space-between; align-items: baseline; gap: var(--s2);
-  font-size: 10.5px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s2);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
-#sec-mining .mn-cell__id { color: var(--text-faint); }
-#sec-mining .mn-cell__owner { color: var(--text-muted); text-transform: none; }
-#sec-mining .mn-cell__owner.is-you { color: var(--blue); }
-#sec-mining .mn-cell__owner.is-open { color: var(--text-faint); }
-#sec-mining .mn-cell__price { font-size: 17px; font-weight: 600; line-height: 1.1; color: var(--text-hi); }
-#sec-mining .mn-cell__sub { font-size: 11px; color: var(--text-faint); }
-#sec-mining .mn-cell__fx { font-size: 11px; font-weight: 500; min-height: 17px; color: var(--blue); }
+#sec-mining .mn-cell__id {
+  color: var(--text-faint);
+}
+#sec-mining .mn-cell__owner {
+  color: var(--text-muted);
+  text-transform: none;
+}
+#sec-mining .mn-cell__owner.is-you {
+  color: var(--blue);
+}
+#sec-mining .mn-cell__owner.is-open {
+  color: var(--text-faint);
+}
+#sec-mining .mn-cell__price {
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text-hi);
+}
+#sec-mining .mn-cell__sub {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+#sec-mining .mn-cell__fx {
+  font-size: 11px;
+  font-weight: 500;
+  min-height: 17px;
+  color: var(--blue);
+}
 
 /* The transfer panel: where the last payment actually went. */
 #sec-mining .mn-transfer {
@@ -44,38 +74,91 @@
   gap: var(--s3);
 }
 #sec-mining .mn-transfer__cap {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
   color: var(--text-faint);
 }
-#sec-mining .mn-transfer__line { font-size: 13px; line-height: 1.45; color: var(--text); min-height: 38px; }
-#sec-mining .mn-route { display: grid; gap: var(--s1); }
-#sec-mining .mn-route__top {
-  display: flex; justify-content: space-between; gap: var(--s2);
-  font-size: 12px; line-height: 1.4; color: var(--text-muted);
+#sec-mining .mn-transfer__line {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text);
+  min-height: 38px;
 }
-#sec-mining .mn-route__val { color: var(--text-hi); flex: none; }
+#sec-mining .mn-route {
+  display: grid;
+  gap: var(--s1);
+}
+#sec-mining .mn-route__top {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s2);
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-muted);
+}
+#sec-mining .mn-route__val {
+  color: var(--text-hi);
+  flex: none;
+}
 /* Route meters grow when a purchase routes money — the one width that transitions. */
-#sec-mining .mn-route .meter > i { transition: width var(--t-event) var(--ease-out); }
+#sec-mining .mn-route .meter > i {
+  transition: width var(--t-event) var(--ease-out);
+}
 /* Exit leg (USDG leaving to a person) is the soft blue; the fund's leg is full blue. */
-#sec-mining .mn-meter--exit > i { background: var(--blue-line); }
-#sec-mining .mn-exitline { min-height: 38px; }
+#sec-mining .mn-meter--exit > i {
+  background: var(--blue-line);
+}
+#sec-mining .mn-exitline {
+  min-height: 38px;
+}
 
-#sec-mining .mn-tallies { margin: var(--s4) 0 0; display: grid; gap: var(--s2); }
-#sec-mining .mn-tallies dt, #sec-mining .mn-tallies dd { margin: 0; }
+#sec-mining .mn-tallies {
+  margin: var(--s4) 0 0;
+  display: grid;
+  gap: var(--s2);
+}
+#sec-mining .mn-tallies dt,
+#sec-mining .mn-tallies dd {
+  margin: 0;
+}
 #sec-mining .mn-tally {
-  display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3);
-  font-size: 12.5px; padding-bottom: var(--s2);
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--s3);
+  font-size: 12.5px;
+  padding-bottom: var(--s2);
   border-bottom: 1px solid var(--rule);
 }
-#sec-mining .mn-tally dt { color: var(--text-muted); }
-#sec-mining .mn-tally dd { color: var(--text-hi); font-weight: 600; }
-#sec-mining .mn-tally dd.blue { color: var(--blue); }
+#sec-mining .mn-tally dt {
+  color: var(--text-muted);
+}
+#sec-mining .mn-tally dd {
+  color: var(--text-hi);
+  font-weight: 600;
+}
+#sec-mining .mn-tally dd.blue {
+  color: var(--blue);
+}
 
-#sec-mining .mn-facts { margin-top: var(--s6); }
+/* Narration where the take control used to sit — the sim runs itself. */
+#sec-mining .mn-legend {
+  max-width: 100%;
+}
+
+#sec-mining .mn-facts {
+  margin-top: var(--s6);
+}
 
 @media (max-width: 880px) {
-  #sec-mining .mn-layout { grid-template-columns: 1fr; }
+  #sec-mining .mn-layout {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 560px) {
-  #sec-mining .mn-board { grid-template-columns: repeat(2, 1fr); }
+  #sec-mining .mn-board {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }

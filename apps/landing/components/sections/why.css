@@ -1,5 +1,10 @@
-#sec-why .why-grid { align-items: stretch; }
-#sec-why .card { display: flex; flex-direction: column; }
+#sec-why .why-grid {
+  align-items: stretch;
+}
+#sec-why .card {
+  display: flex;
+  flex-direction: column;
+}
 #sec-why .card__head {
   display: flex;
   align-items: baseline;
@@ -11,8 +16,14 @@
   color: var(--text-hi);
   translate: 0 2px;
 }
-#sec-why .card__body { display: flex; flex-direction: column; flex: 1; }
-#sec-why .card__body > p { margin: 0; }
+#sec-why .card__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+#sec-why .card__body > p {
+  margin: 0;
+}
 #sec-why .why-trade {
   margin-top: var(--s4);
 }
@@ -28,5 +39,9 @@
   text-transform: uppercase;
   color: var(--text-faint);
 }
-#sec-why .why-trade p:not(.why-trade-label) { color: var(--text); }
-#sec-why .why-close { margin-top: var(--s6); }
+#sec-why .why-trade p:not(.why-trade-label) {
+  color: var(--text);
+}
+#sec-why .why-close {
+  margin-top: var(--s6);
+}

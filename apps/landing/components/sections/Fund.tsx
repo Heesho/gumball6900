@@ -46,16 +46,33 @@ export function Fund() {
        Rebind everything to non-null-typed consts after the guard so the
        hoisted sim functions below see them as definitely present. */
     const refsMaybe = {
-      acqPanel: $('acqPanel'), acqWrap: $('acqWrap'),
-      rdmPanel: $('rdmPanel'), rdmWrap: $('rdmWrap'), rdmVault: $('rdmVault'),
-      rdmSupply: $('rdmSupply'), rdmOut: $('rdmOut'), rdmLive: $('rdmLive'),
-      rdmDest: $('rdmDest'), rdmWho: $('rdmWho'), rdmTake: $('rdmTake'),
-      rdmSupplyFill: $('rdmSupplyFill'), rdmSupplySlice: $('rdmSupplySlice'),
+      acqPanel: $('acqPanel'),
+      acqWrap: $('acqWrap'),
+      rdmPanel: $('rdmPanel'),
+      rdmWrap: $('rdmWrap'),
+      rdmVault: $('rdmVault'),
+      rdmSupply: $('rdmSupply'),
+      rdmOut: $('rdmOut'),
+      rdmDest: $('rdmDest'),
+      rdmWho: $('rdmWho'),
+      rdmTake: $('rdmTake'),
+      rdmSupplyFill: $('rdmSupplyFill'),
+      rdmSupplySlice: $('rdmSupplySlice'),
     };
     if (Object.values(refsMaybe).some((n) => n === null)) return;
     const {
-      acqPanel, acqWrap, rdmPanel, rdmWrap, rdmVault, rdmSupply, rdmOut,
-      rdmLive, rdmDest, rdmWho, rdmTake, rdmSupplyFill, rdmSupplySlice,
+      acqPanel,
+      acqWrap,
+      rdmPanel,
+      rdmWrap,
+      rdmVault,
+      rdmSupply,
+      rdmOut,
+      rdmDest,
+      rdmWho,
+      rdmTake,
+      rdmSupplyFill,
+      rdmSupplySlice,
     } = refsMaybe as { [K in keyof typeof refsMaybe]: HTMLElement };
     const wireN = $('acqWire');
     const stacksN = $('acqStacks');
@@ -64,7 +81,8 @@ export function Fund() {
       !(wireN instanceof HTMLCanvasElement) ||
       !(stacksN instanceof HTMLCanvasElement) ||
       !(rdmWireN instanceof HTMLCanvasElement)
-    ) return;
+    )
+      return;
     const wire: HTMLCanvasElement = wireN;
     const stacks: HTMLCanvasElement = stacksN;
     const rdmWireEl: HTMLCanvasElement = rdmWireN;
@@ -77,52 +95,69 @@ export function Fund() {
     const rctx: CanvasRenderingContext2D = rctxN;
 
     const elMaybe = {
-      lot: $('acqLot'), ask: $('acqAsk'), worthCap: $('acqWorthCap'), askCap: $('acqAskCap'),
-      meet: $('acqMeet'), state: $('acqState'),
-      fundT: $('acqFundT'), sigT: $('acqSigT'),
-      trader: $('acqTrader'), fund: $('acqFund'), sig: $('acqSig'),
-      dTrader: $('acqTraderDelta'), dFund: $('acqFundDelta'), dSig: $('acqSigDelta'),
+      lot: $('acqLot'),
+      ask: $('acqAsk'),
+      worthCap: $('acqWorthCap'),
+      askCap: $('acqAskCap'),
+      meet: $('acqMeet'),
+      state: $('acqState'),
+      fundT: $('acqFundT'),
+      sigT: $('acqSigT'),
+      trader: $('acqTrader'),
+      fund: $('acqFund'),
+      sig: $('acqSig'),
+      dTrader: $('acqTraderDelta'),
+      dFund: $('acqFundDelta'),
+      dSig: $('acqSigDelta'),
       auction: $('acqAuction'),
     };
     if (Object.values(elMaybe).some((n) => n === null)) return;
     const el = elMaybe as { [K in keyof typeof elMaybe]: HTMLElement };
 
-    const burnBtns = Array.from(
-      document.querySelectorAll<HTMLButtonElement>('#sec-fund [data-burn]'));
     const reducedMq = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     /* ---- shared helpers -------------------------------------------------- */
-    function money(x: number) { return '$' + Math.round(x).toLocaleString('en-US'); }
+    function money(x: number) {
+      return '$' + Math.round(x).toLocaleString('en-US');
+    }
     function fit(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       const w = Math.round(canvas.clientWidth * dpr);
       const h = Math.round(canvas.clientHeight * dpr);
-      if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+      if (canvas.width !== w || canvas.height !== h) {
+        canvas.width = w;
+        canvas.height = h;
+      }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       return { w: canvas.clientWidth, h: canvas.clientHeight };
     }
     /* quadratic arc so a coin lifts over the layout instead of cutting through */
-    function arcAt(
-      t: number, x0: number, y0: number, x1: number, y1: number, lift: number,
-    ): [number, number] {
-      const mt = 1 - t, cx = (x0 + x1) / 2, cy = Math.min(y0, y1) - lift;
-      return [mt * mt * x0 + 2 * mt * t * cx + t * t * x1,
-              mt * mt * y0 + 2 * mt * t * cy + t * t * y1];
+    function arcAt(t: number, x0: number, y0: number, x1: number, y1: number, lift: number): [number, number] {
+      const mt = 1 - t,
+        cx = (x0 + x1) / 2,
+        cy = Math.min(y0, y1) - lift;
+      return [mt * mt * x0 + 2 * mt * t * cx + t * t * x1, mt * mt * y0 + 2 * mt * t * cy + t * t * y1];
     }
-    function anchors(
-      fromEl: HTMLElement, toEl: HTMLElement, base: DOMRect,
-    ): [number, number, number, number] {
-      const a = fromEl.getBoundingClientRect(), b = toEl.getBoundingClientRect();
+    function anchors(fromEl: HTMLElement, toEl: HTMLElement, base: DOMRect): [number, number, number, number] {
+      const a = fromEl.getBoundingClientRect(),
+        b = toEl.getBoundingClientRect();
       let ax: number, ay: number, bx: number, by: number;
-      if (b.top >= a.bottom - 8) { /* stacked: leave from the bottom, land on the top */
-        ax = a.left - base.left + a.width / 2; ay = a.bottom - base.top - 6;
-        bx = b.left - base.left + b.width / 2; by = b.top - base.top + 6;
+      if (b.top >= a.bottom - 8) {
+        /* stacked: leave from the bottom, land on the top */
+        ax = a.left - base.left + a.width / 2;
+        ay = a.bottom - base.top - 6;
+        bx = b.left - base.left + b.width / 2;
+        by = b.top - base.top + 6;
       } else if (b.left >= a.right - 8) {
-        ax = a.right - base.left - 6; ay = a.top - base.top + a.height / 2;
-        bx = b.left - base.left + 6; by = b.top - base.top + b.height / 2;
+        ax = a.right - base.left - 6;
+        ay = a.top - base.top + a.height / 2;
+        bx = b.left - base.left + 6;
+        by = b.top - base.top + b.height / 2;
       } else {
-        ax = a.left - base.left + a.width / 2; ay = a.top - base.top + a.height / 2;
-        bx = b.left - base.left + b.width / 2; by = b.top - base.top + b.height / 2;
+        ax = a.left - base.left + a.width / 2;
+        ay = a.top - base.top + a.height / 2;
+        bx = b.left - base.left + b.width / 2;
+        by = b.top - base.top + b.height / 2;
       }
       return [ax, ay, bx, by];
     }
@@ -133,19 +168,39 @@ export function Fund() {
        USDG lot is worth in QQQ, and the ask decays linearly over a six-hour
        epoch. The lot keeps growing while the auction is open; the display
        freezes at the moment of fill. */
-    const QQQ = 486;          /* $ per unit — illustrative */
-    const EPOCH = 21600;      /* six-hour epoch, inside Strategy's 1h-365d bounds */
-    const BRIBE = 0.10;       /* signaler share: default 10%, capped at 20% in code */
-    const TS = 450;           /* harness timeScale: 1 real s = 450 sim s */
+    const QQQ = 486; /* $ per unit — illustrative */
+    const EPOCH = 21600; /* six-hour epoch, inside Strategy's 1h-365d bounds */
+    const BRIBE = 0.1; /* signaler share: default 10%, capped at 20% in code */
+    const TS = 450; /* harness timeScale: 1 real s = 450 sim s */
 
-    interface HistPt { x: number; ask: number; worth: number }
-    interface Coin { p: number; kind: 'usdg' | 'fund' | 'sig' }
+    interface HistPt {
+      x: number;
+      ask: number;
+      worth: number;
+    }
+    interface Coin {
+      p: number;
+      kind: 'usdg' | 'fund' | 'sig';
+    }
 
     const auc = {
-      t: 0, phase: 'open' as 'open' | 'trade', tradeT: 0,
-      lot: 486, inflow: 0.045, ask: 0, initialAsk: 0, started: 0,
-      fundTotal: 0, sigTotal: 0, epoch: 0, parts: [] as Coin[], lastPaid: 0, lastLot: 0,
-      landed: false, hist: [] as HistPt[], meetX: 0,
+      t: 0,
+      phase: 'open' as 'open' | 'trade',
+      tradeT: 0,
+      lot: 486,
+      inflow: 0.045,
+      ask: 0,
+      initialAsk: 0,
+      started: 0,
+      fundTotal: 0,
+      sigTotal: 0,
+      epoch: 0,
+      parts: [] as Coin[],
+      lastPaid: 0,
+      lastLot: 0,
+      landed: false,
+      hist: [] as HistPt[],
+      meetX: 0,
     };
     const fair = () => auc.lot / QQQ;
     function openAuction() {
@@ -169,7 +224,8 @@ export function Fund() {
       /* pin the meeting point so the frozen chart shows exactly where they met */
       auc.meetX = Math.min(1, (auc.t - auc.started) / EPOCH);
       auc.hist.push({ x: auc.meetX, ask: auc.ask, worth: fair() });
-      const toFund = auc.lastPaid * (1 - BRIBE), toSig = auc.lastPaid * BRIBE;
+      const toFund = auc.lastPaid * (1 - BRIBE),
+        toSig = auc.lastPaid * BRIBE;
       auc.fundTotal += toFund;
       auc.sigTotal += toSig;
       auc.epoch++;
@@ -181,15 +237,19 @@ export function Fund() {
       el.meet.textContent = 'they met — settled';
       el.meet.classList.add('is-met');
       /* two-tone receipt: USDG capital in blue, the acquired asset in pink */
-      el.dTrader.innerHTML = '<span class="blue">+ ' + money(auc.lastLot)
-        + ' USDG in</span> · <span class="pink">'
-        + auc.lastPaid.toFixed(2) + ' QQQ out</span>';
+      el.dTrader.innerHTML =
+        '<span class="blue">+ ' +
+        money(auc.lastLot) +
+        ' USDG in</span> · <span class="pink">' +
+        auc.lastPaid.toFixed(2) +
+        ' QQQ out</span>';
       el.dFund.textContent = '+ ' + toFund.toFixed(2) + ' QQQ';
       el.dSig.textContent = '+ ' + toSig.toFixed(2) + ' QQQ';
       flash(el.trader, 'evt-blue');
     }
 
-    function aucStep(dt: number) { /* dt is simulated seconds (x450) */
+    function aucStep(dt: number) {
+      /* dt is simulated seconds (x450) */
       auc.t += dt;
       const rdt = dt / TS;
       if (auc.phase === 'open') {
@@ -204,13 +264,18 @@ export function Fund() {
         if (auc.ask <= fair()) fill();
       } else {
         auc.tradeT += rdt;
-        auc.parts.forEach((pt) => { pt.p += rdt * 0.5; });
+        auc.parts.forEach((pt) => {
+          pt.p += rdt * 0.5;
+        });
         if (!auc.landed && auc.tradeT > 1.35) {
           auc.landed = true; /* the asset's return leg arrives: light the split */
           flash(el.fund, 'evt-pink');
           flash(el.sig, 'evt-pink');
         }
-        if (auc.tradeT > 3.0) { auc.lot = 420 + Math.random() * 180; openAuction(); }
+        if (auc.tradeT > 3.0) {
+          auc.lot = 420 + Math.random() * 180;
+          openAuction();
+        }
       }
     }
 
@@ -227,48 +292,74 @@ export function Fund() {
       el.sigT.textContent = auc.sigTotal.toFixed(2) + ' QQQ';
       el.state.textContent = trading
         ? 'settled: ' + money(auc.lastLot) + ' for ' + auc.lastPaid.toFixed(2) + ' QQQ'
-        : 'lot ' + money(auc.lot) + ' · asking ' + auc.ask.toFixed(2) + ' QQQ'
-          + (auc.epoch ? ' · ' + auc.epoch + ' settled' : '');
+        : 'lot ' +
+          money(auc.lot) +
+          ' · asking ' +
+          auc.ask.toFixed(2) +
+          ' QQQ' +
+          (auc.epoch ? ' · ' + auc.epoch + ' settled' : '');
 
       /* ---- the price discovery, DRAWN: x is time across the whole epoch,
          y is QQQ. The ask's straight pink diagonal falls toward the worth's
          rising blue curve; where the traces meet is where it settles. */
       const s = fit(stacks, sctx);
       sctx.clearRect(0, 0, s.w, s.h);
-      const padL = 6, padR = 6, padT = 12, padB = 9;
-      const plotW = s.w - padL - padR, plotH = s.h - padT - padB;
+      const padL = 6,
+        padR = 6,
+        padT = 12,
+        padB = 9;
+      const plotW = s.w - padL - padR,
+        plotH = s.h - padT - padB;
       const yMax = Math.max(auc.initialAsk, 0.001) * 1.06;
       const X = (f: number) => padL + f * plotW;
       const Y = (v: number) => padT + (1 - Math.min(v, yMax) / yMax) * plotH;
-      const hist = auc.hist, tip = hist[hist.length - 1];
+      const hist = auc.hist,
+        tip = hist[hist.length - 1];
       /* zero line */
-      sctx.strokeStyle = C.rule; sctx.lineWidth = 1;
-      sctx.beginPath(); sctx.moveTo(padL, Y(0)); sctx.lineTo(padL + plotW, Y(0)); sctx.stroke();
+      sctx.strokeStyle = C.rule;
+      sctx.lineWidth = 1;
+      sctx.beginPath();
+      sctx.moveTo(padL, Y(0));
+      sctx.lineTo(padL + plotW, Y(0));
+      sctx.stroke();
       /* the ask's committed path: a straight line to zero at epoch end */
       if (!trading && tip) {
-        sctx.strokeStyle = C.pink; sctx.globalAlpha = 0.35;
-        sctx.lineWidth = 1.5; sctx.setLineDash([4, 6]);
-        sctx.beginPath(); sctx.moveTo(X(tip.x), Y(tip.ask)); sctx.lineTo(X(1), Y(0)); sctx.stroke();
-        sctx.setLineDash([]); sctx.globalAlpha = 1;
+        sctx.strokeStyle = C.pink;
+        sctx.globalAlpha = 0.35;
+        sctx.lineWidth = 1.5;
+        sctx.setLineDash([4, 6]);
+        sctx.beginPath();
+        sctx.moveTo(X(tip.x), Y(tip.ask));
+        sctx.lineTo(X(1), Y(0));
+        sctx.stroke();
+        sctx.setLineDash([]);
+        sctx.globalAlpha = 1;
       }
       /* meet line: while open, the level the ask must fall to; at fill, solid */
       const meetV = trading ? auc.lastPaid : worth;
       sctx.strokeStyle = trading ? C.hi : C.ruleStrong;
       sctx.lineWidth = trading ? 2 : 1.2;
       sctx.setLineDash(trading ? [] : [5, 6]);
-      sctx.beginPath(); sctx.moveTo(padL, Y(meetV)); sctx.lineTo(padL + plotW, Y(meetV)); sctx.stroke();
+      sctx.beginPath();
+      sctx.moveTo(padL, Y(meetV));
+      sctx.lineTo(padL + plotW, Y(meetV));
+      sctx.stroke();
       sctx.setLineDash([]);
       /* the two traces */
       function trace(key: 'ask' | 'worth', color: string) {
         if (hist.length < 2) return;
-        sctx.strokeStyle = color; sctx.lineWidth = 2;
-        sctx.lineJoin = 'round'; sctx.lineCap = 'round';
+        sctx.strokeStyle = color;
+        sctx.lineWidth = 2;
+        sctx.lineJoin = 'round';
+        sctx.lineCap = 'round';
         sctx.beginPath();
         for (let i = 0; i < hist.length; i++) {
           const hp = hist[i];
           if (!hp) continue;
-          const px = X(hp.x), py = Y(hp[key]);
-          if (i) sctx.lineTo(px, py); else sctx.moveTo(px, py);
+          const px = X(hp.x),
+            py = Y(hp[key]);
+          if (i) sctx.lineTo(px, py);
+          else sctx.moveTo(px, py);
         }
         sctx.stroke();
       }
@@ -277,16 +368,26 @@ export function Fund() {
       /* endpoints: live dots while open; one white ring where they met */
       if (tip) {
         if (trading) {
-          const mx = X(auc.meetX), my = Y(auc.lastPaid);
+          const mx = X(auc.meetX),
+            my = Y(auc.lastPaid);
           sctx.fillStyle = C.hi;
-          sctx.beginPath(); sctx.arc(mx, my, 3, 0, Math.PI * 2); sctx.fill();
-          sctx.strokeStyle = C.hi; sctx.lineWidth = 2;
-          sctx.beginPath(); sctx.arc(mx, my, 7, 0, Math.PI * 2); sctx.stroke();
+          sctx.beginPath();
+          sctx.arc(mx, my, 3, 0, Math.PI * 2);
+          sctx.fill();
+          sctx.strokeStyle = C.hi;
+          sctx.lineWidth = 2;
+          sctx.beginPath();
+          sctx.arc(mx, my, 7, 0, Math.PI * 2);
+          sctx.stroke();
         } else {
           sctx.fillStyle = C.blue;
-          sctx.beginPath(); sctx.arc(X(tip.x), Y(tip.worth), 3.5, 0, Math.PI * 2); sctx.fill();
+          sctx.beginPath();
+          sctx.arc(X(tip.x), Y(tip.worth), 3.5, 0, Math.PI * 2);
+          sctx.fill();
           sctx.fillStyle = C.pink;
-          sctx.beginPath(); sctx.arc(X(tip.x), Y(tip.ask), 3.5, 0, Math.PI * 2); sctx.fill();
+          sctx.beginPath();
+          sctx.arc(X(tip.x), Y(tip.ask), 3.5, 0, Math.PI * 2);
+          sctx.fill();
         }
       }
 
@@ -301,9 +402,16 @@ export function Fund() {
         auc.parts.forEach((pt) => {
           if (pt.p < 0 || pt.p > 1) return;
           let a: [number, number, number, number], color: string;
-          if (pt.kind === 'usdg') { a = toTrader; color = C.blue; }
-          else if (pt.kind === 'fund') { a = toFundArc; color = C.pink; }
-          else { a = toSigArc; color = C.pink; }
+          if (pt.kind === 'usdg') {
+            a = toTrader;
+            color = C.blue;
+          } else if (pt.kind === 'fund') {
+            a = toFundArc;
+            color = C.pink;
+          } else {
+            a = toSigArc;
+            color = C.pink;
+          }
           const xy = arcAt(pt.p, a[0], a[1], a[2], a[3], 36);
           wctx.globalAlpha = 0.95;
           wctx.fillStyle = color;
@@ -343,9 +451,8 @@ export function Fund() {
            one open with the ask still above the worth */
         auc.epoch = 1;
         auc.fundTotal = 0.94;
-        auc.sigTotal = 0.10;
-        el.dTrader.innerHTML =
-          '<span class="blue">+ $505 USDG in</span> · <span class="pink">1.04 QQQ out</span>';
+        auc.sigTotal = 0.1;
+        el.dTrader.innerHTML = '<span class="blue">+ $505 USDG in</span> · <span class="pink">1.04 QQQ out</span>';
         el.dFund.textContent = '+ 0.94 QQQ';
         el.dSig.textContent = '+ 0.10 QQQ';
         auc.lot = 505;
@@ -356,7 +463,8 @@ export function Fund() {
         auc.phase = 'open';
         /* synthesise the traces up to now so the still shows the drawn paths */
         auc.hist = [];
-        const f0 = 0.35, steps = 48;
+        const f0 = 0.35,
+          steps = 48;
         for (let i = 0; i <= steps; i++) {
           const f = f0 * (i / steps);
           const lotAt = auc.lot - auc.inflow * (f0 - f) * EPOCH;
@@ -367,20 +475,31 @@ export function Fund() {
     });
 
     /* ====================================================== redemption ==
-       Lifted from docs/deck/gumball6900-deck.html (red, lines 1848-1929) and
-       made interactive: pick a slice of the supply to burn as @you, or watch
-       other holders turn up. The animated phase only interpolates the display;
-       state mutates once, at the end — exactly like the deck. Real time. */
+       Lifted from docs/deck/gumball6900-deck.html (red, lines 1848-1929).
+       Nobody operates it: burns arrive on a programme of the panel's own
+       accumulated time, alternating other holders' small burns with the
+       reader's own 10%-of-supply burn — the headline mechanism, with the full
+       receipt. The animated phase only interpolates the display; state mutates
+       once, at the end — exactly like the deck. Real time. */
     const HOLDERS = ['@ava', '@pike', '@juno', '@wren', '@sol', '@bex'];
     const SUPPLY0 = 100000000;
 
-    function amtFmt(v: number) { return v.toFixed(v < 10 ? 4 : 1); }
-    function takenFmt(v: number) { return v.toFixed(v < 10 ? 4 : 2); }
+    function amtFmt(v: number) {
+      return v.toFixed(v < 10 ? 4 : 1);
+    }
+    function takenFmt(v: number) {
+      return v.toFixed(v < 10 ? 4 : 2);
+    }
 
     interface Hold {
-      sym: string; amt: number; base: number;
-      el: HTMLElement; amtEl: HTMLElement; barEl: HTMLElement;
-      sliceEl: HTMLElement; outEl: HTMLElement;
+      sym: string;
+      amt: number;
+      base: number;
+      el: HTMLElement;
+      amtEl: HTMLElement;
+      barEl: HTMLElement;
+      sliceEl: HTMLElement;
+      outEl: HTMLElement;
     }
     /* The cells are server-rendered (zero CLS) — wire them, don't rebuild. */
     const holdInit = [
@@ -402,14 +521,27 @@ export function Fund() {
       const outEl = cell.querySelector<HTMLElement>('.hold__out');
       if (!amtEl || !barEl || !sliceEl || !outEl) return;
       holds.push({
-        sym: def.sym, amt: def.amt, base: def.amt,
-        el: cell, amtEl, barEl, sliceEl, outEl,
+        sym: def.sym,
+        amt: def.amt,
+        base: def.amt,
+        el: cell,
+        amtEl,
+        barEl,
+        sliceEl,
+        outEl,
       });
     }
 
     const red = {
-      t: 0, supply: SUPPLY0, next: 2.4, phase: 'idle' as 'idle' | 'burn', pt: 0,
-      who: '', pct: 0, burned: 0, taken: [] as number[],
+      t: 0,
+      supply: SUPPLY0,
+      next: 2.4,
+      phase: 'idle' as 'idle' | 'burn',
+      pt: 0,
+      who: '',
+      pct: 0,
+      burned: 0,
+      taken: [] as number[],
       parts: [] as { i: number; d: number }[],
       holds,
     };
@@ -422,23 +554,30 @@ export function Fund() {
        holds[] (built together in begin()), so a missing slot reads as 0 */
     const takenAt = (i: number) => red.taken[i] ?? 0;
 
-    function setBtns(disabled: boolean) {
-      burnBtns.forEach((b) => {
-        if (disabled) b.setAttribute('disabled', '');
-        else b.removeAttribute('disabled');
-      });
-    }
     function receiptHTML() {
-      return '<strong>' + red.who + '</strong> received ' +
-        red.holds.map((h, i) => {
-          return '<strong>' + takenFmt(takenAt(i)) + ' ' + h.sym + '</strong>';
-        }).join(', ') +
-        ' — the same ' + (red.pct * 100).toFixed(2) + '% of every holding, in one transaction.';
+      return (
+        '<strong>' +
+        red.who +
+        '</strong> received ' +
+        red.holds
+          .map((h, i) => {
+            return '<strong>' + takenFmt(takenAt(i)) + ' ' + h.sym + '</strong>';
+          })
+          .join(', ') +
+        ' — the same ' +
+        (red.pct * 100).toFixed(2) +
+        '% of every holding, in one transaction.'
+      );
     }
     function takeLine(k: number) {
-      return '→ ' + red.holds.map((h, i) => {
-        return takenFmt(takenAt(i) * k) + ' ' + h.sym;
-      }).join(' · ');
+      return (
+        '→ ' +
+        red.holds
+          .map((h, i) => {
+            return takenFmt(takenAt(i) * k) + ' ' + h.sym;
+          })
+          .join(' · ')
+      );
     }
 
     function begin(who: string, pct: number) {
@@ -448,7 +587,9 @@ export function Fund() {
       red.pct = pct;
       red.burned = red.supply * pct;
       red.taken = red.holds.map((h) => h.amt * pct);
-      red.holds.forEach((h) => { h.el.classList.add('is-paying'); });
+      red.holds.forEach((h) => {
+        h.el.classList.add('is-paying');
+      });
       rdmDest.classList.add('is-receiving');
       rdmWho.textContent = who + (who === '@you' ? ' receive' : ' receives');
       /* one chip leaves EVERY holding at the same instant — the same proportion
@@ -458,11 +599,14 @@ export function Fund() {
         red.parts.push({ i, d: 0 });
         red.parts.push({ i, d: 0.28 });
       });
-      setBtns(true);
       rdmOut.innerHTML =
-        '<strong>' + red.who + '</strong> burns <strong>' +
-        Math.round(red.burned).toLocaleString('en-US') + ' GBX</strong> — ' +
-        (red.pct * 100).toFixed(2) + '% of everything in existence.';
+        '<strong>' +
+        red.who +
+        '</strong> burns <strong>' +
+        Math.round(red.burned).toLocaleString('en-US') +
+        ' GBX</strong> — ' +
+        (red.pct * 100).toFixed(2) +
+        '% of everything in existence.';
     }
     function finalize(refill: boolean) {
       red.supply -= red.burned;
@@ -477,12 +621,27 @@ export function Fund() {
       if (refill) {
         /* no loop is running to drift the vault back (reduced motion, or the
            panel is off-screen) — apply the between-burns refill instantly */
-        red.holds.forEach((h) => { h.amt += h.base * (0.04 + Math.random() * 0.045); });
+        red.holds.forEach((h) => {
+          h.amt += h.base * (0.04 + Math.random() * 0.045);
+        });
         red.supply = Math.min(SUPPLY0, red.supply + red.burned * (0.8 + Math.random() * 0.4));
       }
       red.phase = 'idle';
-      red.next = red.t + 5.5 + Math.random() * 3.5;
-      setBtns(false);
+      /* long enough to read the receipt, short enough that the next one — every
+         other of which is the reader's own 10% burn — arrives while watching */
+      red.next = red.t + 4.5 + Math.random() * 2;
+    }
+
+    /* The programme: the reader's own burn first, then an ambient one, and so
+       on. Deterministic order, so the headline beat is guaranteed, not lucky. */
+    let burnIdx = 0;
+    function nextScheduledBurn() {
+      const mine = burnIdx % 2 === 0;
+      burnIdx++;
+      if (mine) begin('@you', 0.1);
+      else {
+        begin(HOLDERS[Math.floor(Math.random() * HOLDERS.length)] ?? '@ava', 0.04 + Math.random() * 0.04);
+      }
     }
 
     function redStep(rdt: number) {
@@ -496,12 +655,8 @@ export function Fund() {
         red.holds.forEach((h) => {
           h.amt = Math.min(h.base, h.amt + (h.base - h.amt) * g + h.base * 0.004 * rdt);
         });
-        red.supply = Math.min(SUPPLY0,
-          red.supply + (SUPPLY0 - red.supply) * g + 45000 * rdt);
-        if (red.t >= red.next) {
-          begin(HOLDERS[Math.floor(Math.random() * HOLDERS.length)] ?? '@ava',
-                0.04 + Math.random() * 0.04);
-        }
+        red.supply = Math.min(SUPPLY0, red.supply + (SUPPLY0 - red.supply) * g + 45000 * rdt);
+        if (red.t >= red.next) nextScheduledBurn();
         return;
       }
       red.pt += rdt;
@@ -526,8 +681,7 @@ export function Fund() {
         } else {
           h.sliceEl.style.width = '0';
         }
-        h.outEl.textContent = burning
-          ? '→ ' + takenFmt(takenAt(i) * k) + ' out' : '';
+        h.outEl.textContent = burning ? '→ ' + takenFmt(takenAt(i) * k) + ' out' : '';
       });
       /* GBX supply: the burned slice extinguishes off the end of the bar */
       const supShown = red.supply - (burning ? red.burned * k : 0);
@@ -536,8 +690,7 @@ export function Fund() {
       if (burning) {
         const supFinal = (red.supply - red.burned) / SUPPLY0;
         rdmSupplySlice.style.left = (supFinal * 100).toFixed(2) + '%';
-        rdmSupplySlice.style.width =
-          (Math.max(0, supShown / SUPPLY0 - supFinal) * 100).toFixed(2) + '%';
+        rdmSupplySlice.style.width = (Math.max(0, supShown / SUPPLY0 - supFinal) * 100).toFixed(2) + '%';
         rdmTake.textContent = takeLine(k);
       } else {
         rdmSupplySlice.style.width = '0';
@@ -568,77 +721,43 @@ export function Fund() {
     /* re-derive every dynamic slot once at wiring time (StrictMode-safe) */
     redPaint();
 
-    /* The harness tracks visibility internally; mirror it so a burn clicked
-       while the loop is not driving this panel still lands instantly (the
-       fragment read `redReg.visible === false` off its harness). */
-    let rdmVisible = false;
-    let visIo: IntersectionObserver | null = null;
-    if ('IntersectionObserver' in window) {
-      visIo = new IntersectionObserver((entries) => {
-        entries.forEach((entry) => { rdmVisible = entry.isIntersecting; });
-      }, { rootMargin: '80px 0px' });
-      visIo.observe(rdmPanel);
-    } else {
-      rdmVisible = true;
-    }
-
     const unregisterRedeem = registerSim({
       name: 'redeem',
       el: rdmPanel,
       step: redStep,
       paint: redPaint,
       reset: () => {
-        /* cancel any half-shown burn without applying it */
+        /* cancel any half-shown burn without applying it, and re-arm the
+           programme so a returning reader gets the 10% burn first */
         red.phase = 'idle';
         red.parts = [];
-        red.holds.forEach((h) => { h.el.classList.remove('is-paying'); });
+        red.holds.forEach((h) => {
+          h.el.classList.remove('is-paying');
+        });
         rdmDest.classList.remove('is-receiving');
-        setBtns(false);
+        burnIdx = 0;
         red.next = red.t + 2.0;
         redPaint();
       },
       static: () => {
-        /* a meaningful still: one burn already completed, receipt shown */
-        begin('@ava', 0.012);
+        /* a meaningful still: the headline burn already completed — 10% of
+           supply, the receipt naming the same share of every holding */
+        begin('@you', 0.1);
         finalize(false);
         redPaint();
       },
     });
 
-    const onBurn = (ev: Event) => {
-      if (red.phase !== 'idle') return;
-      const btn = ev.currentTarget as HTMLButtonElement;
-      const pct = parseFloat(btn.getAttribute('data-burn') || '');
-      if (!pct) return;
-      begin('@you', pct);
-      /* announce only the user's own burn — the autonomous cycle stays silent */
-      rdmLive.textContent = 'You burn ' +
-        Math.round(red.burned).toLocaleString('en-US') + ' GBX — ' +
-        (red.pct * 100).toFixed(2) + '% of supply — and receive ' +
-        red.holds.map((h, i) => {
-          return takenFmt(takenAt(i)) + ' ' + h.sym;
-        }).join(', ') + ', the same share of every holding.';
-      if (reducedMq.matches || !rdmVisible) {
-        /* the loop is not running for us — apply the burn instantly */
-        finalize(true);
-        redPaint();
-      }
-    };
-    burnBtns.forEach((btn) => { btn.addEventListener('click', onBurn); });
-
     return () => {
       unregisterAcquire();
       unregisterRedeem();
-      visIo?.disconnect();
-      burnBtns.forEach((btn) => {
-        btn.removeEventListener('click', onBurn);
-        btn.removeAttribute('disabled');
-      });
       flashTimers.forEach((timer) => clearTimeout(timer));
       flashTimers.clear();
       [el.trader, el.fund, el.sig].forEach((n) => n.classList.remove('evt-blue', 'evt-pink'));
       el.meet.classList.remove('is-met');
-      holds.forEach((h) => { h.el.classList.remove('is-paying'); });
+      holds.forEach((h) => {
+        h.el.classList.remove('is-paying');
+      });
       rdmDest.classList.remove('is-receiving');
     };
   }, []);
@@ -648,10 +767,12 @@ export function Fund() {
       <div className="container">
         <header className="sec-head reveal">
           <p className="eyebrow">The fund</p>
-          <h2 className="h1" id="sec-fund-h">A vault with no manager, and one way out</h2>
+          <h2 className="h1" id="sec-fund-h">
+            A vault with no manager, and one way out
+          </h2>
           <p className="lede">
-            Everything the Strategies buy lands in the Fund and stays there. No one can pause it,
-            upgrade it, or reach in — the only way assets leave is a holder burning GBX for their share.
+            Everything the Strategies buy lands in the Fund and stays there. No one can pause it, upgrade it, or reach
+            in — the only way assets leave is a holder burning GBX for their share.
           </p>
         </header>
 
@@ -678,12 +799,11 @@ export function Fund() {
         <div className="fund-block reveal">
           <h3 className="h2">How assets arrive</h3>
           <p className="fund-block__intro">
-            Each Strategy pools the USDG the stream has sent it and sells the whole lot in one falling-price
-            auction — asking to be paid in the asset itself, never in dollars. The lot keeps growing
-            while the ask falls; a trader fills the moment the ask drops to what the lot is worth.
-            That is the entire price discovery. The asset splits as it lands: at least 80% to the
-            treasury, and the signalers’ share — 10% by default, never more than 20% — to the holders
-            who aimed it.
+            Each Strategy pools the USDG the stream has sent it and sells the whole lot in one falling-price auction —
+            asking to be paid in the asset itself, never in dollars. The lot keeps growing while the ask falls; a trader
+            fills the moment the ask drops to what the lot is worth. That is the entire price discovery. The asset
+            splits as it lands: at least 80% to the treasury, and the signalers’ share — 10% by default, never more than
+            20% — to the holders who aimed it.
           </p>
 
           <div className="sim-panel" id="acqPanel">
@@ -699,40 +819,66 @@ export function Fund() {
                     <div className="acq__label">The auction — one Strategy’s lot</div>
                     <div className="acq__read">
                       <div>
-                        <div className="v num blue" id="acqLot">$486</div>
+                        <div className="v num blue" id="acqLot">
+                          $486
+                        </div>
                         <div className="l">USDG in the lot — still growing</div>
                       </div>
                       <div>
-                        <div className="v num pink" id="acqAsk">2.02 QQQ</div>
+                        <div className="v num pink" id="acqAsk">
+                          2.02 QQQ
+                        </div>
                         <div className="l">the ask — falling in a straight line</div>
                       </div>
                     </div>
                     <div className="acq__stacks">
-                      <canvas id="acqStacks" role="img" aria-label="A chart measured in QQQ: the asking price traced falling in a straight line over the auction, and what the growing USDG lot is worth traced rising to meet it. The auction settles the moment the two lines meet." />
+                      <canvas
+                        id="acqStacks"
+                        role="img"
+                        aria-label="A chart measured in QQQ: the asking price traced falling in a straight line over the auction, and what the growing USDG lot is worth traced rising to meet it. The auction settles the moment the two lines meet."
+                      />
                     </div>
                     <div className="acq__caps">
-                      <span>worth <b className="num blue" id="acqWorthCap">1.00</b> QQQ, rising</span>
+                      <span>
+                        worth{' '}
+                        <b className="num blue" id="acqWorthCap">
+                          1.00
+                        </b>{' '}
+                        QQQ, rising
+                      </span>
                       <span id="acqMeet">settles when they meet</span>
-                      <span>asking <b className="num pink" id="acqAskCap">2.02</b> QQQ, falling</span>
+                      <span>
+                        asking{' '}
+                        <b className="num pink" id="acqAskCap">
+                          2.02
+                        </b>{' '}
+                        QQQ, falling
+                      </span>
                     </div>
                   </div>
                   <div className="acq__side">
                     <div className="acq__party" id="acqTrader">
                       <div className="acq__label">A trader</div>
-                      <p>Watches the ask fall, and fills the moment it is cheap enough:
-                      pays the QQQ, takes the whole USDG lot.</p>
+                      <p>
+                        Watches the ask fall, and fills the moment it is cheap enough: pays the QQQ, takes the whole
+                        USDG lot.
+                      </p>
                       <div className="acq__delta num" id="acqTraderDelta" />
                     </div>
                     <div className="acq__dests">
                       <div className="acq__party" id="acqFund">
                         <div className="acq__label">The treasury</div>
-                        <div className="acq__total num" id="acqFundT">0.00 QQQ</div>
+                        <div className="acq__total num" id="acqFundT">
+                          0.00 QQQ
+                        </div>
                         <p className="note">≥ 80% in code · 90% by default</p>
                         <div className="acq__delta acq__delta--pink num" id="acqFundDelta" />
                       </div>
                       <div className="acq__party acq__party--sig" id="acqSig">
                         <div className="acq__label acq__label--pink">The signalers</div>
-                        <div className="acq__total num" id="acqSigT">0.00 QQQ</div>
+                        <div className="acq__total num" id="acqSigT">
+                          0.00 QQQ
+                        </div>
                         <p className="note">≤ 20% in code · 10% by default</p>
                         <div className="acq__delta acq__delta--pink num" id="acqSigDelta" />
                       </div>
@@ -743,11 +889,15 @@ export function Fund() {
             </div>
             <div className="sim-panel__foot">
               <div className="sim-panel__controls">
-                <span className="sim-clock" id="acqState">lot $486 · asking 2.02 QQQ</span>
+                <span className="sim-clock" id="acqState">
+                  lot $486 · asking 2.02 QQQ
+                </span>
               </div>
-              <p className="sim-note">A six-hour auction, sped up ~450×. Production auction parameters
-              are unselected; every figure is illustrative. Both stacks are measured in QQQ — no dollar
-              price for the asset exists anywhere in the protocol.</p>
+              <p className="sim-note">
+                A six-hour auction, sped up ~450×. Production auction parameters are unselected; every figure is
+                illustrative. Both stacks are measured in QQQ — no dollar price for the asset exists anywhere in the
+                protocol.
+              </p>
             </div>
           </div>
         </div>
@@ -756,9 +906,8 @@ export function Fund() {
         <div className="fund-block reveal">
           <h3 className="h2">How assets leave</h3>
           <p className="fund-block__intro">
-            Burn any amount of GBX at any time and receive that same proportion of <strong>every</strong>
-            {' '}holding — in the tokens themselves, in one transaction. Nobody approves it and nothing is
-            priced.
+            Burn any amount of GBX at any time and receive that same proportion of <strong>every</strong> holding — in
+            the tokens themselves, in one transaction. Nobody approves it and nothing is priced.
           </p>
 
           <div className="sim-panel" id="rdmPanel">
@@ -769,37 +918,54 @@ export function Fund() {
             <div className="sim-panel__body">
               <div className="rdm" id="rdmWrap">
                 <canvas className="rdm__wire" id="rdmWire" aria-hidden="true" />
-                <p className="rdm__supply"><span className="num" id="rdmSupply">100,000,000</span> GBX in existence</p>
-                <div className="meter meter--thick rdm__supplybar" aria-hidden="true"><i id="rdmSupplyFill" style={{ width: '100%' }} /><span className="m-slice" id="rdmSupplySlice" /></div>
+                <p className="rdm__supply">
+                  <span className="num" id="rdmSupply">
+                    100,000,000
+                  </span>{' '}
+                  GBX in existence
+                </p>
+                <div className="meter meter--thick rdm__supplybar" aria-hidden="true">
+                  <i id="rdmSupplyFill" style={{ width: '100%' }} />
+                  <span className="m-slice" id="rdmSupplySlice" />
+                </div>
                 <div className="rdm__vault" id="rdmVault">
                   {HOLD_DEFS.map((h) => (
                     <div className="hold" key={h.sym}>
                       <div className="hold__sym">{h.sym}</div>
                       <div className="hold__amt num">{h.amt}</div>
-                      <div className="meter meter--thick"><i style={{ width: '100%' }} /><span className="m-slice" /></div>
+                      <div className="meter meter--thick">
+                        <i style={{ width: '100%' }} />
+                        <span className="m-slice" />
+                      </div>
                       <div className="hold__out num" />
                     </div>
                   ))}
                 </div>
                 <div className="rdm__dest" id="rdmDest">
                   <span className="acq__label">Leaves the fund →</span>
-                  <span className="rdm__dest-who num" id="rdmWho">the redeemer</span>
-                  <span className="rdm__dest-take num" id="rdmTake">→ 0.0000 NVDA · 0.0000 QQQ · 0.0000 WBTC · 0.0000 AAPL</span>
+                  <span className="rdm__dest-who num" id="rdmWho">
+                    the redeemer
+                  </span>
+                  <span className="rdm__dest-take num" id="rdmTake">
+                    → 0.0000 NVDA · 0.0000 QQQ · 0.0000 WBTC · 0.0000 AAPL
+                  </span>
                 </div>
-                <p className="rdm__out" id="rdmOut">Watch a holder burn a slice — or burn your own below.</p>
-                <span className="sr-only" aria-live="polite" id="rdmLive" />
+                <p className="rdm__out" id="rdmOut">
+                  Waiting for the next burn — every one takes the same share of every holding.
+                </p>
               </div>
             </div>
             <div className="sim-panel__foot">
               <div className="sim-panel__controls">
-                <span className="rdm__you">Burn as @you</span>
-                <button type="button" className="btn btn--sm" data-burn="0.01">1% of supply</button>
-                <button type="button" className="btn btn--sm" data-burn="0.05">5% of supply</button>
-                <button type="button" className="btn btn--sm" data-burn="0.10">10% of supply</button>
+                <span className="note rdm__legend">
+                  Burns arrive on their own. Other holders take small slices; every other one is yours, at 10% of
+                  everything in existence — read the receipt as it lands.
+                </span>
               </div>
-              <p className="sim-note">Illustrative holdings; production parameters are unselected. Between
-              burns the vault refills because the Strategies keep buying, and the supply climbs back
-              because the Mine keeps issuing.</p>
+              <p className="sim-note">
+                Illustrative holdings; production parameters are unselected. Between burns the vault refills because the
+                Strategies keep buying, and the supply climbs back because the Mine keeps issuing.
+              </p>
             </div>
           </div>
         </div>

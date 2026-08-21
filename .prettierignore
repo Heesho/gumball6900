@@ -16,6 +16,7 @@
 **/storybook-static/**
 **/test-results/**
 **/typechain-types/**
+apps/landing/next-env.d.ts
 apps/web/next-env.d.ts
 docs/reference/**
 packages/contracts/**/*.sol

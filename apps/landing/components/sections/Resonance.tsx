@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
+import { useLayoutEffect } from 'react';
 import { registerSim, fontFamily } from '../../lib/harness';
 import './resonance.css';
 
@@ -18,13 +18,13 @@ const STRATEGIES = [
 interface AssetModel {
   sym: string;
   stake: number;
-  pot: number; /* USDG waiting at the Strategy */
-  disp: number; /* displayed stake — lerps toward stake so lanes reshape */
-  delta: number; /* last move, ±GBX */
-  moved: number; /* 1 → 0 decay while a move is fresh */
-  flash: number; /* 1 → 0 decay after the auction takes the lot */
+  pot: number /* USDG waiting at the Strategy */;
+  disp: number /* displayed stake — lerps toward stake so lanes reshape */;
+  delta: number /* last move, ±GBX */;
+  moved: number /* 1 → 0 decay while a move is fresh */;
+  flash: number /* 1 → 0 decay after the auction takes the lot */;
   lastLot: number;
-  epochEnd: number; /* each auction flushes on its own clock */
+  epochEnd: number /* each auction flushes on its own clock */;
   row: HTMLElement;
   pctEl: HTMLElement;
   deltaEl: HTMLElement;
@@ -42,8 +42,6 @@ interface Particle {
 }
 
 export function Resonance() {
-  const signalRef = useRef<((i: number) => void) | null>(null);
-
   useLayoutEffect(() => {
     /* Lifted from the deck's flow sim (docs/deck/gumball6900-deck.html, lines 1365–1589) and
        adapted: the flow ends at each Strategy holding USDG — the purchase is the next section.
@@ -52,8 +50,7 @@ export function Resonance() {
     const el = document.getElementById('sec-resonance');
     const canvasNode = document.getElementById('rzCanvas');
     const clockEl = document.getElementById('rzClock');
-    const liveEl = document.getElementById('rzLive');
-    if (!el || !(canvasNode instanceof HTMLCanvasElement) || !clockEl || !liveEl) return;
+    if (!el || !(canvasNode instanceof HTMLCanvasElement) || !clockEl) return;
     const canvas = canvasNode;
     const ctx = canvas.getContext('2d');
     const wrap = canvas.parentElement;
@@ -115,12 +112,22 @@ export function Resonance() {
       nextShift: 3600,
       parts: [] as Particle[],
       spawnAcc: 0,
-      refill: 0, /* 1 → 0 beat while a weekly refill is fresh, and its size */
+      refill: 0 /* 1 → 0 beat while a weekly refill is fresh, and its size */,
       refillAmt: 0,
     };
 
+    /* ------------------------------------------------- the scripted signal beat
+       Nobody operates this. The sim runs a three-phase cycle on its own clock —
+       sim time, so a section that has never been on screen has not burned its
+       cycle: a quiet HOLD so the reader is looking at a still board, the MOVE
+       itself (a 2,000 GBX lot out of the largest other Strategy, deltas and a
+       pink lane rim), then SETTLE while the split follows and the emphasis
+       decays. Only after that does the ambient drift resume, so a scripted
+       move is never buried under a random one. */
+    const PHASE = { hold: 1980, settle: 3240, drift: 4050 }; /* sim s ≈ 2.2/3.6/4.5 real s */
+    const cycle = { stage: 'hold' as 'hold' | 'settle' | 'drift', left: PHASE.hold, target: 0 };
+
     let disposed = false;
-    let rmTimer: ReturnType<typeof setTimeout> | undefined;
 
     function totalStake() {
       return ASSETS.reduce((n, a) => n + a.stake, 0) || 1;
@@ -155,38 +162,45 @@ export function Resonance() {
       flashRow(to);
     }
 
-    function signalTo(i: number) {
+    /* A holder moves one 2,000 GBX lot into `i`, out of the largest Strategy
+       that can spare it — the deliberate move the reader is meant to catch. */
+    function signalTo(i: number): boolean {
       const to = ASSETS[i];
-      if (!to) return;
+      if (!to) return false;
       const lot = 2000;
       let from: AssetModel | null = null;
       ASSETS.forEach((a) => {
         if (a !== to && a.stake - lot > 800 && (!from || a.stake > from.stake)) from = a;
       });
-      if (!from) return;
+      if (!from) return false;
       const src: AssetModel = from;
       applyMove(src, to, lot);
-      flow.nextShift = flow.t + 7000; /* hold the auto-mover back a beat */
-      const total = totalStake();
-      liveEl!.textContent = 'Moved 2,000 GBX of signal from ' + src.sym + ' to ' + to.sym +
-        '. ' + to.sym + ' now takes ' + Math.round((to.stake / total) * 100) + '% of the stream.';
-      if (reduced()) {
-        /* No loop to decay the emphasis — snap the lanes, then clear the move
-           markers with a one-shot so lit states never pile up. */
-        ASSETS.forEach((a) => { a.disp = a.stake; });
-        clearTimeout(rmTimer);
-        rmTimer = setTimeout(() => {
-          ASSETS.forEach((a) => { a.moved = 0; a.delta = 0; });
-          paintFrame();
-          updateRows();
-        }, 1800);
-      }
-      paintFrame(); /* respond even while the loop is paused */
-      updateRows();
+      return true;
     }
 
-    function reduced() {
-      return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    /* Advance the demonstration cycle. Returns true while the ambient
+       signalers are allowed to move stake as well. */
+    function runCycle(dt: number): boolean {
+      cycle.left -= dt;
+      if (cycle.left > 0) return cycle.stage === 'drift';
+      if (cycle.stage === 'hold') {
+        /* try each Strategy in turn until one of them can actually take a lot */
+        let fired = false;
+        for (let k = 0; k < ASSETS.length && !fired; k++) {
+          fired = signalTo(cycle.target);
+          cycle.target = (cycle.target + 1) % ASSETS.length;
+        }
+        cycle.stage = 'settle';
+        cycle.left = PHASE.settle;
+      } else if (cycle.stage === 'settle') {
+        cycle.stage = 'drift';
+        cycle.left = PHASE.drift;
+        flow.nextShift = flow.t + 900; /* the ambient mover gets a fresh clock */
+      } else {
+        cycle.stage = 'hold';
+        cycle.left = PHASE.hold;
+      }
+      return cycle.stage === 'drift';
     }
 
     /* ------------------------------------------------------------------ model */
@@ -194,8 +208,12 @@ export function Resonance() {
       const realDt = dt / TIME_SCALE;
       flow.t += dt;
 
+      /* The staged demonstration owns the emphasis; ambient signalers only move
+         while it is in its drift window, so two moves never land together. */
+      const drifting = runCycle(dt);
+
       /* Signalers move stake in discrete whole lots, not a continuous trickle. */
-      if (flow.t >= flow.nextShift) {
+      if (drifting && flow.t >= flow.nextShift) {
         const LOTS = [1000, 1500, 2000, 3000];
         const lot = LOTS[Math.floor(Math.random() * LOTS.length)]!;
         const from = ASSETS[Math.floor(Math.random() * ASSETS.length)]!;
@@ -223,7 +241,7 @@ export function Resonance() {
       }
       /* Mining revenue keeps accruing for next week's stream (in the deck the mine sim
          feeds this directly; here it accrues at the illustrative weekly rate). */
-      flow.pending += 46000 * dt / STREAM;
+      flow.pending += (46000 * dt) / STREAM;
       if (flow.refill > 0) flow.refill = Math.max(0, flow.refill - dt / 1500);
 
       /* Split the released USDG by the weights as they are right now. */
@@ -231,7 +249,8 @@ export function Resonance() {
       const total = totalStake();
       ASSETS.forEach((a) => {
         a.pot += released * (a.stake / total);
-        if (flow.t >= a.epochEnd && a.pot > 0) { /* its auction takes the lot */
+        if (flow.t >= a.epochEnd && a.pot > 0) {
+          /* its auction takes the lot */
           a.lastLot = a.pot;
           a.pot = 0;
           a.flash = 1;
@@ -245,16 +264,20 @@ export function Resonance() {
         while (flow.spawnAcc >= 1) {
           flow.spawnAcc -= 1;
           const r = Math.random() * total;
-          let acc = 0, pick = 0;
+          let acc = 0,
+            pick = 0;
           for (let i = 0; i < ASSETS.length; i++) {
             acc += ASSETS[i]!.stake;
-            if (r <= acc) { pick = i; break; }
+            if (r <= acc) {
+              pick = i;
+              break;
+            }
           }
           flow.parts.push({ p: 0, lane: pick });
         }
       }
       for (let j = flow.parts.length - 1; j >= 0; j--) {
-        flow.parts[j]!.p += 0.30 * realDt;
+        flow.parts[j]!.p += 0.3 * realDt;
         if (flow.parts[j]!.p >= 1) flow.parts.splice(j, 1);
       }
     }
@@ -279,13 +302,18 @@ export function Resonance() {
     function paintFrame() {
       if (!view.w) resize();
       if (!view.w) return;
-      const W = view.w, H = view.h, m = W < 480;
+      const W = view.w,
+        H = view.h,
+        m = W < 480;
       ctx!.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
       ctx!.clearRect(0, 0, W, H);
 
-      const srcW = m ? 86 : 172, srcH = m ? 92 : 108;
-      const stratW = m ? 126 : 226, stratH = m ? 66 : 84;
-      const srcX = 1.5, srcR = srcX + srcW;
+      const srcW = m ? 86 : 172,
+        srcH = m ? 92 : 108;
+      const stratW = m ? 126 : 226,
+        stratH = m ? 66 : 84;
+      const srcX = 1.5,
+        srcR = srcX + srcW;
       const stratX = W - stratW - 1.5;
       const laneH = (H - 8) / ASSETS.length;
       const laneY = (i: number) => 4 + laneH * i + laneH / 2;
@@ -319,9 +347,8 @@ export function Resonance() {
       /* Resonance — the source of the stream; rims blue for a beat when mining
          revenue refills it (flow.refill is set only by an actual model refill). */
       ctx!.fillStyle = C.raised;
-      ctx!.strokeStyle = flow.refill > 0
-        ? 'rgba(41,182,240,' + (0.45 + 0.55 * flow.refill).toFixed(3) + ')' /* --blue */
-        : C.ruleStrong;
+      ctx!.strokeStyle =
+        flow.refill > 0 ? 'rgba(41,182,240,' + (0.45 + 0.55 * flow.refill).toFixed(3) + ')' /* --blue */ : C.ruleStrong;
       ctx!.lineWidth = flow.refill > 0 ? 2 : 1.5;
       ctx!.beginPath();
       ctx!.roundRect(srcX, srcY - srcH / 2, srcW, srcH, 9);
@@ -335,8 +362,7 @@ export function Resonance() {
         ctx!.fillStyle = C.blue;
         ctx!.font = '600 ' + (m ? 10 : 11.5) + 'px ' + MONO;
         if (m) ctx!.textAlign = 'left'; /* centred it would clip the canvas edge */
-        ctx!.fillText('+' + money(flow.refillAmt) + ' from mining',
-          m ? srcX + 1 : scx, srcY - srcH / 2 - (m ? 8 : 10));
+        ctx!.fillText('+' + money(flow.refillAmt) + ' from mining', m ? srcX + 1 : scx, srcY - srcH / 2 - (m ? 8 : 10));
         if (m) ctx!.textAlign = 'center';
         ctx!.globalAlpha = 1;
       }
@@ -374,9 +400,7 @@ export function Resonance() {
         const y = laneY(i);
         const top = y - stratH / 2;
         ctx!.fillStyle = C.raised;
-        ctx!.strokeStyle = a.flash > 0
-          ? 'rgba(255,255,255,' + (0.28 + 0.5 * a.flash).toFixed(3) + ')'
-          : C.ruleStrong;
+        ctx!.strokeStyle = a.flash > 0 ? 'rgba(255,255,255,' + (0.28 + 0.5 * a.flash).toFixed(3) + ')' : C.ruleStrong;
         ctx!.lineWidth = a.flash > 0 ? 2 : 1.5;
         ctx!.beginPath();
         ctx!.roundRect(stratX, top, stratW, stratH, 8);
@@ -410,8 +434,7 @@ export function Resonance() {
           ctx!.globalAlpha = a.flash * 0.9;
           ctx!.fillStyle = C.blue;
           ctx!.beginPath();
-          ctx!.arc(stratX + stratW - pad, top + stratH - 6 + q * (m ? 14 : 18),
-            m ? 3 : 4, 0, Math.PI * 2);
+          ctx!.arc(stratX + stratW - pad, top + stratH - 6 + q * (m ? 14 : 18), m ? 3 : 4, 0, Math.PI * 2);
           ctx!.fill();
           ctx!.globalAlpha = 1;
         }
@@ -421,8 +444,11 @@ export function Resonance() {
           ctx!.textAlign = 'right';
           ctx!.fillStyle = C.pink;
           ctx!.font = '600 ' + (m ? 10 : 11.5) + 'px ' + MONO;
-          ctx!.fillText((a.delta > 0 ? '+' : '−') + Math.abs(a.delta).toLocaleString('en-US') + ' GBX',
-            stratX + stratW - pad, top + (m ? 20 : 24));
+          ctx!.fillText(
+            (a.delta > 0 ? '+' : '−') + Math.abs(a.delta).toLocaleString('en-US') + ' GBX',
+            stratX + stratW - pad,
+            top + (m ? 20 : 24),
+          );
           ctx!.globalAlpha = 1;
           ctx!.textAlign = 'left';
         }
@@ -433,7 +459,10 @@ export function Resonance() {
       ctx!.fillStyle = C.blue;
       ctx!.globalAlpha = 0.9;
       flow.parts.forEach((pt) => {
-        const y = laneY(pt.lane), t = pt.p, mt = 1 - t, cx = (srcR + stratX) / 2;
+        const y = laneY(pt.lane),
+          t = pt.p,
+          mt = 1 - t,
+          cx = (srcR + stratX) / 2;
         const x = mt * mt * mt * srcR + 3 * mt * mt * t * cx + 3 * mt * t * t * cx + t * t * t * stratX;
         const yy = mt * mt * mt * srcY + 3 * mt * mt * t * srcY + 3 * mt * t * t * y + t * t * t * y;
         ctx!.beginPath();
@@ -463,17 +492,14 @@ export function Resonance() {
           a.lastPct = pct;
         }
         a.barEl.style.width = (share * 100).toFixed(1) + '%';
-        const d = a.moved > 0 && a.delta
-          ? (a.delta > 0 ? '+' : '−') + Math.abs(a.delta).toLocaleString('en-US')
-          : '';
+        const d = a.moved > 0 && a.delta ? (a.delta > 0 ? '+' : '−') + Math.abs(a.delta).toLocaleString('en-US') : '';
         if (d !== a.lastDelta) {
           a.deltaEl.textContent = d;
           a.lastDelta = d;
         }
         a.deltaEl.style.opacity = a.moved > 0 ? Math.min(1, a.moved * 1.6).toFixed(2) : '0';
         const est = Math.round((weekly * share) / 100) * 100;
-        const sub = a.stake.toLocaleString('en-US') + ' GBX · ≈$' +
-          est.toLocaleString('en-US') + '/wk at this weight';
+        const sub = a.stake.toLocaleString('en-US') + ' GBX · ≈$' + est.toLocaleString('en-US') + '/wk at this weight';
         if (sub !== a.lastSub) {
           a.subEl.textContent = sub;
           a.lastSub = sub;
@@ -497,12 +523,30 @@ export function Resonance() {
       ro.observe(wrap);
     }
 
-    /* Seed so the first visible frame is already mid-flow. */
+    /* Re-arm the demonstration: a calm board, then the first scripted move
+       about two seconds after the reader actually gets here. */
+    function armCycle() {
+      cycle.stage = 'hold';
+      cycle.left = PHASE.hold;
+      ASSETS.forEach((a) => {
+        a.moved = 0;
+        a.delta = 0;
+        a.disp = a.stake;
+      });
+      ASSETS.forEach((a) => {
+        clearTimeout(a.rowTimer);
+        a.row.classList.remove('evt-pink');
+      });
+    }
+
+    /* Seed so the first visible frame is already mid-flow. No stake moves while
+       seeding — the weights must still match the server-rendered rows exactly,
+       and the first move the reader is owed should happen in front of them. */
+    cycle.left = Infinity;
     step(1); /* starts the stream from the pending seed */
     step(3600); /* an hour in: pots visibly filling */
+    armCycle();
     updateRows(); /* rows carry real text pre-paint — no shift on first paint */
-
-    signalRef.current = signalTo;
 
     const unregister = registerSim({
       name: 'resonance',
@@ -514,7 +558,10 @@ export function Resonance() {
         flow.parts.length = 0;
         flow.spawnAcc = 0;
         flow.refill = 0;
-        ASSETS.forEach((a) => { a.moved = 0; a.delta = 0; a.flash = 0; a.disp = a.stake; });
+        ASSETS.forEach((a) => {
+          a.flash = 0;
+        });
+        armCycle(); /* the returning reader gets the whole beat again */
       },
       static: () => {
         /* A meaningful mid-stream still: day 3 of the week, pots part-filled,
@@ -534,15 +581,21 @@ export function Resonance() {
         applyMove(ASSETS[1]!, ASSETS[0]!, 2000); /* QQQ → NVDA, fresh */
         ASSETS[0]!.moved = 0.8;
         ASSETS[1]!.moved = 0.8;
-        ASSETS.forEach((a) => { a.disp = a.stake; });
+        ASSETS.forEach((a) => {
+          a.disp = a.stake;
+        });
         flow.parts.length = 0;
         total = totalStake();
         for (let k = 0; k < 26; k++) {
           const r = ((k * 0.618) % 1) * total;
-          let acc = 0, pick = 0;
+          let acc = 0,
+            pick = 0;
           for (let i = 0; i < ASSETS.length; i++) {
             acc += ASSETS[i]!.stake;
-            if (r <= acc) { pick = i; break; }
+            if (r <= acc) {
+              pick = i;
+              break;
+            }
           }
           flow.parts.push({ p: (k * 0.137) % 0.97, lane: pick });
         }
@@ -559,12 +612,10 @@ export function Resonance() {
       disposed = true;
       unregister();
       ro?.disconnect();
-      clearTimeout(rmTimer);
       ASSETS.forEach((a) => {
         clearTimeout(a.rowTimer);
         a.row.classList.remove('evt-pink');
       });
-      signalRef.current = null;
     };
   }, []);
 
@@ -573,17 +624,19 @@ export function Resonance() {
       <div className="container">
         <header className="sec-head reveal">
           <p className="eyebrow eyebrow--pink">Resonance</p>
-          <h2 className="h1" id="sec-resonance-h">Where the signal sits is where the money goes</h2>
-          <p className="lede">Deposit GBX and point it at a Strategy — that is the whole vote. The
-            fund&#39;s buying power follows the signal moment to moment: no proposals, no ballots,
-            no waiting for anyone.</p>
+          <h2 className="h1" id="sec-resonance-h">
+            Where the signal sits is where the money goes
+          </h2>
+          <p className="lede">
+            Deposit GBX and point it at a Strategy — that is the whole vote. The fund&#39;s buying power follows the
+            signal moment to moment: no proposals, no ballots, no waiting for anyone.
+          </p>
         </header>
 
         <p className="small muted measure rz-how reveal" style={{ '--d': '90ms' } as React.CSSProperties}>
-          Underneath, mining revenue is released as a rolling seven-day stream, and the stream is
-          split across Strategies by live signal weights — the instant a holder moves signal, the
-          split moves with it. Each Strategy collects its share as USDG; turning that USDG into
-          the asset is the next section.
+          Underneath, mining revenue is released as a rolling seven-day stream, and the stream is split across
+          Strategies by live signal weights — the instant a holder moves signal, the split moves with it. Each Strategy
+          collects its share as USDG; turning that USDG into the asset is the next section.
         </p>
 
         <div className="sim-panel reveal" style={{ '--d': '180ms' } as React.CSSProperties}>
@@ -594,43 +647,48 @@ export function Resonance() {
           <div className="sim-panel__body">
             <div className="rz-grid">
               <div className="rz-weights">
-                <p className="rz-cap">Signal — <span className="num">31,500</span> GBX pointed</p>
+                <p className="rz-cap">
+                  Signal — <span className="num">31,500</span> GBX pointed
+                </p>
                 <div className="rz-rows" id="rzRows">
-                  {STRATEGIES.map((s, i) => (
+                  {STRATEGIES.map((s) => (
                     <div className="rz-row" key={s.sym}>
                       <div className="rz-row__top">
                         <span className="rz-row__sym num">{s.sym}</span>
                         <span className="rz-row__pct num">{s.pct}</span>
                         <span className="rz-row__delta num" aria-hidden="true" />
-                        <button
-                          type="button"
-                          className="btn btn--sm btn--pink rz-row__btn"
-                          aria-label={`Move 2,000 GBX of signal to the ${s.sym} strategy`}
-                          onClick={() => signalRef.current?.(i)}
-                        >Signal here</button>
                       </div>
-                      <div className="meter meter--pink meter--thick"><i style={{ width: s.bar }} /></div>
+                      <div className="meter meter--pink meter--thick">
+                        <i style={{ width: s.bar }} />
+                      </div>
                       <div className="rz-row__sub num">{s.sub}</div>
                     </div>
                   ))}
                 </div>
-                <p className="note rz-hint">“Signal here” moves a 2,000 GBX lot from the largest other
-                  Strategy — watch the stream re-split.</p>
-                <span className="sr-only" aria-live="polite" id="rzLive" />
+                <p className="note rz-hint">
+                  Every few seconds a holder moves a 2,000 GBX lot out of the largest Strategy and into another. The
+                  deltas mark where it went; the stream re-splits before the lanes have finished settling.
+                </p>
               </div>
               <div className="rz-canvas-wrap">
                 <p className="rz-cap">The stream — USDG, split by signal</p>
-                <canvas id="rzCanvas" aria-label="USDG flowing from the Resonance seven-day stream to four strategies, each lane's thickness proportional to its live signal weight" />
+                <canvas
+                  id="rzCanvas"
+                  aria-label="USDG flowing from the Resonance seven-day stream to four strategies, each lane's thickness proportional to its live signal weight"
+                />
               </div>
             </div>
           </div>
           <div className="sim-panel__foot">
             <div className="sim-panel__controls">
-              <span className="sim-clock" id="rzClock">week 1 · day 1</span>
+              <span className="sim-clock" id="rzClock">
+                week 1 · day 1
+              </span>
             </div>
-            <p className="sim-note">Weights, amounts and symbols are illustrative — the tickers are
-              example strategies, not holdings. The seven-day stream is fixed in code; production
-              revenue is unselected.</p>
+            <p className="sim-note">
+              Weights, amounts and symbols are illustrative — the tickers are example strategies, not holdings. The
+              seven-day stream is fixed in code; production revenue is unselected.
+            </p>
           </div>
         </div>
       </div>

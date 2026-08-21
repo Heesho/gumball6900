@@ -9,16 +9,16 @@ simulation models).
 
 ## File mapping
 
-| Fragment | Component | CSS |
-|---|---|---|
-| `10-hero.html` | `components/sections/Hero.tsx` | `components/sections/hero.css` |
-| `20-overview.html` | `Overview.tsx` | `overview.css` |
-| `30-mining.html` | `Mining.tsx` | `mining.css` |
-| `40-resonance.html` | `Resonance.tsx` | `resonance.css` |
-| `50-fund.html` | `Fund.tsx` | `fund.css` |
-| `60-extras.html` | `Extras.tsx` | `extras.css` |
-| `70-why.html` | `Why.tsx` | `why.css` |
-| `80-close.html` | `Close.tsx` | `close.css` |
+| Fragment            | Component                      | CSS                            |
+| ------------------- | ------------------------------ | ------------------------------ |
+| `10-hero.html`      | `components/sections/Hero.tsx` | `components/sections/hero.css` |
+| `20-overview.html`  | `Overview.tsx`                 | `overview.css`                 |
+| `30-mining.html`    | `Mining.tsx`                   | `mining.css`                   |
+| `40-resonance.html` | `Resonance.tsx`                | `resonance.css`                |
+| `50-fund.html`      | `Fund.tsx`                     | `fund.css`                     |
+| `60-extras.html`    | `Extras.tsx`                   | `extras.css`                   |
+| `70-why.html`       | `Why.tsx`                      | `why.css`                      |
+| `80-close.html`     | `Close.tsx`                    | `close.css`                    |
 
 Each component `import './name.css';` at the top (App Router allows CSS imports in components;
 they load globally — the selectors are already scoped under `#sec-*`).
@@ -31,6 +31,7 @@ Copy the fragment's `<style>` content **verbatim** into the `.css` file. No rena
 ## Markup
 
 Translate the `<section>` markup to JSX **structurally verbatim**:
+
 - `class` → `className`; keep every class name and every `id` exactly (ids are unique page-wide).
 - `style="--d: 90ms"` → `style={{ '--d': '90ms' } as React.CSSProperties}`.
 - Kebab-case SVG attrs → camelCase (`stroke-dasharray` → `strokeDasharray`, `marker-end` →
@@ -73,7 +74,9 @@ Canvases: keep the CSS-fixed heights; blank-until-hydration is acceptable.
   import { registerSim, fontFamily } from '../../lib/harness';
   // inside the effect:
   const unregister = registerSim({ name: 'mining', el: root, step, paint, static: staticPaint, timeScale: 60 });
-  return () => { unregister(); /* + clearTimeout every pending timeout */ };
+  return () => {
+    unregister(); /* + clearTimeout every pending timeout */
+  };
   ```
   Never start your own rAF/interval. The harness handles IntersectionObserver, reduced motion
   (calls `static`), and the single loop — same contract as the HTML version.
@@ -101,6 +104,7 @@ cd apps/landing
 pnpm exec eslint components/sections/<YourFile>.tsx
 pnpm exec tsc --noEmit
 ```
+
 Both must pass. Do NOT run `next dev`/`next build` (shared ports/build dir — the lead runs
 integration). Do not edit any file outside your two files; if you believe a shared file needs a
 change, report it instead.

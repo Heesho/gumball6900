@@ -7,11 +7,11 @@ for every primitive rendered.
 
 ## Faces
 
-| Token | Face | Use |
-|---|---|---|
-| `--font-display` | Modak | The wordmark (`.wordmark`) and big brand numerals (`.display-num`) ONLY. Both classes pin `font-weight: 400; font-synthesis: none` — Modak ships one weight and synthetic bold smears it. Never set Modak any other way. |
-| `--font-sans` | Schibsted Grotesk | All prose, headings, UI. Weights loaded: 400, 500, 600, 700, 800. |
-| `--font-mono` | JetBrains Mono | Every number that changes, every ticker symbol, sim chrome. Weights loaded: 400, 500, 600. Use the `.num` class (adds `tabular-nums`). |
+| Token            | Face              | Use                                                                                                                                                                                                                      |
+| ---------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--font-display` | Modak             | The wordmark (`.wordmark`) and big brand numerals (`.display-num`) ONLY. Both classes pin `font-weight: 400; font-synthesis: none` — Modak ships one weight and synthetic bold smears it. Never set Modak any other way. |
+| `--font-sans`    | Schibsted Grotesk | All prose, headings, UI. Weights loaded: 400, 500, 600, 700, 800.                                                                                                                                                        |
+| `--font-mono`    | JetBrains Mono    | Every number that changes, every ticker symbol, sim chrome. Weights loaded: 400, 500, 600. Use the `.num` class (adds `tabular-nums`).                                                                                   |
 
 Never introduce another face or weight. Numbers in simulations are always `.num` (mono,
 tabular) so digits don't jitter as they tick.
@@ -20,22 +20,22 @@ tabular) so digits don't jitter as they tick.
 
 Accents are semantic. If a colour doesn't mean the thing below, don't use the colour.
 
-| Token | Value | Meaning / use |
-|---|---|---|
-| `--bg` | `#0C0C0C` | Page ground. Sections never repaint it. |
-| `--bg-panel` | `#14141A` | Cards, sim panels. First surface step. |
-| `--bg-raised` | `#1C1C24` | Sim-panel headers, chips-on-panels, second step. |
-| `--bg-hover` | `#23232E` | Hover fill for raised interactive rows. Non-text only. |
-| `--rule` | `#2A2A36` | Default hairline border, table rules, meter tracks. |
-| `--rule-strong` | `#3C3C4C` | Border for chips/buttons that must read as interactive. Non-text only. |
-| `--text-hi` | `#FFFFFF` | Headings, strong, stat values. |
-| `--text` | `#F4F4F8` | Default body ink. |
-| `--text-muted` | `#ADADC0` | Ledes, card bodies, secondary UI. |
-| `--text-faint` | `#8A8AA0` | Eyebrows, notes, sim footnotes. Smallest text still passes AA — see ratios. |
-| `--pink` | `#F92B92` | **Signal and what it buys**: signal weights, acquisitions, holder-directed anything. |
-| `--blue` | `#29B6F0` | **USDG capital arriving**: miner payments, buying power, revenue streams. Also the focus ring. |
-| `--pink-soft` / `--blue-soft` | 13% alpha | Tinted fills behind accent content (soft buttons, highlighted rows). |
-| `--pink-line` / `--blue-line` | 45% alpha | Accent borders (`.card--pink`, `.chip--blue`, …). |
+| Token                         | Value     | Meaning / use                                                                                  |
+| ----------------------------- | --------- | ---------------------------------------------------------------------------------------------- |
+| `--bg`                        | `#0C0C0C` | Page ground. Sections never repaint it.                                                        |
+| `--bg-panel`                  | `#14141A` | Cards, sim panels. First surface step.                                                         |
+| `--bg-raised`                 | `#1C1C24` | Sim-panel headers, chips-on-panels, second step.                                               |
+| `--bg-hover`                  | `#23232E` | Hover fill for raised interactive rows. Non-text only.                                         |
+| `--rule`                      | `#2A2A36` | Default hairline border, table rules, meter tracks.                                            |
+| `--rule-strong`               | `#3C3C4C` | Border for chips/buttons that must read as interactive. Non-text only.                         |
+| `--text-hi`                   | `#FFFFFF` | Headings, strong, stat values.                                                                 |
+| `--text`                      | `#F4F4F8` | Default body ink.                                                                              |
+| `--text-muted`                | `#ADADC0` | Ledes, card bodies, secondary UI.                                                              |
+| `--text-faint`                | `#8A8AA0` | Eyebrows, notes, sim footnotes. Smallest text still passes AA — see ratios.                    |
+| `--pink`                      | `#F92B92` | **Signal and what it buys**: signal weights, acquisitions, holder-directed anything.           |
+| `--blue`                      | `#29B6F0` | **USDG capital arriving**: miner payments, buying power, revenue streams. Also the focus ring. |
+| `--pink-soft` / `--blue-soft` | 13% alpha | Tinted fills behind accent content (soft buttons, highlighted rows).                           |
+| `--pink-line` / `--blue-line` | 45% alpha | Accent borders (`.card--pink`, `.chip--blue`, …).                                              |
 
 Neutral (white/grey) is the third semantic: **GBX supply and burns**. A burn animation is
 white/neutral, never pink or blue. Honesty flags ("Not deployed", "Not audited") use
@@ -58,35 +58,35 @@ small sizes without checking; stay on the three audited surfaces.
 
 ## Type scale (classes, not sizes)
 
-| Class | Spec | Use |
-|---|---|---|
-| `.wordmark` | Modak 400, synthesis off, tracking +0.045em | The GumBall6900 name. Size it in your section CSS (it has no size of its own). |
-| `.display-num` | Modak 400, synthesis off, lh 1 | Big brand numerals — step numbers, section counts. Size and colour in your section CSS; inherits neutral by default, take an accent only when the numeral IS that semantic. |
-| `.display` | clamp(42–74px), 800, −0.028em, lh 1.02 | Hero headline only. |
-| `.h1` | clamp(30–46px), 700, −0.024em, lh 1.08 | Section headline (the `<h2>` element of your section — class names are visual, elements stay semantic). |
-| `.h2` | clamp(21–27px), 700, −0.015em | Sub-headline inside a section. |
-| `.h3` | 17px, 700 | Card-level heading. |
-| `.lede` | clamp(16–19px), muted, max 58ch | The sentence under a headline. |
-| body | 16px/1.6 `--text` | Default prose. |
-| `.small` | 13.5px | Secondary prose, card bodies. |
-| `.note` | 12.5px, faint | Footnotes, honesty text, illustrative-parameter labels. |
-| `.eyebrow` | 12px caps, +0.17em, faint | Kicker above a headline. Accent variant is ASSIGNED per section — see the table below; do not choose your own. |
-| `.num` | mono, tabular-nums | Figures in tables, stats, chips, and sim chrome are **always** `.num` (static or live); numbers inside running prose stay in the sans. |
+| Class          | Spec                                        | Use                                                                                                                                                                         |
+| -------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `.wordmark`    | Modak 400, synthesis off, tracking +0.045em | The GumBall6900 name. Size it in your section CSS (it has no size of its own).                                                                                              |
+| `.display-num` | Modak 400, synthesis off, lh 1              | Big brand numerals — step numbers, section counts. Size and colour in your section CSS; inherits neutral by default, take an accent only when the numeral IS that semantic. |
+| `.display`     | clamp(42–74px), 800, −0.028em, lh 1.02      | Hero headline only.                                                                                                                                                         |
+| `.h1`          | clamp(30–46px), 700, −0.024em, lh 1.08      | Section headline (the `<h2>` element of your section — class names are visual, elements stay semantic).                                                                     |
+| `.h2`          | clamp(21–27px), 700, −0.015em               | Sub-headline inside a section.                                                                                                                                              |
+| `.h3`          | 17px, 700                                   | Card-level heading.                                                                                                                                                         |
+| `.lede`        | clamp(16–19px), muted, max 58ch             | The sentence under a headline.                                                                                                                                              |
+| body           | 16px/1.6 `--text`                           | Default prose.                                                                                                                                                              |
+| `.small`       | 13.5px                                      | Secondary prose, card bodies.                                                                                                                                               |
+| `.note`        | 12.5px, faint                               | Footnotes, honesty text, illustrative-parameter labels.                                                                                                                     |
+| `.eyebrow`     | 12px caps, +0.17em, faint                   | Kicker above a headline. Accent variant is ASSIGNED per section — see the table below; do not choose your own.                                                              |
+| `.num`         | mono, tabular-nums                          | Figures in tables, stats, chips, and sim chrome are **always** `.num` (static or live); numbers inside running prose stay in the sans.                                      |
 
 Utilities: `.muted .faint .hi .pink .blue .measure` (62ch) `.center`.
 
 ### Eyebrow accent per section (fixed — no judgment calls)
 
-| Section | Eyebrow class |
-|---|---|
-| 10-hero | no eyebrow — the wordmark leads |
-| 20-overview | `.eyebrow` (neutral) |
-| 30-mining | `.eyebrow eyebrow--blue` (capital in) |
+| Section      | Eyebrow class                                       |
+| ------------ | --------------------------------------------------- |
+| 10-hero      | no eyebrow — the wordmark leads                     |
+| 20-overview  | `.eyebrow` (neutral)                                |
+| 30-mining    | `.eyebrow eyebrow--blue` (capital in)               |
 | 40-resonance | `.eyebrow eyebrow--pink` (signal splits the stream) |
-| 50-fund | `.eyebrow` (neutral — supply, holdings, burns) |
-| 60-extras | `.eyebrow` (neutral) |
-| 70-why | `.eyebrow` (neutral) |
-| 80-close | `.eyebrow` (neutral) |
+| 50-fund      | `.eyebrow` (neutral — supply, holdings, burns)      |
+| 60-extras    | `.eyebrow` (neutral)                                |
+| 70-why       | `.eyebrow` (neutral)                                |
+| 80-close     | `.eyebrow` (neutral)                                |
 
 ### Inline links
 
@@ -160,9 +160,9 @@ Every live simulation sits in the same chrome:
     <span class="sim-panel__title sim-panel__title--blue">Mine — live model</span>
     <span class="chip chip--warn">Illustrative parameters</span>
   </div>
-  <div class="sim-panel__body"> …the mechanism… </div>
+  <div class="sim-panel__body">…the mechanism…</div>
   <div class="sim-panel__foot">
-    <div class="sim-panel__controls"> …<button class="btn btn--sm btn--blue">…</button>… </div>
+    <div class="sim-panel__controls">…<button class="btn btn--sm btn--blue">…</button>…</div>
     <p class="sim-note">Production parameters are unselected; figures shown are illustrative.</p>
   </div>
 </div>

@@ -20,7 +20,10 @@
   color: var(--text-faint);
   margin-bottom: var(--s3);
 }
-#sec-resonance .rz-rows { display: grid; gap: var(--s3); }
+#sec-resonance .rz-rows {
+  display: grid;
+  gap: var(--s3);
+}
 #sec-resonance .rz-row {
   display: grid;
   gap: var(--s2);
@@ -35,23 +38,47 @@
   gap: var(--s3);
   min-height: 30px;
 }
-#sec-resonance .rz-row__sym { font-size: 13px; font-weight: 600; color: var(--text-hi); }
-#sec-resonance .rz-row__pct { font-size: 13px; font-weight: 600; color: var(--text-hi); }
+#sec-resonance .rz-row__sym {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+#sec-resonance .rz-row__pct {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
 #sec-resonance .rz-row__delta {
   font-size: 12px;
   font-weight: 600;
   color: var(--pink);
   opacity: 0;
+  margin-left: auto; /* the move marker owns the space the control used to */
 }
-#sec-resonance .rz-row__btn { margin-left: auto; }
-#sec-resonance .rz-row .meter > i { transition: width var(--t-slow) var(--ease); }
-#sec-resonance .rz-row__sub { font-size: 12px; color: var(--text-faint); }
-#sec-resonance .rz-hint { margin-top: var(--s3); }
-#sec-resonance .rz-canvas-wrap { min-width: 0; }
-#sec-resonance canvas { width: 100%; }
+#sec-resonance .rz-row .meter > i {
+  transition: width var(--t-slow) var(--ease);
+}
+#sec-resonance .rz-row__sub {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+#sec-resonance .rz-hint {
+  margin-top: var(--s3);
+}
+#sec-resonance .rz-canvas-wrap {
+  min-width: 0;
+}
+#sec-resonance canvas {
+  width: 100%;
+}
 @media (max-width: 880px) {
-  #sec-resonance .rz-grid { grid-template-columns: 1fr; gap: var(--s5); }
+  #sec-resonance .rz-grid {
+    grid-template-columns: 1fr;
+    gap: var(--s5);
+  }
 }
 @media (max-width: 480px) {
-  #sec-resonance .sim-panel__body { padding: var(--s4) var(--s3); }
+  #sec-resonance .sim-panel__body {
+    padding: var(--s4) var(--s3);
+  }
 }

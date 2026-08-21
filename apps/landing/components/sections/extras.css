@@ -2,85 +2,164 @@
    Fully static section: five facts between the simulations and the
    argument. The only visual is the split bar — contract constants
    (10% default / 20% cap / 80% floor), so no illustrative flag needed. */
-#sec-extras .extras-row { margin-bottom: var(--s4); }
-#sec-extras .extras-row:last-child { margin-bottom: 0; }
+#sec-extras .extras-row {
+  margin-bottom: var(--s4);
+}
+#sec-extras .extras-row:last-child {
+  margin-bottom: 0;
+}
 /* cards hug their own content — no stretched voids beside a taller twin */
-#sec-extras .extras-row.cols { align-items: start; }
+#sec-extras .extras-row.cols {
+  align-items: start;
+}
 
 /* the split visual */
 #sec-extras .split-grid {
-  display: grid; grid-template-columns: 1fr 360px;
-  gap: var(--s4) var(--s7); align-items: end;
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: var(--s4) var(--s7);
+  align-items: end;
 }
 @media (max-width: 880px) {
-  #sec-extras .split-grid { grid-template-columns: 1fr; }
+  #sec-extras .split-grid {
+    grid-template-columns: 1fr;
+  }
 }
-#sec-extras .split { margin-top: var(--s6); padding-bottom: var(--s5); }
+#sec-extras .split {
+  margin-top: var(--s6);
+  padding-bottom: var(--s5);
+}
 #sec-extras .split__labels {
-  display: flex; justify-content: space-between; gap: var(--s4);
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s4);
   margin-bottom: var(--s3);
 }
 #sec-extras .split__side {
-  font-size: 11px; font-weight: 700; letter-spacing: 0.11em;
-  text-transform: uppercase; color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-faint);
 }
-#sec-extras .split__viz { position: relative; }
+#sec-extras .split__viz {
+  position: relative;
+}
 #sec-extras .split__bar {
-  position: relative; height: 30px;
-  border-radius: var(--r-s); overflow: hidden;
+  position: relative;
+  height: 30px;
+  border-radius: var(--r-s);
+  overflow: hidden;
   background: var(--bg-raised);
 }
-#sec-extras .split__seg { position: absolute; top: 0; bottom: 0; }
-#sec-extras .split__seg--fund { left: 0; width: 80%; background: var(--text-faint); }
-#sec-extras .split__seg--band {
-  left: 80%; width: 10%;
-  background:
-    repeating-linear-gradient(-45deg, var(--pink-line) 0 5px, transparent 5px 12px),
-    var(--text-faint);
+#sec-extras .split__seg {
+  position: absolute;
+  top: 0;
+  bottom: 0;
 }
-#sec-extras .split__seg--sig { left: 90%; width: 10%; background: var(--pink); }
+#sec-extras .split__seg--fund {
+  left: 0;
+  width: 80%;
+  background: var(--text-faint);
+}
+#sec-extras .split__seg--band {
+  left: 80%;
+  width: 10%;
+  background: repeating-linear-gradient(-45deg, var(--pink-line) 0 5px, transparent 5px 12px), var(--text-faint);
+}
+#sec-extras .split__seg--sig {
+  left: 90%;
+  width: 10%;
+  background: var(--pink);
+}
 #sec-extras .split__cap,
 #sec-extras .split__today {
-  position: absolute; top: -7px; bottom: -7px; width: 0;
+  position: absolute;
+  top: -7px;
+  bottom: -7px;
+  width: 0;
 }
-#sec-extras .split__cap { left: 80%; border-left: 2px dashed var(--text-hi); }
-#sec-extras .split__today { left: 90%; border-left: 2px solid var(--text-hi); }
+#sec-extras .split__cap {
+  left: 80%;
+  border-left: 2px dashed var(--text-hi);
+}
+#sec-extras .split__today {
+  left: 90%;
+  border-left: 2px solid var(--text-hi);
+}
 #sec-extras .split__caplabel,
 #sec-extras .split__todaylabel {
   position: absolute;
   transform: translateX(-50%);
-  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-  text-transform: uppercase; color: var(--text-hi);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-hi);
   white-space: nowrap;
 }
-#sec-extras .split__caplabel { left: 80%; top: calc(100% + 12px); }
+#sec-extras .split__caplabel {
+  left: 80%;
+  top: calc(100% + 12px);
+}
 /* Right-anchored so it names the pink region and can never collide with the bar edge. */
-#sec-extras .split__todaylabel { left: auto; right: 0; transform: none; bottom: calc(100% + 12px); }
-#sec-extras .split__legend { display: grid; gap: var(--s2); }
+#sec-extras .split__todaylabel {
+  left: auto;
+  right: 0;
+  transform: none;
+  bottom: calc(100% + 12px);
+}
+#sec-extras .split__legend {
+  display: grid;
+  gap: var(--s2);
+}
 #sec-extras .split__key {
-  display: flex; align-items: baseline; gap: var(--s3);
-  font-size: 13.5px; line-height: 1.55; color: var(--text-muted);
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
 }
 #sec-extras .split__swatch {
-  flex: none; width: 12px; height: 12px; border-radius: 3px;
-  position: relative; top: 1px;
+  flex: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  position: relative;
+  top: 1px;
 }
-#sec-extras .split__swatch--fund { background: var(--text-faint); }
+#sec-extras .split__swatch--fund {
+  background: var(--text-faint);
+}
 #sec-extras .split__swatch--band {
-  background:
-    repeating-linear-gradient(-45deg, var(--pink-line) 0 3px, transparent 3px 7px),
-    var(--text-faint);
+  background: repeating-linear-gradient(-45deg, var(--pink-line) 0 3px, transparent 3px 7px), var(--text-faint);
 }
-#sec-extras .split__swatch--sig { background: var(--pink); }
+#sec-extras .split__swatch--sig {
+  background: var(--pink);
+}
 
 /* the four powers, inside the authority card */
 #sec-extras .powers {
-  margin: var(--s3) 0 0; padding: 0; list-style: none;
-  display: grid; gap: var(--s2);
-  font-size: 14px; line-height: 1.55; color: var(--text-muted);
+  margin: var(--s3) 0 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: var(--s2);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted);
 }
-#sec-extras .powers li { position: relative; padding-left: 18px; }
+#sec-extras .powers li {
+  position: relative;
+  padding-left: 18px;
+}
 #sec-extras .powers li::before {
-  content: ''; position: absolute; left: 0; top: 0.66em;
-  width: 7px; height: 2px; background: var(--text-faint);
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.66em;
+  width: 7px;
+  height: 2px;
+  background: var(--text-faint);
 }

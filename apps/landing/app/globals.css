@@ -7,26 +7,26 @@
    ratios recorded in src/DESIGN.md. */
 :root {
   /* surfaces */
-  --bg: #0C0C0C;
-  --bg-panel: #14141A;
-  --bg-raised: #1C1C24;
-  --bg-hover: #23232E;
-  --rule: #2A2A36;
-  --rule-strong: #3C3C4C;
+  --bg: #0c0c0c;
+  --bg-panel: #14141a;
+  --bg-raised: #1c1c24;
+  --bg-hover: #23232e;
+  --rule: #2a2a36;
+  --rule-strong: #3c3c4c;
 
   /* ink */
-  --text-hi: #FFFFFF;
-  --text: #F4F4F8;
-  --text-muted: #ADADC0;
-  --text-faint: #8A8AA0;
+  --text-hi: #ffffff;
+  --text: #f4f4f8;
+  --text-muted: #adadc0;
+  --text-faint: #8a8aa0;
 
   /* brand accents — each always means something */
-  --pink: #F92B92;            /* signal, and what it buys */
-  --blue: #29B6F0;            /* USDG capital arriving */
+  --pink: #f92b92; /* signal, and what it buys */
+  --blue: #29b6f0; /* USDG capital arriving */
   --pink-soft: rgba(249, 43, 146, 0.13);
   /* label-only pink tint: brand pink composited on a raised surface + pink-soft fill
      lands at 4.12:1 (below AA); this tint reads as the same hue at 5.3:1 */
-  --pink-label: #FB63AC;
+  --pink-label: #fb63ac;
   --blue-soft: rgba(41, 182, 240, 0.13);
   --pink-line: rgba(249, 43, 146, 0.45);
   --blue-line: rgba(41, 182, 240, 0.45);
@@ -39,28 +39,45 @@
   --font-mono: var(--nf-jbmono), 'SFMono-Regular', Menlo, Consolas, monospace;
 
   /* spacing rhythm (4px base) */
-  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px; --s5: 24px;
-  --s6: 32px; --s7: 48px; --s8: 64px; --s9: 96px;
+  --s1: 4px;
+  --s2: 8px;
+  --s3: 12px;
+  --s4: 16px;
+  --s5: 24px;
+  --s6: 32px;
+  --s7: 48px;
+  --s8: 64px;
+  --s9: 96px;
   --sec-pad: clamp(84px, 11vw, 148px);
   --container: 1120px;
   --gutter: clamp(20px, 5vw, 48px);
 
   /* radii */
-  --r-s: 8px; --r-m: 12px; --r-l: 16px; --r-full: 999px;
+  --r-s: 8px;
+  --r-m: 12px;
+  --r-l: 16px;
+  --r-full: 999px;
 
   /* motion — three easings and four durations; nothing else */
-  --t-fast: 140ms;    /* hovers, small state flips */
-  --t-base: 200ms;    /* most UI transitions */
-  --t-slow: 320ms;    /* panel/section entrances */
-  --t-event: 1000ms;  /* simulation event emphasis */
-  --ease: cubic-bezier(0.2, 0, 0.2, 1);          /* standard */
-  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);     /* decelerate — entrances */
+  --t-fast: 140ms; /* hovers, small state flips */
+  --t-base: 200ms; /* most UI transitions */
+  --t-slow: 320ms; /* panel/section entrances */
+  --t-event: 1000ms; /* simulation event emphasis */
+  --ease: cubic-bezier(0.2, 0, 0.2, 1); /* standard */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* decelerate — entrances */
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* slight overshoot — small pops only */
 }
 
 /* ================================================================ base == */
-*, *::before, *::after { box-sizing: border-box; }
-html { color-scheme: dark; scroll-behavior: smooth; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
 body {
   margin: 0;
   background: var(--bg);
@@ -72,21 +89,67 @@ body {
   text-rendering: optimizeLegibility;
   overflow-x: hidden;
 }
-img, svg, canvas, video { display: block; max-width: 100%; }
-h1, h2, h3, h4, p, figure, blockquote { margin: 0; }
-h1, h2, h3, h4 { text-wrap: balance; }
-button { font: inherit; color: inherit; }
-a { color: var(--text); text-decoration-color: var(--rule-strong); text-underline-offset: 3px; transition: text-decoration-color var(--t-fast) var(--ease); }
-a:hover { text-decoration-color: var(--text-hi); }
-strong, b { font-weight: 700; color: var(--text-hi); }
-::selection { background: var(--pink); color: var(--bg); }
+img,
+svg,
+canvas,
+video {
+  display: block;
+  max-width: 100%;
+}
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+blockquote {
+  margin: 0;
+}
+h1,
+h2,
+h3,
+h4 {
+  text-wrap: balance;
+}
+button {
+  font: inherit;
+  color: inherit;
+}
+a {
+  color: var(--text);
+  text-decoration-color: var(--rule-strong);
+  text-underline-offset: 3px;
+  transition: text-decoration-color var(--t-fast) var(--ease);
+}
+a:hover {
+  text-decoration-color: var(--text-hi);
+}
+strong,
+b {
+  font-weight: 700;
+  color: var(--text-hi);
+}
+::selection {
+  background: var(--pink);
+  color: var(--bg);
+}
 
 /* Every interactive element gets the same ring. */
-:focus-visible { outline: 2px solid var(--blue); outline-offset: 3px; }
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
 
 .sr-only {
-  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
-  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
 }
 
 /* ================================================================ type == */
@@ -122,15 +185,28 @@ strong, b { font-weight: 700; color: var(--text-hi); }
   line-height: 1.18;
   color: var(--text-hi);
 }
-.h3 { font-size: 17px; font-weight: 700; letter-spacing: -0.005em; line-height: 1.3; color: var(--text-hi); }
+.h3 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  line-height: 1.3;
+  color: var(--text-hi);
+}
 .lede {
   font-size: clamp(16px, 1.4vw, 19px);
   line-height: 1.55;
   color: var(--text-muted);
   max-width: 58ch;
 }
-.small { font-size: 13.5px; line-height: 1.55; }
-.note { font-size: 12.5px; line-height: 1.5; color: var(--text-faint); }
+.small {
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.note {
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
 .eyebrow {
   font-size: 12px;
   font-weight: 700;
@@ -138,11 +214,19 @@ strong, b { font-weight: 700; color: var(--text-hi); }
   text-transform: uppercase;
   color: var(--text-faint);
 }
-.eyebrow--pink { color: var(--pink); }
-.eyebrow--blue { color: var(--blue); }
+.eyebrow--pink {
+  color: var(--pink);
+}
+.eyebrow--blue {
+  color: var(--blue);
+}
 
 /* Numbers live in the mono face: tabular lining figures by design. */
-.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; letter-spacing: 0; }
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
 
 /* Big brand numerals (step numbers, section counts). Same Modak rules as
    the wordmark: 400, synthesis off. Inherits colour — neutral by default. */
@@ -154,36 +238,87 @@ strong, b { font-weight: 700; color: var(--text-hi); }
   letter-spacing: 0.02em;
 }
 
-.muted { color: var(--text-muted); }
-.faint { color: var(--text-faint); }
-.hi { color: var(--text-hi); }
-.pink { color: var(--pink); }
-.blue { color: var(--blue); }
-.measure { max-width: 62ch; }
-.center { text-align: center; }
+.muted {
+  color: var(--text-muted);
+}
+.faint {
+  color: var(--text-faint);
+}
+.hi {
+  color: var(--text-hi);
+}
+.pink {
+  color: var(--pink);
+}
+.blue {
+  color: var(--blue);
+}
+.measure {
+  max-width: 62ch;
+}
+.center {
+  text-align: center;
+}
 
 /* ============================================================== layout == */
-.section { padding-block: var(--sec-pad); position: relative; }
-.section--rule { border-top: 1px solid var(--rule); }
-.container { width: min(100% - 2 * var(--gutter), var(--container)); margin-inline: auto; }
-.container--narrow { width: min(100% - 2 * var(--gutter), 820px); margin-inline: auto; }
+.section {
+  padding-block: var(--sec-pad);
+  position: relative;
+}
+.section--rule {
+  border-top: 1px solid var(--rule);
+}
+.container {
+  width: min(100% - 2 * var(--gutter), var(--container));
+  margin-inline: auto;
+}
+.container--narrow {
+  width: min(100% - 2 * var(--gutter), 820px);
+  margin-inline: auto;
+}
 
 /* Standard section opening: eyebrow, headline, lede — in that order. */
-.sec-head { display: grid; gap: var(--s4); margin-bottom: clamp(32px, 4.5vw, 56px); }
-.sec-head .eyebrow { margin-bottom: calc(-1 * var(--s2)); }
+.sec-head {
+  display: grid;
+  gap: var(--s4);
+  margin-bottom: clamp(32px, 4.5vw, 56px);
+}
+.sec-head .eyebrow {
+  margin-bottom: calc(-1 * var(--s2));
+}
 
-.cols { display: grid; gap: var(--s4); }
-.cols--2 { grid-template-columns: repeat(2, 1fr); }
-.cols--3 { grid-template-columns: repeat(3, 1fr); }
-.cols--4 { grid-template-columns: repeat(4, 1fr); }
+.cols {
+  display: grid;
+  gap: var(--s4);
+}
+.cols--2 {
+  grid-template-columns: repeat(2, 1fr);
+}
+.cols--3 {
+  grid-template-columns: repeat(3, 1fr);
+}
+.cols--4 {
+  grid-template-columns: repeat(4, 1fr);
+}
 @media (max-width: 880px) {
-  .cols--3, .cols--4 { grid-template-columns: repeat(2, 1fr); }
+  .cols--3,
+  .cols--4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
 }
 @media (max-width: 560px) {
-  .cols--2, .cols--3, .cols--4 { grid-template-columns: 1fr; }
+  .cols--2,
+  .cols--3,
+  .cols--4 {
+    grid-template-columns: 1fr;
+  }
 }
 
-.divider { border: 0; border-top: 1px solid var(--rule); margin: 0; }
+.divider {
+  border: 0;
+  border-top: 1px solid var(--rule);
+  margin: 0;
+}
 
 /* ============================================================== cards == */
 .card {
@@ -192,36 +327,80 @@ strong, b { font-weight: 700; color: var(--text-hi); }
   border-radius: var(--r-m);
   padding: var(--s5) var(--s5);
 }
-.card__head { font-size: 15.5px; font-weight: 700; letter-spacing: -0.005em; color: var(--text-hi); margin-bottom: var(--s2); }
-.card__body { font-size: 14px; line-height: 1.55; color: var(--text-muted); }
-.card--pink { border-color: var(--pink-line); }
-.card--pink .card__head { color: var(--pink); }
-.card--blue { border-color: var(--blue-line); }
-.card--blue .card__head { color: var(--blue); }
-.card--ghost { background: transparent; border-style: dashed; }
+.card__head {
+  font-size: 15.5px;
+  font-weight: 700;
+  letter-spacing: -0.005em;
+  color: var(--text-hi);
+  margin-bottom: var(--s2);
+}
+.card__body {
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+.card--pink {
+  border-color: var(--pink-line);
+}
+.card--pink .card__head {
+  color: var(--pink);
+}
+.card--blue {
+  border-color: var(--blue-line);
+}
+.card--blue .card__head {
+  color: var(--blue);
+}
+.card--ghost {
+  background: transparent;
+  border-style: dashed;
+}
 
 /* ============================================================== chips == */
 .chip {
-  display: inline-flex; align-items: center; gap: var(--s2);
-  font-size: 11px; font-weight: 700;
-  letter-spacing: 0.1em; text-transform: uppercase;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
   padding: 6px 12px;
   border: 1px solid var(--rule-strong);
   border-radius: var(--r-full);
   color: var(--text-muted);
   white-space: nowrap;
 }
-.chip--pink { border-color: var(--pink-line); color: var(--pink); }
-.chip--blue { border-color: var(--blue-line); color: var(--blue); }
+.chip--pink {
+  border-color: var(--pink-line);
+  color: var(--pink);
+}
+.chip--blue {
+  border-color: var(--blue-line);
+  color: var(--blue);
+}
 /* Honesty flags stay neutral — weight, not hue, carries the warning, so the
    accents keep their one meaning each. */
-.chip--warn { border-color: var(--rule-strong); color: var(--text); background: var(--bg-raised); }
-.chipline { display: flex; flex-wrap: wrap; gap: var(--s2); }
+.chip--warn {
+  border-color: var(--rule-strong);
+  color: var(--text);
+  background: var(--bg-raised);
+}
+.chipline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+}
 
 /* ============================================================ buttons == */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: var(--s2);
-  font-size: 13.5px; font-weight: 700; letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  font-size: 13.5px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
   padding: 11px 20px;
   border-radius: var(--r-full);
   border: 1px solid var(--rule-strong);
@@ -229,24 +408,66 @@ strong, b { font-weight: 700; color: var(--text-hi); }
   color: var(--text);
   cursor: pointer;
   text-decoration: none;
-  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease),
-              color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease);
+  transition:
+    background var(--t-fast) var(--ease),
+    border-color var(--t-fast) var(--ease),
+    color var(--t-fast) var(--ease),
+    transform var(--t-fast) var(--ease);
 }
-.btn:hover { border-color: var(--text-faint); background: var(--bg-raised); text-decoration: none; }
-.btn:active { transform: translateY(1px); }
-.btn[disabled] { opacity: 0.45; cursor: not-allowed; }
-.btn--primary { background: var(--text-hi); border-color: var(--text-hi); color: var(--bg); }
-.btn--primary:hover { background: var(--text); border-color: var(--text); }
+.btn:hover {
+  border-color: var(--text-faint);
+  background: var(--bg-raised);
+  text-decoration: none;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn[disabled] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.btn--primary {
+  background: var(--text-hi);
+  border-color: var(--text-hi);
+  color: var(--bg);
+}
+.btn--primary:hover {
+  background: var(--text);
+  border-color: var(--text);
+}
 /* In simulations, colour the action by what it moves: paying USDG is blue,
    directing signal is pink. */
-.btn--pink { background: var(--pink-soft); border-color: var(--pink-line); color: var(--pink-label); }
-.btn--pink:hover { border-color: var(--pink); background: var(--pink-soft); }
-.btn--blue { background: var(--blue-soft); border-color: var(--blue-line); color: var(--blue); }
-.btn--blue:hover { border-color: var(--blue); background: var(--blue-soft); }
-.btn--sm { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 7px 13px; }
+.btn--pink {
+  background: var(--pink-soft);
+  border-color: var(--pink-line);
+  color: var(--pink-label);
+}
+.btn--pink:hover {
+  border-color: var(--pink);
+  background: var(--pink-soft);
+}
+.btn--blue {
+  background: var(--blue-soft);
+  border-color: var(--blue-line);
+  color: var(--blue);
+}
+.btn--blue:hover {
+  border-color: var(--blue);
+  background: var(--blue-soft);
+}
+.btn--sm {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 7px 13px;
+}
 
 /* ============================================================== stats == */
-.stats { display: flex; flex-wrap: wrap; gap: var(--s6) var(--s7); }
+.stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s6) var(--s7);
+}
 .stat__value {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
@@ -256,18 +477,41 @@ strong, b { font-weight: 700; color: var(--text-hi); }
   line-height: 1.05;
   color: var(--text-hi);
 }
-.stat__label { font-size: 12.5px; color: var(--text-muted); margin-top: var(--s2); max-width: 22ch; }
+.stat__label {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  margin-top: var(--s2);
+  max-width: 22ch;
+}
 
 /* ============================================================= meters == */
 /* A falling price must SHRINK: paint width from 100% down to 0.
    The bare meter fill is NEUTRAL. Colour is an opt-in semantic act: use
    --blue when the quantity is USDG capital, --pink when it is signal or
    what signal buys. If in doubt, stay neutral. */
-.meter { height: 4px; background: var(--rule); border-radius: 2px; overflow: hidden; }
-.meter > i { display: block; height: 100%; width: 0; background: var(--text-faint); border-radius: inherit; }
-.meter--blue > i { background: var(--blue); }
-.meter--pink > i { background: var(--pink); }
-.meter--thick { height: 8px; border-radius: 4px; }
+.meter {
+  height: 4px;
+  background: var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.meter > i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--text-faint);
+  border-radius: inherit;
+}
+.meter--blue > i {
+  background: var(--blue);
+}
+.meter--pink > i {
+  background: var(--pink);
+}
+.meter--thick {
+  height: 8px;
+  border-radius: 4px;
+}
 
 /* ========================================================== sim frame == */
 /* Chrome every live simulation sits inside. Head: what this is + the
@@ -279,34 +523,66 @@ strong, b { font-weight: 700; color: var(--text-hi); }
   overflow: hidden;
 }
 .sim-panel__head {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
   flex-wrap: wrap;
   padding: var(--s4) var(--s5);
   border-bottom: 1px solid var(--rule);
   background: var(--bg-raised);
 }
 .sim-panel__title {
-  display: inline-flex; align-items: center; gap: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
   font-family: var(--font-mono);
-  font-size: 12px; font-weight: 600;
-  letter-spacing: 0.12em; text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
   color: var(--text-muted);
 }
 .sim-panel__title::before {
-  content: ''; width: 7px; height: 7px; border-radius: 50%;
-  background: var(--pink); flex: none;
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--pink);
+  flex: none;
 }
-.sim-panel__title--blue::before { background: var(--blue); }
-.sim-panel__body { padding: var(--s5); }
+.sim-panel__title--blue::before {
+  background: var(--blue);
+}
+.sim-panel__body {
+  padding: var(--s5);
+}
 .sim-panel__foot {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--s4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s4);
   flex-wrap: wrap;
   padding: var(--s3) var(--s5);
   border-top: 1px solid var(--rule);
 }
-.sim-panel__controls { display: flex; align-items: center; gap: var(--s2); flex-wrap: wrap; }
-.sim-note { font-size: 11.5px; line-height: 1.5; color: var(--text-faint); }
-.sim-clock { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--text-muted); }
+.sim-panel__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex-wrap: wrap;
+}
+.sim-note {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-faint);
+}
+.sim-clock {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text-muted);
+}
 
 /* ============================================================ entrance == */
 /* THE one entrance. Mark an element .reveal; a shared observer (below the
@@ -316,50 +592,110 @@ strong, b { font-weight: 700; color: var(--text-hi); }
 .reveal {
   opacity: 0;
   translate: 0 12px;
-  transition: opacity var(--t-slow) var(--ease-out) var(--d, 0ms),
-              translate var(--t-slow) var(--ease-out) var(--d, 0ms);
+  transition:
+    opacity var(--t-slow) var(--ease-out) var(--d, 0ms),
+    translate var(--t-slow) var(--ease-out) var(--d, 0ms);
 }
-.reveal.is-in { opacity: 1; translate: 0 0; }
+.reveal.is-in {
+  opacity: 1;
+  translate: 0 0;
+}
 @media (prefers-reduced-motion: reduce) {
-  .reveal { opacity: 1; translate: 0 0; }
+  .reveal {
+    opacity: 1;
+    translate: 0 0;
+  }
 }
 
 /* ====================================================== event emphasis == */
 /* One-shot ~1s flash for simulation events. Add the class when the event
    fires, REMOVE it on animationend/timeout — lit states must not pile up. */
 @keyframes evt-pink {
-  0%   { box-shadow: inset 0 0 0 999px rgba(249, 43, 146, 0.16), 0 0 0 1px var(--pink); }
-  100% { box-shadow: inset 0 0 0 999px rgba(249, 43, 146, 0), 0 0 0 1px rgba(249, 43, 146, 0); }
+  0% {
+    box-shadow:
+      inset 0 0 0 999px rgba(249, 43, 146, 0.16),
+      0 0 0 1px var(--pink);
+  }
+  100% {
+    box-shadow:
+      inset 0 0 0 999px rgba(249, 43, 146, 0),
+      0 0 0 1px rgba(249, 43, 146, 0);
+  }
 }
 @keyframes evt-blue {
-  0%   { box-shadow: inset 0 0 0 999px rgba(41, 182, 240, 0.16), 0 0 0 1px var(--blue); }
-  100% { box-shadow: inset 0 0 0 999px rgba(41, 182, 240, 0), 0 0 0 1px rgba(41, 182, 240, 0); }
+  0% {
+    box-shadow:
+      inset 0 0 0 999px rgba(41, 182, 240, 0.16),
+      0 0 0 1px var(--blue);
+  }
+  100% {
+    box-shadow:
+      inset 0 0 0 999px rgba(41, 182, 240, 0),
+      0 0 0 1px rgba(41, 182, 240, 0);
+  }
 }
-.evt-pink { animation: evt-pink var(--t-event) var(--ease-out); }
-.evt-blue { animation: evt-blue var(--t-event) var(--ease-out); }
+.evt-pink {
+  animation: evt-pink var(--t-event) var(--ease-out);
+}
+.evt-blue {
+  animation: evt-blue var(--t-event) var(--ease-out);
+}
 
 /* ============================================================== table == */
-.tablewrap { overflow-x: auto; }
+.tablewrap {
+  overflow-x: auto;
+}
 /* Below the table's min-width the wrap scrolls; fade the right edge so the
    cut is legible as "more this way", not a slice. */
 @media (max-width: 640px) {
   .tablewrap {
-    -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 56px), rgba(0, 0, 0, 0.35) calc(100% - 20px), transparent);
+    -webkit-mask-image: linear-gradient(
+      to right,
+      #000 calc(100% - 56px),
+      rgba(0, 0, 0, 0.35) calc(100% - 20px),
+      transparent
+    );
     mask-image: linear-gradient(to right, #000 calc(100% - 56px), rgba(0, 0, 0, 0.35) calc(100% - 20px), transparent);
   }
 }
-table { border-collapse: collapse; width: 100%; min-width: 560px; font-size: 14px; }
-th, td { text-align: left; padding: 10px 16px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; }
-th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.11em; color: var(--text-faint); font-weight: 700; }
-td { color: var(--text-muted); }
-td:first-child { color: var(--text); font-weight: 600; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 560px;
+  font-size: 14px;
+}
+th,
+td {
+  text-align: left;
+  padding: 10px 16px 10px 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.11em;
+  color: var(--text-faint);
+  font-weight: 700;
+}
+td {
+  color: var(--text-muted);
+}
+td:first-child {
+  color: var(--text);
+  font-weight: 600;
+}
 
 /* ===================================================== reduced motion == */
 /* Global kill switch. The harness runs a static pass instead of the loop;
    this makes every CSS transition/animation effectively instant too. */
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

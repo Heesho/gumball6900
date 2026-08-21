@@ -69,10 +69,25 @@ export function Overview() {
     const lAim = root.querySelector<HTMLElement>('#ovLAim');
     const lRet = root.querySelector<HTMLElement>('#ovLRet');
     if (
-      !mapQ || !dotQ || !s1 || !s2 || !s3 || !s4 || !you ||
-      !p1 || !p2 || !p3 || !pAim || !pRet ||
-      !l1 || !l2 || !l3 || !lAim || !lRet
-    ) return;
+      !mapQ ||
+      !dotQ ||
+      !s1 ||
+      !s2 ||
+      !s3 ||
+      !s4 ||
+      !you ||
+      !p1 ||
+      !p2 ||
+      !p3 ||
+      !pAim ||
+      !pRet ||
+      !l1 ||
+      !l2 ||
+      !l3 ||
+      !lAim ||
+      !lRet
+    )
+      return;
 
     /* narrowed aliases — TS doesn't carry the guard above into the closures */
     const map = mapQ;
@@ -90,11 +105,13 @@ export function Overview() {
       const r = el.getBoundingClientRect();
       return { x: r.left - m.left, y: r.top - m.top, w: r.width, h: r.height };
     }
-    function bezH(x1: number, y1: number, x2: number, y2: number) { // left-to-right S-curve
+    function bezH(x1: number, y1: number, x2: number, y2: number) {
+      // left-to-right S-curve
       const c = Math.max(24, (x2 - x1) * 0.45);
       return 'M' + x1 + ' ' + y1 + ' C ' + (x1 + c) + ' ' + y1 + ', ' + (x2 - c) + ' ' + y2 + ', ' + x2 + ' ' + y2;
     }
-    function bezV(x1: number, y1: number, x2: number, y2: number) { // top-to-bottom S-curve
+    function bezV(x1: number, y1: number, x2: number, y2: number) {
+      // top-to-bottom S-curve
       const c = Math.max(18, (y2 - y1) * 0.45);
       return 'M' + x1 + ' ' + y1 + ' C ' + x1 + ' ' + (y1 + c) + ', ' + x2 + ' ' + (y2 - c) + ', ' + x2 + ' ' + y2;
     }
@@ -109,8 +126,11 @@ export function Overview() {
       if (key === sizeKey) return;
       sizeKey = key;
 
-      const r1 = rectOf(els.s1), r2 = rectOf(els.s2), r3 = rectOf(els.s3),
-        r4 = rectOf(els.s4), ry = rectOf(els.you);
+      const r1 = rectOf(els.s1),
+        r2 = rectOf(els.s2),
+        r3 = rectOf(els.s3),
+        r4 = rectOf(els.s4),
+        ry = rectOf(els.you);
       column = r2.y > r1.y + r1.h - 4; // stacked?
 
       if (!column) {
@@ -118,12 +138,22 @@ export function Overview() {
         paths.p2.setAttribute('d', bezH(r2.x + r2.w, r2.y + r2.h / 2, r3.x - 3, r3.y + r3.h / 2));
         paths.p3.setAttribute('d', bezH(r3.x + r3.w, r3.y + r3.h / 2, r4.x - 3, r4.y + r4.h / 2));
         /* you → stage 2 (aim), stage 4 → you (burn) */
-        const ax = ry.x + ry.w * 0.2, ay = ry.y;
-        const tx = r2.x + r2.w / 2, ty = r2.y + r2.h;
-        paths.aim.setAttribute('d', 'M' + ax + ' ' + ay + ' C ' + ax + ' ' + (ay - 44) + ', ' + tx + ' ' + (ty + 52) + ', ' + tx + ' ' + (ty + 3));
-        const bx = r4.x + r4.w / 2, by = r4.y + r4.h;
-        const ux = ry.x + ry.w, uy = ry.y + ry.h * 0.5;
-        paths.ret.setAttribute('d', 'M' + bx + ' ' + by + ' C ' + bx + ' ' + (by + 64) + ', ' + (ux + 72) + ' ' + uy + ', ' + (ux + 3) + ' ' + uy);
+        const ax = ry.x + ry.w * 0.2,
+          ay = ry.y;
+        const tx = r2.x + r2.w / 2,
+          ty = r2.y + r2.h;
+        paths.aim.setAttribute(
+          'd',
+          'M' + ax + ' ' + ay + ' C ' + ax + ' ' + (ay - 44) + ', ' + tx + ' ' + (ty + 52) + ', ' + tx + ' ' + (ty + 3),
+        );
+        const bx = r4.x + r4.w / 2,
+          by = r4.y + r4.h;
+        const ux = ry.x + ry.w,
+          uy = ry.y + ry.h * 0.5;
+        paths.ret.setAttribute(
+          'd',
+          'M' + bx + ' ' + by + ' C ' + bx + ' ' + (by + 64) + ', ' + (ux + 72) + ' ' + uy + ', ' + (ux + 3) + ' ' + uy,
+        );
       } else {
         paths.p1.setAttribute('d', bezV(r1.x + r1.w / 2, r1.y + r1.h, r2.x + r2.w / 2, r2.y - 3));
         paths.p2.setAttribute('d', bezV(r2.x + r2.w / 2, r2.y + r2.h, r3.x + r3.w / 2, r3.y - 3));
@@ -131,9 +161,13 @@ export function Overview() {
         /* burn: fund straight down into the you strip */
         paths.ret.setAttribute('d', bezV(r4.x + r4.w / 2, r4.y + r4.h, ry.x + ry.w / 2, ry.y - 3));
         /* aim: back up the left rail from you to stage 2 */
-        const y1 = ry.y + ry.h * 0.5, y2 = r2.y + r2.h * 0.5;
+        const y1 = ry.y + ry.h * 0.5,
+          y2 = r2.y + r2.h * 0.5;
         const ctrl = Math.max(6, r2.x - 30);
-        paths.aim.setAttribute('d', 'M' + ry.x + ' ' + y1 + ' C ' + ctrl + ' ' + y1 + ', ' + ctrl + ' ' + y2 + ', ' + (r2.x - 3) + ' ' + y2);
+        paths.aim.setAttribute(
+          'd',
+          'M' + ry.x + ' ' + y1 + ' C ' + ctrl + ' ' + y1 + ', ' + ctrl + ' ' + y2 + ', ' + (r2.x - 3) + ' ' + y2,
+        );
       }
 
       /* labels sit at each path's midpoint, offset off the line so the pulse
@@ -141,15 +175,18 @@ export function Overview() {
          mode; the near-vertical aim leg (and the column burn leg) carry their
          labels BESIDE the line instead */
       (Object.keys(labels) as PathKey[]).forEach((k) => {
-        const el = labels[k], p = paths[k];
-        if (k === 'aim' && column) { el.hidden = true; return; } /* rail is too tight; the strip carries the words */
+        const el = labels[k],
+          p = paths[k];
+        if (k === 'aim' && column) {
+          el.hidden = true;
+          return;
+        } /* rail is too tight; the strip carries the words */
         el.hidden = false;
         const pt = p.getPointAtLength(p.getTotalLength() * 0.5);
-        const chain = (k === 'p1' || k === 'p2' || k === 'p3');
+        const chain = k === 'p1' || k === 'p2' || k === 'p3';
         el.style.left = pt.x + 'px';
         el.style.top = (chain && !column ? pt.y - 17 : pt.y) + 'px';
-        el.style.translate = (k === 'aim') ? '18px -50%'
-          : (k === 'ret' && column) ? '16px -50%' : '';
+        el.style.translate = k === 'aim' ? '18px -50%' : k === 'ret' && column ? '16px -50%' : '';
       });
     }
 
@@ -169,10 +206,13 @@ export function Overview() {
       el.classList.add(cls);
       const prev = flashTimers.get(el);
       if (prev !== undefined) clearTimeout(prev);
-      flashTimers.set(el, setTimeout(() => {
-        el.classList.remove(cls);
-        flashTimers.delete(el);
-      }, 1100));
+      flashTimers.set(
+        el,
+        setTimeout(() => {
+          el.classList.remove(cls);
+          flashTimers.delete(el);
+        }, 1100),
+      );
     }
 
     let t = 0;
@@ -181,7 +221,10 @@ export function Overview() {
 
     function step(dt: number) {
       t += dt;
-      if (t >= CYCLE) { t -= CYCLE; fired = {}; }
+      if (t >= CYCLE) {
+        t -= CYCLE;
+        fired = {};
+      }
       active = null;
       for (let i = 0; i < TIMELINE.length; i++) {
         const ev = TIMELINE[i];
@@ -247,7 +290,9 @@ export function Overview() {
     window.addEventListener('load', remeasure);
     window.addEventListener('resize', remeasure);
     if (document.fonts && document.fonts.ready) {
-      void document.fonts.ready.then(() => { if (!disposed) remeasure(); });
+      void document.fonts.ready.then(() => {
+        if (!disposed) remeasure();
+      });
     }
     const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(remeasure) : null;
     ro?.observe(map);
@@ -257,7 +302,11 @@ export function Overview() {
       el: root,
       step,
       paint,
-      reset: () => { t = 0; fired = {}; active = null; },
+      reset: () => {
+        t = 0;
+        fired = {};
+        active = null;
+      },
       static: paintStatic,
     });
 
@@ -281,23 +330,50 @@ export function Overview() {
       <div className="container">
         <header className="sec-head reveal">
           <p className="eyebrow">How it works</p>
-          <h2 className="h1" id="sec-overview-h">Money in, aimed by holders, out as assets you can claim</h2>
-          <p className="lede">Miners pay USDG for mining slots — the only money in. Holders point that
-            stream at assets, falling-price auctions convert it, and burning GBX takes your share
-            out at any time.</p>
+          <h2 className="h1" id="sec-overview-h">
+            Money in, aimed by holders, out as assets you can claim
+          </h2>
+          <p className="lede">
+            Miners pay USDG for mining slots — the only money in. Holders point that stream at assets, falling-price
+            auctions convert it, and burning GBX takes your share out at any time.
+          </p>
         </header>
 
         <div className="reveal" style={{ '--d': '90ms' } as CSSProperties}>
           <div className="ov-map" id="ovMap">
             <svg className="ov-links" aria-hidden="true">
               <defs>
-                <marker id="ovMkBlue" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                <marker
+                  id="ovMkBlue"
+                  viewBox="0 0 10 10"
+                  refX="8"
+                  refY="5"
+                  markerWidth="6.5"
+                  markerHeight="6.5"
+                  orient="auto-start-reverse"
+                >
                   <path d="M0 0 L10 5 L0 10 z" className="ov-mkfill--blue" />
                 </marker>
-                <marker id="ovMkPink" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                <marker
+                  id="ovMkPink"
+                  viewBox="0 0 10 10"
+                  refX="8"
+                  refY="5"
+                  markerWidth="6.5"
+                  markerHeight="6.5"
+                  orient="auto-start-reverse"
+                >
                   <path d="M0 0 L10 5 L0 10 z" className="ov-mkfill--pink" />
                 </marker>
-                <marker id="ovMkWht" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6.5" markerHeight="6.5" orient="auto-start-reverse">
+                <marker
+                  id="ovMkWht"
+                  viewBox="0 0 10 10"
+                  refX="8"
+                  refY="5"
+                  markerWidth="6.5"
+                  markerHeight="6.5"
+                  orient="auto-start-reverse"
+                >
                   <path d="M0 0 L10 5 L0 10 z" className="ov-mkfill--wht" />
                 </marker>
               </defs>
@@ -312,26 +388,34 @@ export function Overview() {
               <li className="card ov-stage ov-stage--blue" id="ovS1">
                 <span className="ov-stage__tag num">01 · Money in</span>
                 <h3 className="card__head">Miners pay in</h3>
-                <p className="card__body">Sixteen mining slots, every one always for sale. The USDG
-                  miners pay is the fund&#39;s only buying power.</p>
+                <p className="card__body">
+                  Sixteen mining slots, every one always for sale. The USDG miners pay is the fund&#39;s only buying
+                  power.
+                </p>
               </li>
               <li className="card ov-stage ov-stage--pink" id="ovS2">
                 <span className="ov-stage__tag num">02 · Aimed</span>
                 <h3 className="card__head">Holders aim it</h3>
-                <p className="card__body">Revenue releases as a rolling seven-day stream, split moment
-                  to moment by where holders point their GBX.</p>
+                <p className="card__body">
+                  Revenue releases as a rolling seven-day stream, split moment to moment by where holders point their
+                  GBX.
+                </p>
               </li>
               <li className="card ov-stage ov-stage--pink" id="ovS3">
                 <span className="ov-stage__tag num">03 · Converted</span>
                 <h3 className="card__head">Auctions convert it</h3>
-                <p className="card__body">Each Strategy sells its USDG at a falling price — paid in
-                  the target asset itself, never in dollars. No oracle anywhere.</p>
+                <p className="card__body">
+                  Each Strategy sells its USDG at a falling price — paid in the target asset itself, never in dollars.
+                  No oracle anywhere.
+                </p>
               </li>
               <li className="card ov-stage" id="ovS4">
                 <span className="ov-stage__tag num">04 · Yours</span>
                 <h3 className="card__head">The fund holds it</h3>
-                <p className="card__body">At least 80% of every purchase, in code. Ownerless — assets
-                  leave only when a holder burns GBX for their share.</p>
+                <p className="card__body">
+                  At least 80% of every purchase, in code. Ownerless — assets leave only when a holder burns GBX for
+                  their share.
+                </p>
               </li>
             </ol>
 
@@ -344,11 +428,21 @@ export function Overview() {
             </div>
 
             <div className="ov-labels" aria-hidden="true">
-              <span className="ov-lab ov-lab--blue" id="ovL1">USDG</span>
-              <span className="ov-lab ov-lab--blue" id="ovL2">USDG</span>
-              <span className="ov-lab ov-lab--pink" id="ovL3">Asset</span>
-              <span className="ov-lab ov-lab--pink" id="ovLAim">You aim it</span>
-              <span className="ov-lab" id="ovLRet">Burn GBX · your share</span>
+              <span className="ov-lab ov-lab--blue" id="ovL1">
+                USDG
+              </span>
+              <span className="ov-lab ov-lab--blue" id="ovL2">
+                USDG
+              </span>
+              <span className="ov-lab ov-lab--pink" id="ovL3">
+                Asset
+              </span>
+              <span className="ov-lab ov-lab--pink" id="ovLAim">
+                You aim it
+              </span>
+              <span className="ov-lab" id="ovLRet">
+                Burn GBX · your share
+              </span>
             </div>
 
             <svg className="ov-dotlayer" aria-hidden="true">
@@ -360,8 +454,10 @@ export function Overview() {
             </svg>
           </div>
 
-          <p className="note ov-note">Every arrow is a contract call anyone can make — no step waits on
-            a person. The sections below zoom in: the money, the aim, the assets.</p>
+          <p className="note ov-note">
+            Every arrow is a contract call anyone can make — no step waits on a person. The sections below zoom in: the
+            money, the aim, the assets.
+          </p>
         </div>
       </div>
     </section>
