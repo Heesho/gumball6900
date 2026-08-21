@@ -1,0 +1,57 @@
+/* ============================== 40 · resonance ==========================
+   Signal weights (pink, HTML) on the left; the USDG stream they split
+   (blue, canvas) on the right. One idea: move a signal, the split follows
+   within the second. */
+#sec-resonance .rz-how {
+  margin-top: calc(-1 * var(--s4));
+  margin-bottom: var(--s6);
+}
+#sec-resonance .rz-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 330px) 1fr;
+  gap: var(--s6);
+  align-items: start;
+}
+#sec-resonance .rz-cap {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: var(--s3);
+}
+#sec-resonance .rz-rows { display: grid; gap: var(--s3); }
+#sec-resonance .rz-row {
+  display: grid;
+  gap: var(--s2);
+  padding: var(--s3) var(--s4);
+  background: var(--bg-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--r-s);
+}
+#sec-resonance .rz-row__top {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  min-height: 30px;
+}
+#sec-resonance .rz-row__sym { font-size: 13px; font-weight: 600; color: var(--text-hi); }
+#sec-resonance .rz-row__pct { font-size: 13px; font-weight: 600; color: var(--text-hi); }
+#sec-resonance .rz-row__delta {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pink);
+  opacity: 0;
+}
+#sec-resonance .rz-row__btn { margin-left: auto; }
+#sec-resonance .rz-row .meter > i { transition: width var(--t-slow) var(--ease); }
+#sec-resonance .rz-row__sub { font-size: 12px; color: var(--text-faint); }
+#sec-resonance .rz-hint { margin-top: var(--s3); }
+#sec-resonance .rz-canvas-wrap { min-width: 0; }
+#sec-resonance canvas { width: 100%; }
+@media (max-width: 880px) {
+  #sec-resonance .rz-grid { grid-template-columns: 1fr; gap: var(--s5); }
+}
+@media (max-width: 480px) {
+  #sec-resonance .sim-panel__body { padding: var(--s4) var(--s3); }
+}

@@ -1,0 +1,49 @@
+/* Hero — the wordmark leads; the section earns trust by what it declines
+   to say. No eyebrow, no simulation, no rule above (it is first). */
+#sec-hero {
+  min-height: min(100svh, 1080px);
+  display: flex;
+  align-items: center;
+}
+#sec-hero .hero {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+#sec-hero .hero__brand {
+  display: grid;
+  justify-items: center;
+  gap: var(--s6);
+}
+/* A badge above the title, not a second title. Embedded at 208px so
+   retina (2x of 80px = 160px) downsamples, never upscales. */
+#sec-hero .hero__logo {
+  width: clamp(64px, 6vw, 80px);
+  height: auto;
+}
+/* The design system sizes the wordmark per section. */
+#sec-hero .hero__wordmark {
+  font-size: clamp(46px, 9.5vw, 122px);
+}
+#sec-hero .hero__what {
+  margin-top: var(--s5);
+  margin-inline: auto;
+  text-wrap: balance;
+}
+#sec-hero .hero__cta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s3);
+  margin-top: var(--s6);
+}
+#sec-hero .hero__status {
+  justify-content: center;
+  margin-top: var(--s6);
+}
+/* Status, not action: drop the interactive border grammar the CTAs use.
+   Bare raised pill — --text on --bg-raised is 15.4:1, well past AA. */
+#sec-hero .hero__status .chip {
+  border-color: transparent;
+  background: var(--bg-raised);
+}

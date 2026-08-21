@@ -1,13 +1,3 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>GumBall6900 — an onchain index fund directed by its holders</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Modak&family=Schibsted+Grotesk:wght@400;500;600;700;800&display=swap">
-<style>
 /* =============================================================== tokens ==
    GumBall6900 design system. Four brand colours from docs/whitepaper/src/
    theme.mjs; neutrals are biased toward blue (hue ~240, low saturation) so
@@ -42,9 +32,11 @@
   --blue-line: rgba(41, 182, 240, 0.45);
 
   /* faces */
-  --font-display: 'Modak', 'Comic Sans MS', cursive;
-  --font-sans: 'Schibsted Grotesk', 'Helvetica Neue', Helvetica, 'Segoe UI', Arial, sans-serif;
-  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace;
+  /* Families come from next/font (app/layout.tsx) as CSS variables; canvas code
+     must resolve these at runtime via getComputedStyle, never hardcode names. */
+  --font-display: var(--nf-modak), 'Comic Sans MS', cursive;
+  --font-sans: var(--nf-schibsted), 'Helvetica Neue', Helvetica, 'Segoe UI', Arial, sans-serif;
+  --font-mono: var(--nf-jbmono), 'SFMono-Regular', Menlo, Consolas, monospace;
 
   /* spacing rhythm (4px base) */
   --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px; --s5: 24px;
@@ -374,34 +366,3 @@ td:first-child { color: var(--text); font-weight: 600; }
     scroll-behavior: auto !important;
   }
 }
-</style>
-</head>
-<body>
-<script>
-  /* Entrance driver for .reveal — one-time IntersectionObserver, adds .is-in
-     and unobserves. Not a loop; the harness still owns simulation time. */
-  (function () {
-    'use strict';
-    document.addEventListener('DOMContentLoaded', function () {
-      var els = Array.prototype.slice.call(document.querySelectorAll('.reveal'));
-      if (!els.length) return;
-      if (!('IntersectionObserver' in window) ||
-          window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        els.forEach(function (el) { el.classList.add('is-in'); });
-        return;
-      }
-      var io = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-in');
-            io.unobserve(entry.target);
-          }
-        });
-      }, { rootMargin: '0px 0px -8% 0px', threshold: 0.05 });
-      els.forEach(function (el) { io.observe(el); });
-    });
-  }());
-</script>
-<script>
-  window.SIMS = { list: [], register: function (name, sim) { sim.name = name; this.list.push(sim); } };
-</script>

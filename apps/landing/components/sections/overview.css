@@ -1,0 +1,116 @@
+/* ============================================================ overview ==
+   The whole loop in one picture. Words live in HTML cards; the SVG overlay
+   draws only shapes — links, arrowheads, and the value pulse the harness
+   drives along them. Paths are measured from the cards' real positions, so
+   the same code lays the loop out as a row (desktop) or a column (mobile). */
+#sec-overview .ov-map { position: relative; }
+#sec-overview .ov-links {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible; pointer-events: none;
+}
+#sec-overview .ov-stages {
+  list-style: none; margin: 0; padding: 0;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  /* wide chain gaps so the pulse has visible travel room between cards */
+  gap: clamp(var(--s8), 6vw, var(--s9));
+}
+#sec-overview .ov-stage { position: relative; z-index: 1; }
+#sec-overview .ov-stage__tag {
+  display: block;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: var(--s3);
+}
+#sec-overview .ov-stage--blue .ov-stage__tag { color: var(--blue); }
+#sec-overview .ov-stage--pink .ov-stage__tag { color: var(--pink); }
+#sec-overview .ov-stage .card__head { margin-bottom: var(--s2); }
+
+#sec-overview .ov-you {
+  position: relative; z-index: 1;
+  display: flex; align-items: center; gap: var(--s4);
+  width: min(400px, 100%);
+  margin: var(--s9) auto 0;
+  background: var(--bg-raised);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--r-m);
+  padding: var(--s4) var(--s5);
+}
+#sec-overview .ov-you__dot {
+  width: 9px; height: 9px; border-radius: 50%;
+  background: var(--text-hi); flex: none;
+}
+#sec-overview .ov-you__title {
+  font-size: 15.5px; font-weight: 700; letter-spacing: -0.005em;
+  color: var(--text-hi); line-height: 1.3;
+}
+#sec-overview .ov-you .note { margin-top: 2px; }
+
+/* links */
+#sec-overview .ov-link { fill: none; stroke-width: 1.7; }
+#sec-overview .ov-link--blue { stroke: var(--blue-line); }
+#sec-overview .ov-link--pink { stroke: var(--pink-line); }
+#sec-overview .ov-link--wht  { stroke: var(--rule-strong); }
+#sec-overview .ov-link--dash { stroke-dasharray: 5 4; }
+#sec-overview .ov-mkfill--blue { fill: var(--blue-line); }
+#sec-overview .ov-mkfill--pink { fill: var(--pink-line); }
+#sec-overview .ov-mkfill--wht  { fill: var(--rule-strong); }
+
+/* the pulse — it IS the argument, so it rides its own layer above the
+   labels, with a thin page-ground knockout ring so it reads over a pill */
+#sec-overview .ov-dotlayer {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible; pointer-events: none; z-index: 3;
+}
+#sec-overview .ov-dot[hidden] { display: none; } /* [hidden] has no UA style on SVG */
+#sec-overview .ov-dot__glow { opacity: 0.22; }
+#sec-overview .ov-dot__ring { fill: var(--bg); }
+#sec-overview .ov-dot--blue .ov-dot__core,
+#sec-overview .ov-dot--blue .ov-dot__glow { fill: var(--blue); }
+#sec-overview .ov-dot--pink .ov-dot__core,
+#sec-overview .ov-dot--pink .ov-dot__glow { fill: var(--pink); }
+#sec-overview .ov-dot--wht .ov-dot__core,
+#sec-overview .ov-dot--wht .ov-dot__glow { fill: var(--text-hi); }
+
+/* path labels — HTML, knocked out of the line by the page ground */
+#sec-overview .ov-labels { position: absolute; inset: 0; pointer-events: none; z-index: 2; }
+#sec-overview .ov-lab {
+  position: absolute; translate: -50% -50%;
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  background: var(--bg);
+  padding: 2px 8px; border-radius: var(--r-full);
+  white-space: nowrap;
+  color: var(--text-faint);
+}
+#sec-overview .ov-lab--blue { color: var(--blue); }
+#sec-overview .ov-lab--pink { color: var(--pink); }
+#sec-overview .ov-lab[hidden] { display: none; }
+
+#sec-overview .ov-note {
+  margin-top: var(--s6);
+  max-width: 62ch;
+}
+
+/* burn arrival — neutral edition of the shared event flash (GBX is neutral).
+   White needs more weight than the saturated accents to read on a dark
+   ground, so the ring is heavier and carries a short glow. */
+@keyframes ov-evt-burn {
+  0%   { box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0.2), 0 0 0 2px var(--text-hi), 0 0 26px rgba(255, 255, 255, 0.35); }
+  100% { box-shadow: inset 0 0 0 999px rgba(255, 255, 255, 0), 0 0 0 2px rgba(255, 255, 255, 0), 0 0 26px rgba(255, 255, 255, 0); }
+}
+#sec-overview .evt-burn { animation: ov-evt-burn var(--t-event) var(--ease-out); }
+
+/* column layout — the loop restacks vertically */
+@media (max-width: 880px) {
+  #sec-overview .ov-stages { grid-template-columns: 1fr; gap: var(--s7); }
+  #sec-overview .ov-map { padding-left: var(--s6); } /* rail room for the aim curve */
+  #sec-overview .ov-you { width: 100%; margin-top: var(--s7); }
+  /* the burn leg is short and centered here — its label wraps and rides
+     BESIDE the arrow, so the pulse never crosses the text */
+  #sec-overview #ovLRet {
+    white-space: normal; text-align: center;
+    max-width: 100px; line-height: 1.45; border-radius: var(--r-m);
+  }
+}

@@ -1,0 +1,32 @@
+#sec-why .why-grid { align-items: stretch; }
+#sec-why .card { display: flex; flex-direction: column; }
+#sec-why .card__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  margin-bottom: var(--s3);
+}
+#sec-why .why-num {
+  font-size: 26px;
+  color: var(--text-hi);
+  translate: 0 2px;
+}
+#sec-why .card__body { display: flex; flex-direction: column; flex: 1; }
+#sec-why .card__body > p { margin: 0; }
+#sec-why .why-trade {
+  margin-top: var(--s4);
+}
+#sec-why .why-trade__inner {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--s4);
+}
+#sec-why .why-trade-label {
+  margin: 0 0 var(--s2);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+#sec-why .why-trade p:not(.why-trade-label) { color: var(--text); }
+#sec-why .why-close { margin-top: var(--s6); }

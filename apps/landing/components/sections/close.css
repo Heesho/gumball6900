@@ -1,0 +1,61 @@
+/* ------------------------------------------------------------ 80-close */
+#sec-close .close-status {
+  margin: 0 0 var(--s7);
+  border-top: 1px solid var(--rule);
+}
+#sec-close .close-status__row {
+  display: grid;
+  grid-template-columns: 176px 1fr;
+  gap: var(--s1) var(--s5);
+  align-items: baseline;
+  padding: var(--s4) 0;
+  border-bottom: 1px solid var(--rule);
+}
+#sec-close .close-status dt {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+#sec-close .close-status dd {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  line-height: 1.45;
+  color: var(--text-hi);
+  text-wrap: pretty;
+}
+#sec-close .close-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  align-items: center;
+}
+#sec-close .close-cta__note {
+  margin-top: var(--s4);
+  max-width: 58ch;
+}
+#sec-close .close-sign {
+  margin-top: clamp(64px, 9vw, 96px);
+  padding-top: var(--s7);
+  border-top: 1px solid var(--rule);
+  display: grid;
+  gap: var(--s3);
+  justify-items: center;
+  text-align: center;
+}
+#sec-close .close-sign__mark {
+  font-size: clamp(30px, 4.5vw, 44px);
+}
+@media (max-width: 560px) {
+  #sec-close .close-status__row {
+    grid-template-columns: 1fr;
+    padding: var(--s3) 0 var(--s4);
+  }
+  #sec-close .close-cta .btn {
+    flex: 1 1 100%;
+  }
+}
