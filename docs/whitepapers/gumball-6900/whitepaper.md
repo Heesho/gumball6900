@@ -227,7 +227,7 @@ flowchart TB
   subgraph Perstrat["Per-Strategy graph"]
     STR[Strategy<br/>descending-price auction]
     BR[BribeRouter]
-    BRIBE[Bribe<br/>≤8 reward tokens, 1e18]
+    BRIBE[Bribe<br/>≤8 reward tokens, 1e36]
   end
   subgraph Custody["Custody and administration"]
     FUND[Fund<br/>ownerless treasury]
@@ -1467,7 +1467,7 @@ settle and burn pending Fund GBX before quoting or executing a redemption.
 `Bribe` is the protocol's exact-carry accounting subsystem, and is materially more intricate than Resonance because
 it conserves what Resonance discards.
 
-Constants: `REWARD_DURATION = 7 days`, `REWARD_PRECISION = 10^18`, `MAX_REWARD_TOKENS = 8`.
+Constants: `REWARD_DURATION = 7 days`, `REWARD_PRECISION = 10^36`, `MAX_REWARD_TOKENS = 8`.
 
 ### 23.1 State inventory
 
@@ -2230,9 +2230,9 @@ approximately `1/(E · P / W)` where `P` is the precision constant. Taking a rep
 | `10^18`       | `⌊10^2⌋ = 100`    | ~1%                              |
 | `10^36`       | `⌊10^20⌋ = 10^20` | ~10⁻²⁰                           |
 
-At `1e18`, per-checkpoint truncation of order 1% would be economically material and would compound with checkpoint
-frequency. At `1e36` it is negligible per checkpoint. Bribe can safely use `1e18` because its reward tokens are not
-constrained to six decimals _and_, more importantly, because it carries its residue rather than discarding it.
+At `1e18`, per-checkpoint truncation can be economically material. At `1e36` it is negligible per checkpoint. Resonance
+and Bribe both use `1e36`: Bribe reward-token decimals are unconstrained, and exact carry alone cannot make a
+low-resolution global index immediately claimable before a signal-supply boundary.
 
 ### 33.3 The decimal-asymmetry hazard
 
@@ -2241,11 +2241,10 @@ constrained to six decimals _and_, more importantly, because it carries its resi
 > simulation fixtures assume 6 decimals. Binding a USDG with different decimals would leave the contracts functional
 > but invalidate the calibration and all economic modelling. This is discrepancy D-2 (§43).
 
-A related asymmetry applies to Bribe reward tokens, whose decimals are unconstrained. A **low-decimal** reward token
-produces a proportionally larger whole-unit Fund liability at each carry-classification boundary, because one whole
-unit is economically larger. This cannot transfer pre-entry carry to a later signaler — the classification direction
-is always toward Fund — but it does mean low-decimal Bribe rewards leak more value to Fund at boundaries than
-high-decimal ones.
+A related asymmetry applies to Bribe reward tokens, whose decimals are unconstrained. The `1e36` Bribe index ensures one
+raw reward unit advances the global index at any realistic signal supply. A raw unit may still be indivisible among
+multiple accounts; those sub-raw fractions remain account-specific and become Fund precision only when an account
+fully exits, so they cannot be captured by a later signaler.
 
 ### 33.4 Overflow analysis
 
@@ -2917,20 +2916,20 @@ _permissionless_ (of the named user-facing operations), and _non-transferable_ (
 | `GBX`               | `core/GBX.sol`                        | 95    | `ERC20`, `ERC20Permit`                              | `GENESIS_LIQUIDITY_ALLOCATION = 20_000_000 ether`                                                                                  |
 | `Mine`              | `core/Mine.sol`                       | 375   | `ReentrancyGuard`                                   | `BPS 10_000`, `PREVIOUS_MINER_BPS 8_000`, `PRICE_DECAY_PERIOD 1 hours`, `SLOT_COUNT 16`, `MIN_TAIL_TPS 16`, `MAX_INITIAL_TPS 1e24` |
 | `SignalGBX`         | `core/SignalGBX.sol`                  | 195   | `ERC20`, `ERC20Votes`, `ReentrancyGuard`, `Ownable` | —                                                                                                                                  |
-| `Resonance`         | `core/Resonance.sol`                  | 459   | `ReentrancyGuard`, `Ownable`                        | `DURATION 7 days`, `REWARD_PRECISION 1e36`                                                                                         |
+| `Resonance`         | `core/Resonance.sol`                  | 481   | `ReentrancyGuard`, `Ownable`                        | `DURATION 7 days`, `REWARD_PRECISION 1e36`, `MAX_BRIBE_BPS 2_000`                                                                  |
 | `ResonanceRouter`   | `core/ResonanceRouter.sol`            | 83    | `IResonanceRouter`, `ReentrancyGuard`               | —                                                                                                                                  |
 | `Strategy`          | `core/Strategy.sol`                   | 238   | `ReentrancyGuard`                                   | `MIN_EPOCH_DURATION 1 hours`, `MAX_EPOCH_DURATION 365 days`, `PRICE_SCALE 1e18`, `ABSOLUTE_MINIMUM_PRICE 1e6`                      |
 | `StrategyFactory`   | `core/StrategyFactory.sol`            | 82    | `Ownable`                                           | —                                                                                                                                  |
-| `Bribe`             | `core/Bribe.sol`                      | 747   | `ReentrancyGuard`                                   | `REWARD_DURATION 7 days`, `REWARD_PRECISION 1e18`, `MAX_REWARD_TOKENS 8`, `MAX_LIFETIME_REWARD_AMOUNT ⌊(2²⁵⁶−1)/1e18⌋`             |
+| `Bribe`             | `core/Bribe.sol`                      | 747   | `ReentrancyGuard`                                   | `REWARD_DURATION 7 days`, `REWARD_PRECISION 1e36`, `MAX_REWARD_TOKENS 8`, `MAX_LIFETIME_REWARD_AMOUNT ⌊(2²⁵⁶−1)/1e36⌋`             |
 | `BribeFactory`      | `core/BribeFactory.sol`               | 65    | `Ownable`                                           | —                                                                                                                                  |
-| `BribeRouter`       | `core/BribeRouter.sol`                | 203   | `ReentrancyGuard`                                   | `BPS 10_000`, `FUND_BPS 9_000`, `BRIBE_BPS 1_000`                                                                                  |
+| `BribeRouter`       | `core/BribeRouter.sol`                | 214   | `ReentrancyGuard`                                   | `BPS 10_000`; snapshots the bounded global `Resonance.bribeBps`                                                                    |
 | `Fund`              | `core/Fund.sol`                       | 193   | `ReentrancyGuard`                                   | `REDEMPTION_NAMESPACE`                                                                                                             |
 | `LiquidityPosition` | `core/LiquidityPosition.sol`          | 342   | `IERC721Receiver`, `ReentrancyGuard`                | —                                                                                                                                  |
 
-**Interfaces:** `ICoreResonance` (54), `IResonanceIdentity` (25), `IBribe` (21), `IFund` (16), `IMine` (15),
+**Interfaces:** `ICoreResonance` (58), `IResonanceIdentity` (25), `IBribe` (21), `IFund` (16), `IMine` (15),
 `IResonanceRouter` (12). `ISignalGBXAllocation` was **deleted** by ADR 0031.
 
-**Total protocol Solidity: 3,220 lines across 18 files** — 12 core contracts and 6 interfaces. There is no
+**Total protocol Solidity: 3,257 lines across 18 files** — 12 core contracts and 6 interfaces. There is no
 `governance/` source tree: ADR 0034 deleted `ProtocolGovernor.sol` (246 lines) along with its tests, ABIs, SDK
 lifecycle helpers, and subgraph data sources.
 

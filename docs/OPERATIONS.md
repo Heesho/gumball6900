@@ -26,7 +26,8 @@ Before any external funding or public availability, verify the exact candidate i
 - Resonance reports the reviewed initial `bribeBps`, which defaults to 1,000 and is within the inclusive 0-to-2,000
   bound. Every Router reads the same Resonance rate; no Strategy or Router exposes an independent override. Reconcile
   each pre-handoff payment against the rate applied at its classification block and preserve its weighted carry.
-- Every paired Bribe reports `MAX_LIFETIME_REWARD_AMOUNT() == floor(type(uint256).max / 1e18)`, and every registered
+- Every paired Bribe reports `REWARD_PRECISION() == 1e36` and
+  `MAX_LIFETIME_REWARD_AMOUNT() == floor(type(uint256).max / 1e36)`, and every registered
   token starts with the expected monotonic `lifetimeRewardNotified` value. No deployment or governance component may
   claim a reset, setter, or escape hatch for that capacity.
 - The core deploys no Governor or Timelock. SignalGBX retains IVotes checkpoints, but no core voting configuration or

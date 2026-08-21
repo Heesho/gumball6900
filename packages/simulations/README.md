@@ -18,7 +18,7 @@ price promises, deployment configurations, or investment projections.
   direct donations, global-index residue, and per-Strategy flooring remain unallocated Resonance surplus.
 - Killing a Strategy checkpoints it against the old active denominator, preserves its stored whole-unit reward, removes
   its complete weight from the future denominator, and leaves its recorded signal available for incremental exit.
-- Bribe uses `1e18` reward precision and assigns unindexable old-supply carry plus fully exiting user remainders to
+- Bribe uses `1e36` reward precision and assigns unindexable old-supply carry plus fully exiting user remainders to
   Fund before changing virtual signal supply.
 - Strategy payments use one global prospective automatic-Bribe rate: 10% by default, settable from 0% through 20%,
   with Fund receiving the complement. One weighted basis-point remainder persists across rate changes, so cumulative

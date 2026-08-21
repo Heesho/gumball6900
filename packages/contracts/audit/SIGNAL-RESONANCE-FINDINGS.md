@@ -1,7 +1,7 @@
 # Signal and Resonance findings
 
-Entries SR-001 through SR-007 reflect the local tree on 2026-08-16. SR-008 and SR-009 were added on 2026-08-19; the
-SR-002 settlement disposition was reconciled for ADR 0036 on 2026-08-21. “Fixed” means locally patched and
+Entries SR-001 through SR-007 reflect the local tree on 2026-08-16. SR-008 and SR-009 were added on 2026-08-19;
+SR-010 and the SR-002 settlement disposition were reconciled for ADRs 0036 and 0037 on 2026-08-21. “Fixed” means locally patched and
 regression-tested, not independently verified or deployed.
 
 ## SR-001
@@ -204,22 +204,56 @@ Forge validation then passed 329/329 default-profile tests, including all 29 inv
 with zero handler reverts, plus 18/18 integration tests and Hardhat bytecode parity. Fresh native Echidna and Medusa
 runs remain open.
 Patch: Every Bribe now tracks monotonic `lifetimeRewardNotified[token]` and rejects before checkpointing or token
-interaction when a notification would exceed `floor((2^256 - 1) / 1e18)`. Direct donations do not consume the cap
+interaction when a notification would exceed `floor((2^256 - 1) / REWARD_PRECISION)`. Direct donations do not consume the cap
 because they never enter reward accounting. The existing current-balance guard remains defense in depth.
-Safety proof: For lifetime notified raw units `N` and precision `P = 1e18`, the smallest nonzero signal supply is one
+Safety proof: For lifetime notified raw units `N` and precision `P`, the smallest nonzero signal supply is one
 raw unit, so every admitted raw reward unit contributes at most `P` cumulative-index units. The cap gives
 `rewardPerTokenStored <= N * P <= 2^256 - 1`; supply one attains the limit, making it the largest
 history-independent safe bound. Claims, Fund classifications and payments, completed periods, queues, and Strategy
 death do not reset `N`.
-Residual risk: The raw-unit cap can constrain high-decimal tokens, although it is approximately `1.158e41` whole
+ADR 0037 later raises `P` from `1e18` to `1e36` and automatically reduces the cap to preserve the same proof.
+Residual risk: The raw-unit cap can constrain high-decimal tokens, although it is approximately `1.158e23` whole
 tokens at 18 decimals. At exhaustion, only new notifications fail: claims, moves, and withdrawals remain available.
 An automatic Strategy-payment reward stays recorded as an unpaid BribeRouter liability, while the independent Fund
 liability remains settleable. ADR 0028 remains unchanged: no retirement, rescue, or killed-Strategy escape hatch was
 added, and closed-pool rewards can still become unreachable after final exit.
 
+## SR-010
+
+ID: SR-010
+Title: Bribe index precision stranded economically material six-decimal rewards at realistic signal supply
+Severity: High
+Status: Fixed locally by ADR 0037
+Category: Reward accounting and signal-exit economics
+Affected contracts: Bribe
+Violated invariant: A notified raw reward unit must become attributable without requiring an economically unrealistic
+reward amount relative to ordinary eighteen-decimal signal weight.
+Attacker prerequisites: None. The condition occurs naturally when a registered six-decimal reward token such as USDG
+is distributed against millions of whole sGBX.
+Impact: Under the former `1e18` index, a complete one-token six-decimal reward against five million sGBX left all one
+million raw units below global index resolution. Signal entry or exit then classified that carry to Fund, so signallers
+received zero despite the Bribe holding and scheduling the reward.
+Minimal trace: Signal three million and two million sGBX, notify `1_000_000` raw six-decimal units, complete the
+seven-day stream, and claim. Under the former precision both claims were zero; a later supply change made the complete
+reward Fund-bound.
+Root cause: Reward index precision matched the `1e18` signal denomination instead of providing headroom above it.
+Regression tests: `SixDecimalBribeTest`, `SixDecimalAutomaticBribeIntegrationTest`, and
+`SixDecimalBribeInvariantTest` cover one-unit rewards, exact 60/40 payment, repeated streams, zero supply, signal entry,
+mid-stream exit, the complete Strategy/Router/Bribe graph, 10,000-run fuzzing, and 1,000-by-500-call stateful campaigns.
+Patch: Raise `Bribe.REWARD_PRECISION` to `1e36` and retain the lifetime cap as
+`floor(type(uint256).max / REWARD_PRECISION)`. No token `decimals()` call or per-token scale is trusted.
+Validation: The focused six-decimal suite passed 13/13, including 500,000 state-machine calls with zero handler
+reverts. Independent Python and TypeScript conservation-model regressions pay exactly 600,000 and 400,000 raw units
+from the one-token/five-million-signal case. The complete default profile passed 353/353 twice, the integration
+profile passed 19/19, Hardhat compiler parity passed, and all 49 mutation targets—including a `1e36`-to-`1e18`
+precision regression—were killed.
+Residual risk: Solidity still cannot allocate fractions below one raw token unit. An account's sub-unit entitlement
+remains account-specific and is classified to Fund on full exit. Tokens with unusually high decimals encounter the
+lower, precision-coupled lifetime cap sooner in displayed-token terms.
+
 ## Summary
 
-Fixed locally: three High protocol mismatches, one High dependency advisory, one Medium test-assurance defect, and two
+Fixed locally: four High protocol mismatches, one High dependency advisory, one Medium test-assurance defect, and two
 Low campaign-infrastructure defects. Dispositioned: one Informational analyzer report. Open and accepted: one Medium
 lifecycle risk. No undisclosed Critical or High production-contract finding remained in the campaign's reviewed
-scope; this is not a current independent-audit or production-safety conclusion for ADR 0036.
+scope; this is not a current independent-audit or production-safety conclusion for ADRs 0036 and 0037.

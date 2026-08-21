@@ -63,7 +63,7 @@ export const currentPages = [
                 provenance, and a signed deployment manifest remain unresolved.
               </p>
               <p style="color:${palette.onDeepMuted}">
-                This edition describes the architecture introduced by ADRs 0031, 0034, 0035, and 0036, whose core
+                This edition describes the architecture introduced by ADRs 0031, 0034, 0035, 0036, and 0037, whose core
                 Solidity is implemented and covered by the current suites. ADR 0036 supersedes ADR 0032's fixed-rate
                 rule. External governance remains unselected. A local green build is engineering evidence, never a
                 safety, audit, or release claim.
@@ -121,7 +121,7 @@ export const currentPages = [
                 'A signal atomically escrows GBX, mints non-transferable voting sGBX, and assigns every unit to one live Strategy.',
                 'Twenty percent of a nonempty-slot handoff routes through Resonance; eighty percent becomes a displaced-miner claim.',
                 'ResonanceRouter waits below the active amount left; a qualifying balance restarts seven days with new USDG plus that remainder.',
-                'Strategies pull released USDG; each acquired-asset payment uses the current global 0%-to-20% Bribe rate and its Fund complement.',
+                'Strategies pull released USDG; each acquired-asset payment uses the current global 0%-to-20% Bribe rate and its Fund complement, with 1e36 reward-index precision.',
                 'A GBX holder may burn GBX for a selected pro-rata basket of raw Fund assets.',
               ])}
             </div>

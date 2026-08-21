@@ -640,6 +640,7 @@ contract ProtocolStateMachineCampaign {
 
             for (uint256 t; t < rewardTokens.length; ++t) {
                 address token = rewardTokens[t];
+                uint256 precision = bribe.REWARD_PRECISION();
                 uint256 userRemainders;
                 for (uint256 j; j < ACTOR_COUNT; ++j) {
                     userRemainders += bribe.userRewardRemainder(address(actors[j]), token);
@@ -649,13 +650,13 @@ contract ProtocolStateMachineCampaign {
                     (bribe.scheduledRewards(token)
                             + bribe.queuedRewards(token)
                             + bribe.accruedRewardLiability(token)
-                            + bribe.fundRewardLiability(token)) * 1e18 + bribe.pendingRewardScaled(token)
+                            + bribe.fundRewardLiability(token)) * precision + bribe.pendingRewardScaled(token)
                         + bribe.indexedRewardScaled(token) + userRemainders + bribe.fundRewardRemainder(token);
-                if (bribe.accountedRewardBalance(token) * 1e18 != right) return false;
+                if (bribe.accountedRewardBalance(token) * precision != right) return false;
                 uint256 lifetimeNotified = bribe.lifetimeRewardNotified(token);
                 if (lifetimeNotified > bribe.MAX_LIFETIME_REWARD_AMOUNT()) return false;
                 if (bribe.accountedRewardBalance(token) > lifetimeNotified) return false;
-                if (bribe.rewardPerToken(token) > lifetimeNotified * 1e18) return false;
+                if (bribe.rewardPerToken(token) > lifetimeNotified * precision) return false;
             }
         }
         return true;

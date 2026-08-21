@@ -1,9 +1,9 @@
 # Security invariants
 
-This file defines the accounting identities used by the hardening tests. For Resonance, `P = 1e36`; for Bribe rewards,
-`P = 1e18`. Quantities named `Scaled` already include their subsystem's precision unit.
+This file defines the accounting identities used by the hardening tests. For Resonance and Bribe rewards, `P = 1e36`.
+Quantities named `Scaled` already include their subsystem's precision unit.
 
-> ADRs 0031, 0034, 0035, and 0036 make the SignalGBX, BribeRouter, Bribe lifetime bound, and external-governance
+> ADRs 0031, 0034, 0036, and 0037 make the SignalGBX, BribeRouter, Bribe lifetime bound, and external-governance
 > boundary below authoritative. Governance execution remains unselected and contributes no production invariant until
 > separately reviewed.
 
@@ -148,7 +148,7 @@ forbidden. The transition also decrements `liveStrategyCount` and reverts if the
 
 ## Bribe reward-token conservation
 
-For Bribe precision `P = 1e18`, every token in every Bribe satisfies:
+For Bribe precision `P = 1e36`, every token in every Bribe satisfies:
 
 ```text
 0 <= lifetimeRewardNotified[token] <= floor(type(uint256).max / P)

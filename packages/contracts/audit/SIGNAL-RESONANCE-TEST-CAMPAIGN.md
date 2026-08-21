@@ -149,9 +149,9 @@ StrategyFactory at 16,295, Resonance at 13,939, SignalGBX at 12,945, and Bribe a
 
 SDK action/read schemas, generated ABIs, subgraph ABIs/schema/handlers, web status copy, Python/TypeScript fixtures,
 architecture/specification/ADR text, one-pager facts, and generated contract/SDK references were reconciled. Focused
-results: SDK 48/48, subgraph Matchstick 12/12 plus specification checks 4/4, web status 3/3, and browser E2E 6/6.
+results: SDK 49/49, subgraph Matchstick 10/10 plus specification checks 4/4, web status 3/3, and browser E2E 6/6.
 
 The final repository gates and exact remaining environmental failures are recorded in
-`SIGNAL-RESONANCE-RESIDUAL-RISKS.md`. The post-ADR-0034 current tree requires fresh gates, and the unselected external
-governance system requires its own integration and independent review. This evidence is intended for auditor handoff,
-not production release.
+`SIGNAL-RESONANCE-RESIDUAL-RISKS.md`. Fresh current-tree workspace gates pass through ADR 0037; native external-fuzzer
+and static-analyzer reruns remain open, and the unselected external governance system requires its own integration and
+independent review. This evidence is intended for auditor handoff, not production release.

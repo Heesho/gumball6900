@@ -1,7 +1,7 @@
 # ADR 0035: Cap lifetime Bribe reward notifications
 
-- Status: accepted for the development architecture; not independently audited or deployed; not approved for user
-  funds
+- Status: lifetime-cap design retained; numeric `1e18` precision and cap superseded by ADR 0037; not independently
+  audited or deployed; not approved for user funds
 - Date: 2026-08-19
 - Builds on: ADR 0020's exact Bribe accounting and ADR 0027's signal-supply carry boundaries
 - Preserves: ADR 0028's closed reward-pool behavior after Strategy death

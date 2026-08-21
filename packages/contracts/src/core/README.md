@@ -61,7 +61,8 @@ Bribe applies the same denominator-boundary rule to independently notified rewar
 changes, unindexable old-supply carry becomes fixed Fund precision; when an account fully exits, its sub-token user
 remainder does likewise instead of being reallocated to remaining signalers.
 
-For each reward token, a Bribe accepts at most `floor(type(uint256).max / 1e18)` raw units across its complete lifetime.
+Each Bribe uses a `1e36` reward-per-signal index. For each reward token, it accepts at most
+`floor(type(uint256).max / 1e36)` raw units across its complete lifetime.
 The monotonic total has no reset, setter, or escape hatch. An excess notification reverts before checkpointing or token
 transfer, so existing claims, signal moves, and withdrawals remain usable. At this cap an automatic payment reward
 stays as a BribeRouter liability while the Fund leg remains independently payable; replacing the Strategy creates a

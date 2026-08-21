@@ -57,7 +57,7 @@ Fixed duration assigned to each independently started reward stream.
 function REWARD_PRECISION() external view returns (uint256 arg0);
 ```
 
-Fixed-point scale used to preserve sub-token reward allocation across checkpoints.
+Fixed-point scale preserving low-decimal rewards over eighteen-decimal virtual signal weights.
 
 ### `accountedRewardBalance(address)`
 

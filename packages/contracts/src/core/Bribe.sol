@@ -37,8 +37,8 @@ contract Bribe is ReentrancyGuard {
 
     /// @notice Fixed duration assigned to each independently started reward stream.
     uint256 public constant REWARD_DURATION = 7 days;
-    /// @notice Fixed-point scale used to preserve sub-token reward allocation across checkpoints.
-    uint256 public constant REWARD_PRECISION = 1e18;
+    /// @notice Fixed-point scale preserving low-decimal rewards over eighteen-decimal virtual signal weights.
+    uint256 public constant REWARD_PRECISION = 1e36;
     /// @notice Maximum cumulative raw units one reward token may notify over this Bribe's lifetime.
     uint256 public constant MAX_LIFETIME_REWARD_AMOUNT = type(uint256).max / REWARD_PRECISION;
     /// @notice Immutable upper bound on append-only reward tokens and every mandatory reward loop.

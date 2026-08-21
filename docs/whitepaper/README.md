@@ -11,14 +11,20 @@ The current edition describes the immutable multislot Mine introduced by ADR 002
 authority, one-to-sixteen slots, hourly price decay, 80/20 nonempty handoffs, tenure-locked slot rates, future-handoff
 halvings, a positive infinite tail, and Fund's constant-time effective-supply denominator. It also reflects ADR 0030's
 non-transferable sGBX voting checkpoints and ADR 0034's external-governance ownership boundary, ADR 0031's mandatory
-signal-backed receipt, ADR 0032's cumulative settlement foundation, and ADR 0036's bounded global Bribe rate.
+signal-backed receipt, ADR 0032's cumulative settlement foundation, ADR 0036's bounded global Bribe rate, and ADR
+0037's high-precision Bribe reward index.
 
 ADR 0036 supersedes only ADR 0032's fixed-rate rule. The typeset edition now describes one Resonance-owned global
 prospective automatic-Bribe share: 10% by default, bounded from 0% through 20%, with Fund receiving the complement.
 The same cumulative carry persists across rate changes, and 0% leaves signaling and independently funded rewards live.
 
-The ADR 0031 and ADR 0036 implementations have landed: mandatory signal-backed sGBX with no idle receipts, and the
-bounded global acquired-asset Bribe share with weighted cumulative carry. The typeset edition therefore describes
+ADR 0037 raises each paired Bribe's reward index to `1e36` without reading token decimals and couples the lifetime
+notification cap to that scale. This prevents economically material six-decimal rewards from remaining below index
+resolution at realistic sGBX supply while retaining the cumulative-overflow proof.
+
+The ADR 0031, ADR 0036, and ADR 0037 implementations have landed: mandatory signal-backed sGBX with no idle receipts,
+the bounded global acquired-asset Bribe share with weighted cumulative carry, and high-precision Bribe accounting.
+The typeset edition therefore describes
 implemented behaviour rather than target architecture. That is not a conformance proof: it reflects the source at the
 commit it was built from, and a local green build remains engineering evidence, never a safety, audit, or release claim.
 

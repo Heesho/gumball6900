@@ -183,6 +183,22 @@ def test_repeated_tiny_bribe_rewards_are_carried_until_attributable() -> None:
     assert model.classified_scaled() == 1_000
 
 
+def test_bribe_distributes_one_six_decimal_token_over_five_million_signal() -> None:
+    wad = 10**18
+    model = RewardConservationModel([3_000_000 * wad, 2_000_000 * wad, 0])
+    model.emit(1_000_000)
+    model.checkpoint(0)
+    model.checkpoint(1)
+
+    assert model.liabilities == [600_000, 400_000, 0]
+    assert model.pending_scaled == 0
+
+    model.set_weight(2, wad)
+    assert model.fund_liability == 0
+    assert model.fund_remainder_scaled == 0
+    assert model.classified_scaled() == model.accounted * model.precision
+
+
 def test_bribe_reward_carry_moves_to_fund_before_a_new_signaler_enters() -> None:
     model = RewardConservationModel([50, 50, 0], precision=10)
     model.emit(9)

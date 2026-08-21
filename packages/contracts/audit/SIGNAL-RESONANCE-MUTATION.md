@@ -10,7 +10,7 @@ the result, and removes only the validated temporary path.
 
 ## Result
 
-48 of 48 mutants were killed on the ADR 0036 current tree: 100% raw mutation score; zero survivors.
+49 of 49 mutants were killed on the ADR 0036/0037 current tree: 100% raw mutation score; zero survivors.
 
 | Family                                                                                                    | Mutants | Result    |
 | --------------------------------------------------------------------------------------------------------- | ------: | --------- |
@@ -19,7 +19,7 @@ the result, and removes only the validated temporary path.
 | ResonanceRouter boundary and Strategy claim-before-snapshot                                               |       2 | 2 killed  |
 | Global policy default, maximum, authorization, and inclusive bound                                        |       4 | 4 killed  |
 | Prospective snapshot, policy binding, destination, weighted carry, and double settlement                  |       7 | 7 killed  |
-| Bribe duration, entry/exit carry, double claim, and receiver redirect                                     |       5 | 5 killed  |
+| Bribe duration, precision, entry/exit carry, double claim, and receiver redirect                          |       6 | 6 killed  |
 
 The set explicitly kills restored idle selectors, missing receipt mint/burn, missing Resonance or Bribe mutation,
 public signal hooks, transferability, move minting, burn-before-removal, omitted or post-balance checkpoints, `1e36` to
