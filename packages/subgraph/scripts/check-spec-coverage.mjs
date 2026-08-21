@@ -12,6 +12,7 @@ export const REQUIRED_ENTITIES = Object.freeze(['ProtocolState', 'Account', 'Min
 export const REVIEWED_EXTENSION_ENTITIES = Object.freeze([]);
 
 export const REQUIRED_HANDLERS = Object.freeze([
+  'handleBribeBpsSet',
   'handleBribeRewardAdded',
   'handleBurned',
   'handleClaimed',
@@ -43,6 +44,7 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleRewardCarryFunded',
   'handleBribeFundRewardAccrued',
   'handleBribeFundRewardPaid',
+  'handleRouterPaymentRouted',
   'handleRouterFundPaymentAccrued',
   'handleRouterFundPaymentPaid',
   'handleRouterBribePaymentAccrued',

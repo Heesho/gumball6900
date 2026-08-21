@@ -1,6 +1,6 @@
 # Deviations from the historical Bribe design
 
-Status: reviewed local implementation record dated 2026-08-16.
+Status: reviewed local implementation record dated 2026-08-16; settlement reconciled 2026-08-21 for ADR 0036.
 
 Resonance remains recognizably Bribe-derived: it retains a duration, reward-rate schedule, cumulative reward-per-token
 index, per-virtual-account paid index and accrued reward, checkpoint-before-weight-change ordering, and permissionless
@@ -20,8 +20,9 @@ fixed-recipient claims. The following differences are deliberate:
 | Final member     | Not applicable                          | Final live Strategy cannot be killed                                  | Prevents a governance-created dead-end graph     |
 
 Outside Resonance, SignalGBX adds exact GBX custody, non-transferable ERC20Votes receipts, atomic paired-Bribe
-orchestration, and no idle receipt state. BribeRouter is not a historical Bribe component: it implements the fixed,
-frequency-independent 90% Fund / 10% paired-Bribe acquired-asset classification and isolated pull settlement.
+orchestration, and no idle receipt state. BribeRouter is not a historical Bribe component: it snapshots the bounded
+global prospective Bribe share, preserves frequency-independent weighted numerator carry across rate changes, assigns
+the exact complement to Fund, and isolates pull settlement of both liabilities.
 
 No upgrade, pause, rescue, migration, receiver redirection, or new owner role was introduced to obtain these behaviors.
 `HistoricalBribeDifferentialTest` makes the common divisible-stream behavior and the front-loaded-remainder divergence

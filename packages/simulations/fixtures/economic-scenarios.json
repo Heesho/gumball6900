@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "8",
+  "schemaVersion": "9",
   "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
   "assumptions": {
     "genesisLiquidityAllocationGBXRaw": "20000000000000000000000000",
@@ -11,8 +11,10 @@
     "tenureRatesLocked": true,
     "redemptionsUseConstantTimeEffectiveSupply": true,
     "checkpointAllExists": false,
-    "strategyFundBps": "9000",
-    "strategyBribeBps": "1000"
+    "defaultStrategyBribeBps": "1000",
+    "maximumStrategyBribeBps": "2000",
+    "minimumStrategyBribeBps": "0",
+    "strategyFundBpsIsDerived": true
   },
   "mining": {
     "priceCurve": [
@@ -153,6 +155,7 @@
     "cumulativeSplitIsFrequencyIndependent": true,
     "tenOneUnitPayments": {
       "payments": ["1", "1", "1", "1", "1", "1", "1", "1", "1", "1"],
+      "bribeBps": ["1000", "1000", "1000", "1000", "1000", "1000", "1000", "1000", "1000", "1000"],
       "totalPayment": "10",
       "fundLiability": "9",
       "bribeLiability": "1",
@@ -160,9 +163,26 @@
     },
     "oneCombinedPayment": {
       "payments": ["10"],
+      "bribeBps": ["1000"],
       "totalPayment": "10",
       "fundLiability": "9",
       "bribeLiability": "1",
+      "splitRemainder": "0"
+    },
+    "rateChangeSequence": {
+      "payments": ["7", "13", "19", "23"],
+      "bribeBps": ["1000", "0", "500", "2000"],
+      "totalPayment": "62",
+      "fundLiability": "56",
+      "bribeLiability": "6",
+      "splitRemainder": "2500"
+    },
+    "zeroPercentPayments": {
+      "payments": ["1", "7", "1000000"],
+      "bribeBps": ["0", "0", "0"],
+      "totalPayment": "1000008",
+      "fundLiability": "1000008",
+      "bribeLiability": "0",
       "splitRemainder": "0"
     },
     "directRouterDonationSurplus": "7"

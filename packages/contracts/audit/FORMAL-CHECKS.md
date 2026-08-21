@@ -4,7 +4,8 @@ The protocol is not formally verified.
 
 Current executable evidence covers the GBX supply identity; tenure-locked slot accrual; fixed sixteen-slot topology;
 constant-time pending-emission equivalence to all-slot summation; future-handoff rate thresholds; exact Mine 80/20
-replacement allocation; cumulative Strategy-payment 90/10 classification; Mine claim solvency; effective-supply Fund redemption;
+replacement allocation; cumulative weighted Strategy-payment classification across bounded 0%–20% rate changes;
+Mine claim solvency; effective-supply Fund redemption;
 signal identities; revenue/reward conservation; Strategy settlement; redemption snapshots; and liquidity custody.
 Independent TypeScript and Python models reproduce the mining formulas. These are tests, not mathematical proofs.
 

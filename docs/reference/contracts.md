@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 21. Documented ABI entries: 507. Documented public ABI functions: 267.
+Documented source surfaces: 21. Documented ABI entries: 515. Documented public ABI functions: 272.
 
 ## Bribe
 
@@ -781,21 +781,22 @@ Source: [`src/core/BribeRouter.sol`](../../packages/contracts/src/core/BribeRout
 
 Artifact: `out/BribeRouter.sol/BribeRouter.json`
 
-Public ABI: 15 functions, 5 events, 7 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 14 functions, 5 events, 8 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
-### `constructor(address,address,address,address)`
+### `constructor(address,address,address,address,address)`
 
 ```solidity
-constructor(address strategy_, contract Bribe bribe_, contract IERC20 paymentToken_, address fund_);
+constructor(address resonance_, address strategy_, contract Bribe bribe_, contract IERC20 paymentToken_, address fund_);
 ```
 
-Creates the fixed route between one Strategy, payment token, Bribe, and Fund.
+Creates the fixed route between one Resonance, Strategy, payment token, Bribe, and Fund.
 
 **Parameters**
 
 - `bribe_`: Independently fundable Bribe paired with the Strategy.
-- `fund_`: Treasury receiving the fixed 90% share of cumulative completed payments.
+- `fund_`: Treasury receiving every Fund-classified payment share.
 - `paymentToken_`: Strategy payment token.
+- `resonance_`: Resonance supplying the governance-selected prospective Bribe share.
 - `strategy_`: Strategy exclusively allowed to route payments.
 
 ### `BPS()`
@@ -804,23 +805,7 @@ Creates the fixed route between one Strategy, payment token, Bribe, and Fund.
 function BPS() external view returns (uint256 arg0);
 ```
 
-Denominator for the immutable payment split.
-
-### `BRIBE_BPS()`
-
-```solidity
-function BRIBE_BPS() external view returns (uint256 arg0);
-```
-
-Basis points of cumulative Strategy payments classified to the paired Bribe.
-
-### `FUND_BPS()`
-
-```solidity
-function FUND_BPS() external view returns (uint256 arg0);
-```
-
-Basis points of cumulative Strategy payments classified to Fund.
+Denominator for the governance-bounded payment split.
 
 ### `accountedPaymentBalance()`
 
@@ -836,7 +821,7 @@ Exact payment-token balance pulled from Strategy minus completed Fund and Bribe 
 function bribe() external view returns (contract Bribe arg0);
 ```
 
-Bribe paired with the Strategy and fixed as the automatic 10% reward destination.
+Bribe paired with the Strategy and fixed as its automatic reward destination.
 
 ### `bribePaymentLiability()`
 
@@ -852,7 +837,7 @@ Payment-token amount irrevocably owed to the paired Bribe and not yet notified.
 function fund() external view returns (address arg0);
 ```
 
-Immutable treasury destination for the 90% Fund-classified share.
+Immutable treasury destination for the Fund-classified share.
 
 ### `fundPaymentLiability()`
 
@@ -908,13 +893,21 @@ function paymentToken() external view returns (contract IERC20 arg0);
 
 Strategy payment token routed by this contract.
 
+### `resonance()`
+
+```solidity
+function resonance() external view returns (address arg0);
+```
+
+Resonance supplying the global prospective Bribe share.
+
 ### `routePayment(uint256)`
 
 ```solidity
 function routePayment(uint256 amount) external;
 ```
 
-Pulls one complete auction payment and cumulatively classifies its fixed 90/10 liabilities.
+Pulls one complete auction payment and classifies it at the current global Bribe share.
 
 **Parameters**
 
@@ -970,15 +963,23 @@ event FundPaymentPaid(address indexed caller, address indexed fund, address inde
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `PaymentRouted(address,uint256)`
+#### `PaymentRouted(address,uint256,uint256)`
 
 ```solidity
-event PaymentRouted(address indexed strategy, uint256 amount);
+event PaymentRouted(address indexed strategy, uint256 amount, uint256 bribeBps);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
+
+#### `BribeBpsAboveBasis(uint256)`
+
+```solidity
+error BribeBpsAboveBasis(uint256 requested);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
 
 #### `InexactTransfer(uint256,uint256,uint256)`
 
@@ -2546,7 +2547,7 @@ Source: [`src/core/Resonance.sol`](../../packages/contracts/src/core/Resonance.s
 
 Artifact: `out/Resonance.sol/Resonance.json`
 
-Public ABI: 41 functions, 9 events, 21 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 46 functions, 10 events, 22 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address,address,address)`
 
@@ -2556,6 +2557,22 @@ constructor(contract IERC20 signalGBX_, contract IERC20 usdg_, address fund_, co
 
 Creates the rewarder with immutable token, Fund, and factory dependencies.
 
+### `BPS()`
+
+```solidity
+function BPS() external view returns (uint256 arg0);
+```
+
+Basis-point denominator for Strategy-payment classification.
+
+### `DEFAULT_BRIBE_BPS()`
+
+```solidity
+function DEFAULT_BRIBE_BPS() external view returns (uint256 arg0);
+```
+
+Initial share of every new Strategy payment assigned to its paired Bribe.
+
 ### `DURATION()`
 
 ```solidity
@@ -2563,6 +2580,14 @@ function DURATION() external view returns (uint256 arg0);
 ```
 
 Fixed duration of every USDG reward period.
+
+### `MAX_BRIBE_BPS()`
+
+```solidity
+function MAX_BRIBE_BPS() external view returns (uint256 arg0);
+```
+
+Hard governance ceiling preserving at least 80% of cumulative classified payments for Fund.
 
 ### `REWARD_PRECISION()`
 
@@ -2629,6 +2654,14 @@ function addStrategy(contract IERC20 paymentToken, struct Strategy.Config config
 ```
 
 Creates a Strategy, its Bribe, and its BribeRouter as one Resonance-controlled graph.
+
+### `bribeBps()`
+
+```solidity
+function bribeBps() external view returns (uint256 arg0);
+```
+
+Governance-selected share of newly classified Strategy payments assigned to paired Bribes.
 
 ### `bribeFactory()`
 
@@ -2818,6 +2851,19 @@ function rewardTokens(uint256 arg0) external view returns (address arg0);
 
 Registered Resonance reward tokens; permanently contains only USDG.
 
+### `setBribeBps(uint256)`
+
+```solidity
+function setBribeBps(uint256 newBribeBps) external;
+```
+
+Sets the prospective paired-Bribe share for every later Strategy-payment classification.
+Existing Fund and Bribe liabilities, split carry, and active reward streams are never repriced.
+
+**Parameters**
+
+- `newBribeBps`: New global share in basis points, from zero through `MAX_BRIBE_BPS`.
+
 ### `setResonanceRouter(address)`
 
 ```solidity
@@ -2893,6 +2939,14 @@ Six-decimal reward token streamed to Strategies.
 
 ### Events
 
+#### `BribeBpsSet(uint256,uint256)`
+
+```solidity
+event BribeBpsSet(uint256 previousBps, uint256 newBps);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `BribeRewardAdded(address,address,address)`
 
 ```solidity
@@ -2966,6 +3020,14 @@ event StrategyKilled(address indexed strategy);
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
+
+#### `BribeBpsAboveMaximum(uint256)`
+
+```solidity
+error BribeBpsAboveMaximum(uint256 requested);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
 
 #### `DuplicateStrategy(address)`
 
@@ -4398,7 +4460,7 @@ Source: [`src/core/interfaces/ICoreResonance.sol`](../../packages/contracts/src/
 
 Artifact: `out/ICoreResonance.sol/ICoreResonance.json`
 
-Public ABI: 9 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+Public ABI: 10 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
 ### `accountSignalWeight(address)`
 
@@ -4429,6 +4491,18 @@ Adds signal on behalf of an account through the permanently bound SignalGBX coor
 - `account`: Account whose allocation increases.
 - `amount`: Absolute SignalGBX delta added.
 - `strategy`: Live Strategy receiving signal.
+
+### `bribeBps()`
+
+```solidity
+function bribeBps() external view returns (uint256 basisPoints);
+```
+
+Returns the governance-selected share of new Strategy payments assigned to paired Bribes.
+
+**Returns**
+
+- `basisPoints`: Current share in basis points.
 
 ### `bribeRouterFor(address)`
 

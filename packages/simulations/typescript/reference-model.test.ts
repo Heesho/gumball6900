@@ -31,7 +31,7 @@ describe('Mine reference model', () => {
     expect(results.miningQuotes[1]?.nextGlobalTps).toBe('50000000000000000000');
   });
 
-  it('matches cumulative 90/10 acquired-asset classification across payment partitions', () => {
+  it('matches cumulative default-rate acquired-asset classification across payment partitions', () => {
     const quote = loadTypeScriptResults().auctionQuotes[0];
     expect(quote).toMatchObject({
       fundAmount: '37800000000000000000',
@@ -40,6 +40,16 @@ describe('Mine reference model', () => {
       partitionFundAmount: '37800000000000000000',
       partitionBribeAmount: '4200000000000000000',
       partitionRemainder: '0',
+    });
+  });
+
+  it('matches weighted classification across governance rate changes', () => {
+    const quote = loadTypeScriptResults().auctionQuotes[1];
+    expect(quote).toMatchObject({
+      partitionBribeBasisPoints: ['1000', '0', '500', '2000'],
+      partitionFundAmount: '56',
+      partitionBribeAmount: '6',
+      partitionRemainder: '2500',
     });
   });
 

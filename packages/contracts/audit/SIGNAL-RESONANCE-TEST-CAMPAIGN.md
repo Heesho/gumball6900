@@ -9,7 +9,9 @@ roles.
 > 0034 later removed ProtocolGovernor and the protocol Timelock; all Governor/Timelock test, gas, size, SDK, subgraph,
 > and documentation figures below describe only this pinned baseline, not the current tree or an external governance
 > integration. ADR 0035 later added Bribe's lifetime notification counter, cap, error, and regressions; every Bribe
-> test, invariant, gas, size, ABI, and external-fuzzer figure below also predates that change.
+> test, invariant, gas, size, ABI, and external-fuzzer figure below also predates that change. ADR 0036 later replaced
+> the immutable 90/10 classification with the bounded global prospective rate and weighted carry; every fixed-split
+> model, mutation, invariant, and campaign statement below is therefore historical rather than current-tree evidence.
 
 ## Environment and baseline
 

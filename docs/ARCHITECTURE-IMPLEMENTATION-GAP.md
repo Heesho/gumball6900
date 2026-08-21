@@ -1,10 +1,11 @@
-# ADR 0031/0032 architecture reconciliation record
+# ADR 0031/0032/0036 architecture reconciliation record
 
 - Status: implemented in the development tree; independent review and release gates remain open
 - Baseline recorded: 2026-08-16
 - Baseline commit: `281e601ecb3f3989da826a8a7dfba37b63b55ca0`
-- Authoritative decisions: [ADR 0031](adr/0031-mandatory-signal-backed-signalgbx.md) and
-  [ADR 0032](adr/0032-fixed-90-10-acquired-asset-settlement.md)
+- Authoritative decisions: [ADR 0031](adr/0031-mandatory-signal-backed-signalgbx.md), historical
+  [ADR 0032](adr/0032-fixed-90-10-acquired-asset-settlement.md), and its rate-policy successor
+  [ADR 0036](adr/0036-governed-global-bribe-share.md)
 
 This document records the implementation gap found at the baseline commit and its disposition. It is engineering
 traceability, not an audit result, deployment approval, or authorization for user funds.
@@ -17,9 +18,9 @@ traceability, not an audit result, deployment approval, or authorization for use
 | Account aggregate          | `allocatedBalance` could be lower than `balanceOf`                   | `balanceOf` is the aggregate signal; the duplicate ledger and interface are removed                                           |
 | Supply identity            | SignalGBX supply could exceed aggregate paired-Bribe supply          | Deterministic and stateful tests enforce equality across live and killed Strategies                                           |
 | Bootstrap and death        | No live count; final live Strategy could be killed                   | `liveStrategyCount` is explicit and final-live kill reverts; replacement-then-kill governance batches remain possible         |
-| BribeRouter classification | Complete payment became only a Fund liability                        | Cumulative fixed 90% Fund / 10% paired-Bribe classification with explicit split remainder                                     |
+| BribeRouter classification | Complete payment became only a Fund liability                        | Global 0%-20% paired-Bribe rate with prospective weighted carry; Fund receives the complement                                 |
 | Settlement liveness        | Only Fund settlement existed                                         | Fund payment and Bribe notification are isolated, permissionless, retryable liabilities                                       |
-| Automatic Bribe asset      | Auction payment never entered Bribe accounting                       | The acquired payment asset funds the paired Bribe's 10% share; USDG does not                                                  |
+| Automatic Bribe asset      | Auction payment never entered Bribe accounting                       | The acquired payment asset funds its selected paired-Bribe share when nonzero; USDG does not                                  |
 | Consumers                  | ABI, SDK, subgraph, app, and references exposed the superseded shape | ABIs and references regenerated; SDK, subgraph, app, tests, and primary prose reconciled                                      |
 
 ## Preserved historical references

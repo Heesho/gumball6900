@@ -1,6 +1,6 @@
 # Protocol specification
 
-This is the authoritative target-development specification under ADRs 0031, 0032, 0034, and 0035. The current
+This is the authoritative target-development specification under ADRs 0031, 0034, 0035, and 0036. The current
 development tree implements these decisions and reconciles their generated consumers. This remains unaudited local
 engineering evidence, not deployment approval or authorization for user funds.
 
@@ -29,10 +29,13 @@ The required behavior is:
    Resonance surplus rather than Fund liabilities. SignalGBX-coordinated changes checkpoint prior elapsed flow and Strategy purchases
    atomically pull released USDG. An irreversible Strategy kill preserves its pre-kill claim, excludes its complete
    weight from future rewards, blocks additions, and still permits incumbent exits. Resonance creates uniform
-   acquisition Strategies through bound factories. Every acquired-asset Strategy payment is classified cumulatively
-   and immutably as 90% fixed Fund liability and 10% fixed paired-Bribe reward liability. Explicit split-remainder
-   accounting makes the result independent of payment partitioning. The automatic Bribe reward is the acquired payment
-   asset, not USDG; additional independent Bribe funding remains possible.
+   acquisition Strategies through bound factories. Every acquired-asset Strategy payment is classified at the one
+   global `bribeBps` current when the payment is routed. The rate defaults to 1,000 basis points, is owner-settable from
+   0 through 2,000 basis points, and has no per-Strategy override; Fund receives the complement. For payments `a_i`
+   classified at rates `r_i`, cumulative Bribe classification is `floor(sum(a_i * r_i) / 10,000)`, with the exact
+   numerator remainder carried across rate changes. A setter changes no prior liability, remainder, stream, or claim.
+   At 0%, new payments classify entirely to Fund while signaling, moving, withdrawal, existing reward settlement, and
+   independent Bribe funding remain live. The automatic Bribe reward is the acquired payment asset, not USDG.
 8. Fund reads Mine's constant-time effective supply before every redemption denominator snapshot, then performs registry-free,
    caller-selected in-kind redemption atomically with the GBX burn.
 9. LiquidityPosition permanently holds one precommitted single-sided GBX/USDG v4 position at fixed principal. Anyone
@@ -40,13 +43,15 @@ The required behavior is:
    burned through Fund atomically.
 10. The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. SignalGBX
     retains non-transferable ERC20Votes checkpoints on the block-number clock for a future external integration, but
-    the core assigns them no proposal, quorum, delay, cancellation, or execution semantics. Resonance is the only owned
-    core contract; after its one-time binding, its continuing administration methods are `addStrategy`, `killStrategy`,
-    and `addBribeReward`, plus inherited ownership transfer and renunciation. The production Resonance owner remains
-    unselected, and deployment is blocked until a later ADR pins and reviews the exact external governance integration
-    and ownership handoff. Fund and LiquidityPosition are ownerless. After the first Strategy is registered,
-    `killStrategy` cannot remove the final live Strategy; a replacement must be added before the old Strategy is killed.
-    No core contract is upgradeable or migratable.
+    the core assigns them no proposal, quorum, delay, cancellation, or execution semantics. Resonance is the only core
+    contract with continuing custom owner authority after its one-time binding: `addStrategy`, `killStrategy`,
+    `addBribeReward`, and bounded global `setBribeBps`, plus inherited ownership transfer and renunciation. SignalGBX,
+    StrategyFactory, and BribeFactory retain inherited ownership shells after their one-time bindings, but no remaining
+    custom owner action. The production Resonance owner and ownership-shell cleanup remain unselected, and deployment is
+    blocked until a later ADR pins and reviews the exact external governance integration and handoff. Fund and
+    LiquidityPosition are ownerless. After the first Strategy is registered, `killStrategy` cannot remove the final
+    live Strategy; a replacement must be added before the old Strategy is killed. No core contract is upgradeable or
+    migratable.
 11. Each Bribe has at most eight append-only reward tokens. For each token, its monotonic lifetime accepted-notification
     total cannot exceed `floor(type(uint256).max / 1e18)` raw units and has no reset, setter, or escape hatch. The cap is
     checked before checkpointing or transfer; reaching it stops later notifications for only that token and Bribe, not

@@ -157,6 +157,8 @@ dataSources:
         - name: Resonance
           file: ./abis/Resonance.json
       eventHandlers:
+        - event: BribeBpsSet(uint256,uint256)
+          handler: handleBribeBpsSet
         - event: BribeRewardAdded(indexed address,indexed address,indexed address)
           handler: handleBribeRewardAdded
         - event: RevenueDistributed(indexed address,indexed address,uint256)
@@ -242,6 +244,8 @@ templates:
         - name: BribeRouter
           file: ./abis/BribeRouter.json
       eventHandlers:
+        - event: PaymentRouted(indexed address,uint256,uint256)
+          handler: handleRouterPaymentRouted
         - event: BribePaymentAccrued(indexed address,indexed
             address,uint256,uint256,uint256)
           handler: handleRouterBribePaymentAccrued

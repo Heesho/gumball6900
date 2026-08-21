@@ -4,6 +4,7 @@ import {
   BribeRewardNotified,
   FundPaymentAccrued,
   FundPaymentPaid,
+  PaymentRouted,
 } from '../generated/templates/BribeRouterTemplate/BribeRouter';
 import { Strategy } from '../generated/schema';
 import { recordEvent } from './entities';
@@ -12,6 +13,20 @@ function strategy(): Strategy {
   const entity = Strategy.load(dataSource.context().getString('strategyId'));
   assert(entity != null, 'BribeRouter template has no Strategy context');
   return entity!;
+}
+
+export function handleRouterPaymentRouted(event: PaymentRouted): void {
+  const entity = strategy();
+  entity.routerPaymentRoutedRaw = entity.routerPaymentRoutedRaw.plus(event.params.amount);
+  entity.latestRouterPaymentBribeBps = event.params.bribeBps;
+  entity.lastBlockNumber = event.block.number;
+  entity.lastTimestamp = event.block.timestamp;
+  entity.save();
+
+  const record = recordEvent(event, 'BRIBE_ROUTER_PAYMENT_ROUTED');
+  record.addresses = [event.params.strategy];
+  record.values = [event.params.amount, event.params.bribeBps];
+  record.save();
 }
 
 export function handleRouterFundPaymentAccrued(event: FundPaymentAccrued): void {

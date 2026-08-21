@@ -616,7 +616,8 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Plain-English claim:** One contract has an owner. Everything else is ownerless or has already used up its
   one-time setup permission.
 - **Technical formulation:** `Resonance is ReentrancyGuard, Ownable`. Continuing owner-gated functions are
-  `addStrategy`, `killStrategy`, and `addBribeReward`, plus inherited `transferOwnership` and `renounceOwnership`.
+  `addStrategy`, `killStrategy`, `addBribeReward`, and `setBribeBps`, plus inherited `transferOwnership` and
+  `renounceOwnership`.
   `setResonanceRouter` is owner-gated but single-use (`ResonanceRouterAlreadySet`). `SignalGBX`, `StrategyFactory`,
   and `BribeFactory` are `Ownable` but retain no owner-callable function after `setResonance` is consumed. `Mine`,
   `Fund`, `LiquidityPosition`, `Strategy`, and `BribeRouter` are not `Ownable`. `Bribe.addRewardToken` is gated on
@@ -1019,29 +1020,38 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 
 ## H. Auction-payment settlement and acquired assets
 
-### FACT-SETL-01 — Every auction payment is classified 90% to Fund and 10% to the paired Bribe
+### FACT-SETL-01 — Every auction payment is classified at a bounded global rate, defaulting to 90% Fund / 10% Bribe
 
-- **Plain-English claim:** Of everything a buyer pays, 90% becomes treasury backing and 10% automatically becomes a
-  reward for the people signaling that Strategy. The split is fixed in code and cannot be changed by anyone.
-- **Technical formulation:** `BribeRouter` declares `BPS = 10_000`, `FUND_BPS = 9_000`, `BRIBE_BPS = 1_000` as
-  `constant`. `routePayment` pulls the exact payment from its immutable `strategy`, then:
+- **Plain-English claim:** Of everything a buyer pays, a governed share becomes a reward for the people signaling that
+  Strategy and the remainder becomes treasury backing. The share starts at 10% and can never exceed 20%, so at least
+  80% of everything acquired always reaches the treasury.
+- **Technical formulation:** `Resonance` holds the single global rate: `DEFAULT_BRIBE_BPS = 1_000`,
+  `MAX_BRIBE_BPS = 2_000`, `bribeBps = DEFAULT_BRIBE_BPS`, mutated only by `onlyOwner setBribeBps(newBribeBps)` which
+  reverts `BribeBpsAboveMaximum` above the ceiling. `BribeRouter` declares only `BPS = 10_000` and no share of its
+  own. `routePayment` snapshots the rate **before any payment-token interaction**, so a token callback cannot alter
+  the split of the fill it belongs to:
 
   ```text
-  bribeAmount          = ⌊amount · 1000 / 10000⌋
-  accumulatedRemainder = splitRemainder + (amount · 1000 mod 10000)
+  appliedBribeBps      = Resonance.bribeBps()      (revert BribeBpsAboveBasis if > BPS)
+  pull exact `amount` from the immutable strategy
+  bribeAmount          = ⌊amount · appliedBribeBps / 10000⌋
+  accumulatedRemainder = splitRemainder + (amount · appliedBribeBps mod 10000)
   bribeAmount         += ⌊accumulatedRemainder / 10000⌋
   splitRemainder       = accumulatedRemainder mod 10000
   fundAmount           = amount − bribeAmount
   ```
 
-  It then increments `accountedPaymentBalance` by `amount`, `fundPaymentLiability` by `fundAmount`, and
-  `bribePaymentLiability` by `bribeAmount`. There is no setter, governance parameter, team fee, or caller-selected
+  A rate change is prospective only: it cannot alter a recorded liability, a notified or claimable reward, or a prior
+  Fund balance. There is no per-Strategy override, no BribeRouter-local setter, no team fee, and no caller-selected
   destination.
 
-- **Source:** `packages/contracts/src/core/BribeRouter.sol:22-27`, `:111-139`
-- **Functions/state:** `FUND_BPS`, `BRIBE_BPS`, `routePayment`, `fundPaymentLiability`, `bribePaymentLiability`,
+- **Source:** `packages/contracts/src/core/Resonance.sol` (`DEFAULT_BRIBE_BPS`, `MAX_BRIBE_BPS`, `setBribeBps`);
+  `packages/contracts/src/core/BribeRouter.sol` (`routePayment`)
+- **Functions/state:** `bribeBps`, `setBribeBps`, `routePayment`, `fundPaymentLiability`, `bribePaymentLiability`,
   `splitRemainder`, `accountedPaymentBalance`
-- **ADR:** ADR 0032 (**supersedes ADR 0021 and its 100%-Fund rule**)
+- **ADR:** ADR 0036 (**supersedes ADR 0032's fixed 90/10**; ADR 0032 superseded ADR 0021's 100%-Fund rule)
+- **Caveats:** Rate-setting transaction order is economically observable — a purchase settled before a change uses the
+  old rate, one after it uses the new rate. The external system's delay and execution rules remain an open gate.
 - **Tests:** `test_CompletePaymentIsClassifiedNinetyTenEvenWithLiveSignalWeight`,
   `test_TenOneUnitPaymentsClassifyExactlyNineToFundAndOneToBribe`, `test_TenOneUnitPaymentsDoNotStarveTheBribe`,
   `testFuzz_ClassificationIsFrequencyIndependent`, `test_RoutePaymentIsStrategyOnly`,
@@ -1057,7 +1067,7 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   payment asset**, not to USDG: Resonance still transfers 100% of a Strategy's earned USDG to that Strategy
   (FACT-RES-07).
 
-### FACT-SETL-01b — The 90/10 split is cumulatively exact and frequency-independent
+### FACT-SETL-01b — The classification is cumulatively exact and frequency-independent
 
 - **Plain-English claim:** Splitting one big payment or a thousand tiny ones gives the Bribe exactly the same total.
   Nobody can starve the reward share by paying in dust.
@@ -1485,15 +1495,15 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Status:** `implemented`
 - **Commit:** `281e601`
 
-### FACT-BIND-03 — The remaining administrative surface is exactly three functions
+### FACT-BIND-03 — The remaining administrative surface is exactly four functions
 
 - **Plain-English claim:** After setup, the only things the `Resonance` owner can do are: add a Strategy, retire a
-  Strategy, and register a Bribe reward token.
+  Strategy, register a Bribe reward token, and set the signaler share within its coded 0-20% bound.
 - **Technical formulation:** `onlyOwner` functions in the protocol at this commit:
-  `Resonance.addStrategy`, `Resonance.killStrategy`, `Resonance.addBribeReward`, `Resonance.setResonanceRouter`
-  (one-time), `SignalGBX.setResonance` (one-time), `StrategyFactory.setResonance`
+  `Resonance.addStrategy`, `Resonance.killStrategy`, `Resonance.addBribeReward`, `Resonance.setBribeBps`,
+  `Resonance.setResonanceRouter` (one-time), `SignalGBX.setResonance` (one-time), `StrategyFactory.setResonance`
   (one-time), `BribeFactory.setResonance` (one-time). The one-time bindings are consumed during deployment, leaving
-  the three continuing actions. `Fund`, `LiquidityPosition`, and `Mine` have no owner at all.
+  the four continuing actions. `Fund`, `LiquidityPosition`, and `Mine` have no owner at all.
 - **Source:** `Resonance.sol`; `Mine.sol`; `Fund.sol`; `LiquidityPosition.sol`
 - **ADR:** ADR 0016, ADR 0017, ADR 0033, ADR 0034
 - **Tests:** `test_AddStrategyIsOwnerOnlyAndCreatesTheCompleteGraph`,

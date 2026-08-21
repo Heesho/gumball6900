@@ -1,6 +1,6 @@
 # Signal and Resonance executable specification
 
-Status: implemented locally on 2026-08-16 and reconciled for ADRs 0034 and 0035 on 2026-08-19; engineering evidence
+Status: implemented locally on 2026-08-16 and reconciled for ADRs 0034–0036 on 2026-08-21; engineering evidence
 only. The external governance integration is unselected, current-tree gates require rerun, and nothing is
 independently audited, deployed, or authorized for user funds.
 
@@ -84,16 +84,20 @@ scale check remains defense in depth.
 
 ## Acquired-asset settlement
 
-Every Strategy payment is pulled once by its immutable BribeRouter and cumulatively classified as:
+Every Strategy payment is pulled once by its immutable BribeRouter after snapshotting Resonance's global prospective
+rate before the first payment-token interaction. With payments `a_i` and their snapshotted rates `r_i`:
 
 ```text
-bribe cumulative entitlement = floor(cumulative payment * 1,000 / 10,000)
-Fund cumulative entitlement   = cumulative payment - bribe cumulative entitlement
+0 <= r_i <= 2,000
+bribe cumulative entitlement = floor(sum(a_i * r_i) / 10,000)
+Fund cumulative entitlement   = sum(a_i) - bribe cumulative entitlement
+splitRemainder                = sum(a_i * r_i) mod 10,000
 ```
 
-`splitRemainder` retains the basis-point numerator remainder, making the result independent of fill partitioning.
-Fund and Bribe liabilities are fixed, separately permissionless to settle, cleared before interaction, and restored by
-transaction rollback on failure. The Bribe leg notifies the acquired asset as a reward. Direct Router donations are
+`splitRemainder` retains the weighted basis-point numerator remainder across rate changes. A 0% payment adds no new
+numerator and cannot erase prior carry; later nonzero payments may realize it.
+Once accrued, Fund and Bribe liabilities are irreversible, separately permissionless to settle, cleared before
+interaction, and restored by transaction rollback on failure. The Bribe leg notifies the acquired asset as a reward. Direct Router donations are
 surplus and cannot satisfy or enlarge either liability. If the Bribe's lifetime cap rejects an automatic notification,
 the Router retains that exact Bribe liability; its independent Fund liability remains settleable.
 
@@ -101,7 +105,8 @@ the Router retains that exact Bribe liability; its independent Fund liability re
 
 The core contains no Governor or protocol Timelock. SignalGBX retains non-transferable ERC20Votes checkpoints, but the
 core assigns them no proposal, quorum, delay, execution, or cancellation semantics. Resonance remains owner-gated for
-`addStrategy`, `killStrategy`, and `addBribeReward`; inherited ownership transfer and renunciation also remain. Mine
+`addStrategy`, `killStrategy`, `addBribeReward`, and bounded global `setBribeBps`; inherited ownership transfer and
+renunciation also remain. Mine
 has no administrative surface.
 
 Production is blocked until a later ADR selects the exact external governance provider and release, verifies

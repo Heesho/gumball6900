@@ -63,9 +63,10 @@ export const currentPages = [
                 provenance, and a signed deployment manifest remain unresolved.
               </p>
               <p style="color:${palette.onDeepMuted}">
-                This edition describes the architecture introduced by ADR 0031, ADR 0032, and ADR 0034, whose core
-                Solidity is implemented and covered by the current suites. External governance remains unselected. A
-                local green build is engineering evidence, never a safety, audit, or release claim.
+                This edition describes the architecture introduced by ADRs 0031, 0034, 0035, and 0036, whose core
+                Solidity is implemented and covered by the current suites. ADR 0036 supersedes ADR 0032's fixed-rate
+                rule. External governance remains unselected. A local green build is engineering evidence, never a
+                safety, audit, or release claim.
               </p>
             </div>
             <div class="col-side">
@@ -120,7 +121,7 @@ export const currentPages = [
                 'A signal atomically escrows GBX, mints non-transferable voting sGBX, and assigns every unit to one live Strategy.',
                 'Twenty percent of a nonempty-slot handoff routes through Resonance; eighty percent becomes a displaced-miner claim.',
                 'ResonanceRouter waits below the active amount left; a qualifying balance restarts seven days with new USDG plus that remainder.',
-                'Strategies pull released USDG; acquired-asset payments classify cumulatively 90% to Fund and 10% to paired Bribes.',
+                'Strategies pull released USDG; each acquired-asset payment uses the current global 0%-to-20% Bribe rate and its Fund complement.',
                 'A GBX holder may burn GBX for a selected pro-rata basket of raw Fund assets.',
               ])}
             </div>
@@ -234,7 +235,7 @@ export const currentPages = [
             eyebrow: 'Part IV',
             number: '04',
             title: 'Accrued mining counts before redemption',
-            deck: 'Fund crystallizes every live slot before taking the common supply snapshot.',
+            deck: "Fund reads Mine's constant-time effective supply before taking the common snapshot.",
           })}
           <div class="spread">
             <div class="col-main">
@@ -242,8 +243,8 @@ export const currentPages = [
                 GBX begins with ${Number(contractConstants.gbx.genesisLiquidityTokens).toLocaleString('en-US')} genesis
                 tokens. Its only later issuer is the permanently bound Mine. Global rates offered to future occupants
                 halve at immutable cumulative-mining thresholds, then continue at a positive tail on every modeled
-                horizon. GBX supports permit approvals but has no governance checkpoints; votes begin only after staking
-                into sGBX.
+                horizon. GBX supports permit approvals but has no governance checkpoints; votes begin only after
+                signaling into sGBX.
               </p>
               <p>
                 Rewards accrue continuously but each slot mints only when it changes hands. Fund reads Mine's
@@ -279,11 +280,16 @@ export const currentPages = [
             eyebrow: 'Part V',
             number: '05',
             title: 'Immutable by design',
-            deck: 'The core exposes three Resonance administration methods; external execution rules remain unselected.',
+            deck: 'The core exposes four Resonance administration methods; external execution rules remain unselected.',
           })}
           ${ledger({
             yesHead: 'Resonance owner actions',
-            yesItems: ['Add a Strategy', 'Permanently kill a Strategy', 'Register a Bribe reward token, up to eight'],
+            yesItems: [
+              'Add a Strategy',
+              'Permanently kill a Strategy',
+              'Register a Bribe reward token, up to eight',
+              'Set the global prospective Bribe share, 0%-20%',
+            ],
             noHead: 'Absent powers',
             noItems: [
               'No Mine administration or incumbent repricing',
@@ -299,7 +305,8 @@ export const currentPages = [
                 but this repository does not select or implement the governance system that will consume them. A later
                 ADR must pin the exact external executor, permissions, voting rules, upgrades, delay, cancellation, and
                 ownership handoff. After bootstrap, the final live Strategy cannot be killed until a replacement is
-                added.
+                added. A rate change affects only later payment classifications; 0% disables no signaling or
+                independently funded reward path.
               </p>
             </div>
             <div class="col-side">

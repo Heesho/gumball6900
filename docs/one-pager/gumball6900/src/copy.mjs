@@ -80,7 +80,7 @@ export const story = {
     {
       n: '4',
       verb: 'The basket grows',
-      body: `The asset payment splits: ${numbers.fundBoundShare} backs the basket and ${numbers.bribeRewardShare} rewards its signalers.`,
+      body: `Default: ${numbers.defaultFundShare} to Fund, ${numbers.defaultBribeRewardShare} to signalers. Automatic share: 0-${numbers.maximumBribeRewardShare}; Fund gets the rest.`,
       tech: 'Fund',
     },
     {
@@ -110,7 +110,8 @@ export const signal = {
   title: 'How signaling works',
   lead: 'Deposit GBX as sGBX signals. Every unit points to an asset until moved or withdrawn. Fund purchases back redeemable GBX.',
   splitLabel: "This round's signal",
-  splitNote: 'All sGBX stays signaled. The next dollar follows the pool; move or withdraw any time.',
+  splitNote:
+    'All sGBX stays signaled. Move or withdraw any time. A 0% automatic reward rate leaves signaling and independent Bribes live.',
   segments: [
     { token: 'NVDA', share: 50 },
     { token: 'QQQ', share: 30 },
@@ -184,7 +185,7 @@ export const reasons = {
     { value: '0%', label: 'Management fee, ever' },
     { value: '0', label: 'Team or presale tokens' },
     { value: '0', label: 'Lockup or notice period' },
-    { value: numbers.fundBoundShare, label: 'Of each asset payment backs Fund' },
+    { value: numbers.minimumFundShare, label: 'Minimum payment share to Fund' },
     { value: numbers.genesisLiquidityShort, label: 'Genesis GBX, locked in liquidity' },
   ],
 };

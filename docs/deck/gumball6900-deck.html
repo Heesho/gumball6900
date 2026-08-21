@@ -1031,7 +1031,7 @@
   <section class="slide" aria-label="The ninety ten split">
     <div class="stage">
       <p class="eyebrow">Settlement &mdash; where the asset goes</p>
-      <h2>Every asset the fund acquires splits by one immutable, hard-coded rule.</h2>
+      <h2>Every asset the fund acquires splits by one rule, and the treasury always gets most of it.</h2>
       <div class="figure">
         <svg viewBox="0 0 1000 150" role="img" aria-label="Ninety percent of each acquired asset becomes treasury backing and ten percent rewards that strategy's signalers">
           <text x="0" y="14" font-family="Archivo" font-size="11" font-weight="700" letter-spacing="1.5" fill="#6C6C77">EVERY ACQUIRED PAYMENT</text>
@@ -1052,7 +1052,7 @@
         </div>
         <div class="card">
           <p class="card__head">Neither share can be redirected</p>
-          <p class="card__body">There is no setter, no governance parameter, and no caller-chosen destination. The two destinations are fixed at deployment and are the only two that exist.</p>
+          <p class="card__body">The signaler share is the one economic dial anyone can turn, and it is fenced in code: never above 20%, so the treasury always receives at least 80%. Where the two shares go cannot be changed at all.</p>
         </div>
       </div>
     </div>
@@ -1161,22 +1161,23 @@
   <section class="slide" aria-label="What can and cannot change">
     <div class="stage">
       <p class="eyebrow">Authority</p>
-      <h2>Ten contracts have no owner. One has three powers. That is the whole surface.</h2>
+      <h2>Ten contracts have no owner. One has four powers. That is the whole surface.</h2>
       <div class="cols cols--2">
         <div class="card">
           <p class="card__head">No owner at all</p>
           <p class="card__body">
             The treasury. The mine. The token itself. The liquidity. The auctions. The reward pools.
             <br><br>
-            No upgrade path, no pause switch, no way to move the assets. Mining rates, the 90/10 split,
-            the right to issue tokens, and the sixteen slots cannot be altered by anyone, ever.
+            No upgrade path, no pause switch, no way to move the assets. Mining rates, the right to issue
+            tokens, where each share is sent, and the sixteen slots cannot be altered by anyone, ever.
           </p>
         </div>
         <div class="card card--pink card--dash">
-          <p class="card__head">One owner, three powers</p>
+          <p class="card__head">One owner, four powers</p>
           <p class="card__body">
-            One contract, three powers: add an asset the fund can buy, retire one, or register a reward
-            token. It can never remove the last one, so there is always somewhere to point your stake.
+            One contract, four powers: add an asset the fund can buy, retire one, register a reward token,
+            or move the signaler share inside a hard 0&ndash;20% band. It can never remove the last asset, so
+            there is always somewhere to point your stake.
             <br><br>
             <strong class="pink">Who holds that address has not been decided.</strong> The protocol ships no voting
             contract of its own &mdash; that is deliberate, and it is the open question on this page.

@@ -59,9 +59,11 @@ USDG becoming revenue, the GBX burned, and the underlying liquidity never moving
 accumulates USDG and sells all of it in a descending-price auction, asking to be paid in the asset it acquires. No
 oracle is consulted — the auction is the price discovery.
 
-Every acquired payment is then split by an immutable, hard-coded rule: **90% becomes treasury backing, 10% becomes an
-automatic reward for that Strategy's signalers.** The split is cumulatively exact — paying in a thousand dust
-increments yields the Bribe the same total as one lump sum — and neither share can be redirected.
+Every acquired payment is then split by one bounded rule: **90% becomes treasury backing, 10% becomes an automatic
+reward for that Strategy's signalers.** The split is cumulatively exact — paying in a thousand dust increments yields
+the Bribe the same total as one lump sum. The reward share is the single governed economic parameter: it starts at 10%
+and can be set anywhere from 0% to a hard maximum of 20%, so **at least 80% of everything acquired always reaches the
+treasury.** Neither destination can be changed.
 
 The **Fund** is an ownerless treasury with no administrator and no asset registry. To redeem, burn GBX, name the
 assets you want, and receive for each:
@@ -114,9 +116,9 @@ flowchart LR
 
 ## What can be changed, and by whom
 
-**Three things**, all on one contract: add a Strategy, retire a Strategy, and register a Bribe reward token. Every
-other contract in the protocol is ownerless. The **final live Strategy cannot be retired** — a replacement must be
-added first — so a valid signal destination always exists.
+**Four things**, all on one contract: add a Strategy, retire a Strategy, register a Bribe reward token, and set the
+signaler reward share within its 0–20% bound. Every other contract in the protocol is ownerless. The **final live
+Strategy cannot be retired** — a replacement must be added first — so a valid signal destination always exists.
 
 Those three actions sit behind a single owner address on `Resonance`. That address is intended to be an external
 governance system, and **that system has not been chosen yet.** The protocol itself contains no voting contract, no
@@ -124,8 +126,9 @@ proposal rules, no quorum, and no execution delay. sGBX does record vote checkpo
 system could read, but nothing in the protocol reads them today. Until that choice is made and reviewed, the honest
 statement is that the protocol's decision-making layer is unfinished — see the risks below.
 
-Nothing can touch mining rates, the 90/10 split, mint authority, Fund assets, liquidity custody, the auction
-mechanism, or the fixed sixteen-slot count. No contract has an upgrade path, a pause switch, or a sweep function.
+Nothing can touch mining rates, mint authority, Fund assets, liquidity custody, the auction mechanism, or the fixed
+sixteen-slot count. The reward share moves only inside its coded 0–20% band, and a change applies to later purchases
+only — it can never reclassify an amount already settled. No contract has an upgrade path, pause switch, or sweep.
 
 ## Key risks
 

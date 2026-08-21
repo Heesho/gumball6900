@@ -1,6 +1,6 @@
 import { Address, BigInt, Bytes, ethereum } from '@graphprotocol/graph-ts';
 import { Account, MiningSlot, ProtocolEvent, ProtocolState, Strategy } from '../generated/schema';
-import { CHAIN_ID, CHAIN_ID_TEXT, ZERO } from './constants';
+import { CHAIN_ID, CHAIN_ID_TEXT, DEFAULT_BRIBE_BPS, ZERO } from './constants';
 import { addressId, eventId, slotId } from './ids';
 
 export function getProtocol(event: ethereum.Event): ProtocolState {
@@ -8,6 +8,7 @@ export function getProtocol(event: ethereum.Event): ProtocolState {
   if (protocol == null) {
     protocol = new ProtocolState(CHAIN_ID_TEXT);
     protocol.chainId = CHAIN_ID;
+    protocol.bribeBps = DEFAULT_BRIBE_BPS;
     protocol.initialSupplyRaw = ZERO;
     protocol.lifetimeMintedRaw = ZERO;
     protocol.lifetimeBurnedRaw = ZERO;
@@ -95,6 +96,8 @@ export function getStrategy(address: Address, event: ethereum.Event): Strategy {
     strategy.distributedRevenueRaw = ZERO;
     strategy.notifiedRewardRaw = ZERO;
     strategy.paidRewardRaw = ZERO;
+    strategy.routerPaymentRoutedRaw = ZERO;
+    strategy.latestRouterPaymentBribeBps = ZERO;
     strategy.routerFundPaymentAccruedRaw = ZERO;
     strategy.routerFundPaymentPaidRaw = ZERO;
     strategy.pendingRouterFundPaymentRaw = ZERO;

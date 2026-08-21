@@ -33,6 +33,9 @@
 - Strategy price may fall to zero. Fund has no curated asset list, recovery, or migration.
 - A blocked token can leave its own liability unpaid. Destinations remain fixed and retryable.
 - Omitted redemption assets stay for the post-redemption supply; unsolicited Fund tokens have no recovery path.
+- Resonance governance may change the global prospective automatic-Bribe share from 0% through 20%. Every change is
+  prospective and preserves old liabilities and weighted carry, but it can materially change future Fund backing and
+  signaler incentives around pending auctions. A 0% rate does not disable Bribes or signal exits.
 
 ## Governance and setup
 
@@ -41,11 +44,11 @@ checkpoints, but the core assigns them no proposal, quorum, voting-period, execu
 Historical checkpoints survive signal withdrawal, so voting-power rental and post-withdrawal voting remain properties
 that the selected external governance integration must address.
 
-Resonance's owner can add/kill Strategies, register up to eight reward tokens per Bribe, transfer ownership, or
-renounce ownership. The immutable ownerless contracts and Mine economics remain outside that authority, but the core
-no longer enforces a selector-bounded proposal layer or delayed execution around Resonance ownership. A compromised or
-misconfigured external owner can misuse all three administration methods, transfer control again, or permanently
-renounce control.
+Resonance's owner can add/kill Strategies, register up to eight reward tokens per Bribe, set the global prospective
+Bribe share between 0 and 2,000 basis points, transfer ownership, or renounce ownership. The immutable ownerless
+contracts and Mine economics remain outside that authority, but the core no longer enforces a selector-bounded
+proposal layer or delayed execution around Resonance ownership. A compromised or misconfigured external owner can
+misuse all four administration methods, transfer control again, or permanently renounce control.
 
 No external provider, release, proxy/upgrade model, plugin set, permission graph, voting configuration, delay,
 cancellation policy, emergency path, or executor address has been selected. Incorrect dependencies, bootstrap
@@ -55,6 +58,6 @@ permanent. Deployment evidence must prove the exact integration and that no temp
 ## Evidence gaps
 
 No independent audit, compatible symbolic proof, exact external-governance integration review, legal clearance, or
-signed deployment manifest exists. The pinned Echidna and Medusa campaigns and the 43-mutant
-SignalGBX/Resonance/BribeRouter campaign predate ADRs 0034 and 0035 and are internal engineering evidence, not
-independent review.
+signed deployment manifest exists. The pinned Echidna and Medusa campaigns and the recorded full 43-mutant
+SignalGBX/Resonance/BribeRouter campaign predate ADRs 0034–0036 and are internal engineering evidence, not independent
+review. The current 48-mutant campaign passes with no survivors, but remains narrow internal engineering evidence.

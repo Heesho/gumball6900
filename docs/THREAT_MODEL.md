@@ -1,19 +1,31 @@
 # Threat model
 
-> Development threat model under ADRs 0031, 0032, 0034, and 0035. The external governance integration remains
+> Development threat model under ADRs 0031, 0034, 0035, and 0036. The external governance integration remains
 > unselected and must receive a separate threat model before deployment.
 
 ## Primary risks
 
 - The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. Resonance's
-  external owner can misuse Strategy addition, Strategy death, or Bribe reward registration and can transfer or
-  renounce ownership. Mine, Fund, and LiquidityPosition remain outside that authority because they are ownerless.
+  external owner can misuse Strategy addition, Strategy death, Bribe reward registration, or the bounded global
+  acquired-asset Bribe rate and can transfer or renounce ownership. Mine, Fund, and LiquidityPosition remain outside
+  that authority because they are ownerless.
 - SignalGBX retains historical block-number checkpoints, but the external governance system and its voting rules are
   unselected. If it uses those snapshots, a holder may acquire and signal GBX before a snapshot, withdraw afterward,
   and retain historical weight. Delegation, quorum, capture, and liveness must be reviewed against its exact release.
 - The core guarantees no proposal filter, voting delay, post-vote Timelock, guardian, cancellation path, open executor,
   or immutable governance parameters. Assuming any of those properties before the external integration is selected and
   verified would be unsafe; deployment remains blocked.
+- The Resonance owner may change the global automatic acquired-asset Bribe share between 0% and 20%. Transaction order
+  is economically meaningful: a Strategy payment snapshots the rate when routed, so a payment before the setter uses
+  the old rate and one after it uses the new rate. Buyer price protection does not itself guarantee a particular
+  Bribe/Fund allocation. Interfaces must surface pending governance actions once the external executor and delay are
+  selected. There is no per-Strategy override, and no rate change can reclassify an existing liability, stream, claim,
+  or numerator carry.
+- Weighted basis-point carry persists across rate changes. A 0% period adds no new Bribe entitlement and creates only
+  Fund liability, but it does not discard fractional Bribe entitlement from an earlier period. That fraction can be
+  realized only after later nonzero-rate payments add enough numerator. Individual tiny-payment splits may therefore
+  differ visibly from the nominal rate while the complete weighted history remains exact and the Bribe share never
+  exceeds 20% cumulatively.
 - A halving can temporarily leave aggregate GBX issuance above the new global rate because incumbents keep their fixed
   tenure TPS while new tenures receive the lower rate. This is an accepted fairness tradeoff.
 - Miners face rollover risk: without a replacement, an incumbent continues earning GBX but never receives the 80%
@@ -50,6 +62,10 @@
 - A broken or blocklisting token can prevent its own deferred Fund, Bribe, or user payout. The fixed liability remains
   observable and retryable. BribeRouter's two settlement legs are independent, and `withdrawSignal` remains available
   because it transfers only the escrowed GBX return rather than an acquired-asset liability.
+- Setting the automatic share to 0% is not an emergency pause and does not disable a Strategy or paired Bribe. Existing
+  Router liabilities and Bribe rewards remain settleable, claimable, or retryable, independently funded rewards remain
+  possible, and signal entry, movement, killed-Strategy exit, and withdrawal retain their ordinary paths. A zero new
+  Bribe liability must not be forwarded as an invalid zero reward notification.
 - A malformed caller-selected token can revert that redemption, but cannot block redemptions that omit
   it.
 - Omitted redemption assets are forfeited to the remaining GBX supply.

@@ -38,9 +38,10 @@ position, constitutes protocol revenue.
 Revenue is placed into a single rolling seven-day emission schedule held by **Resonance** and allocated continuously
 across **Strategies** in proportion to the non-transferable staked weight (**SignalGBX**, ticker sGBX) allocated to
 each Strategy during each elapsed interval. A Strategy is a bounded descending-price auction that exchanges its
-accumulated USDG for a fixed target asset. Every auction payment is classified by an immutable, cumulatively exact
-rule: 90% becomes an irrevocable liability to **Fund**, an ownerless treasury with no asset registry and no
-administrative surface, and 10% becomes an automatic reward liability to that Strategy's signalers.
+accumulated USDG for a fixed target asset. Every auction payment is classified by a bounded, cumulatively exact rule:
+the signaler share is a single global parameter defaulting to 10% and capped at 20% (ADR 0036), and the remainder
+becomes an irrevocable liability to **Fund**, an ownerless treasury with no asset registry and no administrative
+surface. At least 80% of every acquisition therefore reaches Fund regardless of who holds the owner address.
 
 GBX holders redeem by burning GBX and nominating an arbitrary set of unique non-GBX token addresses, receiving for
 each the floored pro-rata share of Fund's balance against a single effective pre-burn supply snapshot that includes
@@ -129,26 +130,26 @@ These are stated in §38 and §39 rather than minimized.
 
 ## 5. Terminology
 
-| Term                       | Definition                                                                                                                             |
-| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **GBX**                    | Transferable ERC-20 with ERC-2612 permit, 18 decimals. No vote checkpoints. Mined, staked, burned.                                     |
-| **sGBX / SignalGBX**       | Non-transferable ERC-20 with ERC20Votes, 18 decimals. Minted 1:1 against staked GBX.                                                   |
-| **USDG**                   | External stablecoin used for revenue. Six decimals **by deployment assumption**, not by code enforcement.                              |
-| **Signal**                 | An absolute quantity of sGBX a specific account has allocated to a specific Strategy.                                                  |
-| **Allocated balance**      | The aggregate sGBX an account has committed across all live and killed Strategies; not withdrawable.                                   |
-| **Strategy**               | A bounded descending-price auction exchanging accumulated USDG for one fixed payment token.                                            |
-| **Live / killed Strategy** | A Strategy accepting new signal and future revenue / one permanently excluded from both.                                               |
-| **Bribe**                  | Per-Strategy multi-token reward stream, permissionlessly funded, paid to that Strategy's signalers.                                    |
-| **BribeRouter**            | Per-Strategy contract converting an auction payment into an irrevocable Fund liability.                                                |
-| **Fund**                   | Ownerless raw-token treasury. Redemption and GBX burning are its only value exits.                                                     |
-| **Slot**                   | One mining position accruing GBX at a tenure-locked rate; occupancy sold by hourly auction.                                            |
-| **Epoch**                  | One auction round, identified by a monotonically increasing `epochId` used for fill-race protection.                                   |
-| **Reverse Dutch auction**  | The repository's term for the descending-price mechanism in `Mine` and `Strategy`. See §43 discrepancy D-1.                            |
-| **Reward period / stream** | A fixed seven-day emission schedule with a base rate plus a front-loaded remainder.                                                    |
-| **Carry**                  | Sub-unit reward precision retained across checkpoints rather than discarded.                                                           |
-| **Surplus**                | Value held by a contract that is not a liability to anyone and has no recovery path.                                                   |
-| **Checkpoint**             | Advancing lazily-accrued state to the current timestamp before mutating weights or balances.                                           |
-| **Resonance owner**        | The single address holding the three continuing administration capabilities; intended to become an external governance executor (§15). |
+| Term                       | Definition                                                                                                                            |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **GBX**                    | Transferable ERC-20 with ERC-2612 permit, 18 decimals. No vote checkpoints. Mined, staked, burned.                                    |
+| **sGBX / SignalGBX**       | Non-transferable ERC-20 with ERC20Votes, 18 decimals. Minted 1:1 against staked GBX.                                                  |
+| **USDG**                   | External stablecoin used for revenue. Six decimals **by deployment assumption**, not by code enforcement.                             |
+| **Signal**                 | An absolute quantity of sGBX a specific account has allocated to a specific Strategy.                                                 |
+| **Allocated balance**      | The aggregate sGBX an account has committed across all live and killed Strategies; not withdrawable.                                  |
+| **Strategy**               | A bounded descending-price auction exchanging accumulated USDG for one fixed payment token.                                           |
+| **Live / killed Strategy** | A Strategy accepting new signal and future revenue / one permanently excluded from both.                                              |
+| **Bribe**                  | Per-Strategy multi-token reward stream, permissionlessly funded, paid to that Strategy's signalers.                                   |
+| **BribeRouter**            | Per-Strategy contract converting an auction payment into an irrevocable Fund liability.                                               |
+| **Fund**                   | Ownerless raw-token treasury. Redemption and GBX burning are its only value exits.                                                    |
+| **Slot**                   | One mining position accruing GBX at a tenure-locked rate; occupancy sold by hourly auction.                                           |
+| **Epoch**                  | One auction round, identified by a monotonically increasing `epochId` used for fill-race protection.                                  |
+| **Reverse Dutch auction**  | The repository's term for the descending-price mechanism in `Mine` and `Strategy`. See §43 discrepancy D-1.                           |
+| **Reward period / stream** | A fixed seven-day emission schedule with a base rate plus a front-loaded remainder.                                                   |
+| **Carry**                  | Sub-unit reward precision retained across checkpoints rather than discarded.                                                          |
+| **Surplus**                | Value held by a contract that is not a liability to anyone and has no recovery path.                                                  |
+| **Checkpoint**             | Advancing lazily-accrued state to the current timestamp before mutating weights or balances.                                          |
+| **Resonance owner**        | The single address holding the four continuing administration capabilities; intended to become an external governance executor (§15). |
 
 ### 5.1 Notation
 
@@ -295,16 +296,18 @@ flowchart TB
 `SignalGBX`, `StrategyFactory`, and `BribeFactory` retain a nominal `Ownable` owner after their one-time binding is
 consumed, but that owner has no remaining function to call. `Resonance.setResonanceRouter` is likewise single-use.
 
-### 9.2 The three continuing administration actions
+### 9.2 The four continuing administration actions
 
 | Selector                   | Target      | Effect                                                              | Reversible? |
 | -------------------------- | ----------- | ------------------------------------------------------------------- | ----------- |
 | `Resonance.addStrategy`    | `Resonance` | Deploys a Strategy, BribeRouter, and Bribe; registers payment token | No          |
 | `Resonance.killStrategy`   | `Resonance` | Permanently excludes a Strategy from new signal and future revenue  | **No**      |
 | `Resonance.addBribeReward` | `Resonance` | Appends a reward token to a Strategy's Bribe, within the cap of 8   | **No**      |
+| `Resonance.setBribeBps`    | `Resonance` | Sets the global signaler share of acquisitions, bounded `[0, 2000]` | Yes         |
 
-All three are irreversible. `addStrategy` is reversible only in the sense that the created Strategy can later
-be killed; the deployed contracts persist forever.
+The first three are irreversible. `addStrategy` is reversible only in the sense that the created Strategy can later be
+killed; the deployed contracts persist forever. `setBribeBps` is the sole reversible action and the sole economic
+parameter: it is bounded in code and applies prospectively, so it cannot reclassify an amount already settled.
 
 ### 9.3 Authority explicitly absent
 
@@ -767,18 +770,21 @@ administration surface that remains and states precisely which guarantees the co
 | `addStrategy(IERC20, Config)`             | `Resonance.sol`        | Deploys Strategy, BribeRouter, and Bribe; registers the payment token    | No (kill only)          |
 | `killStrategy(address)`                   | `Resonance.sol`        | Permanently excludes a Strategy from new signal and future revenue       | **No**                  |
 | `addBribeReward(address, address)`        | `Resonance.sol`        | Appends a reward token to a Strategy's Bribe, within `MAX_REWARD_TOKENS` | **No**                  |
+| `setBribeBps(uint256)`                    | `Resonance.sol`        | Sets the global signaler share, bounded `[0, MAX_BRIBE_BPS]` (ADR 0036)  | Yes, prospectively      |
 | `setResonanceRouter(address)`             | `Resonance.sol`        | Binds the sole ResonanceRouter                                           | Single-use, then closed |
 | `transferOwnership` / `renounceOwnership` | OpenZeppelin `Ownable` | Moves or destroys the owner role                                         | Not by the protocol     |
 
 `setResonanceRouter` reverts with `ResonanceRouterAlreadySet` after its first success, so it is a deployment binding
-rather than a continuing authority. The three continuing capabilities are therefore exactly `addStrategy`,
-`killStrategy`, and `addBribeReward`.
+rather than a continuing authority. The four continuing capabilities are therefore exactly `addStrategy`,
+`killStrategy`, `addBribeReward`, and `setBribeBps`.
 
 **Enforced constraints on those calls.** These are Solidity checks, not procedural expectations:
 
 | Constraint                                              | Mechanism                                                        |
 | ------------------------------------------------------- | ---------------------------------------------------------------- |
 | The final live Strategy cannot be killed                | `if (liveStrategyCount == 1) revert FinalLiveStrategy(strategy)` |
+| The signaler share can never exceed 20%                 | `if (newBribeBps > MAX_BRIBE_BPS) revert BribeBpsAboveMaximum()` |
+| A rate change cannot reclassify a settled amount        | Snapshotted per payment, before any payment-token interaction    |
 | A Strategy cannot be killed twice                       | `isStrategyAlive` check, `StrategyAlreadyDead`                   |
 | sGBX cannot be a payment token or Bribe reward token    | `ForbiddenPaymentToken`, `ForbiddenRewardToken`                  |
 | Payment and reward tokens must be deployed code         | `code.length == 0` rejection                                     |
@@ -848,8 +854,10 @@ provider is part of the reviewed protocol graph, and this document must not be r
 - A compromised or careless `Resonance` owner can add Strategies, kill any Strategy except the last live one, register
   reward tokens up to the eight-token cap, transfer ownership, or renounce it. `renounceOwnership` would permanently
   freeze the Strategy set at its current membership.
-- Owner authority does not reach mining parameters, the 90/10 settlement split, mint authority, Fund assets, liquidity
-  custody, auction mechanics, or the sixteen-slot count. Those are immutable or held by ownerless contracts (§9).
+- Owner authority does not reach mining parameters, mint authority, Fund assets, liquidity custody, auction mechanics,
+  or the sixteen-slot count. Those are immutable or held by ownerless contracts (§9). The one economic parameter it
+  does reach, the signaler share, is bounded in code to `[0, MAX_BRIBE_BPS]` and applies prospectively only, so no
+  owner can reclassify a settled amount or drive Fund's cumulative share below 80%.
 - A production deployment that retains the temporary setup owner is a protocol with an ordinary admin key. Removing
   that owner is a release gate, not a recommendation (findings **M-03**, **G-01**, **G-03**).
 
@@ -1296,23 +1304,40 @@ if paymentToken.allowance(this, router) ≠ 0: paymentToken.forceApprove(router,
 
 The conditional zero-approval (finding **E-04**) supports tokens that revert on redundant zero approvals.
 
-### 22.2 The fixed 90/10 classification
+### 22.2 The bounded classification (ADR 0036)
 
-`BribeRouter` declares three immutable constants and holds no setter of any kind:
+`BribeRouter` holds no setter and no share of its own. It reads one global rate from `Resonance` and derives Fund's
+share as the remainder:
 
 ```solidity
-uint256 public constant BPS       = 10_000;
-uint256 public constant FUND_BPS  =  9_000;   // 90% → Fund
-uint256 public constant BRIBE_BPS =  1_000;   // 10% → paired Bribe
+uint256 public constant BPS = 10_000;              // BribeRouter
+
+uint256 public constant DEFAULT_BRIBE_BPS = 1_000; // Resonance: 10% at deployment
+uint256 public constant MAX_BRIBE_BPS     = 2_000; // Resonance: 20% ceiling
+uint256 public bribeBps = DEFAULT_BRIBE_BPS;       // Resonance: onlyOwner setBribeBps
 ```
+
+**The rate is snapshotted before any token interaction**, so a hostile payment-token callback cannot alter the split of
+the fill it is part of:
+
+```solidity
+uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();
+if (appliedBribeBps > BPS) revert BribeBpsAboveBasis(appliedBribeBps);
+```
+
+Because `MAX_BRIBE_BPS = 2_000`, Fund's cumulative share over the complete weighted payment history is **at least 80%**
+for any sequence of rates the owner can select. A rate change reaches neither a recorded liability, a notified reward,
+nor a prior Fund balance.
 
 `routePayment(amount)` is callable **only** by its immutable `strategy`:
 
 ```text
+appliedBribeBps      ← Resonance.bribeBps()          (snapshotted before any token call)
+require appliedBribeBps ≤ BPS
 pull exactly `amount` from strategy (exact-delta checked)
 
-bribeAmount          ← ⌊amount · BRIBE_BPS / BPS⌋
-accumulatedRemainder ← splitRemainder + mulmod(amount, BRIBE_BPS, BPS)
+bribeAmount          ← ⌊amount · appliedBribeBps / BPS⌋
+accumulatedRemainder ← splitRemainder + mulmod(amount, appliedBribeBps, BPS)
 bribeAmount          ← bribeAmount + ⌊accumulatedRemainder / BPS⌋
 splitRemainder       ← accumulatedRemainder mod BPS
 fundAmount           ← amount − bribeAmount
@@ -1331,19 +1356,22 @@ without overflowing, so no intermediate product can wrap.
 ### 22.3 Cumulative exactness
 
 **Formula F-21 (frequency-independent classification).** `splitRemainder` carries the sub-unit Bribe entitlement in
-basis-point numerator units and is always `< BPS`. For any cumulative payment total `X`, **regardless of how `X` was
-partitioned into calls**:
+basis-point numerator units and is always `< BPS`. For payments `a_i` classified at their snapshotted rates `r_i`,
+**regardless of how the total was partitioned into calls**:
 
 ```text
-cumulative Bribe classification = ⌊X · BRIBE_BPS / BPS⌋
-cumulative Fund classification  = X − ⌊X · BRIBE_BPS / BPS⌋
-splitRemainder                  = (X · BRIBE_BPS) mod BPS
+cumulative Bribe classification = ⌊(Σ aᵢ·rᵢ) / BPS⌋
+cumulative Fund classification  = (Σ aᵢ) − ⌊(Σ aᵢ·rᵢ) / BPS⌋
+splitRemainder                  = (Σ aᵢ·rᵢ) mod BPS
 ```
+
+At a constant rate this reduces to the single-rate form. Since every `rᵢ ≤ MAX_BRIBE_BPS`, the cumulative Fund share is
+bounded below by 80% of the weighted total for any admissible rate history.
 
 <!-- figure: acquisition-split -->
 
 **Why the carry is load-bearing.** Naive per-payment flooring would give the Bribe `⌊1 · 1000 / 10000⌋ = 0` on every
-one-raw-unit payment, so an adversary filling in dust could starve the reward share permanently. This was internal
+one-raw-unit payment at the default rate, so an adversary filling in dust could starve the reward share permanently. This was internal
 finding **SR-002** (High).
 
 <!-- figure: cumulative-split -->
@@ -2452,8 +2480,9 @@ around. This is the single largest unmitigated risk in the system.
 **The core's threat model for administration is exactly one address.** Whoever holds `Resonance.owner()` can add
 Strategies, kill any Strategy except the final live one, register Bribe reward tokens up to the eight-token cap,
 transfer ownership onward, or renounce it. They **cannot** drain Fund, mint GBX, alter mining economics, reprice
-incumbents, move the liquidity position, or change the 90/10 settlement split — those surfaces are ownerless or
-immutable (§9.3). Killing a Strategy is irreversible, making it the highest-impact capture target; renouncing
+incumbents, or move the liquidity position — those surfaces are ownerless or immutable (§9.3). They can move the
+signaler share within `[0, MAX_BRIBE_BPS]`, which is an economic lever rather than a custody one: it never reaches an
+already-classified liability and never lowers Fund's cumulative share below 80%. Killing a Strategy is irreversible, making it the highest-impact capture target; renouncing
 ownership is equally irreversible and permanently freezes Strategy membership.
 
 Because ADR 0034 removed the in-repository Governor and Timelock, the core supplies **no** mitigation of its own: no

@@ -101,6 +101,17 @@ contract ProtocolStateMachineCampaign {
     /// @notice Complete GBX supply recorded immediately after deployment.
     uint256 public immutable genesisSupply;
 
+    /// @notice Independent expected cumulative Fund classification for each Strategy payment Router.
+    mapping(address strategy => uint256 amount) public expectedFundClassification;
+    /// @notice Independent expected cumulative Bribe classification for each Strategy payment Router.
+    mapping(address strategy => uint256 amount) public expectedBribeClassification;
+    /// @notice Independent expected weighted-numerator carry for each Strategy payment Router.
+    mapping(address strategy => uint256 remainder) public expectedSplitRemainder;
+    /// @notice Fund liability already observed leaving each Router through permissionless settlement.
+    mapping(address strategy => uint256 amount) public observedFundSettlement;
+    /// @notice Bribe liability already observed leaving each Router through permissionless settlement.
+    mapping(address strategy => uint256 amount) public observedBribeSettlement;
+
     constructor() {
         usdg = new CampaignToken("Global Dollar", "USDG", 6);
         paymentAsset = new CampaignToken("Acquisition Asset", "ACQ", 18);
@@ -220,6 +231,26 @@ contract ProtocolStateMachineCampaign {
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.withdrawSignal, (strategy, requested)));
     }
 
+    /// @notice Moves an existing position to a distinct live Strategy without changing custody or receipt supply.
+    function moveSignal(uint8 actorSeed, uint8 sourceSeed, uint8 destinationSeed, uint96 amount) external {
+        CampaignActor actor = _actor(actorSeed);
+        address account = address(actor);
+        address[] memory current = _accountStrategies(account);
+        if (current.length == 0) revert("NO_ACCOUNT_STRATEGY");
+
+        address source = current[uint256(sourceSeed) % current.length];
+        address[] memory alive = _aliveStrategies();
+        if (alive.length == 0) revert("NO_LIVE_STRATEGY");
+
+        uint256 destinationIndex = uint256(destinationSeed) % alive.length;
+        address destination = alive[destinationIndex];
+        if (destination == source && alive.length > 1) destination = alive[(destinationIndex + 1) % alive.length];
+        if (destination == source) revert("NO_ALTERNATE_LIVE_STRATEGY");
+
+        uint256 requested = _clamp(amount, 1, resonance.accountSignals(account, source));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.moveSignal, (source, destination, requested)));
+    }
+
     function signalMany(uint8 actorSeed, uint8 countSeed) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
@@ -320,10 +351,20 @@ contract ProtocolStateMachineCampaign {
             actor.run(payment, abi.encodeCall(IERC20.approve, (address(strategy), price)));
         }
 
+        uint256 appliedBribeBps = resonance.bribeBps();
         actor.run(
             address(strategy),
             abi.encodeCall(Strategy.buy, (address(actor), strategy.epochId(), block.timestamp, price))
         );
+
+        if (price != 0) {
+            address strategyAddress = address(strategy);
+            uint256 weightedNumerator = expectedSplitRemainder[strategyAddress] + price * appliedBribeBps;
+            uint256 bribeAmount = weightedNumerator / resonance.BPS();
+            expectedSplitRemainder[strategyAddress] = weightedNumerator % resonance.BPS();
+            expectedBribeClassification[strategyAddress] += bribeAmount;
+            expectedFundClassification[strategyAddress] += price - bribeAmount;
+        }
     }
 
     function claimRewards(uint8 actorSeed, uint8 strategySeed) external {
@@ -352,9 +393,10 @@ contract ProtocolStateMachineCampaign {
 
     function payFixedLiabilities() external {
         for (uint256 i; i < strategies.length; ++i) {
-            BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
-            router.payFundPayment();
-            router.notifyBribeReward();
+            address strategy = strategies[i];
+            BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategy));
+            observedFundSettlement[strategy] += router.payFundPayment();
+            observedBribeSettlement[strategy] += router.notifyBribeReward();
 
             Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
             address[] memory tokens = bribe.rewardTokens();
@@ -362,6 +404,12 @@ contract ProtocolStateMachineCampaign {
                 bribe.payFundReward(tokens[t]);
             }
         }
+    }
+
+    /// @notice Exercises the complete owner-authorized prospective rate range without creating a per-Strategy policy.
+    function setBribeBps(uint16 requestedBps) external {
+        _recordRevenueIndex();
+        resonance.setBribeBps(uint256(requestedBps) % (resonance.MAX_BRIBE_BPS() + 1));
     }
 
     function claimMiningPayment(uint8 actorSeed) external {
@@ -613,16 +661,34 @@ contract ProtocolStateMachineCampaign {
         return true;
     }
 
-    /// @notice Every Strategy payment Router balance is exactly its immutable Fund plus paired-Bribe liabilities.
+    /// @notice Every Router matches an independent weighted-carry model across arbitrary rate and settlement changes.
     function echidna_bribeRouterAccountingIsExact() public view returns (bool holds) {
         for (uint256 i; i < strategies.length; ++i) {
-            BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
+            address strategy = strategies[i];
+            BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategy));
+            if (router.resonance() != address(resonance)) return false;
             if (router.accountedPaymentBalance() != router.fundPaymentLiability() + router.bribePaymentLiability()) {
                 return false;
             }
+            if (
+                observedFundSettlement[strategy] + router.fundPaymentLiability() != expectedFundClassification[strategy]
+            ) {
+                return false;
+            }
+            if (
+                observedBribeSettlement[strategy] + router.bribePaymentLiability()
+                    != expectedBribeClassification[strategy]
+            ) return false;
+            if (router.splitRemainder() != expectedSplitRemainder[strategy]) return false;
             if (router.splitRemainder() >= router.BPS()) return false;
         }
         return true;
+    }
+
+    /// @notice The sole prospective split lever always remains inside its immutable global range.
+    function echidna_bribeBpsPolicyIsBounded() public view returns (bool holds) {
+        return resonance.BPS() == 10_000 && resonance.DEFAULT_BRIBE_BPS() == 1_000 && resonance.MAX_BRIBE_BPS() == 2_000
+            && resonance.bribeBps() <= resonance.MAX_BRIBE_BPS();
     }
 
     /// @notice The bootstrap escape hatch is closed permanently: exactly the tracked nonzero live count survives.

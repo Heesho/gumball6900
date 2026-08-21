@@ -266,10 +266,15 @@ export async function readSignalView(
 }
 
 export const resonanceViewSchema = z.object({
+  basisPoints: unsignedBigIntSchema.positive(),
   blockNumber: unsignedBigIntSchema,
+  bribeBasisPoints: unsignedBigIntSchema,
+  defaultBribeBasisPoints: unsignedBigIntSchema,
   duration: unsignedBigIntSchema,
+  fundBasisPoints: unsignedBigIntSchema,
   lastUpdateTime: unsignedBigIntSchema,
   left: unsignedBigIntSchema,
+  maximumBribeBasisPoints: unsignedBigIntSchema,
   periodFinish: unsignedBigIntSchema,
   remainderFinish: unsignedBigIntSchema,
   resonanceRouter: addressSchema,
@@ -291,8 +296,22 @@ export async function readResonanceView(
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
   const normalizedResonance = getAddress(resonance);
-  const [duration, resonanceRouter, rewardPrecision, totalSignalWeight, usdgRaw] = await Promise.all([
+  const [
+    basisPoints,
+    bribeBasisPoints,
+    defaultBribeBasisPoints,
+    duration,
+    maximumBribeBasisPoints,
+    resonanceRouter,
+    rewardPrecision,
+    totalSignalWeight,
+    usdgRaw,
+  ] = await Promise.all([
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'BPS'),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'bribeBps'),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'DEFAULT_BRIBE_BPS'),
     read(client, blockNumber, normalizedResonance, resonanceAbi, 'DURATION'),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'MAX_BRIBE_BPS'),
     read(client, blockNumber, normalizedResonance, resonanceAbi, 'resonanceRouter'),
     read(client, blockNumber, normalizedResonance, resonanceAbi, 'REWARD_PRECISION'),
     read(client, blockNumber, normalizedResonance, resonanceAbi, 'totalSignalWeight'),
@@ -315,10 +334,15 @@ export async function readResonanceView(
         rewardDataRecord.rewardPerTokenStored,
       ];
   const result = resonanceViewSchema.parse({
+    basisPoints,
     blockNumber,
+    bribeBasisPoints,
+    defaultBribeBasisPoints,
     duration,
+    fundBasisPoints: (basisPoints as bigint) - (bribeBasisPoints as bigint),
     lastUpdateTime: rewardDataValues[3],
     left: rewardLeft,
+    maximumBribeBasisPoints,
     periodFinish: rewardDataValues[0],
     remainderFinish: rewardDataValues[1],
     resonanceRouter,
@@ -329,6 +353,13 @@ export async function readResonanceView(
     usdg,
     usdgBalance,
   });
+  if (
+    result.defaultBribeBasisPoints > result.maximumBribeBasisPoints ||
+    result.bribeBasisPoints > result.maximumBribeBasisPoints ||
+    result.maximumBribeBasisPoints > result.basisPoints
+  ) {
+    throw new RangeError('Resonance Bribe basis-point configuration is incoherent');
+  }
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
@@ -492,12 +523,13 @@ export const bribeRouterViewSchema = z.object({
   fundPaymentLiability: unsignedBigIntSchema,
   paymentToken: addressSchema,
   paymentSurplus: unsignedBigIntSchema,
+  resonance: addressSchema,
   splitRemainder: unsignedBigIntSchema,
   strategy: addressSchema,
 });
 export type BribeRouterView = z.infer<typeof bribeRouterViewSchema>;
 
-/** Reads a Strategy router's immutable 90/10 terms, liabilities, split carry, and direct-donation surplus. */
+/** Reads a Strategy router's liabilities, persistent split carry, and current global Bribe share. */
 export async function readBribeRouterView(
   client: PublicClient,
   bribeRouter: Address,
@@ -509,28 +541,31 @@ export async function readBribeRouterView(
     accountedPaymentBalance,
     basisPoints,
     bribe,
-    bribeBasisPoints,
     bribePaymentLiability,
     fund,
-    fundBasisPoints,
     fundPaymentLiability,
     paymentToken,
     paymentSurplus,
+    resonance,
     splitRemainder,
     strategy,
   ] = await Promise.all([
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'accountedPaymentBalance'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'BPS'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'bribe'),
-    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'BRIBE_BPS'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'bribePaymentLiability'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'fund'),
-    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'FUND_BPS'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'fundPaymentLiability'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'paymentToken'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'paymentSurplus'),
+    read(client, blockNumber, bribeRouter, bribeRouterAbi, 'resonance'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'splitRemainder'),
     read(client, blockNumber, bribeRouter, bribeRouterAbi, 'strategy'),
+  ]);
+  const normalizedResonance = addressSchema.parse(resonance);
+  const [resonanceBasisPoints, bribeBasisPoints] = await Promise.all([
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'BPS'),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'bribeBps'),
   ]);
   const result = bribeRouterViewSchema.parse({
     accountedPaymentBalance,
@@ -540,14 +575,18 @@ export async function readBribeRouterView(
     bribeBasisPoints,
     bribePaymentLiability,
     fund,
-    fundBasisPoints,
+    fundBasisPoints: (resonanceBasisPoints as bigint) - (bribeBasisPoints as bigint),
     fundPaymentLiability,
     paymentToken,
     paymentSurplus,
+    resonance,
     splitRemainder,
     strategy,
   });
-  if (result.fundBasisPoints + result.bribeBasisPoints !== result.basisPoints) {
+  if (result.basisPoints !== resonanceBasisPoints) {
+    throw new RangeError('BribeRouter and Resonance basis-point denominators differ');
+  }
+  if (result.bribeBasisPoints > result.basisPoints) {
     throw new RangeError('BribeRouter basis-point split is incoherent');
   }
   if (result.fundPaymentLiability + result.bribePaymentLiability !== result.accountedPaymentBalance) {

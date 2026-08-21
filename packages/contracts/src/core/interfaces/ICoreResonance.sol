@@ -4,8 +4,12 @@ pragma solidity 0.8.26;
 /// @title GumBall6900 Core Resonance Interface
 /// @author Heesho
 /// @notice Minimal Resonance surface used by the other core contracts.
-/// @custom:version 1.0.0
+/// @custom:version 1.1.0
 interface ICoreResonance {
+    /// @notice Returns the governance-selected share of new Strategy payments assigned to paired Bribes.
+    /// @return basisPoints Current share in basis points.
+    function bribeBps() external view returns (uint256 basisPoints);
+
     /// @notice Adds signal on behalf of an account through the permanently bound SignalGBX coordinator.
     /// @param account Account whose allocation increases.
     /// @param strategy Live Strategy receiving signal.

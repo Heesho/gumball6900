@@ -8,7 +8,7 @@ This is the canonical development source, not a deployment or authorization for 
 mining:       replacement USDG -> 80% displaced-miner claim + 20% ResonanceRouter
 empty slot:   first-payment USDG -> 100% ResonanceRouter
 issuance:     Mine checkpoint -> accrued GBX to current slot miners
-acquisitions: buyer payment -> BribeRouter -> 90% Fund liability + 10% paired-Bribe liability
+acquisitions: buyer payment -> BribeRouter -> complementary Fund + global 0%-20% paired-Bribe liabilities
 redemptions:  Mine checkpoint -> user GBX burn -> selected Fund assets to receiver
 liquidity:    accrued USDG -> ResonanceRouter; accrued GBX -> Fund -> atomic burn
 ```
@@ -24,9 +24,9 @@ liquidity:    accrued USDG -> ResonanceRouter; accrued GBX -> Fund -> atomic bur
 | `ResonanceRouter`   | Forwards a complete USDG balance once it meets Resonance's current live-period threshold.             |
 | `Resonance`         | Bribe-shaped seven-day USDG rewards over Strategy signal weights, plus Strategy and Bribe creation.   |
 | `StrategyFactory`   | Resonance-only Strategy and BribeRouter deployment.                                                   |
-| `Strategy`          | Uniform bounded reverse-Dutch acquisition whose payment becomes fixed 90/10 Fund/Bribe liabilities.   |
+| `Strategy`          | Uniform bounded reverse-Dutch acquisition whose payment becomes fixed Fund/Bribe liabilities.         |
 | `BribeFactory`      | Resonance-only Bribe deployment.                                                                      |
-| `BribeRouter`       | Cumulatively classifies every Strategy payment into isolated, permissionless 90/10 liabilities.       |
+| `BribeRouter`       | Applies the global bounded Bribe rate with weighted carry and isolates permissionless liabilities.    |
 | `Bribe`             | Seven-day reward streams with at most eight tokens and a fixed per-token lifetime notification cap.   |
 | `Fund`              | Ownerless raw treasury, GBX burn boundary, and caller-selected in-kind redemption.                    |
 
@@ -44,9 +44,11 @@ signal to one live Strategy; every burn atomically removes signal and returns th
 account-by-Strategy balances and per-Strategy supply, while Resonance owns only the active live-Strategy total.
 Signal may move between Strategies without minting or burning, and no idle sGBX state is reachable.
 
-BribeRouter classifies cumulative Strategy payments so total liabilities are exactly 90% Fund and 10% paired Bribe,
-independent of settlement frequency. Each destination is paid through its own permissionless function, so failure at
-one does not block the other. Donations remain surplus and additional explicit Bribe rewards are still permitted.
+BribeRouter classifies Strategy payments at Resonance's global `bribeBps`, which defaults to 10% and is bounded from
+0% through 20%; Fund receives the complement. Weighted basis-point carry persists across rate changes. Each
+destination is paid through its own permissionless function, so failure at one does not block the other. At 0%, new
+payments create only Fund liability while signals, exits, existing rewards, and independent rewards remain live.
+Donations remain surplus.
 
 ResonanceRouter forwards a nonzero balance when it is at least the active period's exact remaining reward; smaller
 balances wait in the Router without reverting Mine or liquidity-fee collection. A qualifying notification checkpoints
@@ -74,11 +76,12 @@ different facades that debit one shared ledger. Omitted assets remain for the po
 
 ## Administration
 
-Resonance retains three continuing protocol administration methods: add a Strategy, kill a Strategy, and register a
-Bribe reward token. SignalGBX exposes ERC20Votes checkpoints, but governance execution is an unselected external
-integration and is not implemented in this repository. A production deployment remains blocked until an exact external
-governance executor is reviewed and receives Resonance ownership. Mine, Fund, and LiquidityPosition are ownerless.
-There is no core proxy, migration, rescue, successor, emission setter, or capacity change.
+Resonance retains four continuing protocol administration methods: add a Strategy, kill a Strategy, register a Bribe
+reward token, and set the bounded global acquired-asset Bribe rate. SignalGBX exposes ERC20Votes checkpoints, but
+governance execution is an unselected external integration and is not implemented in this repository. A production
+deployment remains blocked until an exact external governance executor is reviewed and receives Resonance ownership.
+Mine, Fund, and LiquidityPosition are ownerless. There is no core proxy, migration, rescue, successor, emission setter,
+or capacity change.
 
 ## Credit
 

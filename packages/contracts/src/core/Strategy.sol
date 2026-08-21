@@ -198,9 +198,9 @@ contract Strategy is ReentrancyGuard {
         return initialPrice - Math.mulDiv(initialPrice, elapsed, epochDuration);
     }
 
-    /// @notice Converts the complete payment into immutable 90% Fund and 10% Bribe liabilities.
-    /// @dev Deferred delivery isolates temporary failure at either destination. Cumulative classification preserves the
-    ///      exact split independently of payment frequency; additional explicit Bribe notifications remain possible.
+    /// @notice Converts the complete payment into immutable liabilities at Resonance's current global Bribe share.
+    /// @dev Deferred delivery isolates temporary failure at either destination. Cumulative classification preserves
+    ///      the exact rate-weighted split across payment partitions; additional Bribe notifications remain possible.
     /// @param paymentAmount Total payment collected from the buyer.
     function _settlePayment(uint256 paymentAmount) private {
         address router = ICoreResonance(resonance).bribeRouterFor(address(this));

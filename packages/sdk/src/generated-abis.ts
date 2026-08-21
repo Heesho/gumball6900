@@ -1364,6 +1364,11 @@ export const bribeRouterAbi = [
     type: 'constructor',
     inputs: [
       {
+        name: 'resonance_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
         name: 'strategy_',
         type: 'address',
         internalType: 'address',
@@ -1389,32 +1394,6 @@ export const bribeRouterAbi = [
   {
     type: 'function',
     name: 'BPS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'BRIBE_BPS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'FUND_BPS',
     inputs: [],
     outputs: [
       {
@@ -1538,6 +1517,19 @@ export const bribeRouterAbi = [
         name: '',
         type: 'address',
         internalType: 'contract IERC20',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'resonance',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -1727,8 +1719,25 @@ export const bribeRouterAbi = [
         indexed: false,
         internalType: 'uint256',
       },
+      {
+        name: 'bribeBps',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
     ],
     anonymous: false,
+  },
+  {
+    type: 'error',
+    name: 'BribeBpsAboveBasis',
+    inputs: [
+      {
+        name: 'requested',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
   },
   {
     type: 'error',
@@ -6506,7 +6515,46 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'BPS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'DEFAULT_BRIBE_BPS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'DURATION',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'MAX_BRIBE_BPS',
     inputs: [],
     outputs: [
       {
@@ -6717,6 +6765,19 @@ export const resonanceAbi = [
       },
     ],
     stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'bribeBps',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -7115,6 +7176,19 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'setBribeBps',
+    inputs: [
+      {
+        name: 'newBribeBps',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'setResonanceRouter',
     inputs: [
       {
@@ -7267,6 +7341,25 @@ export const resonanceAbi = [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    name: 'BribeBpsSet',
+    inputs: [
+      {
+        name: 'previousBps',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+      {
+        name: 'newBps',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
   },
   {
     type: 'event',
@@ -7462,6 +7555,17 @@ export const resonanceAbi = [
       },
     ],
     anonymous: false,
+  },
+  {
+    type: 'error',
+    name: 'BribeBpsAboveMaximum',
+    inputs: [
+      {
+        name: 'requested',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
   },
   {
     type: 'error',

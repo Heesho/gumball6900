@@ -5,7 +5,8 @@ from dataclasses import dataclass, field
 
 STREAM_DURATION = 7 * 24 * 60 * 60
 SETTLEMENT_BPS = 10_000
-SETTLEMENT_BRIBE_BPS = 1_000
+DEFAULT_SETTLEMENT_BRIBE_BPS = 1_000
+MAX_SETTLEMENT_BRIBE_BPS = 2_000
 
 
 def exact_stream_emission(amount: int, duration: int, elapsed: int) -> int:
@@ -17,18 +18,24 @@ def exact_stream_emission(amount: int, duration: int, elapsed: int) -> int:
 
 @dataclass
 class StrategyPaymentConservationModel:
-    """Independent state model for cumulative 90/10 classification and isolated settlement."""
+    """Independent state model for mutable-rate cumulative classification and isolated settlement."""
 
+    bribe_bps: int = DEFAULT_SETTLEMENT_BRIBE_BPS
     fund_liability: int = 0
     bribe_liability: int = 0
     split_remainder: int = 0
     accounted_balance: int = 0
     balance: int = 0
 
+    def set_bribe_bps(self, new_bribe_bps: int) -> None:
+        if new_bribe_bps < 0 or new_bribe_bps > MAX_SETTLEMENT_BRIBE_BPS:
+            raise ValueError("bribe basis points outside protocol bounds")
+        self.bribe_bps = new_bribe_bps
+
     def route(self, payment: int) -> None:
         if payment <= 0:
             raise ValueError("payment must be positive")
-        base_bribe, raw_remainder = divmod(payment * SETTLEMENT_BRIBE_BPS, SETTLEMENT_BPS)
+        base_bribe, raw_remainder = divmod(payment * self.bribe_bps, SETTLEMENT_BPS)
         carry, self.split_remainder = divmod(self.split_remainder + raw_remainder, SETTLEMENT_BPS)
         bribe = base_bribe + carry
         self.fund_liability += payment - bribe

@@ -1,13 +1,12 @@
 # Internal security finding register
 
-Date: 2026-08-16. Governance and Bribe-cap dispositions reconciled 2026-08-19 for ADRs 0034 and 0035.
+Date: 2026-08-16. Governance, Bribe-cap, and payment-share dispositions reconciled 2026-08-21 for ADRs 0034–0036.
 
-Status: the ADR 0031 mandatory-signal, ADR 0032 fixed 90/10, ADR 0033 fixed-slot Mine, ADR 0034 external-governance
-ownership, and ADR 0035 Bribe lifetime-cap implementation is an uncommitted development candidate. The current Forge
-default profile passes 329/329 tests, including all 29 invariants at 1,000 runs and 500 calls with zero handler reverts;
-the 18-test integration profile, Hardhat bytecode parity, SDK, subgraph, ABI, docs, formatting, lint, typecheck, and
-build gates also pass. Pinned native external-fuzzer and static-analyzer campaigns predate ADRs 0034 and 0035 and remain
-historical engineering evidence. The candidate has not received an independent audit, compatible symbolic analysis,
+Status: the ADR 0031 mandatory-signal, ADR 0033 fixed-slot Mine, ADR 0034 external-governance ownership, ADR 0035 Bribe
+lifetime cap, and ADR 0036 governed global Bribe share form an uncommitted development candidate. The previously
+recorded 329-test Forge and 18-test integration results predate ADR 0036 and are historical engineering evidence, as
+are the pinned native external-fuzzer and static-analyzer campaigns. The current candidate requires fresh complete
+gates and has not received an independent audit, compatible symbolic analysis,
 external-governance integration review, or release review required for deployment. Current campaign-specific findings are in
 `SIGNAL-RESONANCE-FINDINGS.md`.
 
@@ -37,6 +36,7 @@ external-governance integration review, or release review required for deploymen
 | G-01 | High     | Token property retained; external-integration review required | Snapshot checkpoints survive sGBX withdrawal; consequences depend on the unselected external governance system.             |
 | G-02 | Medium   | Superseded by ADR 0034                                        | The removed ProtocolGovernor/Timelock had no public cancellation path after queueing.                                       |
 | G-03 | High     | Superseded locally; external-integration gate remains         | Local quorum liveness parameters were removed; exact external voting and delegation semantics remain unselected.            |
+| G-04 | Economic | Accepted candidate by ADR 0036; integration review required   | Resonance ownership can change the prospective automatic Bribe share globally between 0% and 20%.                           |
 
 No production-safety conclusion applies to the Mine redesign.
 
@@ -44,8 +44,9 @@ No production-safety conclusion applies to the Mine redesign.
 
 ADR 0034 removed ProtocolGovernor and the protocol Timelock. SignalGBX deliberately retains non-transferable
 ERC20Votes checkpoints, but the core assigns them no proposal threshold, quorum, voting period, execution delay,
-cancellation rule, or proposal authority. Resonance remains owner-gated for `addStrategy`, `killStrategy`, and
-`addBribeReward`; its owner can also transfer or renounce ownership. Mine remains ownerless.
+cancellation rule, or proposal authority. Resonance remains owner-gated for `addStrategy`, `killStrategy`,
+`addBribeReward`, and bounded global `setBribeBps`; its owner can also transfer or renounce ownership. Mine remains
+ownerless.
 
 SignalGBX snapshots still survive a signal withdrawal. An account may hold or borrow GBX through a checkpoint, signal
 it, withdraw later, and retain historical voting weight. Whether an external governance system exposes a predictable
@@ -57,7 +58,26 @@ Disposition: G-02 and the local-parameter form of G-03 are superseded by removal
 ERC20Votes integration property demonstrated directly by SignalGBX tests. Production remains blocked until a later ADR
 pins the external governance provider and release, deployed bytecode and upgrade model, voting and delegation
 compatibility, permission and admin graph, proposal/batch/execution scope, delay and cancellation behavior, and the
-exact ownership handoff that removes the temporary setup owner.
+exact ownership handoff that transfers Resonance and renounces the consumed SignalGBX and factory ownership shells.
+That review must include who may schedule `setBribeBps`, its execution delay, cancellation path, and public monitoring
+expectations.
+
+## G-04 — bounded prospective automatic-Bribe share
+
+ADR 0036 replaces ADR 0032's immutable 90/10 classification with one global Resonance setting. The owner may set the
+automatic paired-Bribe share from 0 through 2,000 basis points inclusive; every BribeRouter uses the value captured
+before the first payment-token interaction, and Fund receives the complement. There is no per-Strategy override.
+
+Changing the setting cannot reprice an existing Fund or Bribe liability, active stream, queued reward, accrued claim,
+or prior classification. Weighted numerator carry survives rate changes, including a 0% interval. At 0%, new Strategy
+payments create no automatic Bribe liability, while independently funded rewards and signal, move, withdrawal, and
+killed-Strategy exit remain available.
+
+Disposition: accepted economic authority in the development candidate. The hard ceiling ensures Fund receives at
+least 80% across cumulative rate-weighted classifications, but a compromised or poorly designed owner can change
+incentives around pending auctions and can hold the rate at zero indefinitely. Production remains blocked until the selected external
+governance executor's delay, proposal, batching, cancellation, monitoring, and ownership controls are reviewed against
+this lever. Reopen if the range, scope, snapshot point, global-only rule, or prospective-only accounting changes.
 
 ## A-09 — reward carry across signal-supply boundaries
 

@@ -23,6 +23,41 @@ describe('independent Resonance reward model', () => {
     expect(model.balance).toBe(7n);
     expect(model.accountedBalance).toBe(0n);
   });
+
+  it('preserves one exact weighted carry through 10%, 0%, 5%, and 20%', () => {
+    const model = new StrategyPaymentConservationModel();
+    const payments = [7n, 13n, 19n, 23n];
+    const rates = [1_000n, 0n, 500n, 2_000n];
+
+    payments.forEach((payment, index) => {
+      model.setBribeBps(rates[index]!);
+      model.route(payment);
+    });
+
+    const weightedNumerator = payments.reduce((sum, payment, index) => sum + payment * rates[index]!, 0n);
+    expect(model.bribeLiability).toBe(weightedNumerator / 10_000n);
+    expect(model.bribeLiability).toBe(6n);
+    expect(model.splitRemainder).toBe(weightedNumerator % 10_000n);
+    expect(model.splitRemainder).toBe(2_500n);
+    expect(model.fundLiability).toBe(56n);
+    expect(model.accountedBalance).toBe(62n);
+  });
+
+  it('adds no Bribe liability at 0% and enforces the 20% ceiling', () => {
+    const model = new StrategyPaymentConservationModel();
+    model.route(20n);
+    expect(model.bribeLiability).toBe(2n);
+
+    model.setBribeBps(0n);
+    model.route(1_000_000n);
+    expect(model.bribeLiability).toBe(2n);
+    expect(model.notifyBribe()).toBe(2n);
+    expect(model.payFund()).toBe(1_000_018n);
+
+    model.setBribeBps(2_000n);
+    expect(() => model.setBribeBps(2_001n)).toThrow('outside protocol bounds');
+    expect(() => model.setBribeBps(-1n)).toThrow('outside protocol bounds');
+  });
   it('checkpoints and restarts a qualifying live top-up with reward plus exact left', () => {
     const model = new RevenueConservationModel(1);
     model.setWeight(0, 1n);

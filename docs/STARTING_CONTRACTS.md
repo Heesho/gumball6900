@@ -1,6 +1,6 @@
 # Canonical contract starting point
 
-> This is the target development architecture under ADRs 0031, 0032, 0034, and 0035, not a claim of current Solidity
+> This is the target development architecture under ADRs 0031, 0034, 0035, and 0036, not a claim of current Solidity
 > conformance, deployment, audit, or authorization for user funds. Implementation gaps are listed in
 > [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
 
@@ -10,8 +10,8 @@
 slot replacement -> Mine -> 20% ResonanceRouter -> Resonance -> seven-day stream -> Strategies
                           -> 80% displaced-miner claim
                                       |       |
-                                      |       +-> acquired payment -> BribeRouter --90%--> Fund
-                                      |                                          \--10%--> paired Bribe
+                                      |       +-> acquired payment -> BribeRouter --complement--> Fund
+                                      |                                          \--global 0%-20%--> paired Bribe
                                       +-> additional Bribe rewards -> signalers
 
 Uniswap v4 position -> LiquidityPosition -> USDG -> ResonanceRouter -> Resonance
@@ -39,7 +39,7 @@ and is the sole user-facing signal coordinator; an idle receipt state is not per
 | `StrategyFactory`   | Bound once to Resonance; only that Resonance may deploy Strategies and their BribeRouters.                                                                           |
 | `Strategy`          | Sells its complete USDG balance through a bounded linearly declining price. Its acquired-asset payment enters its fixed BribeRouter.                                 |
 | `BribeFactory`      | Bound once to Resonance; only that Resonance may deploy Bribes.                                                                                                      |
-| `BribeRouter`       | Pulls exact Strategy payment, cumulatively classifies 90% Fund / 10% paired Bribe, and isolates both permissionless settlement legs.                                 |
+| `BribeRouter`       | Pulls exact Strategy payment, applies Resonance's global 0%-20% Bribe rate with weighted carry, and isolates both settlement legs.                                   |
 | `Bribe`             | Streams the automatic acquired-asset share and additional rewards over virtual signal balances, within fixed token-count and lifetime-notification caps.             |
 | `Fund`              | Ownerless raw-token treasury, permissionless GBX burn boundary, and caller-selected pro-rata redemption mechanism.                                                   |
 
@@ -100,10 +100,15 @@ them. Complete GBX proceeds transfer to Fund and are burned atomically. The NFT 
   from the active total a second time. After bootstrap the final live Strategy cannot be killed until a replacement is
   added; killed positions remain movable to a live Strategy or withdrawable.
 - SignalGBX supply equals aggregate signal across live and killed paired Bribes; idle sGBX is unreachable.
-- Every Strategy acquired-asset payment is cumulatively classified 90% to Fund and 10% to the paired Bribe. Explicit
-  split carry makes the classification independent of payment frequency, and the two settlement legs are isolated.
-- A GBX Strategy payment is not burned at settlement. Once the 90% Fund share reaches Fund, anyone may burn it with
-  `Fund.burnGBX`; the 10% share funds the paired Bribe.
+- Every Strategy acquired-asset payment uses Resonance's one global `bribeBps` when classified. It defaults to 10%, is
+  governance-settable from 0% through 20%, and has no per-Strategy override; Fund receives the complement. Explicit
+  weighted split carry persists across rate changes, and the two settlement legs remain isolated. A change is
+  prospective and alters no existing liability, reward, claim, or carry.
+- At 0%, new payments create only Fund liability. The paired Bribe remains active for signal accounting, existing and
+  independent rewards, moves, and withdrawals. Raising the rate later resumes automatic rewards without replacing the
+  Strategy graph.
+- A GBX Strategy payment is not burned at settlement. Once the dynamically Fund-classified share reaches Fund, anyone
+  may burn it with `Fund.burnGBX`; any nonzero Bribe share funds the paired Bribe.
 - Bribes receive the acquired payment asset automatically and may receive additional independent notifications. For
   each reward token and Bribe, the monotonic accepted-notification total cannot exceed
   `floor(type(uint256).max / 1e18)` raw units. The limit has no reset, setter, or escape hatch and rejects excess before
@@ -128,19 +133,22 @@ asset registry. Omitted assets remain for the post-redemption supply.
 ## Governance
 
 There is no migration or upgrade path. Fund, LiquidityPosition, and Mine are ownerless. The core includes no Governor,
-Timelock, generic executor, or provider-specific governance adapter. Resonance is the only owned core contract, and its
-continuing protocol administration surface is:
+Timelock, generic executor, or provider-specific governance adapter. Resonance is the only core contract with
+continuing custom owner authority, and its protocol administration surface is:
 
 - `Resonance.addStrategy`;
 - `Resonance.killStrategy`;
-- `Resonance.addBribeReward`, subject to the immutable eight-token cap.
+- `Resonance.addBribeReward`, subject to the immutable eight-token cap; and
+- `Resonance.setBribeBps`, globally bounded from 0 through 2,000 basis points.
 
 SignalGBX retains block-number ERC20Votes checkpoints, but the core assigns them no proposal, quorum, delay,
-cancellation, or execution semantics. Resonance's owner may also transfer or renounce ownership. Every reviewed initial
-Strategy must be bootstrapped by the temporary setup owner before Resonance ownership moves directly to the exact
-external governance executor selected by a later ADR and that temporary authority is removed. The integration's exact
-release, code, plugins, permissions, voting rules, administrators, upgrade model, batching, delay, and cancellation
-semantics remain unselected, so deployment is blocked.
+cancellation, or execution semantics. Resonance's owner may also transfer or renounce ownership. SignalGBX,
+StrategyFactory, and BribeFactory retain inherited ownership shells after their one-time Resonance bindings, but no
+remaining custom owner action. Every reviewed initial Strategy must be bootstrapped before Resonance ownership moves
+directly to the exact external governance executor selected by a later ADR, and the consumed setup-only shells must be
+renounced so the temporary authority is removed everywhere. The integration's exact release, code, plugins,
+permissions, voting rules, administrators, upgrade model, batching, delay, and cancellation semantics remain
+unselected, so deployment is blocked.
 
 ## Deliberate scope
 

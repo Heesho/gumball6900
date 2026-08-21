@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "8",
+  "schemaVersion": "9",
   "usdGDecimals": "6",
   "targetDecimals": "18",
   "infiniteSupply": true,
@@ -31,12 +31,27 @@
       "id": "strategy-midpoint",
       "paymentAmount": "50000000000000000000",
       "nextInitPrice": "100000000000000000000",
+      "bribeBasisPoints": "1000",
       "fundAmount": "37800000000000000000",
       "bribeAmount": "4200000000000000000",
       "splitRemainder": "0",
       "partitionFundAmount": "37800000000000000000",
       "partitionBribeAmount": "4200000000000000000",
-      "partitionRemainder": "0"
+      "partitionRemainder": "0",
+      "partitionBribeBasisPoints": ["1000", "1000", "1000", "1000", "1000", "1000"]
+    },
+    {
+      "id": "strategy-governed-rate-carry",
+      "paymentAmount": "1000000",
+      "nextInitPrice": "1100000",
+      "bribeBasisPoints": "1000",
+      "fundAmount": "56",
+      "bribeAmount": "6",
+      "splitRemainder": "2000",
+      "partitionFundAmount": "56",
+      "partitionBribeAmount": "6",
+      "partitionRemainder": "2500",
+      "partitionBribeBasisPoints": ["1000", "0", "500", "2000"]
     }
   ],
   "rewardQuotes": [

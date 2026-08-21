@@ -1,20 +1,23 @@
 # Independent adversarial specification
 
-Date: 2026-08-15. Authority model reconciled 2026-08-19 for ADR 0034.
+Date: 2026-08-15. Authority model reconciled 2026-08-21 for ADRs 0034 and 0036.
 
-This is the review target for the ADR 0027, ADR 0028, ADR 0029, ADR 0031, ADR 0032, ADR 0033, and ADR 0034 development
+This is the review target for ADRs 0027, 0028, 0029, 0031, 0033, 0034, 0035, and 0036 in the development
 candidate. It is not an independent audit result.
 
 ## Authority model
 
 - Deployments are direct and non-upgradeable. Fund and LiquidityPosition are ownerless.
-- Resonance is the only owned core contract. Its owner may add/kill Strategies, register Bribe rewards, transfer
-  ownership, or renounce ownership. Mine has no administrative authority.
+- Resonance is the only core contract with continuing custom owner authority. Its owner may add/kill Strategies,
+  register Bribe rewards, set the one global prospective Bribe share from 0 through 2,000 basis points, transfer
+  ownership, or renounce ownership. SignalGBX and both factories retain setup-only inherited ownership shells after
+  their one-time bindings, with no remaining custom owner action. Mine has no administrative authority.
 - The core contains no Governor, protocol Timelock, generic executor, or provider-specific governance adapter.
   SignalGBX retains ERC20Votes checkpoints for a future external integration, but the core assigns them no proposal,
   quorum, execution, delay, or cancellation semantics.
-- External governance is unselected. Production requires a separately reviewed integration and direct transfer of
-  Resonance ownership to its exact executor, with no surviving temporary setup authority.
+- External governance is unselected. Production requires a separately reviewed integration, renunciation of the three
+  consumed setup-only ownership shells, and direct transfer of Resonance ownership to its exact executor, with no
+  surviving temporary setup authority.
 - No authority can change the fixed slot count, reprice an occupied slot, replace the GBX minter, set emissions, migrate, pause,
   rescue, sweep, move Fund assets, or withdraw the liquidity NFT.
 
@@ -56,13 +59,17 @@ candidate. It is not an independent audit result.
   remain in ResonanceRouter for a later permissionless attempt.
 - Killing a Strategy checkpoints and preserves its accrued claim, excludes its full weight from future rewards, blocks
   later additions, and leaves incumbent signalers free to exit without decrementing the active total twice.
-- One uniform Strategy type checkpoints and pulls released revenue before auctioning its complete USDG lot. Its
-  payment becomes cumulative fixed liabilities: exactly 90% for Fund and 10% for its paired Bribe.
-- Each BribeRouter liability can be paid independently and permissionlessly, and payment-frequency changes cannot
-  alter cumulative classification. Direct router donations remain surplus. Bribes may also be independently funded,
+- One uniform Strategy type checkpoints and pulls released revenue before auctioning its complete USDG lot. Each
+  payment snapshots Resonance's current global Bribe rate; the Fund rate is its complement and no Strategy override exists.
+- Across payments `a_i` at rates `r_i`, each BribeRouter classifies
+  `floor(sum(a_i * r_i) / 10_000)` cumulatively to its paired Bribe and the exact complement to Fund. Its weighted
+  numerator remainder survives every rate change, including intervals at zero. Each liability can be paid
+  independently and permissionlessly. Direct router donations remain surplus. Bribes may also be independently funded,
   have at most eight reward tokens, pause at zero supply, and isolate broken-token
   claims from signal exit. Old-denominator Bribe carry and a fully exiting account's sub-token remainder move to the
   fixed Fund classification before virtual supply changes.
+- At a 0% automatic rate, new Strategy payments classify entirely to Fund. Existing reward settlement, independent
+  notifications, signal, move, withdrawal, and killed-Strategy exit remain unchanged and callable.
 
 ## Fund and liquidity
 

@@ -3,7 +3,11 @@
 Date: 2026-08-16. Raw output is under the ignored `audit/reports` directory. This is internal engineering evidence,
 not an independent audit or release approval.
 
-## Current pinned run
+> Historical current-at-run evidence: ADRs 0034–0036 changed the ownership graph, Bribe lifetime accounting, and
+> Resonance administration after this record. In particular, `setBribeBps` and the Router's policy snapshot have not
+> been analyzed by the pinned run below. The exact disposition register must be regenerated and manually reviewed.
+
+## Recorded pinned run
 
 | Tool              |                Version | Scope                                     | Result                                                                                |
 | ----------------- | ---------------------: | ----------------------------------------- | ------------------------------------------------------------------------------------- |
@@ -66,5 +70,6 @@ matches exactly, and all 28 review-required license entries have explicit `needs
 Mythril 0.24.8 is installed, but the checked runner fails closed before analysis because sound evaluation requires
 constructor-resolved runtimes and the current graph contains immutables plus Cancun `MCOPY`, `TLOAD`, and `TSTORE`
 instructions the pinned engine does not safely interpret. Solidity SMTChecker, Certora, Halmos, Kontrol, and hevm
-symbolic proofs were not run. CodeQL remains an external workflow rather than current local evidence. No symbolic or
-formal-verification result is claimed.
+symbolic proofs were not run. CodeQL remains an external workflow rather than current local evidence. The bounded
+global Bribe-share setter, its owner surface, policy-source binding, pre-token-interaction snapshot, and weighted carry
+also require a fresh pinned static run and human disposition. No symbolic or formal-verification result is claimed.

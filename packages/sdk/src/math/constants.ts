@@ -5,8 +5,14 @@ export const WAD = 10n ** 18n;
 export const ACCUMULATOR_PRECISION = 10n ** 27n;
 
 export const BPS_DENOMINATOR = 10_000n;
-export const STRATEGY_FUND_BPS = 9_000n;
-export const STRATEGY_BRIBE_BPS = 1_000n;
+/** Initial global share of Strategy payments classified as paired-Bribe rewards. */
+export const DEFAULT_STRATEGY_BRIBE_BPS = 1_000n;
+/** Hard governance ceiling for the global Strategy-payment Bribe share. */
+export const MAX_STRATEGY_BRIBE_BPS = 2_000n;
+/** @deprecated The Strategy Bribe share is mutable; use DEFAULT_STRATEGY_BRIBE_BPS for its initial value. */
+export const STRATEGY_BRIBE_BPS = DEFAULT_STRATEGY_BRIBE_BPS;
+/** @deprecated The Strategy Fund share is mutable and always equals BPS_DENOMINATOR minus the current Bribe share. */
+export const STRATEGY_FUND_BPS = BPS_DENOMINATOR - DEFAULT_STRATEGY_BRIBE_BPS;
 
 /** The only GBX created before the immutable Mine is bound. */
 export const GENESIS_LIQUIDITY_ALLOCATION = 20_000_000n * WAD;

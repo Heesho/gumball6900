@@ -50,7 +50,7 @@ describe('multislot Mine economic suite', () => {
     expect(filled.aggregateBpsOfGlobalRate).toBe('10000');
   });
 
-  it('classifies tiny Strategy payments with the same cumulative 90/10 result as one payment', () => {
+  it('classifies tiny Strategy payments with the same default cumulative 90/10 result as one payment', () => {
     const auction = row(row(loadTypeScriptEconomicSuite()).strategyAuction);
     const tiny = row(auction.tenOneUnitPayments);
     const combined = row(auction.oneCombinedPayment);
@@ -60,6 +60,21 @@ describe('multislot Mine economic suite', () => {
     expect(tiny.fundLiability).toBe(combined.fundLiability);
     expect(tiny.bribeLiability).toBe(combined.bribeLiability);
     expect(auction.directRouterDonationSurplus).toBe('7');
+  });
+
+  it('preserves exact weighted carry through 10%, 0%, 5%, and 20%', () => {
+    const auction = row(row(loadTypeScriptEconomicSuite()).strategyAuction);
+    const changed = row(auction.rateChangeSequence);
+    expect(changed.bribeBps).toEqual(['1000', '0', '500', '2000']);
+    expect(changed.totalPayment).toBe('62');
+    expect(changed.fundLiability).toBe('56');
+    expect(changed.bribeLiability).toBe('6');
+    expect(changed.splitRemainder).toBe('2500');
+
+    const zero = row(auction.zeroPercentPayments);
+    expect(zero.fundLiability).toBe(zero.totalPayment);
+    expect(zero.bribeLiability).toBe('0');
+    expect(zero.splitRemainder).toBe('0');
   });
 
   it('applies a lower rate only at a later slot handoff and preserves a positive tail', () => {

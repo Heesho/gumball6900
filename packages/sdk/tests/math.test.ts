@@ -4,10 +4,12 @@ import {
   ACCUMULATOR_PRECISION,
   ABS_MAX_AUCTION_INIT_PRICE,
   ABS_MIN_AUCTION_INIT_PRICE,
+  DEFAULT_STRATEGY_BRIBE_BPS,
   GENESIS_LIQUIDITY_ALLOCATION,
   MINE_SLOT_COUNT,
   MAX_AUCTION_EPOCH_PERIOD,
   MAX_AUCTION_PRICE_MULTIPLIER,
+  MAX_STRATEGY_BRIBE_BPS,
   MINE_PRICE_DECAY_PERIOD,
   MIN_AUCTION_EPOCH_PERIOD,
   MIN_AUCTION_PRICE_MULTIPLIER,
@@ -143,9 +145,11 @@ describe('auctions and Strategy settlement', () => {
     );
   });
 
-  it('classifies a Strategy payment into the fixed cumulative 90/10 split', () => {
+  it('classifies a Strategy payment at the default cumulative 90/10 split', () => {
     expect(settleStrategyPayment(token(42n))).toEqual({
       paymentAmount: token(42n),
+      bribeBasisPoints: DEFAULT_STRATEGY_BRIBE_BPS,
+      fundBasisPoints: 9_000n,
       fundAmount: token(37n) + token(8n) / 10n,
       bribeAmount: token(4n) + token(2n) / 10n,
       splitRemainder: 0n,
@@ -172,6 +176,71 @@ describe('auctions and Strategy settlement', () => {
       splitRemainder: combined.splitRemainder,
     });
     expect(fundAmount + bribeAmount).toBe(combined.paymentAmount);
+  });
+
+  it('classifies 10% then 0% then 5% then 20% with one exact weighted carry', () => {
+    const payments = [7n, 13n, 19n, 23n];
+    const rates = [1_000n, 0n, 500n, 2_000n];
+    let fundAmount = 0n;
+    let bribeAmount = 0n;
+    let splitRemainder = 0n;
+
+    for (const [index, payment] of payments.entries()) {
+      const settlement = settleStrategyPayment(payment, splitRemainder, rates[index]!);
+      fundAmount += settlement.fundAmount;
+      bribeAmount += settlement.bribeAmount;
+      splitRemainder = settlement.splitRemainder;
+    }
+
+    const weightedNumerator = payments.reduce((sum, payment, index) => sum + payment * rates[index]!, 0n);
+    const totalPayment = payments.reduce((sum, payment) => sum + payment, 0n);
+    expect(bribeAmount).toBe(weightedNumerator / 10_000n);
+    expect(splitRemainder).toBe(weightedNumerator % 10_000n);
+    expect(fundAmount).toBe(totalPayment - bribeAmount);
+  });
+
+  it('routes every newly classified unit to Fund at 0% without consuming prior carry', () => {
+    const zero = settleStrategyPayment(1_000_000n, 9_999n, 0n);
+    expect(zero).toMatchObject({
+      bribeAmount: 0n,
+      bribeBasisPoints: 0n,
+      fundAmount: 1_000_000n,
+      fundBasisPoints: 10_000n,
+      splitRemainder: 9_999n,
+    });
+  });
+
+  it('accepts the 20% ceiling and rejects rates above it', () => {
+    expect(settleStrategyPayment(10n, 0n, MAX_STRATEGY_BRIBE_BPS).bribeAmount).toBe(2n);
+    expect(() => settleStrategyPayment(1n, 0n, MAX_STRATEGY_BRIBE_BPS + 1n)).toThrow('MAX_STRATEGY_BRIBE_BPS');
+    expect(() => settleStrategyPayment(1n, 0n, -1n)).toThrow('bribeBasisPoints');
+  });
+
+  it('matches the weighted numerator over thousands of deterministic rate changes', () => {
+    const rates = [0n, 1n, 499n, 500n, 999n, 1_000n, 1_999n, 2_000n];
+    let state = 0x6900n;
+    let weightedNumerator = 0n;
+    let totalPayment = 0n;
+    let totalFund = 0n;
+    let totalBribe = 0n;
+    let splitRemainder = 0n;
+
+    for (let index = 0; index < 4_096; index += 1) {
+      state = (state * 1_103_515_245n + 12_345n) % (1n << 31n);
+      const payment = (state % 1_000_003n) + 1n;
+      const rate = rates[Number(state % BigInt(rates.length))]!;
+      const settlement = settleStrategyPayment(payment, splitRemainder, rate);
+      totalPayment += payment;
+      weightedNumerator += payment * rate;
+      totalFund += settlement.fundAmount;
+      totalBribe += settlement.bribeAmount;
+      splitRemainder = settlement.splitRemainder;
+      expect(settlement.fundAmount + settlement.bribeAmount).toBe(payment);
+    }
+
+    expect(totalBribe).toBe(weightedNumerator / 10_000n);
+    expect(splitRemainder).toBe(weightedNumerator % 10_000n);
+    expect(totalFund).toBe(totalPayment - totalBribe);
   });
 
   it('rejects an invalid prior split remainder', () => {

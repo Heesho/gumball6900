@@ -20,7 +20,7 @@ import { IResonanceRouterIdentity } from "./interfaces/IResonanceIdentity.sol";
 /// @dev Adapted from Liquid Signal Governance's Bribe rewarder. A qualifying notification checkpoints the current
 ///      period and restarts a seven-day stream containing the new reward plus the exact active-period remainder.
 ///      USDG uses six decimals while SignalGBX uses eighteen, so the cumulative reward index uses 1e36 precision.
-/// @custom:version 1.0.0
+/// @custom:version 1.1.0
 contract Resonance is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
@@ -28,6 +28,12 @@ contract Resonance is ReentrancyGuard, Ownable {
     uint256 public constant DURATION = 7 days;
     /// @notice Fixed-point precision for allocating six-decimal USDG across eighteen-decimal SignalGBX.
     uint256 public constant REWARD_PRECISION = 1e36;
+    /// @notice Basis-point denominator for Strategy-payment classification.
+    uint256 public constant BPS = 10_000;
+    /// @notice Initial share of every new Strategy payment assigned to its paired Bribe.
+    uint256 public constant DEFAULT_BRIBE_BPS = 1_000;
+    /// @notice Hard governance ceiling preserving at least 80% of cumulative classified payments for Fund.
+    uint256 public constant MAX_BRIBE_BPS = 2_000;
     /// @notice Non-transferable signal receipt used as allocation and governance power.
     IERC20 public immutable signalGBX;
     /// @notice Six-decimal reward token streamed to Strategies.
@@ -79,7 +85,10 @@ contract Resonance is ReentrancyGuard, Ownable {
 
     /// @notice Sole validated Router authorized to pull USDG into Resonance and notify rewards.
     address public resonanceRouter;
+    /// @notice Governance-selected share of newly classified Strategy payments assigned to paired Bribes.
+    uint256 public bribeBps = DEFAULT_BRIBE_BPS;
 
+    error BribeBpsAboveMaximum(uint256 requested);
     error DuplicateStrategy(address strategy);
     error FinalLiveStrategy(address strategy);
     error ForbiddenPaymentToken(address token);
@@ -98,6 +107,7 @@ contract Resonance is ReentrancyGuard, Ownable {
     error ZeroAddress();
     error ZeroAmount();
 
+    event BribeBpsSet(uint256 previousBps, uint256 newBps);
     event BribeRewardAdded(address indexed strategy, address indexed bribe, address indexed rewardToken);
     event RevenueDistributed(address indexed caller, address indexed strategy, uint256 amount);
     event RevenueNotified(address indexed resonanceRouter, uint256 amount);
@@ -261,6 +271,18 @@ contract Resonance is ReentrancyGuard, Ownable {
 
         resonanceRouter = resonanceRouter_;
         emit ResonanceRouterSet(resonanceRouter_);
+    }
+
+    /// @notice Sets the prospective paired-Bribe share for every later Strategy-payment classification.
+    /// @dev Existing Fund and Bribe liabilities, split carry, and active reward streams are never repriced.
+    /// @param newBribeBps New global share in basis points, from zero through `MAX_BRIBE_BPS`.
+    function setBribeBps(uint256 newBribeBps) external onlyOwner {
+        if (newBribeBps > MAX_BRIBE_BPS) revert BribeBpsAboveMaximum(newBribeBps);
+
+        uint256 previousBps = bribeBps;
+        bribeBps = newBribeBps;
+
+        emit BribeBpsSet(previousBps, newBribeBps);
     }
 
     /// @notice Creates a Strategy, its Bribe, and its BribeRouter as one Resonance-controlled graph.

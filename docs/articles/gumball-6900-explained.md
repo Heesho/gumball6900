@@ -292,7 +292,7 @@ The buyer fills. They pay **1.8 WBTC** and receive **180,313.043477 USDG**. (The
 released to the Strategy through that exact timestamp, so they receive everything the Strategy is owed, not just its
 visible balance.)
 
-**Settlement — the 90/10 split.** The 1.8 WBTC is immediately divided by an immutable, hard-coded rule:
+**Settlement — the 90/10 split.** The 1.8 WBTC is immediately divided by the protocol's one bounded rule:
 
 ```text
 Fund   90%  →  1.62 WBTC   (treasury backing for every GBX holder)
@@ -399,20 +399,26 @@ Some deliberate details, which apply to both sources:
 
 ## 13. How governance works — and what is still missing
 
-Start with the good news, because it is the larger part. There are exactly **three things** about this protocol that
+Start with the good news, because it is the larger part. There are exactly **four things** about this protocol that
 anyone can ever change:
 
 1. Add a Strategy.
 2. Permanently retire a Strategy.
 3. Register a Bribe reward token (within the eight-token cap).
+4. Set the signalers' share of each acquisition, anywhere from 0% to a hard ceiling of 20%.
 
 <!-- figure: authority-map -->
 
-That is the complete list. All three live on **Resonance**, and Resonance is the only contract in the protocol that
+That is the complete list. All four live on **Resonance**, and Resonance is the only contract in the protocol that
 has an owner at all. The Mine has no owner. The Fund has no owner. The liquidity position has no owner. Nobody — not a
 developer, not a voter, not a future administrator — can change mining prices, issuance rates, halving parameters, the
-tail rate, the 90/10 acquisition split, mint authority, Fund assets, liquidity custody, the auction mechanism, or the
-sixteen-slot count. There is no upgrade path, no pause switch, and no sweep function to add one later.
+tail rate, mint authority, Fund assets, liquidity custody, the auction mechanism, or the sixteen-slot count. There is
+no upgrade path, no pause switch, and no sweep function to add one later.
+
+The fourth item is the one genuine economic dial, and it is deliberately fenced. The reward share starts at 10% and
+can never exceed **20%**, so at least 80% of every acquisition reaches the treasury no matter who holds the owner
+address. A change applies only to purchases settled after it — it cannot reach back and reclassify an amount already
+recorded, a reward already streaming, or anything already in the Fund.
 
 There is one guard rail on retirement: **the final live Strategy cannot be retired.** If only one remains, the call
 reverts. To replace it, the replacement must be added first. This guarantees there is always somewhere valid to
@@ -492,18 +498,18 @@ Read this section twice.
 
 ## 16. Major risks, summarized
 
-| Risk                   | What it means                                                                                     |
-| ---------------------- | ------------------------------------------------------------------------------------------------- |
-| No independent audit   | No third party has reviewed this code. The single largest unknown.                                |
-| Immutability           | No patch, no pause, no rescue. A bug or deployment error is permanent.                            |
-| Deployment correctness | Parameters, pool configuration, and role setup must be right the first time, forever.             |
-| Unresolved economics   | Mining rate, halving threshold, tail rate, and price parameters not yet selected or modelled.     |
-| Unfinished governance  | The external owner of Resonance is unselected; today one address holds all three powers outright. |
-| Miner rollover         | The 80% handoff arrives only if a successor pays. It can be zero.                                 |
-| Abandoned rewards      | A retired Strategy's last signaler can strand an unbounded amount of rewards.                     |
-| Accepted dust          | Rounding and zero-signal intervals accumulate unrecoverable USDG in Resonance.                    |
-| Third-party tokens     | USDG and every acquired asset carry independent freeze, upgrade, and solvency risk.               |
-| Legal and provenance   | Upstream code lineage and license reconciliation are unresolved release blockers.                 |
+| Risk                   | What it means                                                                                    |
+| ---------------------- | ------------------------------------------------------------------------------------------------ |
+| No independent audit   | No third party has reviewed this code. The single largest unknown.                               |
+| Immutability           | No patch, no pause, no rescue. A bug or deployment error is permanent.                           |
+| Deployment correctness | Parameters, pool configuration, and role setup must be right the first time, forever.            |
+| Unresolved economics   | Mining rate, halving threshold, tail rate, and price parameters not yet selected or modelled.    |
+| Unfinished governance  | The external owner of Resonance is unselected; today one address holds all four powers outright. |
+| Miner rollover         | The 80% handoff arrives only if a successor pays. It can be zero.                                |
+| Abandoned rewards      | A retired Strategy's last signaler can strand an unbounded amount of rewards.                    |
+| Accepted dust          | Rounding and zero-signal intervals accumulate unrecoverable USDG in Resonance.                   |
+| Third-party tokens     | USDG and every acquired asset carry independent freeze, upgrade, and solvency risk.              |
+| Legal and provenance   | Upstream code lineage and license reconciliation are unresolved release blockers.                |
 
 ## 17. Current project status
 

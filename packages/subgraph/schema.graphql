@@ -3,6 +3,7 @@ type ProtocolState @entity(immutable: false) {
   chainId: BigInt!
   resonance: Bytes
   resonanceRouter: Bytes
+  bribeBps: BigInt!
   initialSupplyRaw: BigInt!
   lifetimeMintedRaw: BigInt!
   lifetimeBurnedRaw: BigInt!
@@ -75,6 +76,8 @@ type Strategy @entity(immutable: false) {
   distributedRevenueRaw: BigInt!
   notifiedRewardRaw: BigInt!
   paidRewardRaw: BigInt!
+  routerPaymentRoutedRaw: BigInt!
+  latestRouterPaymentBribeBps: BigInt!
   routerFundPaymentAccruedRaw: BigInt!
   routerFundPaymentPaidRaw: BigInt!
   pendingRouterFundPaymentRaw: BigInt!

@@ -3,7 +3,7 @@
 This file defines the accounting identities used by the hardening tests. For Resonance, `P = 1e36`; for Bribe rewards,
 `P = 1e18`. Quantities named `Scaled` already include their subsystem's precision unit.
 
-> ADRs 0031, 0032, 0034, and 0035 make the SignalGBX, BribeRouter, Bribe lifetime bound, and external-governance
+> ADRs 0031, 0034, 0035, and 0036 make the SignalGBX, BribeRouter, Bribe lifetime bound, and external-governance
 > boundary below authoritative. Governance execution remains unselected and contributes no production invariant until
 > separately reviewed.
 
@@ -80,7 +80,8 @@ SignalGBX IVotes clock = blocknumber
 continuing Resonance owner calls = {
   Resonance.addStrategy,
   Resonance.killStrategy,
-  Resonance.addBribeReward
+  Resonance.addBribeReward,
+  Resonance.setBribeBps
 }
 inherited Resonance owner calls = {
   transferOwnership,
@@ -91,6 +92,14 @@ inherited Resonance owner calls = {
 SignalGBX retains non-transferable ERC20Votes checkpoints, but the core assigns them no proposal threshold, quorum,
 voting period, permission, batching, delay, cancellation, or execution semantics. The external Resonance owner remains
 unselected; deployment is blocked until a later ADR pins and reviews that integration and its ownership handoff.
+`setBribeBps` is globally bounded and satisfies:
+
+```text
+BPS = 10,000
+DEFAULT_BRIBE_BPS = 1,000
+0 <= bribeBps <= MAX_BRIBE_BPS = 2,000
+fundBps = BPS - bribeBps
+```
 
 ## Resonance USDG solvency and surplus
 
@@ -170,26 +179,32 @@ remainder does likewise. Claims clear only selected token liabilities.
 
 ```text
 BPS = 10,000
-FUND_BPS = 9,000
-BRIBE_BPS = 1,000
+0 <= appliedBribeBps_i <= 2,000
+weightedBribeNumerator = sum_i(strategyPayment_i * appliedBribeBps_i)
 
 cumulativeBribeClassification
-  = floor(cumulativeStrategyPayments * BRIBE_BPS / BPS)
+  = floor(weightedBribeNumerator / BPS)
 cumulativeFundClassification
-  = cumulativeStrategyPayments - cumulativeBribeClassification
+  = sum_i(strategyPayment_i) - cumulativeBribeClassification
 splitRemainder
-  = (cumulativeStrategyPayments * BRIBE_BPS) mod BPS
+  = weightedBribeNumerator mod BPS
 
 accountedPaymentBalance
   = fundPaymentLiability + bribeRewardLiability
 ```
 
-Equivalent payment partitions produce identical cumulative classifications. `payFundPayment` consumes only the fixed
-Fund liability; `notifyBribeReward` consumes only the fixed Bribe liability and schedules the acquired payment asset in
-the paired Bribe. Failure preserves the affected liability and cannot change or consume the other. Direct donations
-remain unaccounted surplus and alter neither liabilities nor split remainder. If the paired Bribe's lifetime cap for
-the payment token is exhausted, the automatic Bribe liability remains in BribeRouter and its Fund liability remains
-independently payable.
+Equivalent partitions classified at the same applied rate produce identical cumulative classifications. A rate change
+does not mutate `splitRemainder` or either outstanding liability. A zero-rate payment adds no weighted numerator,
+creates no Bribe liability, and leaves prior remainder unchanged. `payFundPayment` consumes only the fixed Fund
+liability; `notifyBribeReward` consumes only the fixed Bribe liability and schedules the acquired payment asset in the
+paired Bribe. A zero liability returns without making a zero reward notification. Failure preserves the affected
+liability and cannot change or consume the other. Direct donations remain unaccounted surplus and alter neither
+liabilities nor split remainder. If the paired Bribe's lifetime cap for the payment token is exhausted, the automatic
+Bribe liability remains in BribeRouter and its Fund liability remains independently payable.
+
+Signal and exit liveness is independent of `bribeBps`: `signal`, `signalWithPermit`, `moveSignal`, and
+`withdrawSignal` do not require a new automatic liability or settlement of an acquired payment token. This remains
+true at 0% and for killed-Strategy exits.
 
 ## Fund and liquidity
 

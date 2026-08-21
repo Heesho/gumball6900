@@ -75,7 +75,7 @@ contract StrategyFactory is Ownable {
         if (msg.sender != configuredResonance) revert NotResonance(msg.sender);
 
         strategy = new Strategy(configuredResonance, revenueToken, paymentToken, fund, config);
-        bribeRouter = new BribeRouter(address(strategy), bribe, paymentToken, fund);
+        bribeRouter = new BribeRouter(configuredResonance, address(strategy), bribe, paymentToken, fund);
 
         emit StrategyCreated(address(strategy), address(bribeRouter), address(paymentToken));
     }
