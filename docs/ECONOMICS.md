@@ -1,6 +1,6 @@
 # Economics
 
-> Target-development economics: ADRs 0031 and 0036 are authoritative development decisions.
+> Target-development economics: ADRs 0031, 0036, and 0037 are authoritative development decisions.
 > These mechanics remain unaudited and are not authorized for user funds.
 
 ## Supply

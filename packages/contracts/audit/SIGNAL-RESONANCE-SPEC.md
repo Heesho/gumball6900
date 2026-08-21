@@ -67,7 +67,7 @@ funded notification consumes this counter; claims, Fund classification and payme
 supply, and Strategy death never reduce it. Direct token donations do not consume the counter because they never enter
 reward accounting.
 
-With `P = REWARD_PRECISION = 1e18`, the immutable maximum is:
+With `P = REWARD_PRECISION = 1e36`, the immutable maximum is:
 
 ```text
 MAX_LIFETIME_REWARD_AMOUNT = floor((2^256 - 1) / P)
@@ -117,7 +117,7 @@ Resonance directly from the temporary setup owner to the reviewed external execu
 
 GBX, USDG, Strategy payment tokens, and owner-registered Bribe rewards must be conventional, non-rebasing ERC-20s with
 exact observable debits and credits. Exact-delta guards reject fee, surcharge, missing-balance, and other asymmetric
-behavior. The lifetime limit is measured in raw units: at 18 decimals it is approximately `1.158e41` whole tokens, but
+behavior. The lifetime limit is measured in raw units: at 18 decimals it is approximately `1.158e23` whole tokens, but
 unusually high-decimal assets can reach it at a much smaller displayed amount. Broken Fund assets remain
 caller-omittable; broken reward tokens retain scalar/selective claim paths, but freeze, blocklist, rebase, and other
 nonconventional behavior remains unsupported.

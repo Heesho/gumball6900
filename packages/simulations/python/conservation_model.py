@@ -234,7 +234,7 @@ class RevenueConservationModel:
 @dataclass
 class RewardConservationModel:
     weights: list[int]
-    precision: int = 10**18
+    precision: int = 10**36
     user_index: list[int] = field(init=False)
     user_remainders: list[int] = field(init=False)
     liabilities: list[int] = field(init=False)

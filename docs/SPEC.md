@@ -1,6 +1,6 @@
 # Protocol specification
 
-This is the authoritative target-development specification under ADRs 0031, 0034, 0035, and 0036. The current
+This is the authoritative target-development specification under ADRs 0031, 0034, 0035, 0036, and 0037. The current
 development tree implements these decisions and reconciles their generated consumers. This remains unaudited local
 engineering evidence, not deployment approval or authorization for user funds.
 
@@ -52,8 +52,8 @@ The required behavior is:
     LiquidityPosition are ownerless. After the first Strategy is registered, `killStrategy` cannot remove the final
     live Strategy; a replacement must be added before the old Strategy is killed. No core contract is upgradeable or
     migratable.
-11. Each Bribe has at most eight append-only reward tokens. For each token, its monotonic lifetime accepted-notification
-    total cannot exceed `floor(type(uint256).max / 1e18)` raw units and has no reset, setter, or escape hatch. The cap is
+11. Each Bribe has at most eight append-only reward tokens and uses a `1e36` reward-per-signal index. For each token, its
+    monotonic lifetime accepted-notification total cannot exceed `floor(type(uint256).max / 1e36)` raw units and has no reset, setter, or escape hatch. The cap is
     checked before checkpointing or transfer; reaching it stops later notifications for only that token and Bribe, not
     claims, signal movement, or withdrawal. Bribe reward remainders remain explicit carry; old-supply Bribe carry and
     fully exiting user precision become fixed Fund classification before supply changes. Broken payout tokens do not

@@ -71,8 +71,9 @@ authorized for user funds. A green local build is engineering evidence, never a 
   an addition before the old Strategy's kill. Do not add a fake abstain Strategy. Killed-Strategy positions must remain
   movable to a live Strategy and withdrawable.
 - Each Bribe may register at most eight append-only reward tokens. The cap is fixed in code and is not governable.
-- For each reward token in each Bribe, cumulative accepted notifications must never exceed
-  `floor(type(uint256).max / 1e18)` raw units. Track this lifetime amount monotonically; it has no reset, setter, or
+- Each Bribe uses a `1e36` reward-per-signal index so low-decimal rewards remain useful over 18-decimal signal weight.
+  For each reward token in each Bribe, cumulative accepted notifications must never exceed
+  `floor(type(uint256).max / 1e36)` raw units. Track this lifetime amount monotonically; it has no reset, setter, or
   escape hatch. Reject an over-cap notification before checkpointing or token transfer so cap exhaustion cannot block
   claims, signal movement, or withdrawal. Direct token donations do not consume notification capacity.
 - Before a Bribe signal-supply change, classify unindexable old-supply reward carry to its fixed Fund remainder. When

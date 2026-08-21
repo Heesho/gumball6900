@@ -18,7 +18,7 @@ and that every Router matches an independent per-Strategy weighted-numerator ora
 changes and independently ordered settlement. For every
 represented reward token, it now also checks that lifetime notifications do not exceed
 `MAX_LIFETIME_REWARD_AMOUNT`, current accounted rewards do not exceed lifetime notifications, and cumulative
-reward-per-signal never exceeds `lifetimeRewardNotified * 1e18`.
+reward-per-signal never exceeds `lifetimeRewardNotified * REWARD_PRECISION`, where Bribe precision is `1e36`.
 
 The 2026-08-16 then-current-graph Medusa 1.5.1 campaign completed 101,602 calls, 3,988 branches, corpus 84, and zero failures
 across 65 property/assertion surfaces. The pinned Echidna 2.3.2 campaign completed 100,213 calls with seed 6900,

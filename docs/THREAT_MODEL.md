@@ -1,6 +1,6 @@
 # Threat model
 
-> Development threat model under ADRs 0031, 0034, 0035, and 0036. The external governance integration remains
+> Development threat model under ADRs 0031, 0034, 0035, 0036, and 0037. The external governance integration remains
 > unselected and must receive a separate threat model before deployment.
 
 ## Primary risks
@@ -76,9 +76,9 @@
   removal, settlement, and claim paths are therefore bounded, but a broken selected token can still revert that
   token's payout.
 - Bribe indexing is also bounded per token and per Bribe by a monotonic lifetime accepted-notification cap of
-  `floor(type(uint256).max / 1e18)` raw units. The check occurs before checkpointing or transfer and has no reset,
+  `floor(type(uint256).max / 1e36)` raw units. The check occurs before checkpointing or transfer and has no reset,
   setter, or escape hatch, so a token cannot accumulate enough indexed precision to wrap and lock exits. For a normal
-  18-decimal token this is about `1.158e41` whole tokens and is not expected to be reached; unusually high-decimal,
+  18-decimal token this is about `1.158e23` whole tokens and is not expected to be reached; unusually high-decimal,
   mintable, or upgraded tokens can exhaust it earlier in economic terms. Reaching it permanently rejects later
   notifications for that token in that Bribe but leaves existing claims, signal moves, and withdrawals available.
 - If an automatic Strategy-payment reward reaches an exhausted cap, its fixed Bribe liability stays retryable in

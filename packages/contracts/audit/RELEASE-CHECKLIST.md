@@ -1,6 +1,6 @@
 # Release checklist
 
-Current description: **ADR 0024/0029/0031/0033/0034/0035/0036 development candidate; external governance unselected and
+Current description: **ADR 0024/0029/0031/0033/0034/0035/0036/0037 development candidate; external governance unselected and
 independent review required**. This is not production-ready or deployment-authorized.
 
 ## Internal engineering
@@ -10,11 +10,11 @@ independent review required**. This is not production-ready or deployment-author
 - [x] Sixteen slots are fixed at construction and Mine has no administrative surface.
 - [x] Nonempty payments classify 80% to displaced miner and 20% to Resonance; empty slots route 100%.
 - [x] Fund uses constant-time effective supply, including all pending mining, for the redemption denominator.
-- [ ] SDK, subgraph, whitepaper, frontend, audit records, and generated references reconciled after ADR 0036.
-- [ ] Full current-tree Foundry, Hardhat, SDK, subgraph, simulation, frontend, documentation, and workspace gates pass.
+- [x] SDK, subgraph, whitepaper, frontend, audit records, and generated references reconciled after ADRs 0036 and 0037.
+- [x] Full current-tree Foundry, Hardhat, SDK, subgraph, simulation, frontend, documentation, and workspace gates pass.
 - [ ] Static findings regenerated and manually dispositioned for the Mine graph.
 - [ ] Current-tree coverage thresholds recorded for Mine.
-- [x] Current-tree 48-mutant campaign complete with zero survivors.
+- [x] Current-tree 49-mutant campaign complete with zero survivors.
 - [ ] Current-tree Medusa and pinned Echidna campaigns complete.
 - [ ] Compatible symbolic analysis or explicit independent disposition complete.
 - [x] Bribe A-09 carry is fixed to Fund before signal-supply changes, with entry, exit, and remainder regressions.
@@ -22,8 +22,10 @@ independent review required**. This is not production-ready or deployment-author
 - [x] In-repository ProtocolGovernor and protocol Timelock removed under ADR 0034 while SignalGBX retains ERC20Votes.
 - [x] Global automatic-Bribe share is prospective, uniform, owner-only, and bounded from 0% through 20%; weighted
       numerator carry, existing liabilities, and signal liveness are covered by deterministic and integration tests.
+- [x] Bribe reward accounting uses `1e36` precision with a precision-coupled lifetime cap; six-decimal direct and
+      automatic rewards are covered by deterministic, fuzz, stateful, integration, and independent-model tests.
 - [ ] Full current-tree invariant, Medusa, Echidna, static, ABI, model, subgraph, and consumer gates rerun
-      after ADR 0036.
+      after ADRs 0036 and 0037.
 - [ ] Current-tree static findings regenerated and manually dispositioned after the governance-architecture removal.
 - [ ] SignalGBX checkpoint/delegation compatibility and voting-power rental risk reviewed against the exact external
       governance release.

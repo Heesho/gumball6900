@@ -1,6 +1,6 @@
 # Core invariants
 
-> These are development invariants under ADRs 0031, 0034, 0035, and 0036. Governance execution remains an unselected
+> These are development invariants under ADRs 0031, 0034, 0035, 0036, and 0037. Governance execution remains an unselected
 > external integration and contributes no production invariant until separately reviewed.
 
 ## GBX and Mine

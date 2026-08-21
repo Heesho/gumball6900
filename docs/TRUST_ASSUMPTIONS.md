@@ -3,7 +3,7 @@
 - USDG, GBX, Strategy payment tokens, and registered Bribe reward tokens are standard non-rebasing ERC-20s. Exact-
   delta checks make unsupported movement fail closed but cannot make an adversarial token safe.
 - Users and integrators account for each Bribe's immutable per-token lifetime notification cap of
-  `floor(type(uint256).max / 1e18)` raw units. It cannot be reset or bypassed; an exhausted pool must be replaced with a
+  `floor(type(uint256).max / 1e36)` raw units. It cannot be reset or bypassed; an exhausted pool must be replaced with a
   new Strategy and Bribe while incumbent positions remain movable or withdrawable from the old pool.
 - SignalGBX holders understand that its non-transferable ERC20Votes checkpoints and delegation remain available to a
   future external governance integration, but the core assigns them no proposal threshold, quorum, delay, cancellation,

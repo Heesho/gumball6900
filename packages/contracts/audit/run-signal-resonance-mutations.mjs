@@ -395,6 +395,13 @@ const mutants = [
     to: '        _transferRewardExact(rewardToken, msg.sender, amount);',
     test: ['test/minimal/Bribe.t.sol', 'test_ClaimAlwaysPaysTheAccountEvenWhenATtriggeredByAThirdParty'],
   },
+  {
+    id: 'BRIBE-06-reduce-index-precision',
+    file: 'src/core/Bribe.sol',
+    from: '    uint256 public constant REWARD_PRECISION = 1e36;',
+    to: '    uint256 public constant REWARD_PRECISION = 1e18;',
+    test: ['test/minimal/SixDecimalBribe.t.sol', 'test_PrecisionAndLifetimeCapRemainCoupled'],
+  },
 ];
 
 function replaceOccurrence(source, from, to, occurrence = 0) {
