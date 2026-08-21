@@ -30,7 +30,11 @@ export const contractConstants = {
     tenureRatesLocked: true,
     constantTimePendingEmission: true,
   },
-  bribe: { source: 'packages/contracts/src/core/Bribe.sol', maxRewardTokens: 8 },
+  bribe: {
+    source: 'packages/contracts/src/core/Bribe.sol',
+    maxRewardTokens: 8,
+    rewardPrecision: 10n ** 36n,
+  },
   resonance: {
     source: 'packages/contracts/src/core/Resonance.sol',
     bps: 10_000,
@@ -62,7 +66,7 @@ export const status = {
   externalAudit: 'Independent external audit not completed',
   licensing: 'Farplace, give.fun, Liquid Signal, and transitive lineage remain unresolved release blockers',
   architectureImplementation:
-    'ADRs 0031 and 0034-0036 implemented in the development tree; external governance owner unselected and review pending',
+    'ADRs 0031 and 0034-0037 implemented in the development tree; external governance owner unselected and review pending',
 };
 
 export function verifyProtocolFacts() {
@@ -71,6 +75,7 @@ export function verifyProtocolFacts() {
   const expected = contractConstants.mine;
   const resonanceSource = readFileSync(resolve(repoRoot, contractConstants.resonance.source), 'utf8');
   const routerSource = readFileSync(resolve(repoRoot, contractConstants.bribeRouter.source), 'utf8');
+  const bribeSource = readFileSync(resolve(repoRoot, contractConstants.bribe.source), 'utf8');
   const checks = [
     ['genesis allocation', BigInt(fixture.assumptions.genesisLiquidityAllocationGBXRaw), 20_000_000n * 10n ** 18n],
     ['price decay', BigInt(fixture.assumptions.priceDecaySeconds), BigInt(expected.priceDecaySeconds)],
@@ -130,12 +135,22 @@ export function verifyProtocolFacts() {
   for (const [name, pattern] of routerPins) {
     if (!pattern.test(routerSource)) failures.push([name, false, true]);
   }
+  const bribePins = [
+    ['Bribe reward precision', /uint256 public constant REWARD_PRECISION = 1e36;/],
+    [
+      'Bribe lifetime cap follows precision',
+      /uint256 public constant MAX_LIFETIME_REWARD_AMOUNT = type\(uint256\)\.max \/ REWARD_PRECISION;/,
+    ],
+  ];
+  for (const [name, pattern] of bribePins) {
+    if (!pattern.test(bribeSource)) failures.push([name, false, true]);
+  }
   if (failures.length)
     throw new Error(
       `Protocol fact check failed:\n${failures.map(([name, a, e]) => `  ${name}: ${a} != ${e}`).join('\n')}`,
     );
   return {
-    checks: checks.length + 5 + resonancePins.length + routerPins.length,
+    checks: checks.length + 5 + resonancePins.length + routerPins.length + bribePins.length,
     genesisLiquidityTokens: contractConstants.gbx.genesisLiquidityTokens,
     slotCount: expected.slotCount,
   };

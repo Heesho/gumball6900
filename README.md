@@ -10,8 +10,9 @@ burned for caller-selected Fund assets.
 > Architecture status: [ADR 0031](docs/adr/0031-mandatory-signal-backed-signalgbx.md),
 > [ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md),
 > [ADR 0034](docs/adr/0034-external-governance-ownership.md), and
-> [ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md), and
-> [ADR 0036](docs/adr/0036-governed-global-bribe-share.md) are implemented in the development tree. ADR 0036
+> [ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md),
+> [ADR 0036](docs/adr/0036-governed-global-bribe-share.md), and
+> [ADR 0037](docs/adr/0037-high-precision-bribe-index.md) are implemented in the development tree. ADR 0036
 > supersedes ADR 0032's fixed-rate rule while retaining its cumulative liability accounting. Governance execution
 > remains an unselected external integration, so deployment is blocked. This is local engineering evidence only;
 > independent review and every deployment gate remain outstanding.
@@ -26,7 +27,8 @@ burned for caller-selected Fund assets.
    allocation without changing custody or votes, or withdraw it by removing signal, burning sGBX, and receiving GBX.
 4. A Strategy buyer atomically pulls its released USDG, receives the complete Strategy balance, and pays the asset that
    Strategy acquires; BribeRouter cumulatively classifies the payment at Resonance's current global Bribe rate. It
-   defaults to 10%, can be set from 0% through 20%, and sends the 80%-to-100% complement to Fund.
+   defaults to 10%, can be set from 0% through 20%, and sends the 80%-to-100% complement to Fund. Paired Bribes use a
+   `1e36` reward index so ordinary six-decimal rewards remain distributable at realistic sGBX supply.
 5. A GBX holder burns tokens to redeem a proportional share of caller-selected Fund assets.
 
 ```text
@@ -156,8 +158,9 @@ Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
 [ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md),
 [ADR 0033](docs/adr/0033-fixed-mine-slots-and-constant-time-pending-emission.md),
 [ADR 0034](docs/adr/0034-external-governance-ownership.md), and
-[ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md), and
-[ADR 0036](docs/adr/0036-governed-global-bribe-share.md).
+[ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md),
+[ADR 0036](docs/adr/0036-governed-global-bribe-share.md), and
+[ADR 0037](docs/adr/0037-high-precision-bribe-index.md).
 
 ## Provenance
 

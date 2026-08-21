@@ -1,14 +1,14 @@
 # Signal and Resonance residual risks
 
 This local campaign is not an independent audit or proof of safety. Its recorded native-fuzzer results predate ADR
-0034's removal of the local Governor and Timelock, ADR 0035's Bribe lifetime cap, and ADR 0036's governed global Bribe
-share. The following remain after the 2026-08-16 run and the 2026-08-21 development reconciliation.
+0034's removal of the local Governor and Timelock, ADR 0036's governed global Bribe share, and ADR 0037's high-precision
+Bribe index. The following remain after the 2026-08-16 run and the 2026-08-21 development reconciliation.
 
 1. ADR 0028 accepts that a killed Strategy's final signal exit can leave active and queued Bribe rewards permanently
    accounted but unreachable, including later zero-supply notifications while lifetime headroom remains. ADR 0035
    prevents cumulative-index overflow without adding a rescue, refund, retirement, sweep, Fund redirection, or escape
    hatch.
-2. Each token/Bribe pair can accept at most `floor((2^256 - 1) / 1e18)` notified raw units over its complete lifetime.
+2. Each token/Bribe pair can accept at most `floor((2^256 - 1) / 1e36)` notified raw units over its complete lifetime.
    Claims, Fund payments, completed streams, zero supply, and Strategy death never restore headroom. The limit is
    effectively unreachable for a conventional 18-decimal asset but can constrain unusually high-decimal tokens. If an
    automatic reward exhausts the cap, its BribeRouter liability remains pending while the independent Fund liability

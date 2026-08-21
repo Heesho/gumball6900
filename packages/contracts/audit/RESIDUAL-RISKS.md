@@ -20,11 +20,11 @@
 
 ## Existing protocol and economic risk
 
-- Low-decimal Bribe rewards or very large signal denominators can classify economically meaningful carry to Fund when
-  signal supply changes. The value remains conserved, but is no longer attributed to incumbent signalers.
+- Bribes use `1e36` reward precision, so a raw reward unit advances the global index at any realistic signal supply.
+  Indivisible per-user sub-raw fractions remain account-specific and become Fund precision if that account fully exits.
 - Every reward token in every Bribe has a raw-unit lifetime-notification ceiling of
-  `floor((2^256 - 1) / 1e18)`. Claims, Fund payments, stream completion, zero supply, and Strategy death do not reopen
-  capacity. The ceiling is approximately `1.158e41` whole tokens for an 18-decimal asset, but unusually high-decimal
+  `floor((2^256 - 1) / 1e36)`. Claims, Fund payments, stream completion, zero supply, and Strategy death do not reopen
+  capacity. The ceiling is approximately `1.158e23` whole tokens for an 18-decimal asset, but unusually high-decimal
   tokens can reach it at a much smaller displayed amount. At exhaustion, new direct and automatic notifications fail;
   existing claims and signal exits remain available. An automatic reward remains a fixed BribeRouter liability while
   its independent Fund leg can still settle.
@@ -60,4 +60,4 @@ permanent. Deployment evidence must prove the exact integration and that no temp
 No independent audit, compatible symbolic proof, exact external-governance integration review, legal clearance, or
 signed deployment manifest exists. The pinned Echidna and Medusa campaigns and the recorded full 43-mutant
 SignalGBX/Resonance/BribeRouter campaign predate ADRs 0034–0036 and are internal engineering evidence, not independent
-review. The current 48-mutant campaign passes with no survivors, but remains narrow internal engineering evidence.
+review. The current 49-mutant campaign passes with no survivors, but remains narrow internal engineering evidence.

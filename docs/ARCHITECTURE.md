@@ -2,7 +2,7 @@
 
 The target graph is direct, immutable, and deliberately small.
 
-> Development architecture: ADRs 0031, 0034, 0035, and 0036 are authoritative. Governance execution remains an
+> Development architecture: ADRs 0031, 0034, 0035, 0036, and 0037 are authoritative. Governance execution remains an
 > unselected external integration, so this document is not deployment approval or evidence of a complete production
 > graph.
 
@@ -56,8 +56,8 @@ remainder across rate changes. Changing the rate cannot alter an existing liabil
 At 0%, new payments create only Fund liability, while Bribe balance accounting, signals, exits, existing rewards, and
 independent reward funding remain live. Fund payment and Bribe notification are permissionless isolated settlement
 legs. Bribes may also receive independently notified rewards. Bribe old-supply carry and fully exiting user precision
-become fixed Fund classification before virtual signal supply changes. Each reward token has a monotonic lifetime
-notification cap of `floor(type(uint256).max / 1e18)` raw units, checked
+become fixed Fund classification before virtual signal supply changes. Bribes use `1e36` reward precision, and each
+reward token has a monotonic lifetime notification cap of `floor(type(uint256).max / 1e36)` raw units, checked
 before checkpointing or transfer so index overflow cannot block signal exits. Killing a Strategy checkpoints and
 preserves its accrued Resonance claim, removes its complete weight from active reward supply, and leaves its Bribe as a
 closed pool for existing signalers; no new signal can enter, and a final exit can permanently abandon unfinished

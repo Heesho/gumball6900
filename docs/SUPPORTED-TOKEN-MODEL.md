@@ -1,6 +1,6 @@
 # Supported token model
 
-> ADRs 0031, 0032, and 0035 define the target token interactions below.
+> ADRs 0031, 0035, 0036, and 0037 define the target token interactions below.
 
 ## Canonical and registered tokens
 
@@ -18,15 +18,15 @@ atomically on inexact movement. This is fail-closed evidence, not support for fe
 blocklisting, pausable, or otherwise adversarial tokens.
 
 Token decimals affect the economic size of accounting floors. Resonance's six-decimal USDG index uses `1e36` precision,
-but its global-index and per-Strategy remainders are accepted surplus rather than Fund liabilities. Bribes use `1e18`
-precision and still assign unindexable old-denominator carry to Fund before changing virtual signal supply. Low-decimal
-Bribe rewards can therefore create a larger whole-token Fund liability at a boundary, but cannot transfer pre-entry
-carry to a later signaler.
+but its global-index and per-Strategy remainders are accepted surplus rather than Fund liabilities. Bribes also use
+`1e36` precision and assign any remaining unindexable old-denominator carry to Fund before changing virtual signal
+supply. At realistic signal supplies, a single raw reward unit advances the global Bribe index. Any indivisible
+per-user fraction remains account-specific and becomes Fund precision only if that account fully exits.
 
 Each reward token also has a per-Bribe lifetime notification budget of
-`floor(type(uint256).max / 1e18)` raw units. The monotonic counter counts accepted notifications, not the current token
+`floor(type(uint256).max / 1e36)` raw units. The monotonic counter counts accepted notifications, not the current token
 balance or direct donations, and claims never restore capacity. A standard 18-decimal token would need about
-`1.158e41` whole tokens to exhaust the budget; high-decimal, unusually mintable, or upgradeable tokens can reach the
+`1.158e23` whole tokens to exhaust the budget; high-decimal, unusually mintable, or upgradeable tokens can reach the
 raw-unit limit with materially less economic value. The cap is checked before checkpointing and token transfer, so an
 over-cap attempt leaves the existing stream unchanged and does not prevent signal movement or withdrawal.
 

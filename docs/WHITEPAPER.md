@@ -6,7 +6,7 @@ Whitepaper v0.7 — 21 August 2026 — by Heesho
 
 > Development status: experimental, not deployed, not independently audited, and not authorized for user funds.
 > Exact mining economics, deployment parameters, third-party provenance, and independent security review remain open
-> release gates. ADRs 0031, 0034, 0035, and 0036 are authoritative development decisions; ADR 0036 supersedes ADR
+> release gates. ADRs 0031, 0034, 0035, 0036, and 0037 are authoritative development decisions; ADR 0036 supersedes ADR
 > 0032's fixed-rate rule while retaining cumulative settlement. Governance execution and the production Resonance
 > owner remain an unselected external integration, so deployment is blocked.
 
@@ -166,9 +166,10 @@ signal, move, withdraw, or exit killed Strategies normally. The two permissionle
 failure of one preserves its liability without consuming the other. The acquired payment asset, not USDG, is the
 automatic Bribe reward. Additional independent rewards remain possible within the eight-token cap.
 
-Each reward token in each Bribe also has a monotonic lifetime accepted-notification limit of
-`floor(type(uint256).max / 1e18)` raw units. It is checked before reward checkpointing or token transfer and cannot be
-reset, so claims can never reopen capacity. A normal 18-decimal token would require about `1.158e41` whole tokens to
+Each Bribe uses a `1e36` reward-per-signal index so low-decimal rewards remain useful over 18-decimal signal weight.
+Each reward token also has a monotonic lifetime accepted-notification limit of
+`floor(type(uint256).max / 1e36)` raw units. It is checked before reward checkpointing or token transfer and cannot be
+reset, so claims can never reopen capacity. A normal 18-decimal token would require about `1.158e23` whole tokens to
 reach it. If an irregular token does reach it, existing signalers can still claim, move, or withdraw; a new Strategy
 and Bribe must replace the exhausted pool. Any automatic reward liability that fails at the cap stays in BribeRouter,
 while the Fund settlement leg remains independent. The old killed Bribe remains a closed reward pool without an

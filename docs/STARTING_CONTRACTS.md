@@ -1,6 +1,6 @@
 # Canonical contract starting point
 
-> This is the target development architecture under ADRs 0031, 0034, 0035, and 0036, not a claim of current Solidity
+> This is the target development architecture under ADRs 0031, 0034, 0035, 0036, and 0037, not a claim of current Solidity
 > conformance, deployment, audit, or authorization for user funds. Implementation gaps are listed in
 > [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
 
@@ -109,9 +109,9 @@ them. Complete GBX proceeds transfer to Fund and are burned atomically. The NFT 
   Strategy graph.
 - A GBX Strategy payment is not burned at settlement. Once the dynamically Fund-classified share reaches Fund, anyone
   may burn it with `Fund.burnGBX`; any nonzero Bribe share funds the paired Bribe.
-- Bribes receive the acquired payment asset automatically and may receive additional independent notifications. For
-  each reward token and Bribe, the monotonic accepted-notification total cannot exceed
-  `floor(type(uint256).max / 1e18)` raw units. The limit has no reset, setter, or escape hatch and rejects excess before
+- Bribes use a `1e36` reward-per-signal index, receive the acquired payment asset automatically, and may receive
+  additional independent notifications. For each reward token and Bribe, the monotonic accepted-notification total
+  cannot exceed `floor(type(uint256).max / 1e36)` raw units. The limit has no reset, setter, or escape hatch and rejects excess before
   checkpointing or transfer, leaving existing claims and exits live.
 - If the automatic reward leg reaches that cap, the liability remains in BribeRouter and cannot enter the old Bribe;
   its Fund leg remains independently payable. The owner can add a replacement Strategy and Bribe, then kill the old

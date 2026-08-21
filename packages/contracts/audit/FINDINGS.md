@@ -1,12 +1,14 @@
 # Internal security finding register
 
-Date: 2026-08-16. Governance, Bribe-cap, and payment-share dispositions reconciled 2026-08-21 for ADRs 0034–0036.
+Date: 2026-08-16. Governance, Bribe-cap, payment-share, and Bribe-precision dispositions reconciled 2026-08-21 for
+ADRs 0034–0037.
 
 Status: the ADR 0031 mandatory-signal, ADR 0033 fixed-slot Mine, ADR 0034 external-governance ownership, ADR 0035 Bribe
-lifetime cap, and ADR 0036 governed global Bribe share form an uncommitted development candidate. The previously
-recorded 329-test Forge and 18-test integration results predate ADR 0036 and are historical engineering evidence, as
-are the pinned native external-fuzzer and static-analyzer campaigns. The current candidate requires fresh complete
-gates and has not received an independent audit, compatible symbolic analysis,
+lifetime cap, ADR 0036 governed global Bribe share, and ADR 0037 high-precision Bribe index form an uncommitted
+development candidate. Fresh current-tree validation passed 353/353 default-profile Forge tests, 19/19 integration
+tests, Hardhat compiler parity, the 49/49 mutation campaign, and the complete workspace gates. The pinned native
+external-fuzzer and static-analyzer campaigns still predate ADRs 0036 and 0037. The current candidate has not received
+an independent audit, compatible symbolic analysis,
 external-governance integration review, or release review required for deployment. Current campaign-specific findings are in
 `SIGNAL-RESONANCE-FINDINGS.md`.
 
@@ -24,6 +26,7 @@ external-governance integration review, or release review required for deploymen
 | A-11 | High     | Resolved in development by ADR 0029                           | Checkpoint-first signals prevent same-transaction capture; qualifying top-ups reset behind a Router threshold.              |
 | BR-1 | Medium   | Accepted by ADR 0028                                          | A killed Strategy's Bribe remains a closed reward pool for incumbent signalers; final exit can permanently abandon rewards. |
 | BR-2 | High     | Fixed locally by ADR 0035                                     | A per-token lifetime notification cap prevents a reset current balance from reopening cumulative-index overflow capacity.   |
+| BR-3 | High     | Fixed locally by ADR 0037                                     | A `1e36` Bribe index prevents economically material low-decimal reward carry from becoming Fund-bound on signal churn.      |
 | M-01 | Economic | Accepted by ADR 0033                                          | Fixed-tenure fairness temporarily allows aggregate issuance above the current global rate after halving crossings.          |
 | M-02 | Economic | Accepted by ADR 0024                                          | A miner receives the 80% handoff amount only if a successor pays a nonzero replacement price.                               |
 | E-01 | High     | Resolved in development                                       | Fund rejects selected-token transfers that reduce another selected address's snapshotted backing.                           |
@@ -172,7 +175,7 @@ Bribe's prior scale guard bounded only its current accounted reward balance. Cla
 balance and reopened the guard, but they did not reduce the token's monotonic cumulative `rewardPerTokenStored` index.
 A freely mintable or unusually high-decimal registered reward could therefore notify an enormous first stream at one
 raw unit of signal supply, let the indexed reward leave Bribe custody, and notify again. A later checkpoint would add
-another `1e18`-scaled increment to an index already near `uint256` maximum and revert on overflow. Signal deposits,
+another precision-scaled increment to an index already near `uint256` maximum and revert on overflow. Signal deposits,
 moves, and withdrawals checkpoint every registered token, so the persistent bad schedule could lock signalers'
 escrowed GBX. An ordinary Strategy kill would not have bypassed the paired Bribe checkpoint on withdrawal.
 
@@ -180,7 +183,7 @@ ADR 0035 adds a monotonic `lifetimeRewardNotified[token]` counter to every Bribe
 checkpointing or token interaction when it would exceed:
 
 ```text
-P = REWARD_PRECISION = 1e18
+P = REWARD_PRECISION = 1e36
 MAX_LIFETIME_REWARD_AMOUNT = floor((2^256 - 1) / P)
 ```
 
@@ -199,8 +202,37 @@ liability intact while the independent Fund leg remains settleable. The current-
 depth. No retirement withdrawal, rescue, or killed-Strategy escape hatch was added, so ADR 0028 remains unchanged.
 
 The raw-unit limit can constrain unusually high-decimal assets. For a conventional 18-decimal asset it is
-approximately `1.158e41` whole tokens and is not a credible honest-use ceiling. The cap does not make freeze,
+approximately `1.158e23` whole tokens and is not a credible honest-use ceiling. The cap does not make freeze,
 blocklist, rebase, or other nonconventional token behavior supported.
+
+## BR-3 — low-decimal multi-signaler reward resolution
+
+Bribe previously used `REWARD_PRECISION = 1e18` while SignalGBX weights also use 18 decimals. With total Bribe signal supply `S`
+and emitted raw reward amount `E`, the global reward index advances only when `E * REWARD_PRECISION >= S`. If `W`
+whole sGBX is assigned to the Strategy, the minimum indexable carry is therefore `W` raw reward units. For a token with
+`d` decimals, that boundary represents `W / 10^d` whole reward tokens.
+
+At five million sGBX of multi-account signal, the index requires five million raw units: 5 whole tokens at 6 decimals,
+0.05 token at 8 decimals, or `5e-12` token at 18 decimals. A sole signaler has a special exact-carry path and does not
+experience this threshold. With two or more signalers, a completed below-threshold stream remains exactly accounted in
+`pendingRewardScaled`, but no account can claim it and claims alone cannot advance the index. Later notifications can
+eventually accumulate to the threshold. Before that happens, any signal deposit or withdrawal calls
+`_fundAllPendingRewards` and irrevocably classifies the complete old-denominator carry to Fund.
+
+The initial `SixDecimalBribeTest` campaign demonstrated the five-token boundary, accumulation across repeated streams,
+sole-signaler and zero-supply behavior, mid-stream exit classification, and the exact quotient/remainder model over
+10,000 fuzz cases. `SixDecimalAutomaticBribeIntegrationTest` reproduced the issue through the real Strategy,
+BribeRouter, Bribe, Resonance, and SignalGBX graph: a 10 USDG acquisition at the default 10% share created a 1 USDG
+reward that neither of two signalers could claim against five million sGBX, then became Fund-bound when a third
+signaler entered. Three `SixDecimalBribeInvariantTest` properties each passed 1,000 runs of 500 random notifications,
+time jumps, signal mutations, claims, and Fund payments with no revert or custody/accounting deficit.
+
+Disposition: fixed locally by ADR 0037. Bribe now uses `REWARD_PRECISION = 1e36`, and its coupled lifetime cap is
+`floor(type(uint256).max / 1e36)`. Against five million sGBX, the same 1 USDG full-graph reward pays exactly 0.6 USDG
+and 0.4 USDG to the two signalers; a later signal entry creates no Fund liability. A single indivisible raw reward unit
+is globally indexed into account-specific 0.6/0.4 raw-unit precision rather than remaining global carry. Those
+fractions can combine with later rewards and become Fund precision only if the account fully exits. The deterministic,
+full-graph, fuzz, invariant, overflow, model, and mutation campaigns retain this as a release-critical regression.
 
 ## M-01 — fixed-tenure fairness raises transitional aggregate issuance
 
@@ -259,6 +291,10 @@ or release evidence:
 - Native Medusa 1.5.1 completed 101,602 calls with zero failures across 65 surfaces. Pinned Echidna 2.3.2 completed
   100,213 calls with all 25 properties passing. The recorded 43-mutant focused campaign killed every mutant.
 - Mythril 0.24.8 was incompatible with constructor-resolved immutable/Cancun runtimes and was not a proof.
-- Current-tree regeneration and gates, independent audit, a second external-fuzzer seed, legal clearance, reviewed
-  production parameters, exact external-governance integration review, monitored testnet rehearsal, and a signed
-  deployment manifest remain open.
+- Current ADR 0037 engineering evidence adds 353/353 Forge tests, including 29 whole-protocol and three six-decimal
+  Bribe properties at 1,000 runs of 500 calls with zero handler reverts; 19/19 integration tests; Hardhat parity;
+  49/49 killed mutants; SDK 49/49; TypeScript 35/35; Python 21/21; subgraph, browser, documentation, ABI, build,
+  formatting, lint, and typecheck gates.
+- Current-tree native external-fuzzer and static-analyzer reruns, independent audit, a second external-fuzzer seed,
+  legal clearance, reviewed production parameters, exact external-governance integration review, monitored testnet
+  rehearsal, and a signed deployment manifest remain open.

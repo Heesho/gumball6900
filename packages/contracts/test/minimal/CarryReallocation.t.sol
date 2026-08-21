@@ -36,10 +36,10 @@ contract CarryReallocationTest is ProtocolFixture {
         assertEq(usdg.balanceOf(address(resonance)), 1, "the rounded unit remains unallocated surplus");
     }
 
-    /// @notice Bribe carry emitted under old weights is fixed to Fund before a later signaler enters.
+    /// @notice Carry below even the high-precision index is Fund-bound before a later signaler enters.
     function test_NewSignalerCannotReceivePreEntryRewardCarry() external {
-        _signalDefault(ALICE, 50 ether);
-        _signalDefault(CAROL, 50 ether);
+        _signalDefault(ALICE, 50e36);
+        _signalDefault(CAROL, 50e36);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(CAROL, address(targetStrategy));
 
@@ -50,9 +50,9 @@ contract CarryReallocationTest is ProtocolFixture {
         targetBribe.notifyRewardAmount(address(target), 300);
         vm.stopPrank();
 
-        // Ninety-nine units are emitted under the two incumbent accounts but remain below index resolution.
+        // Astronomical signal weight deliberately puts ninety-nine raw units below even 1e36 index resolution.
         vm.warp(DEPLOYED_AT + 99);
-        _signalDefault(BOB, 100 ether);
+        _signalDefault(BOB, 100e36);
         _signalOne(BOB, address(targetStrategy));
         assertEq(targetBribe.rewardPerToken(address(target)), 0);
         assertEq(targetBribe.fundRewardLiability(address(target)), 99);
@@ -65,10 +65,10 @@ contract CarryReallocationTest is ProtocolFixture {
         assertEq(targetBribe.fundRewardLiability(address(target)), 99);
     }
 
-    /// @notice Old-denominator Bribe carry cannot be reallocated to signalers who remain after an exit.
+    /// @notice Carry below even the high-precision index cannot move to signalers who remain after an exit.
     function test_RemainingSignalerCannotReceivePreExitRewardCarry() external {
-        _signalDefault(ALICE, 50 ether);
-        _signalDefault(CAROL, 50 ether);
+        _signalDefault(ALICE, 50e36);
+        _signalDefault(CAROL, 50e36);
         _signalOne(ALICE, address(targetStrategy));
         _signalOne(CAROL, address(targetStrategy));
 
@@ -80,7 +80,7 @@ contract CarryReallocationTest is ProtocolFixture {
 
         vm.warp(DEPLOYED_AT + 99);
         vm.prank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 50 ether);
+        signalGBX.withdrawSignal(address(targetStrategy), 50e36);
         assertEq(targetBribe.fundRewardLiability(address(target)), 99);
 
         vm.warp(DEPLOYED_AT + 300);
@@ -108,7 +108,7 @@ contract CarryReallocationTest is ProtocolFixture {
         signalGBX.withdrawSignal(address(targetStrategy), 3);
 
         assertEq(targetBribe.userRewardRemainder(ALICE, address(target)), 0);
-        assertEq(targetBribe.fundRewardRemainder(address(target)), 3e17);
+        assertEq(targetBribe.fundRewardRemainder(address(target)), 3e35);
         assertEq(targetBribe.earned(CAROL, address(target)), 0);
     }
 }

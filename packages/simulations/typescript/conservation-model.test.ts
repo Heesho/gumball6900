@@ -171,6 +171,22 @@ describe('independent Resonance reward model', () => {
 });
 
 describe('independent Bribe carry model', () => {
+  it('distributes one six-decimal token across five million 18-decimal signal units', () => {
+    const wad = 10n ** 18n;
+    const model = new RewardConservationModel([3_000_000n * wad, 2_000_000n * wad, 0n]);
+    model.emit(1_000_000n);
+    model.checkpoint(0);
+    model.checkpoint(1);
+
+    expect(model.liabilities).toEqual([600_000n, 400_000n, 0n]);
+    expect(model.pendingScaled).toBe(0n);
+
+    model.setWeight(2, wad);
+    expect(model.fundLiability).toBe(0n);
+    expect(model.fundRemainderScaled).toBe(0n);
+    expect(model.classifiedScaled()).toBe(model.accounted * model.precision);
+  });
+
   it('carries repeated tiny rewards until every atom becomes attributable', () => {
     const model = new RewardConservationModel([3n, 7n], 10n);
     for (let i = 0; i < 100; i += 1) {
