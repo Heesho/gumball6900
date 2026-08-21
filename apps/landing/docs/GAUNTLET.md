@@ -51,13 +51,21 @@ illustrations, or branding.
 
 ### The diagrams run themselves — no manual interaction
 
-The reader never clicks anything to make a diagram do its job. Every control that currently
-requires a click — mining's "take the cheapest slot", resonance's four "Signal here" buttons, the
-fund's three burn buttons — is **removed**, and the behaviour it demonstrated becomes a **scripted
-autonomous beat** inside that simulation's cycle. A reader who only scrolls and watches must see
-every state those buttons used to reveal, in a legible order, on a cycle short enough to be caught
-in a normal viewing. Prefer a deliberate, staged demonstration loop over pure randomness: the
-important beats should be guaranteed to happen, not left to chance.
+The reader never clicks anything to make a diagram do its job. **This is already implemented — your
+job is to preserve and extend it, not to redo it.** Every control was removed and the behaviour it
+demonstrated is now a scripted beat inside that simulation's own cycle: mining runs a fixed
+programme alternating the 100%-to-fund and 80/20 routes with one take as "you"; resonance runs
+hold → move → settle so a signal move is never buried by ambient drift; the fund alternates a
+10%-of-supply burn with ambient ones. Schedules advance on each sim's **accumulated time**, so a
+section reached by scrolling has not already spent its cycle, and the harness `reset()` re-arms the
+sequence when a reader returns after 30s away.
+
+When you re-choreograph a diagram, keep that contract: a reader who only scrolls and watches must
+see every teaching state, in a legible order, on a cycle short enough to catch in a normal viewing,
+and the important beats must be guaranteed rather than left to chance. Do not reintroduce a button.
+Do not let a beat depend on wall-clock time. Never fake a state the mechanism cannot actually reach
+— e.g. the 100%-to-fund route only exists while never-taken slots remain, and re-opening a taken
+slot to keep it repeating would be a lie about the protocol.
 
 Links remain links. The page must still be fully keyboard-navigable and screen-reader sane. Any
 `aria-live` region that was written on user action must now either be removed or rate-limited so an
@@ -90,9 +98,14 @@ a vessel full of coloured spheres, which is _literally_ what this protocol is �
 Colour should be structural, surfaces should have a light source, and the identity should be
 legible in a two-second glance.
 
-If a winning art direction has already been chosen when you start, it will be recorded at the end
-of `ART-DIRECTION.md`; follow it. If not, produce three competing directions, judge them, and
-record the winner there before building anything else.
+**The direction is already chosen — do not run a concept round.** Three directions were built and
+compared; the owner chose "Serious money, candy soul," recorded in full at the end of
+`ART-DIRECTION.md` with the winning mock vendored beside it as `docs/concept-c-reference.html`
+(open it in a browser). Build to it: colour as a full-bleed plane carrying black type, nothing
+centred, hairlines instead of boxes, a misregistered Modak wordmark, Modak numerals as the imagery.
+That file also lists what the losing directions must not smuggle back in — no glass dome, no
+chrome, no neon glow. Your first piece is porting that direction into `app/globals.css` and proving
+it on a specimen; everything downstream consumes it.
 
 ### 2. Diagrams and animation
 
