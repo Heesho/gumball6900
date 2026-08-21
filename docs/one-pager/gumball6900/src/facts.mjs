@@ -40,10 +40,14 @@ export const numbers = {
   priceDecay: `${contractConstants.mine.priceDecaySeconds / 3_600} hour`,
   /** Mine.sol SLOT_COUNT, the permanent number of concurrent slots. */
   maxSlots: contractConstants.mine.slotCount,
-  /** BribeRouter.FUND_BPS: cumulative Strategy-payment share classified to Fund. */
-  fundBoundShare: percentFromBps(contractConstants.bribeRouter.fundBps),
-  /** BribeRouter.BRIBE_BPS: cumulative Strategy-payment share classified to paired-Bribe rewards. */
-  bribeRewardShare: percentFromBps(contractConstants.bribeRouter.bribeBps),
+  /** Fund complement at Resonance.DEFAULT_BRIBE_BPS. */
+  defaultFundShare: percentFromBps(contractConstants.resonance.defaultFundBps),
+  /** Resonance.DEFAULT_BRIBE_BPS: deployment default for later Strategy payments. */
+  defaultBribeRewardShare: percentFromBps(contractConstants.resonance.defaultBribeBps),
+  /** Fund complement at Resonance.MAX_BRIBE_BPS. */
+  minimumFundShare: percentFromBps(contractConstants.resonance.minimumFundBps),
+  /** Resonance.MAX_BRIBE_BPS: hard governance ceiling for automatic rewards. */
+  maximumBribeRewardShare: percentFromBps(contractConstants.resonance.maximumBribeBps),
   /** Bribe.sol MAX_REWARD_TOKENS, immutable and not governable. */
   maxRewardTokens: contractConstants.bribe.maxRewardTokens,
   /** Fund and LiquidityPosition inherit no ownership and expose no withdrawal surface. */

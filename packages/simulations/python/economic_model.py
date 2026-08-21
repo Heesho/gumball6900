@@ -6,6 +6,8 @@ import json
 
 WAD = 10**18
 BPS = 10_000
+DEFAULT_STRATEGY_BRIBE_BPS = 1_000
+MAX_STRATEGY_BRIBE_BPS = 2_000
 HOUR = 3_600
 YEAR = 365 * 24 * HOUR
 GENESIS = 20_000_000 * WAD
@@ -24,18 +26,29 @@ def split(payment: int, has_previous: bool) -> dict[str, int]:
     return {"payment": payment, "previousMiner": previous, "resonance": payment - previous}
 
 
-def classify_strategy_payments(payments: list[int]) -> dict[str, object]:
+def classify_strategy_payments(
+    payments: list[int], bribe_bps: int | list[int] = DEFAULT_STRATEGY_BRIBE_BPS
+) -> dict[str, object]:
+    rates = [bribe_bps] * len(payments) if isinstance(bribe_bps, int) else bribe_bps
+    if len(rates) != len(payments):
+        raise ValueError("every Strategy payment needs one Bribe rate")
+    if any(payment < 0 for payment in payments):
+        raise ValueError("Strategy payments must be non-negative")
+    if any(rate < 0 or rate > MAX_STRATEGY_BRIBE_BPS for rate in rates):
+        raise ValueError("Strategy Bribe rate outside protocol bounds")
+
     fund = 0
     bribe = 0
     remainder = 0
-    for payment in payments:
-        base_bribe, raw_remainder = divmod(payment * 1_000, BPS)
+    for payment, rate in zip(payments, rates, strict=True):
+        base_bribe, raw_remainder = divmod(payment * rate, BPS)
         carry, remainder = divmod(remainder + raw_remainder, BPS)
         bribe_amount = base_bribe + carry
         fund += payment - bribe_amount
         bribe += bribe_amount
     return {
         "payments": payments,
+        "bribeBps": rates,
         "totalPayment": sum(payments),
         "fundLiability": fund,
         "bribeLiability": bribe,
@@ -53,7 +66,7 @@ def compute() -> dict[str, object]:
     fund_usdg = 50_000_000 * 10**6
     redeem = 1_000_000 * WAD
     return {
-        "schemaVersion": 8,
+        "schemaVersion": 9,
         "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
         "assumptions": {
             "genesisLiquidityAllocationGBXRaw": GENESIS,
@@ -65,8 +78,10 @@ def compute() -> dict[str, object]:
             "tenureRatesLocked": True,
             "redemptionsUseConstantTimeEffectiveSupply": True,
             "checkpointAllExists": False,
-            "strategyFundBps": 9_000,
-            "strategyBribeBps": 1_000,
+            "defaultStrategyBribeBps": DEFAULT_STRATEGY_BRIBE_BPS,
+            "maximumStrategyBribeBps": MAX_STRATEGY_BRIBE_BPS,
+            "minimumStrategyBribeBps": 0,
+            "strategyFundBpsIsDerived": True,
         },
         "mining": {
             "priceCurve": [
@@ -138,6 +153,10 @@ def compute() -> dict[str, object]:
             "cumulativeSplitIsFrequencyIndependent": True,
             "tenOneUnitPayments": classify_strategy_payments([1] * 10),
             "oneCombinedPayment": classify_strategy_payments([10]),
+            "rateChangeSequence": classify_strategy_payments(
+                [7, 13, 19, 23], [1_000, 0, 500, 2_000]
+            ),
+            "zeroPercentPayments": classify_strategy_payments([1, 7, 1_000_000], 0),
             "directRouterDonationSurplus": 7,
         },
         "supply": {

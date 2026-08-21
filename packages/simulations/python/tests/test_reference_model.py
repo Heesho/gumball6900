@@ -14,6 +14,11 @@ def test_reference_cases_capture_miner_rate_protection() -> None:
     auction = results["auctionQuotes"][0]
     assert auction["fundAmount"] == auction["partitionFundAmount"] == "37800000000000000000"
     assert auction["bribeAmount"] == auction["partitionBribeAmount"] == "4200000000000000000"
+    changed = results["auctionQuotes"][1]
+    assert changed["partitionBribeBasisPoints"] == ["1000", "0", "500", "2000"]
+    assert changed["partitionFundAmount"] == "56"
+    assert changed["partitionBribeAmount"] == "6"
+    assert changed["partitionRemainder"] == "2500"
 
 
 def test_one_raw_unit_payments_eventually_fund_the_bribe() -> None:
@@ -23,3 +28,8 @@ def test_one_raw_unit_payments_eventually_fund_the_bribe() -> None:
         fund += next_fund
         bribe += next_bribe
     assert (fund, bribe, remainder) == (9_000, 1_000, 0)
+
+
+def test_payment_classification_accepts_zero_and_twenty_percent_bounds() -> None:
+    assert classify_payment(10, 0, 0) == (10, 0, 0)
+    assert classify_payment(10, 0, 2_000) == (8, 2, 0)

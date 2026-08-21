@@ -9,7 +9,7 @@ describe('core starting-point status page', () => {
 
     expect(screen.getByRole('heading', { level: 1, name: 'The governance-minimized GBX protocol.' })).toBeTruthy();
     expect(screen.getByText('20,000,000 GBX')).toBeTruthy();
-    expect(screen.getByText('90% Fund · 10% Bribe')).toBeTruthy();
+    expect(screen.getByText('10% default · 0–20%')).toBeTruthy();
     expect(screen.getByText('None')).toBeTruthy();
     expect(screen.getByText(/Deposit GBX directly into a Strategy signal to mint non-transferable sGBX/i)).toBeTruthy();
     expect(screen.getByText('Pro-rata Bribe stream from its explicit notifications')).toBeTruthy();
@@ -29,6 +29,8 @@ describe('core starting-point status page', () => {
     expect(screen.getByText('Add a Strategy.')).toBeTruthy();
     expect(screen.getByText('Kill a Strategy.')).toBeTruthy();
     expect(screen.getByText('Add Bribe rewards.')).toBeTruthy();
+    expect(screen.getByText(/Set the global prospective automatic-Bribe share from 0% through 20%/i)).toBeTruthy();
+    expect(screen.getByText(/0% automatic Bribe rate leaves signaling, movement, withdrawal/i)).toBeTruthy();
     expect(screen.queryByText(/Increase Mine capacity/i)).toBeNull();
     expect(
       screen.getByText(/does not select or implement the governance system that will own Resonance/i),

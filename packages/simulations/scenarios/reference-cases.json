@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "8",
+  "schemaVersion": "9",
   "usdGDecimals": "6",
   "targetDecimals": "18",
   "miningCases": [
@@ -39,7 +39,21 @@
       "priceMultiplier": "2000000000000000000",
       "minInitPrice": "1000000",
       "actualTargetReceived": "42000000000000000000",
-      "paymentPartitions": ["1", "2", "7", "9", "11", "41999999999999999970"]
+      "bribeBps": "1000",
+      "paymentPartitions": ["1", "2", "7", "9", "11", "41999999999999999970"],
+      "paymentPartitionBps": ["1000", "1000", "1000", "1000", "1000", "1000"]
+    },
+    {
+      "id": "strategy-governed-rate-carry",
+      "initPrice": "1000000",
+      "elapsedSeconds": "0",
+      "epochPeriod": "3600",
+      "priceMultiplier": "1100000000000000000",
+      "minInitPrice": "1000000",
+      "actualTargetReceived": "62",
+      "bribeBps": "1000",
+      "paymentPartitions": ["7", "13", "19", "23"],
+      "paymentPartitionBps": ["1000", "0", "500", "2000"]
     }
   ],
   "rewardCases": [

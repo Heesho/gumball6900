@@ -1,8 +1,8 @@
 # External state-machine fuzzing
 
 `harness/ProtocolStateMachineCampaign.sol` deploys and wires the current core graph without Forge cheatcodes. Three
-distinct actor contracts drive atomic signaling and withdrawal, bounded signal moves, mining, routing,
-Strategy purchases, claims, redemption, Strategy killing, and one bounded post-bootstrap Strategy addition.
+distinct actor contracts drive atomic signaling, moves, and withdrawal, bounded global Bribe-share changes, mining,
+routing, Strategy purchases, claims, redemption, Strategy killing, and one bounded post-bootstrap Strategy addition.
 Echidna and Medusa share the `echidna_` property surface.
 
 The accounting properties reconcile account, Strategy, Resonance, Bribe, mandatory signaling, emission, revenue, and
@@ -14,7 +14,8 @@ while allowing every incumbent signaler to remove their position without another
 inline USDG transfer.
 Hostile USDG therefore cannot block dead-Strategy signal exit, and signals on unaffected Strategies remain
 independently movable or withdrawable. The accounting surface also checks that SignalGBX supply equals total signal
-and that cumulative router liabilities conserve every classified payment under the fixed 90/10 split. For every
+and that every Router matches an independent per-Strategy weighted-numerator oracle across arbitrary 0%–20% policy
+changes and independently ordered settlement. For every
 represented reward token, it now also checks that lifetime notifications do not exceed
 `MAX_LIFETIME_REWARD_AMOUNT`, current accounted rewards do not exceed lifetime notifications, and cumulative
 reward-per-signal never exceeds `lifetimeRewardNotified * 1e18`.
@@ -23,8 +24,9 @@ The 2026-08-16 then-current-graph Medusa 1.5.1 campaign completed 101,602 calls,
 across 65 property/assertion surfaces. The pinned Echidna 2.3.2 campaign completed 100,213 calls with seed 6900,
 42,054 unique instructions, corpus 36, and all 25 properties passing. These are local internal runs, not independent
 review. ADR 0034 later removed the in-repository Governor and Timelock; the numerical results remain historical
-engineering evidence. ADR 0035 later added the lifetime-index properties described above; neither change is exercised
-by the recorded native results, and both require a current-tree rerun.
+engineering evidence. ADR 0035 later added the lifetime-index properties described above, and ADR 0036 added the
+prospective global Bribe-share action and weighted-carry oracle. None of those later changes is exercised by the
+recorded native results; the current tree requires a fresh run.
 
 Echidna initially returned exit code zero after every worker crashed before making a call because the default Foundry
 profile deliberately omits compiler metadata while the harness constructor deploys contracts containing immutables.
@@ -33,7 +35,8 @@ the empty-call crash, any below-limit campaign, and any incomplete or failed pro
 zero. The default production build remains metadata-free.
 
 The harness checks Resonance solvency under qualifying stream resets, accepted rounding and zero-signal surplus,
-irreversible Strategy death, exact 90/10 Strategy-payment classification, and mandatory signal accounting. It models
+irreversible Strategy death, exact weighted Strategy-payment classification across rate transitions, and mandatory
+signal accounting including move and withdrawal while the automatic Bribe share is zero. It models
 neither an external governance proposal lifecycle nor its permissions, upgrades, voting, delay, cancellation,
 execution, or ownership handoff. SignalGBX checkpoint persistence remains covered by deterministic Foundry tests, but
 the exact external integration requires a separate campaign and independent review. Bribe's exact carry-to-Fund policy

@@ -10,7 +10,9 @@ burned for caller-selected Fund assets.
 > Architecture status: [ADR 0031](docs/adr/0031-mandatory-signal-backed-signalgbx.md),
 > [ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md),
 > [ADR 0034](docs/adr/0034-external-governance-ownership.md), and
-> [ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md) are implemented in the development tree. Governance execution
+> [ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md), and
+> [ADR 0036](docs/adr/0036-governed-global-bribe-share.md) are implemented in the development tree. ADR 0036
+> supersedes ADR 0032's fixed-rate rule while retaining its cumulative liability accounting. Governance execution
 > remains an unselected external integration, so deployment is blocked. This is local engineering evidence only;
 > independent review and every deployment gate remain outstanding.
 
@@ -23,8 +25,8 @@ burned for caller-selected Fund assets.
    GBX, mint the same sGBX amount, and assign every minted unit to one live Strategy atomically. They may move an
    allocation without changing custody or votes, or withdraw it by removing signal, burning sGBX, and receiving GBX.
 4. A Strategy buyer atomically pulls its released USDG, receives the complete Strategy balance, and pays the asset that
-   Strategy acquires; BribeRouter cumulatively classifies the payment as 90% Fund liability and 10% paired-Bribe reward
-   liability.
+   Strategy acquires; BribeRouter cumulatively classifies the payment at Resonance's current global Bribe rate. It
+   defaults to 10%, can be set from 0% through 20%, and sends the 80%-to-100% complement to Fund.
 5. A GBX holder burns tokens to redeem a proportional share of caller-selected Fund assets.
 
 ```text
@@ -33,8 +35,8 @@ replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance --7-day stream-->
 Mine -> continuous GBX
 GBX -> SignalGBX --mandatory signal--> Resonance allocation weights
 SignalGBX --IVotes checkpoints-------> external governance (unselected) --owns--> Resonance
-Strategy acquired-asset payment -> BribeRouter --90%--> Fund
-                                              \--10%--> paired Bribe -> signalers
+Strategy acquired-asset payment -> BribeRouter --80%-100% complement--> Fund
+                                              \--0%-20% current rate--> paired Bribe -> signalers
 GBX burn -> Fund selected assets
 ```
 
@@ -71,10 +73,15 @@ transfer reverts the complete redemption and burn.
 ## Governance-minimized core
 
 All core contracts are direct and non-upgradeable. Fund and LiquidityPosition are ownerless. Resonance retains only
-three continuing protocol administration methods:
+four continuing protocol administration methods:
 
 - add or kill a Strategy;
-- add a Bribe reward token within the fixed cap of eight.
+- add a Bribe reward token within the fixed cap of eight;
+- set the single global prospective automatic-Bribe share from 0% through 20%.
+
+Changing that rate never reprices an earlier payment, liability, reward stream, queued reward, claim, or fractional
+carry. At 0%, new Strategy payments classify entirely to Fund; paired Bribes, independently funded rewards, signal
+movement, and withdrawal remain available.
 
 SignalGBX retains block-clock ERC20Votes checkpoints for an external governance system, but this repository does not
 select or implement that system. The exact executor, release, plugins, permissions, voting rules, upgrade model,
@@ -93,7 +100,7 @@ batching an addition before the old Strategy's kill.
 | `ResonanceRouter`   | Holds USDG below the active amount left, then permissionlessly forwards a qualifying balance.     |
 | `Resonance`         | Bribe-shaped seven-day USDG rewards, active signal totals, and Strategy/Bribe administration.     |
 | `Strategy`          | Reverse Dutch acquisition auction.                                                                |
-| `BribeRouter`       | Cumulative immutable 90% Fund / 10% paired-Bribe acquired-asset classification and liabilities.   |
+| `BribeRouter`       | Cumulative weighted Fund/Bribe classification at Resonance's bounded global prospective rate.     |
 | `Bribe`             | Automatic and independent rewards, with eight-token and per-token lifetime notification caps.     |
 | `Fund`              | Registry-free backing, selective redemption, and permissionless Fund-held GBX burn.               |
 | `LiquidityPosition` | Permanent fixed-principal Uniswap v4 position and permissionless fee routing.                     |
@@ -132,7 +139,8 @@ Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
 [ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md),
 [ADR 0033](docs/adr/0033-fixed-mine-slots-and-constant-time-pending-emission.md),
 [ADR 0034](docs/adr/0034-external-governance-ownership.md), and
-[ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md).
+[ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md), and
+[ADR 0036](docs/adr/0036-governed-global-bribe-share.md).
 
 ## Provenance
 

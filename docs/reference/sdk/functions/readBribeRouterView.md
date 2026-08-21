@@ -6,9 +6,9 @@
 
 # Function: readBribeRouterView()
 
-> **readBribeRouterView**(`client`, `bribeRouter`, `options?`): `Promise`\<\{ `accountedPaymentBalance`: `bigint`; `basisPoints`: `bigint`; `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bribeBasisPoints`: `bigint`; `bribePaymentLiability`: `bigint`; `fund`: `` `0x${string}` ``; `fundBasisPoints`: `bigint`; `fundPaymentLiability`: `bigint`; `paymentSurplus`: `bigint`; `paymentToken`: `` `0x${string}` ``; `splitRemainder`: `bigint`; `strategy`: `` `0x${string}` ``; \}\>
+> **readBribeRouterView**(`client`, `bribeRouter`, `options?`): `Promise`\<\{ `accountedPaymentBalance`: `bigint`; `basisPoints`: `bigint`; `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bribeBasisPoints`: `bigint`; `bribePaymentLiability`: `bigint`; `fund`: `` `0x${string}` ``; `fundBasisPoints`: `bigint`; `fundPaymentLiability`: `bigint`; `paymentSurplus`: `bigint`; `paymentToken`: `` `0x${string}` ``; `resonance`: `` `0x${string}` ``; `splitRemainder`: `bigint`; `strategy`: `` `0x${string}` ``; \}\>
 
-Reads a Strategy router's immutable 90/10 terms, liabilities, split carry, and direct-donation surplus.
+Reads a Strategy router's liabilities, persistent split carry, and current global Bribe share.
 
 ## Parameters
 
@@ -20,4 +20,4 @@ Reads a Strategy router's immutable 90/10 terms, liabilities, split carry, and d
 
 ## Returns
 
-`Promise`\<\{ `accountedPaymentBalance`: `bigint`; `basisPoints`: `bigint`; `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bribeBasisPoints`: `bigint`; `bribePaymentLiability`: `bigint`; `fund`: `` `0x${string}` ``; `fundBasisPoints`: `bigint`; `fundPaymentLiability`: `bigint`; `paymentSurplus`: `bigint`; `paymentToken`: `` `0x${string}` ``; `splitRemainder`: `bigint`; `strategy`: `` `0x${string}` ``; \}\>
+`Promise`\<\{ `accountedPaymentBalance`: `bigint`; `basisPoints`: `bigint`; `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bribeBasisPoints`: `bigint`; `bribePaymentLiability`: `bigint`; `fund`: `` `0x${string}` ``; `fundBasisPoints`: `bigint`; `fundPaymentLiability`: `bigint`; `paymentSurplus`: `bigint`; `paymentToken`: `` `0x${string}` ``; `resonance`: `` `0x${string}` ``; `splitRemainder`: `bigint`; `strategy`: `` `0x${string}` ``; \}\>

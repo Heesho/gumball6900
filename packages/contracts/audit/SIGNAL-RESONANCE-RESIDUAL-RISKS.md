@@ -1,8 +1,8 @@
 # Signal and Resonance residual risks
 
 This local campaign is not an independent audit or proof of safety. Its recorded native-fuzzer results predate ADR
-0034's removal of the local Governor and Timelock and ADR 0035's Bribe lifetime cap. The following remain after the
-2026-08-16 run and the 2026-08-19 development reconciliation.
+0034's removal of the local Governor and Timelock, ADR 0035's Bribe lifetime cap, and ADR 0036's governed global Bribe
+share. The following remain after the 2026-08-16 run and the 2026-08-21 development reconciliation.
 
 1. ADR 0028 accepts that a killed Strategy's final signal exit can leave active and queued Bribe rewards permanently
    accounted but unreachable, including later zero-supply notifications while lifetime headroom remains. ADR 0035
@@ -41,3 +41,7 @@ This local campaign is not an independent audit or proof of safety. Its recorded
 11. No exact external-governance release, permission/admin graph, execution policy, ownership handoff, mainnet fork,
     deployment receipt, legal clearance, signed manifest, or independent review was produced. The tree is suitable
     for independent review, not release authorization.
+12. The Resonance owner may set the global prospective automatic-Bribe share anywhere from 0% through 20%. The change
+    cannot reprice old liabilities and 0% does not block signal operations, but governance can materially change
+    future Fund backing and signaler incentives around pending auctions. The external integration must define delay,
+    cancellation, batching, monitoring, and emergency behavior for this lever; the current core supplies none.

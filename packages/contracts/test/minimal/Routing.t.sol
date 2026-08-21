@@ -43,7 +43,7 @@ contract PartialPullResonance {
 }
 
 /// @title BribeRouterTest
-/// @notice Covers cumulative fixed 90/10 classification and isolated permissionless settlement.
+/// @notice Covers cumulative classification, dynamic-rate guards, and isolated permissionless settlement.
 contract BribeRouterTest is Test {
     address private constant ALICE = address(0xA11CE);
     address private constant KEEPER = address(0x9EE9E5);
@@ -53,8 +53,9 @@ contract BribeRouterTest is Test {
     BribeRouter private router;
     MockERC20 private payment;
     MockERC20 private fundStandIn;
+    uint256 private currentBribeBps = 1_000;
 
-    event PaymentRouted(address indexed strategy, uint256 amount);
+    event PaymentRouted(address indexed strategy, uint256 amount, uint256 bribeBps);
     event FundPaymentAccrued(
         address indexed fund, address indexed paymentToken, uint256 amount, uint256 totalLiability
     );
@@ -66,6 +67,10 @@ contract BribeRouterTest is Test {
         return address(fundStandIn);
     }
 
+    function bribeBps() external view returns (uint256 basisPoints) {
+        return currentBribeBps;
+    }
+
     function setUp() external {
         vm.warp(365 days);
         payment = new MockERC20("Payment", "PAY", 18);
@@ -74,30 +79,36 @@ contract BribeRouterTest is Test {
         // The test contract plays both Resonance (for the Bribe) and Strategy (for the router).
         bribe = new Bribe(address(this));
         bribe.addRewardToken(address(payment));
-        router = new BribeRouter(address(this), bribe, IERC20(address(payment)), address(fundStandIn));
+        router = new BribeRouter(address(this), address(this), bribe, IERC20(address(payment)), address(fundStandIn));
     }
 
     function test_ConstructorRejectsZeroAndEOADependencies() external {
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(address(0), bribe, IERC20(address(payment)), address(fundStandIn));
+        new BribeRouter(address(0), address(this), bribe, IERC20(address(payment)), address(fundStandIn));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(address(this), Bribe(address(0)), IERC20(address(payment)), address(fundStandIn));
+        new BribeRouter(address(this), address(0), bribe, IERC20(address(payment)), address(fundStandIn));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(address(this), bribe, IERC20(address(0)), address(fundStandIn));
+        new BribeRouter(address(this), address(this), Bribe(address(0)), IERC20(address(payment)), address(fundStandIn));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(address(this), bribe, IERC20(address(payment)), address(0));
+        new BribeRouter(address(this), address(this), bribe, IERC20(address(0)), address(fundStandIn));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(ALICE, bribe, IERC20(address(payment)), address(fundStandIn));
+        new BribeRouter(address(this), address(this), bribe, IERC20(address(payment)), address(0));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(address(this), bribe, IERC20(ALICE), address(fundStandIn));
+        new BribeRouter(ALICE, address(this), bribe, IERC20(address(payment)), address(fundStandIn));
 
         vm.expectRevert(BribeRouter.ZeroAddress.selector);
-        new BribeRouter(address(this), bribe, IERC20(address(payment)), ALICE);
+        new BribeRouter(address(this), ALICE, bribe, IERC20(address(payment)), address(fundStandIn));
+
+        vm.expectRevert(BribeRouter.ZeroAddress.selector);
+        new BribeRouter(address(this), address(this), bribe, IERC20(ALICE), address(fundStandIn));
+
+        vm.expectRevert(BribeRouter.ZeroAddress.selector);
+        new BribeRouter(address(this), address(this), bribe, IERC20(address(payment)), ALICE);
     }
 
     function test_RoutePaymentIsStrategyOnly() external {
@@ -111,9 +122,24 @@ contract BribeRouterTest is Test {
         router.routePayment(0);
     }
 
+    function test_RoutePaymentRejectsAMalformedRateBeforePaymentTokenInteraction() external {
+        currentBribeBps = router.BPS() + 1;
+        payment.mint(address(this), 10 ether);
+        payment.approve(address(router), 10 ether);
+
+        vm.expectRevert(abi.encodeWithSelector(BribeRouter.BribeBpsAboveBasis.selector, uint256(10_001)));
+        router.routePayment(10 ether);
+
+        assertEq(payment.balanceOf(address(this)), 10 ether);
+        assertEq(payment.balanceOf(address(router)), 0);
+        assertEq(payment.allowance(address(this), address(router)), 10 ether);
+        assertEq(router.accountedPaymentBalance(), 0);
+    }
+
     function test_RoutePaymentRejectsAFeeOnTransferToken() external {
         FeeOnTransferToken feeToken = new FeeOnTransferToken(18);
-        BribeRouter feeRouter = new BribeRouter(address(this), bribe, IERC20(address(feeToken)), address(fundStandIn));
+        BribeRouter feeRouter =
+            new BribeRouter(address(this), address(this), bribe, IERC20(address(feeToken)), address(fundStandIn));
 
         feeToken.mint(address(this), 10 ether);
         feeToken.approve(address(feeRouter), 10 ether);
@@ -129,16 +155,14 @@ contract BribeRouterTest is Test {
 
     function test_CompletePaymentIsClassifiedNinetyTenEvenWithLiveSignalWeight() external {
         assertEq(router.BPS(), 10_000);
-        assertEq(router.FUND_BPS(), 9_000);
-        assertEq(router.BRIBE_BPS(), 1_000);
-        assertEq(router.FUND_BPS() + router.BRIBE_BPS(), router.BPS());
+        assertEq(currentBribeBps, 1_000);
 
         bribe.deposit(100 ether, ALICE);
         payment.mint(address(this), 70 ether);
         payment.approve(address(router), 70 ether);
 
         vm.expectEmit(true, false, false, true);
-        emit PaymentRouted(address(this), 70 ether);
+        emit PaymentRouted(address(this), 70 ether, 1_000);
         vm.expectEmit(true, true, false, true);
         emit FundPaymentAccrued(address(fundStandIn), address(payment), 63 ether, 63 ether);
         vm.expectEmit(true, true, false, true);
@@ -240,12 +264,28 @@ contract BribeRouterTest is Test {
         assertEq(router.accountedPaymentBalance(), 10);
     }
 
+    function test_MaxUintPaymentUsesFullPrecisionAtTheMaximumRate() external {
+        currentBribeBps = 2_000;
+        uint256 amount = type(uint256).max;
+        payment.mint(address(this), amount);
+        payment.approve(address(router), amount);
+
+        router.routePayment(amount);
+
+        uint256 expectedBribe = amount / 5;
+        assertEq(router.bribePaymentLiability(), expectedBribe);
+        assertEq(router.fundPaymentLiability(), amount - expectedBribe);
+        assertEq(router.splitRemainder(), mulmod(amount, 2_000, 10_000));
+        assertEq(router.accountedPaymentBalance(), amount);
+    }
+
     function test_AFailureOnEitherSettlementLegDoesNotBlockOrCorruptTheOther() external {
         RevertingToken hostile = new RevertingToken(18);
         Bribe hostileBribe = new Bribe(address(this));
         hostileBribe.addRewardToken(address(hostile));
-        BribeRouter hostileRouter =
-            new BribeRouter(address(this), hostileBribe, IERC20(address(hostile)), address(fundStandIn));
+        BribeRouter hostileRouter = new BribeRouter(
+            address(this), address(this), hostileBribe, IERC20(address(hostile)), address(fundStandIn)
+        );
 
         hostile.mint(address(this), 20 ether);
         hostile.approve(address(hostileRouter), 20 ether);
@@ -278,7 +318,7 @@ contract BribeRouterTest is Test {
         Bribe stickyBribe = new Bribe(address(this));
         stickyBribe.addRewardToken(address(sticky));
         BribeRouter stickyRouter =
-            new BribeRouter(address(this), stickyBribe, IERC20(address(sticky)), address(fundStandIn));
+            new BribeRouter(address(this), address(this), stickyBribe, IERC20(address(sticky)), address(fundStandIn));
 
         sticky.mint(address(this), 10 ether);
         sticky.approve(address(stickyRouter), 10 ether);
@@ -294,8 +334,9 @@ contract BribeRouterTest is Test {
         ReentrantToken hostile = new ReentrantToken(18);
         Bribe hostileBribe = new Bribe(address(this));
         hostileBribe.addRewardToken(address(hostile));
-        BribeRouter hostileRouter =
-            new BribeRouter(address(this), hostileBribe, IERC20(address(hostile)), address(fundStandIn));
+        BribeRouter hostileRouter = new BribeRouter(
+            address(this), address(this), hostileBribe, IERC20(address(hostile)), address(fundStandIn)
+        );
 
         hostileBribe.deposit(100 ether, ALICE);
         hostile.mint(address(this), 10 ether);

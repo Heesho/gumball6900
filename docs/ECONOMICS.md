@@ -1,6 +1,6 @@
 # Economics
 
-> Target-development economics: ADRs 0031 and 0032 are authoritative and implemented in the current development tree.
+> Target-development economics: ADRs 0031 and 0036 are authoritative development decisions.
 > These mechanics remain unaudited and are not authorized for user funds.
 
 ## Supply
@@ -56,21 +56,32 @@ change; its account balance is the aggregate signal, paired Bribes store per-Str
 Resonance stores only the active total across live Strategies. Moving signal changes no custody or votes; withdrawal
 removes the position, burns sGBX, and returns GBX atomically.
 A Strategy purchase atomically pulls all revenue released to it through that timestamp, then sells its complete USDG
-balance through a reverse Dutch auction. Its acquired-asset payment is classified cumulatively as 90% fixed Fund
-liability and 10% fixed paired-Bribe reward liability. Explicit basis-point remainder accounting makes one payment and
-any partition of that payment economically identical. The two liabilities settle independently, so a failure at one
-destination does not block or consume the other. Additional independently funded Bribe rewards remain possible.
+balance through a reverse Dutch auction. Its acquired-asset payment is classified at Resonance's global `bribeBps`
+current when the payment is routed. The rate defaults to 10%, governance may set it from 0% through 20%, and Fund
+receives the complement. There is no per-Strategy rate. The two resulting fixed liabilities settle independently, so a
+failure at one destination does not block or consume the other. Additional independently funded Bribe rewards remain
+possible.
 
-For cumulative acquired-asset payments `X`:
+For payments `a_i` classified at applied rates `r_i`:
 
 ```text
-paired Bribe classification = floor(X * 1,000 / 10,000)
-Fund classification = X - paired Bribe classification
-split remainder = (X * 1,000) mod 10,000
+weighted Bribe numerator = sum(a_i * r_i)
+paired Bribe classification = floor(weighted Bribe numerator / 10,000)
+Fund classification = sum(a_i) - paired Bribe classification
+split remainder = weighted Bribe numerator mod 10,000
 ```
 
-The payment asset, not USDG, funds the automatic paired-Bribe stream. If the payment asset is GBX, the 90% Fund share
-may be burned permissionlessly after settlement while the 10% share rewards the paired signalers.
+The remainder persists unchanged across governance transitions, so classification is exact over a history such as
+10% to 0% to 5% or 20%. A 0% payment adds no weighted Bribe numerator, creates no new Bribe liability, and classifies
+entirely to Fund; prior fractional carry is preserved but cannot cross a raw-token boundary until a later nonzero-rate
+payment. Changing the rate reclassifies no prior payment or existing liability, stream, or claim. Because every applied
+rate is at most 20%, Fund receives at least 80% across the cumulative history, although carry can make an individual
+small payment's visible raw-unit split differ from its nominal percentage.
+
+The payment asset, not USDG, funds the automatic paired-Bribe stream. If the payment asset is GBX, the dynamically
+Fund-classified share may be burned permissionlessly after settlement while any nonzero paired-Bribe share rewards
+signalers. A 0% automatic share does not disable the paired Bribe: signal, move, withdrawal, existing reward settlement,
+and independently funded rewards continue normally.
 
 Streaming is lazy accounting: no keeper transaction is required each second. A later signal change, distribution,
 purchase, or qualifying notification materializes the elapsed amount. During an active schedule ResonanceRouter holds

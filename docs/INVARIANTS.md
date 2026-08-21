@@ -1,6 +1,6 @@
 # Core invariants
 
-> These are development invariants under ADRs 0031, 0032, 0034, and 0035. Governance execution remains an unselected
+> These are development invariants under ADRs 0031, 0034, 0035, and 0036. Governance execution remains an unselected
 > external integration and contributes no production invariant until separately reviewed.
 
 ## GBX and Mine
@@ -70,22 +70,31 @@
 - The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter.
 - SignalGBX retains ERC20Votes checkpoints on its default block-number clock, but the core assigns them no proposal
   threshold, quorum, voting period, cancellation, delay, or execution semantics.
-- Resonance is the only owned core contract. After its one-time router binding, its continuing protocol administration
-  methods are `addStrategy`, `killStrategy`, and `addBribeReward`; inherited ownership transfer and renunciation remain.
+- Resonance is the only core contract with continuing custom owner authority after its one-time router binding. Those
+  methods are `addStrategy`, `killStrategy`, `addBribeReward`, and bounded global `setBribeBps`; inherited ownership
+  transfer and renunciation remain. SignalGBX, StrategyFactory, and BribeFactory retain setup-only inherited ownership
+  shells after their one-time bindings, with no remaining custom owner action.
+- `0 <= Resonance.bribeBps() <= 2_000`, its deployment default is 1,000, and Fund's classification rate is always
+  `10_000 - bribeBps`. There is no per-Strategy rate or separately configurable Fund rate.
 - The external Resonance owner is unselected. No production ownership, voting, permission, upgrade, batching, delay, or
   cancellation invariant exists until a later ADR selects the exact external integration, so deployment is blocked.
 
 ## Strategies, Fund, and liquidity
 
-- Every nonzero Strategy acquired-asset payment is cumulatively classified as 90% fixed Fund liability and 10% fixed
-  paired-Bribe reward liability. The fractional basis-point remainder is explicit and payment partitioning cannot
-  change cumulative classification.
+- For Strategy acquired-asset payments `a_i` classified at global rates `r_i`, cumulative paired-Bribe liability is
+  `floor(sum(a_i * r_i) / 10_000)`, cumulative Fund liability is the remaining `sum(a_i)`, and the Router remainder is
+  `sum(a_i * r_i) mod 10_000`. The fractional basis-point remainder survives rate changes unchanged. Partitioning
+  payments classified at the same rate cannot change the result.
+- A rate change is prospective: it changes no prior classification, existing Router liability, Bribe stream, queued
+  reward, accrued claim, or split remainder. At rate zero, new payments create only Fund liability and add no Bribe
+  numerator; signaling, moving signal, withdrawing signal, killed-Strategy exit, existing reward settlement, and
+  independently funded rewards remain live.
 - Fund payment and paired-Bribe notification are isolated permissionless settlement legs. Neither liability can be
   redirected, consumed by failure of the other leg, or paid twice. Direct BribeRouter donations alter neither.
 - If the paired Bribe has exhausted a token's lifetime notification cap, notification failure leaves the complete
   automatic Bribe liability in BribeRouter while Fund settlement remains independently available.
-- A GBX-priced Strategy is supply-neutral until the Fund-classified GBX is explicitly burned after reaching Fund; the
-  Bribe-classified GBX remains a reward liability and is not burned by settlement.
+- A GBX-priced Strategy is supply-neutral until the dynamically Fund-classified GBX is explicitly burned after reaching
+  Fund; any Bribe-classified GBX remains a reward liability and is not burned by settlement.
 - Fund redemption uses one effective pre-burn supply snapshot for every selected token and is atomic with the
   GBX burn and every selected transfer.
 - Redemption rejects GBX, the zero address, and duplicates. Fund has no asset registry or administrative withdrawal.

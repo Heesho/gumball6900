@@ -4,7 +4,8 @@ Minimal read model for the provisional core. It indexes `GBX`, `Mine`, `Liquidit
 `ResonanceRouter`, `Resonance`, and `Fund` data sources.
 
 The subgraph tracks minted and burned supply, mining slots and claims, staking, successful ResonanceRouter forwards,
-Resonance revenue notifications and distributions, Strategies, signals, kills, and redemptions.
+Resonance revenue notifications and distributions, its global prospective automatic-Bribe rate, Strategies, signals,
+kills, Strategy payment rates and liabilities, and redemptions.
 `ProtocolEvent` records handled events positionally. Each `RevenueNotified` resets the seven-day reward period, but its
 event exposes only the newly notified amount. The subgraph therefore records cumulative notification volume, reset
 count, and the latest notification amount and timestamp without inventing the carried `left` amount, rate, remainder,

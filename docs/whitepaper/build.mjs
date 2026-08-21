@@ -33,13 +33,11 @@ const STALE_PHRASES = [
   'unlimited reward tokens',
   'management fee',
   'five management actions',
-  'four ongoing',
-  'setBribeBps',
-  'bribeBps',
-  // '90/10' was listed here while the split was a superseded ADR 0013/0016 design. ADR
-  // 0032 made a fixed 90% Fund / 10% paired-Bribe classification the current behaviour,
-  // so blocking the term would now reject a correct document. The phrases that became
-  // stale in its place are the 100%-Fund claims below.
+  // ADR 0036 supersedes ADR 0032's immutable rate while preserving cumulative carry.
+  'fixed 90/10',
+  'immutable 90/10',
+  'hard-coded 90/10',
+  'split cannot change',
   'fund migration',
   'successor fund',
   'migrate liquidity',
@@ -71,9 +69,8 @@ const STALE_PHRASES = [
   'multisig proposer',
   'resonance.addsignal',
   'resonance.removesignal',
-  // Superseded by ADR 0032: acquired-asset payments are no longer wholly Fund-bound.
-  '100% to fund',
-  '100% fund',
+  // Under ADR 0036 a 0% Bribe rate can make one payment wholly Fund-bound; categorical
+  // assertions that auction proceeds never fund Bribes remain stale.
   'no auction proceeds',
   'never fund bribes',
   'never receive auction proceeds',

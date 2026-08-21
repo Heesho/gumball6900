@@ -2,21 +2,23 @@
 
 ## The index fund that chooses itself
 
-Whitepaper v0.6 — 16 August 2026 — by Heesho
+Whitepaper v0.7 — 21 August 2026 — by Heesho
 
 > Development status: experimental, not deployed, not independently audited, and not authorized for user funds.
 > Exact mining economics, deployment parameters, third-party provenance, and independent security review remain open
-> release gates. ADRs 0031, 0032, 0034, and 0035 are authoritative development decisions. Governance execution and the
-> production Resonance owner remain an unselected external integration, so deployment is blocked.
+> release gates. ADRs 0031, 0034, 0035, and 0036 are authoritative development decisions; ADR 0036 supersedes ADR
+> 0032's fixed-rate rule while retaining cumulative settlement. Governance execution and the production Resonance
+> owner remain an unselected external integration, so deployment is blocked.
 
 ## Abstract
 
 GumBall6900 is a proposed signal-directed onchain fund. GBX holders deposit into non-transferable SignalGBX (`sGBX`)
 only while assigning every receipt unit to an acquisition Strategy. sGBX records block-clock ERC20Votes checkpoints
 for a future external governance integration while continuously directing new USDG. Each Strategy exchanges USDG for
-one configured asset through a reverse Dutch auction.
-Its acquired-asset payment is classified 90% to an ownerless Fund and 10% to the paired Bribe for signalers. GBX
-holders may burn GBX to redeem a caller-selected pro-rata share of raw Fund assets.
+one configured asset through a reverse Dutch auction. Its acquired-asset payment uses Resonance's single global,
+prospective automatic-Bribe rate. The rate defaults to 10%, is owner-settable from 0% through 20%, and sends the
+80%-to-100% complement to an ownerless Fund. GBX holders may burn GBX to redeem a caller-selected pro-rata share of
+raw Fund assets.
 
 GBX distribution uses an immutable multislot Mine adapted from Farplace MineRig. A slot can change hands at any time.
 Its USDG price decays to zero over one hour, creating a continuously clearing market rather than a pooled daily round.
@@ -30,13 +32,13 @@ The protocol has five recurring actions:
 2. The incumbent accrues GBX continuously at the rate fixed when that tenure began.
 3. Mining revenue enters a seven-day Resonance stream whose elapsed flow follows current sGBX signals.
 4. Strategies atomically pull released USDG and exchange their accumulated balance for configured payment assets,
-   which are classified cumulatively 90% to Fund and 10% to the paired Bribe.
+   which are classified cumulatively at the current 0%-to-20% global Bribe rate and its Fund complement.
 5. A GBX holder may burn GBX for selected Fund assets in kind.
 
 ```text
 slot replacement -> 80% displaced miner
-                -> 20% ResonanceRouter -> Resonance stream -> Strategies -> 90% Fund
-                                                                       \-> 10% paired Bribe
+                -> 20% ResonanceRouter -> Resonance stream -> Strategies -> 80%-100% Fund
+                                                                       \-> 0%-20% paired Bribe
 
 GBX -> sGBX -> live signals ------------------------------^
            \-> IVotes checkpoints -> external governance (unselected) -> Resonance owner actions
@@ -152,11 +154,17 @@ rewards, forbids additions, and leaves incumbent signalers free to exit. After t
 final live Strategy cannot be killed until the Resonance owner adds a replacement.
 
 Signals steer future flow; they do not force Fund to sell past holdings or maintain a target portfolio. A Strategy's
-acquired-asset payment enters BribeRouter, which cumulatively classifies 90% as a fixed Fund liability and 10% as a
-fixed paired-Bribe reward liability. Explicit split remainder prevents repeated tiny payments from starving the Bribe.
-The two permissionless settlement legs are isolated, so failure of one preserves its liability without consuming the
-other. The acquired payment asset, not USDG, is the automatic Bribe reward. Additional independent rewards remain
-possible within the eight-token cap.
+acquired-asset payment enters BribeRouter, which snapshots Resonance's current global automatic-Bribe rate before token
+interaction. The rate defaults to 10%, may be set from 0% through 20%, and makes Fund's share its 100% complement.
+One weighted split remainder persists across rate changes, so cumulative classification equals the floor of all
+payment-by-rate numerators divided by 10,000. A rate change never reprices an existing liability, active stream,
+queued reward, accrued claim, or earlier classification.
+
+At 0%, new payments create only Fund liability and `notifyBribeReward` is a zero-liability no-op. Paired Bribes remain
+live: existing liabilities and rewards can settle, independently funded rewards remain permitted, and signalers can
+signal, move, withdraw, or exit killed Strategies normally. The two permissionless settlement legs are isolated, so
+failure of one preserves its liability without consuming the other. The acquired payment asset, not USDG, is the
+automatic Bribe reward. Additional independent rewards remain possible within the eight-token cap.
 
 Each reward token in each Bribe also has a monotonic lifetime accepted-notification limit of
 `floor(type(uint256).max / 1e18)` raw units. It is checked before reward checkpointing or token transfer and cannot be
@@ -179,18 +187,21 @@ atomically. There is no keeper, bounty, oracle, swap, migration, or NFT withdraw
 
 The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. SignalGBX retains
 non-transferable ERC20Votes checkpoints on the block-number clock, but the core assigns them no proposal, quorum,
-delay, cancellation, or execution semantics. Resonance is the only owned core contract. Its continuing protocol
-administration methods are:
+delay, cancellation, or execution semantics. Resonance is the only core contract with continuing custom owner
+authority. Its protocol administration methods are:
 
 - add a Strategy;
 - permanently kill a Strategy;
-- register a Bribe reward token, subject to the immutable eight-token cap.
+- register a Bribe reward token, subject to the immutable eight-token cap;
+- set the global prospective automatic-Bribe rate from 0% through 20%.
 
-The Resonance owner can also transfer or renounce ownership. The production owner remains unselected. A later ADR must
-pin and review the external governance provider, exact release and deployed code, plugins, SignalGBX compatibility,
-permissions and administrators, upgrade model, proposal rules, batching, delay, cancellation, and ownership handoff.
-Until then the protocol makes no claim that administration is selector-filtered, delayed, permissionlessly executable,
-or cancellable, and deployment is blocked.
+The Resonance owner can also transfer or renounce ownership. SignalGBX, StrategyFactory, and BribeFactory retain
+setup-only inherited ownership shells after their one-time Resonance bindings, with no remaining custom owner action.
+Production must renounce those consumed shells and transfer Resonance to the selected external executor. That owner
+remains unselected. A later ADR must pin and review the external governance provider, exact release and deployed code,
+plugins, SignalGBX compatibility, permissions and administrators, upgrade model, proposal rules, batching, delay,
+cancellation, and ownership handoff. Until then the protocol makes no claim that administration is selector-filtered,
+delayed, permissionlessly executable, or cancellable, and deployment is blocked.
 
 Mine has exactly sixteen slots, no owner, and no path to reprice an incumbent. Fund and LiquidityPosition are ownerless. No
 core contract has a proxy, general executor, pause switch, rescue function, emission setter, successor, or migration
@@ -208,6 +219,9 @@ external governance executor and removing the temporary setup authority.
   liveness properties require separate review.
 - The external governance system is unselected. The core guarantees no proposal filter, delay, cancellation path,
   guardian, open executor, immutable voting configuration, or external-governance upgrade boundary.
+- The Resonance owner can change the automatic-Bribe share immediately within its 0%-to-20% bound. Transaction
+  ordering determines which rate a pending Strategy fill snapshots; the external governance review must address delay
+  and execution transparency.
 - Permissionless signaling permits rapid allocation movement, but only stream time held at a weight earns new flow;
   existing Strategy inventory, qualifying-reset timing, and accepted rounding surplus still have timing considerations.
 - Broken or blocklisting tokens can block their own payout paths.

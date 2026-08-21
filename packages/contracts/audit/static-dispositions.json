@@ -214,15 +214,15 @@
     },
     "minimal-external-administration": {
       "reviewerId": "internal-protocol-security",
-      "impact": "Compromise of the Resonance setup owner or future external governance executor could change Strategy membership, reward-token registration, or Resonance ownership.",
-      "exploitability": "These findings identify the intended remaining administrative surface: Resonance ownership plus factories and SignalGBX wired immutably to Resonance; deployment remains blocked until the exact external governance executor and its permission and upgrade model are reviewed.",
+      "impact": "Compromise of the Resonance setup owner or future external governance executor could change Strategy membership, reward-token registration, the prospective automatic-Bribe share, or Resonance ownership.",
+      "exploitability": "These findings identify the intended remaining administrative surface: Resonance ownership, including the globally bounded 0% through 20% prospective Bribe-share setter, plus factories and SignalGBX wired immutably to Resonance; deployment remains blocked until the exact external governance executor and its permission and upgrade model are reviewed.",
       "affectedAssumptions": [
         "The signed deployment procedure transfers Resonance ownership to the reviewed external governance executor before protocol use and removes temporary setup authority.",
-        "Auction payments retain the immutable cumulative 90% Fund and 10% paired-Bribe split, and no new owner-gated functions are introduced."
+        "setBribeBps remains owner-only, uniform across Strategies, bounded from 0 through 2,000 basis points, prospective only, and unable to reset weighted carry or reprice existing liabilities."
       ],
-      "revisitTrigger": "Re-review when an external governance system is selected or if ownership wiring, factory callers, SignalGBX controller, or the Resonance administrative surface changes.",
+      "revisitTrigger": "Re-review when an external governance system is selected or if ownership wiring, factory callers, SignalGBX controller, Bribe-share bounds or snapshot semantics, or the Resonance administrative surface changes.",
       "compensatingControls": [
-        "Access-control tests enumerate every privileged and forbidden caller path.",
+        "Access-control and rate-transition tests enumerate privileged callers, exact bounds, prospective snapshots, and zero-rate liveness.",
         "The release checklist blocks launch evidence until the external governance integration and ownership transfer are independently verified."
       ]
     },

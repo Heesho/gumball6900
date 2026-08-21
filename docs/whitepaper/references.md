@@ -5,9 +5,8 @@ this list; the claim-by-claim mapping lives in `FACT-CHECK.md`.
 
 ## This repository
 
-- Current implementation evidence: `packages/contracts/src/core` at commit
-  `281e601ecb3f3989da826a8a7dfba37b63b55ca0`. It implements the superseded idle-sGBX and 100%-Fund architecture and
-  is not the target described by ADRs 0031 and 0032.
+- Current implementation evidence: `packages/contracts/src/core` in the working tree. It is not release-pinned and a
+  green local build remains engineering evidence only.
 - Internal audit record: `packages/contracts/audit/` (AUDIT-BASELINE,
   INDEPENDENT-SPECIFICATION, INTERNAL-AUDIT, FINDINGS, TEST-CAMPAIGN, STATIC-ANALYSIS,
   MUTATION-TESTING, FORMAL-CHECKS, UNISWAP-V4-REVIEW, FORK-VALIDATION, EXTERNAL_FUZZING,
@@ -15,10 +14,10 @@ this list; the claim-by-claim mapping lives in `FACT-CHECK.md`.
   `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84`.
 - Independent models and fixtures: `packages/simulations/` (TypeScript and Python,
   cross-checked at build time via `src/protocol-facts.mjs`).
-- Design history: `docs/adr/0013` through `docs/adr/0032`, especially ADR 0019
+- Design history: `docs/adr/0013` through `docs/adr/0036`, especially ADR 0019
   (incremental absolute signals, eight-token cap), ADR 0021 (historical uniform 100% Fund settlement), ADR 0022
-  (fixed-principal LP fee routing), ADR 0031 (mandatory signal-backed sGBX), and ADR 0032 (fixed cumulative 90/10
-  acquired-asset settlement).
+  (fixed-principal LP fee routing), ADR 0031 (mandatory signal-backed sGBX), ADR 0032 (cumulative acquired-asset
+  settlement foundation), and ADR 0036 (bounded global prospective Bribe share).
 - Protocol documentation: `docs/ARCHITECTURE.md`, `docs/ECONOMICS.md`, `docs/EMISSIONS.md`,
   `docs/SPEC.md`, `docs/ACCESS_CONTROL.md`, `docs/INVARIANTS.md`,
   `docs/SECURITY-INVARIANTS.md`, `docs/THREAT_MODEL.md`, `docs/TRUST_ASSUMPTIONS.md`,

@@ -7,32 +7,32 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { Bribe } from "./Bribe.sol";
+import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
 
 /**
  * @title GumBall6900 Strategy Payment Router
  * @author Heesho
- * @notice Cumulatively classifies one Strategy's acquired-asset payments into immutable Fund and Bribe liabilities.
- * @dev Classification is fixed at 90/10 and frequency-independent. Deferred isolated settlement keeps an auction fill
- *      live when either immutable destination temporarily rejects the acquired asset.
- * @custom:version 1.0.0
+ * @notice Classifies one Strategy's acquired-asset payments into fixed Fund and Bribe liabilities at the current rate.
+ * @dev Each payment snapshots Resonance's bounded global Bribe share before token interaction. Cumulative numerator
+ *      carry preserves exact weighted classification across payment partitioning and governance rate changes. Deferred
+ *      isolated settlement keeps an auction fill live when either immutable destination temporarily rejects the asset.
+ * @custom:version 1.1.0
  */
 contract BribeRouter is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    /// @notice Denominator for the immutable payment split.
+    /// @notice Denominator for the governance-bounded payment split.
     uint256 public constant BPS = 10_000;
-    /// @notice Basis points of cumulative Strategy payments classified to Fund.
-    uint256 public constant FUND_BPS = 9_000;
-    /// @notice Basis points of cumulative Strategy payments classified to the paired Bribe.
-    uint256 public constant BRIBE_BPS = 1_000;
 
+    /// @notice Resonance supplying the global prospective Bribe share.
+    address public immutable resonance;
     /// @notice Strategy exclusively authorized to supply completed auction payments.
     address public immutable strategy;
-    /// @notice Bribe paired with the Strategy and fixed as the automatic 10% reward destination.
+    /// @notice Bribe paired with the Strategy and fixed as its automatic reward destination.
     Bribe public immutable bribe;
     /// @notice Strategy payment token routed by this contract.
     IERC20 public immutable paymentToken;
-    /// @notice Immutable treasury destination for the 90% Fund-classified share.
+    /// @notice Immutable treasury destination for the Fund-classified share.
     address public immutable fund;
 
     /// @notice Payment-token amount irrevocably owed to Fund and payable by any caller.
@@ -47,7 +47,8 @@ contract BribeRouter is ReentrancyGuard {
     /// @notice Emitted when Strategy supplies a completed auction payment.
     /// @param strategy Strategy that supplied the payment.
     /// @param amount Exact amount pulled and classified.
-    event PaymentRouted(address indexed strategy, uint256 amount);
+    /// @param bribeBps Prospective global Bribe share captured for this payment.
+    event PaymentRouted(address indexed strategy, uint256 amount, uint256 bribeBps);
     /// @notice Emitted when a completed payment creates a fixed Fund entitlement.
     /// @param fund Immutable Fund destination.
     /// @param paymentToken Strategy payment token owed.
@@ -76,6 +77,9 @@ contract BribeRouter is ReentrancyGuard {
     /// @param senderDebit Observed sender debit.
     /// @param receiverCredit Observed receiver credit.
     error InexactTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
+    /// @notice Raised when a malformed Resonance reports a share above the basis-point denominator.
+    /// @param requested Invalid share reported by Resonance.
+    error BribeBpsAboveBasis(uint256 requested);
     /// @notice Raised when any caller other than the immutable Strategy tries to route a payment.
     /// @param caller Unauthorized caller.
     error NotStrategy(address caller);
@@ -88,29 +92,36 @@ contract BribeRouter is ReentrancyGuard {
     /// @notice Raised when Strategy attempts to route a zero payment.
     error ZeroAmount();
 
-    /// @notice Creates the fixed route between one Strategy, payment token, Bribe, and Fund.
+    /// @notice Creates the fixed route between one Resonance, Strategy, payment token, Bribe, and Fund.
+    /// @param resonance_ Resonance supplying the governance-selected prospective Bribe share.
     /// @param strategy_ Strategy exclusively allowed to route payments.
     /// @param bribe_ Independently fundable Bribe paired with the Strategy.
     /// @param paymentToken_ Strategy payment token.
-    /// @param fund_ Treasury receiving the fixed 90% share of cumulative completed payments.
-    constructor(address strategy_, Bribe bribe_, IERC20 paymentToken_, address fund_) {
+    /// @param fund_ Treasury receiving every Fund-classified payment share.
+    constructor(address resonance_, address strategy_, Bribe bribe_, IERC20 paymentToken_, address fund_) {
         if (
-            strategy_ == address(0) || address(bribe_) == address(0) || address(paymentToken_) == address(0)
-                || fund_ == address(0) || strategy_.code.length == 0 || address(bribe_).code.length == 0
+            resonance_ == address(0) || strategy_ == address(0) || address(bribe_) == address(0)
+                || address(paymentToken_) == address(0) || fund_ == address(0) || resonance_.code.length == 0
+                || strategy_.code.length == 0 || address(bribe_).code.length == 0
                 || address(paymentToken_).code.length == 0 || fund_.code.length == 0
         ) revert ZeroAddress();
 
+        resonance = resonance_;
         strategy = strategy_;
         bribe = bribe_;
         paymentToken = paymentToken_;
         fund = fund_;
     }
 
-    /// @notice Pulls one complete auction payment and cumulatively classifies its fixed 90/10 liabilities.
+    /// @notice Pulls one complete auction payment and classifies it at the current global Bribe share.
     /// @param amount Exact payment-token amount to pull.
     function routePayment(uint256 amount) external nonReentrant {
         if (msg.sender != strategy) revert NotStrategy(msg.sender);
         if (amount == 0) revert ZeroAmount();
+
+        // Snapshot policy before the first payment-token interaction so token callbacks cannot alter this fill's split.
+        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();
+        if (appliedBribeBps > BPS) revert BribeBpsAboveBasis(appliedBribeBps);
 
         uint256 senderBefore = paymentToken.balanceOf(msg.sender);
         uint256 receiverBefore = paymentToken.balanceOf(address(this));
@@ -121,8 +132,8 @@ contract BribeRouter is ReentrancyGuard {
             revert InexactTransfer(amount, senderDebit, receiverCredit);
         }
 
-        uint256 bribeAmount = Math.mulDiv(amount, BRIBE_BPS, BPS);
-        uint256 accumulatedRemainder = splitRemainder + mulmod(amount, BRIBE_BPS, BPS);
+        uint256 bribeAmount = Math.mulDiv(amount, appliedBribeBps, BPS);
+        uint256 accumulatedRemainder = splitRemainder + mulmod(amount, appliedBribeBps, BPS);
         bribeAmount += accumulatedRemainder / BPS;
         splitRemainder = accumulatedRemainder % BPS;
         uint256 fundAmount = amount - bribeAmount;
@@ -131,7 +142,7 @@ contract BribeRouter is ReentrancyGuard {
         fundPaymentLiability += fundAmount;
         bribePaymentLiability += bribeAmount;
 
-        emit PaymentRouted(msg.sender, amount);
+        emit PaymentRouted(msg.sender, amount, appliedBribeBps);
         emit FundPaymentAccrued(fund, address(paymentToken), fundAmount, fundPaymentLiability);
         emit BribePaymentAccrued(
             address(bribe), address(paymentToken), bribeAmount, bribePaymentLiability, splitRemainder

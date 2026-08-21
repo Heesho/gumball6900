@@ -1,3 +1,5 @@
+import pytest
+
 from python.economic_model import classify_strategy_payments, compute, mining_price, split
 
 
@@ -31,6 +33,20 @@ def test_strategy_payment_split_is_frequency_independent() -> None:
     assert tiny["fundLiability"] == combined["fundLiability"] == 9
     assert tiny["bribeLiability"] == combined["bribeLiability"] == 1
     assert tiny["splitRemainder"] == combined["splitRemainder"] == 0
+
+
+def test_strategy_payment_split_tracks_rate_changes_with_one_weighted_carry() -> None:
+    classified = classify_strategy_payments([7, 13, 19, 23], [1_000, 0, 500, 2_000])
+    assert classified["fundLiability"] == 56
+    assert classified["bribeLiability"] == 6
+    assert classified["splitRemainder"] == 2_500
+
+    zero = classify_strategy_payments([1, 7, 1_000_000], 0)
+    assert zero["fundLiability"] == zero["totalPayment"] == 1_000_008
+    assert zero["bribeLiability"] == zero["splitRemainder"] == 0
+
+    with pytest.raises(ValueError, match="outside protocol bounds"):
+        classify_strategy_payments([1], 2_001)
 
 
 def test_redemption_and_supply_accounting() -> None:

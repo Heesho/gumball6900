@@ -1,8 +1,8 @@
 # Whitepaper fact check
 
-This register covers whitepaper v0.6. Existing Solidity and cross-language fixtures remain authoritative local
-engineering evidence for implemented mechanics. ADRs 0031 and 0032 are implemented in the development tree; no row is
-an independent audit or deployment claim.
+This register covers whitepaper v0.7. Existing Solidity and cross-language fixtures remain authoritative local
+engineering evidence for implemented mechanics. ADRs 0031, 0034, 0035, and 0036 are implemented in the development
+tree; no row is an independent audit or deployment claim.
 
 | Claim                                                                         | Source                                     | Status / limitation                                   |
 | ----------------------------------------------------------------------------- | ------------------------------------------ | ----------------------------------------------------- |
@@ -13,7 +13,9 @@ an independent audit or deployment claim.
 | Governance execution is not implemented in the core                           | ADR 0034; no governance source tree        | External integration and ownership handoff unresolved |
 | Every minted sGBX unit is atomically assigned to one Strategy                 | `SignalGBX.signal`, ADR 0031               | Enforced and covered by deterministic/stateful tests  |
 | Final live Strategy cannot be killed after bootstrap                          | `Resonance.killStrategy`, ADR 0031         | Enforced through explicit live-Strategy count         |
-| Strategy payment is cumulatively 90% Fund / 10% paired Bribe                  | `BribeRouter.routePayment`, ADR 0032       | Enforced with explicit split remainder                |
+| Strategy payment uses a global Bribe rate: default 10%, bounded 0%-20%        | `Resonance.setBribeBps`, ADR 0036          | Prospective; Fund receives the 80%-to-100% complement |
+| Weighted cumulative carry persists through Bribe-rate changes                 | `BribeRouter.routePayment`, ADR 0036       | Enforced and independently modeled                    |
+| A 0% automatic rate leaves signal and independent-reward paths live           | `SignalGBX`, `Bribe`, zero-rate tests      | Only new automatic auction rewards are disabled       |
 | Mine has exactly sixteen permanent slots                                      | `Mine.SLOT_COUNT`, constructor             | Enforced                                              |
 | Mine has no owner or capacity mutation                                        | Mine ABI, ADR 0033                         | Enforced                                              |
 | Slot price reaches zero after one hour                                        | `PRICE_DECAY_PERIOD`, `Mine._price`        | Enforced                                              |

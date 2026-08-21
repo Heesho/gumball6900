@@ -118,8 +118,12 @@ describe('Resonance reads', () => {
   it('returns the Bribe-style schedule and live allocation state at one block', async () => {
     const values: Readonly<Record<string, unknown>> = {
       balanceOf: 700n,
+      BPS: 10_000n,
+      bribeBps: 500n,
+      DEFAULT_BRIBE_BPS: 1_000n,
       DURATION: 604_800n,
       left: 600n,
+      MAX_BRIBE_BPS: 2_000n,
       REWARD_PRECISION: 10n ** 36n,
       resonanceRouter: address(2),
       token_RewardData: [2_600n, 2_100n, 7n, 2_000n, 5n],
@@ -133,10 +137,15 @@ describe('Resonance reads', () => {
     const client = { getBlock, readContract } as unknown as PublicClient;
 
     await expect(readResonanceView(client, address(1))).resolves.toEqual({
+      basisPoints: 10_000n,
       blockNumber: BLOCK_NUMBER,
+      bribeBasisPoints: 500n,
+      defaultBribeBasisPoints: 1_000n,
       duration: 604_800n,
+      fundBasisPoints: 9_500n,
       lastUpdateTime: 2_000n,
       left: 600n,
+      maximumBribeBasisPoints: 2_000n,
       periodFinish: 2_600n,
       remainderFinish: 2_100n,
       resonanceRouter: address(2),
@@ -153,18 +162,18 @@ describe('Resonance reads', () => {
 });
 
 describe('BribeRouter reads', () => {
-  it('validates and returns the complete immutable 90/10 settlement state', async () => {
+  it('validates liabilities and returns the current global settlement rate', async () => {
     const values: Readonly<Record<string, unknown>> = {
       accountedPaymentBalance: 100n,
       BPS: 10_000n,
       bribe: address(2),
-      BRIBE_BPS: 1_000n,
+      bribeBps: 500n,
       bribePaymentLiability: 10n,
       fund: address(3),
-      FUND_BPS: 9_000n,
       fundPaymentLiability: 90n,
       paymentSurplus: 7n,
       paymentToken: address(4),
+      resonance: address(6),
       splitRemainder: 0n,
       strategy: address(5),
     };
@@ -179,13 +188,14 @@ describe('BribeRouter reads', () => {
       basisPoints: 10_000n,
       blockNumber: BLOCK_NUMBER,
       bribe: address(2),
-      bribeBasisPoints: 1_000n,
+      bribeBasisPoints: 500n,
       bribePaymentLiability: 10n,
       fund: address(3),
-      fundBasisPoints: 9_000n,
+      fundBasisPoints: 9_500n,
       fundPaymentLiability: 90n,
       paymentSurplus: 7n,
       paymentToken: address(4),
+      resonance: address(6),
       splitRemainder: 0n,
       strategy: address(5),
     });

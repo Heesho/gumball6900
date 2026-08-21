@@ -2,6 +2,8 @@
 
 const WAD = 10n ** 18n;
 const BPS = 10_000n;
+const DEFAULT_STRATEGY_BRIBE_BPS = 1_000n;
+const MAX_STRATEGY_BRIBE_BPS = 2_000n;
 const HOUR = 3_600n;
 const YEAR = 365n * 24n * HOUR;
 const GENESIS_LP_GBX = 20_000_000n * WAD;
@@ -23,13 +25,24 @@ function splitPayment(payment: bigint, hasPreviousMiner: boolean) {
   return { payment, previousMiner, resonance: payment - previousMiner };
 }
 
-function classifyStrategyPayments(payments: bigint[]) {
+function classifyStrategyPayments(
+  payments: bigint[],
+  bribeBasisPoints: bigint | bigint[] = DEFAULT_STRATEGY_BRIBE_BPS,
+) {
+  const rates = typeof bribeBasisPoints === 'bigint' ? payments.map(() => bribeBasisPoints) : bribeBasisPoints;
+  if (rates.length !== payments.length) throw new RangeError('every Strategy payment needs one Bribe rate');
+  if (payments.some((payment) => payment < 0n)) throw new RangeError('Strategy payments must be non-negative');
+  if (rates.some((rate) => rate < 0n || rate > MAX_STRATEGY_BRIBE_BPS)) {
+    throw new RangeError('Strategy Bribe rate outside protocol bounds');
+  }
+
   let fundLiability = 0n;
   let bribeLiability = 0n;
   let splitRemainder = 0n;
-  for (const payment of payments) {
-    const baseBribe = mulDiv(payment, 1_000n, BPS);
-    const accumulatedRemainder = splitRemainder + ((payment * 1_000n) % BPS);
+  for (const [index, payment] of payments.entries()) {
+    const rate = rates[index]!;
+    const baseBribe = mulDiv(payment, rate, BPS);
+    const accumulatedRemainder = splitRemainder + ((payment * rate) % BPS);
     const bribeAmount = baseBribe + accumulatedRemainder / BPS;
     splitRemainder = accumulatedRemainder % BPS;
     fundLiability += payment - bribeAmount;
@@ -37,6 +50,7 @@ function classifyStrategyPayments(payments: bigint[]) {
   }
   return {
     payments,
+    bribeBps: rates,
     totalPayment: payments.reduce((sum, payment) => sum + payment, 0n),
     fundLiability,
     bribeLiability,
@@ -60,7 +74,7 @@ function rawSuite() {
   const redeemGBX = 1_000_000n * WAD;
 
   return {
-    schemaVersion: 8,
+    schemaVersion: 9,
     purpose: 'Deterministic protocol mechanics; not forecasts, valuations, or investment projections.',
     assumptions: {
       genesisLiquidityAllocationGBXRaw: GENESIS_LP_GBX,
@@ -72,8 +86,10 @@ function rawSuite() {
       tenureRatesLocked: true,
       redemptionsUseConstantTimeEffectiveSupply: true,
       checkpointAllExists: false,
-      strategyFundBps: 9_000n,
-      strategyBribeBps: 1_000n,
+      defaultStrategyBribeBps: DEFAULT_STRATEGY_BRIBE_BPS,
+      maximumStrategyBribeBps: MAX_STRATEGY_BRIBE_BPS,
+      minimumStrategyBribeBps: 0n,
+      strategyFundBpsIsDerived: true,
     },
     mining: {
       priceCurve: [0n, 900n, 1_800n, 2_700n, 3_600n].map((elapsedSeconds) => ({
@@ -143,6 +159,8 @@ function rawSuite() {
       cumulativeSplitIsFrequencyIndependent: true,
       tenOneUnitPayments: classifyStrategyPayments(Array<bigint>(10).fill(1n)),
       oneCombinedPayment: classifyStrategyPayments([10n]),
+      rateChangeSequence: classifyStrategyPayments([7n, 13n, 19n, 23n], [1_000n, 0n, 500n, 2_000n]),
+      zeroPercentPayments: classifyStrategyPayments([1n, 7n, 1_000_000n], 0n),
       directRouterDonationSurplus: 7n,
     },
     supply: {

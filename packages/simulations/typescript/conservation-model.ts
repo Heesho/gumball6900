@@ -2,24 +2,33 @@ const DEFAULT_REVENUE_PRECISION = 10n ** 36n;
 const DEFAULT_REWARD_PRECISION = 10n ** 18n;
 const DEFAULT_STREAM_DURATION = 7n * 24n * 60n * 60n;
 const SETTLEMENT_BPS = 10_000n;
-const SETTLEMENT_BRIBE_BPS = 1_000n;
+const DEFAULT_SETTLEMENT_BRIBE_BPS = 1_000n;
+const MAX_SETTLEMENT_BRIBE_BPS = 2_000n;
 
 function requireNonNegative(value: bigint, label: string): void {
   if (value < 0n) throw new RangeError(`${label} must be non-negative`);
 }
 
-/** Independent state model for cumulative BribeRouter classification and isolated settlement. */
+/** Independent state model for mutable-rate cumulative BribeRouter classification and isolated settlement. */
 export class StrategyPaymentConservationModel {
+  bribeBps = DEFAULT_SETTLEMENT_BRIBE_BPS;
   fundLiability = 0n;
   bribeLiability = 0n;
   splitRemainder = 0n;
   accountedBalance = 0n;
   balance = 0n;
 
+  setBribeBps(newBribeBps: bigint): void {
+    if (newBribeBps < 0n || newBribeBps > MAX_SETTLEMENT_BRIBE_BPS) {
+      throw new RangeError('bribe basis points outside protocol bounds');
+    }
+    this.bribeBps = newBribeBps;
+  }
+
   route(payment: bigint): void {
     if (payment <= 0n) throw new RangeError('payment must be positive');
-    const baseBribe = (payment * SETTLEMENT_BRIBE_BPS) / SETTLEMENT_BPS;
-    const accumulated = this.splitRemainder + ((payment * SETTLEMENT_BRIBE_BPS) % SETTLEMENT_BPS);
+    const baseBribe = (payment * this.bribeBps) / SETTLEMENT_BPS;
+    const accumulated = this.splitRemainder + ((payment * this.bribeBps) % SETTLEMENT_BPS);
     const bribeAmount = baseBribe + accumulated / SETTLEMENT_BPS;
     this.splitRemainder = accumulated % SETTLEMENT_BPS;
     this.fundLiability += payment - bribeAmount;

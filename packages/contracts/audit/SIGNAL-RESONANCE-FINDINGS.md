@@ -1,14 +1,15 @@
 # Signal and Resonance findings
 
-Entries SR-001 through SR-007 reflect the local tree on 2026-08-16. SR-008 and SR-009 were added on 2026-08-19.
-“Fixed” means locally patched and regression-tested, not independently verified or deployed.
+Entries SR-001 through SR-007 reflect the local tree on 2026-08-16. SR-008 and SR-009 were added on 2026-08-19; the
+SR-002 settlement disposition was reconciled for ADR 0036 on 2026-08-21. “Fixed” means locally patched and
+regression-tested, not independently verified or deployed.
 
 ## SR-001
 
 ID: SR-001
 Title: Idle sGBX and duplicate signal ledgers violated mandatory signaling
 Severity: High
-Status: Fixed locally
+Status: Fixed locally; original fixed-share remedy superseded by ADR 0036
 Category: Custody and accounting
 Affected contracts: SignalGBX, Resonance
 Violated invariant: Every minted sGBX unit must be assigned to exactly one Strategy; aggregate and paired-Bribe ledgers must reconcile.
@@ -28,14 +29,21 @@ Severity: High
 Status: Fixed locally
 Category: Economic routing
 Affected contracts: BribeRouter, Strategy
-Violated invariant: Cumulative acquired-asset payment must classify exactly 90% to Fund and 10% to the paired Bribe independent of partitioning.
+Violated invariant: Every acquired-asset payment must receive the uniform snapshotted global classification, with
+cumulative weighted numerator carry preserved across both partitions and rate changes.
 Attacker prerequisites: Ability to fill a Strategy auction, including many one-unit fills.
 Impact: Signalers received no automatic acquired-asset reward; naive per-payment flooring would also permit Bribe starvation.
-Minimal trace: Route ten one-unit payments; the required cumulative state is Fund 9, Bribe 1, remainder 0.
+Minimal trace: At the default 10% rate, route ten one-unit payments; the required cumulative state is Fund 9, Bribe 1,
+remainder 0. Then set 0%, 5%, or 20% and compare against `floor(sum(payment * rate) / 10_000)`.
 Root cause: ADR 0021's superseded single Fund liability and no cumulative split carry.
-Regression test: `ArchitectureReconciliationRegressionTest.test_TenOneUnitPaymentsClassifyExactlyNineToFundAndOneToBribe`.
-Patch: Added immutable 9,000/1,000 basis-point constants, cumulative split remainder, and separately settled Fund and Bribe liabilities.
-Residual risk: A hostile acquired asset can delay its own settlement leg, but cannot redirect it or block the other leg.
+Regression tests: `BribeRouterTest.test_TenOneUnitPaymentsDoNotStarveTheBribe`,
+`BribeBpsTransitionTest.test_WeightedSplitRemainderSurvivesTenZeroFiveAndTwentyPercentTransitions`, and
+`testFuzz_ArbitraryRateTransitionsMatchTheWeightedNumeratorModel`.
+Patch: Added separately settled Fund and Bribe liabilities, a cumulative weighted split remainder, and ADR 0036's
+owner-set global prospective rate with a default of 1,000 and inclusive maximum of 2,000 basis points.
+Residual risk: A hostile acquired asset can delay its own settlement leg, but cannot redirect it or block the other
+leg. The Resonance owner can change future economic attribution within the bounded range; external-governance review
+must cover that authority.
 
 ## SR-003
 
@@ -213,4 +221,5 @@ added, and closed-pool rewards can still become unreachable after final exit.
 
 Fixed locally: three High protocol mismatches, one High dependency advisory, one Medium test-assurance defect, and two
 Low campaign-infrastructure defects. Dispositioned: one Informational analyzer report. Open and accepted: one Medium
-lifecycle risk. No undisclosed Critical or High production-contract finding remains from this campaign.
+lifecycle risk. No undisclosed Critical or High production-contract finding remained in the campaign's reviewed
+scope; this is not a current independent-audit or production-safety conclusion for ADR 0036.

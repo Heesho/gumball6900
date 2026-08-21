@@ -68,8 +68,10 @@ const STALE_PHRASES = [
   // Superseded settlement and reward economics.
   'acquisition reward percentage',
   'adjustable acquisition reward',
-  'setBribeBps',
-  'bribeBps',
+  'immutable, hard-coded rule',
+  'fixed 90/10',
+  'split cannot change',
+  '90% of each strategy asset payment backs fund',
   'one reward token per strategy',
   'unlimited reward tokens',
   'auction proceeds fund',
@@ -272,16 +274,16 @@ function scanStylesheet(css) {
  *
  * That figure is a claim of absence, and absence is the hardest kind of claim to keep true:
  * nothing about printing it stops someone reintroducing a split later. An earlier design did
- * have one - `Resonance.bribeBps` took a share of every acquisition for signalers - and
- * ADR 0032 fixes the complete payment at 90% Fund and 10% paired-Bribe rewards. Neither
- * destination is a team, manager, or privileged fee recipient.
+ * have one - `Resonance.bribeBps` takes a bounded share of every later acquisition for
+ * signalers. ADR 0036 permits that one global prospective share to move from 0% through
+ * 20%; its complement remains Fund-bound. Neither destination is a team, manager, or
+ * privileged fee recipient.
  *
  * ADR 0024 complicated this guard rather than retiring it. `Mine` genuinely does split a
  * payment in basis points: 80% to the miner being displaced, 20% into the buying flow. A
  * flat "no bps in core" rule would now fail on an honest contract, and deleting the rule
- * would give up the check everywhere else. Mine's split is pinned to exactly two constants;
- * if either moves, or a third share appears, this build stops. ADR 0032 adds one other exact
- * split in BribeRouter and pins it independently.
+ * would give up the check everywhere else. Mine's split is pinned to exactly two constants.
+ * Resonance's bounded policy and BribeRouter's weighted classification are pinned independently.
  * Neither split reaches the team; the moment one does, the arithmetic below stops matching.
  */
 function assertNoProtocolFee() {
@@ -296,8 +298,6 @@ function assertNoProtocolFee() {
   // are Uniswap's own fee tier and collection call, so the list is deliberately specific
   // rather than a search for "fee".
   const forbidden = [
-    'bribeBps',
-    'setBribeBps',
     'feeBps',
     'protocolFee',
     'managementFee',
@@ -310,8 +310,8 @@ function assertNoProtocolFee() {
   ];
   // Basis-point arithmetic, which is how a split would have to be expressed.
   const splitPatterns = [/\/\s*10_?000\b/, /\bbps\b/i];
-  // The two files whose splits are expected, and therefore pinned rather than banned.
-  const SPLIT_FILES = new Set(['Mine.sol', 'BribeRouter.sol']);
+  // The files whose reviewed basis-point policy is expected, and therefore pinned rather than banned.
+  const SPLIT_FILES = new Set(['Mine.sol', 'Resonance.sol', 'BribeRouter.sol']);
 
   const hits = [];
   for (const { name, text } of sources) {
@@ -344,14 +344,37 @@ function assertNoProtocolFee() {
     if (unexpected.length > 0) hits.push(`Mine.sol: unexpected share ${unexpected.join(', ')}`);
   }
 
-  // The ADR 0032 half: cumulative acquired-asset classification must remain exact and fixed.
+  // ADR 0036 policy: one global prospective rate, default 10%, bounded at 20%.
+  const resonance = sources.find((entry) => entry.name === 'Resonance.sol');
+  if (!resonance) hits.push('Resonance.sol is missing');
+  else {
+    const pins = [
+      ['BPS = 10_000', /uint256 public constant BPS = 10_000;/],
+      ['DEFAULT_BRIBE_BPS = 1_000', /uint256 public constant DEFAULT_BRIBE_BPS = 1_000;/],
+      ['MAX_BRIBE_BPS = 2_000', /uint256 public constant MAX_BRIBE_BPS = 2_000;/],
+      ['default global state', /uint256 public bribeBps = DEFAULT_BRIBE_BPS;/],
+      ['bounded owner setter', /function setBribeBps\(uint256 newBribeBps\) external onlyOwner/],
+      ['maximum enforced', /if \(newBribeBps > MAX_BRIBE_BPS\) revert BribeBpsAboveMaximum\(newBribeBps\);/],
+    ];
+    for (const [label, pattern] of pins) {
+      if (!pattern.test(resonance.text)) hits.push(`Resonance.sol: ${label} no longer holds`);
+    }
+    const bpsConstants = [...resonance.text.matchAll(/constant\s+(\w*BPS\w*)\s*=/g)].map((match) => match[1]);
+    const expected = new Set(['BPS', 'DEFAULT_BRIBE_BPS', 'MAX_BRIBE_BPS']);
+    const unexpected = bpsConstants.filter((name) => !expected.has(name));
+    if (unexpected.length > 0) hits.push(`Resonance.sol: unexpected share ${unexpected.join(', ')}`);
+  }
+
+  // ADR 0036 classification: snapshot the global rate and preserve one weighted cumulative carry.
   const router = sources.find((entry) => entry.name === 'BribeRouter.sol');
   if (!router) hits.push('BribeRouter.sol is missing');
   else {
     const pins = [
       ['BPS = 10_000', /uint256 public constant BPS = 10_000;/],
-      ['FUND_BPS = 9_000', /uint256 public constant FUND_BPS = 9_000;/],
-      ['BRIBE_BPS = 1_000', /uint256 public constant BRIBE_BPS = 1_000;/],
+      ['global rate snapshot', /uint256 appliedBribeBps = ICoreResonance\(resonance\)\.bribeBps\(\);/],
+      ['dynamic Bribe numerator', /Math\.mulDiv\(amount, appliedBribeBps, BPS\)/],
+      ['weighted remainder', /mulmod\(amount, appliedBribeBps, BPS\)/],
+      ['exhaustive Fund complement', /uint256 fundAmount = amount - bribeAmount;/],
       ['Fund liability classification', /fundPaymentLiability \+= fundAmount;/],
       ['Bribe liability classification', /bribePaymentLiability \+= bribeAmount;/],
       ['frequency-independent remainder', /splitRemainder = accumulatedRemainder % BPS;/],
@@ -360,7 +383,7 @@ function assertNoProtocolFee() {
       if (!pattern.test(router.text)) hits.push(`BribeRouter.sol: ${label} no longer holds`);
     }
     const bpsConstants = [...router.text.matchAll(/constant\s+(\w*BPS\w*)\s*=/g)].map((match) => match[1]);
-    const expected = new Set(['BPS', 'FUND_BPS', 'BRIBE_BPS']);
+    const expected = new Set(['BPS']);
     const unexpected = bpsConstants.filter((name) => !expected.has(name));
     if (unexpected.length > 0) hits.push(`BribeRouter.sol: unexpected share ${unexpected.join(', ')}`);
   }
@@ -791,7 +814,7 @@ async function main() {
 
   // 2. Contrast: every foreground/background pair in the shared palette clears WCAG AA.
   const coreSources = assertNoProtocolFee();
-  console.log(`fee       no fee in ${coreSources} core contracts · exact Mine 80/20 and Strategy 90/10 splits pinned`);
+  console.log(`fee       no fee in ${coreSources} core contracts · Mine 80/20 and Strategy 0%-20% Bribe policy pinned`);
 
   const contrast = [...assertContrast(), ...assertSheetContrast()];
   const worst = contrast.reduce((low, check) => (check.ratio < low.ratio ? check : low));

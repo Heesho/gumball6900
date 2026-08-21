@@ -38,12 +38,13 @@ export default function HomePage() {
         </h1>
         <p className="mt-6 max-w-3xl text-sm leading-7 text-[#a5b3b2] sm:text-base">
           Deposit GBX directly into a Strategy signal to mint non-transferable sGBX with voting checkpoints for a future
-          external governance integration. Every completed Strategy payment is split 90% to Fund and 10% to that
-          Strategy&apos;s Bribe, while holders can redeem a caller-selected pro-rata basket without an asset registry.
+          external governance integration. Strategy payments use one global Bribe share: 10% by default, adjustable from
+          0% through 20%, with the complement going to Fund. Holders can redeem a caller-selected pro-rata basket
+          without an asset registry.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
           <Metric label="Genesis GBX supply" value="20,000,000 GBX" />
-          <Metric label="Strategy payment split" value="90% Fund · 10% Bribe" />
+          <Metric label="Automatic Bribe share" value="10% default · 0–20%" />
           <Metric label="Signal withdrawal lock" value="None" />
         </div>
       </section>
@@ -67,7 +68,7 @@ export default function HomePage() {
           <dl className="space-y-5">
             <Definition label="Mining revenue" value="20% Resonance · 80% displaced miner" />
             <Definition label="v4 position fees" value="USDG → Resonance · GBX → Fund burn · principal fixed" />
-            <Definition label="Strategy payment" value="90% fixed Fund liability · 10% fixed Bribe liability" />
+            <Definition label="Strategy payment" value="80–100% Fund · 0–20% paired Bribe" />
             <Definition label="GBX payment" value="Fund receipt · optional later burn" />
             <Definition label="Signal" value="Replaceable at any time" />
             <Definition label="Signal workflow" value="signal() / signalWithPermit() · withdrawSignal()" />
@@ -88,6 +89,7 @@ export default function HomePage() {
             <li>Every sGBX unit is backed by an active Strategy signal; SignalGBX is the sole signal coordinator.</li>
             <li>GBX supports permit approvals; non-transferable sGBX supports votes but no approval permit.</li>
             <li>Mine has exactly sixteen ownerless slots and no all-slot checkpoint.</li>
+            <li>A 0% automatic Bribe rate leaves signaling, movement, withdrawal, and independent rewards live.</li>
             <li>The deployed core has no proxy, upgrade path, treasury recovery, or successor migration.</li>
             <li>Supported token movements fail closed unless sender debit and receiver credit are both exact.</li>
           </ul>
@@ -98,6 +100,7 @@ export default function HomePage() {
             <li>Add a Strategy.</li>
             <li>Kill a Strategy.</li>
             <li>Add Bribe rewards.</li>
+            <li>Set the global prospective automatic-Bribe share from 0% through 20%.</li>
           </ul>
           <p className="mt-5 text-xs leading-5 text-[#778786]">
             SignalGBX exposes ERC20Votes checkpoints, but this repository does not select or implement the governance
@@ -107,7 +110,7 @@ export default function HomePage() {
         </Panel>
       </section>
 
-      <Panel eyebrow="Settlement observability" title="Streams, claims, and fixed liabilities stay visible">
+      <Panel eyebrow="Settlement observability" title="Streams, claims, and classified liabilities stay visible">
         <p className="max-w-4xl text-sm leading-6 text-[#a8b5b4]">
           A blocked Strategy, Fund, or reward token cannot strand signal movement or withdrawal. Revenue and settlement
           liabilities keep immutable receivers and remain permissionlessly retryable. Reward holders can claim one token

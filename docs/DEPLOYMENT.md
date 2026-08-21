@@ -33,8 +33,10 @@ The intended order is:
    Governor or Timelock and currently has no authorized production Resonance owner. Verify the selected integration's
    exact provider release, deployed bytecode or proxy implementation, plugins, SignalGBX compatibility, permission and
    admin graph, upgrade and emergency paths, proposal rules, batching, execution delay, and cancellation semantics.
-10. Transfer Resonance directly from the temporary setup owner to the exact reviewed external governance executor.
-    Verify `Resonance.owner()` and the handoff receipt, and prove that the deployment coordinator retains no authority.
+10. After verifying their permanent Resonance bindings, renounce ownership of SignalGBX, StrategyFactory, and
+    BribeFactory. Verify each `owner()` is the zero address. Then transfer Resonance directly from the temporary setup
+    owner to the exact reviewed external governance executor. Verify `Resonance.owner()` and every ownership receipt,
+    and prove that the deployment coordinator retains no authority.
 11. Reconcile runtime bytecode, constructor arguments, one-time bindings, bootstrap Strategies, external governance
     configuration and ownership, the 20-million allocation, permanent Mine authority, fixed slot count sixteen,
     PoolKey, ticks, NFT ID, and NFT custody.

@@ -12,8 +12,13 @@ import { Burned, Minted } from '../generated/GBX/GBX';
 import { FeesHarvested } from '../generated/LiquidityPosition/LiquidityPosition';
 import { Claimed, EmissionSettled, Mined, MinerPaymentAccrued } from '../generated/Mine/Mine';
 import { RewardCarryFunded } from '../generated/templates/BribeTemplate/Bribe';
-import { BribePaymentAccrued, BribeRewardNotified } from '../generated/templates/BribeRouterTemplate/BribeRouter';
 import {
+  BribePaymentAccrued,
+  BribeRewardNotified,
+  PaymentRouted,
+} from '../generated/templates/BribeRouterTemplate/BribeRouter';
+import {
+  BribeBpsSet,
   RevenueDistributed,
   RevenueNotified,
   SignalAdded,
@@ -22,12 +27,17 @@ import {
   StrategyKilled,
 } from '../generated/Resonance/Resonance';
 import { handleRewardCarryFunded } from '../src/bribe';
-import { handleRouterBribePaymentAccrued, handleRouterBribeRewardNotified } from '../src/bribe-router';
+import {
+  handleRouterBribePaymentAccrued,
+  handleRouterBribeRewardNotified,
+  handleRouterPaymentRouted,
+} from '../src/bribe-router';
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
 import { handleFeesHarvested } from '../src/liquidity-position';
 import { handleClaimed, handleEmissionSettled, handleMined, handleMinerPaymentAccrued } from '../src/mine';
 import {
+  handleBribeBpsSet,
   handleRevenueDistributed,
   handleRevenueNotified,
   handleSignalAdded,
@@ -40,6 +50,7 @@ import { Signaled, SignalWithdrawn } from '../generated/SignalGBX/SignalGBX';
 import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, configureEvent, uintParam } from './helpers';
 
 export {
+  handleBribeBpsSet,
   handleBurned,
   handleClaimed,
   handleEmissionSettled,
@@ -52,6 +63,7 @@ export {
   handleRewardCarryFunded,
   handleRouterBribePaymentAccrued,
   handleRouterBribeRewardNotified,
+  handleRouterPaymentRouted,
   handleSignaled,
   handleSignalWithdrawn,
   handleStrategyAdded,
@@ -252,8 +264,16 @@ describe('core protocol mappings', () => {
     context.setString('strategyId', '4663-' + STRATEGY.toHexString());
     dataSourceMock.setReturnValues(USER_TWO.toHexString(), 'robinhood', context);
 
+    const routed = changetype<PaymentRouted>(newMockEvent());
+    configureEvent(routed, USER_TWO, 2);
+    routed.parameters = new Array<ethereum.EventParam>();
+    routed.parameters.push(addressParam('strategy', STRATEGY));
+    routed.parameters.push(uintParam('amount', 10));
+    routed.parameters.push(uintParam('bribeBps', 1_000));
+    handleRouterPaymentRouted(routed);
+
     const accrued = changetype<BribePaymentAccrued>(newMockEvent());
-    configureEvent(accrued, USER_TWO, 2);
+    configureEvent(accrued, USER_TWO, 3);
     accrued.parameters = new Array<ethereum.EventParam>();
     accrued.parameters.push(addressParam('bribe', REWARDS));
     accrued.parameters.push(addressParam('paymentToken', ASSET));
@@ -263,7 +283,7 @@ describe('core protocol mappings', () => {
     handleRouterBribePaymentAccrued(accrued);
 
     const notified = changetype<BribeRewardNotified>(newMockEvent());
-    configureEvent(notified, USER_TWO, 3);
+    configureEvent(notified, USER_TWO, 4);
     notified.parameters = new Array<ethereum.EventParam>();
     notified.parameters.push(addressParam('caller', USER));
     notified.parameters.push(addressParam('bribe', REWARDS));
@@ -272,12 +292,48 @@ describe('core protocol mappings', () => {
     handleRouterBribeRewardNotified(notified);
 
     const strategyId = '4663-' + STRATEGY.toHexString();
+    assert.fieldEquals('Strategy', strategyId, 'routerPaymentRoutedRaw', '10');
+    assert.fieldEquals('Strategy', strategyId, 'latestRouterPaymentBribeBps', '1000');
     assert.fieldEquals('Strategy', strategyId, 'routerBribePaymentAccruedRaw', '1');
     assert.fieldEquals('Strategy', strategyId, 'routerBribePaymentNotifiedRaw', '1');
     assert.fieldEquals('Strategy', strategyId, 'pendingRouterBribePaymentRaw', '0');
     assert.fieldEquals('Strategy', strategyId, 'routerSplitRemainderRaw', '0');
     assert.fieldEquals('ProtocolEvent', eventId(accrued), 'eventType', 'BRIBE_ROUTER_BRIBE_PAYMENT_ACCRUED');
     assert.fieldEquals('ProtocolEvent', eventId(notified), 'eventType', 'BRIBE_ROUTER_BRIBE_REWARD_NOTIFIED');
+    assert.fieldEquals('ProtocolEvent', eventId(routed), 'eventType', 'BRIBE_ROUTER_PAYMENT_ROUTED');
+    assert.fieldEquals('ProtocolEvent', eventId(routed), 'values', '[10, 1000]');
+  });
+
+  test('tracks the default and owner-selected prospective Bribe rate', () => {
+    const added = changetype<StrategyAdded>(newMockEvent());
+    configureEvent(added, CONTRACT, 1);
+    added.parameters = new Array<ethereum.EventParam>();
+    added.parameters.push(addressParam('strategy', STRATEGY));
+    added.parameters.push(addressParam('bribe', REWARDS));
+    added.parameters.push(addressParam('bribeRouter', USER_TWO));
+    added.parameters.push(addressParam('paymentToken', ASSET));
+    handleStrategyAdded(added);
+
+    assert.fieldEquals('ProtocolState', '4663', 'bribeBps', '1000');
+
+    const disabled = changetype<BribeBpsSet>(newMockEvent());
+    configureEvent(disabled, CONTRACT, 2);
+    disabled.parameters = new Array<ethereum.EventParam>();
+    disabled.parameters.push(uintParam('previousBps', 1_000));
+    disabled.parameters.push(uintParam('newBps', 0));
+    handleBribeBpsSet(disabled);
+
+    const restored = changetype<BribeBpsSet>(newMockEvent());
+    configureEvent(restored, CONTRACT, 3);
+    restored.parameters = new Array<ethereum.EventParam>();
+    restored.parameters.push(uintParam('previousBps', 0));
+    restored.parameters.push(uintParam('newBps', 500));
+    handleBribeBpsSet(restored);
+
+    assert.fieldEquals('ProtocolState', '4663', 'bribeBps', '500');
+    assert.fieldEquals('ProtocolEvent', eventId(disabled), 'eventType', 'RESONANCE_BRIBE_BPS_SET');
+    assert.fieldEquals('ProtocolEvent', eventId(disabled), 'values', '[1000, 0]');
+    assert.fieldEquals('ProtocolEvent', eventId(restored), 'values', '[0, 500]');
   });
 
   test('tracks observable Resonance resets and distributions without inferring schedule state', () => {

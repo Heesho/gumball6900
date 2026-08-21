@@ -148,22 +148,22 @@ extracts it like any other word.
 The build refuses to overwrite the published PDF unless all of these pass. It prints to a staging
 path first, so a failed gate never replaces a good file.
 
-| Gate                    | What it blocks                                                                                                                                                             |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Protocol facts          | A printed number drifting from the contracts or the tested simulation fixture (10 cross-checks)                                                                            |
-| Protocol fee            | The "0% management fee" figure outliving its truth: any fee identifier, unpinned basis-point arithmetic outside `Mine` and `BribeRouter`, or drift from either exact split |
-| Contrast                | Any foreground/background pair below WCAG AA (30 pairs, including this sheet's own surfaces)                                                                               |
-| Stylesheet hygiene      | `undefined`, `NaN`, or `null` reaching a CSS declaration                                                                                                                   |
-| Stale claims            | 92 phrases from superseded designs, plus status language the evidence does not support                                                                                     |
-| Placeholders            | `{{...}}`, unresolved template values, `undefined`, `NaN`                                                                                                                  |
-| Punctuation             | Em and en dashes; the house rule is ASCII hyphens                                                                                                                          |
-| Word budget             | More than 480 words, counted from the rendered text including figure labels                                                                                                |
-| Band budget             | Any band whose content is taller than its declared height                                                                                                                  |
-| Clipping                | Any text block taller than the box drawn around it                                                                                                                         |
-| Overlap                 | Any two sibling panels intersecting                                                                                                                                        |
-| Type size               | Any rendered text under 7.5pt, in HTML or scaled inside a figure                                                                                                           |
-| Page count and geometry | Anything other than exactly one page at A4 landscape                                                                                                                       |
-| Fonts                   | A file that embeds no font programs                                                                                                                                        |
+| Gate                    | What it blocks                                                                                                                                                        |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Protocol facts          | A printed number drifting from the contracts or the tested simulation fixture                                                                                         |
+| Protocol fee            | The "0% management fee" figure outliving its truth: a fee identifier or drift from Mine's split, Resonance's bounded rate, or BribeRouter's exhaustive classification |
+| Contrast                | Any foreground/background pair below WCAG AA (30 pairs, including this sheet's own surfaces)                                                                          |
+| Stylesheet hygiene      | `undefined`, `NaN`, or `null` reaching a CSS declaration                                                                                                              |
+| Stale claims            | Phrases from superseded designs, plus status language the evidence does not support                                                                                   |
+| Placeholders            | `{{...}}`, unresolved template values, `undefined`, `NaN`                                                                                                             |
+| Punctuation             | Em and en dashes; the house rule is ASCII hyphens                                                                                                                     |
+| Word budget             | More than 480 words, counted from the rendered text including figure labels                                                                                           |
+| Band budget             | Any band whose content is taller than its declared height                                                                                                             |
+| Clipping                | Any text block taller than the box drawn around it                                                                                                                    |
+| Overlap                 | Any two sibling panels intersecting                                                                                                                                   |
+| Type size               | Any rendered text under 7.5pt, in HTML or scaled inside a figure                                                                                                      |
+| Page count and geometry | Anything other than exactly one page at A4 landscape                                                                                                                  |
+| Fonts                   | A file that embeds no font programs                                                                                                                                   |
 
 Flags: `--html` writes the HTML and stops (fastest layout loop); `--force` prints despite failures,
 for drafting only; `--open` opens the finished PDF.

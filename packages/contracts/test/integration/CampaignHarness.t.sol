@@ -141,6 +141,44 @@ contract CampaignHarnessTest is Test {
         _assertAllProperties();
     }
 
+    function test_BribeRateTransitionsPreserveWeightedAccountingAndZeroRateSignalLiveness() external {
+        campaign.signalDefault(0, uint96(100 ether - 1));
+
+        uint16[4] memory rates = [uint16(1_000), uint16(0), uint16(500), uint16(2_000)];
+        uint256 bribeBeforeZero;
+        for (uint256 i; i < rates.length; ++i) {
+            campaign.setBribeBps(rates[i]);
+            assertEq(campaign.resonance().bribeBps(), rates[i]);
+
+            campaign.donateRevenue(604_800);
+            vm.warp(block.timestamp + 1 hours);
+            campaign.distributeOne(0);
+            campaign.buy(1, 0);
+            _assertAllProperties();
+
+            address trackedStrategy = campaign.strategies(0);
+            if (rates[i] == 1_000) bribeBeforeZero = campaign.expectedBribeClassification(trackedStrategy);
+            if (rates[i] == 0) {
+                assertEq(
+                    campaign.expectedBribeClassification(trackedStrategy),
+                    bribeBeforeZero,
+                    "a zero-rate payment cannot create new Bribe classification"
+                );
+
+                uint256 receiptBefore = campaign.signalGBX().balanceOf(address(campaign.actors(0)));
+                campaign.signal(0, 1, uint96(10 ether - 1));
+                campaign.moveSignal(0, 1, 2, uint96(10 ether - 1));
+                campaign.withdrawSignal(0, 1, uint96(10 ether - 1));
+                assertEq(campaign.signalGBX().balanceOf(address(campaign.actors(0))), receiptBefore);
+                _assertAllProperties();
+            }
+        }
+
+        address primaryStrategy = campaign.strategies(0);
+        assertGt(campaign.expectedFundClassification(primaryStrategy), 0);
+        assertGt(campaign.expectedBribeClassification(primaryStrategy), bribeBeforeZero);
+    }
+
     /// @notice Random action sequences never break a property, mirroring what the nightly campaign explores.
     function testFuzz_RandomActionSequencesPreserveEveryProperty(uint8[12] calldata seeds) external {
         for (uint256 i; i < seeds.length; ++i) {
@@ -148,15 +186,20 @@ contract CampaignHarnessTest is Test {
             uint8 actor = seed % 3;
 
             // Failing actions are exactly what the fuzzer discards, so ignore them and keep exploring.
-            if (seed % 9 == 0) try campaign.signalDefault(actor, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
-            if (seed % 9 == 1) try campaign.signal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
-            if (seed % 9 == 2) try campaign.mine(actor, seed) { } catch { }
-            if (seed % 9 == 3) try campaign.donateRevenue(uint64(seed) * 1e6 + 1) { } catch { }
-            if (seed % 9 == 4) try campaign.distributeAll() { } catch { }
-            if (seed % 9 == 5) try campaign.buy(actor, seed) { } catch { }
-            if (seed % 9 == 6) try campaign.withdrawSignalMany(actor, seed) { } catch { }
-            if (seed % 9 == 7) try campaign.claimRewards(actor, seed) { } catch { }
-            if (seed % 9 == 8) try campaign.addStrategy() { } catch { }
+            if (seed % 11 == 0) try campaign.signalDefault(actor, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
+            if (seed % 11 == 1) try campaign.signal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
+            if (seed % 11 == 2) {
+                try campaign.moveSignal(actor, seed, uint8(uint256(seed) + 1), uint96(1e18) * (uint96(seed) + 1)) { }
+                    catch { }
+            }
+            if (seed % 11 == 3) try campaign.mine(actor, seed) { } catch { }
+            if (seed % 11 == 4) try campaign.donateRevenue(uint64(seed) * 1e6 + 1) { } catch { }
+            if (seed % 11 == 5) try campaign.distributeAll() { } catch { }
+            if (seed % 11 == 6) try campaign.buy(actor, seed) { } catch { }
+            if (seed % 11 == 7) try campaign.withdrawSignalMany(actor, seed) { } catch { }
+            if (seed % 11 == 8) try campaign.claimRewards(actor, seed) { } catch { }
+            if (seed % 11 == 9) try campaign.addStrategy() { } catch { }
+            if (seed % 11 == 10) try campaign.setBribeBps(uint16(seed) * 10) { } catch { }
 
             vm.warp(block.timestamp + 1 hours + uint256(seed) * 1 hours);
             _assertAllProperties();
@@ -180,7 +223,8 @@ contract CampaignHarnessTest is Test {
         assertTrue(campaign.echidna_deadStrategiesAreExcludedFromActiveWeight(), "dead strategy weight exclusion");
         assertTrue(campaign.echidna_checkpointsNeverLeadTheGlobalIndex(), "checkpoint ordering");
         assertTrue(campaign.echidna_bribesAreSolventAgainstAccruedRewards(), "bribe solvency");
-        assertTrue(campaign.echidna_bribeRouterAccountingIsExact(), "90/10 router accounting");
+        assertTrue(campaign.echidna_bribeRouterAccountingIsExact(), "weighted router accounting");
+        assertTrue(campaign.echidna_bribeBpsPolicyIsBounded(), "bounded global Bribe share");
         assertTrue(campaign.echidna_atLeastOneStrategyRemainsLive(), "final live Strategy");
         assertTrue(campaign.echidna_routerRetentionIsFullyVisible(), "visible router retention");
         assertTrue(campaign.echidna_auctionPricesStayWithinTheirBounds(), "auction bounds");

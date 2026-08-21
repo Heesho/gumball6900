@@ -1,8 +1,8 @@
 # ADR 0032: Fixed 90/10 acquired-asset settlement
 
-- Status: accepted and implemented in the development tree; not independently audited or deployed; not approved for
-  user funds
+- Status: superseded by [ADR 0036](0036-governed-global-bribe-share.md); retained as historical development rationale
 - Date: 2026-08-16
+- Superseded by: ADR 0036's global prospective 0%-to-20% acquired-asset Bribe share and exact weighted cumulative carry
 - Supersedes: ADR 0021 and its 100%-Fund Strategy-payment rule
 - Preserves: 100% of earned USDG flowing from Resonance to the entitled Strategy, deferred fixed-destination
   settlement, permissionless retry, Fund-held GBX burning, the Bribe reward-token cap, and independently funded

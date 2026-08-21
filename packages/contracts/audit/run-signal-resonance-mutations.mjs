@@ -269,42 +269,92 @@ const mutants = [
     test: ['test/minimal/Strategy.t.sol', 'test_BuyAtomicallyIncludesRevenueReleasedThroughTheCurrentTimestamp'],
   },
   {
-    id: 'SETTLE-01-change-fund-constant',
-    file: 'src/core/BribeRouter.sol',
-    from: '    uint256 public constant FUND_BPS = 9_000;',
-    to: '    uint256 public constant FUND_BPS = 8_000;',
-    test: ['test/minimal/Routing.t.sol', 'test_CompletePaymentIsClassifiedNinetyTenEvenWithLiveSignalWeight'],
+    id: 'POLICY-01-change-default-share',
+    file: 'src/core/Resonance.sol',
+    from: '    uint256 public constant DEFAULT_BRIBE_BPS = 1_000;',
+    to: '    uint256 public constant DEFAULT_BRIBE_BPS = 0;',
+    test: ['test/minimal/BribeBps.t.sol', 'test_DefaultBoundsAndOwnerAuthorization'],
   },
   {
-    id: 'SETTLE-02-change-bribe-share',
-    file: 'src/core/BribeRouter.sol',
-    from: '    uint256 public constant BRIBE_BPS = 1_000;',
-    to: '    uint256 public constant BRIBE_BPS = 2_000;',
-    test: ['test/minimal/Routing.t.sol', 'test_CompletePaymentIsClassifiedNinetyTenEvenWithLiveSignalWeight'],
+    id: 'POLICY-02-raise-maximum-share',
+    file: 'src/core/Resonance.sol',
+    from: '    uint256 public constant MAX_BRIBE_BPS = 2_000;',
+    to: '    uint256 public constant MAX_BRIBE_BPS = 3_000;',
+    test: ['test/minimal/BribeBps.t.sol', 'test_DefaultBoundsAndOwnerAuthorization'],
   },
   {
-    id: 'SETTLE-03-swap-fund-classification',
+    id: 'POLICY-03-remove-owner-authorization',
+    file: 'src/core/Resonance.sol',
+    from: '    function setBribeBps(uint256 newBribeBps) external onlyOwner {',
+    to: '    function setBribeBps(uint256 newBribeBps) external {',
+    test: ['test/minimal/BribeBps.t.sol', 'test_DefaultBoundsAndOwnerAuthorization'],
+  },
+  {
+    id: 'POLICY-04-reject-exact-maximum',
+    file: 'src/core/Resonance.sol',
+    from: '        if (newBribeBps > MAX_BRIBE_BPS) revert BribeBpsAboveMaximum(newBribeBps);',
+    to: '        if (newBribeBps >= MAX_BRIBE_BPS) revert BribeBpsAboveMaximum(newBribeBps);',
+    test: ['test/minimal/BribeBps.t.sol', 'test_DefaultBoundsAndOwnerAuthorization'],
+  },
+  {
+    id: 'SETTLE-01-ignore-governed-share',
+    file: 'src/core/BribeRouter.sol',
+    from: '        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();',
+    to: '        uint256 appliedBribeBps = 1_000;',
+    test: ['test/minimal/BribeBps.t.sol', 'test_FourCompletedAuctionsUseTenZeroFiveAndTwentyPercentProspectively'],
+  },
+  {
+    id: 'SETTLE-02-snapshot-share-after-token-callback',
+    file: 'src/core/BribeRouter.sol',
+    from: `        // Snapshot policy before the first payment-token interaction so token callbacks cannot alter this fill's split.
+        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();
+        if (appliedBribeBps > BPS) revert BribeBpsAboveBasis(appliedBribeBps);
+
+        uint256 senderBefore = paymentToken.balanceOf(msg.sender);
+        uint256 receiverBefore = paymentToken.balanceOf(address(this));
+        paymentToken.safeTransferFrom(msg.sender, address(this), amount);`,
+    to: `        uint256 senderBefore = paymentToken.balanceOf(msg.sender);
+        uint256 receiverBefore = paymentToken.balanceOf(address(this));
+        paymentToken.safeTransferFrom(msg.sender, address(this), amount);
+
+        // MUTANT: callback-capable payment token can change policy before the snapshot.
+        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();
+        if (appliedBribeBps > BPS) revert BribeBpsAboveBasis(appliedBribeBps);`,
+    test: [
+      'test/minimal/BribeBps.t.sol',
+      'test_PaymentTokenCallbackCannotRetroactivelyChangeTheCurrentPaymentsSnapshot',
+    ],
+  },
+  {
+    id: 'SETTLE-03-misbind-policy-source',
+    file: 'src/core/StrategyFactory.sol',
+    from: '        bribeRouter = new BribeRouter(configuredResonance, address(strategy), bribe, paymentToken, fund);',
+    to: '        bribeRouter = new BribeRouter(address(this), address(strategy), bribe, paymentToken, fund);',
+    test: ['test/minimal/BribeBps.t.sol', 'test_FourCompletedAuctionsUseTenZeroFiveAndTwentyPercentProspectively'],
+  },
+  {
+    id: 'SETTLE-04-swap-fund-classification',
     file: 'src/core/BribeRouter.sol',
     from: '        uint256 fundAmount = amount - bribeAmount;',
     to: '        uint256 fundAmount = bribeAmount;',
     test: ['test/minimal/Routing.t.sol', 'test_CompletePaymentIsClassifiedNinetyTenEvenWithLiveSignalWeight'],
   },
   {
-    id: 'SETTLE-04-omit-split-remainder',
+    id: 'SETTLE-05-omit-weighted-split-remainder',
     file: 'src/core/BribeRouter.sol',
-    from: '        uint256 accumulatedRemainder = splitRemainder + mulmod(amount, BRIBE_BPS, BPS);',
+    from: '        uint256 accumulatedRemainder = splitRemainder + mulmod(amount, appliedBribeBps, BPS);',
     to: '        uint256 accumulatedRemainder = splitRemainder;',
-    test: ['test/minimal/Routing.t.sol', 'test_TenOneUnitPaymentsDoNotStarveTheBribe'],
+    test: ['test/minimal/BribeBps.t.sol', 'test_WeightedSplitRemainderSurvivesTenZeroFiveAndTwentyPercentTransitions'],
   },
   {
-    id: 'SETTLE-05-do-not-clear-fund-liability',
+    id: 'SETTLE-06-do-not-clear-fund-liability',
     file: 'src/core/BribeRouter.sol',
     from: '        fundPaymentLiability = 0;',
     to: '        // MUTANT: Fund liability not cleared',
     test: ['test/minimal/Routing.t.sol', 'test_PayingFundIsPermissionlessAndClearsTheLiability'],
   },
   {
-    id: 'SETTLE-06-do-not-clear-bribe-liability',
+    id: 'SETTLE-07-do-not-clear-bribe-liability',
     file: 'src/core/BribeRouter.sol',
     from: '        bribePaymentLiability = 0;',
     to: '        // MUTANT: Bribe liability not cleared',

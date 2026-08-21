@@ -24,6 +24,40 @@ def test_strategy_payment_classification_conserves_and_isolates_donations() -> N
     assert model.accounted_balance == 0
 
 
+def test_strategy_payment_rate_changes_preserve_exact_weighted_carry() -> None:
+    model = StrategyPaymentConservationModel()
+    payments = [7, 13, 19, 23]
+    rates = [1_000, 0, 500, 2_000]
+
+    for payment, rate in zip(payments, rates, strict=True):
+        model.set_bribe_bps(rate)
+        model.route(payment)
+
+    weighted_numerator = sum(payment * rate for payment, rate in zip(payments, rates, strict=True))
+    assert model.bribe_liability == weighted_numerator // 10_000 == 6
+    assert model.split_remainder == weighted_numerator % 10_000 == 2_500
+    assert model.fund_liability == sum(payments) - model.bribe_liability == 56
+    assert model.accounted_balance == 62
+
+
+def test_zero_rate_adds_no_bribe_liability_and_rate_bounds_are_enforced() -> None:
+    model = StrategyPaymentConservationModel()
+    model.route(20)
+    assert model.bribe_liability == 2
+
+    model.set_bribe_bps(0)
+    model.route(1_000_000)
+    assert model.bribe_liability == 2
+    assert model.notify_bribe() == 2
+    assert model.pay_fund() == 1_000_018
+
+    model.set_bribe_bps(2_000)
+    with pytest.raises(ValueError, match="outside protocol bounds"):
+        model.set_bribe_bps(2_001)
+    with pytest.raises(ValueError, match="outside protocol bounds"):
+        model.set_bribe_bps(-1)
+
+
 def test_qualifying_live_top_up_checkpoints_and_restarts_with_reward_plus_left() -> None:
     model = RevenueConservationModel(1)
     model.set_weight(0, 1)

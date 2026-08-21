@@ -94,13 +94,21 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
 
   const auctionQuotes = scenarios.auctionCases.map((entry) => {
     const payment = auctionPriceAt(big(entry, 'initPrice'), big(entry, 'elapsedSeconds'), big(entry, 'epochPeriod'));
-    const settlement = settleStrategyPayment(big(entry, 'actualTargetReceived'));
+    const bribeBasisPoints = big(entry, 'bribeBps');
+    const partitionBribeBasisPoints = array(entry.paymentPartitionBps, 'paymentPartitionBps').map((raw) =>
+      BigInt(text(raw, 'paymentPartitionBps')),
+    );
+    const paymentPartitions = array(entry.paymentPartitions, 'paymentPartitions');
+    if (partitionBribeBasisPoints.length !== paymentPartitions.length) {
+      throw new RangeError('every payment partition needs one Bribe rate');
+    }
+    const settlement = settleStrategyPayment(big(entry, 'actualTargetReceived'), 0n, bribeBasisPoints);
     let partitionFundAmount = 0n;
     let partitionBribeAmount = 0n;
     let partitionRemainder = 0n;
-    for (const raw of array(entry.paymentPartitions, 'paymentPartitions')) {
+    for (const [index, raw] of paymentPartitions.entries()) {
       const part = BigInt(text(raw, 'paymentPartitions'));
-      const classified = settleStrategyPayment(part, partitionRemainder);
+      const classified = settleStrategyPayment(part, partitionRemainder, partitionBribeBasisPoints[index]!);
       partitionFundAmount += classified.fundAmount;
       partitionBribeAmount += classified.bribeAmount;
       partitionRemainder = classified.splitRemainder;
@@ -109,12 +117,14 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
       id: id(entry.id, 'id'),
       paymentAmount: decimal(payment),
       nextInitPrice: decimal(nextAuctionInitPrice(payment, big(entry, 'priceMultiplier'), big(entry, 'minInitPrice'))),
+      bribeBasisPoints: decimal(bribeBasisPoints),
       fundAmount: decimal(settlement.fundAmount),
       bribeAmount: decimal(settlement.bribeAmount),
       splitRemainder: decimal(settlement.splitRemainder),
       partitionFundAmount: decimal(partitionFundAmount),
       partitionBribeAmount: decimal(partitionBribeAmount),
       partitionRemainder: decimal(partitionRemainder),
+      partitionBribeBasisPoints: partitionBribeBasisPoints.map(decimal),
     };
   });
 
