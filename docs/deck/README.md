@@ -35,6 +35,8 @@ prose and pictures rather than derived figures. Two constraints are worth keepin
   Parameters that production has not selected are labelled illustrative on the slide itself.
 - **Define a sim before the visibility observer runs.** The observer only animates on-screen slides;
   a sim declared after it is hoisted as `undefined`, silently never observed, and never paints.
+- **No controls.** Every simulation runs itself. The deck is watched, not operated, so there are no
+  buttons or sliders to discover, and nothing is hidden behind an interaction a reader may not make.
 - **Modak is a single-weight face.** It must be set at `font-weight: 400` with `font-synthesis: none`.
   Left to inherit a bold weight, the browser synthesises one, which closes the counters and merges
   the letters into an illegible blob.

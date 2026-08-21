@@ -304,6 +304,35 @@
   .split__body { font-size: 12.5px; line-height: 1.45; color: var(--muted); margin: 0; }
   .split__foot { font-size: 12px; color: var(--faint); margin: 0; }
 
+  /* An event needs a duration to register. Purchases get ~1s of visible consequence. */
+  .cell { position: relative; }
+  .cell__fx {
+    position: absolute;
+    left: 0; right: 0; bottom: 6px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 9.5px;
+    color: var(--pink);
+    opacity: 0;
+    pointer-events: none;
+  }
+  .cell.is-bought .cell__fx { animation: fx 1100ms ease-out; }
+  @keyframes fx {
+    0% { opacity: 0; transform: translateY(6px); }
+    18% { opacity: 1; transform: translateY(0); }
+    72% { opacity: 1; }
+    100% { opacity: 0; transform: translateY(-5px); }
+  }
+  .cell.is-bought { animation: cellpop 1100ms ease-out; }
+  @keyframes cellpop {
+    0% { background: var(--pink-dim); border-color: var(--pink); }
+    100% { background: var(--panel); border-color: var(--rule); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cell.is-bought, .cell.is-bought .cell__fx { animation: none; }
+    .cell.is-bought .cell__fx { opacity: 1; }
+  }
+
   /* signal & earn */
   .sigwrap { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
   @media (max-width: 900px) { .sigwrap { grid-template-columns: 1fr; } }
@@ -345,6 +374,7 @@
     transition: color 300ms ease;
   }
   .hold.is-paying .hold__amt { color: var(--pink); }
+  .hold__out { font-family: var(--mono); font-size: 10.5px; color: var(--pink); margin-top: 6px; min-height: 13px; }
   .hold__bar { height: 5px; background: var(--rule); border-radius: 3px; margin-top: 9px; overflow: hidden; }
   .hold__bar i { display: block; height: 100%; background: var(--blue); transition: width 420ms ease; }
 
@@ -384,7 +414,6 @@
     overflow: hidden;
     transition: border-color 220ms ease, background 220ms ease;
   }
-  .cell.is-bought { border-color: var(--pink); background: var(--pink-dim); }
   .cell__top { display: flex; justify-content: space-between; align-items: baseline; }
   .cell__id { font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.08em; color: var(--faint); }
   .cell__owner { font-size: 10px; color: var(--blue); font-weight: 600; }
@@ -418,7 +447,24 @@
   .flow { display: grid; grid-template-columns: 190px 1fr; gap: 18px; align-items: start; }
   @media (max-width: 900px) { .flow { grid-template-columns: 1fr; } }
   .flow__canvas { width: 100%; height: auto; display: block; border-radius: 8px; background: var(--panel); }
-  .weights { display: grid; gap: 10px; }
+  .weights { display: grid; gap: 12px; justify-items: center; }
+  .weights canvas { width: 100%; max-width: 190px; height: auto; }
+  #legend { display: grid; gap: 6px; width: 100%; }
+  .lrow {
+    display: grid;
+    grid-template-columns: 10px 1fr auto;
+    gap: 9px;
+    align-items: baseline;
+    padding: 6px 8px;
+    border-radius: 7px;
+    background: var(--panel);
+    border: 1px solid transparent;
+  }
+  .lrow.is-moved { border-color: currentColor; }
+  .lrow__dot { width: 10px; height: 10px; border-radius: 50%; }
+  .lrow__sym { font-family: var(--mono); font-size: 12px; font-weight: 600; }
+  .lrow__num { font-family: var(--mono); font-size: 11px; color: var(--muted); font-variant-numeric: tabular-nums; }
+  .lrow__gbx { font-family: var(--mono); font-size: 10px; color: var(--faint); grid-column: 2 / -1; }
   .wrow { display: grid; gap: 5px; }
   .wrow__top { display: flex; justify-content: space-between; align-items: baseline; }
   .wrow__sym { font-family: var(--mono); font-size: 12px; font-weight: 600; }
@@ -495,6 +541,17 @@
     .cell__mined { font-size: 9px; margin-top: 3px; }
     .tally__v { font-size: 14px; }
     .tally__l { font-size: 9.5px; }
+  }
+
+  @media (max-height: 700px) {
+    .weights canvas { max-width: 104px; }
+    .weights { gap: 6px; }
+    .lrow__num { font-size: 10px; }
+    .lrow { padding: 4px 7px; gap: 7px; }
+    .lrow__sym { font-size: 11px; }
+    .lrow__gbx { font-size: 9.5px; }
+    .flow { gap: 12px; grid-template-columns: 168px 1fr; }
+    .flow__canvas { max-height: 33svh; }
   }
 
   @media (max-height: 680px) {
@@ -652,77 +709,6 @@
     </div>
     <span class="slideno">03</span>
   </section>
-  
-  <!-- 2b ------------------------------------------------- why it is hard -- -->
-  <section class="slide" aria-label="Why an onchain index fund does not exist yet">
-    <div class="stage">
-      <p class="eyebrow">Why this does not exist yet</p>
-      <h2>Onchain index funds keep failing in the same four places.</h2>
-      <p class="lede">
-        Plenty of people have tried to put an index onchain. The pattern of what breaks is consistent,
-        and each break is a place where a human had to be trusted after all.
-      </p>
-      <div class="why">
-        <div class="why__row">
-          <div class="why__what">Who picks the constituents</div>
-          <div class="why__them">A multisig or a foundation committee decides what is in, usually off-chain, usually opaque. That is a manager wearing a different hat.</div>
-          <div class="why__us">Holders decide, continuously, by committing stake. <b>Nobody can add or weight an asset by decree.</b></div>
-        </div>
-        <div class="why__row">
-          <div class="why__what">Getting your money out</div>
-          <div class="why__them">Redemption is gated, batched, whitelisted to market makers, or simply absent &mdash; so the only real exit is selling on a thin secondary market.</div>
-          <div class="why__us">Burn any amount at any moment and receive the underlying tokens. <b>No queue, no gate, no counterparty.</b></div>
-        </div>
-        <div class="why__row">
-          <div class="why__what">Rebalancing</div>
-          <div class="why__them">Expensive, MEV-exposed, and it needs a price feed to know what the target weights even are. It is where most designs quietly re-introduce an oracle.</div>
-          <div class="why__us"><b>There is no rebalancing.</b> The fund never sells. Weights are an outcome of what holders chose, not a target anyone maintains.</div>
-        </div>
-        <div class="why__row">
-          <div class="why__what">Pricing</div>
-          <div class="why__them">An oracle decides what everything is worth, so the whole structure inherits that oracle's failure modes and whoever controls it.</div>
-          <div class="why__us"><b>No oracle exists in the protocol.</b> It lowers its asking price until a trader fills it. The auction is the price discovery.</div>
-        </div>
-      </div>
-      <p class="note">
-        Removing rebalancing is the trade that makes the rest possible. This is not a fund that tracks
-        an index someone else publishes &mdash; it accumulates what its holders point it at, and never sells.
-      </p>
-    </div>
-    <span class="slideno">04</span>
-  </section>
-  <!-- 4b --------------------------------------------------------- listing -- -->
-  <section class="slide" aria-label="Getting listed is the product">
-    <div class="stage">
-      <p class="eyebrow">Why anyone would want in</p>
-      <h2>Getting listed is not a badge. It is a standing order to buy your token.</h2>
-      <p class="lede">
-        A Strategy is a permanent mandate to acquire one asset. Once it exists and carries signal, a
-        share of every dollar the protocol earns is spent buying that asset, week after week, with no
-        regard for its price. For the asset on the other side of that, this is durable, mechanical,
-        price-insensitive demand &mdash; and it does not stop unless holders move their signal away.
-      </p>
-      <div class="cols cols--3">
-        <div class="card card--pink">
-          <p class="card__head">For a token that wants accumulation</p>
-          <p class="card__body">Being an index constituent normally means paying an intermediary and satisfying a committee. Here it means attracting conviction &mdash; and the fund then buys you continuously, forever.</p>
-        </div>
-        <div class="card card--blue">
-          <p class="card__head">Signal what you want to be paid in</p>
-          <p class="card__body">A tenth of everything a Strategy acquires goes to the people who signalled it, <strong>in that asset</strong>. Want to accumulate NVDA? Signal the NVDA Strategy and you are paid in NVDA.</p>
-        </div>
-        <div class="card">
-          <p class="card__head">And you can pay to be chosen</p>
-          <p class="card__body">Anyone may stream extra rewards into a Strategy's pool to pull signal toward it. That is an open, priced market for the fund's buying power &mdash; not a listing fee to a gatekeeper.</p>
-        </div>
-      </div>
-      <p class="note">
-        Nothing here is a promise about anyone's token price. It is a description of where the
-        protocol's revenue mechanically goes, and who decides.
-      </p>
-    </div>
-    <span class="slideno">05</span>
-  </section>
   <!-- 5 ------------------------------------------------------------ loop -- -->
   <section class="slide" aria-label="The whole loop">
     <div class="stage">
@@ -795,7 +781,7 @@
         ultimately spends. The rest of this deck walks each stage in order.
       </p>
     </div>
-    <span class="slideno">06</span>
+    <span class="slideno">04</span>
   </section>
   <!-- 6 ------------------------------------------------------------- GBX -- -->
   <section class="slide" aria-label="GBX">
@@ -839,7 +825,191 @@
         diluted.
       </p>
     </div>
+    <span class="slideno">05</span>
+  </section>
+  <!-- 7 ---------------------------------------------------------- mining -- -->
+  <section class="slide" aria-label="Mining, live">
+    <div class="stage">
+      <p class="eyebrow">Mining &mdash; running live</p>
+      <h2>Sixteen slots, sixteen clocks. Watch them actually run.</h2>
+      <p class="lede">
+        Each slot's price falls to zero over an hour. Take one and you pay the current price, the miner
+        you displaced is paid 80% of it, and the price restarts at double. Sped up here.
+      </p>
+      <div class="sim">
+        <div class="sim__bar">
+          <span class="sim__clock" id="mineClock">day 0, 00:00</span>
+          <span class="sim__note">Illustrative parameters; the real ones are not chosen yet.</span>
+        </div>
+        <div class="mine" id="mineBoard"></div>
+        <div class="tally">
+          <div><div class="tally__v" id="tGbx">0</div><div class="tally__l">GBX mined</div></div>
+          <div><div class="tally__v pink" id="tRev">$0</div><div class="tally__l">USDG to the fund's buying power</div></div>
+          <div><div class="tally__v blue" id="tPaid">$0</div><div class="tally__l">Paid back to displaced miners</div></div>
+          <div><div class="tally__v" id="tRate">&mdash;</div><div class="tally__l">GBX per hour, all slots</div></div>
+        </div>
+      </div>
+    </div>
+    <span class="slideno">06</span>
+  </section>
+  
+  <!-- 9 ------------------------------------------------------- signaling -- -->
+  <section class="slide" aria-label="Signalling, live">
+    <div class="stage">
+      <p class="eyebrow">Signalling &mdash; running live</p>
+      <h2>Point your GBX at an asset. Get paid in that asset.</h2>
+      <p class="lede">
+        Three holders, each committing GBX to whatever they want the fund to buy. Their share of the
+        stream is their share of the signal, and their rewards arrive in the asset they picked. Move
+        yours and watch both change.
+      </p>
+      <div class="sim">
+        <div class="sim__bar">
+          <span class="sim__note">Three holders, each moving their stake when they change their mind.</span>
+        </div>
+        <div class="sigwrap">
+          <div class="sigcol" id="sigActors"></div>
+          <div class="sigcol" id="sigPools"></div>
+        </div>
+      </div>
+    </div>
     <span class="slideno">07</span>
+  </section>
+  <!-- 10 ------------------------------------------------------ resonance -- -->
+  <section class="slide" aria-label="Resonance, live">
+    <div class="stage">
+      <p class="eyebrow">Resonance &mdash; running live</p>
+      <h2>Signal decides the split. Move it, and the money follows.</h2>
+      <p class="lede">
+        Revenue from mining drains out over seven days and splits by whatever the signal weights are at
+        that moment. Signalers keep moving their stake in whole lots, and the next dollar follows them.
+      </p>
+      <div class="sim">
+        <div class="sim__bar">
+          <span class="sim__clock" id="flowClock">week 1</span>
+          <span class="sim__note">Each Strategy sells its USDG in a falling-price auction, then 90% of the asset backs GBX.</span>
+        </div>
+        <div class="flow">
+          <div class="weights"><canvas id="pie" width="440" height="440" aria-label="Signal split across the four Strategies"></canvas><div id="legend"></div></div>
+          <canvas class="flow__canvas" id="flowCanvas" width="1600" height="620" aria-label="USDG flowing from Resonance to each Strategy in proportion to its signal weight"></canvas>
+        </div>
+      </div>
+    </div>
+    <span class="slideno">08</span>
+  </section>
+  <!-- 11 -------------------------------------------------------- auction -- -->
+  <section class="slide" aria-label="Acquisition, live">
+    <div class="stage">
+      <p class="eyebrow">Acquisition &mdash; running live</p>
+      <h2>One stack rises, the other falls. When they meet, the trade happens.</h2>
+      <p class="lede">
+        A Strategy pools the USDG it was signalled and asks to be paid in <strong>QQQ itself</strong>, never in
+        dollars. The lot keeps growing, so what it is worth rises. The ask falls in a straight line.
+        The moment the ask drops to what the lot is worth, a trader takes it &mdash; USDG to them, QQQ back
+        to the fund and the signalers. That is the whole price discovery; no oracle exists.
+      </p>
+      <div class="sim">
+        <div class="sim__bar">
+          <span class="sim__clock" id="aucState">waiting for revenue</span>
+          <span class="sim__note">Both stacks are measured in QQQ. They settle when the asking stack drops to the worth stack.</span>
+        </div>
+        <canvas class="flow__canvas" id="aucCanvas" width="1600" height="560" aria-label="A Strategy auction price falling until a trader fills it, and the acquired asset splitting to the treasury and to signalers"></canvas>
+      </div>
+    </div>
+    <span class="slideno">09</span>
+  </section>
+  
+  
+  
+  <!-- 15 ----------------------------------------------------- redemption -- -->
+  <section class="slide" aria-label="Redemption, live">
+    <div class="stage">
+      <p class="eyebrow">Redemption &mdash; running live</p>
+      <h2>Burn your tokens. Take your share of everything, immediately.</h2>
+      <p class="lede">
+        The treasury below is whatever the auctions have accumulated. Burn any slice of the supply and
+        exactly that slice of every holding leaves with you. Nobody approves it and nothing is priced.
+      </p>
+      <div class="sim">
+        <div class="sim__bar">
+          <span class="sim__clock" id="redSupply"></span>
+        </div>
+        <div class="vault" id="vault"></div>
+        <p class="figcap" id="redOut">Burn a slice to see what comes back.</p>
+      </div>
+    </div>
+    <span class="slideno">10</span>
+  </section>
+  
+  <!-- 2b ------------------------------------------------- why it is hard -- -->
+  <section class="slide" aria-label="Why an onchain index fund does not exist yet">
+    <div class="stage">
+      <p class="eyebrow">Why this does not exist yet</p>
+      <h2>Onchain index funds keep failing in the same four places.</h2>
+      <p class="lede">
+        Plenty of people have tried to put an index onchain. The pattern of what breaks is consistent,
+        and each break is a place where a human had to be trusted after all.
+      </p>
+      <div class="why">
+        <div class="why__row">
+          <div class="why__what">Who picks the constituents</div>
+          <div class="why__them">A multisig or a foundation committee decides what is in, usually off-chain, usually opaque. That is a manager wearing a different hat.</div>
+          <div class="why__us">Holders decide, continuously, by committing stake. <b>Nobody can add or weight an asset by decree.</b></div>
+        </div>
+        <div class="why__row">
+          <div class="why__what">Getting your money out</div>
+          <div class="why__them">Redemption is gated, batched, whitelisted to market makers, or simply absent &mdash; so the only real exit is selling on a thin secondary market.</div>
+          <div class="why__us">Burn any amount at any moment and receive the underlying tokens. <b>No queue, no gate, no counterparty.</b></div>
+        </div>
+        <div class="why__row">
+          <div class="why__what">Rebalancing</div>
+          <div class="why__them">Expensive, MEV-exposed, and it needs a price feed to know what the target weights even are. It is where most designs quietly re-introduce an oracle.</div>
+          <div class="why__us"><b>There is no rebalancing.</b> The fund never sells. Weights are an outcome of what holders chose, not a target anyone maintains.</div>
+        </div>
+        <div class="why__row">
+          <div class="why__what">Pricing</div>
+          <div class="why__them">An oracle decides what everything is worth, so the whole structure inherits that oracle's failure modes and whoever controls it.</div>
+          <div class="why__us"><b>No oracle exists in the protocol.</b> It lowers its asking price until a trader fills it. The auction is the price discovery.</div>
+        </div>
+      </div>
+      <p class="note">
+        Removing rebalancing is the trade that makes the rest possible. This is not a fund that tracks
+        an index someone else publishes &mdash; it accumulates what its holders point it at, and never sells.
+      </p>
+    </div>
+    <span class="slideno">11</span>
+  </section>
+  <!-- 4b --------------------------------------------------------- listing -- -->
+  <section class="slide" aria-label="Getting listed is the product">
+    <div class="stage">
+      <p class="eyebrow">Why anyone would want in</p>
+      <h2>Getting listed is not a badge. It is a standing order to buy your token.</h2>
+      <p class="lede">
+        A Strategy is a permanent mandate to acquire one asset. Once it exists and carries signal, a
+        share of every dollar the protocol earns is spent buying that asset, week after week, with no
+        regard for its price. For the asset on the other side of that, this is durable, mechanical,
+        price-insensitive demand &mdash; and it does not stop unless holders move their signal away.
+      </p>
+      <div class="cols cols--3">
+        <div class="card card--pink">
+          <p class="card__head">For a token that wants accumulation</p>
+          <p class="card__body">Being an index constituent normally means paying an intermediary and satisfying a committee. Here it means attracting conviction &mdash; and the fund then buys you continuously, forever.</p>
+        </div>
+        <div class="card card--blue">
+          <p class="card__head">Signal what you want to be paid in</p>
+          <p class="card__body">A tenth of everything a Strategy acquires goes to the people who signalled it, <strong>in that asset</strong>. Want to accumulate NVDA? Signal the NVDA Strategy and you are paid in NVDA.</p>
+        </div>
+        <div class="card">
+          <p class="card__head">And you can pay to be chosen</p>
+          <p class="card__body">Anyone may stream extra rewards into a Strategy's pool to pull signal toward it. That is an open, priced market for the fund's buying power &mdash; not a listing fee to a gatekeeper.</p>
+        </div>
+      </div>
+      <p class="note">
+        Nothing here is a promise about anyone's token price. It is a description of where the
+        protocol's revenue mechanically goes, and who decides.
+      </p>
+    </div>
+    <span class="slideno">12</span>
   </section>
   <!-- 6b ------------------------------------------------------- nav thesis -- -->
   <section class="slide" aria-label="What GBX should be worth">
@@ -889,129 +1059,6 @@
         neither signals nor mines is diluted over time. This is the mechanism, not a promise about price.
       </p>
     </div>
-    <span class="slideno">08</span>
-  </section>
-  <!-- 7 ---------------------------------------------------------- mining -- -->
-  <section class="slide" aria-label="Mining, live">
-    <div class="stage">
-      <p class="eyebrow">Mining &mdash; running live</p>
-      <h2>Sixteen slots, sixteen clocks. Watch them actually run.</h2>
-      <p class="lede">
-        Each slot's price falls to zero over an hour. Take one and you pay the current price, the miner
-        you displaced is paid 80% of it, and the price restarts at double. Sped up here.
-      </p>
-      <div class="sim">
-        <div class="sim__bar">
-          <button class="sim__btn" id="mineToggle" type="button">Pause</button>
-          <button class="sim__btn" id="mineSpeed" type="button">Speed 60x</button>
-          <span class="sim__clock" id="mineClock">day 0, 00:00</span>
-          <span class="sim__note">Illustrative parameters; the real ones are not chosen yet.</span>
-        </div>
-        <div class="mine" id="mineBoard"></div>
-        <div class="tally">
-          <div><div class="tally__v" id="tGbx">0</div><div class="tally__l">GBX mined</div></div>
-          <div><div class="tally__v pink" id="tRev">$0</div><div class="tally__l">USDG to the fund's buying power</div></div>
-          <div><div class="tally__v blue" id="tPaid">$0</div><div class="tally__l">Paid back to displaced miners</div></div>
-          <div><div class="tally__v" id="tRate">&mdash;</div><div class="tally__l">GBX per hour, all slots</div></div>
-        </div>
-      </div>
-    </div>
-    <span class="slideno">09</span>
-  </section>
-  
-  <!-- 9 ------------------------------------------------------- signaling -- -->
-  <section class="slide" aria-label="Signalling, live">
-    <div class="stage">
-      <p class="eyebrow">Signalling &mdash; running live</p>
-      <h2>Point your GBX at an asset. Get paid in that asset.</h2>
-      <p class="lede">
-        Three holders, each committing GBX to whatever they want the fund to buy. Their share of the
-        stream is their share of the signal, and their rewards arrive in the asset they picked. Move
-        yours and watch both change.
-      </p>
-      <div class="sim">
-        <div class="sim__bar">
-          <span class="sim__note">You are <strong class="blue">@you</strong>. Pick where your stake points:</span>
-          <button class="sim__btn" data-pick="NVDA" type="button">NVDA</button>
-          <button class="sim__btn" data-pick="QQQ" type="button">QQQ</button>
-          <button class="sim__btn" data-pick="WBTC" type="button">WBTC</button>
-        </div>
-        <div class="sigwrap">
-          <div class="sigcol" id="sigActors"></div>
-          <div class="sigcol" id="sigPools"></div>
-        </div>
-      </div>
-    </div>
-    <span class="slideno">10</span>
-  </section>
-  <!-- 10 ------------------------------------------------------ resonance -- -->
-  <section class="slide" aria-label="Resonance, live">
-    <div class="stage">
-      <p class="eyebrow">Resonance &mdash; running live</p>
-      <h2>Drag the weights. Watch the money follow.</h2>
-      <p class="lede">
-        Revenue from mining drains out over seven days and splits by whatever the signal weights are at
-        that moment. Move a slider and the very next dollar goes somewhere else.
-      </p>
-      <div class="sim">
-        <div class="sim__bar">
-          <button class="sim__btn" id="flowToggle" type="button">Pause</button>
-          <span class="sim__clock" id="flowClock">week 1</span>
-          <span class="sim__note">Each Strategy sells its USDG in a falling-price auction, then 90% of the asset backs GBX.</span>
-        </div>
-        <div class="flow">
-          <div class="weights" id="weights"></div>
-          <canvas class="flow__canvas" id="flowCanvas" width="1600" height="620" aria-label="USDG flowing from Resonance to each Strategy in proportion to its signal weight"></canvas>
-        </div>
-      </div>
-    </div>
-    <span class="slideno">11</span>
-  </section>
-  <!-- 11 -------------------------------------------------------- auction -- -->
-  <section class="slide" aria-label="Acquisition, live">
-    <div class="stage">
-      <p class="eyebrow">Acquisition &mdash; running live</p>
-      <h2>The pile of USDG grows. The price to take it falls. Somebody takes it.</h2>
-      <p class="lede">
-        A Strategy pools the USDG it was signalled and offers the whole lot &mdash; asking to be paid in
-        <strong>QQQ itself</strong>, never in dollars. The ask falls in a straight line while the lot keeps
-        growing, so a trader fills the moment paying that much QQQ is worth it. That crossing is the
-        price discovery: no oracle is consulted anywhere.
-      </p>
-      <div class="sim">
-        <div class="sim__bar">
-          <button class="sim__btn" id="aucToggle" type="button">Pause</button>
-          <span class="sim__clock" id="aucState">waiting for revenue</span>
-          <span class="sim__note">A trader fills once the ask falls far enough below what the lot is worth.</span>
-        </div>
-        <canvas class="flow__canvas" id="aucCanvas" width="1600" height="560" aria-label="A Strategy auction price falling until a trader fills it, and the acquired asset splitting to the treasury and to signalers"></canvas>
-      </div>
-    </div>
-    <span class="slideno">12</span>
-  </section>
-  
-  
-  
-  <!-- 15 ----------------------------------------------------- redemption -- -->
-  <section class="slide" aria-label="Redemption, live">
-    <div class="stage">
-      <p class="eyebrow">Redemption &mdash; running live</p>
-      <h2>Burn your tokens. Take your share of everything, immediately.</h2>
-      <p class="lede">
-        The treasury below is whatever the auctions have accumulated. Burn any slice of the supply and
-        exactly that slice of every holding leaves with you. Nobody approves it and nothing is priced.
-      </p>
-      <div class="sim">
-        <div class="sim__bar">
-          <button class="sim__btn" id="burn1" type="button">Burn 1%</button>
-          <button class="sim__btn" id="burn5" type="button">Burn 5%</button>
-          <button class="sim__btn" id="burnReset" type="button">Reset</button>
-          <span class="sim__clock" id="redSupply"></span>
-        </div>
-        <div class="vault" id="vault"></div>
-        <p class="figcap" id="redOut">Burn a slice to see what comes back.</p>
-      </div>
-    </div>
     <span class="slideno">13</span>
   </section>
   
@@ -1045,7 +1092,6 @@
     </div>
     <span class="slideno">14</span>
   </section>
-
 </div>
 
 <script>
@@ -1195,14 +1241,16 @@
 
       for (var i = 0; i < SLOTS; i++) {
         mine.slots.push({
-          owner: null,
-          initialPrice: MIN_PRICE,
-          startedAt: -Math.random() * DECAY,
+          // Start every slot at its own point in its own cycle, otherwise the whole board
+          // reaches its reservation together and sixteen slots change hands in one frame.
+          owner: NAMES[i],
+          initialPrice: 4 + Math.random() * 26,
+          startedAt: -Math.random() * DECAY * 0.9,
           lastAccruedAt: 0,
-          tps: 0,
-          mined: 0,
-          // Each prospective buyer has their own reservation price, redrawn per epoch.
-          reserve: MIN_PRICE + Math.random() * 26,
+          tps: INITIAL_TPS / SLOTS,
+          mined: Math.random() * 40,
+          // Reservation as a fraction of this slot's own opening price, redrawn per tenure.
+          reserve: MIN_PRICE * (0.2 + Math.random() * 0.55),
           flash: 0,
         });
         var el = document.createElement('div');
@@ -1212,7 +1260,8 @@
           '<span class="cell__owner"></span></div>' +
           '<div class="cell__price"></div>' +
           '<div class="cell__decay"><i></i></div>' +
-          '<div class="cell__mined"></div>';
+          '<div class="cell__mined"></div>' +
+          '<div class="cell__fx"></div>';
         board.appendChild(el);
         mine.cells.push({
           root: el,
@@ -1220,6 +1269,7 @@
           price: el.querySelector('.cell__price'),
           decay: el.querySelector('.cell__decay i'),
           mined: el.querySelector('.cell__mined'),
+          fx: el.querySelector('.cell__fx'),
         });
       }
 
@@ -1234,8 +1284,9 @@
         var paid = mine.priceOf(slot);
 
         // Settle the outgoing tenure: its accrual mints to the displaced miner.
+        var accrued = 0, displaced = slot.owner;
         if (slot.owner !== null) {
-          var accrued = (mine.t - slot.lastAccruedAt) * slot.tps;
+          accrued = (mine.t - slot.lastAccruedAt) * slot.tps;
           mine.totalMined += accrued;
           slot.mined += accrued;
         }
@@ -1256,8 +1307,20 @@
         slot.lastAccruedAt = mine.t;
         slot.tps = globalTps(mine.totalMined) / SLOTS;   // new tenure divides by sixteen
         slot.mined = 0;
-        slot.reserve = MIN_PRICE + Math.random() * Math.max(6, slot.initialPrice * 0.8);
+        slot.reserve = slot.initialPrice * (0.18 + Math.random() * 0.6);
         slot.flash = 1;
+        // The transfer is the story, so name it: who got paid, and what was minted to them.
+        var cell = mine.cells[index];
+        if (cell) {
+          cell.fx.textContent = displaced
+            ? '@' + displaced + '  +' + money((paid * MINER_BPS) / BPS) + '  +' + gbx(accrued) + ' GBX'
+            : 'first fill  ·  100% to the fund';
+          cell.root.classList.remove('is-bought');
+          void cell.root.offsetWidth;   // restart the flash on a repeat purchase
+          cell.root.classList.add('is-bought');
+          clearTimeout(cell.timer);
+          cell.timer = setTimeout(function () { cell.root.classList.remove('is-bought'); }, 1100);
+        }
         if (flow) flow.pending += paid > 0 ? (slot.owner === null ? paid : (paid * (BPS - MINER_BPS)) / BPS) : 0;
       };
 
@@ -1269,7 +1332,8 @@
             var accrued = dt * slot.tps;
             slot.mined += accrued;
           }
-          if (mine.priceOf(slot) <= slot.reserve) mine.buy(i);
+          // Never inside the first stretch of a tenure, so slots cannot churn in lockstep.
+          if (mine.t - slot.startedAt > 240 && mine.priceOf(slot) <= slot.reserve) mine.buy(i);
           if (slot.flash > 0) slot.flash = Math.max(0, slot.flash - dt / 40);
         }
       };
@@ -1279,12 +1343,12 @@
         for (var i = 0; i < SLOTS; i++) {
           var slot = mine.slots[i], c = mine.cells[i];
           var price = mine.priceOf(slot);
-          var frac = Math.min(1, Math.max(0, (mine.t - slot.startedAt) / DECAY));
+          // Price remaining, so the bar shrinks as the slot gets cheaper.
+          var frac = 1 - Math.min(1, Math.max(0, (mine.t - slot.startedAt) / DECAY));
           c.owner.textContent = slot.owner ? '@' + slot.owner : 'open';
           c.price.textContent = '$' + price.toFixed(2);
           c.decay.style.width = (frac * 100).toFixed(1) + '%';
           c.mined.textContent = gbx(slot.mined) + ' GBX mined';
-          c.root.classList.toggle('is-bought', slot.flash > 0);
           live += slot.tps;
         }
         var d = Math.floor(mine.t / 86400), h = Math.floor((mine.t % 86400) / 3600), m = Math.floor((mine.t % 3600) / 60);
@@ -1296,15 +1360,6 @@
         document.getElementById('tRate').textContent = Math.round(live * 3600).toLocaleString();
       };
 
-      document.getElementById('mineToggle').addEventListener('click', function () {
-        mine.running = !mine.running;
-        this.textContent = mine.running ? 'Pause' : 'Play';
-      });
-      document.getElementById('mineSpeed').addEventListener('click', function () {
-        mine.speed = mine.speed === 60 ? 300 : mine.speed === 300 ? 1200 : 60;
-        this.textContent = 'Speed ' + mine.speed + 'x';
-      });
-      if (reduced) document.getElementById('mineToggle').textContent = 'Play';
     }
 
     /* ------------------------------------------------------------- the flow -- */
@@ -1312,143 +1367,225 @@
     var flow = null;
     if (canvas) {
       var ctx = canvas.getContext('2d');
+      // Two stages, because that is what actually happens: Resonance releases USDG to each
+      // Strategy, and only when a Strategy's auction is filled does an asset appear.
       var ASSETS = [
-        { sym: 'NVDA', weight: 40, price: 118, held: 0, pot: 0, color: '#F92B92' },
-        { sym: 'QQQ', weight: 30, price: 486, held: 0, pot: 0, color: '#29B6F0' },
-        { sym: 'WBTC', weight: 20, price: 94000, held: 0, pot: 0, color: '#FFFFFF' },
-        { sym: 'AAPL', weight: 10, price: 231, held: 0, pot: 0, color: '#8E8E98' },
+        { sym: 'NVDA', price: 118, color: '#F92B92', stake: 12400 },
+        { sym: 'QQQ', price: 486, color: '#29B6F0', stake: 9200 },
+        { sym: 'WBTC', price: 94000, color: '#FFFFFF', stake: 6100 },
+        { sym: 'AAPL', price: 231, color: '#8E8E98', stake: 3800 },
       ];
-      flow = { t: 0, running: !reduced, pending: 0, scheduled: 0, rate: 0, finish: 0, particles: [], assets: ASSETS };
+      // Each Strategy runs its own auction epoch. A trader fills whatever has accumulated at the
+      // time; there is no minimum lot, which matters because one WBTC costs far more than a week
+      // of stream. Gating on a whole unit would mean WBTC never flushed at all.
+      ASSETS.forEach(function (a, i) {
+        a.pot = 0; a.held = 0; a.flash = 0; a.epochEnd = 900 + i * 420 + Math.random() * 600;
+        a.lastFill = 0; a.target = a.stake; a.moved = 0;
+      });
+      flow = { t: 0, running: !reduced, pending: 0, rate: 0, finish: 0, parts: [], assets: ASSETS };
 
-      var wrap = document.getElementById('weights');
-      ASSETS.forEach(function (a, idx) {
+      var legend = document.getElementById('legend');
+      var pie = document.getElementById('pie');
+      var pctx = pie.getContext('2d');
+      ASSETS.forEach(function (a) {
         var row = document.createElement('div');
-        row.className = 'wrow';
+        row.className = 'lrow';
+        row.style.color = a.color;
         row.innerHTML =
-          '<div class="wrow__top"><span class="wrow__sym" style="color:' + a.color + '">' + a.sym + '</span>' +
-          '<span class="wrow__pct"></span></div>' +
-          '<input type="range" min="0" max="100" value="' + a.weight + '" aria-label="' + a.sym + ' signal weight">' +
-          '<div class="wrow__acc"></div>';
-        wrap.appendChild(row);
-        a.slider = row.querySelector('input');
-        a.pctEl = row.querySelector('.wrow__pct');
-        a.accEl = row.querySelector('.wrow__acc');
-        a.slider.addEventListener('input', function () { a.weight = Number(a.slider.value); });
+          '<span class="lrow__dot" style="background:' + a.color + '"></span>' +
+          '<span class="lrow__sym">' + a.sym + '</span>' +
+          '<span class="lrow__num"></span>' +
+          '<span class="lrow__gbx"></span>';
+        legend.appendChild(row);
+        a.row = row;
+        a.pctEl = row.querySelector('.lrow__num');
+        a.accEl = row.querySelector('.lrow__gbx');
       });
 
-      flow.totalWeight = function () {
-        return ASSETS.reduce(function (n, a) { return n + a.weight; }, 0) || 1;
+      flow.totalStake = function () {
+        return ASSETS.reduce(function (n, a) { return n + a.stake; }, 0) || 1;
       };
 
       flow.step = function (dt) {
         flow.t += dt;
-        // Mining revenue reaches the router, which restarts the stream once it qualifies.
+
+        // Signalers move stake in discrete decisions, not as a continuous trickle. Between
+        // moves the weights hold still, which is both calmer to read and closer to the truth.
+        // Stake moves in whole lots, the way a person actually signals: 1,000 GBX off one
+        // Strategy and onto another, then nothing until somebody else decides.
+        if (flow.t >= (flow.nextShift || 0)) {
+          var free = ASSETS.filter(function (a) { return !(a.holdUntil && flow.t < a.holdUntil); });
+          if (free.length > 1) {
+            var LOTS = [500, 1000, 1500, 2000, 3000];
+            var lot = LOTS[Math.floor(Math.random() * LOTS.length)];
+            var from = free[Math.floor(Math.random() * free.length)];
+            var to = free[Math.floor(Math.random() * free.length)];
+            if (from !== to && from.stake - lot > 800) {
+              from.stake -= lot; to.stake += lot;
+              from.delta = -lot; to.delta = lot;
+              from.moved = 1; to.moved = 1;
+            }
+          }
+          flow.nextShift = flow.t + 3200 + Math.random() * 5200;
+        }
+        ASSETS.forEach(function (a) {
+          if (a.moved > 0) {
+            a.moved = Math.max(0, a.moved - dt / 2600);
+            if (a.moved === 0) a.delta = 0;
+          }
+        });
+
+        // Mining revenue restarts the seven-day stream once it qualifies.
         if (flow.pending > 0 && flow.t >= flow.finish) {
-          flow.scheduled = flow.pending;
-          flow.rate = flow.scheduled / STREAM;
+          flow.rate = flow.pending / STREAM;
           flow.finish = flow.t + STREAM;
           flow.pending = 0;
         }
+        if (flow.t >= flow.finish) flow.pending += 5200 * dt / STREAM;   // fresh mining revenue
+
         var released = flow.t < flow.finish ? flow.rate * dt : 0;
-        var total = flow.totalWeight();
+        var total = flow.totalStake();
         ASSETS.forEach(function (a) {
-          var share = released * (a.weight / total);
-          a.pot += share;
-          // A Strategy fills its falling-price auction once it has enough to be worth buying.
-          if (a.pot > a.price * 0.5) {
+          a.pot += released * (a.stake / total);
+          // When the auction flushes, that pot becomes the asset and the fund's holding grows.
+          if (flow.t >= a.epochEnd && a.pot > 0) {
             var units = a.pot / a.price;
-            a.held += units * (1 - BRIBE_BPS / BPS);   // 90% backs GBX
+            a.lastFill = units * (1 - BRIBE_BPS / BPS);
+            a.held += a.lastFill;
             a.pot = 0;
+            a.flash = 1;
+            a.epochEnd = flow.t + 1600 + Math.random() * 1800;
+            for (var k = 0; k < 12; k++) flow.parts.push({ p: -k * 0.05, lane: ASSETS.indexOf(a), stage: 2 });
           }
+          if (a.flash > 0) a.flash = Math.max(0, a.flash - dt / 1500);
         });
-        // Particles carry the released flow, one lane per asset.
-        if (released > 0 && flow.particles.length < 260) {
-          ASSETS.forEach(function (a, i) {
-            var n = Math.round((a.weight / total) * 5);
-            for (var k = 0; k < n; k++) flow.particles.push({ p: 0, lane: i, v: 0.22 + Math.random() * 0.2 });
-          });
+      };
+
+      // Particles move in real time so the flow reads at a human pace, whatever the sim clock does.
+      flow.animate = function (realDt) {
+        var total = flow.totalStake();
+        if (flow.t < flow.finish && flow.parts.length < 150 && Math.random() < 0.55) {
+          var r = Math.random() * total, acc = 0, pick = 0;
+          for (var i = 0; i < ASSETS.length; i++) { acc += ASSETS[i].stake; if (r <= acc) { pick = i; break; } }
+          flow.parts.push({ p: 0, lane: pick, stage: 1 });
         }
-        for (var i = flow.particles.length - 1; i >= 0; i--) {
-          var pt = flow.particles[i];
-          pt.p += pt.v * dt * 0.02;
-          if (pt.p >= 1) flow.particles.splice(i, 1);
+        for (var j = flow.parts.length - 1; j >= 0; j--) {
+          var pt = flow.parts[j];
+          pt.p += (pt.stage === 1 ? 0.30 : 0.75) * realDt;
+          if (pt.p < 0) continue;
+          if (pt.p >= 1) flow.parts.splice(j, 1);
         }
       };
 
       flow.paint = function () {
         var W = canvas.width, H = canvas.height;
         ctx.clearRect(0, 0, W, H);
-        var total = flow.totalWeight();
-        var srcX = 150, srcY = H / 2;
-
-        ctx.fillStyle = '#1B1B1F';
-        ctx.strokeStyle = '#3A3A42';
-        ctx.lineWidth = 2;
-        ctx.beginPath(); ctx.roundRect(30, srcY - 62, 240, 124, 10); ctx.fill(); ctx.stroke();
-        ctx.fillStyle = '#FFFFFF';
-        ctx.font = '600 26px Archivo, sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText('Resonance', srcX, srcY - 12);
-        ctx.font = '400 20px Archivo, sans-serif';
-        ctx.fillStyle = '#9E9EA8';
-        ctx.fillText('7-day stream', srcX, srcY + 18);
-        ctx.fillText(money(Math.max(0, flow.rate * Math.max(0, flow.finish - flow.t))) + ' left', srcX, srcY + 46);
-
+        var total = flow.totalStake();
+        var srcX = 300, srcY = H / 2;
+        var midX = 760, dstX = 1200;
         var laneH = H / ASSETS.length;
-        ASSETS.forEach(function (a, i) {
-          var y = laneH * i + laneH / 2;
-          var x0 = 290, x1 = W - 340;
-          ctx.strokeStyle = '#26262B';
-          ctx.lineWidth = Math.max(2, (a.weight / total) * 40);
-          ctx.beginPath();
-          ctx.moveTo(x0, srcY);
-          ctx.bezierCurveTo((x0 + x1) / 2, srcY, (x0 + x1) / 2, y, x1, y);
-          ctx.stroke();
+        var laneY = function (i) { return laneH * i + laneH / 2; };
 
-          ctx.fillStyle = '#1B1B1F';
-          ctx.strokeStyle = a.color;
+        ctx.fillStyle = '#1B1B1F'; ctx.strokeStyle = '#3A3A42'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.roundRect(60, srcY - 62, 240, 124, 10); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = '#FFFFFF'; ctx.font = '600 26px Archivo, sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText('Resonance', 180, srcY - 12);
+        ctx.font = '400 19px Archivo, sans-serif'; ctx.fillStyle = '#9E9EA8';
+        ctx.fillText('7-day stream', 180, srcY + 16);
+        ctx.fillText(money(Math.max(0, flow.rate * Math.max(0, flow.finish - flow.t))) + ' left', 180, srcY + 44);
+
+        ASSETS.forEach(function (a, i) {
+          var y = laneY(i);
+          ctx.strokeStyle = '#26262B';
+          ctx.lineWidth = Math.max(2, (a.stake / total) * 46);
+          ctx.beginPath(); ctx.moveTo(srcX, srcY);
+          ctx.bezierCurveTo((srcX + midX) / 2, srcY, (srcX + midX) / 2, y, midX, y);
+          ctx.stroke();
+          ctx.lineWidth = 2; ctx.strokeStyle = '#26262B';
+          ctx.beginPath(); ctx.moveTo(midX + 250, y); ctx.lineTo(dstX + 60, y); ctx.stroke();
+
+          // the Strategy: holds USDG until its auction fills
+          ctx.fillStyle = a.flash > 0 ? 'rgba(255,255,255,0.10)' : '#1B1B1F';
+          ctx.strokeStyle = a.flash > 0 ? a.color : '#3A3A42';
           ctx.lineWidth = 2;
-          ctx.beginPath(); ctx.roundRect(W - 330, y - 52, 300, 104, 10); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.roundRect(midX, y - 44, 250, 88, 9); ctx.fill(); ctx.stroke();
           ctx.textAlign = 'left';
-          ctx.fillStyle = a.color;
-          ctx.font = '600 26px "JetBrains Mono", monospace';
-          ctx.fillText(a.sym, W - 306, y - 16);
-          ctx.fillStyle = '#FFFFFF';
-          ctx.font = '400 21px Archivo, sans-serif';
-          ctx.fillText(a.held.toFixed(a.price > 1000 ? 4 : 2) + ' held', W - 306, y + 14);
-          ctx.fillStyle = '#6C6C77';
-          ctx.font = '400 18px Archivo, sans-serif';
-          ctx.fillText(Math.round((a.weight / total) * 100) + '% of the stream', W - 306, y + 40);
+          ctx.fillStyle = '#FFFFFF'; ctx.font = '600 19px Archivo, sans-serif';
+          ctx.fillText('Auction: buy ' + a.sym, midX + 20, y - 14);
+          ctx.fillStyle = '#29B6F0'; ctx.font = '600 22px "JetBrains Mono", monospace';
+          ctx.fillText(money(a.pot), midX + 20, y + 16);
+          ctx.fillStyle = '#6C6C77'; ctx.font = '400 15px Archivo, sans-serif';
+          ctx.fillText('USDG waiting to be sold', midX + 20, y + 36);
+
+          // the Fund holding, which only grows when an auction fills
+          ctx.fillStyle = a.flash > 0 ? 'rgba(255,255,255,0.09)' : '#1B1B1F';
+          ctx.strokeStyle = a.color; ctx.lineWidth = a.flash > 0 ? 3.5 : 2;
+          ctx.beginPath(); ctx.roundRect(dstX + 60, y - 40, 280, 80, 9); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = a.color; ctx.font = '600 22px "JetBrains Mono", monospace';
+          ctx.fillText(a.sym, dstX + 82, y - 10);
+          ctx.fillStyle = '#FFFFFF'; ctx.font = '400 20px Archivo, sans-serif';
+          ctx.fillText(a.held.toFixed(a.price > 1000 ? 4 : 2) + ' in the fund', dstX + 82, y + 20);
+          if (a.flash > 0) {
+            ctx.globalAlpha = Math.min(1, a.flash * 1.4);
+            ctx.fillStyle = a.color; ctx.font = '600 18px "JetBrains Mono", monospace';
+            ctx.fillText('+' + a.lastFill.toFixed(a.price > 1000 ? 4 : 2), dstX + 246, y - 10);
+            ctx.globalAlpha = 1;
+          }
         });
 
-        flow.particles.forEach(function (pt) {
-          var a = ASSETS[pt.lane];
-          var y = laneH * pt.lane + laneH / 2;
-          var x0 = 290, x1 = W - 340, t = pt.p;
-          var mt = 1 - t;
-          var cx = (x0 + x1) / 2;
-          var x = mt * mt * mt * x0 + 3 * mt * mt * t * cx + 3 * mt * t * t * cx + t * t * t * x1;
-          var yy = mt * mt * mt * srcY + 3 * mt * mt * t * srcY + 3 * mt * t * t * y + t * t * t * y;
-          ctx.fillStyle = a.color;
-          ctx.globalAlpha = 0.85;
-          ctx.beginPath(); ctx.arc(x, yy, 4.5, 0, Math.PI * 2); ctx.fill();
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#6C6C77'; ctx.font = '600 15px Archivo, sans-serif';
+        ctx.fillText('USDG, SPLIT BY SIGNAL', (srcX + midX) / 2, 28);
+        ctx.fillText('THE ASSET, ONCE THE AUCTION FILLS', (midX + dstX + 340) / 2, 28);
+
+        flow.parts.forEach(function (pt) {
+          var a = ASSETS[pt.lane], y = laneY(pt.lane), t = pt.p, x, yy;
+          if (pt.stage === 1) {
+            var mt = 1 - t, cx = (srcX + midX) / 2;
+            x = mt * mt * mt * srcX + 3 * mt * mt * t * cx + 3 * mt * t * t * cx + t * t * t * midX;
+            yy = mt * mt * mt * srcY + 3 * mt * mt * t * srcY + 3 * mt * t * t * y + t * t * t * y;
+            ctx.fillStyle = '#29B6F0';
+          } else {
+            x = midX + 250 + t * (dstX + 60 - midX - 250);
+            yy = y;
+            ctx.fillStyle = a.color;
+          }
+          ctx.globalAlpha = 0.9;
+          ctx.beginPath(); ctx.arc(x, yy, pt.stage === 1 ? 4.5 : 5.5, 0, Math.PI * 2); ctx.fill();
           ctx.globalAlpha = 1;
         });
 
-        var week = Math.max(1, Math.ceil(flow.t / (7 * 86400)));
-        document.getElementById('flowClock').textContent = 'week ' + week;
+        document.getElementById('flowClock').textContent = 'week ' + Math.max(1, Math.ceil(flow.t / STREAM));
+        // the donut: four shares of one whole
+        var S = pie.width, R = S / 2 - 6, cx = S / 2, cy = S / 2, ang = -Math.PI / 2;
+        pctx.clearRect(0, 0, S, S);
         ASSETS.forEach(function (a) {
-          a.pctEl.textContent = Math.round((a.weight / total) * 100) + '%';
-          var perWeek = (flow.rate * STREAM * (a.weight / total)) / a.price * (1 - BRIBE_BPS / BPS);
-          a.accEl.textContent = '~' + perWeek.toFixed(a.price > 1000 ? 4 : 2) + ' ' + a.sym + ' per week at this weight';
+          var slice = (a.stake / total) * Math.PI * 2;
+          pctx.beginPath(); pctx.moveTo(cx, cy);
+          pctx.arc(cx, cy, a.moved > 0 ? R : R - 8, ang, ang + slice); pctx.closePath();
+          pctx.fillStyle = a.color; pctx.globalAlpha = a.moved > 0 ? 1 : 0.88; pctx.fill();
+          pctx.globalAlpha = 1;
+          ang += slice;
+        });
+        pctx.globalCompositeOperation = 'destination-out';
+        pctx.beginPath(); pctx.arc(cx, cy, R * 0.58, 0, Math.PI * 2); pctx.fill();
+        pctx.globalCompositeOperation = 'source-over';
+        pctx.fillStyle = '#9E9EA8'; pctx.font = '600 30px Archivo, sans-serif'; pctx.textAlign = 'center';
+        pctx.fillText('signal', cx, cy - 4);
+        pctx.fillStyle = '#6C6C77'; pctx.font = '400 24px Archivo, sans-serif';
+        pctx.fillText(Math.round(total).toLocaleString() + ' GBX', cx, cy + 30);
+
+        ASSETS.forEach(function (a) {
+          var pct = (a.stake / total) * 100;
+          a.pctEl.textContent = Math.round(pct) + '%';
+          a.accEl.textContent = (a.delta ? (a.delta > 0 ? '+' : '\u2212') + Math.abs(a.delta).toLocaleString() + ' GBX  \u2192  ' : '') +
+            Math.round(a.stake).toLocaleString() + ' GBX  ·  ~' +
+            ((flow.rate * STREAM * (a.stake / total)) / a.price * (1 - BRIBE_BPS / BPS)).toFixed(a.price > 1000 ? 4 : 2) +
+            ' ' + a.sym + '/wk';
+          a.row.classList.toggle('is-moved', a.moved > 0);
         });
       };
 
-      document.getElementById('flowToggle').addEventListener('click', function () {
-        flow.running = !flow.running;
-        this.textContent = flow.running ? 'Pause' : 'Play';
-      });
-      if (reduced) document.getElementById('flowToggle').textContent = 'Play';
     }
 
     /* ------------------------------------------------- signal and earn -- */
@@ -1498,11 +1635,6 @@
         m.held = 0;
       });
 
-      document.querySelectorAll('[data-pick]').forEach(function (btn) {
-        btn.addEventListener('click', function () {
-          sig.actors[0].pick = btn.dataset.pick;
-        });
-      });
 
       sig.step = function (dt) {
         var total = sig.actors.reduce(function (n, a) { return n + a.stake; }, 0) || 1;
@@ -1543,177 +1675,201 @@
     var auc = null;
     if (aucCanvas) {
       var actx = aucCanvas.getContext('2d');
-      // Strategy.buy takes payment in the ASSET being acquired, not in dollars, and it calls
-      // distribute() first - so the USDG lot keeps growing right up to the moment of the fill
-      // while the asking price in QQQ falls. The crossing is why anybody fills.
       var QQQ = 486;
+      // A six-hour epoch (well inside Strategy's 1h-365d bounds) so both stacks move at a
+      // comparable, watchable rate: the worth stack roughly doubles while the ask stack
+      // falls by about half, and they meet in the middle.
+      var EPOCH = 21600;
       auc = {
-        running: !reduced,
-        t: 0,
-        epoch: 0,
-        lot: 620,          // USDG in the lot
-        inflow: 0.95,      // USDG per sim-second arriving from the stream
-        ask: 0,            // asking price, denominated in QQQ
-        initialAsk: 0,
-        started: 0,
-        margin: 0.12,
-        fills: [],
-        treasury: 0,
-        signalers: 0,
-        flash: 0,
+        running: !reduced, t: 0, phase: 'open', tradeT: 0,
+        lot: 486, inflow: 0.045, ask: 0, initialAsk: 0, started: 0,
+        fundTotal: 0, sigTotal: 0, epoch: 0, parts: [], lastPaid: 0, lastLot: 0,
       };
-      auc.fair = function () { return auc.lot / QQQ; };   // what the lot is worth in QQQ
-      auc.reset = function () {
+      auc.fair = function () { return auc.lot / QQQ; };
+      auc.open = function () {
+        auc.phase = 'open';
         auc.started = auc.t;
-        auc.initialAsk = Math.max(auc.fair() * 2.6, 0.5);
-        auc.margin = 0.06 + Math.random() * 0.22;
+        auc.initialAsk = auc.fair() * (1.85 + Math.random() * 0.35);
       };
-      auc.reset();
+      auc.open();
 
       auc.step = function (dt) {
         auc.t += dt;
-        auc.lot += auc.inflow * dt;                       // keeps piling up, even mid-auction
+        if (auc.phase !== 'open') return;
+        auc.lot += auc.inflow * QQQ * dt / 486;
         var el = auc.t - auc.started;
-        auc.ask = el >= 3600 ? 0 : auc.initialAsk * (1 - el / 3600);
-        // A trader fills once paying `ask` QQQ for the lot is clearly profitable for them.
-        if (auc.ask <= auc.fair() * (1 - auc.margin)) {
-          var received = auc.ask;
-          auc.treasury += received * (1 - BRIBE_BPS / BPS);
-          auc.signalers += received * (BRIBE_BPS / BPS);
-          auc.fills.push({ lot: auc.lot, paid: received });
-          if (auc.fills.length > 3) auc.fills.shift();
-          auc.flash = 1;
+        auc.ask = el >= EPOCH ? 0 : auc.initialAsk * (1 - el / EPOCH);
+        if (auc.ask <= auc.fair()) {
+          auc.phase = 'trade';
+          auc.tradeT = 0;
+          auc.lastPaid = auc.ask;
+          auc.lastLot = auc.lot;
+          auc.fundTotal += auc.ask * (1 - BRIBE_BPS / BPS);
+          auc.sigTotal += auc.ask * (BRIBE_BPS / BPS);
           auc.epoch++;
-          auc.lot = 380 + Math.random() * 320;            // the lot leaves with the buyer
-          auc.reset();
+          auc.parts = [];
+          for (var i = 0; i < 16; i++) auc.parts.push({ p: -i * 0.04, kind: 'usdg' });
+          for (var f = 0; f < 9; f++) auc.parts.push({ p: -0.5 - f * 0.045, kind: 'fund' });
+          auc.parts.push({ p: -0.5, kind: 'sig' });
         }
-        if (auc.flash > 0) auc.flash = Math.max(0, auc.flash - dt / 500);
+      };
+      auc.animate = function (rdt) {
+        if (auc.phase !== 'trade') return;
+        auc.tradeT += rdt;
+        auc.parts.forEach(function (pt) { pt.p += rdt * 0.5; });
+        if (auc.tradeT > 3.0) { auc.lot = 420 + Math.random() * 180; auc.open(); }
+      };
+
+      var box = function (x, y, w, h, stroke, fill) {
+        actx.fillStyle = fill || '#1B1B1F';
+        actx.strokeStyle = stroke; actx.lineWidth = 2;
+        actx.beginPath(); actx.roundRect(x, y, w, h, 10); actx.fill(); actx.stroke();
+      };
+      // A quadratic arc, so a coin never cuts across the chart between the two stacks.
+      var arc = function (t, x0, y0, x1, y1, lift) {
+        var mt = 1 - t, cxp = (x0 + x1) / 2, cyp = Math.min(y0, y1) - lift;
+        return [mt * mt * x0 + 2 * mt * t * cxp + t * t * x1,
+                mt * mt * y0 + 2 * mt * t * cyp + t * t * y1];
       };
 
       auc.paint = function () {
         var W = aucCanvas.width, H = aucCanvas.height;
         actx.clearRect(0, 0, W, H);
-        var ox = 300, oy = H - 96, w = W - 760, h = H - 210;
-        var el = Math.min(3600, auc.t - auc.started);
-        var top = Math.max(auc.initialAsk, auc.fair() * 1.35, 0.001);
+        var trading = auc.phase === 'trade';
+        // The whole middle band is left clear so the coins have somewhere to fly.
+        var AX = 40, AW = 420, TRX = 1090, TRW = 400;
 
-        // the two headline numbers
+        // ---- the auction, top left
+        box(AX, 54, AW, 168, trading ? '#F92B92' : '#3A3A42');
         actx.textAlign = 'left';
-        actx.fillStyle = '#6C6C77'; actx.font = '600 17px Archivo, sans-serif';
-        actx.fillText('THE LOT, STILL FILLING', 40, 60);
-        actx.fillStyle = '#29B6F0'; actx.font = '600 46px "JetBrains Mono", monospace';
-        actx.fillText(money(auc.lot), 40, 108);
-        actx.fillStyle = '#6C6C77'; actx.font = '400 18px Archivo, sans-serif';
-        actx.fillText('of USDG, growing every second', 40, 136);
+        actx.fillStyle = '#6C6C77'; actx.font = '600 15px Archivo, sans-serif';
+        actx.fillText('THE AUCTION', AX + 26, 86);
+        actx.fillStyle = '#29B6F0'; actx.font = '600 38px "JetBrains Mono", monospace';
+        actx.fillText(money(trading ? auc.lastLot : auc.lot), AX + 26, 134);
+        actx.fillStyle = '#9E9EA8'; actx.font = '400 16px Archivo, sans-serif';
+        actx.fillText('USDG in the lot', AX + 26, 158);
+        actx.fillStyle = '#F92B92'; actx.font = '600 30px "JetBrains Mono", monospace';
+        actx.fillText((trading ? auc.lastPaid : auc.ask).toFixed(2) + ' QQQ', AX + 26, 198);
 
-        actx.fillStyle = '#6C6C77'; actx.font = '600 17px Archivo, sans-serif';
-        actx.fillText('ASKING PRICE, FALLING', 40, 210);
-        actx.fillStyle = '#F92B92'; actx.font = '600 46px "JetBrains Mono", monospace';
-        actx.fillText(auc.ask.toFixed(3), 40, 258);
-        actx.fillStyle = '#FFFFFF'; actx.font = '400 20px Archivo, sans-serif';
-        actx.fillText('QQQ for the whole lot', 40, 288);
-        actx.fillStyle = '#6C6C77'; actx.font = '400 18px Archivo, sans-serif';
-        actx.fillText('worth ' + auc.fair().toFixed(3) + ' QQQ at spot', 40, 316);
+        // ---- the two stacks, tucked underneath
+        var bx = AX + 40, bw = 96, gap = 92, base = 470, maxH = 170;
+        var worth = trading ? auc.lastLot / QQQ : auc.fair();
+        var askNow = trading ? auc.lastPaid : auc.ask;
+        var scale = Math.max(auc.initialAsk, worth, 0.001);
+        var hW = Math.max(4, (worth / scale) * maxH), hA = Math.max(4, (askNow / scale) * maxH);
 
-        // axes
-        actx.strokeStyle = '#3A3A42'; actx.lineWidth = 2;
-        actx.beginPath(); actx.moveTo(ox, oy); actx.lineTo(ox + w, oy);
-        actx.moveTo(ox, oy); actx.lineTo(ox, oy - h); actx.stroke();
-        actx.fillStyle = '#6C6C77'; actx.font = '400 18px Archivo, sans-serif'; actx.textAlign = 'center';
-        actx.fillText('auction opens', ox, oy + 32);
-        actx.fillText('one hour', ox + w, oy + 32);
+        actx.fillStyle = '#1E1E23';
+        actx.beginPath(); actx.roundRect(bx, base - maxH, bw, maxH, 7); actx.fill();
+        actx.beginPath(); actx.roundRect(bx + bw + gap, base - maxH, bw, maxH, 7); actx.fill();
+        actx.fillStyle = '#29B6F0';
+        actx.beginPath(); actx.roundRect(bx, base - hW, bw, hW, 7); actx.fill();
+        actx.fillStyle = '#F92B92';
+        actx.beginPath(); actx.roundRect(bx + bw + gap, base - hA, bw, hA, 7); actx.fill();
 
-        var yOf = function (q) { return oy - Math.min(1, q / top) * h; };
+        actx.textAlign = 'center';
+        actx.fillStyle = '#29B6F0'; actx.font = '600 20px "JetBrains Mono", monospace';
+        actx.fillText(worth.toFixed(2), bx + bw / 2, base - hW - 12);
+        actx.fillStyle = '#F92B92';
+        actx.fillText(askNow.toFixed(2), bx + bw + gap + bw / 2, base - hA - 12);
+        actx.fillStyle = '#9E9EA8'; actx.font = '400 15px Archivo, sans-serif';
+        actx.fillText('worth, rising', bx + bw / 2, base + 24);
+        actx.fillText('asking, falling', bx + bw + gap + bw / 2, base + 24);
 
-        // What the lot is worth, projected across the whole hour so the crossing is visible:
-        // it rises as USDG keeps arriving, while the ask falls toward it.
-        var worthAtOpen = Math.max(0, (auc.lot - auc.inflow * el) / QQQ);
-        var worthAtEnd = (auc.lot + auc.inflow * (3600 - el)) / QQQ;
-        actx.strokeStyle = '#29B6F0'; actx.lineWidth = 3; actx.setLineDash([7, 6]);
-        actx.beginPath();
-        actx.moveTo(ox, yOf(worthAtOpen));
-        actx.lineTo(ox + w, yOf(worthAtEnd));
-        actx.stroke(); actx.setLineDash([]);
+        var meetY = base - Math.min(hW, hA);
+        actx.strokeStyle = trading ? '#FFFFFF' : '#3A3A42';
+        actx.lineWidth = trading ? 3 : 1.5;
+        actx.setLineDash(trading ? [] : [5, 6]);
+        actx.beginPath(); actx.moveTo(bx - 22, meetY); actx.lineTo(bx + bw * 2 + gap + 22, meetY); actx.stroke();
+        actx.setLineDash([]);
+        actx.fillStyle = trading ? '#FFFFFF' : '#6C6C77'; actx.font = '600 14px Archivo, sans-serif';
+        actx.fillText(trading ? 'THEY MET  ·  SETTLED' : 'settles when they meet', bx + bw + gap / 2, base + 50);
 
-        // Where the two lines meet is the moment a fill becomes worthwhile.
-        var denom = (auc.initialAsk - 0) + (worthAtEnd - worthAtOpen);
-        if (denom > 0) {
-          var cf = (auc.initialAsk - worthAtOpen) / denom;
-          if (cf > 0.06 && cf < 0.94) {
-            var cx = ox + cf * w, cy = yOf(worthAtOpen + (worthAtEnd - worthAtOpen) * cf);
-            actx.strokeStyle = '#4A4A54'; actx.lineWidth = 1.5; actx.setLineDash([3, 4]);
-            actx.beginPath(); actx.moveTo(cx, cy); actx.lineTo(cx, oy); actx.stroke();
-            actx.setLineDash([]);
-            actx.fillStyle = '#6C6C77'; actx.font = '400 16px Archivo, sans-serif'; actx.textAlign = 'center';
-            actx.fillText('worth filling from about here', cx, oy + 56);
-          }
+        // ---- the trader, top right
+        box(TRX, 74, TRW, 116, trading ? '#29B6F0' : '#3A3A42');
+        actx.textAlign = 'left';
+        actx.fillStyle = '#6C6C77'; actx.font = '600 15px Archivo, sans-serif';
+        actx.fillText('A TRADER', TRX + 26, 104);
+        actx.fillStyle = '#FFFFFF'; actx.font = '400 18px Archivo, sans-serif';
+        actx.fillText('takes the USDG,', TRX + 26, 134);
+        actx.fillText('hands over the QQQ', TRX + 26, 160);
+
+        // ---- the two destinations, bottom right
+        box(960, 380, 260, 110, '#3A3A42');
+        actx.fillStyle = '#FFFFFF'; actx.font = '600 17px Archivo, sans-serif';
+        actx.fillText('The fund', 986, 414);
+        actx.font = '600 24px "JetBrains Mono", monospace';
+        actx.fillText(auc.fundTotal.toFixed(2), 986, 450);
+        actx.fillStyle = '#6C6C77'; actx.font = '400 14px Archivo, sans-serif';
+        actx.fillText('QQQ backing GBX  ·  90%', 986, 474);
+
+        box(1250, 380, 250, 110, '#F92B92');
+        actx.fillStyle = '#F92B92'; actx.font = '600 17px Archivo, sans-serif';
+        actx.fillText('The signalers', 1276, 414);
+        actx.font = '600 24px "JetBrains Mono", monospace';
+        actx.fillText(auc.sigTotal.toFixed(2), 1276, 450);
+        actx.fillStyle = '#6C6C77'; actx.font = '400 14px Archivo, sans-serif';
+        actx.fillText('QQQ to signalers  ·  10%', 1276, 474);
+
+        // ---- the swap, straight across the clear middle
+        if (trading) {
+          auc.parts.forEach(function (pt) {
+            if (pt.p < 0 || pt.p > 1) return;
+            var t = pt.p, xy;
+            if (pt.kind === 'usdg') {
+              xy = arc(t, AX + AW, 140, TRX, 132, 46);
+              actx.fillStyle = '#29B6F0';
+            } else if (pt.kind === 'fund') {
+              xy = arc(t, TRX + 90, 190, 1090, 380, 26);
+              actx.fillStyle = '#FFFFFF';
+            } else {
+              xy = arc(t, TRX + 250, 190, 1375, 380, 26);
+              actx.fillStyle = '#F92B92';
+            }
+            actx.globalAlpha = 0.95;
+            actx.beginPath(); actx.arc(xy[0], xy[1], 6, 0, Math.PI * 2); actx.fill();
+            actx.globalAlpha = 1;
+          });
+          actx.textAlign = 'center';
+          actx.fillStyle = '#29B6F0'; actx.font = '600 15px Archivo, sans-serif';
+          actx.fillText('USDG to the buyer', (AX + AW + TRX) / 2, 74);
         }
 
-        // the asking price, falling
-        actx.strokeStyle = '#F92B92'; actx.lineWidth = 4;
-        actx.beginPath(); actx.moveTo(ox, yOf(auc.initialAsk));
-        actx.lineTo(ox + w, yOf(0)); actx.stroke();
-
-        var px = ox + (el / 3600) * w, py = yOf(auc.ask);
-        actx.fillStyle = auc.flash > 0 ? '#FFFFFF' : '#F92B92';
-        actx.beginPath(); actx.arc(px, py, auc.flash > 0 ? 16 : 10, 0, Math.PI * 2); actx.fill();
-
         actx.textAlign = 'left';
-        actx.fillStyle = '#29B6F0'; actx.font = '600 18px Archivo, sans-serif';
-        actx.fillText('what the lot is worth', ox + 16, yOf((auc.lot - auc.inflow * el) / QQQ) - 16);
-        actx.fillStyle = '#F92B92';
-        actx.fillText('what it is asking', ox + w - 220, yOf(auc.initialAsk) + 34);
+        actx.fillStyle = '#4A4A54'; actx.font = '400 14px Archivo, sans-serif';
+        actx.fillText(auc.epoch + ' lots settled so far', AX, 534);
 
-        // where the last fills landed
-        actx.textAlign = 'left';
-        actx.fillStyle = '#6C6C77'; actx.font = '600 17px Archivo, sans-serif';
-        actx.fillText('EVERY FILL SPLITS', W - 400, 60);
-        actx.fillStyle = '#FFFFFF'; actx.font = '400 22px Archivo, sans-serif';
-        actx.fillText('Treasury  ' + auc.treasury.toFixed(3) + ' QQQ', W - 400, 104);
-        actx.fillStyle = '#F92B92';
-        actx.fillText('Signalers  ' + auc.signalers.toFixed(3) + ' QQQ', W - 400, 140);
-        actx.fillStyle = '#6C6C77'; actx.font = '400 17px Archivo, sans-serif';
-        actx.fillText(auc.epoch + ' lots sold so far', W - 400, 176);
-        for (var i = 0; i < auc.fills.length; i++) {
-          var f = auc.fills[auc.fills.length - 1 - i];
-          actx.fillStyle = i === 0 ? '#9E9EA8' : '#4A4A54';
-          actx.font = '400 17px "JetBrains Mono", monospace';
-          actx.fillText(money(f.lot) + '  for  ' + f.paid.toFixed(3) + ' QQQ', W - 400, 214 + i * 26);
-        }
-
-        document.getElementById('aucState').textContent =
-          'lot ' + money(auc.lot) + '  ·  asking ' + auc.ask.toFixed(3) + ' QQQ';
+        document.getElementById('aucState').textContent = trading
+          ? 'settled: ' + money(auc.lastLot) + ' for ' + auc.lastPaid.toFixed(2) + ' QQQ'
+          : 'lot ' + money(auc.lot) + '  ·  asking ' + auc.ask.toFixed(2) + ' QQQ';
       };
 
-      document.getElementById('aucToggle').addEventListener('click', function () {
-        auc.running = !auc.running;
-        this.textContent = auc.running ? 'Pause' : 'Play';
-      });
-      if (reduced) document.getElementById('aucToggle').textContent = 'Play';
     }
 
     /* ------------------------------------------------------- redemption -- */
     var vault = document.getElementById('vault');
     var red = null;
     if (vault) {
+      var HOLDERS = ['@ava', '@pike', '@juno', '@wren', '@sol', '@bex'];
       red = {
-        supply: 100000000,
-        start: 100000000,
+        t: 0, supply: 100000000, next: 2.2, phase: 'idle', pt: 0, who: '', pct: 0,
         holds: [
-          { sym: 'NVDA', amt: 1200, base: 1200 },
-          { sym: 'QQQ', amt: 400, base: 400 },
-          { sym: 'WBTC', amt: 2.4, base: 2.4 },
-          { sym: 'AAPL', amt: 860, base: 860 },
+          { sym: 'NVDA', amt: 1200 },
+          { sym: 'QQQ', amt: 400 },
+          { sym: 'WBTC', amt: 2.4 },
+          { sym: 'AAPL', amt: 860 },
         ],
       };
       red.holds.forEach(function (h) {
         var el = document.createElement('div');
         el.className = 'hold';
         el.innerHTML = '<div class="hold__sym">' + h.sym + '</div><div class="hold__amt"></div>' +
-          '<div class="hold__bar"><i style="width:100%"></i></div>';
+          '<div class="hold__bar"><i style="width:100%"></i></div><div class="hold__out"></div>';
         vault.appendChild(el);
-        h.el = el; h.amtEl = el.querySelector('.hold__amt'); h.barEl = el.querySelector('.hold__bar i');
+        h.el = el; h.amtEl = el.querySelector('.hold__amt');
+        h.barEl = el.querySelector('.hold__bar i'); h.outEl = el.querySelector('.hold__out');
+        h.base = h.amt;
       });
+
       red.paint = function () {
         red.holds.forEach(function (h) {
           h.amtEl.textContent = h.amt.toFixed(h.amt < 10 ? 4 : 1);
@@ -1722,28 +1878,53 @@
         document.getElementById('redSupply').textContent =
           Math.round(red.supply).toLocaleString() + ' GBX in existence';
       };
-      red.burn = function (pct) {
-        var out = red.holds.map(function (h) {
-          var take = h.amt * pct;
-          h.amt -= take;
+
+      // Runs itself: a holder turns up, burns a slice, and exactly that slice walks out.
+      red.step = function (rdt) {
+        red.t += rdt;
+        if (red.phase === 'idle') {
+          if (red.t >= red.next) {
+            red.phase = 'burn';
+            red.pt = 0;
+            red.who = HOLDERS[Math.floor(Math.random() * HOLDERS.length)];
+            red.pct = 0.004 + Math.random() * 0.02;
+            red.burned = red.supply * red.pct;
+            red.taken = red.holds.map(function (h) { return h.amt * red.pct; });
+            document.getElementById('redOut').innerHTML =
+              '<strong style="color:var(--pink)">' + red.who + '</strong> burns <strong>' +
+              Math.round(red.burned).toLocaleString() + ' GBX</strong>, which is ' +
+              (red.pct * 100).toFixed(2) + '% of everything in existence.';
+          }
+          return;
+        }
+        red.pt += rdt;
+        var k = Math.min(1, red.pt / 1.1);
+        red.holds.forEach(function (h, i) {
           h.el.classList.add('is-paying');
-          setTimeout(function () { h.el.classList.remove('is-paying'); }, 700);
-          return take.toFixed(take < 10 ? 4 : 2) + ' ' + h.sym;
+          h.outEl.textContent = '→ ' + (red.taken[i] * k).toFixed(red.taken[i] < 10 ? 4 : 2) + ' out';
         });
-        red.supply -= red.supply * pct;
-        document.getElementById('redOut').innerHTML =
-          'You burned <strong>' + (pct * 100).toFixed(0) + '%</strong> of the supply and received <strong>' +
-          out.join('</strong>, <strong>') + '</strong>. Exactly that share of every holding, in one transaction.';
-        red.paint();
+        document.getElementById('redSupply').textContent =
+          Math.round(red.supply - red.burned * k).toLocaleString() + ' GBX in existence';
+        red.holds.forEach(function (h, i) {
+          h.amtEl.textContent = (h.amt - red.taken[i] * k).toFixed(h.amt < 10 ? 4 : 1);
+          h.barEl.style.width = (((h.amt - red.taken[i] * k) / h.base) * 100).toFixed(1) + '%';
+        });
+        if (red.pt >= 1.5) {
+          red.supply -= red.burned;
+          red.holds.forEach(function (h, i) { h.amt -= red.taken[i]; h.el.classList.remove('is-paying'); });
+          document.getElementById('redOut').innerHTML =
+            '<strong style="color:var(--pink)">' + red.who + '</strong> received ' +
+            red.holds.map(function (h, i) {
+              return '<strong>' + red.taken[i].toFixed(red.taken[i] < 10 ? 4 : 2) + ' ' + h.sym + '</strong>';
+            }).join(', ') + ' &mdash; the same ' + (red.pct * 100).toFixed(2) + '% of every holding, in one transaction.';
+          red.holds.forEach(function (h) { h.outEl.textContent = ''; });
+          // The fund keeps buying between redemptions, so the vault refills.
+          red.holds.forEach(function (h) { h.amt += h.base * (0.010 + Math.random() * 0.02); });
+          red.phase = 'idle';
+          red.next = red.t + 3.4 + Math.random() * 2.2;
+          red.paint();
+        }
       };
-      document.getElementById('burn1').addEventListener('click', function () { red.burn(0.01); });
-      document.getElementById('burn5').addEventListener('click', function () { red.burn(0.05); });
-      document.getElementById('burnReset').addEventListener('click', function () {
-        red.supply = red.start;
-        red.holds.forEach(function (h) { h.amt = h.base; });
-        document.getElementById('redOut').textContent = 'Burn a slice to see what comes back.';
-        red.paint();
-      });
       red.paint();
     }
 
@@ -1753,14 +1934,14 @@
       var io = new IntersectionObserver(function (entries) {
         entries.forEach(function (e) { visible[e.target.dataset.sim] = e.isIntersecting; });
       }, { threshold: 0.25 });
-      [[board, 'mine'], [canvas, 'flow'], [sigActors, 'sig'], [aucCanvas, 'auc']].forEach(function (pair) {
+      [[board, 'mine'], [canvas, 'flow'], [sigActors, 'sig'], [aucCanvas, 'auc'], [vault, 'red']].forEach(function (pair) {
         if (!pair[0]) return;
         var host = pair[0].closest('.slide');
         host.dataset.sim = pair[1];
         io.observe(host);
       });
     } else {
-      visible.mine = visible.flow = visible.sig = visible.auc = true;
+      visible.mine = visible.flow = visible.sig = visible.auc = visible.red = true;
     }
 
     var last = 0;
@@ -1772,18 +1953,22 @@
         if (visible.mine) mine.paint();
       }
       if (flow) {
-        if (flow.running && visible.flow) flow.step((dtms / 1000) * 3600);
+        if (flow.running && visible.flow) {
+          flow.step((dtms / 1000) * 900);
+          flow.animate(dtms / 1000);
+        }
         if (visible.flow) flow.paint();
       }
       if (sig && visible.sig) { sig.step((dtms / 1000) * 3600); sig.paint(); }
+      if (red && visible.red) red.step(dtms / 1000);
       if (auc) {
-        if (auc.running && visible.auc) auc.step((dtms / 1000) * 240);
+        if (auc.running && visible.auc) { auc.step((dtms / 1000) * 450); auc.animate(dtms / 1000); }
         if (visible.auc) auc.paint();
       }
       requestAnimationFrame(frame);
     }
     // Seed the flow so the first visit is not an empty diagram.
-    if (flow) { flow.pending = 42000; flow.step(1); }
+    if (flow) { flow.pending = 46000; flow.step(1); }
     if (mine) mine.paint();
     if (flow) flow.paint();
     requestAnimationFrame(frame);
