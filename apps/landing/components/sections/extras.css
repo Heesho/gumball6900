@@ -1,165 +1,533 @@
 /* ---------------------------------------------------------- 60-extras --
-   Fully static section: five facts between the simulations and the
-   argument. The only visual is the split bar — contract constants
-   (10% default / 20% cap / 80% floor), so no illustrative flag needed. */
-#sec-extras .extras-row {
-  margin-bottom: var(--s4);
-}
-#sec-extras .extras-row:last-child {
-  margin-bottom: 0;
-}
-/* cards hug their own content — no stretched voids beside a taller twin */
-#sec-extras .extras-row.cols {
-  align-items: start;
+   Five short facts, set as a LEDGER: sideheads in a narrow gutter, prose in
+   the wide column, rows divided by hairlines that run past the container to
+   the viewport edge. Vertical rhythm — deliberately the opposite of the
+   "why" section's horizontal card row a screen further down.
+
+   The head is the global .sec-head--indexed rail: ordinal 05 + eyebrow in a
+   180px rail, headline and lede stacked in the wide column.
+
+   The treasury row leaves the ledger and becomes a full-bleed BLUE plane —
+   the tail of the page's one colour event that isn't the close's pink. */
+
+/* These five facts are about signal and what it buys: pink flag on the head.
+   (The eyebrow carries eyebrow--pink, so :has() already sets --flag; this
+   states it outright so a later eyebrow edit can't silently flip the rule.) */
+#sec-extras .sec-head {
+  --flag: var(--pink);
 }
 
-/* the split visual */
-#sec-extras .split-grid {
+/* ------------------------------------------------------------- the ledger */
+#sec-extras .ledger {
+  position: relative;
+}
+/* The ledger opens on a rule that bleeds right, like the section head's. */
+#sec-extras .ledger::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: calc(-1 * var(--edge));
+  top: 0;
+  height: 2px;
+  background: var(--rule-strong);
+}
+
+#sec-extras .fact {
+  position: relative;
   display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: var(--s4) var(--s7);
-  align-items: end;
+  grid-template-columns: clamp(190px, 23vw, 330px) minmax(0, 1fr);
+  column-gap: clamp(24px, 3.6vw, 60px);
+  align-items: start;
+  padding: clamp(26px, 3.2vw, 44px) 0 clamp(30px, 3.6vw, 48px);
+}
+/* Separator hairlines bleed past the container without moving the content:
+   a positioned rule, never a border on the row box. */
+#sec-extras .fact + .fact::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: calc(-1 * var(--edge));
+  top: 0;
+  height: var(--hair);
+  background: var(--rule);
+}
+
+/* --- the sidehead: an outlined ordinal, then the fact's name ------------- */
+#sec-extras .fact__mark {
+  min-width: 0;
+}
+/* The page's ordinal spec — the same 4.6vw / 2px stroke the card-row columns
+   use. --faint (#8A8AA0, 5.80:1) is the lightest neutral a 2px hairline can
+   actually be read at; the old --outline stroke rendered as a smudge. */
+#sec-extras .fact__n {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(46px, 4.6vw, 70px);
+  line-height: 0.8;
+  letter-spacing: 0.03em;
+  color: transparent;
+  -webkit-text-stroke: 2px var(--faint);
+  margin-bottom: clamp(14px, 1.6vw, 22px);
+}
+#sec-extras .fact__t {
+  font-size: clamp(16.5px, 1.5vw, 21px);
+  font-weight: 700;
+  letter-spacing: -0.014em;
+  line-height: 1.24;
+  color: var(--hi);
+  text-wrap: pretty;
+}
+
+/* --- the body column ----------------------------------------------------- */
+#sec-extras .fact__body {
+  min-width: 0;
+}
+/* Measure. The section runs at three type sizes, so the caps are chosen to
+   land all of them on ONE physical measure of ~560px — about 62–69 characters
+   a line at 1440. The old 68ch cap set the two short facts at 87 cpl, which
+   is a wall next to "why" one screen down; a single measure across the tail
+   is the discipline stripe.com holds no matter how the layout changes. */
+#sec-extras .fact__p {
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--muted);
+  max-width: 60ch;
+}
+#sec-extras .fact__p--after {
+  margin-top: var(--s4);
+}
+/* A fact with no aside keeps the step up in size — the two short facts read as
+   the punchier ones — but not a wider line: the cap drops with the size so the
+   column stays the same width on the page. 54ch at 17px also happens to end
+   these two at x=1070 on a 1440 spread, where the annotated facts' aside
+   column begins (x=1072) — one continuous edge down the whole ledger, so the
+   short rows read as measured rather than as rows that ran out. Widen this
+   and that edge goes. */
+#sec-extras .fact__body:not(.fact__body--split) .fact__p {
+  font-size: clamp(15.5px, 1.2vw, 17px);
+  max-width: 54ch;
+}
+#sec-extras .fact__body--split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 30%);
+  column-gap: clamp(24px, 3.2vw, 52px);
+  align-items: start;
+}
+#sec-extras .fact__aside {
+  border-left: var(--hair) solid var(--rule);
+  padding-left: clamp(16px, 1.6vw, 24px);
+}
+/* A footnote is never set wider than the body it annotates. Above 880px this
+   aside sits in the narrow 30% column and is measured by the grid; below it,
+   the column collapses and the aside inherits the FULL width — uncapped, its
+   110-character sentence ran onto a single line while the 15.5px body above it
+   held 72. That inverts the hierarchy: the smallest type on the page carrying
+   the longest line. 42ch of 12.5px Schibsted holds it at ~53.
+
+   Taken out of padding-right rather than max-width on purpose: the rule that
+   divides this aside from the paragraph is a border on this box, and capping
+   the box would drag the rule in with the text. Padding caps the measure and
+   leaves the border spanning the column it divides. Above 880 the column is
+   already narrower than 42ch, so the term resolves to 0 and nothing moves. */
+#sec-extras .note.fact__aside {
+  padding-right: max(0px, 100% - 42ch);
+  /* At a fixed measure the wrap is fixed too, so a short last line would be a
+     short last line at every width below 881. Same device .fact__t uses. */
+  text-wrap: pretty;
+}
+/* Third row absorbs the slack when the list column is the taller one, so the
+   two paragraphs stay tight together instead of being pushed apart. */
+#sec-extras .fact__body--powers {
+  grid-template-rows: auto auto 1fr;
+}
+#sec-extras .fact__body--powers .fact__p {
+  grid-column: 1;
+}
+#sec-extras .fact__body--powers .powers {
+  grid-column: 2;
+  grid-row: 1 / span 3;
 }
 @media (max-width: 880px) {
-  #sec-extras .split-grid {
-    grid-template-columns: 1fr;
+  #sec-extras .fact {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--s4);
+  }
+  #sec-extras .fact__mark {
+    display: flex;
+    align-items: baseline;
+    gap: clamp(14px, 3vw, 20px);
+    flex-wrap: wrap;
+  }
+  #sec-extras .fact__n {
+    margin-bottom: 0;
+    font-size: 44px;
+    line-height: 0.72;
+  }
+  #sec-extras .fact__t {
+    flex: 1 1 60%;
+  }
+  #sec-extras .fact__body--split,
+  #sec-extras .fact__body--powers .powers {
+    grid-template-columns: minmax(0, 1fr);
+    grid-column: 1;
+    grid-row: auto;
+  }
+  #sec-extras .fact__aside {
+    border-left: 0;
+    border-top: var(--hair) solid var(--rule);
+    padding-left: 0;
+    padding-top: var(--s4);
+    margin-top: var(--s4);
   }
 }
-#sec-extras .split {
-  margin-top: var(--s6);
-  padding-bottom: var(--s5);
+
+/* ==================================================== the treasury plane == */
+/* Rule 1: brand hue arrives as a full-bleed field carrying black type, never
+   as a wash behind grey cards. Blue, because what this row divides is the
+   fund's capital. Black on #29B6F0 is 8.42:1. */
+#sec-extras .fact--big {
+  padding: clamp(38px, 4.4vw, 60px) var(--edge) clamp(40px, 4.6vw, 62px);
+  grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+  column-gap: clamp(28px, 4vw, 68px);
+  /* The prose settles to the foot of the row so it sits beside the number it
+     explains, instead of leaving a bay of empty blue under itself. */
+  align-items: end;
+  color: var(--on-field);
 }
-#sec-extras .split__labels {
+/* The plane is its own divider; the ledger hairlines stop at its edges. */
+#sec-extras .fact--big::before,
+#sec-extras .fact--big + .fact::before {
+  display: none;
+}
+#sec-extras .fact--big .fact__n {
+  -webkit-text-stroke-color: rgba(12, 12, 12, 0.7); /* 4.87:1 on blue */
+  margin-bottom: clamp(18px, 2vw, 28px);
+}
+#sec-extras .fact--big .fact__t,
+#sec-extras .fact--big .fact__p {
+  color: var(--on-field);
+}
+/* No measure cap here: the big numeral is a block inside this heading, and a
+   ch-based max-width would box it in and make the glyphs overflow their own
+   line box. The grid column is the measure. */
+#sec-extras .fact--big .fact__t {
+  font-size: clamp(17px, 1.6vw, 23px);
+}
+#sec-extras .fact--big .fact__p {
+  font-size: clamp(15.5px, 1.2vw, 17.5px);
+  max-width: 52ch;
+}
+/* Rule 5 — the number IS the imagery. One Modak object: the digits and the
+   per-cent mark share the face and the baseline, the mark set at .55em so it
+   reads as a unit rather than as a third glyph.
+
+   OPEN COUNTERS, NOT SOLID. Modak's zero is drawn at solid weight with no
+   counter — only a thin diagonal slit — so a filled "80" reads as "8Ø": the
+   reader recovers the fact from the sentence instead of from the imagery,
+   which is exactly what rule 5 forbids. The page already solves this eleven
+   times over: every ordinal is Modak with a transparent fill and a stroke,
+   and the outlined zero reads unmistakably as a zero. Same logic here, at
+   0.056em — twice the ordinals' optical weight (they run ~0.029em), so this
+   still reads as a quantity carrying mass rather than as another place
+   marker. The slit closes into a bar and the glyph becomes a slashed zero.
+   Black on #29B6F0 is 8.42:1. */
+#sec-extras .fact__big {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(104px, 12.4vw, 186px);
+  line-height: 0.84;
+  letter-spacing: 0.005em;
+  color: transparent;
+  -webkit-text-stroke: 0.056em var(--on-field);
+  text-stroke: 0.056em var(--on-field);
+  margin-top: clamp(10px, 1.4vw, 20px);
+}
+/* Optically aligned, not baseline-aligned: at .55em a baseline-set mark reads
+   as a subscript, so it is raised until its cap sits with the digits' cap.
+   The mark stays SOLID — at .55em its bowls are too small to survive being
+   outlined, and a filled unit under hollow digits is the right hierarchy
+   anyway. Its own counters are opened by a stroke in the plane's blue, which
+   widens the two eyelets without touching the silhouette. Stroke colour is
+   the plane it stands on; this row is .field--blue by definition. */
+#sec-extras .fact__big-u {
+  font-size: 0.55em;
+  letter-spacing: 0;
+  vertical-align: 0.56em;
+  padding-left: 0.04em;
+  color: var(--on-field);
+  -webkit-text-stroke: 0.038em var(--blue);
+  text-stroke: 0.038em var(--blue);
+}
+@media (max-width: 880px) {
+  #sec-extras .fact--big {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* The other four sideheads set the ordinal beside the title; this one stacks
+     so the display numeral can start hard against the margin instead of being
+     indented behind the ordinal. */
+  #sec-extras .fact--big .fact__mark {
+    display: block;
+  }
+  #sec-extras .fact--big .fact__n {
+    margin-bottom: clamp(12px, 2.4vw, 18px);
+  }
+  #sec-extras .fact__big {
+    margin-top: clamp(4px, 1.2vw, 10px);
+  }
+}
+
+/* ------------------------------------------------- the split instrument -- */
+/* Square corners, no frame: a static diagram, divided by rules rather than
+   boxed. It must never bleed off an edge — the whole point is that you can
+   see all 100% of a purchase at once. */
+#sec-extras .split {
+  margin-top: clamp(30px, 3.4vw, 46px);
+  padding-bottom: var(--s6);
+  /* The rule that closes the instrument belongs to the instrument, so it spans
+     the bar it sits under at every width. The legend below is set to a measure
+     and carries its own, narrower, rules. */
+  border-bottom: var(--hair) solid var(--on-field-rule);
+}
+#sec-extras .split__rail {
   display: flex;
   justify-content: space-between;
+  align-items: baseline;
   gap: var(--s4);
   margin-bottom: var(--s3);
 }
 #sec-extras .split__side {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.19em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--on-field);
+}
+#sec-extras .split__side--sig {
+  text-align: right;
 }
 #sec-extras .split__viz {
   position: relative;
 }
 #sec-extras .split__bar {
   position: relative;
-  height: 30px;
-  border-radius: var(--r-s);
-  overflow: hidden;
-  background: var(--bg-raised);
+  height: clamp(34px, 3.4vw, 46px);
+  border-radius: 0;
+  background: rgba(12, 12, 12, 0.16);
 }
 #sec-extras .split__seg {
   position: absolute;
   top: 0;
   bottom: 0;
 }
+/* On the plane the treasury's share is drawn in the plane's own ink. */
 #sec-extras .split__seg--fund {
   left: 0;
   width: 80%;
-  background: var(--text-faint);
+  background: var(--on-field);
 }
 #sec-extras .split__seg--band {
   left: 80%;
   width: 10%;
-  background: repeating-linear-gradient(-45deg, var(--pink-line) 0 5px, transparent 5px 12px), var(--text-faint);
+  background:
+    repeating-linear-gradient(-45deg, var(--on-field) 0 5px, transparent 5px 11px),
+    rgba(12, 12, 12, 0.3);
 }
+/* The one pink mark on a blue plane. Pink on blue is 1.56:1 — under the 3:1
+   floor WCAG 1.4.11 sets for a meaningful non-text boundary — so the segment
+   is fenced on ALL FOUR sides in black, not just the left. Its right edge is
+   where the bar reaches 100% of a purchase; unfenced it dissolved into the
+   field and the diagram lost its end. Same device as the legend key below,
+   which has always carried it. It carries no type — the label sits above the
+   bar, in black. */
 #sec-extras .split__seg--sig {
   left: 90%;
   width: 10%;
   background: var(--pink);
+  box-shadow: inset 0 0 0 2px var(--on-field);
 }
 #sec-extras .split__cap,
 #sec-extras .split__today {
   position: absolute;
-  top: -7px;
-  bottom: -7px;
+  top: -9px;
+  bottom: -9px;
   width: 0;
 }
 #sec-extras .split__cap {
   left: 80%;
-  border-left: 2px dashed var(--text-hi);
+  border-left: 2px dashed var(--on-field);
 }
 #sec-extras .split__today {
   left: 90%;
-  border-left: 2px solid var(--text-hi);
-}
-#sec-extras .split__caplabel,
-#sec-extras .split__todaylabel {
-  position: absolute;
-  transform: translateX(-50%);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-hi);
-  white-space: nowrap;
+  border-left: 2px solid var(--on-field);
 }
 #sec-extras .split__caplabel {
+  position: absolute;
   left: 80%;
-  top: calc(100% + 12px);
+  top: calc(100% + 14px);
+  transform: translateX(-50%);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--on-field);
+  white-space: nowrap;
 }
-/* Right-anchored so it names the pink region and can never collide with the bar edge. */
-#sec-extras .split__todaylabel {
-  left: auto;
-  right: 0;
-  transform: none;
-  bottom: calc(100% + 12px);
-}
+
+/* The key, in the same left-to-right order as the segments it names.
+   Written low-width-first, because the three states each have to declare the
+   divider AND the inset that clears it in the same breath. Rule 3: the inset
+   exists to clear the hairline, so an item that OPENS a row — nothing to its
+   left — gets neither. Getting that wrong left the stacked list with the black
+   swatch flush and the other two indented 14px behind an absent rule.
+
+   Measure is the other half of the block. This is the smallest type on the
+   page and it must never carry the longest line — uncapped, the middle key
+   ran to 132 characters at 900px while the 15.5px body above it held 72:
+     < 700px    one column, horizontal hairlines. The cap comes out of
+                padding-right, so each key's border box still spans the
+                column and its rule stays flush with the instrument's above.
+                43ch → ~56 cpl.
+     700–911    two columns — it goes two-up BEFORE it goes one-up, so the
+                caption never inherits the whole width of the plane. Here the
+                cap is on the LEGEND, so the tracks narrow with the text and
+                the vertical hairline stays beside the column it divides.
+                90ch is two measures plus their insets → ~50–56 cpl. Below
+                700 a second column would starve it under 45 cpl, so it stops.
+     >= 912     three columns. The track is bounded by --maxw (395px at every
+                width from 1440 up), so the measure needs no cap there. */
 #sec-extras .split__legend {
   display: grid;
-  gap: var(--s2);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+  /* Stated so `ch` below resolves against the keys' own 13px, not the plane's. */
+  font-size: 13px;
 }
 #sec-extras .split__key {
   display: flex;
   align-items: baseline;
   gap: var(--s3);
-  font-size: 13.5px;
+  padding: var(--s3) max(0px, 100% - 43ch) var(--s3) 0;
+  border-top: var(--hair) solid var(--on-field-rule);
+  font-size: 13px;
   line-height: 1.55;
-  color: var(--text-muted);
+  color: var(--on-field);
+  text-wrap: pretty;
+}
+/* The instrument's closing rule already divides the first key from the bar. */
+#sec-extras .split__key:first-child {
+  border-top: 0;
+}
+
+/* --- two-up ------------------------------------------------------------- */
+@media (min-width: 700px) {
+  #sec-extras .split__legend {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: 90ch;
+  }
+  #sec-extras .split__key {
+    border-top: 0;
+    padding: var(--s4) clamp(14px, 1.5vw, 24px);
+  }
+  #sec-extras .split__key:nth-child(1) {
+    padding-left: 0;
+  }
+  #sec-extras .split__key:nth-child(2) {
+    border-left: var(--hair) solid var(--on-field-rule);
+    padding-right: 0;
+  }
+  /* The third key opens the second row, so the rule that divides it is
+     horizontal — and being a row-opener it carries no inset either. It spans
+     both tracks so the divider meets the foot of the vertical one instead of
+     stopping in mid-air; its own line is short enough to need no cap. */
+  #sec-extras .split__key:nth-child(3) {
+    grid-column: 1 / -1;
+    border-top: var(--hair) solid var(--on-field-rule);
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
+
+/* --- three-up ----------------------------------------------------------- */
+@media (min-width: 912px) {
+  #sec-extras .split__legend {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: none;
+  }
+  #sec-extras .split__key {
+    border-top: 0;
+    padding: var(--s4) clamp(14px, 1.5vw, 24px) 0;
+  }
+  #sec-extras .split__key:nth-child(1) {
+    padding-left: 0;
+  }
+  #sec-extras .split__key:nth-child(2) {
+    border-left: var(--hair) solid var(--on-field-rule);
+    padding-right: clamp(14px, 1.5vw, 24px);
+  }
+  #sec-extras .split__key:nth-child(3) {
+    grid-column: auto;
+    border-top: 0;
+    border-left: var(--hair) solid var(--on-field-rule);
+    padding-left: clamp(14px, 1.5vw, 24px);
+    padding-right: 0;
+  }
 }
 #sec-extras .split__swatch {
   flex: none;
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
+  width: 11px;
+  height: 11px;
+  border-radius: 0;
   position: relative;
   top: 1px;
 }
 #sec-extras .split__swatch--fund {
-  background: var(--text-faint);
+  background: var(--on-field);
 }
 #sec-extras .split__swatch--band {
-  background: repeating-linear-gradient(-45deg, var(--pink-line) 0 3px, transparent 3px 7px), var(--text-faint);
+  background:
+    repeating-linear-gradient(-45deg, var(--on-field) 0 3px, transparent 3px 7px),
+    rgba(12, 12, 12, 0.3);
 }
 #sec-extras .split__swatch--sig {
   background: var(--pink);
+  box-shadow: inset 0 0 0 1px var(--on-field);
+}
+/* The treasury row's instrument runs the full width of the row, under both
+   columns — the section's one genuinely big moment. */
+#sec-extras .fact__wide {
+  grid-column: 1 / -1;
+  min-width: 0;
 }
 
-/* the four powers, inside the authority card */
+/* --------------------------------------------- the four powers, as a list */
 #sec-extras .powers {
-  margin: var(--s3) 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
-  gap: var(--s2);
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--text-muted);
+  gap: var(--s3);
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--muted);
 }
 #sec-extras .powers li {
   position: relative;
-  padding-left: 18px;
+  padding-left: 20px;
 }
 #sec-extras .powers li::before {
   content: '';
   position: absolute;
   left: 0;
-  top: 0.66em;
-  width: 7px;
+  top: 0.62em;
+  width: 9px;
   height: 2px;
-  background: var(--text-faint);
+  background: var(--pink);
 }

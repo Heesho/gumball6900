@@ -1,84 +1,184 @@
 /* ============================== 40 · resonance ==========================
-   Signal weights (pink, HTML) on the left; the USDG stream they split
-   (blue, canvas) on the right. One idea: move a signal, the split follows
-   within the second. */
+   One drawing, not a dashboard: a seven-day tank, one blue band of USDG, a
+   pink comb of blades that cuts it into four channels whose thickness IS the
+   live signal weight, and four vessels filling until each auction takes its
+   lot. The ledger under it is the instrument's readout — hairline-divided
+   cells in the system's own board language, never boxes. */
 #sec-resonance .rz-how {
   margin-top: calc(-1 * var(--s4));
   margin-bottom: var(--s6);
 }
-#sec-resonance .rz-grid {
-  display: grid;
-  grid-template-columns: minmax(280px, 330px) 1fr;
-  gap: var(--s6);
-  align-items: start;
+/* The indexed head puts the headline in the wide column; this note belongs in
+   the same column, not under the ordinal. Mirrors .sec-head--indexed's grid. */
+@media (min-width: 881px) {
+  #sec-resonance .rz-how {
+    margin-left: calc(180px + clamp(20px, 3vw, 48px));
+  }
 }
+
+/* Column captions — the mono voice, same metrics as the panel eyebrows. */
 #sec-resonance .rz-cap {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.19em;
   text-transform: uppercase;
   color: var(--text-faint);
   margin-bottom: var(--s3);
 }
-#sec-resonance .rz-rows {
+#sec-resonance .rz-cap--ledger {
+  margin-top: var(--s6);
+}
+
+/* The drawing. Its height is declared here, server-side, so the canvas has
+   final geometry before hydration: the effect only sets the backing store. */
+#sec-resonance .rz-stage-wrap {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  min-width: 0;
+}
+#sec-resonance .rz-stage-wrap canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The readout: cells split by hairlines, the grid gap IS the rule. */
+#sec-resonance .rz-ledger {
   display: grid;
-  gap: var(--s3);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--hair);
+  background: var(--rule);
+  border: var(--hair) solid var(--rule);
+  border-radius: var(--r-s);
 }
 #sec-resonance .rz-row {
   display: grid;
-  gap: var(--s2);
-  padding: var(--s3) var(--s4);
-  background: var(--bg-raised);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-s);
+  gap: 9px;
+  align-content: start;
+  background: var(--bg-panel);
+  padding: 13px 15px 15px;
 }
 #sec-resonance .rz-row__top {
   display: flex;
-  align-items: center;
-  gap: var(--s3);
-  min-height: 30px;
+  align-items: baseline;
+  gap: var(--s2);
+  min-height: 17px;
 }
 #sec-resonance .rz-row__sym {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
+  letter-spacing: 0.06em;
   color: var(--text-hi);
 }
 #sec-resonance .rz-row__pct {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-hi);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--pink-label);
 }
 #sec-resonance .rz-row__delta {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--pink);
   opacity: 0;
   margin-left: auto; /* the move marker owns the space the control used to */
 }
+/* An ambient holder moving on their own clock gets the ledger delta and
+   nothing else — no plate in the drawing, and a row flash a third as loud as
+   the scripted signal move's. The loudest mark belongs to the loudest idea. */
+@keyframes rz-evt-soft {
+  0%,
+  40% {
+    box-shadow:
+      inset 0 0 0 999px rgba(249, 43, 146, 0.05),
+      0 0 0 1px var(--pink-line);
+  }
+  100% {
+    box-shadow:
+      inset 0 0 0 999px rgba(249, 43, 146, 0),
+      0 0 0 1px rgba(249, 43, 146, 0);
+  }
+}
+#sec-resonance .rz-row--soft.evt-pink {
+  animation-name: rz-evt-soft;
+}
 #sec-resonance .rz-row .meter > i {
   transition: width var(--t-slow) var(--ease);
 }
 #sec-resonance .rz-row__sub {
-  font-size: 12px;
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
   color: var(--text-faint);
 }
 #sec-resonance .rz-hint {
-  margin-top: var(--s3);
+  margin-top: var(--s4);
+  max-width: 74ch;
 }
-#sec-resonance .rz-canvas-wrap {
-  min-width: 0;
+
+/* The foot narrates the beat on screen; it never asks for a click. */
+#sec-resonance .rz-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-left: var(--s3);
+  border-left: var(--hair) solid var(--rule);
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  letter-spacing: 0.07em;
+  color: var(--text-faint);
 }
-#sec-resonance canvas {
-  width: 100%;
+#sec-resonance .rz-stage::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: none;
+  border-radius: var(--r-full);
+  background: var(--rule-strong);
+  transition:
+    background var(--t-fast) var(--ease),
+    box-shadow var(--t-fast) var(--ease);
 }
+#sec-resonance .rz-stage[data-stage='move'] {
+  color: var(--pink-label);
+}
+#sec-resonance .rz-stage[data-stage='move']::before {
+  background: var(--pink);
+  box-shadow: 0 0 0 3px var(--pink-soft);
+}
+#sec-resonance .rz-stage[data-stage='settle']::before {
+  background: var(--pink-line);
+}
+
 @media (max-width: 880px) {
-  #sec-resonance .rz-grid {
-    grid-template-columns: 1fr;
-    gap: var(--s5);
+  #sec-resonance .rz-ledger {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 656px) {
+  /* Taller than the desktop drawing is proportionally, because a narrow canvas
+     has to find clear ground above the stream for the lot's plate as well as
+     for the tank's caption — and because the four channels have to stay
+     legible when the run is only ~150px long. Declared here, server-side, so
+     the swap costs no layout shift. */
+  #sec-resonance .rz-stage-wrap {
+    height: 360px;
+  }
+  #sec-resonance .rz-ledger {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #sec-resonance .rz-row__sub {
+    font-size: 11px;
   }
 }
 @media (max-width: 480px) {
   #sec-resonance .sim-panel__body {
     padding: var(--s4) var(--s3);
+  }
+  #sec-resonance .rz-stage {
+    padding-left: 0;
+    border-left: 0;
   }
 }

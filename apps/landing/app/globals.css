@@ -1,44 +1,88 @@
-/* =============================================================== tokens ==
-   GumBall6900 design system. Four brand colours from docs/whitepaper/src/
-   theme.mjs; neutrals are biased toward blue (hue ~240, low saturation) so
-   the dark surfaces read as chosen, never default grey. Colour is meaning:
-   blue = USDG capital arriving, pink = signal and what it buys, neutral =
-   GBX supply and burns. Every text/surface pair below passes WCAG AA —
-   ratios recorded in src/DESIGN.md. */
+/* ===============================================================================
+   GumBall6900 — "Serious money, candy soul"
+   The global design layer. Ported from docs/concept-c-reference.html, the
+   direction chosen in docs/ART-DIRECTION.md.
+
+   The five rules this file enforces:
+     1. Colour is a plane, not a garnish — brand hue arrives as a full-bleed
+        field carrying BLACK type (--on-field), never as a wash behind cards.
+     2. Nothing is centred — a wide column against a narrow one, and something
+        always bleeds off an edge.
+     3. Rules divide; boxes don't — a border is drawn only where the content is
+        a live instrument.
+     4. One wordmark, misregistered — Modak 400, synthesis off, a cyan copy
+        up-left and a magenta copy down-right.
+     5. Numbers are the imagery — Modak numerals at display scale carry facts.
+
+   Colour is meaning, everywhere:
+     blue    = USDG capital arriving
+     pink    = signal, and what it buys
+     neutral = GBX supply and burns
+   Decorative colour (the gumball motif) is multi-hue so it can never be
+   mistaken for data. Contrast ratios are recorded in docs/DESIGN.md.
+   =============================================================================== */
+
+/* ==================================================================== tokens == */
 :root {
-  /* surfaces */
+  /* --- brand ------------------------------------------------------------- */
+  --pink: #f92b92;
+  --blue: #29b6f0;
+  --black: #0c0c0c;
+  --white: #ffffff;
+
+  /* --- ground + surfaces (blue-biased neutrals; only three steps) --------- */
   --bg: #0c0c0c;
-  --bg-panel: #14141a;
-  --bg-raised: #1c1c24;
-  --bg-hover: #23232e;
-  --rule: #2a2a36;
-  --rule-strong: #3c3c4c;
+  --panel: #101017;
+  --raised: #17171f;
+  --rule: #26262f;
+  --rule-strong: #3b3b48;
+  --hair: 1px;
 
-  /* ink */
-  --text-hi: #ffffff;
-  --text: #f4f4f8;
-  --text-muted: #adadc0;
-  --text-faint: #8a8aa0;
+  /* --- ink --------------------------------------------------------------- */
+  --hi: #ffffff;
+  --text: #efeff4;
+  --muted: #adadc0;
+  --faint: #8a8aa0;
 
-  /* brand accents — each always means something */
-  --pink: #f92b92; /* signal, and what it buys */
-  --blue: #29b6f0; /* USDG capital arriving */
+  /* Black type on a pink or blue plane. 5.39:1 on pink, 8.42:1 on blue.
+     WHITE on pink is only 3.63:1 — never put body copy on a field in white. */
+  --on-field: #0c0c0c;
+  --on-field-rule: rgba(12, 12, 12, 0.28);
+
+  /* --- tints ------------------------------------------------------------- */
   --pink-soft: rgba(249, 43, 146, 0.13);
-  /* label-only pink tint: brand pink composited on a raised surface + pink-soft fill
-     lands at 4.12:1 (below AA); this tint reads as the same hue at 5.3:1 */
-  --pink-label: #fb63ac;
   --blue-soft: rgba(41, 182, 240, 0.13);
+  /* A -line tint is a 1px rule and never glyph ink: at .45 it composites to
+     1.89:1 on the ground, fine for a border, far under the 3:1 floor any
+     stroked or filled text has to clear. Glyphs take --pink / --blue. */
   --pink-line: rgba(249, 43, 146, 0.45);
   --blue-line: rgba(41, 182, 240, 0.45);
+  --pink-wash: rgba(249, 43, 146, 0.055);
+  --blue-wash: rgba(41, 182, 240, 0.05);
+  /* Pink composited on a raised surface lands at 4.12:1 (below AA); this tint
+     reads as the same hue at 5.61:1 and is the only pink allowed on a tint. */
+  --pink-label: #fb63ac;
+  --blue-label: #9bddfa;
+  /* Stroke colour for outlined Modak ordinals. A hollow ordinal is still
+     text, so it answers to the AA large-text floor: 3:1. #4C4C5E measured
+     2.33:1 and the ordinals read as ghosts; this is 3.94:1 and still sits
+     well under the headline it indexes. */
+  --outline: #6e6e85;
 
-  /* faces */
+  /* --- faces ------------------------------------------------------------- */
   /* Families come from next/font (app/layout.tsx) as CSS variables; canvas code
      must resolve these at runtime via getComputedStyle, never hardcode names. */
   --font-display: var(--nf-modak), 'Comic Sans MS', cursive;
   --font-sans: var(--nf-schibsted), 'Helvetica Neue', Helvetica, 'Segoe UI', Arial, sans-serif;
   --font-mono: var(--nf-jbmono), 'SFMono-Regular', Menlo, Consolas, monospace;
 
-  /* spacing rhythm (4px base) */
+  /* --- editorial metrics -------------------------------------------------- */
+  --marg: clamp(20px, 4.4vw, 64px); /* page margin, inside the max width */
+  --maxw: 1312px; /* the spread, margins included */
+  --bleed: max(0px, (100vw - 1312px) / 2); /* max width edge → viewport edge */
+  --edge: calc(var(--bleed) + var(--marg)); /* content edge → viewport edge */
+
+  /* --- spacing rhythm (4px base) ------------------------------------------ */
   --s1: 4px;
   --s2: 8px;
   --s3: 12px;
@@ -48,27 +92,63 @@
   --s7: 48px;
   --s8: 64px;
   --s9: 96px;
-  --sec-pad: clamp(84px, 11vw, 148px);
-  --container: 1120px;
-  --gutter: clamp(20px, 5vw, 48px);
 
-  /* radii */
-  --r-s: 8px;
-  --r-m: 12px;
-  --r-l: 16px;
-  --r-full: 999px;
+  /* --- composition: the spacing the page is actually built from ------------
+     The scale above is the alphabet; these are the words. A section is a
+     stack of these tokens, not a stack of measured numbers, so a builder
+     composing a NEW section consumes the token and lands on the rhythm by
+     construction. Every one of them is printed with a rendered sample of the
+     real gap in §02 of /specimen: a spacing system nobody can read off the
+     page is not specified, it is only obeyed by the person who wrote it.
+     Type was documented to three decimals here and spacing not at all — this
+     block is that asymmetry closed. No value below is new; each is the value
+     the page already rendered. */
+  --s-sec: clamp(60px, 7.4vw, 112px); /* section padding, block */
+  --s-headfoot: clamp(30px, 3.6vw, 52px); /* section head → first content */
+  --s-headgap: clamp(20px, 3vw, 48px); /* ordinal column → headline column */
+  --s-headrow: var(--s3); /* eyebrow → headline → lede, 12px */
+  --s-index: 180px; /* the ordinal column in a section head */
+  --s-spread: clamp(24px, 3.2vw, 52px); /* wide column → narrow column */
+  --s-split: 0.62fr; /* the narrow column of a spread, against 1fr */
+  --s-aside: 420px; /* the FIXED narrow column of an opening spread */
+  --s-stack: clamp(20px, 2.4vw, 32px); /* blocks stacked inside one column */
+  --s-gutter: var(--s5); /* 24px — between cards in a row */
 
-  /* motion — three easings and four durations; nothing else */
+  /* Kept as the name the sections already call it by. One rhythm, one value:
+     the specimen used to run its own 92px and publish neither. */
+  --sec-pad: var(--s-sec);
+
+  /* --- radii: the corners are square. 2px on controls, 3px on panels ------- */
+  --r-s: 2px;
+  --r-m: 3px;
+  --r-l: 3px;
+  --r-full: 999px; /* dots and spheres only — nothing else is round */
+
+  /* --- motion: two easings, four durations; nothing else ------------------- */
   --t-fast: 140ms; /* hovers, small state flips */
   --t-base: 200ms; /* most UI transitions */
   --t-slow: 320ms; /* panel/section entrances */
   --t-event: 1000ms; /* simulation event emphasis */
-  --ease: cubic-bezier(0.2, 0, 0.2, 1); /* standard */
+  --ease: cubic-bezier(0.2, 0.6, 0.2, 1); /* standard */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1); /* decelerate — entrances */
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1); /* slight overshoot — small pops only */
+  /* Two curves, and only two. A third was defined here and never used, which
+     made the specimen's published "two curves" claim false in the token layer. */
+
+  /* --- compatibility aliases ---------------------------------------------- */
+  /* The section stylesheets and the canvas code read these names. var() inside
+     a custom property is substituted at computed-value time, so
+     getComputedStyle().getPropertyValue('--text-hi') still returns a colour. */
+  --bg-panel: var(--panel);
+  --bg-raised: var(--raised);
+  --bg-hover: #1f1f29;
+  --text-hi: var(--hi);
+  --text-muted: var(--muted);
+  --text-faint: var(--faint);
+  --container: var(--maxw);
+  --gutter: var(--marg);
 }
 
-/* ================================================================ base == */
+/* ====================================================================== base == */
 *,
 *::before,
 *::after {
@@ -77,6 +157,11 @@
 html {
   color-scheme: dark;
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  /* clip, not hidden: bleeding planes and rules run past the container to the
+     viewport edge without ever producing a horizontal scrollbar, and clip
+     (unlike hidden) does not turn the root into a scroll container. */
+  overflow-x: clip;
 }
 body {
   margin: 0;
@@ -87,7 +172,7 @@ body {
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 img,
 svg,
@@ -122,22 +207,28 @@ a {
   transition: text-decoration-color var(--t-fast) var(--ease);
 }
 a:hover {
-  text-decoration-color: var(--text-hi);
+  text-decoration-color: var(--hi);
 }
 strong,
 b {
   font-weight: 700;
-  color: var(--text-hi);
+  color: var(--hi);
 }
 ::selection {
   background: var(--pink);
-  color: var(--bg);
+  color: var(--black);
 }
 
-/* Every interactive element gets the same ring. */
+/* Every interactive element gets the same ring — blue, so it never competes
+   with pink signal. On a colour field the ring flips to black, which is the
+   only value that holds AA against both brand hues. */
 :focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 3px;
+}
+.field :focus-visible,
+.field:focus-visible {
+  outline-color: var(--black);
 }
 
 .sr-only {
@@ -152,67 +243,117 @@ b {
   border: 0;
 }
 
-/* ================================================================ type == */
-/* Modak ships one weight. Never let it inherit bold: the browser smears a
+/* ====================================================================== type == */
+/* Modak ships ONE weight. Never let it inherit bold: the browser smears a
    synthetic bold over the glyphs. 400 + font-synthesis: none, always. */
-.wordmark {
+
+/* The misregistered wordmark — the roundel's own pink/blue outline, printed.
+   The offset copies are text-shadows, so the name is plain text: nothing is
+   duplicated in the DOM, nothing extra is read aloud, nothing extra selects.
+   First shadow paints on top, so pink sits over blue exactly as in the mark. */
+.wordmark,
+.wm {
+  --wm-x: 0.026em;
+  --wm-y: 0.016em;
   font-family: var(--font-display);
   font-weight: 400;
   font-synthesis: none;
-  letter-spacing: 0.045em;
+  letter-spacing: 0.01em;
   line-height: 1.05;
-  color: var(--text-hi);
+  color: var(--hi);
+  text-shadow:
+    var(--wm-x) var(--wm-y) 0 var(--pink),
+    calc(-1 * var(--wm-x)) calc(-1 * var(--wm-y)) 0 var(--blue);
+}
+/* Display-scale block wordmark: one word per line, set to the measure. */
+.wm {
+  display: block;
+  font-size: clamp(50px, 11.3vw, 164px);
+  line-height: 0.88;
+  margin: 0;
+}
+.wm__line {
+  display: block;
+  width: max-content;
+  max-width: 100%;
+}
+/* On a colour field the misregistration inverts to black + white so it keeps
+   its edge without a second saturated hue fighting the plane. BOTH copies are
+   solid: two opaque plates misregistered, exactly as on the ground. An alpha
+   value here would render one of them as a drop shadow, which is the thing
+   rule 4 is defined against. */
+.field .wordmark,
+.field .wm,
+.wm--on-field {
+  color: var(--on-field);
+  text-shadow:
+    var(--wm-x) var(--wm-y) 0 var(--on-field),
+    calc(-1 * var(--wm-x)) calc(-1 * var(--wm-y)) 0 var(--white);
 }
 
 .display {
-  font-size: clamp(42px, 6vw, 74px);
+  font-size: clamp(38px, 5.6vw, 72px);
   font-weight: 800;
-  letter-spacing: -0.028em;
-  line-height: 1.02;
-  color: var(--text-hi);
+  letter-spacing: -0.032em;
+  line-height: 1;
+  color: var(--hi);
 }
 .h1 {
-  font-size: clamp(30px, 3.8vw, 46px);
-  font-weight: 700;
-  letter-spacing: -0.024em;
-  line-height: 1.08;
-  color: var(--text-hi);
+  font-size: clamp(31px, 4.4vw, 56px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.03;
+  color: var(--hi);
 }
 .h2 {
-  font-size: clamp(21px, 2.3vw, 27px);
+  font-size: clamp(20px, 2vw, 26px);
   font-weight: 700;
-  letter-spacing: -0.015em;
-  line-height: 1.18;
-  color: var(--text-hi);
+  letter-spacing: -0.018em;
+  line-height: 1.15;
+  color: var(--hi);
 }
 .h3 {
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 700;
-  letter-spacing: -0.005em;
-  line-height: 1.3;
-  color: var(--text-hi);
+  letter-spacing: -0.012em;
+  line-height: 1.25;
+  color: var(--hi);
 }
 .lede {
-  font-size: clamp(16px, 1.4vw, 19px);
+  font-size: clamp(16.5px, 1.35vw, 20px);
   line-height: 1.55;
-  color: var(--text-muted);
-  max-width: 58ch;
+  color: var(--muted);
+  max-width: 62ch;
 }
 .small {
-  font-size: 13.5px;
-  line-height: 1.55;
+  font-size: 14px;
+  line-height: 1.62;
 }
 .note {
   font-size: 12.5px;
-  line-height: 1.5;
-  color: var(--text-faint);
+  line-height: 1.55;
+  color: var(--faint);
 }
+/* Mono micro-copy: the voice of the instruments. */
+.mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.mnote {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  letter-spacing: 0.02em;
+  color: var(--faint);
+}
+/* Eyebrows are mono, 11.5px, .19em, uppercase. There is no other eyebrow. */
 .eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.17em;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.19em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--faint);
 }
 .eyebrow--pink {
   color: var(--pink);
@@ -228,24 +369,38 @@ b {
   letter-spacing: 0;
 }
 
-/* Big brand numerals (step numbers, section counts). Same Modak rules as
-   the wordmark: 400, synthesis off. Inherits colour — neutral by default. */
-.display-num {
+/* Big brand numerals — the page's only illustration. Same Modak rules as the
+   wordmark. Inherits colour: neutral by default, so it never claims a
+   semantic hue by accident. */
+.display-num,
+.dnum {
   font-family: var(--font-display);
   font-weight: 400;
   font-synthesis: none;
   line-height: 1;
   letter-spacing: 0.02em;
 }
+/* Outlined ordinal: a number that marks a place rather than reporting a
+   quantity, so it is drawn hollow and can never be misread as data. */
+.dnum--outline {
+  color: transparent;
+  -webkit-text-stroke: 2px var(--outline);
+}
+.dnum--pink {
+  color: var(--pink);
+}
+.dnum--blue {
+  color: var(--blue);
+}
 
 .muted {
-  color: var(--text-muted);
+  color: var(--muted);
 }
 .faint {
-  color: var(--text-faint);
+  color: var(--faint);
 }
 .hi {
-  color: var(--text-hi);
+  color: var(--hi);
 }
 .pink {
   color: var(--pink);
@@ -256,135 +411,465 @@ b {
 .measure {
   max-width: 62ch;
 }
-.center {
-  text-align: center;
-}
 
-/* ============================================================== layout == */
+/* ==================================================================== layout == */
 .section {
   padding-block: var(--sec-pad);
   position: relative;
 }
 .section--rule {
-  border-top: 1px solid var(--rule);
+  border-top: var(--hair) solid var(--rule);
 }
+/* The spread: max width INCLUDES the page margin, so --bleed and --edge
+   describe the real distance from content to viewport edge. */
 .container {
-  width: min(100% - 2 * var(--gutter), var(--container));
+  max-width: var(--maxw);
   margin-inline: auto;
+  padding-inline: var(--marg);
 }
+/* Stands alone as well as combined with .container. */
 .container--narrow {
-  width: min(100% - 2 * var(--gutter), 820px);
+  max-width: calc(820px + 2 * var(--marg));
   margin-inline: auto;
+  padding-inline: var(--marg);
 }
 
-/* Standard section opening: eyebrow, headline, lede — in that order. */
-.sec-head {
-  display: grid;
-  gap: var(--s4);
-  margin-bottom: clamp(32px, 4.5vw, 56px);
+/* Bleed helpers — a surface keeps its content on the grid while its ground
+   runs off the edge. Only valid on a direct child of .container. */
+.bleed-r {
+  margin-right: calc(-1 * var(--edge));
+  padding-right: var(--edge);
 }
-.sec-head .eyebrow {
-  margin-bottom: calc(-1 * var(--s2));
+.bleed-l {
+  margin-left: calc(-1 * var(--edge));
+  padding-left: var(--edge);
+}
+.bleed-x {
+  margin-inline: calc(-1 * var(--edge));
+  padding-inline: var(--edge);
+}
+/* A rule (no content) that simply runs past the container to the edge. */
+.rule-bleed-r {
+  margin-right: calc(-1 * var(--edge));
 }
 
 .cols {
   display: grid;
-  gap: var(--s4);
+  gap: var(--s-gutter);
 }
 .cols--2 {
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .cols--3 {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 .cols--4 {
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 @media (max-width: 880px) {
   .cols--3,
   .cols--4 {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 @media (max-width: 560px) {
   .cols--2,
   .cols--3,
   .cols--4 {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 .divider {
   border: 0;
-  border-top: 1px solid var(--rule);
+  border-top: var(--hair) solid var(--rule);
   margin: 0;
 }
 
-/* ============================================================== cards == */
+/* ============================================================== section head == */
+/* A 3px brand rule that runs PAST the container to the viewport edge, a mono
+   eyebrow, the headline. --flag carries the section's meaning: blue where the
+   subject is capital arriving, pink where it is signal. */
+.sec-head {
+  --flag: var(--blue);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-headrow);
+  margin-bottom: var(--s-headfoot);
+}
+.sec-head::before {
+  content: '';
+  display: block;
+  height: 3px;
+  background: var(--flag);
+  margin-right: calc(-1 * var(--edge));
+  margin-bottom: clamp(6px, 0.8vw, 12px);
+}
+/* A section that already declares its meaning on the eyebrow flies the
+   matching flag, so the rule can never contradict the label under it. */
+.sec-head:has(.eyebrow--pink) {
+  --flag: var(--pink);
+}
+.sec-head:has(.eyebrow--blue) {
+  --flag: var(--blue);
+}
+.sec-head.sec-head--pink {
+  --flag: var(--pink);
+}
+.sec-head.sec-head--blue {
+  --flag: var(--blue);
+}
+.sec-head.sec-head--neutral {
+  --flag: var(--rule-strong);
+}
+.sec-head .lede {
+  max-width: 62ch;
+}
+
+/* Indexed variant: an outlined Modak ordinal in the left margin with the mono
+   eyebrow beneath it, the headline in the wide column. */
+.sec-head--indexed {
+  grid-template-columns: var(--s-index) minmax(0, 1fr);
+  gap: var(--s-headgap);
+  align-items: start;
+}
+.sec-head--indexed::before {
+  display: none;
+}
+.sec-head__index {
+  padding-top: 6px;
+}
+.sec-head__num {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(58px, 6vw, 92px);
+  line-height: 0.8;
+  letter-spacing: 0.02em;
+  color: transparent;
+  -webkit-text-stroke: 2px var(--outline);
+}
+.sec-head__index .eyebrow {
+  display: block;
+  margin-top: var(--s-headrow);
+}
+.sec-head__body {
+  display: grid;
+  gap: var(--s-headrow);
+  min-width: 0;
+}
+.sec-head__body::before {
+  content: '';
+  display: block;
+  height: 3px;
+  background: var(--flag);
+  margin-right: calc(-1 * var(--edge));
+  margin-bottom: clamp(6px, 0.8vw, 12px);
+}
+@media (max-width: 880px) {
+  .sec-head--indexed {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s4);
+  }
+  .sec-head__index {
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+    padding-top: 0;
+  }
+  .sec-head__num {
+    font-size: 44px;
+  }
+  .sec-head__index .eyebrow {
+    margin-top: 0;
+  }
+}
+
+/* ============================================================== colour plane == */
+/* Rule 1. Brand hue arrives as a field carrying black type — never as a wash
+   behind grey cards. Pair with .bleed-r / .bleed-x so it runs off the edge. */
+.field {
+  background: var(--pink);
+  color: var(--on-field);
+  position: relative;
+  isolation: isolate;
+}
+.field--blue {
+  background: var(--blue);
+}
+.field .eyebrow,
+.field .note,
+.field .lede,
+.field .muted,
+.field .faint,
+.field .h1,
+.field .h2,
+.field .h3,
+.field .display,
+.field a {
+  color: var(--on-field);
+}
+/* The net under rule 1. --on-field is the ONLY ink a plane carries, and the
+   list above is a list of the classes that existed when it was written — the
+   next one someone adds leaks. So every text-bearing descendant is pinned
+   back to the plane's ink, including bare <b> and <strong> (which the base
+   rules paint --hi white) and the semantic hues (which vanish into their own
+   plane). White on pink measures 3.63:1 and fails AA for body copy; it must
+   not be reachable here by any route.
+   :where() keeps the whole compound at one class of specificity, so a section
+   stylesheet can still override deliberately — and .chip is excluded because
+   a chip brings its own --raised ground with it. */
+.field
+  :where(
+    p,
+    span,
+    li,
+    dt,
+    dd,
+    td,
+    th,
+    caption,
+    figcaption,
+    label,
+    small,
+    em,
+    i,
+    b,
+    strong,
+    u,
+    s,
+    mark,
+    abbr,
+    cite,
+    q,
+    code,
+    kbd,
+    samp,
+    var,
+    time,
+    address,
+    blockquote,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    summary,
+    legend
+  ):not(.chip, .chip *) {
+  color: var(--on-field);
+}
+.field hr,
+.field .divider {
+  border-top-color: var(--on-field-rule);
+}
+/* An inline code token on a plane is distinguished by FACE and GROUND, never
+   by colour: every hue on a plane is spoken for, and the one thing a token
+   must never do is demonstrate the failure the sentence around it forbids.
+   The wash is 8% black, not more: at 12% the composite falls to #DD2782 and
+   black on it measures 4.37:1, under the AA body floor. At 8% it composites
+   to #E62987 and holds 4.69:1, and the hairline does the work the extra alpha
+   would have done. */
+.field code,
+.field kbd,
+.field samp,
+.field .tok {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--on-field);
+  background: rgba(12, 12, 12, 0.08);
+  box-shadow: inset 0 0 0 1px var(--on-field-rule);
+  border-radius: var(--r-s);
+  padding: 0.12em 0.36em;
+}
+.field__cap {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--on-field);
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--on-field-rule);
+}
+
+/* ===================================================================== cards == */
+/* Rule 3. A card is a column under a rule, not a box: no ground, no frame,
+   no radius. .card--framed is the escape hatch for content that really is an
+   instrument and needs to be read as one. */
 .card {
-  background: var(--bg-panel);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-m);
-  padding: var(--s5) var(--s5);
+  background: transparent;
+  border: 0;
+  border-top: var(--hair) solid var(--rule-strong);
+  border-radius: 0;
+  padding: var(--s5) 0 0;
 }
 .card__head {
-  font-size: 15.5px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.005em;
-  color: var(--text-hi);
+  letter-spacing: -0.012em;
+  line-height: 1.3;
+  color: var(--hi);
   margin-bottom: var(--s2);
 }
 .card__body {
-  font-size: 14px;
-  line-height: 1.55;
-  color: var(--text-muted);
+  font-size: 14.5px;
+  line-height: 1.62;
+  color: var(--muted);
 }
 .card--pink {
-  border-color: var(--pink-line);
+  border-top-color: var(--pink);
 }
 .card--pink .card__head {
   color: var(--pink);
 }
 .card--blue {
-  border-color: var(--blue-line);
+  border-top-color: var(--blue);
 }
 .card--blue .card__head {
   color: var(--blue);
 }
 .card--ghost {
-  background: transparent;
-  border-style: dashed;
+  border-top-style: dashed;
+  border-top-color: var(--rule);
+}
+.card--framed {
+  background: var(--panel);
+  border: var(--hair) solid var(--rule);
+  border-radius: var(--r-m);
+  padding: var(--s5);
 }
 
-/* ============================================================== chips == */
+/* Card row — columns divided by hairlines under one brand rule, each opened
+   by an oversized outlined ordinal. This is the shape "a grid of cards"
+   should take in this system. */
+.cardrow {
+  --flag: var(--pink);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+  border-top: 2px solid var(--flag);
+}
+.cardrow--blue {
+  --flag: var(--blue);
+}
+.cardrow--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.cardrow--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.col {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(22px, 2.4vw, 32px) clamp(18px, 2vw, 30px) 0;
+  border-left: var(--hair) solid var(--rule);
+}
+.col:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.col:last-child {
+  padding-right: 0;
+}
+.col__n {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(52px, 4.6vw, 70px);
+  line-height: 0.78;
+  letter-spacing: 0.02em;
+  color: transparent;
+  /* Full brand ink, not the --pink-line hairline tint: a stroked glyph is
+     still text and answers to the 3:1 large-text floor. #F92B92 is 5.39:1 on
+     the ground; the .45 tint painted 1.89:1 and read as a failed render
+     beside the full-strength rule above it. */
+  -webkit-text-stroke: 2px var(--pink);
+  text-stroke: 2px var(--pink);
+  margin-bottom: var(--s4);
+}
+.cardrow--blue .col__n {
+  -webkit-text-stroke-color: var(--blue);
+  text-stroke-color: var(--blue);
+}
+.col__t {
+  margin-bottom: var(--s2);
+}
+.col__b {
+  flex: 1;
+  font-size: 15px;
+  line-height: 1.62;
+  color: var(--muted);
+}
+@media (max-width: 880px) {
+  .cardrow,
+  .cardrow--2,
+  .cardrow--4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .col {
+    border-left: 0;
+    border-top: var(--hair) solid var(--rule);
+    padding-inline: 0;
+  }
+  .col:first-child {
+    border-top: 0;
+  }
+}
+
+/* ===================================================================== chips == */
 .chip {
   display: inline-flex;
   align-items: center;
   gap: var(--s2);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.15em;
   text-transform: uppercase;
-  padding: 6px 12px;
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--r-full);
-  color: var(--text-muted);
+  padding: 6px 10px;
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: var(--r-s);
+  background: var(--raised);
+  color: var(--muted);
   white-space: nowrap;
+}
+.chip::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--faint);
 }
 .chip--pink {
   border-color: var(--pink-line);
   color: var(--pink);
 }
+.chip--pink::before {
+  background: var(--pink);
+}
 .chip--blue {
   border-color: var(--blue-line);
   color: var(--blue);
 }
+.chip--blue::before {
+  background: var(--blue);
+}
 /* Honesty flags stay neutral — weight, not hue, carries the warning, so the
-   accents keep their one meaning each. */
+   accents keep their one meaning each. A hollow mark, like a spec sheet. */
 .chip--warn {
   border-color: var(--rule-strong);
   color: var(--text);
-  background: var(--bg-raised);
+  background: var(--raised);
+}
+.chip--warn::before {
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--muted);
 }
 .chipline {
   display: flex;
@@ -392,18 +877,20 @@ b {
   gap: var(--s2);
 }
 
-/* ============================================================ buttons == */
+/* =================================================================== buttons == */
 .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--s2);
-  font-size: 13.5px;
-  font-weight: 700;
-  letter-spacing: 0.01em;
-  padding: 11px 20px;
-  border-radius: var(--r-full);
-  border: 1px solid var(--rule-strong);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  padding: 13px 20px;
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: var(--r-s);
   background: transparent;
   color: var(--text);
   cursor: pointer;
@@ -411,96 +898,196 @@ b {
   transition:
     background var(--t-fast) var(--ease),
     border-color var(--t-fast) var(--ease),
-    color var(--t-fast) var(--ease),
-    transform var(--t-fast) var(--ease);
+    color var(--t-fast) var(--ease);
 }
 .btn:hover {
-  border-color: var(--text-faint);
-  background: var(--bg-raised);
+  border-color: var(--white);
+  color: var(--hi);
   text-decoration: none;
-}
-.btn:active {
-  transform: translateY(1px);
 }
 .btn[disabled] {
   opacity: 0.45;
   cursor: not-allowed;
 }
+/* The primary action is a pink plane carrying black type — 5.39:1. */
 .btn--primary {
-  background: var(--text-hi);
-  border-color: var(--text-hi);
-  color: var(--bg);
+  background: var(--pink);
+  border-color: var(--pink);
+  color: var(--on-field);
 }
 .btn--primary:hover {
-  background: var(--text);
-  border-color: var(--text);
+  background: #ff53a8;
+  border-color: #ff53a8;
+  color: var(--on-field);
 }
 /* In simulations, colour the action by what it moves: paying USDG is blue,
    directing signal is pink. */
+.btn--blue {
+  background: var(--blue-soft);
+  border-color: var(--blue-line);
+  color: var(--blue-label);
+}
+.btn--blue:hover {
+  background: rgba(41, 182, 240, 0.22);
+  border-color: var(--blue);
+  color: #cdeefc;
+}
 .btn--pink {
   background: var(--pink-soft);
   border-color: var(--pink-line);
   color: var(--pink-label);
 }
 .btn--pink:hover {
+  background: rgba(249, 43, 146, 0.2);
   border-color: var(--pink);
-  background: var(--pink-soft);
-}
-.btn--blue {
-  background: var(--blue-soft);
-  border-color: var(--blue-line);
-  color: var(--blue);
-}
-.btn--blue:hover {
-  border-color: var(--blue);
-  background: var(--blue-soft);
+  color: #ff8cc4;
 }
 .btn--sm {
+  padding: 9px 14px;
   font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  padding: 7px 13px;
+}
+/* A button standing on a colour field inverts to the ground colour. */
+.field .btn {
+  border-color: rgba(12, 12, 12, 0.45);
+  color: var(--on-field);
+}
+.field .btn:hover {
+  border-color: var(--black);
+  background: rgba(12, 12, 12, 0.08);
+  color: var(--on-field);
 }
 
-/* ============================================================== stats == */
+/* ============================================================= stats + rail == */
+/* Facts divided by hairlines, never floating in whitespace. */
 .stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s6) var(--s7);
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  border-top: var(--hair) solid var(--rule-strong);
+}
+.stat {
+  padding: clamp(16px, 1.7vw, 22px) clamp(14px, 1.6vw, 28px) clamp(16px, 1.7vw, 22px) 0;
+  border-left: var(--hair) solid var(--rule);
+}
+.stat:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.stat:not(:first-child) {
+  padding-left: clamp(14px, 1.6vw, 28px);
 }
 .stat__value {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: clamp(26px, 3vw, 38px);
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.02em;
   line-height: 1.05;
-  color: var(--text-hi);
+  color: var(--hi);
 }
 .stat__label {
   font-size: 12.5px;
-  color: var(--text-muted);
+  line-height: 1.5;
+  color: var(--muted);
   margin-top: var(--s2);
-  max-width: 22ch;
+  max-width: 24ch;
 }
 
-/* ============================================================= meters == */
-/* A falling price must SHRINK: paint width from 100% down to 0.
-   The bare meter fill is NEUTRAL. Colour is an opt-in semantic act: use
-   --blue when the quantity is USDG capital, --pink when it is signal or
-   what signal buys. If in doubt, stay neutral. */
+/* The data rail: oversized Modak numerals under the hero. This is the page's
+   illustration — the numerals ARE the picture, so they get brand hue by
+   meaning (blue = capital, neutral = supply) and never a decorative one. */
+.rail {
+  border-top: var(--hair) solid var(--rule);
+  background: var(--bg);
+}
+.rail__in {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.rail__cell {
+  padding: clamp(16px, 1.7vw, 22px) clamp(14px, 1.6vw, 28px) clamp(16px, 1.7vw, 22px) 0;
+  border-left: var(--hair) solid var(--rule);
+}
+.rail__cell:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.rail__cell:not(:first-child) {
+  padding-left: clamp(14px, 1.6vw, 28px);
+}
+.rail__n {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(34px, 3.4vw, 48px);
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--hi);
+  margin-bottom: 6px;
+}
+.rail__n--pink {
+  color: var(--pink);
+}
+.rail__n--blue {
+  color: var(--blue);
+}
+.rail__n--outline {
+  color: transparent;
+  -webkit-text-stroke: 2px var(--outline);
+}
+.rail__l {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+@media (max-width: 880px) {
+  .stats,
+  .rail__in {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .stat,
+  .rail__cell {
+    padding: var(--s4) var(--s3);
+    border-top: var(--hair) solid var(--rule);
+  }
+  .stat:nth-child(odd),
+  .rail__cell:nth-child(odd) {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .stat:nth-child(even),
+  .rail__cell:nth-child(even) {
+    padding-right: 0;
+  }
+  .stat:nth-child(-n + 2),
+  .rail__cell:nth-child(-n + 2) {
+    border-top: 0;
+  }
+  .rail__l br {
+    display: none;
+  }
+}
+
+/* ==================================================================== meters == */
+/* A falling price must SHRINK: paint width from 100% down to 0. The bare fill
+   is NEUTRAL. Colour is an opt-in semantic act: --blue when the quantity is
+   USDG capital, --pink when it is signal or what signal buys. */
 .meter {
-  height: 4px;
+  height: 3px;
   background: var(--rule);
-  border-radius: 2px;
+  border-radius: 0;
   overflow: hidden;
 }
 .meter > i {
   display: block;
   height: 100%;
   width: 0;
-  background: var(--text-faint);
-  border-radius: inherit;
+  background: var(--faint);
 }
 .meter--blue > i {
   background: var(--blue);
@@ -509,18 +1096,73 @@ b {
   background: var(--pink);
 }
 .meter--thick {
-  height: 8px;
-  border-radius: 4px;
+  height: 7px;
 }
 
-/* ========================================================== sim frame == */
-/* Chrome every live simulation sits inside. Head: what this is + the
-   illustrative-parameters flag. Body: the mechanism. Foot: controls/notes. */
+/* ================================================================ sim panel == */
+/* The chrome every live simulation sits inside. This is the ONLY place a full
+   border is drawn, because this is the only content that is an instrument:
+   a panel ground with a lit top edge, a faint scanline, and a 3px brand flag
+   on the left edge — blue for capital, pink for signal, white for GBX. */
 .sim-panel {
-  background: var(--bg-panel);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-l);
+  --flag: var(--pink);
+  position: relative;
+  background:
+    radial-gradient(120% 90% at 12% 0%, rgba(41, 182, 240, 0.09) 0%, rgba(41, 182, 240, 0) 58%),
+    linear-gradient(180deg, #14141c 0%, var(--panel) 34%);
+  border: var(--hair) solid var(--rule);
+  border-radius: var(--r-m);
+  /* There is no drop shadow, and there is not going to be one. A shadow works
+     by darkening its ground; this ground is #0C0C0C, so the darkest shadow
+     that can be cast measures 1.07:1 against it and paints nothing. The
+     declaration that used to sit here — 0 24px 60px -40px rgba(0,0,0,.9) —
+     rendered exactly zero pixels, while THE LIGHT SOURCE copy in §02 of
+     /specimen described it to the reader. Lifting it into something visible
+     means lightening the ground, which is a glow, and glow is the one
+     material the chosen direction rules out. So the panel separates from the
+     ground the way everything else here does: by an edge. A 1px white top
+     edge says which way is up, the 1px rule draws the boundary, and the blue
+     haze falls from the head. */
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
   overflow: hidden;
+  isolation: isolate;
+}
+.sim-panel--blue {
+  --flag: var(--blue);
+}
+.sim-panel--neutral {
+  --flag: var(--white);
+}
+/* The existing sims declare their meaning on the title; keep the flag in step
+   with the title dot so a panel can never fly the wrong colour. */
+.sim-panel:has(.sim-panel__title--blue) {
+  --flag: var(--blue);
+}
+.sim-panel:has(.sim-panel__title--gbx) {
+  --flag: var(--white);
+}
+.sim-panel::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.014) 0 1px, transparent 1px 3px);
+}
+.sim-panel::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  z-index: 3;
+  pointer-events: none;
+  background: var(--flag);
+}
+.sim-panel > * {
+  position: relative;
+  z-index: 1;
 }
 .sim-panel__head {
   display: flex;
@@ -528,9 +1170,10 @@ b {
   justify-content: space-between;
   gap: var(--s4);
   flex-wrap: wrap;
-  padding: var(--s4) var(--s5);
-  border-bottom: 1px solid var(--rule);
-  background: var(--bg-raised);
+  row-gap: var(--s2);
+  min-height: 48px;
+  padding: 11px var(--s4) 11px var(--s5);
+  border-bottom: var(--hair) solid var(--rule);
 }
 .sim-panel__title {
   display: inline-flex;
@@ -539,9 +1182,9 @@ b {
   font-family: var(--font-mono);
   font-size: 12px;
   font-weight: 600;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--hi);
 }
 .sim-panel__title::before {
   content: '';
@@ -555,7 +1198,7 @@ b {
   background: var(--blue);
 }
 .sim-panel__body {
-  padding: var(--s5);
+  padding: clamp(18px, 2vw, 26px);
 }
 .sim-panel__foot {
   display: flex;
@@ -563,35 +1206,259 @@ b {
   justify-content: space-between;
   gap: var(--s4);
   flex-wrap: wrap;
-  padding: var(--s3) var(--s5);
-  border-top: 1px solid var(--rule);
+  padding: 14px clamp(18px, 2vw, 26px);
+  border-top: var(--hair) solid var(--rule);
+  background: rgba(0, 0, 0, 0.24);
 }
 .sim-panel__controls {
   display: flex;
   align-items: center;
-  gap: var(--s2);
+  gap: var(--s3);
   flex-wrap: wrap;
+}
+.sim-cap {
+  max-width: 64ch;
+  margin-bottom: var(--s4);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted);
 }
 .sim-note {
   font-size: 11.5px;
   line-height: 1.5;
-  color: var(--text-faint);
+  color: var(--faint);
 }
 .sim-clock {
   font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
   font-size: 12px;
-  color: var(--text-muted);
+  letter-spacing: 0.1em;
+  color: var(--faint);
 }
 
-/* ============================================================ entrance == */
-/* THE one entrance. Mark an element .reveal; a shared observer (below the
-   style block) adds .is-in when it enters the viewport, once. Stagger
-   siblings by setting --d on each (60-150ms steps). Never invent another
-   entrance. Under prefers-reduced-motion elements are simply visible. */
+/* ============================================================ board + cells == */
+/* Cells divided by hairlines rather than boxed: the grid gap IS the rule, so
+   the board reads as one instrument instead of a tray of tiles. */
+.board {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--hair);
+  background: var(--rule);
+  border: var(--hair) solid var(--rule);
+  border-radius: var(--r-s);
+  overflow: hidden;
+}
+.board--2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.cell {
+  position: relative;
+  background: var(--panel);
+  padding: 14px 15px 15px;
+}
+.cell--open {
+  background: linear-gradient(180deg, var(--blue-wash), rgba(41, 182, 240, 0) 70%), var(--panel);
+}
+/* Where a board shows a subset, say so — never truncate silently. */
+.cell--ghost {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  background: var(--panel);
+  padding: 12px 15px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.cell--ghost i {
+  flex: 1;
+  min-width: 24px;
+  height: 1px;
+  background: repeating-linear-gradient(90deg, var(--rule-strong) 0 6px, transparent 6px 12px);
+}
+.cell--ghost em {
+  font-style: normal;
+}
+.cell__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s2);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+}
+.cell__id {
+  color: var(--faint);
+}
+.cell__owner {
+  color: var(--muted);
+}
+.cell__owner--open {
+  color: var(--blue);
+}
+.cell__price {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(22px, 2.1vw, 29px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--hi);
+  margin: 9px 0 10px;
+}
+.cell__sub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--faint);
+  margin-top: 9px;
+}
+@media (max-width: 720px) {
+  .board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 640px) {
+  .cell--ghost i {
+    display: none;
+  }
+  .cell--ghost em + em::before {
+    content: ', ';
+  }
+}
+
+/* ============================================================= tally ribbon == */
+/* Running totals as a bordered ribbon of mono label/value pairs. */
+.tallies {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--hair);
+  margin: 0;
+  background: var(--rule);
+  border: var(--hair) solid var(--rule);
+  border-radius: var(--r-s);
+  overflow: hidden;
+}
+.tallies--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.tally {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  background: var(--panel);
+  padding: 13px 15px 15px;
+}
+.tally dt {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.45;
+  color: var(--faint);
+}
+.tally dd {
+  margin: 6px 0 0;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  color: var(--hi);
+}
+.tally dd.blue {
+  color: var(--blue);
+}
+.tally dd.pink {
+  color: var(--pink);
+}
+@media (max-width: 560px) {
+  .tallies--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* =========================================================== gumball motif == */
+/* The brand's native shape, used ONLY where it cannot be mistaken for data.
+   Rules: a gumball is never a lone accent beside a number, it never carries a
+   value, and a field of them is always multi-hue. No dome, no chrome, no
+   glow — a printed candy dot with one soft highlight, nothing more. */
+.gum {
+  --gum: var(--pink);
+  --gum-size: 24px;
+  width: var(--gum-size);
+  height: var(--gum-size);
+  border-radius: var(--r-full);
+  flex: none;
+  background: radial-gradient(circle at 32% 28%, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0) 46%), var(--gum);
+}
+.gum--pink {
+  --gum: var(--pink);
+}
+.gum--blue {
+  --gum: var(--blue);
+}
+.gum--white {
+  --gum: #e8e8f0;
+}
+.gum--dark {
+  --gum: #2b2b36;
+}
+/* A decorative scatter. Always aria-hidden, never interactive, and its hues
+   cycle so no single reading can attach to it. */
+.gumfield {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  overflow: hidden;
+}
+.gumfield .gum {
+  position: absolute;
+  left: var(--x, 0);
+  top: var(--y, 0);
+}
+.gumfield .gum:nth-child(4n + 1) {
+  --gum: var(--pink);
+}
+.gumfield .gum:nth-child(4n + 2) {
+  --gum: var(--blue);
+}
+.gumfield .gum:nth-child(4n + 3) {
+  --gum: #e8e8f0;
+}
+.gumfield .gum:nth-child(4n + 4) {
+  --gum: #2b2b36;
+}
+/* A row of them, used as an ornamental rule. */
+.gumrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+/* The dark disc the mark sits inside — the one round object at scale. Light
+   from above, no rim, no reflection: a gumball, not a chrome ball. */
+.gumdisc {
+  display: grid;
+  place-items: center;
+  border-radius: var(--r-full);
+  background: radial-gradient(circle at 34% 24%, #26262f 0%, #131319 46%, #08080b 100%);
+  box-shadow:
+    inset 0 3px 22px rgba(255, 255, 255, 0.13),
+    0 -8px 40px rgba(12, 12, 12, 0.35);
+}
+
+/* ================================================================= entrance == */
+/* THE one entrance. Mark an element .reveal; the shared observer in
+   lib/harness.ts adds .is-in when it enters the viewport, once. Stagger
+   siblings by setting --d on each (60-150ms steps). Never invent another. */
 .reveal {
   opacity: 0;
-  translate: 0 12px;
+  translate: 0 10px;
   transition:
     opacity var(--t-slow) var(--ease-out) var(--d, 0ms),
     translate var(--t-slow) var(--ease-out) var(--d, 0ms);
@@ -607,11 +1474,17 @@ b {
   }
 }
 
-/* ====================================================== event emphasis == */
+/* =========================================================== event emphasis == */
 /* One-shot ~1s flash for simulation events. Add the class when the event
-   fires, REMOVE it on animationend/timeout — lit states must not pile up. */
+   fires, REMOVE it on animationend/timeout — lit states must not pile up.
+   The lit state HOLDS for the first 40% and only then fades: --ease-out is
+   ~93% spent by 200ms, so easing straight from lit to clear turned "one
+   second of visible consequence" into a 150ms blink nobody could catch. Same
+   class, same token, same total duration — the second is simply spent where
+   the reader can see it. Demonstrated in §09 of /specimen. */
 @keyframes evt-pink {
-  0% {
+  0%,
+  40% {
     box-shadow:
       inset 0 0 0 999px rgba(249, 43, 146, 0.16),
       0 0 0 1px var(--pink);
@@ -623,7 +1496,8 @@ b {
   }
 }
 @keyframes evt-blue {
-  0% {
+  0%,
+  40% {
     box-shadow:
       inset 0 0 0 999px rgba(41, 182, 240, 0.16),
       0 0 0 1px var(--blue);
@@ -641,13 +1515,44 @@ b {
   animation: evt-blue var(--t-event) var(--ease-out);
 }
 
-/* ============================================================== table == */
+/* ==================================================================== table == */
+/* min-width:0 so the wrap actually scrolls when it is a flex/grid item —
+   without it the item sizes to the table's min-content and overflows. */
 .tablewrap {
   overflow-x: auto;
+  min-width: 0;
+}
+/* Where a table shows a subset of its columns, say so — never truncate
+   silently. Same ghost-row idiom the slot boards use: the fade alone says
+   "edge", the line says which column is out there and which way to go. Only
+   below 640, where the wrap is the only thing that actually scrolls. */
+.tablemore {
+  display: none;
 }
 /* Below the table's min-width the wrap scrolls; fade the right edge so the
    cut is legible as "more this way", not a slice. */
 @media (max-width: 640px) {
+  .tablemore {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    margin-top: 10px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--faint);
+  }
+  .tablemore i {
+    flex: 1;
+    min-width: 18px;
+    height: 1px;
+    background: repeating-linear-gradient(90deg, var(--rule-strong) 0 6px, transparent 6px 12px);
+  }
+  .tablemore em {
+    font-style: normal;
+    white-space: nowrap;
+  }
   .tablewrap {
     -webkit-mask-image: linear-gradient(
       to right,
@@ -667,26 +1572,28 @@ table {
 th,
 td {
   text-align: left;
-  padding: 10px 16px 10px 0;
-  border-bottom: 1px solid var(--rule);
+  padding: 11px 16px 11px 0;
+  border-bottom: var(--hair) solid var(--rule);
   vertical-align: top;
 }
 th {
-  font-size: 11px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
   text-transform: uppercase;
-  letter-spacing: 0.11em;
-  color: var(--text-faint);
-  font-weight: 700;
+  letter-spacing: 0.15em;
+  color: var(--faint);
+  border-bottom-color: var(--rule-strong);
 }
 td {
-  color: var(--text-muted);
+  color: var(--muted);
 }
 td:first-child {
   color: var(--text);
   font-weight: 600;
 }
 
-/* ===================================================== reduced motion == */
+/* =========================================================== reduced motion == */
 /* Global kill switch. The harness runs a static pass instead of the loop;
    this makes every CSS transition/animation effectively instant too. */
 @media (prefers-reduced-motion: reduce) {

@@ -1,164 +1,292 @@
 /* ------------------------------------------------------------ 30-mining -- */
-#sec-mining .mn-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 300px;
-  gap: var(--s5);
-  align-items: start;
-}
+/* The mine is a drawing, not a table: sixteen descents on one dollar axis,
+   with a routing bar underneath. Everything here consumes the global
+   primitives (.sim-panel, .board/.cell, .meter, .tallies, .cardrow); the only
+   new pieces are the canvas stage, its axis captions, the narration tape and
+   two modifiers the design system does not carry yet:
+     .cell__owner--you   — the reader's own tenure (emphasis, not a hue)
+     .mn-state           — the never-taken counter, on the panel foot rail
+   Both are scoped to #sec-mining. */
+
 #sec-mining .mn-cap {
-  margin-bottom: var(--s3);
+  max-width: 76ch;
+  margin-bottom: var(--s5);
 }
 
-/* The board: sixteen cells, each one slot mid-cycle. */
-#sec-mining .mn-board {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--s2);
-}
-#sec-mining .mn-cell {
-  background: var(--bg-raised);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-s);
-  padding: var(--s3);
-  display: grid;
-  gap: var(--s2);
-  align-content: start;
-}
-#sec-mining .mn-cell__top {
+/* The axis captions live in HTML — SVG and canvas text do not wrap, and these
+   are words. They sit on the drawing's own grid. */
+#sec-mining .mn-axis {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
-  gap: var(--s2);
+  justify-content: space-between;
+  gap: var(--s4);
+  padding-bottom: 9px;
+  margin-bottom: 10px;
+  border-bottom: var(--hair) solid var(--rule);
+  font-family: var(--font-mono);
   font-size: 10.5px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-#sec-mining .mn-cell__id {
-  color: var(--text-faint);
-}
-#sec-mining .mn-cell__owner {
-  color: var(--text-muted);
-  text-transform: none;
-}
-#sec-mining .mn-cell__owner.is-you {
-  color: var(--blue);
-}
-#sec-mining .mn-cell__owner.is-open {
-  color: var(--text-faint);
-}
-#sec-mining .mn-cell__price {
-  font-size: 17px;
-  font-weight: 600;
-  line-height: 1.1;
-  color: var(--text-hi);
-}
-#sec-mining .mn-cell__sub {
-  font-size: 11px;
-  color: var(--text-faint);
-}
-#sec-mining .mn-cell__fx {
-  font-size: 11px;
   font-weight: 500;
-  min-height: 17px;
-  color: var(--blue);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1.4;
+}
+#sec-mining .mn-axis__l {
+  color: var(--muted);
+  flex: none;
+}
+#sec-mining .mn-axis__r {
+  color: var(--faint);
+  text-align: right;
+  letter-spacing: 0.1em;
+}
+/* The plot's only colour encoding, keyed on the plot's own rail: a column is
+   drawn in brand blue exactly while it has never been taken — the state that
+   routes the whole payment to the fund. Stated where the colour is, not four
+   hundred pixels below it. */
+#sec-mining .mn-axis__key {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s4);
+  flex: none;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+#sec-mining .mn-axis__k {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 7px;
+  color: var(--muted);
+}
+#sec-mining .mn-axis__k i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+}
+#sec-mining .mn-axis__k--open i {
+  background: var(--blue);
+}
+/* Spent. The four never-taken slots are taken one at a time and are never
+   re-opened, so once the last one goes there is no blue column left on the
+   plot and there never can be another. The key stays — the reader watched that
+   colour drain, and a legend that deletes its own history is a worse lie than
+   one that keeps it — but it stops advertising: the swatch hollows out to the
+   system's dim blue hairline, so the brightest, most saturated mark in the rail
+   is no longer pointing at an empty set, and the label drops from --muted to
+   the --faint the rail's own right-hand caption already uses, which reads as
+   secondary and still clears AA. Colour only: the swatch keeps its 8px box and
+   the row keeps its height, so nothing moves when the state flips. */
+#sec-mining .mn-axis__k--open.is-spent {
+  color: var(--faint);
+}
+#sec-mining .mn-axis__k--open.is-spent i {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--blue-line);
+}
+#sec-mining .mn-axis__k--held i {
+  background: var(--text);
+  opacity: 0.55;
 }
 
-/* The transfer panel: where the last payment actually went. */
-#sec-mining .mn-transfer {
-  background: var(--bg-raised);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-m);
-  padding: var(--s4);
+/* The stage. Height is CSS, never JS, so the server HTML already reserves the
+   space and the canvas cannot shift the page after hydration. */
+#sec-mining .mn-stage {
+  min-width: 0;
+}
+/* The plot, the slot-number row, the reserved payment lane and the routing bar
+   all live inside this one box, so its height is the sum of four bands — not a
+   round number. Keep the plot itself tall enough to read at every width. */
+#sec-mining .mn-stage canvas {
+  display: block;
+  width: 100%;
+  height: 434px;
+}
+
+/* The tape: what the last transfer actually was. It persists until the next
+   one, so the route is readable in any frozen frame. */
+#sec-mining .mn-tape {
   display: grid;
-  gap: var(--s3);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
+  gap: var(--s4) var(--s6);
+  align-items: start;
+  margin-top: var(--s5);
+  padding-top: var(--s4);
+  border-top: var(--hair) solid var(--rule);
 }
-#sec-mining .mn-transfer__cap {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-  color: var(--text-faint);
+#sec-mining .mn-tape__say {
+  min-width: 0;
 }
-#sec-mining .mn-transfer__line {
-  font-size: 13px;
+#sec-mining .mn-tape__line {
+  font-size: 15px;
   line-height: 1.45;
   color: var(--text);
-  min-height: 38px;
+  min-height: 22px;
+}
+#sec-mining .mn-tape__exit {
+  margin-top: 4px;
+  min-height: 20px;
 }
 #sec-mining .mn-route {
   display: grid;
-  gap: var(--s1);
-}
-#sec-mining .mn-route__top {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--s2);
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--text-muted);
-}
-#sec-mining .mn-route__val {
-  color: var(--text-hi);
-  flex: none;
-}
-/* Route meters grow when a purchase routes money — the one width that transitions. */
-#sec-mining .mn-route .meter > i {
-  transition: width var(--t-event) var(--ease-out);
-}
-/* Exit leg (USDG leaving to a person) is the soft blue; the fund's leg is full blue. */
-#sec-mining .mn-meter--exit > i {
-  background: var(--blue-line);
-}
-#sec-mining .mn-exitline {
-  min-height: 38px;
-}
-
-#sec-mining .mn-tallies {
-  margin: var(--s4) 0 0;
-  display: grid;
-  gap: var(--s2);
-}
-#sec-mining .mn-tallies dt,
-#sec-mining .mn-tallies dd {
+  gap: 7px;
   margin: 0;
+  min-width: 0;
 }
-#sec-mining .mn-tally {
+#sec-mining .mn-route__leg {
   display: flex;
-  justify-content: space-between;
   align-items: baseline;
-  gap: var(--s3);
-  font-size: 12.5px;
-  padding-bottom: var(--s2);
-  border-bottom: 1px solid var(--rule);
+  justify-content: space-between;
+  gap: var(--s4);
+  padding-bottom: 6px;
+  border-bottom: var(--hair) solid var(--rule);
 }
-#sec-mining .mn-tally dt {
-  color: var(--text-muted);
+#sec-mining .mn-route dt {
+  margin: 0;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  line-height: 1.45;
+  color: var(--muted);
 }
-#sec-mining .mn-tally dd {
-  color: var(--text-hi);
-  font-weight: 600;
+#sec-mining .mn-route dt.is-off {
+  color: var(--faint);
 }
-#sec-mining .mn-tally dd.blue {
-  color: var(--blue);
+/* Both legs reserve the width of the widest figure they can carry. These
+   values are rewritten every beat, and a value box that resizes with its own
+   content drags its left edge across the row — a real layout shift, small but
+   endless. Fixed box, right-aligned: only the glyphs change. */
+#sec-mining .mn-route dd {
+  margin: 0;
+  flex: none;
+  min-width: 6.5ch;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--hi);
 }
 
-/* Narration where the take control used to sit — the sim runs itself. */
-#sec-mining .mn-legend {
-  max-width: 100%;
+#sec-mining .mn-board {
+  margin-top: var(--s5);
+}
+/* Same reason: a cell's owner walks "open" → "@moss" → "you" as slots change
+   hands, and the widest of those is five characters. Reserve it. */
+#sec-mining .cell__owner {
+  min-width: 6ch;
+  text-align: right;
+}
+#sec-mining .cell__owner--you {
+  color: var(--hi);
+}
+#sec-mining .mn-tallies {
+  margin-top: var(--s4);
+}
+
+/* The never-taken counter, beside the clock on the foot rail. It is the honest
+   reason the 100% route stops appearing: those slots run out. */
+#sec-mining .mn-state {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  padding-left: var(--s3);
+  border-left: var(--hair) solid var(--rule);
 }
 
 #sec-mining .mn-facts {
+  margin-top: var(--s7);
+}
+#sec-mining .mn-next {
   margin-top: var(--s6);
 }
 
-@media (max-width: 880px) {
-  #sec-mining .mn-layout {
-    grid-template-columns: 1fr;
+@media (max-width: 1080px) {
+  #sec-mining .mn-stage canvas {
+    height: 389px;
   }
 }
-@media (max-width: 560px) {
-  #sec-mining .mn-board {
-    grid-template-columns: repeat(2, 1fr);
+/* Below this the rail cannot carry the caption and both halves of the key on
+   one line. Neither half may be dropped: within a minute every slot has been
+   taken once, so no blue column is left on the plot and the neutral key is the
+   only one still describing something on screen. The key takes its own line and
+   the caption keeps the first one. */
+@media (max-width: 1180px) {
+  #sec-mining .mn-axis {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 4px var(--s4);
+  }
+  #sec-mining .mn-axis__l {
+    grid-area: 1 / 1;
+  }
+  #sec-mining .mn-axis__r {
+    grid-area: 1 / 2;
+  }
+  /* Wrapping happens between the two keys before it happens inside either, so
+     each phrase stays whole until a single one no longer fits the rail. */
+  #sec-mining .mn-axis__key {
+    grid-area: 2 / 1 / 3 / 3;
+    flex-wrap: wrap;
+    row-gap: 3px;
+    white-space: normal;
+  }
+}
+@media (max-width: 880px) {
+  #sec-mining .mn-tape {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s4);
+  }
+  /* One column wide, the longest leg label needs every pixel the value box
+     does not: tighten the gutter so no label ever wraps to a second line and
+     changes the row's height under the reader. */
+  #sec-mining .mn-route__leg {
+    gap: 10px;
+  }
+  #sec-mining .mn-axis {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 3px;
+  }
+  #sec-mining .mn-axis__l {
+    grid-area: 1 / 1;
+  }
+  #sec-mining .mn-axis__r {
+    grid-area: 2 / 1;
+    text-align: left;
+  }
+  /* Stacked, the key reads last: what the axis is, what a column is, then what
+     each of the plot's two column colours means. */
+  #sec-mining .mn-axis__key {
+    grid-area: 3 / 1 / 4 / 2;
+  }
+}
+@media (max-width: 620px) {
+  #sec-mining .mn-stage canvas {
+    height: 362px;
+  }
+  #sec-mining .mn-axis {
+    font-size: 9.5px;
+    letter-spacing: 0.08em;
+  }
+  /* The ghost row's dashes are hidden this narrow, so let its two halves run
+     as one sentence instead of standing in two ragged columns. The separator
+     is keyed off the (hidden) rule element between them: globals' own
+     `em + em` rule cannot match, because that <i> sits between the two <em>s. */
+  #sec-mining .cell--ghost {
+    display: block;
+  }
+  #sec-mining .cell--ghost i + em::before {
+    content: ' · ';
+  }
+  #sec-mining .mn-state {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+/* Below the narrowest target width the longest leg label has to wrap. Reserve
+   the two lines it needs so the row's height is the same either way and the
+   readout can never nudge the page while it updates. */
+@media (max-width: 389px) {
+  #sec-mining .mn-route dt {
+    min-height: 32px;
   }
 }

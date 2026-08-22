@@ -1,0 +1,1080 @@
+/* =========================================================== specimen page ==
+   Layout only. Every colour, face, surface and control on this page comes
+   from the primitives in app/globals.css — if something here needs a rule
+   that is not in the system, the system is wrong, not this page. */
+
+/* ------------------------------------------------------------- masthead -- */
+.sp-mast {
+  border-bottom: var(--hair) solid var(--rule);
+}
+.sp-mast__in {
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding: 14px var(--marg);
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+}
+.sp-mast__mark {
+  width: 34px;
+  height: 34px;
+  flex: none;
+}
+.sp-mast__name {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--hi);
+}
+.sp-mast__meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  text-align: right;
+}
+.sp-mast__meta i {
+  width: 6px;
+  height: 6px;
+  flex: none;
+  background: var(--pink);
+}
+
+/* -------------------------------------------------- opening spread ------ */
+.sp-open {
+  border-bottom: var(--hair) solid var(--rule);
+}
+.sp-open__grid {
+  max-width: var(--maxw);
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--s-aside);
+  align-items: stretch;
+}
+.sp-open__left {
+  min-width: 0;
+  padding: clamp(30px, 3.6vw, 54px) clamp(28px, 3.4vw, 56px) clamp(26px, 3vw, 40px) var(--marg);
+}
+.sp-kicker {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  margin-bottom: clamp(20px, 2.6vw, 34px);
+}
+.sp-kicker i {
+  width: 56px;
+  height: 3px;
+  flex: none;
+  background: var(--pink);
+}
+.sp-open__lede {
+  max-width: 40ch;
+  margin-top: clamp(16px, 2vw, 26px);
+  font-size: clamp(16.5px, 1.5vw, 21px);
+  line-height: 1.5;
+  color: var(--text);
+}
+.sp-open__lede b {
+  color: var(--hi);
+  font-weight: 600;
+}
+.sp-open__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  margin-top: clamp(22px, 2.6vw, 32px);
+}
+
+/* the colour plane, cropped by the viewport edge */
+.sp-plane {
+  position: relative;
+  overflow: hidden;
+  margin-right: calc(-1 * var(--bleed));
+  padding: clamp(26px, 3vw, 38px) calc(clamp(24px, 2.4vw, 36px) + var(--bleed)) 168px clamp(24px, 2.4vw, 36px);
+}
+.sp-lawlist {
+  counter-reset: law;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.sp-lawlist li {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: var(--s3);
+  padding: 13px 0;
+  border-bottom: 1px solid var(--on-field-rule);
+  font-size: 14px;
+  line-height: 1.45;
+}
+.sp-lawlist li::before {
+  counter-increment: law;
+  content: counter(law);
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: 27px;
+  line-height: 0.85;
+}
+.sp-lawlist b {
+  color: var(--on-field);
+  font-weight: 700;
+}
+/* The disc lives entirely inside the plane's bottom padding, so black type
+   on pink is never laid over a dark ground. */
+.sp-plane .gumdisc {
+  position: absolute;
+  right: -84px;
+  bottom: -206px;
+  width: 340px;
+  height: 340px;
+  z-index: -1;
+}
+.sp-plane .gumdisc img {
+  width: 148px;
+  height: 148px;
+  transform: translate(-44px, -104px);
+}
+
+/* -------------------------------------------------------------- rail ---- */
+.sp-rail .rail__in {
+  max-width: var(--maxw);
+  margin-inline: auto;
+  padding-inline: var(--marg);
+}
+
+/* ------------------------------------------------------------ sections -- */
+/* Every metric below is a token from globals.css, and every one of those
+   tokens is published with a rendered sample in §02. This page may not hold a
+   spacing number that a reader cannot look up on this page. */
+.sp-sec {
+  padding-block: var(--s-sec);
+  border-bottom: var(--hair) solid var(--rule);
+}
+/* wide against narrow — never two equal halves */
+.sp-two {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--s-split));
+  gap: var(--s-spread);
+  align-items: start;
+}
+.sp-two--flip {
+  grid-template-columns: minmax(0, var(--s-split)) minmax(0, 1fr);
+}
+.sp-stack {
+  display: grid;
+  gap: var(--s-stack);
+  min-width: 0;
+}
+.sp-stack > * {
+  min-width: 0;
+}
+.sp-h {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--faint);
+  padding-bottom: 9px;
+  border-bottom: var(--hair) solid var(--rule-strong);
+  margin-bottom: var(--s4);
+}
+/* for blocks that draw their own opening rule */
+.sp-h--bare {
+  padding-bottom: 0;
+  border-bottom: 0;
+  margin-bottom: var(--s3);
+}
+
+/* Swatches — rule 3. A colour-swatch caption is not a live instrument, so it
+   gets no frame and no ground: the block sits straight on the page, a hairline
+   divides it from its caption, and a second hairline divides adjacent swatches.
+   The only boxes on this page are the ones that are running something. */
+.sp-sw {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+}
+.sp-sw--4 {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.sp-sw__c {
+  min-width: 0;
+  padding-inline: clamp(12px, 1.5vw, 24px);
+  border-left: var(--hair) solid var(--rule);
+}
+.sp-sw__c:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.sp-sw__c:last-child {
+  padding-right: 0;
+}
+.sp-sw__chip {
+  height: 76px;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+}
+.sp-sw__m {
+  padding: 10px 0 0;
+  border-top: var(--hair) solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+}
+.sp-sw__m b {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text);
+  margin-bottom: 3px;
+}
+.sp-sw__m em {
+  display: block;
+  font-style: normal;
+  color: var(--faint);
+  margin-top: 4px;
+}
+
+/* ------------------------------------------------------------- surfaces -- */
+/* Three steps drawn as steps: one plate on the ground, a panel plate inset on
+   it, a raised plate inset on that, each --s5 in from the last. Rendering them
+   as a row of equal tiles was what let the raised tile get painted at panel
+   value under a caption asserting a different hex — one value under two names,
+   in the block whose eyebrow promises the opposite. Nested, each plate is in
+   contact with the one under it, every edge is visible at once, and each hex
+   hangs on its own step, so the caption is read against the surface it names.
+   The stack bleeds off the right edge, so rule 2 still holds. */
+.sp-steps {
+  position: relative;
+  background: var(--bg);
+  border: var(--hair) solid var(--rule);
+  border-right: 0;
+  border-radius: var(--r-m) 0 0 var(--r-m);
+  padding: var(--s5);
+  margin-right: calc(-1 * var(--edge));
+}
+/* The panel plate IS the .sim-panel treatment: same gradient, same lit top
+   edge, same blue head haze, same rule and radius. The 3px brand flag is what
+   §05 is for — this figure is about the ground, not the meaning. */
+.sp-steps__panel.sim-panel::after {
+  content: none;
+}
+.sp-steps__panel {
+  padding: var(--s5);
+}
+/* Painted at its OWN value: flat --raised, not the panel gradient. Its edge is
+   --rule-strong where the panel's is --rule, which is the pairing the .chip
+   primitive already uses for a raised block, so the three plates differ in
+   ground AND in the weight of the line that closes them. */
+.sp-steps__raised {
+  background: var(--raised);
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: var(--r-s);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  padding: var(--s5);
+  min-height: 104px;
+}
+.sp-steps__k {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+.sp-steps__k em {
+  font-style: normal;
+  color: var(--faint);
+  letter-spacing: 0.1em;
+  margin-left: 10px;
+}
+.sp-steps__k + * {
+  margin-top: var(--s4);
+}
+.sp-steps__note {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  color: var(--muted);
+}
+
+/* The two hairlines, shown doing the job they are specified for. */
+.sp-lines {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0;
+  margin-top: clamp(26px, 3vw, 40px);
+}
+.sp-lines__c {
+  min-width: 0;
+  padding-inline: clamp(12px, 1.5vw, 24px);
+  border-left: var(--hair) solid var(--rule);
+}
+.sp-lines__c:first-child {
+  border-left: 0;
+  padding-left: 0;
+}
+.sp-lines__c:last-child {
+  padding-right: 0;
+}
+.sp-lines__demo {
+  display: grid;
+  align-content: start;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: var(--s4);
+}
+.sp-lines__demo--rule > span {
+  padding: 11px 0;
+  border-top: var(--hair) solid var(--rule);
+}
+.sp-lines__demo--rule > span:first-child {
+  border-top: 0;
+}
+.sp-lines__demo--strong {
+  gap: 11px;
+  justify-items: start;
+}
+.sp-lines__th {
+  width: 100%;
+  padding-bottom: 9px;
+  border-bottom: var(--hair) solid var(--rule-strong);
+}
+.sp-lines__td {
+  width: 100%;
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+/* spec rows: a key in the margin, the specimen beside it */
+.sp-spec {
+  display: grid;
+  grid-template-columns: 132px minmax(0, 1fr);
+  gap: var(--s4);
+  align-items: baseline;
+  padding: 13px 0;
+  border-bottom: var(--hair) solid var(--rule);
+}
+.sp-spec__k {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.sp-spec__v {
+  min-width: 0;
+}
+
+/* ----------------------------------------------------------- type ramp -- */
+/* The scale is transmissible or it is not specified: every row prints the
+   class, the rendered sample at its real size, and the declaration it
+   resolves to — size / line-height / tracking / weight. */
+.sp-ramp {
+  display: grid;
+  gap: 0;
+  border-top: var(--hair) solid var(--rule-strong);
+}
+.sp-ramp__row {
+  display: grid;
+  grid-template-columns: 106px minmax(0, 1fr) minmax(0, 296px);
+  gap: clamp(14px, 2vw, 32px);
+  align-items: baseline;
+  padding: 15px 0;
+  border-bottom: var(--hair) solid var(--rule);
+}
+.sp-ramp__legend {
+  margin-bottom: var(--s4);
+}
+.sp-ramp__k {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.sp-ramp__s {
+  min-width: 0;
+}
+.sp-ramp__spec {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+
+/* --------------------------------------------------------- spacing ramp -- */
+/* Built exactly like the type ramp, because spacing is exactly as much of the
+   system as type is: one row per token, the class, a sample rendered at the
+   REAL gap, and the declaration it resolves to. The samples are sized by the
+   token itself — `height: var(--g)` — so a row cannot drift from the value it
+   prints, and a row for a 112px gap is 112px tall for the same reason the
+   .display row of the type ramp is 72px tall. The rhythm IS the specimen.
+   Chrome here is deliberately neutral: a measuring mark is neither capital
+   nor signal, so it may not be blue and it may not be pink. */
+.sp-gap {
+  display: grid;
+  gap: 0;
+  border-top: var(--hair) solid var(--rule-strong);
+}
+.sp-gap__row {
+  display: grid;
+  grid-template-columns: 148px minmax(0, 1fr) minmax(0, 320px);
+  gap: clamp(14px, 2vw, 32px);
+  align-items: center;
+  padding: 18px 0;
+  border-bottom: var(--hair) solid var(--rule);
+}
+.sp-gap__k {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  color: var(--text);
+  align-self: start;
+  padding-top: 2px;
+}
+.sp-gap__spec {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  align-self: start;
+}
+.sp-gap__spec em {
+  display: block;
+  font-style: normal;
+  color: var(--faint);
+  margin-top: 4px;
+}
+.sp-gap__s {
+  min-width: 0;
+}
+
+/* A vertical gap, rendered vertically: two rules with the real gap between
+   them, so the row's own height is the measurement. */
+.sp-gap__v {
+  position: relative;
+  display: grid;
+  gap: var(--g);
+  width: min(100%, 260px);
+}
+/* The hatch fills the gap and nothing else — the two rules are 2px each, so
+   inset by 2px top and bottom is exactly the measurement. Same hatch as the
+   horizontal samples, so both read as "this distance", not "these bars". */
+.sp-gap__v::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 2px;
+  bottom: 2px;
+  background: repeating-linear-gradient(45deg, rgba(173, 173, 192, 0.26) 0 2px, transparent 2px 5px);
+}
+.sp-gap__v i {
+  display: block;
+  height: 2px;
+  background: var(--faint);
+}
+
+/* A horizontal gap, rendered horizontally: the span between two ticks IS the
+   token, hatched so its width is unmistakable at a glance. */
+.sp-gap__h {
+  display: block;
+  width: var(--g);
+  max-width: 100%;
+  height: 22px;
+  background: repeating-linear-gradient(45deg, rgba(173, 173, 192, 0.26) 0 2px, transparent 2px 5px);
+  border-inline: 2px solid var(--faint);
+}
+
+/* A split, rendered as the split: the real template and the real gap, run at
+   the width of this column. Nothing is drawn and no ratio is derived — this
+   is .sp-two, narrower. Which is also what .sp-two does on a narrower
+   viewport, so the sample is the primitive rather than a picture of it. */
+.sp-gap__split {
+  display: grid;
+  width: 100%;
+  gap: var(--s-spread);
+  grid-template-columns: minmax(0, 1fr) minmax(0, var(--s-split));
+}
+.sp-gap__split i {
+  display: block;
+  height: 26px;
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
+}
+.sp-gap__split i:last-child {
+  background: var(--panel);
+}
+
+/* the kit block */
+/* Opened by a hairline, not framed. A full panel is reserved for a live
+   instrument; a tray of static swatches is a passage of the page, so it gets
+   the same single rule above that the type and spacing ramps get. The
+   controls inside keep their own borders — those ARE the instruments. */
+.sp-kit {
+  border-top: var(--hair) solid var(--rule);
+  padding-top: var(--s4);
+}
+.sp-kit__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+  align-items: center;
+  margin-bottom: var(--s4);
+}
+.sp-kit__meters {
+  display: grid;
+  gap: var(--s3);
+  margin: var(--s4) 0;
+}
+.sp-kit__l {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 6px;
+}
+.sp-kit__note {
+  border-top: var(--hair) solid var(--rule);
+  padding-top: var(--s3);
+}
+
+/* wordmark specimen */
+.sp-wm {
+  font-size: clamp(52px, 9.4vw, 132px);
+}
+.sp-wm__plain {
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(34px, 4.6vw, 62px);
+  line-height: 0.9;
+  color: var(--faint);
+  text-shadow: none;
+}
+
+/* motif */
+.sp-gums {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  padding: var(--s5) 0;
+}
+.sp-gumcrop {
+  position: relative;
+  height: 190px;
+  border-top: var(--hair) solid var(--rule);
+  overflow: hidden;
+}
+
+/* ------------------------------------------------------------- motion --- */
+/* A page about motion does not get to describe a curve in a table. The two
+   tracks run the SAME distance — the whole content column — on the two real
+   tokens, at every width; the transition reads
+   var(--ease) / var(--ease-out) straight out of globals.css, so the demo is
+   the token rather than a copy of it. The driver in SpecimenDriver.tsx
+   retriggers them from the shared harness, which means they stop dead when
+   the section is off screen and freeze at the end of travel under
+   prefers-reduced-motion.
+   Track chrome is deliberately NEUTRAL: blue is capital and pink is signal,
+   and a travelling dot is neither. */
+.sp-motion {
+  display: grid;
+  gap: 0;
+}
+/* ONE figure, not two stacked demos. Two curves separated by two lines of
+   caption are two facts; two rails 24px apart on a shared axis are a
+   comparison, and a comparison is the only thing this block is for. Both
+   labels sit UNDER both rails, so nothing is ever printed between the two
+   things being compared, and the rails get the whole block: a rail that stops
+   two thirds of the way across its own rule crushes the decelerating half of
+   the comb into a smudge, which is the half the figure exists to show.
+   Each rail carries a comb: a 1px tick at the dot's position every 100ms of
+   the travel, solved from the SAME custom property the transition reads. The
+   comb is what makes a still teach — the dots park in the same place at the
+   end of every cycle, so a frozen frame of two dots says nothing, while two
+   combs say the whole thing at once and say it with the section stopped. */
+.sp-tracks {
+  --dot: 12px;
+  --glyph: 34px;
+  display: grid;
+  /* Two columns and four rows: the 34px curve glyph, then the rail taking every
+     remaining pixel of the content column, twice — then the two labels. Nothing
+     shares a row with a rail, so the travel is the block. */
+  grid-template-columns: var(--glyph) minmax(0, 1fr);
+  column-gap: 14px;
+  /* Both items in a rail row are 34px — the plot and the rail — so the row IS
+     the rail and this gap is the real distance between the two rails, not a
+     grid gap with a taller sibling padding it out. */
+  row-gap: var(--s5);
+  align-items: center;
+  margin-top: var(--s6);
+}
+/* The rails are rows 1 and 2 and the labels rows 3 and 4, in the same order, at
+   every width. `order` rather than explicit line numbers so the two tracks stay
+   independent `display: contents` wrappers. */
+.sp-track__plot,
+.sp-track__rail {
+  order: 1;
+}
+.sp-track__meta {
+  order: 2;
+  grid-column: 1 / -1;
+}
+/* display: contents so the rail, its plot and its label are all items of the
+   ONE grid above and land on one row, while the wrapper still carries the
+   curve token and the is-out state. */
+.sp-track {
+  display: contents;
+  --curve: var(--ease);
+}
+.sp-track--out {
+  --curve: var(--ease-out);
+}
+/* The curve, drawn: progress across, eased value up, a dashed linear
+   reference behind it. Still legible when nothing is moving. */
+/* 34px, matching the rail, so the row cannot grow taller than the thing the
+   row is about. Strokes are scaled up to hold at that size. */
+.sp-track__plot {
+  width: 34px;
+  height: 34px;
+}
+.sp-track__ax {
+  fill: none;
+  stroke: var(--rule-strong);
+  stroke-width: 1.6;
+}
+.sp-track__lin {
+  fill: none;
+  stroke: var(--rule-strong);
+  stroke-width: 1.6;
+  stroke-dasharray: 3 4;
+}
+.sp-track__crv {
+  fill: none;
+  stroke: var(--hi);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+}
+.sp-track__rail {
+  position: relative;
+  width: 100%;
+  height: 34px;
+  /* The rail is the query container, so every length inside it is solved from
+     the rail's OWN width. The travel is therefore exactly the column: it cannot
+     overshoot into a horizontal scrollbar, and it cannot stop short either. */
+  container-type: inline-size;
+}
+.sp-track__path {
+  position: absolute;
+  left: calc(var(--dot) / 2);
+  right: calc(var(--dot) / 2);
+  top: 11px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, var(--rule) 0 3px, transparent 3px 7px);
+}
+.sp-track__trail {
+  position: absolute;
+  left: calc(var(--dot) / 2);
+  right: calc(var(--dot) / 2);
+  top: 11px;
+  height: 2px;
+  background: var(--faint);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform var(--t-event) var(--curve);
+}
+.sp-track__dot {
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: var(--dot);
+  height: var(--dot);
+  border-radius: var(--r-full);
+  background: var(--hi);
+  transform: translateX(0);
+  transition: transform var(--t-event) var(--curve);
+}
+/* The comb: one 1px tick per 100ms of the 1000ms travel, placed by the driver
+   from the curve it parses out of the same custom property the transition
+   reads. Hidden until placed, so the pre-hydration frame never shows ten
+   ticks stacked on the start line. A tick the dot has already passed is lit,
+   which is the dot leaving the tick; the unlit ones ahead of it keep the
+   whole comb readable in a still. Two combs on one axis is the comparison —
+   two parked dots was not. */
+.sp-track__comb {
+  position: absolute;
+  left: calc(var(--dot) / 2);
+  right: calc(var(--dot) / 2);
+  top: 21px;
+  height: 10px;
+}
+.sp-track__comb i {
+  position: absolute;
+  top: 0;
+  width: 1px;
+  height: 10px;
+  background: var(--rule-strong);
+  opacity: 0;
+}
+.sp-track__comb i.is-set {
+  opacity: 1;
+}
+.sp-track__comb i.is-lit {
+  background: var(--faint);
+}
+.sp-track__tick {
+  position: absolute;
+  top: 21px;
+  width: 1px;
+  height: 10px;
+  background: var(--rule-strong);
+}
+.sp-track__tick--a {
+  left: calc(var(--dot) / 2);
+}
+.sp-track__tick--b {
+  left: auto;
+  right: calc(var(--dot) / 2);
+}
+/* is-snap parks the dot with transitions off; is-out sends it down the curve. */
+.sp-track.is-snap .sp-track__dot,
+.sp-track.is-snap .sp-track__trail {
+  transition: none;
+}
+.sp-track.is-out .sp-track__dot {
+  transform: translateX(calc(100cqw - var(--dot)));
+}
+.sp-track.is-out .sp-track__trail {
+  transform: scaleX(1);
+}
+/* One mono line each, under the figure, in rail order: the token in a fixed
+   96px field so the two beziers align into a key. Prose about the figure goes
+   UNDER the figure — never between the two things being compared. */
+.sp-track__meta {
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.sp-track__meta b {
+  display: inline-block;
+  width: 96px;
+  color: var(--hi);
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+}
+.sp-tracks__cap {
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: var(--hair) solid var(--rule);
+}
+
+/* Event emphasis, fired for real. These four ARE live instruments — they run
+   the shipped .evt-blue / .evt-pink one-shot and print whether the class is
+   currently on the element — so under rule 3 they are the one thing in this
+   block entitled to a frame. */
+.sp-evts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s3);
+}
+.sp-evt {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--s4);
+  min-height: 92px;
+  padding: 12px;
+  background: var(--raised);
+  border: var(--hair) solid var(--rule-strong);
+  border-radius: var(--r-s);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.sp-evt__k {
+  color: var(--text);
+}
+/* --muted, not --faint: while the blue flash floods the tile the ground lifts
+   to ~#1A3040, where --faint would read 4.05:1. --muted holds 8.27:1 at rest,
+   6.21:1 under the blue flood and 7.0:1 under the pink one. */
+.sp-evt__s {
+  color: var(--muted);
+  letter-spacing: 0.16em;
+}
+/* The first frame of the evt-* keyframe, held — the still that stands in for
+   the flash when the reader has asked for no motion. */
+.sp-evt.is-held-blue {
+  box-shadow:
+    inset 0 0 0 999px rgba(41, 182, 240, 0.16),
+    0 0 0 1px var(--blue);
+}
+.sp-evt.is-held-pink {
+  box-shadow:
+    inset 0 0 0 999px rgba(249, 43, 146, 0.16),
+    0 0 0 1px var(--pink);
+}
+
+/* The live board's event readout: what just moved, and to whom. Fixed height,
+   so a changing line can never shift the panel. */
+.sp-lastevt {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  margin-top: var(--s4);
+  padding-top: var(--s3);
+  border-top: var(--hair) solid var(--rule);
+  min-height: 42px;
+}
+.sp-lastevt__k {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  flex: none;
+}
+.sp-lastevt__v {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 11.5px;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+}
+.sp-motion__row {
+  display: grid;
+  grid-template-columns: 92px 78px minmax(0, 1fr);
+  gap: var(--s4);
+  align-items: baseline;
+  padding: 11px 0;
+  border-bottom: var(--hair) solid var(--rule);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--muted);
+}
+.sp-motion__row b {
+  color: var(--hi);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+}
+
+.sp-colophon {
+  padding-block: var(--s5);
+  display: flex;
+  gap: var(--s4);
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* ---------------------------------------------------------- responsive -- */
+@media (max-width: 1080px) {
+  /* the token still names the column; only its value narrows */
+  .sp-open__grid {
+    --s-aside: 340px;
+  }
+}
+@media (max-width: 880px) {
+  .sp-open__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sp-open__left {
+    padding: clamp(26px, 5vw, 42px) var(--marg);
+  }
+  /* the plane still bleeds — now on both edges */
+  .sp-plane {
+    margin-right: 0;
+    margin-inline: 0;
+    padding-inline: var(--marg);
+  }
+  .sp-plane .gumdisc {
+    right: -54px;
+    bottom: -62px;
+    width: 208px;
+    height: 208px;
+  }
+  .sp-plane .gumdisc img {
+    width: 96px;
+    height: 96px;
+    transform: translate(-26px, -32px);
+  }
+  .sp-two,
+  .sp-two--flip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sp-motion__row {
+    grid-template-columns: 84px 70px minmax(0, 1fr);
+  }
+  .sp-sw--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sp-sw--4 .sp-sw__c:nth-child(odd) {
+    border-left: 0;
+    padding-left: 0;
+  }
+  .sp-sw--4 .sp-sw__c:nth-child(even) {
+    padding-right: 0;
+  }
+  .sp-sw--4 .sp-sw__c:nth-child(n + 3) {
+    margin-top: var(--s5);
+  }
+  /* The steps keep stepping — the inset just tightens, so the three edges
+     stay visible on a phone. */
+  .sp-steps {
+    padding: var(--s4);
+  }
+  .sp-steps__panel,
+  .sp-steps__raised {
+    padding: var(--s4);
+  }
+  .sp-ramp__row {
+    grid-template-columns: 96px minmax(0, 1fr);
+    row-gap: 8px;
+  }
+  .sp-ramp__spec {
+    grid-column: 2 / -1;
+  }
+  .sp-gap__row {
+    grid-template-columns: 118px minmax(0, 1fr);
+    row-gap: 10px;
+  }
+  .sp-gap__spec {
+    grid-column: 2 / -1;
+  }
+  /* The arrangement is the same at every width — only the top margin tightens.
+     A caption between the two things being compared is the one arrangement this
+     figure may not take, at any width. */
+  .sp-tracks {
+    margin-top: var(--s5);
+  }
+}
+@media (max-width: 560px) {
+  /* One column: the divider between adjacent swatches turns horizontal.
+     Scoped to .sp-sw — the surfaces strip stays two up, and must not pick up
+     a top rule that would push its second tile out of line with its first. */
+  .sp-sw,
+  .sp-sw--4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sp-sw > .sp-sw__c {
+    border-left: 0;
+    padding-inline: 0;
+    margin-top: 0;
+    padding-top: var(--s5);
+    border-top: var(--hair) solid var(--rule);
+  }
+  .sp-sw > .sp-sw__c:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+  .sp-ramp__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sp-ramp__spec {
+    grid-column: 1 / -1;
+  }
+  .sp-gap__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sp-gap__spec {
+    grid-column: 1 / -1;
+  }
+  .sp-lines {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .sp-lines__c {
+    border-left: 0;
+    padding-inline: 0;
+  }
+  .sp-lines__c + .sp-lines__c {
+    margin-top: var(--s5);
+    padding-top: var(--s5);
+    border-top: var(--hair) solid var(--rule);
+  }
+  .sp-evts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .sp-spec {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 6px;
+  }
+  /* Below 560 the key no longer fits on one line, so the token goes back over
+     its bezier rather than wrapping mid-declaration. */
+  .sp-track__meta b {
+    display: block;
+    width: auto;
+  }
+  .sp-motion__row {
+    grid-template-columns: 78px minmax(0, 1fr);
+  }
+  .sp-motion__row span:last-child {
+    grid-column: 1 / -1;
+  }
+  .sp-mast__meta {
+    font-size: 10px;
+    letter-spacing: 0.1em;
+  }
+  .sp-hide-sm {
+    display: none;
+  }
+}
+
+/* ------------------------------------------------------- reduced motion -- */
+/* The tracks freeze at the END of travel — the state the curve was carrying
+   the dot to — rather than at a blank start line, and they do it from CSS so
+   the still holds even before the driver has run. Two dots parked at the same
+   end position is not a comparison, though, which is what the comb is for:
+   the driver's static pass places and lights every tick, so the reduced-motion
+   still shows the two curves' whole sampling side by side and teaches more
+   than the animation does. The drawn curve beside each rail carries the rest. */
+@media (prefers-reduced-motion: reduce) {
+  .sp-track__dot {
+    transform: translateX(calc(100cqw - var(--dot)));
+  }
+  .sp-track__trail {
+    transform: scaleX(1);
+  }
+}

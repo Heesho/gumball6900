@@ -1,4 +1,21 @@
-/* ------------------------------------------------------- 50 · the fund -- */
+/* ------------------------------------------------------- 04 · the fund --
+   Two live instruments, two physical pictures:
+
+   Acquisition — a wide vessel of large USDG spheres, liquid being poured,
+   while the ask rides a rail down onto it. Both read against one QQQ scale;
+   the settle is where they meet, and the sim holds there. The split then
+   lands in two vessels on one shared scale: the treasury's ninety in neutral
+   and the signalers' tenth in pink, nine times shorter.
+   Redemption — the fund as four bays of packed candy, each asset its own hue
+   and grain. A burn lifts the same proportion out of every bay at once and
+   carries it down each bay's chute into the redeemer's cup.
+
+   Rules divide, boxes don't: the only frames in here are the sim panels, the
+   vault board and the vessels, because those are the live instruments.
+   Colour keeps its meanings: blue is USDG capital, pink is signal and what
+   it buys, neutral is GBX, its burning, and — per MODELS.md §4 — the
+   treasury's leg of the ninety/ten split. */
+
 #sec-fund .fund-stats {
   margin-bottom: 0;
 }
@@ -14,10 +31,12 @@
   margin-bottom: var(--s5);
 }
 
-/* ---- acquisition panel ---- */
+/* ============================================== acquisition ============= */
 #sec-fund .acq {
   position: relative;
 }
+/* the transfer layer: spheres arc over the layout, never through it, and the
+   canvas is empty unless something is actually travelling */
 #sec-fund .acq__wire {
   position: absolute;
   inset: 0;
@@ -28,50 +47,55 @@
 }
 #sec-fund .acq__grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.12fr) minmax(0, 0.88fr);
-  gap: var(--s5);
-  align-items: start;
-}
-#sec-fund .acq__box {
-  background: var(--bg-raised);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-m);
-  padding: var(--s4) var(--s4) var(--s3);
+  grid-template-columns: minmax(0, 1.16fr) minmax(0, 0.84fr);
+  gap: clamp(20px, 2.6vw, 38px);
+  align-items: stretch;
 }
 #sec-fund .acq__label {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.11em;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.19em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
 #sec-fund .acq__label--pink {
-  color: var(--pink);
+  color: var(--pink-label);
+}
+/* the destination labels hug their ink, so the drop into each vessel's mouth
+   can be placed just clear of the words instead of clear of a full-width box */
+#sec-fund .acq__party--dest .acq__label {
+  width: fit-content;
+  max-width: 100%;
 }
 #sec-fund .acq__read {
   display: flex;
-  gap: var(--s6);
+  gap: clamp(24px, 3vw, 46px);
   row-gap: var(--s3);
   flex-wrap: wrap;
   margin-top: var(--s3);
 }
 #sec-fund .acq__read .v {
-  font-size: clamp(20px, 2vw, 26px);
-  font-weight: 600;
+  font-size: clamp(21px, 2.1vw, 28px);
+  font-weight: 500;
   line-height: 1.1;
+  letter-spacing: -0.02em;
   color: var(--text-hi);
 }
 #sec-fund .acq__read .l {
   font-size: 12px;
   color: var(--text-faint);
-  margin-top: 2px;
+  margin-top: 3px;
 }
-#sec-fund .acq__stacks {
+
+/* the drawing. A fixed height, so nothing shifts when the canvas wires up. */
+#sec-fund .acq__stage {
   margin-top: var(--s4);
+  height: clamp(212px, 20.5vw, 300px);
 }
-#sec-fund .acq__stacks canvas {
+#sec-fund .acq__stage canvas {
   width: 100%;
-  height: 172px;
+  height: 100%;
   display: block;
 }
 #sec-fund .acq__caps {
@@ -80,35 +104,42 @@
   align-items: baseline;
   gap: var(--s3);
   flex-wrap: wrap;
-  margin-top: var(--s2);
+  margin-top: var(--s3);
+  padding-top: var(--s2);
+  border-top: 1px solid var(--rule);
   font-size: 12px;
   color: var(--text-faint);
 }
 #sec-fund .acq__caps b {
   font-weight: 600;
 }
+/* The caption is the middle item of a space-between row, so its own width
+   decides where it sits: letting it shrink when it changes wording slid it
+   sideways at every settle. It gets the wider of its two states, always. */
 #sec-fund #acqMeet {
+  min-width: 168px;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
   color: var(--text-faint);
   transition: color var(--t-base) var(--ease);
 }
 #sec-fund #acqMeet.is-met {
   color: var(--text-hi);
-  font-weight: 700;
 }
 
+/* the parties: three columns stepping down the narrow side of the spread,
+   each opened by a rule rather than closed inside a box */
 #sec-fund .acq__side {
   display: flex;
   flex-direction: column;
-  gap: var(--s4);
+  gap: var(--s5);
 }
 #sec-fund .acq__party {
-  background: var(--bg-raised);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-m);
-  padding: var(--s4);
-}
-#sec-fund .acq__party--sig {
-  border-color: var(--pink-line);
+  border-top: 2px solid var(--rule-strong);
+  padding-top: var(--s3);
 }
 #sec-fund .acq__party p {
   font-size: 13px;
@@ -116,49 +147,137 @@
   color: var(--text-muted);
   margin-top: var(--s2);
 }
+/* the two legs of the split are two different inks — MODELS.md §4 paints the
+   trader→fund leg white and the trader→signalers leg pink, so the ninety and
+   the tenth are told apart before a single sphere is counted */
+#sec-fund .acq__party--dest {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-top-color: rgba(255, 255, 255, 0.5);
+}
+#sec-fund .acq__party--sig {
+  border-top-color: var(--pink-line);
+}
+/* the fund's own vessel: what the treasury is actually accumulating, on the
+   same scale as the signalers' beside it, so 90/10 is drawn, not asserted */
+#sec-fund .acq__vessel {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 104px;
+  margin-top: var(--s3);
+}
+#sec-fund .acq__vessel canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
 #sec-fund .acq__total {
-  font-size: 20px;
-  font-weight: 600;
+  font-size: clamp(20px, 1.9vw, 25px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
   line-height: 1.15;
   color: var(--text-hi);
-  margin-top: var(--s2);
+  margin-top: var(--s3);
 }
 #sec-fund .acq__party--sig .acq__total {
   color: var(--pink);
 }
 #sec-fund .acq__party .note {
-  margin-top: 2px;
+  margin-top: 3px;
 }
+/* An event lasts ONE event. The receipt is written at the settle, holds for
+   1.2s of sim time, fades over --t-slow and is emptied — an open auction must
+   never still be asserting the last one. */
 #sec-fund .acq__delta {
+  /* the slot is EXACTLY the same height empty or written: at the inherited
+     line-height a written receipt stood 0.8px taller than the 20px it
+     reserves, and the vessel above it — flex: 1 1 auto — gave that pixel up,
+     which read as the pile losing a pixel the moment the figure appeared */
   min-height: 20px;
+  line-height: 20px;
   font-size: 13px;
   font-weight: 600;
-  margin-top: var(--s1);
+  color: var(--text-hi);
+  margin-top: var(--s2);
+  opacity: 1;
+  transition: opacity var(--t-slow) var(--ease);
 }
-#sec-fund .acq__delta--blue {
-  color: var(--blue);
+#sec-fund .acq__delta.is-fading {
+  opacity: 0;
 }
 #sec-fund .acq__delta--pink {
-  color: var(--pink);
+  color: var(--pink-label);
 }
 #sec-fund .acq__dests {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--s4);
+  column-gap: clamp(14px, 1.6vw, 22px);
+  flex: 1 1 auto;
+  align-items: stretch;
+}
+/* the treasury's leg is neutral, so its arrival flash is too */
+@keyframes fund-evt-white {
+  0%,
+  40% {
+    box-shadow:
+      inset 0 0 0 999px rgba(255, 255, 255, 0.09),
+      0 0 0 1px rgba(255, 255, 255, 0.8);
+  }
+  100% {
+    box-shadow:
+      inset 0 0 0 999px rgba(255, 255, 255, 0),
+      0 0 0 1px rgba(255, 255, 255, 0);
+  }
+}
+#sec-fund .evt-white {
+  animation: fund-evt-white var(--t-event) var(--ease-out);
 }
 
 @media (max-width: 880px) {
   #sec-fund .acq__grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  /* the gap the split's manifold runs down; it must stay wide enough that a
+     travelling sphere clears the receipt line above and the rule below */
+  #sec-fund .acq__side {
+    gap: var(--s5);
+  }
+  #sec-fund .acq__vessel {
+    min-height: 92px;
   }
 }
-@media (max-width: 420px) {
-  #sec-fund .acq__dests {
-    grid-template-columns: 1fr;
+@media (max-width: 560px) {
+  #sec-fund .acq__stage {
+    height: 204px;
+  }
+  /* stacked, it is no longer between two other items and reads left */
+  #sec-fund #acqMeet {
+    min-width: 0;
+    text-align: left;
+  }
+  /* the clock line runs to two lines once it carries the settle count and
+     back to one while a settle is on screen — so it reserves both, and the
+     note under it never moves */
+  #sec-fund #acqState {
+    display: block;
+    min-height: calc(2 * 1.6em);
+  }
+  /* stacked captions must shrink to their ink, or the block spans the panel
+     and closes the clear right channel the lot travels down */
+  #sec-fund .acq__caps {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+  #sec-fund .acq__vessel {
+    min-height: 84px;
   }
 }
 
-/* ---- redemption panel ---- */
+/* ================================================ redemption ============ */
 #sec-fund .rdm {
   position: relative;
 }
@@ -175,102 +294,183 @@
   color: var(--text-muted);
 }
 #sec-fund .rdm__supply .num {
-  font-size: clamp(20px, 2.2vw, 26px);
-  font-weight: 600;
+  /* the figure loses a digit the first time a burn lands, and the words after
+     it must not slide when it does: mono, so eleven characters is exact */
+  display: inline-block;
+  min-width: 11ch;
+  font-size: clamp(22px, 2.4vw, 30px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
   color: var(--text-hi);
 }
+/* GBX in existence: a neutral band. What a burn takes is bitten off its end
+   and goes out — it never travels, because nothing receives a burned token. */
 #sec-fund .rdm__supplybar {
+  position: relative;
+  height: 8px;
   margin-top: var(--s2);
 }
-/* the departing slice of a burn: a white segment at the fill's end that is
-   visibly consumed as the burn proceeds — burns are neutral/white */
-#sec-fund .rdm .meter {
-  position: relative;
+#sec-fund .rdm__supplybar > i {
+  background: var(--text-faint);
+  box-shadow: inset -2px 0 0 var(--text-muted);
 }
+/* Placed with a transform, never with `left`. Moving a box with a layout
+   property is a layout shift even when the box is absolutely positioned, and
+   this panel's shift budget is zero. */
 #sec-fund .m-slice {
   position: absolute;
   top: 0;
   bottom: 0;
+  left: 0;
   width: 0;
   background: var(--text-hi);
+  box-shadow: -1px 0 0 var(--bg);
 }
+
+/* the vault: one instrument divided into four bays, never four tiles. Every
+   bay reserves a chute down its right side — a clear channel a departing
+   sphere can travel without ever crossing a figure. */
 #sec-fund .rdm__vault {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: var(--s4);
-  margin-top: var(--s4);
-}
-@media (max-width: 880px) {
-  #sec-fund .rdm__vault {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-#sec-fund .hold {
-  background: var(--bg-raised);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-m);
-  padding: var(--s4);
+  --chute: clamp(16px, 1.7vw, 24px);
+  margin-top: var(--s5);
   transition: border-color var(--t-base) var(--ease);
 }
+#sec-fund .rdm__vault.is-paying {
+  border-color: rgba(255, 255, 255, 0.4);
+}
+#sec-fund .hold {
+  transition: background var(--t-base) var(--ease);
+}
 #sec-fund .hold.is-paying {
-  border-color: var(--text-hi);
+  background: #15151d;
+}
+#sec-fund .hold__sym,
+#sec-fund .hold__amt,
+#sec-fund .hold__out {
+  padding-right: var(--chute);
 }
 #sec-fund .hold__sym {
   font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--text-faint);
 }
 #sec-fund .hold__amt {
-  font-size: 22px;
-  font-weight: 600;
+  font-size: clamp(20px, 1.9vw, 25px);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
   color: var(--text-hi);
-  margin-top: var(--s1);
+  margin-top: 6px;
 }
-#sec-fund .hold .meter {
-  margin-top: var(--s3);
-}
+/* what this burn takes, beside the figure it comes off — and above the bay,
+   so the drawing below it is a clear field for the transfer */
 #sec-fund .hold__out {
+  /* the reserved line is the written line, to the pixel */
   min-height: 20px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text-hi);
   margin-top: var(--s2);
 }
+/* the bay itself. Fixed height so the canvas never moves the layout. */
+#sec-fund .hold__well {
+  display: block;
+  width: calc(100% - var(--chute));
+  height: clamp(134px, 13vw, 190px);
+  margin-top: var(--s3);
+}
+
+/* Where it lands: the redeemer's own vessel, in the vault's material, sitting
+   the full width DIRECTLY UNDER the bays. The four streams land across it —
+   each share in a pile beneath the bay it came out of — instead of pinching to
+   a point, and the band between board and cup is the lane they travel, which
+   is the only place any of them is allowed to move sideways. */
+#sec-fund .rdm__cupwrap {
+  display: block;
+  margin-top: clamp(26px, 2.4vw, 36px);
+}
+#sec-fund .rdm__cup {
+  display: block;
+  width: 100%;
+  height: clamp(62px, 5vw, 76px);
+}
 #sec-fund .rdm__dest {
-  margin-top: var(--s4);
-  background: var(--bg-raised);
-  border: 1px solid var(--rule);
-  border-radius: var(--r-m);
-  padding: var(--s4);
+  margin-top: var(--s3);
+  border-top: 2px solid var(--rule-strong);
+  padding-top: var(--s3);
   display: flex;
   align-items: baseline;
   gap: var(--s2) var(--s5);
   flex-wrap: wrap;
-  transition: border-color var(--t-base) var(--ease);
+  transition: border-top-color var(--t-base) var(--ease);
 }
+/* the asset arriving is the asset's own hue for every redeemer; the reader's
+   own burn is the headline beat, so it is the one that keeps its rule lit and
+   carries a pink underscore on the name */
 #sec-fund .rdm__dest.is-receiving {
-  border-color: var(--text-hi);
+  border-top-color: var(--pink-line);
+}
+#sec-fund .rdm__dest.is-mine {
+  border-top-color: var(--pink);
 }
 #sec-fund .rdm__dest-who {
-  font-size: 15px;
+  /* the widest redeemer this panel can name, so the line after it never
+     slides sideways when one name replaces another */
+  min-width: 14ch;
+  font-size: 16px;
   font-weight: 600;
+  line-height: 1.3;
   color: var(--text-hi);
+  border-bottom: 2px solid transparent;
+  padding-bottom: 1px;
+}
+#sec-fund .rdm__dest.is-mine .rdm__dest-who {
+  border-bottom-color: var(--pink);
 }
 #sec-fund .rdm__dest-take {
+  /* takes the rest of the row, so its own box stops resizing as the figures
+     inside it gain and lose digits */
+  flex: 1 1 auto;
   min-height: 20px;
   font-size: 12.5px;
   font-weight: 600;
   color: var(--text-hi);
 }
 #sec-fund .rdm__out {
-  margin-top: var(--s5);
+  margin-top: var(--s4);
   min-height: calc(2 * 1.55em);
   font-size: 13.5px;
   line-height: 1.55;
   color: var(--text-muted);
+}
+@media (max-width: 880px) {
+  #sec-fund .rdm__vault {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  /* Reflowed two by two, the top row of bays has bays underneath it, so its
+     departing candy cannot descend inside the board without being drawn over
+     another asset's cell. The transfer layer therefore reaches PAST the
+     composition into the panel's own margin — nothing in the layout moves —
+     and the top row's streams descend those clear outer channels, outside
+     every bay, exactly as the outer columns already do. */
+  #sec-fund .rdm__wire {
+    inset: 0 -16px;
+    /* An explicit width, never `auto`: a canvas is a replaced element, so an
+       auto width resolves to its BACKING STORE width — which this component
+       sets from the rendered width, and the two would chase each other wider
+       every frame. `max-width` is overridden because the global canvas reset
+       caps every canvas at its box, which is exactly the margin being reached
+       into here. */
+    width: calc(100% + 32px);
+    max-width: none;
+  }
+  /* two rows of bays need two lanes in the band above the cup */
+  #sec-fund .rdm__cupwrap {
+    margin-top: 46px;
+  }
 }
 @media (max-width: 640px) {
   /* self-hosted Schibsted renders the label ~0.5px wider than the hosted cut;
@@ -278,7 +478,10 @@
   #sec-fund .rdm__dest {
     column-gap: var(--s4);
   }
-  /* the receipt wraps to three lines at narrow widths — reserve them */
+  /* the receipt wraps to more lines at narrow widths — reserve them */
+  #sec-fund .rdm__dest-take {
+    min-height: calc(2 * 1.5em);
+  }
   #sec-fund .rdm__out {
     min-height: calc(3 * 1.55em);
   }

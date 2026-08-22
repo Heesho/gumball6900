@@ -25,12 +25,31 @@ export interface Sim {
 interface TrackedSim extends Sim {
   visible: boolean;
   lastSeen: number;
+  /**
+   * Latched the first time this sim is genuinely on screen — at least one
+   * pixel inside the real viewport, not the 80px pre-warm band below. Until
+   * then its clock is held at zero.
+   *
+   * Sections pass their panel rather than their <section> (see Fund.tsx), so
+   * on a normal desktop the panel is hundreds of pixels below the fold and
+   * this never comes up. But that clearance is a layout accident: the hero
+   * stops growing past ~1024px, so from about 1500px of viewport height the
+   * overview panel slides up into the warm band with zero pixels showing. At
+   * 1440x1540 and 2560x1540 — an ordinary maximised window on a tall display —
+   * an ungated harness drew 645k canvas ops in 20s while the reader was still
+   * on the hero, and then greeted them on beat 03, the burn, or beat 02
+   * depending how long they had read. Numbered beats that have already run are
+   * not an explanation. This makes "nothing runs before it is seen" a property
+   * of the driver instead of a property of this month's spacing.
+   */
+  seen: boolean;
 }
 
 const sims: TrackedSim[] = [];
 const simByEl = new WeakMap<Element, TrackedSim>();
 
 let io: IntersectionObserver | null = null;
+let seenIo: IntersectionObserver | null = null;
 let revealIo: IntersectionObserver | null = null;
 let rafId = 0;
 let running = false;
@@ -58,18 +77,22 @@ function staticPass(sim: TrackedSim): void {
  * cleanup. Safe to call before or after the harness starts.
  */
 export function registerSim(sim: Sim): () => void {
-  const tracked: TrackedSim = { ...sim, visible: false, lastSeen: 0 };
+  const tracked: TrackedSim = { ...sim, visible: false, lastSeen: 0, seen: false };
   sims.push(tracked);
   simByEl.set(tracked.el, tracked);
   if (running) {
     if (reduced()) staticPass(tracked);
-    else io?.observe(tracked.el);
+    else {
+      io?.observe(tracked.el);
+      seenIo?.observe(tracked.el);
+    }
   }
   return () => {
     const i = sims.indexOf(tracked);
     if (i !== -1) sims.splice(i, 1);
     simByEl.delete(tracked.el);
     io?.unobserve(tracked.el);
+    seenIo?.unobserve(tracked.el);
   };
 }
 
@@ -146,14 +169,37 @@ export function startHarness(): () => void {
     },
     { rootMargin: '80px 0px' },
   );
-  sims.forEach((sim) => io?.observe(sim.el));
+
+  /* The 80px band above is a warm *resume*: it lets a sim already known to the
+     reader be running by the time it scrolls back in. It must not be what
+     starts a sim's clock, or a section sitting flush against the fold runs
+     unwatched. This second observer answers the stricter question — has this
+     sim ever actually been on screen? — against the real viewport, shrunk by
+     1px at the bottom so an element merely touching the fold does not count.
+     It latches once and unobserves, so it costs nothing after first sight. */
+  seenIo = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        const sim = simByEl.get(entry.target);
+        if (sim) sim.seen = true;
+        seenIo?.unobserve(entry.target);
+      });
+    },
+    { rootMargin: '0px 0px -1px 0px' },
+  );
+
+  sims.forEach((sim) => {
+    io?.observe(sim.el);
+    if (!sim.seen) seenIo?.observe(sim.el);
+  });
 
   let last = 0;
   const frame = (ts: number) => {
     const dt = last ? Math.min((ts - last) / 1000, 0.1) : 0;
     last = ts;
     sims.forEach((sim) => {
-      if (!sim.visible) return;
+      if (!sim.visible || !sim.seen) return;
       try {
         if (sim.step) sim.step(dt * (sim.timeScale ?? 1));
         if (sim.paint) sim.paint();
@@ -172,6 +218,8 @@ export function startHarness(): () => void {
     cancelAnimationFrame(rafId);
     io?.disconnect();
     io = null;
+    seenIo?.disconnect();
+    seenIo = null;
     revealIo?.disconnect();
     revealIo = null;
     reducedMql?.removeEventListener('change', onReducedChange);

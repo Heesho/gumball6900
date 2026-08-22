@@ -1,49 +1,684 @@
-/* Hero — the wordmark leads; the section earns trust by what it declines
-   to say. No eyebrow, no simulation, no rule above (it is first). */
-#sec-hero {
-  min-height: min(100svh, 1080px);
+/* ==============================================================================
+   HERO — the first viewport, built to "Serious money, candy soul".
+
+   The composition, in the direction's own terms:
+     · nothing is centred — a wide type column against a 400px colour plane,
+       and the plane bleeds off the right edge to the viewport;
+     · the misregistered Modak wordmark is the page's main event, left-anchored
+       and set on two display lines (the shipped .wm / .wm__line primitive);
+     · inside the type column, a second asymmetry: the lede against a narrow
+       marginal column divided by a hairline, carrying the STATUS list;
+     · the mark is delivered twice at two jobs: 34px in the masthead as an
+       identifier, and large on a dark sphere cropped into the plane's
+       lower-right corner, where the bubble letters can actually be read and
+       the sphere carves the plane's straight edge into a curve;
+     · a data ribbon of display-scale tabular numerals is the hero's
+       illustration (globals' .rail), and every figure in it is a protocol
+       constant.
+
+   Everything here consumes globals.css: .wm/.wm__line, .field/.field__cap,
+   .rail/.rail__in/.rail__cell/.rail__n/.rail__l, .gumdisc, .dnum,
+   .btn/.btn--primary, .note, .reveal. Type on the pink plane is BLACK only —
+   --on-field is 5.39:1 there, white would be 3.63:1 and fail AA.
+   ============================================================================ */
+
+/* --------------------------------------------------------------- masthead -- */
+.masthead {
+  --mast-h: 60px;
+  border-bottom: var(--hair) solid var(--rule);
+}
+.masthead__in {
+  max-width: var(--maxw);
+  margin-inline: auto;
+  min-height: var(--mast-h);
+  padding-inline: var(--marg);
   display: flex;
   align-items: center;
+  gap: var(--s4);
 }
-#sec-hero .hero {
-  display: grid;
-  justify-items: center;
-  text-align: center;
+/* 208px source drawn at 34px: it downsamples, so the line art stays crisp
+   instead of smearing the way a 76-104px render of it did. */
+.masthead__mark {
+  width: 34px;
+  height: 34px;
+  flex: none;
 }
-#sec-hero .hero__brand {
-  display: grid;
-  justify-items: center;
-  gap: var(--s6);
+.masthead__name {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--hi);
+  white-space: nowrap;
 }
-/* A badge above the title, not a second title. Embedded at 208px so
-   retina (2x of 80px = 160px) downsamples, never upscales. */
-#sec-hero .hero__logo {
-  width: clamp(64px, 6vw, 80px);
-  height: auto;
+.masthead__meta {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--faint);
+  white-space: nowrap;
 }
-/* The design system sizes the wordmark per section. */
-#sec-hero .hero__wordmark {
-  font-size: clamp(46px, 9.5vw, 122px);
+.masthead__what {
+  color: var(--muted);
 }
-#sec-hero .hero__what {
-  margin-top: var(--s5);
+.masthead__dot {
+  width: 5px;
+  height: 5px;
+  flex: none;
+  border-radius: var(--r-full);
+  background: var(--pink);
+}
+
+/* ------------------------------------------------------------------ hero -- */
+/* The first screen is the masthead (60px + its hairline) and everything under
+   it, and the ribbon lands ON the fold rather than below it — at 1080, at
+   1050, and at 900 alike. The cap only exists to stop an absurdly tall window
+   from stretching the spread past the point where it is still a composition;
+   1100px covers every laptop and desktop fold in use, so in practice the
+   ribbon sits exactly on the fold everywhere and no black band opens under it.
+   The extra height a tall screen brings is taken by `.hero__body`'s auto top
+   margin — it falls between the wordmark and the lede block, and the plane
+   stretches with it — not by inflating the ribbon. */
+#sec-hero {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: min(calc(100svh - 60px - var(--hair)), 1100px);
+}
+#sec-hero .hero__grid {
+  flex: 1;
+  max-width: var(--maxw);
   margin-inline: auto;
-  text-wrap: balance;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  align-items: stretch;
+}
+#sec-hero .hero__left {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: clamp(24px, 2.5vw, 36px) clamp(28px, 3.4vw, 56px) clamp(18px, 1.6vw, 22px) var(--marg);
+}
+
+/* kicker: a 3px pink rule and one mono line, never centred */
+#sec-hero .hero__kicker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: clamp(18px, 2.3vw, 30px);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+#sec-hero .hero__kickrule {
+  width: 56px;
+  height: 3px;
+  flex: none;
+  background: var(--pink);
+}
+
+/* the wordmark — the page's main event, at display scale */
+#sec-hero .hero__wm {
+  margin-bottom: clamp(8px, 1vw, 14px);
+}
+
+/* the second asymmetry: wide say-column against a narrow margin column */
+/* The gap to the wordmark is a FIXED measure, not the leftover of a
+   space-between. A taller window must not push the lede away from the name:
+   the two are one unit, and surplus height belongs in the composition's outer
+   whitespace — under the status block, above the full-bleed ribbon — the way
+   a capped measure works on Stripe. Held to 56-62px from 1280 to 1920. */
+#sec-hero .hero__body {
+  padding-top: clamp(22px, 2.9vw, 42px);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 246px;
+  gap: clamp(24px, 3.2vw, 48px);
+  align-items: start;
+}
+#sec-hero .hero__lede {
+  font-size: clamp(17px, 1.62vw, 23px);
+  line-height: 1.48;
+  color: var(--text);
+  max-width: 34ch;
 }
 #sec-hero .hero__cta {
   display: flex;
   flex-wrap: wrap;
-  justify-content: center;
   gap: var(--s3);
-  margin-top: var(--s6);
+  margin-top: clamp(20px, 2.4vw, 30px);
+}
+#sec-hero .hero__arw {
+  font-size: 0.95em;
+}
+
+/* STATUS — the honesty block, verbatim, as a mono list under a hairline cap */
+#sec-hero .hero__margin {
+  align-self: stretch;
+  border-left: var(--hair) solid var(--rule);
+  padding-left: clamp(18px, 2vw, 28px);
+}
+#sec-hero .hero__cap {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--faint);
+  padding-bottom: 9px;
+  margin-bottom: 8px;
+  border-bottom: var(--hair) solid var(--rule-strong);
 }
 #sec-hero .hero__status {
-  justify-content: center;
-  margin-top: var(--s6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
-/* Status, not action: drop the interactive border grammar the CTAs use.
-   Bare raised pill — --text on --bg-raised is 15.4:1, well past AA. */
-#sec-hero .hero__status .chip {
-  border-color: transparent;
-  background: var(--bg-raised);
+#sec-hero .hero__status li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 7px 0;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.45;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+/* A hollow mark, like a spec sheet: weight carries the warning, not hue, so
+   pink and blue keep their one meaning each. */
+#sec-hero .hero__status i {
+  width: 7px;
+  height: 7px;
+  flex: none;
+  margin-top: 4px;
+  box-shadow: inset 0 0 0 1.5px var(--muted);
+}
+#sec-hero .hero__statusnote {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: var(--hair) solid var(--rule);
+}
+
+/* ------------------------------------------------------- the colour plane -- */
+/* Rule 1: hue arrives as a full-bleed plane carrying black type. It runs past
+   the container to the viewport edge; html/body already clip the overflow. */
+#sec-hero .hero__plane {
+  /* --disc  the sphere's diameter
+     --cap   how much of it shows above the plane's bottom edge
+     --logo  the mark drawn inside it
+     The disc is anchored to the plane's padding box, so --cap is exactly the
+     height of the visible crescent whatever the plane's own padding is. */
+  --disc: clamp(240px, 26vw, 360px);
+  --cap: clamp(150px, 14vw, 200px);
+  --logo: clamp(112px, 11.1vw, 160px);
+  display: flex;
+  flex-direction: column;
+  /* No bottom padding: the disc's reserved crescent IS the plane's foot. */
+  padding: clamp(28px, 3vw, 40px) calc(clamp(24px, 2.4vw, 36px) + var(--bleed)) 0 clamp(24px, 2.4vw, 36px);
+  margin-right: calc(-1 * var(--bleed));
+  overflow: hidden;
+}
+#sec-hero .field__cap,
+#sec-hero .hero__toc {
+  position: relative;
+  z-index: 1;
+}
+#sec-hero .hero__toc {
+  margin-top: 2px;
+}
+#sec-hero .hero__move {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 17px 0;
+  border-bottom: 1px solid var(--on-field-rule);
+  color: var(--on-field);
+  text-decoration: none;
+  transition: padding-left var(--t-fast) var(--ease);
+}
+#sec-hero .hero__move:hover {
+  padding-left: 6px;
+  text-decoration: none;
+}
+#sec-hero .hero__moven {
+  flex: none;
+  width: 34px;
+  margin-top: 3px;
+  font-size: 32px;
+  line-height: 0.78;
+}
+#sec-hero .hero__movetxt {
+  min-width: 0;
+}
+#sec-hero .hero__movelabel {
+  display: block;
+  margin-bottom: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+#sec-hero .hero__movetitle {
+  display: block;
+  font-size: 16.5px;
+  font-weight: 700;
+  letter-spacing: -0.012em;
+  line-height: 1.22;
+}
+#sec-hero .hero__moveline {
+  display: block;
+  margin-top: 5px;
+  font-size: 13px;
+  line-height: 1.42;
+}
+#sec-hero .hero__movearw {
+  flex: none;
+  margin-left: auto;
+  margin-top: 2px;
+  padding-left: 10px;
+  font-size: 15px;
+}
+/* ------------------------------------------------------- the mark at scale -- */
+/* The page's one picture. A dark sphere set into the plane's lower-right
+   corner, cropped by the right edge AND the bottom edge, so the pink stops
+   being a rectangle: its corner is carved into a curve and the two objects
+   interlock. Light is a single off-centre fall-off plus a 1px rim — material,
+   not bloom; no dome, no chrome, no glow. The mark rides on it at a size where
+   the bubble letters are actually readable, which is the job the 34px masthead
+   copy cannot do. */
+#sec-hero .hero__discwrap {
+  /* In flow, pinned to the plane's foot: reserves the crescent's height so the
+     disc can never come up behind the table of contents. */
+  margin-top: auto;
+  flex: none;
+  height: var(--cap);
+}
+#sec-hero .hero__disc {
+  position: absolute;
+  z-index: 0;
+  /* A fifth of the sphere hangs past the right edge. Keyed to the sphere, not
+     to the plane: at narrow widths the plane is the whole viewport, and a
+     percentage of that would throw the mark off-screen. */
+  right: calc(-0.2 * var(--disc));
+  bottom: calc(var(--cap) - var(--disc));
+  width: var(--disc);
+  height: var(--disc);
+  /* Overrides the .gumdisc primitive's lighting for the hero's larger object.
+     ONE light source, up-left, at full amplitude: the fall-off runs #33333c at
+     the highlight to #08080b at the limb — a ~43-step luma ramp, where the old
+     two-step one made this read as a grey circle with a logo pasted on. The
+     rim is 1px and directional (top-left only, .06 white): the light catching
+     the edge it faces, not a ring drawn round the whole shape. The second
+     inset is occlusion — the limb turning away — so the ball has a dark side
+     as well as a lit one. Material, not bloom: no dome, no chrome, no glow.
+
+     BOTH the light's position and its radius are keyed to --cap, the height of
+     the crescent that is actually visible, not to --disc. Only --cap's worth of
+     this ball is ever on screen, and cap/disc runs from .39 to .61 across the
+     breakpoints — keyed to the sphere, the same stop list landed anywhere from
+     18% to 61% of the way down the ramp at the crop, so the ball was sliced
+     off mid-highlight at 1280 and mid-body at 1440. Keyed to the crescent, the
+     plane's bottom edge sits at 66.6% of the ramp at EVERY width, and the two
+     terminal stops are #101015 and #08080b — at and below the page ground's
+     own #0C0C0C. So the ball has already reached the dark by the time the dark
+     arrives: it sinks into the ground instead of being cut off by it. Nothing
+     about the lit half moves; the fall-off just travels further. */
+  background: radial-gradient(
+    circle var(--cap) at 32% calc(var(--cap) * 0.34),
+    #33333c 0%,
+    #2b2b34 20%,
+    #212129 42%,
+    #191920 58%,
+    #101015 70%,
+    #08080b 100%
+  );
+  box-shadow:
+    inset 1px 1px 0 rgba(255, 255, 255, 0.06),
+    inset -14px -20px 44px rgba(0, 0, 0, 0.55);
+}
+#sec-hero .hero__disc img {
+  position: absolute;
+  left: 50%;
+  /* 12px clear of the plane's bottom edge at every width, so the crop takes
+     the sphere and never the mark. */
+  bottom: calc(var(--disc) - var(--cap) + 12px);
+  transform: translateX(-50%);
+  width: var(--logo);
+  height: var(--logo);
+  /* The mark ships with an opaque #10100F backing disc, which otherwise prints
+     as a flat circle inside the lit sphere. `lighten` drops it into the
+     sphere's own fall-off — the pink and cyan line art is far lighter than the
+     ground, so it is untouched — and the mark reads as printed on the ball
+     rather than stuck to it. Blending is confined to the disc: .field is
+     isolated and .hero__disc is its own stacking context. */
+  mix-blend-mode: lighten;
+  /* …but that backing disc has an anti-aliased edge a few steps LIGHTER than
+     itself, and `lighten` printed it as a hairline ring — a compositing seam,
+     a sticker edge on the ball. Measured on the 208px source: the artwork's
+     outermost ink ends at .894 of the half-width, the backing is opaque to
+     .913 and fades out by .942. So the mask cuts the 1.5px band between them:
+     solid to 90%, gone by 92% (closest-side, so 100% IS the half-width). */
+  -webkit-mask-image: radial-gradient(circle closest-side, #000 90%, transparent 92%);
+  mask-image: radial-gradient(circle closest-side, #000 90%, transparent 92%);
+}
+
+/* ------------------------------------------------------------ data ribbon -- */
+/* Rule 5 — numbers are the imagery — set in the mono, not in Modak. Modak's
+   zero is a blob crossed by a hairline: at 48px, 80px and 120px alike it reads
+   as a scratch, and "0 oracles" is the ribbon's loudest claim. Tabular mono at
+   display scale reads as money, fills the cell, and keeps Modak reserved for
+   the wordmark. Hue is unchanged: blue where the subject is USDG capital.
+
+   The press: mono kept the figures readable but left the ribbon the only part
+   of the first screen with no brand in it. So the numerals take the WORDMARK'S
+   OWN registration — rule 4's two plates, cyan up-left and magenta down-right,
+   at the same ±.014em/.009em ratio the .wm carries. Same conceit, one tenth
+   the offset: at 78px that is 1.1px by 0.7px, enough to print as colour and
+   far too small to fatten a stroke, so 16 / 1h / 0 / 20M still read in a
+   glance at 1x. No copy, figure or hue-semantic changes — the ink colour of
+   each numeral is untouched; the plates sit behind it. */
+#sec-hero .rail__n {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-synthesis: none;
+  font-variant-numeric: tabular-nums;
+  font-size: clamp(56px, 5.4vw, 78px);
+  line-height: 0.88;
+  letter-spacing: -0.03em;
+  text-shadow:
+    -0.014em -0.009em 0 var(--blue),
+    0.014em 0.009em 0 var(--pink);
+  /* line-height 0.88 leaves ~.08em under the baseline; with the label's own
+     half-leading that is the ~10px gap that locks numeral and label into one
+     unit, so no margin is wanted here. */
+  margin-bottom: 0;
+}
+/* Tighter than the primitive: the numeral is now twice the height it was, so
+   the old padding left the cell looking two-thirds empty. */
+#sec-hero .rail__cell {
+  padding-block: clamp(14px, 1.45vw, 20px);
+}
+#sec-hero .hero__rail {
+  position: relative;
+}
+
+/* ------------------------------------------------------------ responsive -- */
+@media (max-width: 1180px) {
+  #sec-hero .hero__body {
+    grid-template-columns: minmax(0, 1fr) 210px;
+  }
+}
+@media (max-width: 1080px) {
+  #sec-hero .hero__grid {
+    grid-template-columns: minmax(0, 1fr) 330px;
+  }
+  #sec-hero .hero__body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s5);
+  }
+  #sec-hero .hero__margin {
+    border-left: 0;
+    border-top: var(--hair) solid var(--rule);
+    padding-left: 0;
+    padding-top: 18px;
+    max-width: 520px;
+  }
+  /* The block already opens on a rule; a second one under the cap is fuss. */
+  #sec-hero .hero__cap {
+    padding-bottom: 0;
+    margin-bottom: 4px;
+    border-bottom: 0;
+  }
+  #sec-hero .hero__lede {
+    max-width: 44ch;
+  }
+}
+@media (max-width: 880px) {
+  #sec-hero {
+    min-height: 0;
+  }
+  #sec-hero .hero__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #sec-hero .hero__left {
+    padding: clamp(28px, 5vw, 44px) var(--marg) clamp(30px, 4.6vw, 44px);
+  }
+  /* 11.3vw is a desktop measure; below the fold-over the wordmark takes the
+     full measure of the page instead of shrinking into the margin. */
+  #sec-hero .hero__wm {
+    font-size: clamp(64px, 20vw, 190px);
+  }
+  #sec-hero .hero__plane {
+    margin-right: 0;
+    padding: clamp(26px, 5vw, 36px) var(--marg) 0;
+  }
+}
+
+/* ---------------------------------------------------------------- narrow -- */
+/* Below 768 the spread folds, and a stacked column of white-on-black with even
+   margins is exactly the template look the direction forbids. So the plane is
+   hoisted into the first screen as a full-bleed band: the reader sees the
+   wordmark, the honesty rows AND pink without scrolling, and the pink is the
+   one thing that touches both edges.
+     .hero__left / .hero__body / .hero__margin go display:contents so their
+   children become order-able siblings of the plane. DOM order is untouched, so
+   the status list still reads cap → rows → note to assistive tech, and the only
+   focusable things (the two buttons, then the plane's three links) stay in the
+   same order visually and in the tab ring. The plane's paddings move onto the
+   children it no longer wraps. */
+@media (max-width: 768px) {
+  #sec-hero .hero__grid {
+    display: flex;
+    flex-direction: column;
+  }
+  #sec-hero .hero__left,
+  #sec-hero .hero__body,
+  #sec-hero .hero__margin {
+    display: contents;
+  }
+  #sec-hero .hero__kicker,
+  #sec-hero .hero__wm,
+  #sec-hero .hero__say,
+  #sec-hero .hero__status,
+  #sec-hero .hero__statusnote {
+    padding-inline: var(--marg);
+  }
+  /* Margin, not padding: its rule has to stop at the text column, because the
+     plane is the only thing on this screen allowed to touch both edges. */
+  #sec-hero .hero__cap {
+    margin-inline: var(--marg);
+  }
+  #sec-hero .hero__kicker {
+    order: 1;
+    margin-top: clamp(24px, 5vw, 36px);
+    margin-bottom: 18px;
+  }
+  #sec-hero .hero__wm {
+    order: 2;
+    margin-bottom: 10px;
+  }
+  #sec-hero .hero__say {
+    order: 3;
+  }
+  #sec-hero .hero__lede {
+    font-size: 19px;
+    line-height: 1.45;
+  }
+  #sec-hero .hero__cta {
+    margin-top: 20px;
+  }
+  #sec-hero .hero__cta .btn {
+    min-height: 46px;
+  }
+  #sec-hero .hero__cap {
+    order: 4;
+    margin-top: 24px;
+    padding-top: 15px;
+    border-top: var(--hair) solid var(--rule);
+  }
+  #sec-hero .hero__status {
+    order: 5;
+  }
+  /* The band. .hero__grid carries no padding of its own, so the plane is
+     already edge to edge — no negative margin, and therefore nothing that can
+     push a scrollbar. */
+  #sec-hero .hero__plane {
+    order: 6;
+    margin-top: 22px;
+    /* Folded over, the plane is the full width of the page but its foot band
+       is still only --cap tall, so a 240px ball tucked hard into the right
+       corner left the bottom-left half of that band as bare pink. A wider
+       sphere at the SAME --cap sweeps its arc across the band instead of
+       sitting in the corner of it — the plane's height, and therefore the
+       first screen's confirmed 390 composition, is untouched. */
+    --disc: clamp(300px, 62vw, 380px);
+  }
+  /* The rows may not leave the first screen; this note may, and does. */
+  #sec-hero .hero__statusnote {
+    order: 7;
+    margin-top: 20px;
+    padding-top: 0;
+    border-top: 0;
+  }
+}
+/* Tall wide screens. Past 1312px the type column stops growing (--maxw is a
+   token of the direction and caps it at 792px), so the wordmark should take
+   the WHOLE of that measure rather than the global 11.3vw cap: 182px set
+   "GumBall" to 712px of the 792 available and left 80px of the column empty.
+   197px sets it to 771px — the measure filled, with the misregistration's
+   .026em plate still inside the column. The vh term is the other constraint:
+   two Modak lines at .88 have to grow out of the height that created the room,
+   so the ribbon still lands exactly on the fold. 18.5vh returns 182px at 982
+   — 1512x982's confirmed composition is untouched — and reaches the 197px
+   ceiling at 1065 and up. Gated on height so 1440x900 keeps its exact fit. */
+@media (min-width: 1312px) and (min-height: 940px) {
+  #sec-hero .hero__wm {
+    font-size: min(197px, 18.5vh);
+  }
+}
+
+/* Tall screens, past the point where the 900-tall spread stops being enough.
+   The hero fills the fold at 982, 1050 and 1080 — the cap only stops a freak
+   window — but filling it must not mean one big hole. So the extra 80-180px is
+   SPENT rather than banked: the type column and the plane both open up, the
+   three moves distribute down the plane instead of huddling at its head, and
+   the sphere grows with the viewport (keyed to vh, so it tracks the height
+   that created the space) until its crescent closes the plane's foot. Gated at
+   941 so the confirmed 1440x900 and 1280x720 compositions are untouched. */
+@media (min-width: 881px) and (min-height: 941px) {
+  /* Everything the type column spends is keyed to vh, not vw: the space being
+     spent was created by height, so it has to shrink back to nothing as the
+     window shortens. A 1512x982 window has only ~47px to give and must still
+     land the ribbon exactly on its fold; a 1920x1080 one has ~165px.
+
+     --hero-pt is the spread's shoulder, and BOTH columns take it, so the kicker
+     and the plane's cap stay on one line however tall the window gets. It is
+     also where the surplus goes: with the wordmark-to-lede gap now a fixed
+     measure, the height a big window brings is outer whitespace, split between
+     this shoulder and the foot rather than opening a hole mid-column. Flat at
+     50px through 982 — 1512x982's confirmed spread is untouched — and opens to
+     82px at 1080. */
+  #sec-hero {
+    --hero-pt: clamp(50px, calc(32vh - 264px), 86px);
+  }
+  #sec-hero .hero__left {
+    padding-top: var(--hero-pt);
+    padding-bottom: clamp(22px, 2.8vh, 32px);
+  }
+  /* Still a fixed measure, one notch wider than the 900-tall spread's — never
+     a share of the window. 57px at 982, 62px at 1080. */
+  #sec-hero .hero__body {
+    padding-top: clamp(38px, 4.4vh, 48px);
+  }
+  #sec-hero .hero__plane {
+    --disc: clamp(360px, 36vh, 430px);
+    --cap: clamp(200px, 22vh, 264px);
+    --logo: clamp(160px, 16vh, 190px);
+    padding-top: var(--hero-pt);
+  }
+  /* The three moves take the plane's full column as three EQUAL rows, so the
+     extra height lands in the hairlines' spacing rather than in one hole under
+     them: rules dividing a column evenly, which is rule 3, not three blocks
+     adrift in pink. Content stays at each row's head. */
+  #sec-hero .hero__toc {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  #sec-hero .hero__move {
+    flex: 1 1 0;
+  }
+  /* A taller screen gets bigger prose, which is also the cheapest way to spend
+     height that would otherwise pool above the lede. */
+  #sec-hero .hero__lede {
+    font-size: clamp(23px, 2.35vh, 26px);
+  }
+}
+
+/* Short desktop viewports (1280x720 and the like). The spread and the ribbon
+   are one screen by design, so on a shallow screen the type steps down rather
+   than the ribbon getting sliced through its labels. */
+@media (min-width: 881px) and (max-height: 820px) {
+  #sec-hero .hero__left {
+    padding-top: clamp(20px, 2.2vw, 30px);
+    padding-bottom: clamp(16px, 1.8vw, 24px);
+  }
+  #sec-hero .hero__kicker {
+    margin-bottom: clamp(14px, 1.8vw, 22px);
+  }
+  #sec-hero .hero__wm {
+    font-size: clamp(50px, 9.2vw, 128px);
+  }
+  #sec-hero .hero__body {
+    padding-top: clamp(14px, 1.8vw, 24px);
+  }
+  #sec-hero .hero__lede {
+    font-size: clamp(16px, 1.34vw, 19px);
+  }
+  /* The ribbon keeps its display-scale numerals on a shallow screen — they are
+     the illustration — so the space comes out of the plane instead: tighter
+     rows, and a smaller sphere showing a shallower crescent. */
+  #sec-hero .hero__plane {
+    --disc: clamp(220px, 24vw, 320px);
+    --cap: clamp(104px, 10.4vw, 134px);
+    --logo: clamp(80px, 8.1vw, 104px);
+    padding-block: clamp(16px, 1.8vw, 22px) 0;
+  }
+  #sec-hero .hero__move {
+    padding-block: 9px;
+  }
+  #sec-hero .rail__cell {
+    padding-block: 12px;
+  }
+}
+@media (max-width: 620px) {
+  .masthead__wide {
+    display: none;
+  }
+  .masthead__name {
+    font-size: 11.5px;
+    letter-spacing: 0.16em;
+  }
+  .masthead__meta {
+    font-size: 10.5px;
+    letter-spacing: 0.12em;
+  }
+  #sec-hero .hero__lede {
+    max-width: none;
+  }
+  #sec-hero .hero__cta .btn {
+    flex: 1 1 auto;
+  }
 }

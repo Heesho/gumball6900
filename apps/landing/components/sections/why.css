@@ -1,47 +1,237 @@
-#sec-why .why-grid {
-  align-items: stretch;
+/* -------------------------------------------------------------- 70-why --
+   The four failure places, set as the reference mock's CARD ROW: hairline-
+   divided columns under one pink rule, each opened by an oversized outlined
+   ordinal. Horizontal rhythm — deliberately the opposite of the ledger of
+   rows in "extras" a screen above.
+
+   The argument is about who steers, not where capital comes from: pink. */
+#sec-why .sec-head {
+  --flag: var(--pink);
 }
-#sec-why .card {
-  display: flex;
-  flex-direction: column;
+
+#sec-why .why-row {
+  margin-top: clamp(6px, 1vw, 14px);
+  grid-template-rows: auto auto 1fr auto;
 }
-#sec-why .card__head {
-  display: flex;
-  align-items: baseline;
-  gap: var(--s3);
+/* Subgrid so the four columns share ordinal / title / prose / trade rows.
+   The pink hairline over "the trade" then forms ONE continuous rule across
+   the row instead of four that rag — the divider is the composition here. */
+#sec-why .col {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 4;
+}
+
+/* The ordinals are this section's numbering — the headline promises four
+   places and these are them. They are hollow, so they can never be read as a
+   quantity, and pink because the subject is signal. */
+/* Size and stroke are the page's ordinal spec (the global .col__n: 4.6vw at
+   2px), so this section and the ledger of facts one screen above are drawn
+   with one instrument. Only the ink differs: solid --pink here because the
+   subject is signal, and because --pink-line at 2px is 1.89:1 — too faint to
+   read as a hairline. Solid pink on the ground is 5.39:1. */
+#sec-why .col__n {
+  -webkit-text-stroke-color: var(--pink);
+  margin-bottom: clamp(18px, 1.8vw, 26px);
+}
+#sec-why .col__t {
   margin-bottom: var(--s3);
 }
-#sec-why .why-num {
-  font-size: 26px;
-  color: var(--text-hi);
-  translate: 0 2px;
+#sec-why .col__b {
+  font-size: 14.5px;
 }
-#sec-why .card__body {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
-#sec-why .card__body > p {
-  margin: 0;
-}
+
+/* "The trade" — the cost of the removal above it, pinned to the foot of its
+   column. .col__b keeps flex:1 from the global layer, so all four trade
+   blocks align on one band across the row instead of ragging. It is a tint
+   under a pink hairline, not a box: nothing here is a live instrument. */
 #sec-why .why-trade {
-  margin-top: var(--s4);
+  margin-top: clamp(20px, 2.2vw, 30px);
+  padding: var(--s3) clamp(13px, 1.2vw, 18px) clamp(15px, 1.5vw, 19px);
+  border-top: var(--hair) solid var(--pink-line);
+  background: linear-gradient(180deg, rgba(249, 43, 146, 0.075), rgba(249, 43, 146, 0.02));
 }
-#sec-why .why-trade__inner {
-  border-top: 1px solid var(--rule);
-  padding-top: var(--s4);
-}
-#sec-why .why-trade-label {
-  margin: 0 0 var(--s2);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.17em;
+#sec-why .why-trade__label {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.19em;
   text-transform: uppercase;
-  color: var(--text-faint);
+  color: var(--pink-label);
+  margin-bottom: var(--s2);
 }
-#sec-why .why-trade p:not(.why-trade-label) {
+#sec-why .why-trade__body {
+  font-size: 13.5px;
+  line-height: 1.6;
   color: var(--text);
 }
-#sec-why .why-close {
-  margin-top: var(--s6);
+
+/* --- the coda ------------------------------------------------------------ */
+/* Set on the same four-column grid as the row above and started in the second
+   column, so the conclusion visibly narrows instead of restarting. */
+#sec-why .why-coda {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  margin-top: clamp(44px, 5vw, 76px);
+  padding-top: clamp(24px, 2.8vw, 38px);
 }
+#sec-why .why-coda::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: calc(-1 * var(--edge));
+  top: 0;
+  height: var(--hair);
+  background: var(--rule);
+}
+/* Capped to the same measure the rest of the tail keeps: across three columns
+   the coda was setting 86 characters a line. */
+#sec-why .why-coda__p {
+  grid-column: 2 / -1;
+  padding-left: clamp(18px, 2vw, 30px);
+  font-size: clamp(16.5px, 1.35vw, 20px);
+  line-height: 1.55;
+  color: var(--text);
+  text-wrap: pretty;
+  max-width: 60ch;
+}
+
+/* --- two columns all the way down ---------------------------------------- */
+/* The global card row drops straight from four columns to one at 880px. If
+   this section did that it would become ordinal → mini-head → paragraph,
+   stacked — the exact same object as the ledger of facts one screen above,
+   nine identical units in a row. It stays a 2x2 GRID at every width, vertical
+   hairline and all, so the two sections still read as different things on a
+   phone. Id specificity keeps these ahead of the global rules. */
+@media (max-width: 1080px) {
+  #sec-why .cardrow--4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  #sec-why .col {
+    border-left: var(--hair) solid var(--rule);
+    border-top: 0;
+    padding-inline: clamp(18px, 2vw, 30px);
+  }
+  #sec-why .col:nth-child(odd) {
+    border-left: 0;
+    padding-left: 0;
+  }
+  #sec-why .col:nth-child(even) {
+    padding-right: 0;
+  }
+  #sec-why .col:nth-child(n + 3) {
+    border-top: var(--hair) solid var(--rule);
+    margin-top: clamp(26px, 3vw, 38px);
+  }
+}
+/* Below the four-up the indent has nothing to align to, so the coda squares
+   up to the margin and simply keeps its rule. */
+@media (max-width: 1080px) {
+  #sec-why .why-coda {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #sec-why .why-coda__p {
+    grid-column: 1;
+    padding-left: 0;
+    max-width: 60ch;
+  }
+}
+/* --- one column per row once the pair gets too narrow -------------------- */
+/* The 2x2 grid is what kept this section a different object from the ledger
+   of facts above — but below ~700px its columns fall under 250px and the
+   prose sets at 23–25 characters a line: ten-line paragraphs at classified-ad
+   width, next to a neighbour setting 45. Measure wins. One column per row
+   from here down, and the section holds its identity another way: the pink
+   ordinal locked up with the title on a shared line, one pink rule under
+   every head, and the tinted "the trade" block closing every item — none of
+   which the ledger has, and all of which it will never have.
+
+   This block resets the odd/even and nth-child rules above by naming them, so
+   the 2-up's edge cases can't leak through on specificity. */
+@media (max-width: 700px) {
+  #sec-why .cardrow--4 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  #sec-why .col,
+  #sec-why .col:nth-child(odd),
+  #sec-why .col:nth-child(even),
+  #sec-why .col:nth-child(n + 3) {
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-row: auto;
+    align-items: start;
+    column-gap: clamp(13px, 3.6vw, 20px);
+    border-left: 0;
+    border-top: 0;
+    margin-top: 0;
+    /* Top padding on every item, first included: Modak's bubble numerals
+       overhang their line box, and with none the "1" sits on the section's
+       own pink flag rule. */
+    padding: clamp(22px, 4.4vw, 30px) 0 0;
+  }
+  #sec-why .col + .col {
+    border-top: var(--hair) solid var(--rule);
+    margin-top: clamp(26px, 5vw, 34px);
+  }
+  /* The shared line. The ordinal keeps its display scale and its pink, and
+     the title sits on its baseline rather than under it. */
+  #sec-why .col__n {
+    grid-column: 1;
+    grid-row: 1;
+    align-self: baseline;
+    margin-bottom: 0;
+    font-size: clamp(46px, 13vw, 56px);
+  }
+  #sec-why .col__t {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: baseline;
+    margin-bottom: 0;
+    font-size: clamp(16px, 4.4vw, 19px);
+  }
+  /* One pink rule under the head, spanning the row — drawn as its own grid
+     row so the prose can keep a measure without dragging the rule in with
+     it. */
+  #sec-why .col::before {
+    content: '';
+    grid-column: 1 / -1;
+    grid-row: 2;
+    height: var(--hair);
+    background: var(--pink-line);
+    margin-block: clamp(13px, 3.4vw, 18px);
+  }
+  #sec-why .col__b {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    font-size: 14.5px;
+    line-height: 1.65;
+    max-width: 62ch;
+  }
+  /* Same measure cap the body above it carries (.col__b's 62ch at 14.5px
+     resolves to ~550px; `ch` here would resolve against the panel's inherited
+     16px and come out 95px wider). A footnote is never set wider than the
+     text it annotates — without this the panel outgrew the paragraph from
+     635px up to the 2-up at 704. The 28px of panel padding lands the trade
+     text at ~522px, inside the body's measure at every width. */
+  #sec-why .why-trade {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    max-width: 550px;
+    margin-top: clamp(18px, 4vw, 24px);
+    padding: 12px 14px 14px;
+  }
+  #sec-why .why-trade__label {
+    font-size: 10.5px;
+    letter-spacing: 0.19em;
+  }
+  #sec-why .why-trade__body {
+    font-size: 13.5px;
+    line-height: 1.6;
+  }
+}
+
+/* The old 560px step-down — 12.5px prose, 9.5px labels, 11px column padding —
+   is gone with the narrow 2-up that forced it. Below 700px the section is one
+   column per row and the type can stand at full size again. */
