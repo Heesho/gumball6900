@@ -529,7 +529,7 @@ export function Plate() {
       const yBack = aucTapY - 26;
       const yOut = yBack - 26;
       const aucNoteY = yOut - 30;
-      const aucValYReal = aucNoteY - 64;
+      const aucValYReal = aucNoteY - 80;
       const aucH = Math.max(48, aucValYReal - 16 - aucTop);
       void aucValY;
 
@@ -1851,7 +1851,7 @@ export function Plate() {
           );
         }
       });
-      label('USDG out · the asset back — the trade is the price', l.cx, l.yOut + 4, 9, ink.muted, 'center');
+      label('USDG out · the asset back — the trade is the price', l.cx, l.yOut - 22, 9, ink.muted, 'center');
 
       /* --- the tenth. Drawn and labelled, and deliberately not followed --- */
       rz.assets.forEach((a, i) => {
@@ -2105,7 +2105,7 @@ export function Plate() {
       ctx.textAlign = 'left';
       wrap(
         ctx,
-        'Δ is printed in exponential form so an error can never hide behind a rounded zero. The Router row is the one that proves the break is honest: in − out − held. These are instantaneous checks, not counters — the tallies beside each station are the cumulative figures.',
+        'Δ is printed in exponential form so an error can never hide behind a rounded zero, and it turns pink above 1e-11 of the quantity being checked — relative, because a six-figure GBX total floors an order of magnitude higher than a rate does. The Router row is the one that proves the break is honest: in − out − held. These are instantaneous checks, not counters; the tallies beside each station are the cumulative figures.',
         l.w - l.pad * 2,
       )
         .slice(0, l.narrow ? 3 : 2)
@@ -2131,7 +2131,13 @@ export function Plate() {
           label(r.claim.toPrecision(6), c2, y, 9.5, ink.text);
           label(r.drawn.toPrecision(6), c3, y, 9.5, ink.text);
         }
-        label(r.err.toExponential(2), c4, y, 9.5, r.err > 1e-9 ? ink.pinkLabel : ink.text, 'right');
+        /* THE THRESHOLD IS RELATIVE, and it has to be. `GBX issued` is a
+           six-figure quantity, so its floating-point floor is ~1e-8 in
+           absolute terms while every rate on this plate floors at 1e-13. An
+           absolute threshold flags the big row for ever and teaches a reader
+           to ignore the colour — which is worse than no colour at all. */
+        const tol = 1e-11 * Math.max(1, Math.abs(r.claim));
+        label(r.err.toExponential(2), c4, y, 9.5, r.err > tol ? ink.pinkLabel : ink.text, 'right');
       });
     }
 
