@@ -589,7 +589,7 @@ const GR_TAP_DIR = [-1, -1, 1, 1];
 /* where the control signal's branch meets each leg, as a fraction of the
    corridor — one common x, so the four branches read as one fan-out from the
    node rather than as four unrelated lines */
-const GR_SIGNAL_TAP = 0.58;
+const GR_SIGNAL_TAP = 0.52;
 
 /* The live positive control. A zero from an uncalibrated instrument is
    worthless, and three of this figure's checks sit at the floor of double
@@ -711,7 +711,7 @@ interface GrPaths {
   /** where each live reading attaches, on the band it measures */
   meters: { x: number; y: number; q: number; w: number; dir: number; n: number }[];
   /** the four shares the control signal is setting, and where its branch lands */
-  shares: { x: number; y: number; pct: number; dir: number }[];
+  shares: { x: number; y: number; edge: number; pct: number; dir: number }[];
   /** the signal bus: one dashed line crossing every leg at the same station */
   bus: { x: number; y0: number; y1: number; right: boolean } | null;
   /** the collector's stripes, in stack order, for the placard */
@@ -938,6 +938,7 @@ function mountGrammar(): (() => void) | null {
   /* where the GBX band dies — solved in rebuild from the collector's own width
      so the terminator can never land inside the assets passing underneath */
   let burnerY = 0;
+  let burnSinkSize = 16;
   let controlPx = 0;
   let report = junctionReport({ x: 0, c: 0, q: 0 }, [], 1);
   let scan = scanConservation({ legs: [], total: 0, from: 0, to: 0 });
@@ -1165,21 +1166,36 @@ function mountGrammar(): (() => void) | null {
          instant from one control, not four unrelated captions. The labels sit
          on the far side of the bus from the bubbles, which is why the two can
          never land on top of each other however narrow the corridor gets. */
-      const busX = g.splitX + corridor * (tight ? 0.6 : GR_SIGNAL_TAP);
+      /* the bus sits far enough down the corridor that the fan has opened: a
+         reading taken where the four legs are still stacked in the trunk is a
+         reading laid across three bands it does not name */
+      const busX = g.splitX + corridor * (tight ? 0.55 : GR_SIGNAL_TAP);
+      const right = true;
       let y0 = Infinity;
       let y1 = -Infinity;
       splitLegs.forEach((r, i) => {
         const s = sampleAt(r, busX);
-        if (s !== null) {
+        /* the label runs ~26px along the corridor, and the band it names is
+           climbing or falling under it the whole way. So the edge it clears is
+           the band's EXTREME over the label's own span, not its edge at the
+           reading point — otherwise a label sits 5px clear where it starts and
+           0.5px clear where it ends. */
+        const far = sampleAt(r, busX + (right ? 26 : -26));
+        if (s !== null && far !== null) {
           y0 = Math.min(y0, s.c);
           y1 = Math.max(y1, s.c);
+          const dir = GR_TAP_DIR[i] ?? -1;
+          const edge =
+            dir < 0
+              ? Math.min(s.c - s.w / 2, far.c - far.w / 2)
+              : Math.max(s.c + s.w / 2, far.c + far.w / 2);
           /* the share sits on the OUTSIDE of its leg — the same side the leg is
              travelling — so four labels diverge with the fan instead of
              closing on one another as it opens */
-          paths.shares.push({ x: busX, y: s.c, pct: (s.q / outRate) * 100, dir: GR_TAP_DIR[i] ?? -1 });
+          paths.shares.push({ x: busX, y: s.c, edge, pct: (s.q / outRate) * 100, dir });
         }
       });
-      if (y0 < y1) paths.bus = { x: busX, y0, y1, right: !tight };
+      if (y0 < y1) paths.bus = { x: busX, y0, y1, right };
     } else if (claim.at.q > 0) {
       /* the collected stack continues to the burner and past it at its stacked
          centrelines — four bands, still one hue each, never a mixed colour. The
@@ -1201,7 +1217,7 @@ function mountGrammar(): (() => void) | null {
             gauge,
             stations: [
               { x: g.collectX, c, q },
-              { x: g.sinkX - 3, c, q },
+              { x: g.sinkX - g.sinkSize * 0.72, c, q },
             ],
           }),
           ink: hue,
@@ -1213,12 +1229,16 @@ function mountGrammar(): (() => void) | null {
          `width === q x gauge` claim as every horizontal band on the figure. */
       const burnQ = claim.at.q * GR_BURN_RATIO;
       burnerY = g.trunkY - (claim.at.q * gauge) / 2 - 15;
+      /* the band stops just short of the terminator's arrow rather than under
+         it: a grey arrowhead drawn ON a white band is a hole in the band, and
+         the one mark that says "destroyed here" has to read */
+      burnSinkSize = Math.max(14, Math.min(22, burnSize * 0.5));
       paths.gbx = ribbonPath({
         key: 'gbx',
         gauge,
         stations: [
           { x: g.gbxTop, c: 0, q: burnQ },
-          { x: burnerY, c: 0, q: burnQ },
+          { x: burnerY - burnSinkSize * 0.72, c: 0, q: burnQ },
         ],
       });
       report = junctionReport(claim.at, claim.legs, gauge, 'last');
@@ -1410,8 +1430,10 @@ function mountGrammar(): (() => void) | null {
     ctx.textAlign = 'left';
     ctx.font = mono(9, 500);
     ctx.fillStyle = ink.muted;
-    ctx.fillText(String(GR_BAY_FULL), axX + 8, axTop + 4);
-    ctx.fillText('0', axX + 8, axBot + 3);
+    ctx.fillText(String(GR_BAY_FULL), axX + 9, axTop + 4);
+    /* the zero sits ABOVE its tick, so it cannot crowd the bay's own reading
+       on the line below */
+    ctx.fillText('0', axX + 9, axBot - 2);
 
     /* ---- mechanisms ------------------------------------------------------- */
     vessel(ctx, g.vesselX, g.vesselY, {
@@ -1453,7 +1475,7 @@ function mountGrammar(): (() => void) | null {
     /* GBX dies here. The bar spans the band so a wide flow runs into a wall. */
     sink(ctx, g.burnX, burnerY, {
       ink: ink.muted,
-      size: Math.max(14, Math.min(22, burnSize * 0.5)),
+      size: burnSinkSize,
       fill: ink.muted,
       barH: Math.max(18, burnRate * g.gFlow),
       angle: Math.PI / 2,
@@ -1491,7 +1513,9 @@ function mountGrammar(): (() => void) | null {
     ctx.fillStyle = ink.pinkLabel;
     for (const s of paths.shares) {
       const lx = bus !== null && bus.right ? s.x + 4 : s.x - 4;
-      ctx.fillText(fix(s.pct, 0) + '%', lx, s.y + (s.dir < 0 ? -5 : 11));
+      /* cleared off the band by the band's OWN half-width: a share printed at a
+         fixed offset lands on top of its own leg as soon as that leg is wide */
+      ctx.fillText(fix(s.pct, 0) + '%', lx, s.dir < 0 ? s.edge - 5 : s.edge + 12);
     }
 
     /* ---- the collector's stack, named in order ----------------------------
@@ -1500,15 +1524,24 @@ function mountGrammar(): (() => void) | null {
        always in bay order, and the placard says which stripe is which without
        a reader having to distinguish two purples. */
     if (paths.stack.length > 0) {
-      const rowTop = g.trunkY + (GR_OUT_RATE * g.gFlow) / 2 + 18;
+      const stackBot = g.trunkY + (GR_OUT_RATE * g.gFlow) / 2;
+      const rowTop = stackBot + 26;
       ctx.font = mono(9, 600);
       const labelX = g.collectX + 21;
       paths.stack.forEach((s, i) => {
         const lx = g.collectX + 3 + (3 - i) * 4;
         const ry = rowTop + i * 11;
-        setStroke(ctx, PROCESS_REST, ink.ruleStrong);
+        /* the leader is drawn in two inks: dark where it crosses the bands, so
+           it reads as a callout rather than as a seam between two stripes, and
+           in the resting-route grey once it is out in the open */
+        setStroke(ctx, PROCESS_REST, ink.bg);
         ctx.beginPath();
         ctx.moveTo(lx, s.c);
+        ctx.lineTo(lx, stackBot);
+        ctx.stroke();
+        setStroke(ctx, PROCESS_REST, ink.ruleStrong);
+        ctx.beginPath();
+        ctx.moveTo(lx, stackBot);
         ctx.lineTo(lx, ry - 3);
         ctx.lineTo(labelX - 3, ry - 3);
         ctx.stroke();
@@ -1522,7 +1555,7 @@ function mountGrammar(): (() => void) | null {
       ctx.font = mono(8.5, 500);
       ctx.fillStyle = ink.muted;
       const titleW = ctx.measureText('STACK ORDER').width;
-      if (g.sinkX - (g.collectX + 3) > titleW + 26) ctx.fillText('STACK ORDER', g.collectX + 3, rowTop - 8);
+      if (g.sinkX - (g.collectX + 3) > titleW + 26) ctx.fillText('STACK ORDER', g.collectX + 3, rowTop - 9);
     }
 
     /* ---- the readings ----------------------------------------------------

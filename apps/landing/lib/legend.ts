@@ -409,11 +409,14 @@ export function drawLegend(
         ctx.moveTo(x + 10, y + 8);
         ctx.lineTo(x + 10, y + 12);
         ctx.stroke();
+        /* left-aligned on the box's own edge, exactly as a figure draws it —
+           a key whose sample is set differently from the thing it publishes is
+           a key that has already drifted */
         ctx.save();
-        ctx.textAlign = 'center';
+        ctx.textAlign = 'left';
         ctx.font = o.fonts.micro;
         ctx.fillStyle = ink.hi;
-        ctx.fillText('NVDA 21.1', x + 10, y + 21);
+        ctx.fillText('NVDA 21.1', x, y + 21);
         ctx.restore();
       },
     },

@@ -4,7 +4,7 @@ import { useLayoutEffect } from 'react';
 import { fontFamily, registerSim } from '../../lib/harness';
 import { ease, ramp } from '../../lib/ease';
 import { ASSETS as ASSET_HUES, GBX, USDG, drawLegend, legendAltText, legendFonts, readInk, wrap } from '../../lib/legend';
-import { SIGNAL, hairline, node, setStroke, sink, splitter, tag, valve, vessel } from '../../lib/isa';
+import { PROCESS_REST, SIGNAL, hairline, node, setStroke, sink, splitter, tag, valve, vessel } from '../../lib/isa';
 import {
   centrePath,
   convergeFlow,
@@ -241,6 +241,8 @@ interface Check {
   claim: number;
   drawn: number;
   err: number;
+  /** a row that is SUPPOSED to be non-zero: it calibrates the zeros beside it */
+  control?: boolean;
 }
 
 export function Plate() {
@@ -427,22 +429,22 @@ export function Plate() {
       /* HEAD_H is the reserved title row every station gets. Nothing is ever
          drawn into it, which is why no station title can collide with the
          station above it however the band heights move. */
-      const HEAD_H = narrow ? 54 : 34;
+      const HEAD_H = narrow ? 66 : 34;
 
       /* Fixed bands first, then the flexible ones share what is left by
          weight, each with a floor that is the sum of its own reserved rows.
          Nothing is ever cut by its own container: if the floors do not fit
          the section's declared height the plate grows past it, which the
          measurement catches, rather than a mark being silently clipped. */
-      const gaugeH = narrow ? 112 : 76;
+      const gaugeH = narrow ? 134 : 76;
       const headH = legendH + gaugeH + (narrow ? 30 : 26);
       const brkH = narrow ? 132 : 106;
-      const instrH = narrow ? 250 : 170;
+      const instrH = narrow ? 286 : 196;
       const fixed = headH + brkH + instrH + pad * 2;
 
       const cgap = narrow ? 5 : 8;
       const chMin = narrow ? 78 : 92;
-      const mineMin = HEAD_H + 42 + (chMin * 4 + cgap * 3) + 20 + (narrow ? 140 : 126);
+      const mineMin = HEAD_H + (narrow ? 100 : 42) + (chMin * 4 + cgap * 3) + 20 + (narrow ? 140 : 126);
       const flex: { k: 'mine' | 'router' | 'stream' | 'auc' | 'fund' | 'you'; w: number; min: number }[] = [
         { k: 'mine', w: 30, min: mineMin },
         { k: 'router', w: 11, min: HEAD_H + (narrow ? 250 : 176) },
@@ -493,8 +495,8 @@ export function Plate() {
          nothing crosses them; the fork runs below the board, and the 80% leg
          DEAD-ENDS INSIDE STATION 01 — only the remainder crosses into the
          Router's station, which is the truth about where each half goes. */
-      const tallyY = mine.y0 + HEAD_H + 22;
-      const gridTop = tallyY + 20;
+      const tallyY = mine.y0 + HEAD_H + (narrow ? 30 : 22);
+      const gridTop = tallyY + (narrow ? 62 : 20);
       const claimY = mine.y1 - (narrow ? 46 : 40);
       const splitY = claimY - (narrow ? 46 : 42);
       const forkY = splitY - (narrow ? 48 : 44);
@@ -853,13 +855,37 @@ export function Plate() {
           drawn: rep.legQ,
           err: rep.qErr + rep.maxSeamPx + rep.spanErrPx,
         });
+        /* THE PX ERROR, NOT THE UNIT ERROR. In units the scan is exactly zero
+           for ever, because the residual goes on the last lane by construction
+           — a zero indistinguishable from an unwired instrument. The px error
+           is a different arithmetic (four products summed against one) and
+           carries real float noise, so it moves. */
         const scan = scanConservation({ legs: fan, total: rate, from: l.trunkY1, to: l.laneLandY, samples: 33 });
         F.checks.push({
           seg: 'S3',
-          what: 'across the fan, 33 stations',
-          claim: rate,
-          drawn: rate + (scan.maxAbsErr || 0),
-          err: scan.maxAbsErr,
+          what: 'across the fan, 33 stations · px',
+          claim: widthOf(l.gFlow, rate),
+          drawn: widthOf(l.gFlow, rate) + scan.maxAbsPxErr,
+          err: scan.maxAbsPxErr,
+        });
+        /* AND THE LIVE POSITIVE CONTROL. The same check, every frame, against
+           a fan with one lane 0.4% short — so the zero beside it is calibrated
+           rather than asserted. If this row ever reads zero, the instrument is
+           broken and the row above it means nothing. */
+        const bad = splitFlow({
+          gauge: l.gFlow,
+          at,
+          legs: legs.map((lg, i) => (i === 1 ? { ...lg, q: lg.q * 0.996 } : lg)),
+          steps: 18,
+        });
+        const badScan = scanConservation({ legs: bad, total: rate, from: l.trunkY1, to: l.laneLandY, samples: 33 });
+        F.checks.push({
+          seg: '··',
+          what: 'positive control — one lane 0.4% short',
+          claim: widthOf(l.gFlow, rate),
+          drawn: widthOf(l.gFlow, rate) - badScan.maxAbsPxErr,
+          err: badScan.maxAbsPxErr,
+          control: true,
         });
         /* THE ONE THAT IS NOT FREE. Sum-of-legs = trunk holds by construction,
            because the residual goes on the last lane the way the contracts
@@ -1269,13 +1295,16 @@ export function Plate() {
         ctx.fillText(text, tx, yy + 4);
       });
       const ry = y + 22 + (l.narrow ? 3 * 24 : 20);
-      label(
+      ctx.font = mono(9, 400);
+      ctx.fillStyle = ink.faint;
+      ctx.textAlign = 'left';
+      wrap(
+        ctx,
         'Nothing on this plate is faded to mean "less": a small quantity is a NARROW band, never a dim one. Each station also prints any gauge of its own — the auctions\u2019 lots and every fund bay.',
-        l.pad,
-        ry + 4,
-        9,
-        ink.faint,
-      );
+        l.w - l.pad * 2,
+      )
+        .slice(0, l.narrow ? 3 : 1)
+        .forEach((t, i) => ctx.fillText(t, l.pad, ry + 4 + i * 11));
     }
 
     /* --------------------------------------------------------------- mine */
@@ -1411,7 +1440,10 @@ export function Plate() {
       }
 
       /* --- the fork ---------------------------------------------------- */
-      F.pipes.slice(0, 2).forEach((pp) => strokeFlow(pp, ink.rule, 1));
+      /* A resting route is drawn ONLY while its station is at zero. A hairline
+         running alongside a live band reads as a ghost edge on the band, which
+         is a mark carrying no quantity sitting on a mark that does. */
+      if (packet === null) F.pipes.slice(0, 2).forEach((pp) => strokeFlow(pp, ink.rule, PROCESS_REST.width));
 
       if (packet !== null) {
         const head = l.gridBot + (l.landY - l.gridBot) * ease(F.packetP);
@@ -1427,7 +1459,7 @@ export function Plate() {
 
       /* the dead end: a pull claim is not a payment pushed to anyone, and it
          terminates INSIDE this station — it never crosses into the Router's */
-      sink(ctx, l.claimC, l.claimY, { ink: ink.muted, size: 17, fill: ink.muted, barH: 26 });
+      sink(ctx, l.claimC, l.claimY, { ink: ink.muted, size: 17, fill: ink.muted, barH: 26, angle: Math.PI / 2 });
       label('PULL CLAIM · 80%', l.claimC + 18, l.claimY - 2, 10, ink.hi);
       ctx.font = mono(9, 400);
       ctx.fillStyle = ink.muted;
@@ -1502,7 +1534,7 @@ export function Plate() {
       const cwid = (l.w - l.pad * 2) / nCol;
       cells.forEach(([k, v], i) => {
         const x = l.pad + (i % nCol) * cwid;
-        const y = l.tallyY + (l.narrow ? Math.floor(i / nCol) * 26 - 12 : 0);
+        const y = l.tallyY + (l.narrow ? Math.floor(i / nCol) * 44 : 0);
         ctx.font = mono(l.narrow ? 8 : 9, 400);
         ctx.fillStyle = ink.muted;
         ctx.textAlign = 'left';
@@ -1700,9 +1732,9 @@ export function Plate() {
         label('releasing ' + rate.toFixed(4) + ' USDG/s', tx + tw + 10, ty + 39, 9.5, ink.muted);
       }
 
-      /* at rest first, live over it — a resting channel must never read as a
-         ghost edge beside the band that fills it */
-      F.pipes.slice(2, 6).forEach((pp) => strokeFlow(pp, ink.rule, 1));
+      /* a resting channel is drawn only while it is resting — never beside the
+         band that fills it, where it would read as a ghost edge */
+      if (rate <= 0) F.pipes.slice(2, 6).forEach((pp) => strokeFlow(pp, ink.rule, PROCESS_REST.width));
       F.streamBands.forEach((band) => fillFlow(band.path, band.ink));
 
       /* the control node: signal is a thin dashed line and carries no width */
@@ -1819,8 +1851,7 @@ export function Plate() {
           ground: ink.raised,
         });
         if (l.narrow) {
-          label(a.sym, bay.cx, l.aucValY, 8.5, ink.muted, 'center');
-          label(money(a.pot), bay.cx, l.aucValY + 11, 9, ink.text, 'center');
+          label(a.sym + ' ' + money(a.pot), bay.cx, l.aucValY + 4, 8, ink.text, 'center');
         } else {
           label(a.sym + '  ' + money(a.pot), bay.cx, l.aucValY, 10.5, ink.text, 'center');
           label('USDG waiting for its auction', bay.cx, l.aucValY + 12, 9, ink.faint, 'center');
@@ -1829,7 +1860,10 @@ export function Plate() {
 
       /* the exchange, drawn as an exchange: the pipes at rest first, then the
          live bands over them, then the trader each pair passes through */
-      F.pipes.slice(10, 14).forEach((pp) => strokeFlow(pp, ink.rule, 1));
+      F.pipes.slice(10, 14).forEach((pp, i) => {
+        const f = flush[i];
+        if (!f || f.age >= 1 || f.lot <= 0) strokeFlow(pp, ink.rule, PROCESS_REST.width);
+      });
       F.aucBands.forEach((band) => fillFlow(band.path, band.ink));
       rz.assets.forEach((a, i) => {
         const bay = l.bays[i];
@@ -1977,9 +2011,25 @@ export function Plate() {
         ctx.lineWidth = 1;
         ctx.setLineDash([]);
         ctx.strokeRect(hairline(x, l.dpr), hairline(l.bayTop, l.dpr), w - 1, bayH - 1);
+        /* the STOCK reading form the key publishes: name and number on ONE
+           line, ticked to the vessel that holds it — never a bare numeral
+           under a bare word */
         label(hh.sym, bay.cx, l.bayTop - 7, 10.5, ink.hi, 'center');
-        label(hh.amt.toFixed(hh.amt < 10 ? 4 : 1), bay.cx, l.bayBot + 14, l.narrow ? 9 : 10, ink.text, 'center');
-        if (!l.narrow) label(hh.sym, bay.cx, l.bayBot + 26, 9, ink.faint, 'center');
+        ctx.strokeStyle = ink.ruleStrong;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(bay.cx, hairline(l.bayTop + bayH, l.dpr));
+        ctx.lineTo(bay.cx, hairline(l.bayTop + bayH + 5, l.dpr));
+        ctx.stroke();
+        label(
+          hh.sym + '  ' + hh.amt.toFixed(hh.amt < 10 ? 4 : 1),
+          bay.cx,
+          l.bayBot + 16,
+          l.narrow ? 8.5 : 10,
+          ink.text,
+          'center',
+        );
         if (i === 0) {
           const byy = l.bayTop + bayH * (1 - 1 / 1.22);
           ctx.strokeStyle = ink.ruleStrong;
@@ -2025,7 +2075,7 @@ export function Plate() {
       const burnY = (l.burnY0 + l.burnY1) / 2;
       valve(ctx, burnX, burnY, { ink: ink.panel, size: 21, weight: 4 });
       valve(ctx, burnX, burnY, { ink: ink.muted, size: 21, open: rd.phase === 'burn', fill: GBX_BODY });
-      sink(ctx, burnX + 32, burnY, { ink: ink.muted, size: 19, fill: GBX_BODY, barH: 24 });
+      sink(ctx, burnX + 32, burnY, { ink: ink.muted, size: 19, fill: GBX_BODY, barH: 24, angle: 0 });
       label('BURN', burnX - 11, burnY + 26, 10, ink.hi);
       label('GBX leaves and does not return', burnX + 52, burnY + 4, 9.5, ink.muted);
 
@@ -2054,7 +2104,7 @@ export function Plate() {
       );
 
       /* the four claim ribbons, and the collector */
-      F.pipes.slice(6, 10).forEach((pp) => strokeFlow(pp, ink.rule, 1));
+      if (rd.phase !== 'burn') F.pipes.slice(6, 10).forEach((pp) => strokeFlow(pp, ink.rule, PROCESS_REST.width));
       F.claimBands.forEach((band) => fillFlow(band.path, band.ink));
       node(ctx, l.cx, l.collectY + 20, { ink: ink.muted, size: 18, fill: ink.raised });
       label('YOU', l.cx + 16, l.collectY + 24, 11, ink.hi);
@@ -2108,10 +2158,10 @@ export function Plate() {
         'Δ is printed in exponential form so an error can never hide behind a rounded zero, and it turns pink above 1e-11 of the quantity being checked — relative, because a six-figure GBX total floors an order of magnitude higher than a rate does. The Router row is the one that proves the break is honest: in − out − held. These are instantaneous checks, not counters; the tallies beside each station are the cumulative figures.',
         l.w - l.pad * 2,
       )
-        .slice(0, l.narrow ? 3 : 2)
+        .slice(0, 3)
         .forEach((t, i) => ctx.fillText(t, l.pad, b.y0 + 32 + i * 11));
       const rows = F.checks;
-      const y0 = b.y0 + (l.narrow ? 74 : 58);
+      const y0 = b.y0 + (l.narrow ? 84 : 68);
       const rh = Math.min(20, (b.y1 - y0 - 6) / Math.max(1, rows.length));
       const c1 = l.pad + 30;
       const c2 = l.pad + 330;
@@ -2137,7 +2187,8 @@ export function Plate() {
            absolute threshold flags the big row for ever and teaches a reader
            to ignore the colour — which is worse than no colour at all. */
         const tol = 1e-11 * Math.max(1, Math.abs(r.claim));
-        label(r.err.toExponential(2), c4, y, 9.5, r.err > tol ? ink.pinkLabel : ink.text, 'right');
+        const bad = r.control === true ? r.err < tol : r.err > tol;
+        label(r.err.toExponential(2), c4, y, 9.5, bad ? ink.pinkLabel : r.control === true ? ink.muted : ink.text, 'right');
       });
     }
 
