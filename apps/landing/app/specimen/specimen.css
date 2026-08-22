@@ -922,7 +922,7 @@
   width: 100%;
 }
 .sp-gram__key {
-  height: 348px;
+  height: 740px;
   margin-top: var(--s5);
 }
 .sp-gram__cap {
@@ -947,12 +947,12 @@
 }
 @media (max-width: 880px) {
   .sp-gram__key {
-    height: 492px;
+    height: 1000px;
   }
 }
 @media (max-width: 620px) {
   .sp-gram__key {
-    height: 846px;
+    height: 1156px;
   }
   .sp-gram__flow {
     height: 400px;
@@ -962,6 +962,14 @@
   }
   .sp-gram__check dd {
     font-size: 13.5px;
+  }
+}
+/* The key solves its own column counts from measured text, so its natural
+   height climbs as the box narrows. These are measured, not guessed: a legend
+   that is cut by its own container has failed at the one thing it is for. */
+@media (max-width: 430px) {
+  .sp-gram__key {
+    height: 1364px;
   }
 }
 

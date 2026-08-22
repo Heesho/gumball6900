@@ -1,0 +1,50 @@
+/* ============================== 15 · the plate ==========================
+   ONE DIAGRAM. Flat orthographic, top to bottom, travelled by scrolling.
+   All five figures collapse into it.
+
+   The stage's height is declared HERE, server-side, so the canvas has final
+   geometry before hydration and the first paint shifts nothing — the effect
+   only ever sets the backing store. The layout solves into whatever height it
+   is given; these three values are the ones measured to hold every station's
+   minimum at their breakpoints without a single mark being cut. */
+#sec-plate .pl-stage {
+  position: relative;
+  width: 100%;
+  height: 3320px;
+  min-width: 0;
+}
+@media (max-width: 1023px) {
+  #sec-plate .pl-stage {
+    height: 3640px;
+  }
+}
+@media (max-width: 719px) {
+  #sec-plate .pl-stage {
+    height: 5300px;
+  }
+}
+#sec-plate .pl-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The plate's own note voice — the mono eyebrow the other panels use. */
+#sec-plate .pl-cap {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: var(--s3);
+}
+#sec-plate .pl-how {
+  margin-top: calc(-1 * var(--s4));
+  margin-bottom: var(--s6);
+}
+@media (min-width: 881px) {
+  #sec-plate .pl-how {
+    margin-left: calc(180px + clamp(20px, 3vw, 48px));
+  }
+}

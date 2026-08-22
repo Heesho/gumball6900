@@ -17,9 +17,12 @@
  *   NODE      a control node — the source of a signal. Signal lines are thin
  *             and dashed and never carry quantity.
  *
- * The other half of the grammar is the pair of line weights below. Capital
- * flow and control signal must never be the same stroke, so they are one
- * exported constant pair rather than a magic number at each call site.
+ * The other half of the grammar is the THREE line weights below. Capital flow
+ * and control signal must never be the same stroke, so they are one exported
+ * set rather than a magic number at each call site. The third weight is the
+ * one a figure uses most and the one a legend most often forgets: a route with
+ * nothing in it. On a plate where most stations are at rest at any instant it
+ * is the dominant mark on screen, so it is published rather than assumed.
  *
  * Everything here is pure geometry: colours arrive as arguments, the palette
  * lives in lib/legend.ts, and nothing in this file touches the DOM. Coordinates
@@ -36,11 +39,19 @@ export interface StrokeSpec {
 /** Capital, material, quantity. A heavy solid line, or a filled ribbon. */
 export const PROCESS: StrokeSpec = { width: 2, dash: [], cap: 'butt' };
 
+/**
+ * A route with nothing in it. Same geometry as the flow that will run through
+ * it, drawn as a hairline because its quantity is zero — a pipe is not a flow.
+ * It is never drawn beside or across a live band: where material is moving,
+ * the band replaces it.
+ */
+export const PROCESS_REST: StrokeSpec = { width: 1, dash: [], cap: 'butt' };
+
 /** Control, measurement, aim. A light dashed line. Carries no quantity. */
 export const SIGNAL: StrokeSpec = { width: 1, dash: [3, 3], cap: 'butt' };
 
-/** The pair, for a legend or a lookup. */
-export const STROKE = { PROCESS, SIGNAL } as const;
+/** The three, for a legend or a lookup. */
+export const STROKE = { PROCESS, PROCESS_REST, SIGNAL } as const;
 
 /** Hairline used for glyph outlines and instrument chrome. */
 export const GLYPH_STROKE = 1.25;
@@ -273,19 +284,28 @@ export function vessel(ctx: CanvasRenderingContext2D, x: number, y: number, styl
  * The terminator. A solid arrow into a bar, with hatching beyond it: what
  * arrives leaves the system and does not come back. The burn is a sink, not a
  * re-entrant flow, and this is the mark that says so.
+ *
+ * `angle` rotates the whole glyph about (x, y) — 0 points right, Math.PI / 2
+ * points down — so a band arriving from any direction dies against a bar drawn
+ * square to it. Everything is laid out about the origin and then transformed,
+ * so the untransformed case is byte-identical to the hand-placed version it
+ * replaces.
  */
 export function sink(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  style: GlyphStyle & { readonly barH?: number },
+  style: GlyphStyle & { readonly barH?: number; readonly angle?: number },
 ): void {
   const s = begin(ctx, style);
   const h = s / 2;
+  ctx.save();
+  ctx.translate(x, y);
+  if (style.angle !== undefined && style.angle !== 0) ctx.rotate(style.angle);
   ctx.beginPath();
-  ctx.moveTo(x - s * 0.62, y - h * 0.68);
-  ctx.lineTo(x - s * 0.06, y);
-  ctx.lineTo(x - s * 0.62, y + h * 0.68);
+  ctx.moveTo(-s * 0.62, -h * 0.68);
+  ctx.lineTo(-s * 0.06, 0);
+  ctx.lineTo(-s * 0.62, h * 0.68);
   ctx.closePath();
   ctx.fillStyle = style.fill ?? style.ink;
   ctx.fill();
@@ -294,17 +314,18 @@ export function sink(
      wall rather than tapering into a symbol */
   const bar = Math.max(s, style.barH ?? 0) / 2;
   ctx.beginPath();
-  ctx.moveTo(x, y - bar);
-  ctx.lineTo(x, y + bar);
+  ctx.moveTo(0, -bar);
+  ctx.lineTo(0, bar);
   ctx.stroke();
 
   ctx.beginPath();
   for (let i = -1; i <= 1; i++) {
-    const yy = y + i * h * 0.62;
-    ctx.moveTo(x + s * 0.14, yy - s * 0.16);
-    ctx.lineTo(x + s * 0.44, yy + s * 0.16);
+    const yy = i * h * 0.62;
+    ctx.moveTo(s * 0.14, yy - s * 0.16);
+    ctx.lineTo(s * 0.44, yy + s * 0.16);
   }
   ctx.stroke();
+  ctx.restore();
 }
 
 /* -------------------------------------------------------------- 6 · NODE -- */

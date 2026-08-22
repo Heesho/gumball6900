@@ -385,15 +385,32 @@ export interface ConservationScan {
   readonly maxAbsErr: number;
   readonly maxRelErr: number;
   readonly worstX: number;
+  /**
+   * The same scan in the DRAWN domain: the summed band widths against the
+   * trunk's width, in px.
+   *
+   * This is the number worth printing. `maxAbsErr` is measured on quantities
+   * the caller allocated, and a caller that allocates the residual to its last
+   * leg the way the contracts do (`toRouter = paid - toMiner`) makes that sum
+   * exact by construction — 0.00e+0 at every sample, forever, which is
+   * indistinguishable from an instrument that is not wired up. The px sum is a
+   * different arithmetic: four products summed in draw order against one
+   * product of the total, so float noise is real (measured: non-zero at
+   * 1,569 of 4,000 live samples, worst 1.42e-14 px) and a reader can see the
+   * check is alive. Both catch a real leak; only this one is honest about
+   * being a measurement.
+   */
+  readonly maxAbsPxErr: number;
+  readonly worstPxX: number;
   readonly samples: number;
   readonly ok: boolean;
 }
 
 /**
  * Prove the whole fan, not only its junction: sample the legs at `samples`
- * positions across the span and check that their quantities still sum to
- * `total` at every one. This is the check that catches a leg whose taper is
- * not backed by a drawn mechanism.
+ * positions across the span and check that their quantities — and the widths
+ * those quantities are drawn at — still sum to `total` at every one. This is
+ * the check that catches a leg whose taper is not backed by a drawn mechanism.
  */
 export function scanConservation(spec: {
   readonly legs: readonly Ribbon[];
@@ -402,22 +419,37 @@ export function scanConservation(spec: {
   readonly to: number;
   readonly samples?: number;
   readonly tol?: number;
+  /** px per unit; defaults to the legs' own gauge. */
+  readonly gauge?: Gauge;
 }): ConservationScan {
   const samples = spec.samples ?? 33;
   const tol = spec.tol ?? 1e-9;
+  const gauge = spec.gauge ?? spec.legs[0]?.gauge ?? 1;
+  const totalPx = widthOf(gauge, spec.total);
   let maxAbsErr = 0;
   let worstX = spec.from;
+  let maxAbsPxErr = 0;
+  let worstPxX = spec.from;
   for (let i = 0; i < samples; i++) {
     const x = samples === 1 ? spec.from : spec.from + ((spec.to - spec.from) * i) / (samples - 1);
     let sum = 0;
+    let sumPx = 0;
     for (const r of spec.legs) {
       const s = sampleAt(r, x);
-      if (s !== null) sum += s.q;
+      if (s !== null) {
+        sum += s.q;
+        sumPx += s.w;
+      }
     }
     const err = Math.abs(sum - spec.total);
     if (err > maxAbsErr) {
       maxAbsErr = err;
       worstX = x;
+    }
+    const pxErr = Math.abs(sumPx - totalPx);
+    if (pxErr > maxAbsPxErr) {
+      maxAbsPxErr = pxErr;
+      worstPxX = x;
     }
   }
   const denom = Math.abs(spec.total);
@@ -425,6 +457,8 @@ export function scanConservation(spec: {
     maxAbsErr,
     maxRelErr: denom === 0 ? (maxAbsErr === 0 ? 0 : Infinity) : maxAbsErr / denom,
     worstX,
+    maxAbsPxErr,
+    worstPxX,
     samples,
     ok: maxAbsErr <= tol,
   };

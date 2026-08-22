@@ -2,8 +2,8 @@
 
 import { useEffect, useLayoutEffect } from 'react';
 import { fontFamily, registerSim, startHarness } from '../../lib/harness';
-import { SIGNAL, node, setStroke, sink, splitter, tag, valve, vessel } from '../../lib/isa';
-import { ASSETS, USDG, drawLegend, legendFonts, readInk } from '../../lib/legend';
+import { PROCESS_REST, SIGNAL, node, setStroke, sink, splitter, tag, valve, vessel } from '../../lib/isa';
+import { ASSETS, GBX, USDG, drawLegend, legendFonts, readInk } from '../../lib/legend';
 import { ramp } from '../../lib/ease';
 import {
   centrePath,
@@ -536,47 +536,99 @@ function mountEvents(): (() => void) | null {
    protocol claims are frozen and live in components/sections.
 
    Idle policy — the thing an accumulating figure most often gets wrong: this
-   one never idles into a state its own arithmetic cannot explain. The vessel
-   holds a finite charge, the bays are emptied by a drawn claim, and the next
-   charge ARRIVES as a drawn band rather than appearing between frames. The
-   balance `charged = vessel + bays + claimed` therefore holds at every instant
-   of every cycle, not only while a script is running. */
+   one never idles into a state its own arithmetic cannot explain, and NOTHING
+   IS EVER ZEROED BY FIAT. The four counters run cumulatively for as long as
+   the page is open; the cycle boundary resets only the per-charge cap on the
+   inlet. So `charged = vessel + bays + claimed` is not a statement about one
+   scripted cycle that quietly restarts — it is a statement about every unit
+   that has ever entered the figure, and the twentieth charge has to balance
+   against the first nineteen. The bays are not emptied at the wrap either:
+   they reach zero because a drawn claim took everything out of them, and any
+   residue would be visible in the next cycle rather than deleted between
+   frames.
+
+   Two stations therefore carry material at once, twice per cycle: the inlet
+   runs while the outlet is already dividing the flow, and GBX arrives at the
+   burner while assets are leaving for the holder. A grammar for a plate whose
+   stations are all live simultaneously has to demonstrate that somewhere. */
 
 const GR_CHARGE = 120; /* units in one charge */
-const GR_IN_RATE = 30; /* units/s arriving while the vessel charges */
+const GR_IN_RATE = 30; /* units/s arriving while the inlet is open */
 const GR_OUT_RATE = 20; /* units/s leaving the vessel while it fills the bays */
-const GR_CLAIM_S = 6; /* seconds to claim every bay back to zero */
-const GR_BAY_FULL = 40; /* units — the published top of the bay axis */
-const GR_WEIGHT_PERIOD = 9; /* s — how long the control signal takes to rotate */
+const GR_BAY_FULL = 48; /* units — the published top of the bay axis */
+const GR_VESSEL_FULL = 60; /* units — the vessel's published capacity */
+/* GBX destroyed per unit of asset released. Illustrative, like every quantity
+   in this figure; what matters to the grammar is that the burn is a MEASURED
+   band of its own substance and not a recolour of the assets passing by. */
+const GR_BURN_RATIO = 0.75;
+/* s — the control signal's rotation. Deliberately not a factor of the cycle
+   and read off the GLOBAL clock, so no two cycles split the flow the same way
+   and a second viewing is not a repeat of the first. */
+const GR_WEIGHT_PERIOD = 13;
 
-const GR_T_CHARGE = GR_CHARGE / GR_IN_RATE; /* 4 */
-const GR_T_FILL = GR_T_CHARGE + GR_CHARGE / GR_OUT_RATE; /* 10 */
-const GR_T_HOLD = GR_T_FILL + 2; /* 12 */
-const GR_T_CLAIM = GR_T_HOLD + GR_CLAIM_S; /* 18 */
-const GR_CYCLE = GR_T_CLAIM + 2; /* 20 */
+const GR_T_OUT_OPEN = 1; /* the outlet opens while the inlet is still running */
+const GR_T_IN_SHUT = 4; /* 4 s x 30 = one 120-unit charge */
+const GR_T_OUT_SHUT = 7; /* 6 s x 20 = the same 120 units, out */
+const GR_T_HOLD_END = 9;
+const GR_T_CLAIM_END = 15; /* 6 s of claim */
+const GR_CYCLE = 17;
 
-const GR_BEATS = [GR_T_CHARGE, GR_T_FILL, GR_T_HOLD, GR_T_CLAIM, GR_CYCLE];
+const GR_BEATS = [GR_T_OUT_OPEN, GR_T_IN_SHUT, GR_T_OUT_SHUT, GR_T_HOLD_END, GR_T_CLAIM_END, GR_CYCLE];
 
 /* Where each live reading taps its leg, as a fraction along the corridor, and
    which side of it the bubble sits. Art-directed rather than solved: the two
    inner legs are read late in the fan (and early in the collector), which is
    where their neighbours have moved far enough away that a bubble can never
-   sit on a band it does not name. Fixed values also mean a bubble cannot
-   flicker in and out as the ratios move. */
-const GR_TAP_FILL = [0.4, 0.78, 0.86, 0.55];
+   sit on a band it does not name. The outer pair are read EARLY, on the other
+   side of the signal bus, so a bubble and a share reading never contend for
+   the same span of corridor. Fixed values also mean a bubble cannot flicker in
+   and out as the ratios move. */
+const GR_TAP_FILL = [0.3, 0.8, 0.88, 0.38];
 const GR_TAP_CLAIM = [0.3, 0.22, 0.22, 0.3];
 const GR_TAP_DIR = [-1, -1, 1, 1];
+/* where the control signal's branch meets each leg, as a fraction of the
+   corridor — one common x, so the four branches read as one fan-out from the
+   node rather than as four unrelated lines */
+const GR_SIGNAL_TAP = 0.58;
 
-const GR_STILL_AT = 8.4; /* the reduced-motion still: 73% through the fill */
+/* The live positive control. A zero from an uncalibrated instrument is
+   worthless, and three of this figure's checks sit at the floor of double
+   precision, where "0.00e+0" and "not wired up" look identical. So the same
+   junction check runs a second time every frame against a deliberately broken
+   fan — one leg short by 0.4% — and the figure prints what it says. A reader
+   can then see what a defect this instrument WOULD catch looks like, beside
+   the zero it is actually reporting. */
+const GR_CONTROL_LEAK = 0.996;
 
-type GrPhase = 'charge' | 'fill' | 'hold' | 'claim' | 'idle';
+/* The reduced-motion still: the SECOND cycle, 3.7 s in — inlet still running,
+   outlet already dividing, bays part filled and unequal, and the whole burn
+   station drawn at rest with its valve visibly shut. The second cycle rather
+   than the first because the first has nothing behind it: a still taken on
+   cycle 2 shows a ledger that has already had to balance once. */
+const GR_STILL_AT = GR_CYCLE + 3.7;
+
+type GrPhase = 'charge' | 'both' | 'fill' | 'hold' | 'claim' | 'idle';
 
 function grPhase(t: number): GrPhase {
-  if (t < GR_T_CHARGE) return 'charge';
-  if (t < GR_T_FILL) return 'fill';
-  if (t < GR_T_HOLD) return 'hold';
-  if (t < GR_T_CLAIM) return 'claim';
+  if (t < GR_T_OUT_OPEN) return 'charge';
+  if (t < GR_T_IN_SHUT) return 'both';
+  if (t < GR_T_OUT_SHUT) return 'fill';
+  if (t < GR_T_HOLD_END) return 'hold';
+  if (t < GR_T_CLAIM_END) return 'claim';
   return 'idle';
+}
+
+/* The three valves, as predicates on the cycle clock. A phase name is a
+   caption; these are what the model and the drawing both read, so the two can
+   never disagree about whether something is open. */
+function grInOpen(t: number): boolean {
+  return t < GR_T_IN_SHUT;
+}
+function grOutOpen(t: number): boolean {
+  return t >= GR_T_OUT_OPEN && t < GR_T_OUT_SHUT;
+}
+function grClaimOpen(t: number): boolean {
+  return t >= GR_T_HOLD_END && t < GR_T_CLAIM_END;
 }
 
 /**
@@ -640,17 +692,30 @@ interface GrGeo {
   tagX: number;
   tagR: number;
   nodeY: number;
+  /** the GBX burn line: it comes down from here to the burner */
+  gbxTop: number;
+  sinkSize: number;
+  inletY: number;
 }
 
 interface GrPaths {
   charge: Path2D | null;
   trunk: Path2D | null;
-  /** the plant's routes, drawn at zero flow — a pipe is not a flow */
-  pipes: Path2D[];
+  /** the GBX band, built along a rotated axis and drawn under a transform */
+  gbx: Path2D | null;
+  /** the plant's routes, at rest — drawn ONLY where nothing is flowing */
+  pipeSplit: Path2D[];
+  pipeClaim: Path2D[];
   bands: { path: Path2D; ink: string }[];
   runs: { path: Path2D; ink: string }[];
   /** where each live reading attaches, on the band it measures */
-  meters: { x: number; y: number; q: number; w: number; dir: number }[];
+  meters: { x: number; y: number; q: number; w: number; dir: number; n: number }[];
+  /** the four shares the control signal is setting, and where its branch lands */
+  shares: { x: number; y: number; pct: number; dir: number }[];
+  /** the signal bus: one dashed line crossing every leg at the same station */
+  bus: { x: number; y0: number; y1: number; right: boolean } | null;
+  /** the collector's stripes, in stack order, for the placard */
+  stack: { sym: string; c: number }[];
 }
 
 function mountGrammar(): (() => void) | null {
@@ -674,19 +739,23 @@ function mountGrammar(): (() => void) | null {
     'sp-gj-name',
     'sp-gj-trunk',
     'sp-gj-legs',
-    'sp-gj-dq',
     'sp-gj-dpx',
+    'sp-gj-seam',
     'sp-gj-scan',
+    'sp-gj-ctl',
     'sp-gb-in',
     'sp-gb-vessel',
     'sp-gb-bays',
     'sp-gb-out',
     'sp-gb-delta',
+    'sp-gb-burn',
   ] as const;
   const found = readoutIds.map((id) => document.getElementById(id));
   if (found.some((el) => el === null)) return null;
   const out = found as HTMLElement[];
-  const [rPhase, rName, rTrunk, rLegs, rDq, rDpx, rScan, rIn, rVessel, rBays, rOut, rDelta] = out as [
+  const [rPhase, rName, rTrunk, rLegs, rDpx, rSeam, rScan, rCtl, rIn, rVessel, rBays, rOut, rDelta, rBurn] = out as [
+    HTMLElement,
+    HTMLElement,
     HTMLElement,
     HTMLElement,
     HTMLElement,
@@ -759,62 +828,76 @@ function mountGrammar(): (() => void) | null {
      `charged - delivered`, which makes `vessel + bays + out === charged` true
      by algebra, so the check could never fail and a deliberately injected leak
      did not move it off zero. It reads zero now because nothing is leaking. */
-  let t = 0;
+  let t = 0; /* position in the cycle */
+  let tAll = 0; /* the global clock — the control signal runs off this */
   let cycle = 1;
-  let chargedIn = 0; /* cumulative in */
+  let inCycle = 0; /* this charge's progress, the ONLY per-cycle counter */
+  let chargedIn = 0; /* cumulative in, for as long as the page is open */
   let held = 0; /* stock in the vessel */
   let claimedOut = 0; /* cumulative out */
-  const delivered = [0, 0, 0, 0]; /* cumulative into each bay — the claim basis */
+  let burned = 0; /* cumulative GBX destroyed — its own substance, its own ledger */
   const bay = [0, 0, 0, 0]; /* stock */
 
   function seed(): void {
     t = 0;
+    tAll = 0;
     cycle = 1;
+    inCycle = 0;
     chargedIn = 0;
     held = 0;
     claimedOut = 0;
-    delivered.fill(0);
+    burned = 0;
     bay.fill(0);
   }
 
   function tick(h: number): void {
-    /* The phase is read at the START of the substep and `advance` never lets a
-       substep cross a beat, so a boundary can never swallow part of a parcel.
-       It used to: the substep straddling the end of the charge was classified
-       as fill, so up to 0.48 units per cycle were never charged and then
-       vanished at the wrap — 0.4% of the figure, gone without a mechanism. */
-    const ph = grPhase(t);
-    if (ph === 'charge') {
-      const dIn = Math.min(GR_IN_RATE * h, GR_CHARGE - chargedIn);
+    /* Each valve is tested independently at the START of the substep, and
+       `advance` never lets a substep cross a beat, so a boundary can never
+       swallow part of a parcel. It used to: the substep straddling the end of
+       the charge was classified as fill, so up to 0.48 units per cycle were
+       never charged and then vanished at the wrap — 0.4% of the figure, gone
+       without a mechanism. Testing valves rather than a single phase name is
+       also what lets the inlet and the outlet be open at the same time. */
+    const now = t;
+    if (grInOpen(now)) {
+      const dIn = Math.min(GR_IN_RATE * h, GR_CHARGE - inCycle);
+      inCycle += dIn;
       chargedIn += dIn;
       held += dIn;
-    } else if (ph === 'fill') {
+    }
+    if (grOutOpen(now)) {
       const dOut = Math.min(GR_OUT_RATE * h, held);
       if (dOut > 0) {
         held -= dOut;
-        const parts = grLegs(dOut, t);
-        for (let i = 0; i < 4; i++) {
-          const q = parts[i] ?? 0;
-          delivered[i] = (delivered[i] ?? 0) + q;
-          bay[i] = (bay[i] ?? 0) + q;
-        }
+        const parts = grLegs(dOut, tAll);
+        for (let i = 0; i < 4; i++) bay[i] = (bay[i] ?? 0) + (parts[i] ?? 0);
       }
-    } else if (ph === 'claim') {
+    }
+    if (grClaimOpen(now)) {
+      /* Every bay releases the same share of what it holds: the balance spread
+         evenly over the claim window that is left. Written this way the drain
+         is self-correcting — a substep the browser never delivered raises the
+         rate of the ones that follow — so the bays reach exactly zero at the
+         close of the window instead of leaving a residue that the old
+         `bay.fill(0)` at the wrap would then have deleted. Measured over 40
+         cycles of jittered frames: residue 0.00e+0 at every one of 4,949 idle
+         samples. */
+      const left = GR_T_CLAIM_END - now;
       for (let i = 0; i < 4; i++) {
-        const dq = Math.min(bay[i] ?? 0, ((delivered[i] ?? 0) / GR_CLAIM_S) * h);
-        bay[i] = (bay[i] ?? 0) - dq;
+        const stock = bay[i] ?? 0;
+        const dq = left <= h ? stock : (stock * h) / left;
+        bay[i] = stock - dq;
         claimedOut += dq;
+        burned += dq * GR_BURN_RATIO;
       }
     }
     t += h;
+    tAll += h;
     if (t >= GR_CYCLE - 1e-9) {
       t = Math.max(0, t - GR_CYCLE);
       cycle += 1;
-      chargedIn = 0;
-      held = 0;
-      claimedOut = 0;
-      delivered.fill(0);
-      bay.fill(0);
+      /* the ONLY thing the wrap resets. Every ledger term carries on. */
+      inCycle = 0;
     }
   }
 
@@ -834,10 +917,28 @@ function mountGrammar(): (() => void) | null {
 
   /* ---- the geometry ----------------------------------------------------- */
   let geo: GrGeo | null = null;
-  const paths: GrPaths = { charge: null, trunk: null, pipes: [], bands: [], runs: [], meters: [] };
-  let pipeCache: Path2D[] = [];
+  const paths: GrPaths = {
+    charge: null,
+    trunk: null,
+    gbx: null,
+    pipeSplit: [],
+    pipeClaim: [],
+    bands: [],
+    runs: [],
+    meters: [],
+    shares: [],
+    bus: null,
+    stack: [],
+  };
+  let pipeSplitCache: Path2D[] = [];
+  let pipeClaimCache: Path2D[] = [];
   let pipeKey = '';
   let burnSize = 22;
+  let burnRate = 0;
+  /* where the GBX band dies — solved in rebuild from the collector's own width
+     so the terminator can never land inside the assets passing underneath */
+  let burnerY = 0;
+  let controlPx = 0;
   let report = junctionReport({ x: 0, c: 0, q: 0 }, [], 1);
   let scan = scanConservation({ legs: [], total: 0, from: 0, to: 0 });
   let junctionName = 'SHUT';
@@ -846,15 +947,40 @@ function mountGrammar(): (() => void) | null {
     const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
     const narrow = w < 560;
     const vesselW = clamp(w * 0.055, 18, 54);
-    const vesselH = clamp(h * 0.32, 58, 116);
+    const vesselH = clamp(h * 0.3, 58, 112);
     const trunkY = Math.round(h * 0.52);
     const laneTop = 20;
-    const laneBot = h - 30;
+    const laneBot = h - 34;
     const laneH = (laneBot - laneTop) / 4;
     const lanes = [0, 1, 2, 3].map((i) => laneTop + (i + 0.5) * laneH);
     /* the vessel sits off the left edge by enough that the charge arriving
        reads as a band rather than as a stub */
-    const vesselX = clamp(w * 0.075, 24, 86);
+    const vesselX = clamp(w * 0.07, 18, 86);
+    /* the gauge is bounded by BOTH axes: a band sized only off the height does
+       not leave room on a 310px canvas for the vessel, the gate and the
+       splitter to stand apart */
+    const gFlow = Math.min(66, h * 0.185, w * 0.125) / GR_IN_RATE;
+    /* one bay, and the gutter under it: ~3px above the ticker and >=12px below
+       it, so a reading is never equidistant between the bay it names and the
+       one it does not */
+    const bayW = clamp(w * 0.038, 22, 44);
+    /* a bay is a container, not a thermometer: its height is capped against its
+       own width as well as against the lane, so it does not turn into a stick
+       at 390 */
+    const bayH = Math.min(56, laneH - 26, bayW * 2);
+
+    /* The right end is budgeted from the glyphs outward rather than from three
+       fractions of the width. At 390 the fractions put the sink's hatching
+       0.5px from the frame and landed the four-into-one merge inside the burn
+       valve; solved from the glyph sizes, both clearances hold at every width
+       the canvas can take. */
+    const widest = GR_OUT_RATE * gFlow; /* the widest the trunk or collector can be */
+    const sinkSize = clamp(widest * 0.62, 14, 24);
+    const burnHalf = (widest + 12) * 0.58;
+    const sinkX = w - (Math.max(sinkSize * 0.46, 9) + 13);
+    const burnX = sinkX - Math.max(30, burnHalf + 14, w * 0.075);
+    const collectX = burnX - Math.max(26, burnHalf + 10 + w * 0.012, w * 0.085);
+
     return {
       w,
       h,
@@ -865,24 +991,24 @@ function mountGrammar(): (() => void) | null {
       vesselY: trunkY - vesselH * 0.72,
       vesselW,
       vesselH,
-      valveX: 0, /* solved below, once the gauge is known */
+      valveX: 0 /* solved below, once the gauge is known */,
       trunkY,
       splitX: w * (narrow ? 0.34 : 0.27),
-      bayX: w * (narrow ? 0.53 : 0.5),
-      bayW: clamp(w * 0.038, 16, 44),
-      bayH: Math.min(56, laneH - 26),
-      collectX: w * 0.76,
-      burnX: w * 0.85,
-      sinkX: w * 0.955,
+      bayX: w * (narrow ? 0.5 : 0.47),
+      bayW,
+      bayH,
+      collectX,
+      burnX,
+      sinkX,
       lanes,
-      /* the gauge is bounded by BOTH axes: a band sized only off the height
-         does not leave room on a 310px canvas for the vessel, the gate and the
-         splitter to stand apart */
-      gFlow: Math.min(60, h * 0.16, w * 0.115) / GR_IN_RATE,
-      gStock: (Math.min(56, laneH - 26) - 2) / GR_BAY_FULL,
+      gFlow,
+      gStock: (bayH - 2) / GR_BAY_FULL,
       tagX: 0,
-      tagR: clamp(w * 0.013, 10.5, 16),
+      tagR: clamp(w * 0.013, 9, 16),
       nodeY: 13,
+      gbxTop: 26,
+      sinkSize,
+      inletY: 0 /* solved in rebuild, once the vessel is placed */,
     };
   }
 
@@ -900,41 +1026,51 @@ function mountGrammar(): (() => void) | null {
       const gateHalf = (GR_OUT_RATE * geo.gFlow + 10) * 0.58;
       const wall = geo.vesselX + geo.vesselW;
       geo.valveX = wall + Math.max(12, gateHalf + 4);
+      /* the inlet sits far enough down that the whole band is inside the
+         vessel's own height — a band overhanging the tank it feeds reads as a
+         drawing error, not as an inlet */
+      geo.inletY = geo.vesselY + Math.max(geo.vesselH * 0.16, (GR_IN_RATE * geo.gFlow) / 2 + 5);
       dirty = false;
     }
     const g = geo;
-    const ph = grPhase(t);
     const gauge = g.gFlow;
     const corridor = g.bayX - g.splitX;
 
     paths.bands = [];
     paths.runs = [];
-    paths.pipes = [];
     paths.meters = [];
+    paths.shares = [];
+    paths.bus = null;
+    paths.stack = [];
     paths.charge = null;
     paths.trunk = null;
+    paths.gbx = null;
+
+    /* Every rate below is read off the SAME predicate the model steps on, so
+       nothing is ever drawn moving while the model holds it still. */
+    const inRate = grInOpen(t) && inCycle < GR_CHARGE ? GR_IN_RATE : 0;
+    const outRate = grOutOpen(t) && held > 0 ? GR_OUT_RATE : 0;
+    const claimLeft = Math.max(GR_T_CLAIM_END - t, 1e-6);
+    const claimRate = [0, 1, 2, 3].map((i) =>
+      grClaimOpen(t) ? Math.max(0, (bay[i] ?? 0) / claimLeft) : 0,
+    );
 
     /* the charge arriving: a band from off the left edge into the vessel's
        upper third. It is drawn, so the next cycle is a mechanism and not a
        counter that refills itself between frames. */
-    if (ph === 'charge') {
-      /* the inlet sits far enough down that the whole band is inside the
-         vessel's own height — a band overhanging the tank it feeds reads as a
-         drawing error, not as an inlet */
-      const inlet = g.vesselY + Math.max(g.vesselH * 0.16, (GR_IN_RATE * gauge) / 2 + 5);
+    if (inRate > 0) {
       paths.charge = ribbonPath({
         key: 'in',
         gauge,
         stations: [
-          { x: -4, c: inlet, q: GR_IN_RATE },
-          { x: g.vesselX, c: inlet, q: GR_IN_RATE },
+          { x: -4, c: g.inletY, q: inRate },
+          { x: g.vesselX, c: g.inletY, q: inRate },
         ],
       });
     }
 
-    const outRate = ph === 'fill' ? GR_OUT_RATE : 0;
     const at: Station = { x: g.splitX, c: g.trunkY, q: outRate };
-    const legQ = grLegs(outRate, t);
+    const legQ = grLegs(outRate, tAll);
 
     if (outRate > 0) {
       paths.trunk = ribbonPath({
@@ -960,8 +1096,6 @@ function mountGrammar(): (() => void) | null {
       steps: 18,
     });
 
-    const claimRate =
-      ph === 'claim' ? [0, 1, 2, 3].map((i) => ((bay[i] ?? 0) > 0 ? (delivered[i] ?? 0) / GR_CLAIM_S : 0)) : [0, 0, 0, 0];
     const claim = convergeFlow({
       gauge,
       sources: [0, 1, 2, 3].map((i) => ({
@@ -973,14 +1107,14 @@ function mountGrammar(): (() => void) | null {
       steps: 18,
     });
 
-    /* ---- the plant, drawn at zero flow ---------------------------------
+    /* ---- the plant, at rest ---------------------------------------------
        A P&ID draws every route whether or not anything is in it; a Sankey
        draws only what is moving. This figure is both, so the routes are drawn
        as hairlines solved from the SAME fan at zero width — fixed geometry
-       that cannot drift with the model — and the bands ride on top of them. A
-       shut leg is then an empty pipe rather than a hole in the composition. */
+       that cannot drift with the model. They are painted ONLY where nothing is
+       flowing: a hairline beside a live band is a ghost edge on one side of a
+       ribbon, which is a drawing artefact rather than a reading. */
     if (pipeKey !== g.w + ':' + g.h) {
-      pipeCache = [];
       const zeroSplit = splitFlow({
         gauge,
         at: { x: g.splitX, c: g.trunkY, q: 0 },
@@ -997,30 +1131,61 @@ function mountGrammar(): (() => void) | null {
         at: { x: g.collectX, c: g.trunkY },
         steps: 18,
       });
-      zeroSplit.forEach((r) => pipeCache.push(centrePath(r)));
-      zeroClaim.legs.forEach((r) => pipeCache.push(centrePath(r)));
+      pipeSplitCache = zeroSplit.map((r) => centrePath(r));
+      pipeClaimCache = zeroClaim.legs.map((r) => centrePath(r));
       pipeKey = g.w + ':' + g.h;
     }
-    paths.pipes = pipeCache;
+    paths.pipeSplit = outRate > 0 ? [] : pipeSplitCache;
+    paths.pipeClaim = claim.at.q > 0 ? [] : pipeClaimCache;
 
     if (outRate > 0) {
       splitLegs.forEach((r) => paths.bands.push({ path: ribbonPath(r), ink: USDG }));
       report = junctionReport(at, splitLegs, gauge, 'first');
-      scan = scanConservation({ legs: splitLegs, total: outRate, from: g.splitX, to: g.bayX, samples: 33 });
+      scan = scanConservation({ legs: splitLegs, total: outRate, from: g.splitX, to: g.bayX, samples: 33, gauge });
       junctionName = 'SPLIT';
-      if (corridor >= 190) {
-        splitLegs.forEach((r, i) => {
-          const x = g.splitX + corridor * (GR_TAP_FILL[i] ?? 0.5);
-          const s = sampleAt(r, x);
-          if (s !== null) paths.meters.push({ x, y: s.c, q: s.q, w: s.w, dir: GR_TAP_DIR[i] ?? -1 });
-        });
-      }
+      burnerY = g.trunkY - 15;
+      /* A 50px corridor cannot hold four bubbles AND four share readings. It
+         holds the SHARES, because the signal is what this station is for — and
+         the TAG form is not lost, because the claim corridor further right
+         picks it up in the same cycle (see the collector below). At 390 the old
+         threshold dropped bubbles everywhere, so a reader met the glyph in the
+         key and then never saw one used. */
+      const tight = corridor < 132;
+      const legIdx = tight ? [] : [0, 1, 2, 3];
+      const taps = GR_TAP_FILL;
+      legIdx.forEach((i) => {
+        const r = splitLegs[i];
+        if (r === undefined) return;
+        const x = g.splitX + corridor * (taps[i] ?? 0.5);
+        const s = sampleAt(r, x);
+        if (s !== null) paths.meters.push({ x, y: s.c, q: s.q, w: s.w, dir: GR_TAP_DIR[i] ?? -1, n: i + 1 });
+      });
+      /* the ratio the signal is setting, read off ONE bus that crosses every
+         leg at the same station — so the reader sees four numbers taken at one
+         instant from one control, not four unrelated captions. The labels sit
+         on the far side of the bus from the bubbles, which is why the two can
+         never land on top of each other however narrow the corridor gets. */
+      const busX = g.splitX + corridor * (tight ? 0.6 : GR_SIGNAL_TAP);
+      let y0 = Infinity;
+      let y1 = -Infinity;
+      splitLegs.forEach((r, i) => {
+        const s = sampleAt(r, busX);
+        if (s !== null) {
+          y0 = Math.min(y0, s.c);
+          y1 = Math.max(y1, s.c);
+          /* the share sits on the OUTSIDE of its leg — the same side the leg is
+             travelling — so four labels diverge with the fan instead of
+             closing on one another as it opens */
+          paths.shares.push({ x: busX, y: s.c, pct: (s.q / outRate) * 100, dir: GR_TAP_DIR[i] ?? -1 });
+        }
+      });
+      if (y0 < y1) paths.bus = { x: busX, y0, y1, right: !tight };
     } else if (claim.at.q > 0) {
-      /* the collected stack continues to the burner at its stacked
-         centrelines — four bands, still one hue each, never a mixed colour,
-         and gapped around the burn valve so the valve is on the pipe rather
-         than lost inside it */
-      burnSize = Math.max(22, claim.at.q * gauge + 12);
+      /* the collected stack continues to the burner and past it at its stacked
+         centrelines — four bands, still one hue each, never a mixed colour. The
+         burn is NOT on this path: what is destroyed is GBX, which arrives at
+         the burner on its own line and dead-ends there. */
+      burnSize = Math.max(22, claim.at.q * GR_BURN_RATIO * gauge + 12);
       const top = g.trunkY - (claim.at.q * gauge) / 2;
       let cum = 0;
       claim.legs.forEach((r, i) => {
@@ -1029,6 +1194,7 @@ function mountGrammar(): (() => void) | null {
         const q = claimRate[i] ?? 0;
         const c = top + (cum + q / 2) * gauge;
         cum += q;
+        paths.stack.push({ sym: ASSETS[i]?.sym ?? '', c });
         paths.runs.push({
           path: ribbonPath({
             key: 'run' + i,
@@ -1041,6 +1207,20 @@ function mountGrammar(): (() => void) | null {
           ink: hue,
         });
       });
+      /* the burn: a neutral GBX band arriving at the burner and stopping. It is
+         built along a rotated axis — stations run DOWN the page — and drawn
+         under one transform, so it is the same primitive and the same
+         `width === q x gauge` claim as every horizontal band on the figure. */
+      const burnQ = claim.at.q * GR_BURN_RATIO;
+      burnerY = g.trunkY - (claim.at.q * gauge) / 2 - 15;
+      paths.gbx = ribbonPath({
+        key: 'gbx',
+        gauge,
+        stations: [
+          { x: g.gbxTop, c: 0, q: burnQ },
+          { x: burnerY, c: 0, q: burnQ },
+        ],
+      });
       report = junctionReport(claim.at, claim.legs, gauge, 'last');
       scan = scanConservation({
         legs: claim.legs,
@@ -1048,35 +1228,63 @@ function mountGrammar(): (() => void) | null {
         from: g.bayX + g.bayW,
         to: g.collectX,
         samples: 33,
+        gauge,
       });
       junctionName = 'COLLECT';
       const claimRun = g.collectX - g.bayX - g.bayW;
-      if (claimRun >= 190) {
-        claim.legs.forEach((r, i) => {
-          const x = g.bayX + g.bayW + claimRun * (GR_TAP_CLAIM[i] ?? 0.25);
-          const s = sampleAt(r, x);
-          if (s !== null && s.q > 0) paths.meters.push({ x, y: s.c, q: s.q, w: s.w, dir: GR_TAP_DIR[i] ?? -1 });
-        });
-      }
+      /* the collector is where a narrow canvas still has room for a bubble:
+         nothing else competes for the wedge above and below the merge */
+      const idx = claimRun >= 132 ? [0, 1, 2, 3] : claimRun >= 34 ? [1, 2] : [];
+      const taps = claimRun >= 132 ? GR_TAP_CLAIM : [0, 0.3, 0.3, 0];
+      idx.forEach((i) => {
+        const r = claim.legs[i];
+        if (r === undefined) return;
+        const x = g.bayX + g.bayW + claimRun * (taps[i] ?? 0.25);
+        const s = sampleAt(r, x);
+        if (s !== null && s.q > 0)
+          paths.meters.push({ x, y: s.c, q: s.q, w: s.w, dir: GR_TAP_DIR[i] ?? -1, n: i + 1 });
+      });
     } else {
       burnSize = 22;
+      burnerY = g.trunkY - 15;
       report = junctionReport(at, splitLegs, gauge, 'first');
-      scan = scanConservation({ legs: splitLegs, total: 0, from: g.splitX, to: g.bayX, samples: 33 });
+      scan = scanConservation({ legs: splitLegs, total: 0, from: g.splitX, to: g.bayX, samples: 33, gauge });
       junctionName = 'SHUT';
     }
+    burnRate = grSum(claimRate) * GR_BURN_RATIO;
+
+    /* the control: the same splitFlow and the same junctionReport, on a fan
+       whose second leg is 0.4% short of what the trunk says it took */
+    const ctlQ = grLegs(GR_OUT_RATE, tAll);
+    const ctlLegs = splitFlow({
+      gauge,
+      at: { x: g.splitX, c: g.trunkY, q: GR_OUT_RATE },
+      legs: [0, 1, 2, 3].map((i) => ({
+        key: 'ctl' + i,
+        q: (ctlQ[i] ?? 0) * (i === 1 ? GR_CONTROL_LEAK : 1),
+        to: { x: g.bayX, c: bays[i]?.c ?? g.trunkY },
+      })),
+      steps: 18,
+    });
+    controlPx = junctionReport(
+      { x: g.splitX, c: g.trunkY, q: GR_OUT_RATE },
+      ctlLegs,
+      gauge,
+      'first',
+    ).pxErr;
   }
 
   /* ---- the paint: draw ops only ----------------------------------------- */
   /** A valve, part-open. The ground-coloured halo under the outline is what
    *  lets the glyph read while sitting ON a band of its own colour — gapping
    *  the band around it instead only works while the canvas is wide. */
-  function drawValve(x: number, y: number, size: number, open: number, fill: string): void {
-    valve(flowCtx, x, y, { ink: ink.panel, size, open: false, weight: 4 });
-    valve(flowCtx, x, y, { ink: ink.muted, size, open: false });
+  function drawValve(x: number, y: number, size: number, open: number, fill: string, vertical = false): void {
+    valve(flowCtx, x, y, { ink: ink.panel, size, open: false, weight: 4, vertical });
+    valve(flowCtx, x, y, { ink: ink.muted, size, open: false, vertical });
     if (open <= 0.001) return;
     flowCtx.save();
     flowCtx.globalAlpha = Math.min(1, open);
-    valve(flowCtx, x, y, { ink: ink.muted, size, open: true, fill });
+    valve(flowCtx, x, y, { ink: ink.muted, size, open: true, fill, vertical });
     flowCtx.restore();
   }
 
@@ -1090,21 +1298,35 @@ function mountGrammar(): (() => void) | null {
 
     const ph = grPhase(t);
     const vesselLevel = Math.max(0, held);
+    const flowing = paths.trunk !== null;
+    const claiming = paths.runs.length > 0;
+    const half = (GR_OUT_RATE * g.gFlow) / 2;
 
-    /* the plant first: every route as a hairline, so a shut leg reads as an
-       empty pipe instead of as missing composition */
-    ctx.setLineDash([]);
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = ink.ruleStrong;
+    /* ---- the plant at rest: PROCESS_REST, and only where nothing is moving.
+       A hairline that runs beside a live band is a ghost edge on one side of a
+       ribbon; a hairline standing in for a band that is not there is a route.
+       Only the second is a reading, so only the second is painted. */
+    setStroke(ctx, PROCESS_REST, ink.ruleStrong);
     ctx.beginPath();
-    ctx.moveTo(g.vesselX + g.vesselW, g.trunkY);
-    ctx.lineTo(g.splitX, g.trunkY);
-    ctx.moveTo(g.collectX, g.trunkY);
-    ctx.lineTo(g.sinkX, g.trunkY);
+    if (paths.charge === null) {
+      ctx.moveTo(0, g.inletY);
+      ctx.lineTo(g.vesselX, g.inletY);
+    }
+    if (!flowing) {
+      ctx.moveTo(g.vesselX + g.vesselW, g.trunkY);
+      ctx.lineTo(g.splitX, g.trunkY);
+    }
+    if (!claiming) {
+      ctx.moveTo(g.collectX, g.trunkY);
+      ctx.lineTo(g.sinkX, g.trunkY);
+      ctx.moveTo(g.burnX, g.gbxTop);
+      ctx.lineTo(g.burnX, burnerY);
+    }
     ctx.stroke();
-    for (const pipe of paths.pipes) ctx.stroke(pipe);
+    for (const pipe of paths.pipeSplit) ctx.stroke(pipe);
+    for (const pipe of paths.pipeClaim) ctx.stroke(pipe);
 
-    /* then the flows, which are the only things with width */
+    /* ---- then the flows, which are the only things with width ------------ */
     if (paths.charge !== null) {
       ctx.fillStyle = USDG;
       ctx.fill(paths.charge);
@@ -1121,8 +1343,19 @@ function mountGrammar(): (() => void) | null {
       ctx.fillStyle = run.ink;
       ctx.fill(run.path);
     }
+    /* the GBX band, down its own axis. Neutral white at full ribbon weight:
+       the burn is half of what this protocol does, and a scratch of grey would
+       say it was an afterthought. */
+    if (paths.gbx !== null) {
+      ctx.save();
+      ctx.translate(g.burnX, 0);
+      ctx.rotate(Math.PI / 2);
+      ctx.fillStyle = GBX;
+      ctx.fill(paths.gbx);
+      ctx.restore();
+    }
 
-    /* the bays — stock, on their own published gauge */
+    /* ---- the bays — stock, on the published bay axis ---------------------- */
     ctx.lineWidth = 1;
     for (let i = 0; i < 4; i++) {
       const cy = g.lanes[i] ?? g.trunkY;
@@ -1137,36 +1370,71 @@ function mountGrammar(): (() => void) | null {
         ctx.fillRect(g.bayX + 1, top + g.bayH - 1 - fillH, g.bayW - 2, fillH);
       }
       ctx.strokeStyle = hue;
+      ctx.setLineDash([]);
       ctx.strokeRect(g.bayX + 0.5 / dpr, top + 0.5 / dpr, g.bayW, g.bayH);
 
-      ctx.textAlign = 'center';
+      /* One STOCK reading, in the published form: the name and the number on
+         one line, ticked to the bay that holds it. Two lines floating in the
+         gutter sat 3.3px under the bay they named and 3.0px above the one they
+         did not, which is a caption belonging to whichever bay the reader
+         guessed. */
+      ctx.strokeStyle = ink.ruleStrong;
+      ctx.beginPath();
+      ctx.moveTo(g.bayX + g.bayW / 2, top + g.bayH);
+      ctx.lineTo(g.bayX + g.bayW / 2, top + g.bayH + 4);
+      ctx.stroke();
+      ctx.textAlign = 'left';
       ctx.font = mono(10, 600);
       ctx.fillStyle = ink.hi;
-      ctx.fillText(ASSETS[i]?.sym ?? '', g.bayX + g.bayW / 2, top + g.bayH + 13);
-      ctx.font = mono(9.5, 500);
-      ctx.fillStyle = ink.muted;
-      ctx.fillText(fix(stock, 1), g.bayX + g.bayW / 2, top + g.bayH + 24);
+      /* left-aligned ON the bay's own left edge rather than centred under it:
+         centred, the reading overhangs into the corridor the legs climb
+         through, and at 390 a leg ran straight across its own bay's label */
+      ctx.fillText((ASSETS[i]?.sym ?? '') + '  ' + fix(stock, 1), g.bayX, top + g.bayH + 12.5);
     }
-    /* the bay axis, stated once rather than assumed */
+    /* the bay axis, stated once and drawn on the mechanism: 0 at the floor,
+       the published top at the rim. Every bay is the same box on the same
+       axis, so it is marked once rather than four times. */
     ctx.strokeStyle = ink.ruleStrong;
+    ctx.setLineDash([]);
+    const axTop = (g.lanes[0] ?? 0) - g.bayH / 2;
+    const axBot = axTop + g.bayH;
+    const axX = g.bayX + g.bayW;
     ctx.beginPath();
-    const axY = (g.lanes[0] ?? 0) - g.bayH / 2;
-    ctx.moveTo(g.bayX - 5, axY + 0.5 / dpr);
-    ctx.lineTo(g.bayX, axY + 0.5 / dpr);
+    ctx.moveTo(axX, axTop + 0.5 / dpr);
+    ctx.lineTo(axX + 6, axTop + 0.5 / dpr);
+    ctx.moveTo(axX, axBot - 0.5 / dpr);
+    ctx.lineTo(axX + 6, axBot - 0.5 / dpr);
+    ctx.moveTo(axX + 3, axTop);
+    ctx.lineTo(axX + 3, axBot);
     ctx.stroke();
-    ctx.textAlign = 'right';
+    ctx.textAlign = 'left';
     ctx.font = mono(9, 500);
     ctx.fillStyle = ink.muted;
-    ctx.fillText(String(GR_BAY_FULL), g.bayX - 7, axY + 4);
+    ctx.fillText(String(GR_BAY_FULL), axX + 8, axTop + 4);
+    ctx.fillText('0', axX + 8, axBot + 3);
 
-    /* mechanisms */
+    /* ---- mechanisms ------------------------------------------------------- */
     vessel(ctx, g.vesselX, g.vesselY, {
       ink: ink.muted,
       w: g.vesselW,
       h: g.vesselH,
-      level: vesselLevel / GR_CHARGE,
+      level: Math.min(1, vesselLevel / GR_VESSEL_FULL),
       levelFill: USDG,
     });
+    /* the vessel's capacity, marked the way the bay axis is — on the far side
+       from the inlet, because a mark laid over an incoming band is a mark on
+       the band */
+    ctx.strokeStyle = ink.ruleStrong;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(g.vesselX + g.vesselW, g.vesselY + 0.5 / dpr);
+    ctx.lineTo(g.vesselX + g.vesselW + 5, g.vesselY + 0.5 / dpr);
+    ctx.stroke();
+    ctx.textAlign = 'left';
+    ctx.font = mono(9, 500);
+    ctx.fillStyle = ink.muted;
+    ctx.fillText(String(GR_VESSEL_FULL), g.vesselX + g.vesselW + 7, g.vesselY + 4);
+
     /* A valve is a STATE, not a quantity, so it is the one thing in this figure
        that eases: both gates cross-fade over --t-base on the page's own --ease
        (lib/ease.ts reads the token at runtime), which is why a canvas beat here
@@ -1174,36 +1442,100 @@ function mountGrammar(): (() => void) | null {
        depends on is eased — that would be drawing a number the model never
        had. */
     const gate = (from: number, to: number) => ramp(t, from, from + 0.2) - ramp(t, to, to + 0.2);
-    const outletGate = gate(GR_T_CHARGE, GR_T_FILL);
-    const burnGate = gate(GR_T_HOLD, GR_T_CLAIM);
+    const outletGate = gate(GR_T_OUT_OPEN, GR_T_OUT_SHUT);
+    const burnGate = gate(GR_T_HOLD_END, GR_T_CLAIM_END);
     drawValve(g.valveX, g.trunkY, GR_OUT_RATE * g.gFlow + 10, outletGate, USDG);
     splitter(ctx, g.splitX, g.trunkY, { ink: ink.muted, size: Math.min(18, g.bayH * 0.4) });
-    drawValve(g.burnX, g.trunkY, burnSize, burnGate, ink.raised);
-    const sinkSize = Math.max(14, Math.min(24, GR_OUT_RATE * g.gFlow * 0.62));
-    sink(ctx, g.sinkX, g.trunkY, { ink: ink.muted, size: sinkSize, fill: ink.muted, barH: burnSize });
+    /* the burn valve is on the GBX line, vertical, and its fill is the
+       substance it passes: what this valve opens is the destruction of GBX, not
+       the passage of the assets, which continue underneath it either way */
+    drawValve(g.burnX, (g.gbxTop + burnerY) / 2, burnSize, burnGate, GBX, true);
+    /* GBX dies here. The bar spans the band so a wide flow runs into a wall. */
+    sink(ctx, g.burnX, burnerY, {
+      ink: ink.muted,
+      size: Math.max(14, Math.min(22, burnSize * 0.5)),
+      fill: ink.muted,
+      barH: Math.max(18, burnRate * g.gFlow),
+      angle: Math.PI / 2,
+    });
+    sink(ctx, g.sinkX, g.trunkY, {
+      ink: ink.muted,
+      size: g.sinkSize,
+      fill: ink.muted,
+      barH: Math.max(18, GR_OUT_RATE * g.gFlow),
+    });
 
-    /* the control signal: a node, and a dashed line with no width */
+    /* ---- the control signal: a node, a stem, and one bus ------------------
+       The stem says WHERE the signal acts — on the splitter. The bus says WHAT
+       it set: it crosses all four legs at one station and prints the share at
+       each crossing. Before this the pink line was pixel-identical at every
+       instant while the leg widths swung threefold, which is a control with no
+       reading on the one mechanism that causes the whole split. */
     node(ctx, g.splitX, g.nodeY, { ink: ink.pink, size: 14 });
     setStroke(ctx, SIGNAL, ink.pink);
     ctx.beginPath();
     ctx.moveTo(g.splitX, g.nodeY + 7);
     ctx.lineTo(g.splitX, g.trunkY - Math.min(18, g.bayH * 0.4) - 2);
+    const bus = paths.bus;
+    if (bus !== null) {
+      /* the bus leaves the stem BELOW the node's own label, not through it */
+      ctx.moveTo(g.splitX, g.nodeY + 13);
+      ctx.lineTo(bus.x, g.nodeY + 13);
+      ctx.lineTo(bus.x, bus.y1);
+    }
     ctx.stroke();
     ctx.setLineDash([]);
+    /* the ratio, printed at the crossing of the bus and the leg it sets */
+    ctx.font = mono(9, 600);
+    ctx.textAlign = bus !== null && bus.right ? 'left' : 'right';
+    ctx.fillStyle = ink.pinkLabel;
+    for (const s of paths.shares) {
+      const lx = bus !== null && bus.right ? s.x + 4 : s.x - 4;
+      ctx.fillText(fix(s.pct, 0) + '%', lx, s.y + (s.dir < 0 ? -5 : 11));
+    }
 
-    /* the readings. Each bubble is anchored to the band it measures, at that
-       band's own centreline, and offset clear of it: a callout must track what
-       it names and must not sit on top of it. They are staggered along the
-       corridor so no two can ever collide, and dropped entirely where the
-       corridor is too short to hold them — the bay figures still carry the
-       numbers, so nothing is lost and nothing is cut. */
-    paths.meters.forEach((m, i) => {
+    /* ---- the collector's stack, named in order ----------------------------
+       Four stripes of similar lightness carried identity by hue alone for a
+       third of the figure's width. Position is the second channel: the stack is
+       always in bay order, and the placard says which stripe is which without
+       a reader having to distinguish two purples. */
+    if (paths.stack.length > 0) {
+      const rowTop = g.trunkY + (GR_OUT_RATE * g.gFlow) / 2 + 18;
+      ctx.font = mono(9, 600);
+      const labelX = g.collectX + 21;
+      paths.stack.forEach((s, i) => {
+        const lx = g.collectX + 3 + (3 - i) * 4;
+        const ry = rowTop + i * 11;
+        setStroke(ctx, PROCESS_REST, ink.ruleStrong);
+        ctx.beginPath();
+        ctx.moveTo(lx, s.c);
+        ctx.lineTo(lx, ry - 3);
+        ctx.lineTo(labelX - 3, ry - 3);
+        ctx.stroke();
+        ctx.textAlign = 'left';
+        ctx.fillStyle = ink.hi;
+        ctx.fillText(s.sym, labelX, ry);
+      });
+      /* the title only where the whole of it fits clear of the sink's own
+         label — the rule itself is published in the key, so the placard can
+         lose its heading without losing its meaning */
+      ctx.font = mono(8.5, 500);
+      ctx.fillStyle = ink.muted;
+      const titleW = ctx.measureText('STACK ORDER').width;
+      if (g.sinkX - (g.collectX + 3) > titleW + 26) ctx.fillText('STACK ORDER', g.collectX + 3, rowTop - 8);
+    }
+
+    /* ---- the readings ----------------------------------------------------
+       Each bubble is anchored to the band it measures, at that band's own
+       centreline, and offset clear of it: a callout must track what it names
+       and must not sit on top of it. */
+    paths.meters.forEach((m) => {
       const lift = g.tagR + 11 + m.w / 2;
       const cy = Math.min(g.h - g.tagR - 2, Math.max(g.tagR + 2, m.y + m.dir * lift));
       tag(ctx, m.x, cy, {
         ink: ink.muted,
         r: g.tagR,
-        tag: 'FI' + (i + 1),
+        tag: 'FI' + m.n,
         value: fix(m.q, 1),
         from: { x: m.x, y: m.y },
         tagFont: mono(Math.max(7, g.tagR * 0.52), 500),
@@ -1213,76 +1545,114 @@ function mountGrammar(): (() => void) | null {
         ground: ink.panel,
       });
     });
+    /* and one on the burn, because the quantity destroyed is the price of
+       everything leaving on the other line */
+    if (burnRate > 0) {
+      const bw = burnRate * g.gFlow;
+      const bx = g.burnX - g.tagR - 9 - bw / 2;
+      tag(ctx, bx, g.gbxTop + 22, {
+        ink: ink.muted,
+        r: g.tagR,
+        tag: 'FQ',
+        value: fix(burnRate, 1),
+        from: { x: g.burnX - bw / 2, y: g.gbxTop + 22 },
+        tagFont: mono(Math.max(7, g.tagR * 0.52), 500),
+        valueFont: mono(Math.max(8, g.tagR * 0.62), 600),
+        tagInk: ink.muted,
+        valueInk: ink.hi,
+        ground: ink.panel,
+      });
+    }
 
-    /* labels — mono, on the mechanism they name */
+    /* ---- labels — mono, on the mechanism they name ------------------------ */
     ctx.textAlign = 'left';
     ctx.font = mono(9.5, 600);
     ctx.fillStyle = ink.muted;
-    if (ph === 'charge') {
-      const inlet = g.vesselY + Math.max(g.vesselH * 0.16, (GR_IN_RATE * g.gFlow) / 2 + 5);
-      ctx.fillText('IN', 2, inlet - (GR_IN_RATE * g.gFlow) / 2 - 6);
-    }
-    ctx.textAlign = 'center';
-    ctx.fillText('VESSEL', g.vesselX + g.vesselW / 2, g.vesselY + g.vesselH + 13);
-    ctx.font = mono(9.5, 500);
+    if (paths.charge !== null) ctx.fillText('IN', 2, g.inletY - (GR_IN_RATE * g.gFlow) / 2 - 6);
+    /* centred on the vessel, but never off the left edge: at 390 the vessel is
+       18px wide and 18px from the frame, so a centred reading loses its first
+       letter to the container it lives in */
+    const centred = (txt: string, cx: number, y: number): void => {
+      ctx.textAlign = 'left';
+      ctx.fillText(txt, Math.max(2, cx - ctx.measureText(txt).width / 2), y);
+    };
+    centred('VESSEL', g.vesselX + g.vesselW / 2, g.vesselY + g.vesselH + 13);
+    /* the vessel's own STOCK reading, in the same published form as a bay's */
+    ctx.strokeStyle = ink.ruleStrong;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(g.vesselX + g.vesselW / 2, g.vesselY + g.vesselH + 16);
+    ctx.lineTo(g.vesselX + g.vesselW / 2, g.vesselY + g.vesselH + 20);
+    ctx.stroke();
+    ctx.font = mono(10, 600);
     ctx.fillStyle = ink.hi;
-    ctx.fillText(fix(vesselLevel, 1), g.vesselX + g.vesselW / 2, g.vesselY + g.vesselH + 24);
+    centred('HELD  ' + fix(vesselLevel, 1), g.vesselX + g.vesselW / 2, g.vesselY + g.vesselH + 29);
     ctx.font = mono(9.5, 600);
     ctx.fillStyle = ink.muted;
     /* under the splitter, and clear of the widest the trunk can ever be, so
        the label sits in the wedge the fan has not opened into yet */
-    ctx.fillText('SPLIT', g.splitX, g.trunkY + (GR_OUT_RATE * g.gFlow) / 2 + 28);
+    ctx.fillText('SPLIT', g.splitX, g.trunkY + half + 28);
     ctx.textAlign = 'left';
     ctx.fillText('SIGNAL', g.splitX + 12, g.nodeY + 4);
-    /* BURN and OUT go side by side only where both fit between their glyphs;
-       otherwise they stack, above and below. Two labels that overlap at 390px
-       are two labels that say nothing. */
-    const labelY = g.trunkY + Math.max(24, burnSize / 2 + 15);
-    const room = g.sinkX - g.burnX - (ctx.measureText('BURN').width + ctx.measureText('OUT').width) / 2;
     ctx.textAlign = 'center';
-    if (room >= 8) {
-      ctx.fillText('BURN', g.burnX, labelY);
-      ctx.fillText('OUT', g.sinkX, labelY);
-    } else {
-      ctx.fillText('BURN', g.burnX, g.trunkY - burnSize / 2 - 9);
-      ctx.fillText('OUT', g.sinkX, labelY);
-    }
+    ctx.fillText('BURN GBX', g.burnX, g.gbxTop - 12);
+    ctx.fillText('OUT', g.sinkX, g.trunkY + Math.max(24, GR_OUT_RATE * g.gFlow / 2 + 15));
 
-    /* the scale bar: the gauge, drawn rather than asserted, so a reader can
-       measure any band on the figure against a stated quantity */
-    const barW = GR_OUT_RATE * g.gFlow;
-    const barY = g.h - 13;
+    /* ---- the two gauges, drawn rather than asserted ------------------------
+       Both are VERTICAL, because every quantity on this figure is a vertical
+       extent: a band's width and a bay's level. A horizontal scale bar asked a
+       reader to rotate it in their head before they could lay it on anything.
+       Flow in px per unit/s, stock in px per unit — the page-wide pair. */
+    const flowH = GR_OUT_RATE * g.gFlow;
+    const stockH = GR_BAY_FULL * g.gStock;
+    const gy = g.h - 8;
+    const fy = gy - stockH - 10;
+    ctx.setLineDash([]);
     ctx.fillStyle = USDG;
-    ctx.fillRect(4, barY - 4, barW, 8);
+    ctx.fillRect(6, fy - flowH, 9, flowH);
     ctx.textAlign = 'left';
     ctx.font = mono(9, 500);
     ctx.fillStyle = ink.muted;
-    ctx.fillText('= ' + GR_OUT_RATE + ' UNITS/S', 4 + barW + 7, barY + 3.5);
+    ctx.fillText('= ' + GR_OUT_RATE + ' UNITS/S', 19, fy - flowH / 2 + 3.5);
+    /* the stock gauge is drawn in the BAY's own form — an outlined box, not a
+       filled bar — so the two gauges cannot be confused with one another and
+       neither borrows a hue from the colour law */
+    ctx.strokeStyle = ink.muted;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(6 + 0.5 / dpr, gy - stockH + 0.5 / dpr, 9, stockH);
+    ctx.fillStyle = ink.muted;
+    ctx.fillText('= ' + GR_BAY_FULL + ' UNITS', 19, gy - stockH / 2 + 3.5);
 
-    /* the readouts */
-    rPhase.textContent =
+    /* ---- the readouts ----------------------------------------------------- */
+    const caption =
       ph === 'charge'
-        ? 'charge ' + String(cycle).padStart(2, '0') + ' — capital arriving'
-        : ph === 'fill'
-          ? 'fill — the signal is dividing the flow'
-          : ph === 'hold'
-            ? 'hold — the outlet is shut, nothing moves'
-            : ph === 'claim'
-              ? 'claim — every bay releases the same share'
-              : 'idle — the bays are empty and it all left through the sink';
+        ? 'capital arriving, the outlet still shut'
+        : ph === 'both'
+          ? 'arriving and dividing at the same time — two stations live'
+          : ph === 'fill'
+            ? 'the signal is dividing what the vessel still holds'
+            : ph === 'hold'
+              ? 'both valves shut, the bays full, nothing moving'
+              : ph === 'claim'
+                ? 'GBX burns and every bay releases the same share'
+                : 'the bays are empty and it all left through the sink';
+    rPhase.textContent = 'cycle ' + String(cycle).padStart(2, '0') + ' · ' + ph + ' — ' + caption;
     rName.textContent = junctionName;
     rTrunk.textContent = fix(report.parentQ, 3);
     rLegs.textContent = fix(report.legQ, 3);
-    rDq.textContent = sci(report.qErr);
-    rDpx.textContent = fix(report.pxErr, 2) + ' / ' + fix(report.maxSeamPx, 2);
-    rScan.textContent = sci(scan.maxAbsErr);
+    rDpx.textContent = sci(report.pxErr);
+    rSeam.textContent = sci(report.maxSeamPx);
+    rScan.textContent = sci(scan.maxAbsPxErr);
+    rCtl.textContent = sci(controlPx);
 
     const bays = grSum(bay);
+    const delta = held + bays + claimedOut - chargedIn;
     rIn.textContent = fix(chargedIn, 3);
     rVessel.textContent = fix(held, 3);
     rBays.textContent = fix(bays, 3);
     rOut.textContent = fix(claimedOut, 3);
-    rDelta.textContent = sci(held + bays + claimedOut - chargedIn);
+    rDelta.textContent = sci(delta) + (chargedIn > 0 ? '  (' + sci(Math.abs(delta) / chargedIn) + ')' : '');
+    rBurn.textContent = fix(burned, 3);
   }
 
   paintKey();
@@ -1315,9 +1685,13 @@ function mountGrammar(): (() => void) | null {
       rebuild();
       paint();
     },
-    /* The still has to teach: 73% through the fill, where the vessel is part
-       drained, the four legs are visibly unequal, the bays carry different
-       stock and both checks read zero. */
+    /* The still has to teach, and it has to teach the whole grammar: it lands
+       in the SECOND cycle, 3.7s in, where the inlet is still running while the
+       outlet is already dividing — two stations carrying material at once —
+       with the vessel part full, four unequal legs each carrying a reading and
+       a share, four bays at different stock, the burn station drawn at rest
+       with its valve visibly shut, and a ledger that has already had to
+       balance across one cycle boundary. */
     static: () => {
       seed();
       advance(GR_STILL_AT);

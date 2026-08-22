@@ -24,7 +24,20 @@
  * from the rAF paint — it then costs zero draw-ops per frame.
  */
 
-import { GLYPHS, PROCESS, SIGNAL, node, setStroke, sink, splitter, tag, valve, vessel, type GlyphName } from './isa';
+import {
+  GLYPHS,
+  PROCESS,
+  PROCESS_REST,
+  SIGNAL,
+  node,
+  setStroke,
+  sink,
+  splitter,
+  tag,
+  valve,
+  vessel,
+  type GlyphName,
+} from './isa';
 
 /* ------------------------------------------------------- the colour law -- */
 
@@ -203,7 +216,11 @@ function drawGlyph(ctx: CanvasRenderingContext2D, name: GlyphName, x: number, y:
       });
       break;
     case 'VALVE':
-      valve(ctx, x, y, { ink: ink.muted, size: 18, open: true, fill: USDG });
+      /* BOTH states, drawn. A glyph whose two readings are defined in words and
+         illustrated in one of them teaches only that one: a reader who meets a
+         hollow bowtie on a figure has never seen it here. */
+      valve(ctx, x - 10, y, { ink: ink.muted, size: 15, open: true, fill: USDG });
+      valve(ctx, x + 10, y, { ink: ink.muted, size: 15, open: false });
       break;
     case 'SPLITTER':
       splitter(ctx, x, y - 3, { ink: ink.muted, size: 16, fill: ink.raised });
@@ -257,37 +274,48 @@ export function drawLegend(
   for (const g of GLYPHS) cellW = Math.max(cellW, ctx.measureText(g.means).width);
   ctx.font = fonts.name;
   for (const g of GLYPHS) cellW = Math.max(cellW, capsWidth(ctx, g.name, 11));
-  cellW += 46; // the glyph column
+  cellW += 52; // the glyph column — wide enough for the VALVE's two states
   const gCols = Math.max(1, Math.min(GLYPHS.length, Math.floor((W + 18) / (cellW + 18))));
   const gRows = Math.ceil(GLYPHS.length / gCols);
   const gStep = gCols === 1 ? W : (W + 18) / gCols;
 
   const glyphRow: Row = {
     title: 'THE SIX GLYPHS',
-    note: 'learn once, read all five figures',
+    note: 'learn once, read every station',
     h: gRows * 44,
     draw: (y) => {
       ctx.textAlign = 'left';
       GLYPHS.forEach((g, i) => {
-        const cx = x0 + (i % gCols) * gStep + 17;
+        const cx = x0 + (i % gCols) * gStep + 19;
         const cy = y + Math.floor(i / gCols) * 44 + 18;
         drawGlyph(ctx, g.name, cx, cy, o);
         ctx.font = fonts.name;
         ctx.fillStyle = ink.hi;
-        capsText(ctx, g.name, cx + 26, cy - 3, 11);
+        capsText(ctx, g.name, cx + 32, cy - 3, 11);
         ctx.font = fonts.meta;
         ctx.fillStyle = ink.muted;
-        ctx.fillText(g.means, cx + 26, cy + 12);
+        ctx.fillText(g.means, cx + 32, cy + 12);
       });
     },
   };
 
-  /* ---- row 2: the two line weights --------------------------------------- */
+  /* ---- row 2: the three line weights -------------------------------------
+     Two of these were published before and the third was in constant use and
+     unpublished: on any figure most routes are at rest at any instant, so the
+     hairline is the mark a reader meets most and the one they were never told
+     the meaning of. */
   const weights: { spec: typeof PROCESS; ink: string; name: string; means: string; solid: boolean }[] = [
-    { spec: PROCESS, ink: USDG, name: 'PROCESS', means: 'value moves — width is the quantity', solid: true },
-    { spec: SIGNAL, ink: ink.pink, name: 'SIGNAL', means: 'aim and measurement — no quantity', solid: false },
+    { spec: PROCESS, ink: USDG, name: 'PROCESS', means: 'width is the quantity', solid: true },
+    {
+      spec: PROCESS_REST,
+      ink: ink.ruleStrong,
+      name: 'PROCESS AT REST',
+      means: 'a route with nothing in it',
+      solid: false,
+    },
+    { spec: SIGNAL, ink: ink.pink, name: 'SIGNAL', means: 'aim only; it carries no quantity', solid: false },
   ];
-  const SAMPLE = 62;
+  const SAMPLE = 56;
   ctx.font = fonts.meta;
   let wMeans = 0;
   for (const r of weights) wMeans = Math.max(wMeans, ctx.measureText(r.means).width);
@@ -295,19 +323,23 @@ export function drawLegend(
   let wName = 0;
   for (const r of weights) wName = Math.max(wName, capsWidth(ctx, r.name, 11));
   const wLine = SAMPLE + 14 + wName + 12 + wMeans;
-  /* three fits, in order of preference, and the narrowest still puts the whole
-     sentence on the canvas — a legend that truncates its own key is worthless */
-  const wMode: 'two-up' | 'stacked' | 'wrapped' = W >= wLine * 2 + 24 ? 'two-up' : W >= wLine ? 'stacked' : 'wrapped';
-  const wStep = wMode === 'two-up' ? 0 : wMode === 'stacked' ? 30 : 46;
+  /* the column count is solved from measured text, and the narrowest fit still
+     puts the whole sentence on the canvas — a legend that truncates its own key
+     is worthless */
+  const wCols = Math.max(1, Math.min(weights.length, Math.floor((W + 24) / (wLine + 24))));
+  const wWrapped = wCols === 1 && W < wLine;
+  const wRows = Math.ceil(weights.length / wCols);
+  const wStep = wWrapped ? 46 : 30;
+  const wColStep = wCols === 1 ? 0 : (W + 24) / wCols;
   const weightRow: Row = {
-    title: 'TWO WEIGHTS',
-    note: 'a flow is never a signal',
-    h: wMode === 'two-up' ? 34 : 30 + wStep,
+    title: 'THREE WEIGHTS',
+    note: 'a flow is never a signal, and a route is never a flow',
+    h: (wRows - 1) * wStep + (wWrapped ? 42 : 26) + 8,
     draw: (y) => {
       ctx.textAlign = 'left';
       weights.forEach((r, i) => {
-        const cx = wMode === 'two-up' ? x0 + i * (W / 2) : x0;
-        const cy = y + 12 + i * wStep;
+        const cx = x0 + (i % wCols) * wColStep;
+        const cy = y + 12 + Math.floor(i / wCols) * wStep;
         if (r.solid) {
           ctx.fillStyle = r.ink;
           ctx.fillRect(cx, cy - 5, SAMPLE, 10);
@@ -324,8 +356,111 @@ export function drawLegend(
         const nameW = capsText(ctx, r.name, cx + SAMPLE + 14, cy + 4, 11);
         ctx.font = fonts.meta;
         ctx.fillStyle = ink.muted;
-        if (wMode === 'wrapped') ctx.fillText(r.means, cx, cy + 22);
+        if (wWrapped) ctx.fillText(r.means, cx, cy + 22);
         else ctx.fillText(r.means, cx + SAMPLE + 26 + nameW, cy + 4);
+      });
+    },
+  };
+
+  /* ---- row 3: the three forms a live reading takes ------------------------
+     A figure that prints a bubble for one kind of number and a bare numeral
+     for another has two conventions and publishes one. All three are drawn
+     here in the form the figures actually use them. */
+  const readings: { name: string; means: string; draw: (x: number, y: number) => void }[] = [
+    {
+      name: 'TAG',
+      means: 'a rate, led back to the band it measures',
+      draw: (x, y) => {
+        setStroke(ctx, SIGNAL, ink.muted);
+        ctx.beginPath();
+        ctx.moveTo(x + 2, y + 15);
+        ctx.lineTo(x + 20, y + 11);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = USDG;
+        ctx.fillRect(x - 4, y + 12, 22, 7);
+        tag(ctx, x + 24, y - 2, {
+          ink: ink.muted,
+          r: 11,
+          tag: 'FI',
+          value: '8.0',
+          tagFont: o.fonts.micro,
+          valueFont: o.fonts.micro,
+          tagInk: ink.muted,
+          valueInk: ink.hi,
+          ground: ink.panel,
+        });
+      },
+    },
+    {
+      name: 'STOCK',
+      means: 'a level, ticked to the bay or vessel holding it',
+      draw: (x, y) => {
+        ctx.fillStyle = ink.bg;
+        ctx.fillRect(x, y - 16, 20, 24);
+        ctx.fillStyle = assetHue('NVDA');
+        ctx.fillRect(x + 1, y - 3, 18, 10);
+        ctx.strokeStyle = assetHue('NVDA');
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        ctx.strokeRect(x + 0.5 / dpr, y - 16 + 0.5 / dpr, 20, 24);
+        ctx.strokeStyle = ink.ruleStrong;
+        ctx.beginPath();
+        ctx.moveTo(x + 10, y + 8);
+        ctx.lineTo(x + 10, y + 12);
+        ctx.stroke();
+        ctx.save();
+        ctx.textAlign = 'center';
+        ctx.font = o.fonts.micro;
+        ctx.fillStyle = ink.hi;
+        ctx.fillText('NVDA 21.1', x + 10, y + 21);
+        ctx.restore();
+      },
+    },
+    {
+      name: 'SHARE',
+      means: 'a ratio, printed on the branch that sets it',
+      draw: (x, y) => {
+        node(ctx, x + 8, y - 10, { ink: ink.pink, size: 13, fill: ink.raised });
+        setStroke(ctx, SIGNAL, ink.pink);
+        ctx.beginPath();
+        ctx.moveTo(x + 8, y - 3);
+        ctx.lineTo(x + 8, y + 8);
+        ctx.lineTo(x + 34, y + 8);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.font = o.fonts.micro;
+        ctx.fillStyle = ink.pinkLabel;
+        ctx.fillText('27%', x + 37, y + 11);
+      },
+    },
+  ];
+  ctx.font = fonts.meta;
+  let rCell = 0;
+  for (const r of readings) rCell = Math.max(rCell, ctx.measureText(r.means).width);
+  ctx.font = fonts.name;
+  for (const r of readings) rCell = Math.max(rCell, capsWidth(ctx, r.name, 11));
+  rCell += 76; // the sample column
+  const rCols = Math.max(1, Math.min(readings.length, Math.floor((W + 18) / (rCell + 18))));
+  const rRows = Math.ceil(readings.length / rCols);
+  const rStep = rCols === 1 ? W : (W + 18) / rCols;
+  const readingRow: Row = {
+    title: 'THREE READINGS',
+    note: 'every number sits on the mechanism that produced it',
+    h: rRows * 48,
+    draw: (y) => {
+      ctx.textAlign = 'left';
+      readings.forEach((r, i) => {
+        const cx = x0 + (i % rCols) * rStep;
+        const cy = y + Math.floor(i / rCols) * 48 + 18;
+        r.draw(cx, cy);
+        ctx.textAlign = 'left';
+        ctx.font = fonts.name;
+        ctx.fillStyle = ink.hi;
+        capsText(ctx, r.name, cx + 76, cy - 3, 11);
+        ctx.font = fonts.meta;
+        ctx.fillStyle = ink.muted;
+        ctx.fillText(r.means, cx + 76, cy + 12);
       });
     },
   };
@@ -427,7 +562,37 @@ export function drawLegend(
      height moves with the box. Where the box is a pixel short, the gaps give
      first: a legend that is cut by its own container has failed at the one
      thing it is for. */
-  const rows: Row[] = [glyphRow, weightRow, lawRow, collisionRow];
+  /* ---- row 6: the three words the figures use and never define ------------
+     "Station" and "seam" name the two things every conservation check on the
+     page is measured on, and lane order is the channel that carries identity
+     when hue cannot. All three were load-bearing and unpublished. */
+  ctx.font = fonts.meta;
+  const noteCopy = [
+    'STATION — one cross-section of a band, where its width is read. SEAM — the join between two stacked bands: a gap or an overlap there is a drawing error even when the quantities are right.',
+    'STACK ORDER IS BAY ORDER at every station, so a band can be followed from bay to sink without using its hue at all.',
+    'A splitter gives its residual to the last lane, as the contracts do, so legs sum to the trunk in units by construction: the checks printed are the drawn ones, in px.',
+  ];
+  const noteLines: string[][] = noteCopy.map((c) => wrap(ctx, c, W));
+  const noteRow: Row = {
+    title: 'THREE DEFINITIONS',
+    note: 'the words the checks are written in',
+    h: noteLines.reduce((sum, lines) => sum + lines.length * 14, 0) + (noteLines.length - 1) * 6 + 4,
+    draw: (y) => {
+      ctx.textAlign = 'left';
+      ctx.font = fonts.meta;
+      ctx.fillStyle = ink.muted;
+      let ny = y + 11;
+      noteLines.forEach((lines, i) => {
+        if (i > 0) ny += 6;
+        lines.forEach((line) => {
+          ctx.fillText(line, x0, ny);
+          ny += 14;
+        });
+      });
+    },
+  };
+
+  const rows: Row[] = [glyphRow, weightRow, readingRow, lawRow, collisionRow, noteRow];
   const TITLE_BAND = 24;
   let content = 0;
   for (const r of rows) content += TITLE_BAND + r.h;
@@ -482,11 +647,18 @@ export function legendAltText(): string {
   const glyphs = GLYPHS.map((g) => `${g.name}, ${g.means}`).join('; ');
   const assets = ASSETS.map((a) => a.sym).join(', ');
   return (
-    `The drawing key for every figure on this page. Six glyphs: ${glyphs}. ` +
-    'Two line weights: a process line is heavy and solid and its width is the quantity; ' +
+    `The drawing key for every figure on this page. Six glyphs: ${glyphs}. The valve is drawn in both of its states. ` +
+    'Three line weights: a process line is heavy and solid and its width is the quantity; ' +
+    'a process line at rest is a grey hairline, a route with nothing in it; ' +
     'a signal line is thin and dashed and carries no quantity. ' +
+    'Three forms a live reading takes: a TAG is a rate in a bubble led back to the band it measures; ' +
+    'a STOCK reading is a level, named and ticked to the bay or vessel that holds it; ' +
+    'a SHARE is a ratio printed on the branch where the control signal sets it. ' +
     `The colour law: USDG capital is always blue, GBX supply and burns are always neutral white, and each asset has one hue of its own — ${assets}. ` +
     'Brand pink is both the signal colour and QQQ, so the two are told apart by form and never by hue: ' +
-    'signal is a thin dashed line out of a control node, an asset is a filled band landing in a bay that carries its ticker.'
+    'signal is a thin dashed line out of a control node, an asset is a filled band landing in a bay that carries its ticker. ' +
+    'Three definitions: a station is one cross-section of a band, the place its width is read; ' +
+    'a seam is the join between two stacked bands, where a gap or an overlap is a drawing error even when the quantities are right; ' +
+    'and stack order is always bay order, so a band can be followed from bay to sink without using its hue at all.'
   );
 }

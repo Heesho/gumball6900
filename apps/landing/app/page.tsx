@@ -1,5 +1,6 @@
 import { SimsDriver } from '../components/SimsDriver';
 import { Hero, Masthead } from '../components/sections/Hero';
+import { Plate } from '../components/sections/Plate';
 import { Overview } from '../components/sections/Overview';
 import { Mining } from '../components/sections/Mining';
 import { Resonance } from '../components/sections/Resonance';
@@ -14,6 +15,7 @@ export default function LandingPage() {
       <Masthead />
       <main>
         <Hero />
+        <Plate />
         <Overview />
         <Mining />
         <Resonance />
