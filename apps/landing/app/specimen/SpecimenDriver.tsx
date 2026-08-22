@@ -1261,8 +1261,10 @@ function mountGrammar(): (() => void) | null {
         if (r === undefined) return;
         const x = g.bayX + g.bayW + claimRun * (taps[i] ?? 0.25);
         const s = sampleAt(r, x);
-        if (s !== null && s.q > 0)
-          paths.meters.push({ x, y: s.c, q: s.q, w: s.w, dir: GR_TAP_DIR[i] ?? -1, n: i + 1 });
+        /* on a narrow canvas both bubbles go UP: the gutter under a bay is the
+           bay's own reading, and a bubble dropped into it lands on the label */
+        const dir = claimRun >= 132 ? (GR_TAP_DIR[i] ?? -1) : -1;
+        if (s !== null && s.q > 0) paths.meters.push({ x, y: s.c, q: s.q, w: s.w, dir, n: i + 1 });
       });
     } else {
       burnSize = 22;
@@ -1527,9 +1529,9 @@ function mountGrammar(): (() => void) | null {
       const stackBot = g.trunkY + (GR_OUT_RATE * g.gFlow) / 2;
       const rowTop = stackBot + 26;
       ctx.font = mono(9, 600);
-      const labelX = g.collectX + 21;
+      const labelX = g.collectX + 26;
       paths.stack.forEach((s, i) => {
-        const lx = g.collectX + 3 + (3 - i) * 4;
+        const lx = g.collectX + 6 + (3 - i) * 4;
         const ry = rowTop + i * 11;
         /* the leader is drawn in two inks: dark where it crosses the bands, so
            it reads as a callout rather than as a seam between two stripes, and
@@ -1555,7 +1557,7 @@ function mountGrammar(): (() => void) | null {
       ctx.font = mono(8.5, 500);
       ctx.fillStyle = ink.muted;
       const titleW = ctx.measureText('STACK ORDER').width;
-      if (g.sinkX - (g.collectX + 3) > titleW + 26) ctx.fillText('STACK ORDER', g.collectX + 3, rowTop - 9);
+      if (g.sinkX - (g.collectX + 6) > titleW + 26) ctx.fillText('STACK ORDER', g.collectX + 6, rowTop - 9);
     }
 
     /* ---- the readings ----------------------------------------------------

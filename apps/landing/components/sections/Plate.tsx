@@ -1724,8 +1724,9 @@ export function Plate() {
         ground: ink.raised,
       });
       if (l.narrow) {
-        label('RESONANCE · ' + money(left) + ' left', tx, ty - 8, 9, ink.hi);
-        label('releasing ' + rate.toFixed(4) + ' USDG/s', tx, ty + th + 12, 9, ink.muted);
+        label('RESONANCE · ' + money(left) + ' left', tx, ty + th + 12, 8.5, ink.hi);
+        label('releasing ' + rate.toFixed(4) + ' USDG/s', tx, ty + th + 24, 8.5, ink.muted);
+        label('FI · milli-USDG/s down this lane', tx, ty + th + 36, 8.5, ink.faint);
       } else {
         label('RESONANCE', tx + tw + 10, ty + 13, 10, ink.hi);
         label(money(left) + ' left of this week', tx + tw + 10, ty + 26, 9.5, ink.muted);
@@ -1742,7 +1743,14 @@ export function Plate() {
       const nx = l.w - l.pad - 11;
       const total = totalStake(rz);
       node(ctx, nx, nodeY, { ink: ink.pink, size: 15, fill: ink.raised });
-      label('SIGNAL · ' + Math.round(total).toLocaleString('en-US') + ' GBX pointed', nx - 4, nodeY - 14, 10, ink.pinkLabel, 'right');
+      label(
+        'SIGNAL · ' + Math.round(total).toLocaleString('en-US') + ' GBX pointed',
+        nx - 4,
+        nodeY - 14,
+        l.narrow ? 8.5 : 10,
+        ink.pinkLabel,
+        'right',
+      );
       setStroke(ctx, SIGNAL, ink.pink);
       ctx.beginPath();
       ctx.moveTo(nx - 8, nodeY);
@@ -1817,7 +1825,7 @@ export function Plate() {
         label(a.sym, bay.cx, l.laneLabelY, l.narrow ? 9 : 10.5, ink.hi, 'center');
         label(sub, bay.cx, l.laneLabelY + 12, l.narrow ? 8 : 9, ink.muted, 'center');
       });
-      label('FI · milli-USDG/s down this lane', l.pad, l.trunkY1 + 22, 9, ink.faint);
+      if (!l.narrow) label('FI · milli-USDG/s down this lane', l.pad, l.trunkY1 + 22, 9, ink.faint);
     }
 
     /* ----------------------------------------------------------- auctions */
@@ -1851,7 +1859,7 @@ export function Plate() {
           ground: ink.raised,
         });
         if (l.narrow) {
-          label(a.sym + ' ' + money(a.pot), bay.cx, l.aucValY + 4, 8, ink.text, 'center');
+          label(a.sym + ' ' + money(a.pot), bay.cx, l.aucValY + 4 + (i % 2) * 11, 7.5, ink.text, 'center');
         } else {
           label(a.sym + '  ' + money(a.pot), bay.cx, l.aucValY, 10.5, ink.text, 'center');
           label('USDG waiting for its auction', bay.cx, l.aucValY + 12, 9, ink.faint, 'center');
