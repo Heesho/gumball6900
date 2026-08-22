@@ -191,7 +191,118 @@ section finally encode holdings identically, which is a named deliverable of thi
 figure)" in the table below.** The five-band composition stays. The ledger stays *as four hued
 groups*, not as ninety flat-pink spheres.
 
+## OWNER AMENDMENT 2 — 22 Aug 2026: ONE PLATE. This supersedes the five-figure structure.
+
+**Decided by the owner. This is the deliverable now. Everything below that assumes five separate
+figures is superseded.**
+
+The owner, on the five figures: *"im not really liking the diagrams… im starting to think we try
+to make just one diagram with all the moving pieces in it, its gonna be big and detailed."*
+
+### The decision
+
+**One diagram. Flat orthographic. A tall plate the reader travels down.** All five figures collapse
+into it; each section's **copy becomes annotation beside the plate's matching station**. No section
+keeps a separate diagram.
+
+**Projection is settled: flat orthographic 2D. Not 3D, not perspective.** The reason is not taste —
+it is that **width is the encoding**. A flow's width *is* its quantity, which is what makes
+conservation checkable by eye. Perspective makes width vary with distance from camera, so a
+narrowing ribbon becomes ambiguous between "less money" and "further away". Perspective and
+measurable width are mutually exclusive, which is why P&IDs and Sankey balances are orthographic.
+3D is also unkind to hairlines and small mono type, which is most of this figure. **Do not reopen
+this.**
+
+### The anchor — the grammar already exists in Resonance
+
+The owner on the resonance figure: *"i think this diagram actually does do a good job just needs to
+be improved."* **That figure is the grammar.** Conserved bands whose width is the quantity,
+splitting into per-asset lanes that always sum to the trunk. Extend that language to the whole
+system. Nothing new needs inventing.
+
+Note on particles: specks in the resonance figure are **legitimate** — they ride on a band whose
+width already carries the quantity, and they show direction and motion. What was wrong in the old
+overview was specks used **instead of** width. Motion on top of an honest width: fine. Motion
+standing in for a quantity: not.
+
+### The stations, top to bottom
+
+```
+THE MINE   4x4 · sixteen slots, each a falling-price (Dutch) auction
+           mine() → restart price x2 (with the $1 floor named where it binds),
+           colour flash on the take; GBX accrues out on a clock (neutral/white)
+           the payment FORKS:
+              80%  ──▶ displaced miner — a PULL CLAIM they must collect. DEAD END.
+              rem. │   (100% only on an empty slot's first fill)
+                   ▼
+ROUTER     a POOL that HOLDS. It fills. It does NOT forward.
+           outlet valve = route(), permissionless, no role/bounty/liveness —
+           it may wait indefinitely.       ▼  7-day stream
+SIGNAL ⌁   splits into four — lane widths are the shares  (the resonance streamgraph)
+                                          ▼
+AUCTIONS   four buckets fill · falling ask · flush to the asset
+           └─ 10% tap → signalers: LABELLED, not followed (see below)
+                                          ▼
+THE FUND   NVDA #9E5CF2 │ QQQ #F92B92 │ WBTC #FF6274 │ AAPL #F57ACD, widths ∝ holdings
+                                          ▼  burn GBX (neutral)
+YOUR SHARE the same pro-rata slice out of EVERY bay ──▶ YOU
+```
+
+### THE DISCONTINUITY AT THE ROUTER IS MANDATORY — it is the plate's most important feature
+
+**The plate is NOT one continuous conserved flow from mine to fund, and must never be drawn as
+one.** `docs/MODELS.md` is explicit that the Resonance model *"begins after revenue has been
+forwarded from ResonanceRouter… It is deliberately not a claim that a Mine handoff forwards or
+schedules revenue synchronously."* Mine emits `RevenueDeposited` and stops; only
+`ResonanceRouter.RevenueRouted` proves a forward.
+
+So: **conservation holds strictly WITHIN each segment, and the Router is an explicit buffer where
+the chain is deliberately broken.** Draw the break. A plate that lets the mine's deposit flow
+straight on into the stream is **wrong**, however much better it composes.
+
+### Three honesty corrections to the owner's sketch — all three bind
+
+1. **Most mining USDG does not reach the pool.** On an occupied slot `floor(paid * 8000/10000)` —
+   **80%** — is credited to the *displaced miner* as a **pull claim they must collect**; only the
+   exact remainder enters the Router. It is 100% only on an **empty slot's first fill**. The mine's
+   payment must visibly fork, with the 80% leg dead-ending at the displaced miner.
+2. **USDG does not buy GBX.** The payment buys the **slot** — the right to mint. GBX then accrues
+   on time at `globalTps/16`, **tenure-locked** and independent of what was paid. The honest and
+   equally punchy framing: **USDG buys the slot; the slot mints GBX on a clock.**
+3. **Signalers may be simplified but not erased.** The owner: *"i think we leave out signallers
+   getting paid for now to keep things simple."* Agreed for the *payout*, but the **10% tap must
+   still be drawn and labelled** at the auction, or the split reads as 100%-to-fund, which is
+   false. One labelled stub that is not followed further.
+
+### Re-decomposition
+
+- `ribbon-kit` — **unchanged and still first.** Direction-independent, and now more load-bearing:
+  the plate is made of conserved ribbons, the six glyphs, the two line weights and the legend.
+- `plate-spine` — **the hard piece.** One canvas, one registered sim, the master top-to-bottom
+  layout, the conserved flow through every station, the Router discontinuity, and the wiring to the
+  frozen models. Conservation proved numerically per segment.
+- `plate-mine` · `plate-router-split` · `plate-auctions-fund` — station detail passes on the spine.
+  They refine; they do not re-layout.
+- `page-recomposition` — the five sections lose their figures; **all copy survives**, re-seated as
+  annotation beside its station. The hero and close honesty blocks, the "Illustrative parameters"
+  chips and the sim notes are untouchable.
+- `specimen-grammar`, then the read-only audits `motion` · `autonomy` · `performance-and-a11y`.
+
+`overview-flow` as a separate piece is **superseded** by `plate-spine`.
+
+### The model-composition rule
+
+The five existing `step()` models stay **verbatim**. The plate composes them; it does not rewrite
+them. Moving a model into a shared module is permitted **only as a pure move**, proved by diff —
+no edit to any quantity, rate, cap, timing or rule. Anything more, stop and ask the lead. The
+narrow provenance ruling for the fund's four hues (`MODEL-RULING-overview.md`) still applies and
+still stands as the only authorised model change.
+
 ## The grammar, per figure
+
+**⚠ Superseded by OWNER AMENDMENT 2 above — these five figures now collapse into one plate. The
+per-figure grammar below is retained because it still describes what each STATION of the plate must
+do.**
 
 | Figure | Grammar | Libraries |
 |---|---|---|
