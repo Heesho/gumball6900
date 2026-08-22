@@ -2,6 +2,28 @@
 
 import { useLayoutEffect, useRef } from 'react';
 import { registerSim, fontFamily } from '../../lib/harness';
+import {
+  DECAY,
+  DETAIL,
+  DROP,
+  NAMES,
+  OPEN_AT_START,
+  PART,
+  SLOTS,
+  SLOT_HOURLY_LABEL,
+  createMineState,
+  easeOut,
+  gbx,
+  leapNote,
+  money,
+  neverTaken,
+  pad2,
+  priceOf,
+  stepMine,
+  warmStart,
+  type MineFx,
+  type Slot,
+} from '../../lib/models/mine';
 import './mining.css';
 
 /* The mine — sixteen reverse Dutch auctions, lifted from docs/deck (mine sim).
@@ -54,102 +76,8 @@ import './mining.css';
    tenure runs is redrawn every cycle, so what the reader walks away with is a
    different number each time rather than a figure they can predict. */
 
-// Contract constants the sim is bound by.
-const SLOTS = 16;
-const DECAY = 3600; // Mine.PRICE_DECAY_PERIOD, seconds
-const MINER_BPS = 8000; // Mine.PREVIOUS_MINER_BPS
-const BPS = 10000;
-const MULT = 2; // Mine.PRICE_MULTIPLIER
-const MIN_PRICE = 1; // Mine.MINIMUM_INITIAL_PRICE = 1e6 raw six-decimal USDG
-const INITIAL_TPS = 64; // Mine.INITIAL_TPS, GBX/s globally
-const HALVING_PERIOD = 69 * 86400; // Mine.HALVING_PERIOD, seconds from startTime
-const TAIL_TPS = 1; // Mine.TAIL_TPS, GBX/s globally
-const MINE_START_TIME = 0;
-const SIM_ARRIVAL_TIME = 10 * 60; // enough reachable history to desynchronise occupied tenures
-const SLOT_HOURLY = (INITIAL_TPS / SLOTS) * 3600;
-const SLOT_HOURLY_LABEL = SLOT_HOURLY.toLocaleString('en-US');
 
-const NAMES = [
-  'ava',
-  'kai',
-  'rin',
-  'moss',
-  'juno',
-  'pike',
-  'wren',
-  'isla',
-  'odin',
-  'nix',
-  'sol',
-  'vega',
-  'bex',
-  'tao',
-  'koi',
-  'lux',
-];
-// Never-taken slots: the only ones that can deposit 100%. Two of the four sit
-// inside the detail strip, so the reader watches a cell go open → taken.
-const OPEN_AT_START = new Set([1, 2, 9, 13]);
-// The four slots the detail strip names. The other twelve are drawn, not
-// truncated — the ghost row says which is which.
-const DETAIL = [0, 1, 2, 3];
 
-// The scripted programme, in sim seconds. timeScale is 60, so a beat is five
-// real seconds and one full cycle of the programme is twenty-five.
-const BEAT = 300;
-type Beat = 'other-occ' | 'other-first' | 'you-buy' | 'you-out';
-const PROGRAM: readonly Beat[] = ['other-occ', 'other-first', 'you-buy', 'other-occ', 'you-out'];
-/* How long the reader holds a slot, in sim seconds, redrawn every cycle. What
-   a tenure earns is its length times a locked rate, so a tenure scripted to a
-   fixed length would report the same GBX on every exit for ever — the one beat
-   that is about the reader would be the one beat that looks canned. Only the
-   dwell varies: the rate, the split and every figure are the model's. */
-const YOU_MIN = 420; // ~7 real seconds
-const YOU_MAX = 840; // ~14 real seconds
-
-// Event durations, in SIM seconds (timeScale 60 → 66 ≈ 1.1 real seconds), so
-// they pause with the sim instead of running on a wall clock.
-const EVT = 66;
-const LEAP = 27; // the restart leap, ~450ms real
-const DROP = 0.17; // the share of a chip's flight spent falling into the lane
-/* Both halves of a payment are born at the same point and run to opposite ends
-   of the lane, so a figure drawn the instant its chip lands on the rail is
-   drawn on top of its twin — one frame in a thousand, but it is a number over
-   a number. They pick up their figures a beat after they have parted. */
-const PART = DROP + 0.06;
-/* The allocation divider has to be telling the truth while the money it explains
-   is still in the air. A payment's chips are airborne for well under a second,
-   so a bar that is still easing at +1s draws the inverse of its own caption for
-   the whole transfer — the reader is told 80/20 and shown 3% at the moment they
-   look. It lands in ~350ms, inside the same event window the cell flash uses,
-   and it LANDS: this is a fixed-length ease on the house curve, not a
-   first-order lag, which only ever approaches its target. */
-const DIV_EASE = 21; // sim-seconds ≈ 350ms real
-
-/* The dollar axis holds the dearest thing the drawing has to show, and it can
-   never cut anything off. A ceiling that clips draws two slots a full 1.7×
-   apart at exactly the same height, and — far worse — it hides the restart
-   leap on precisely the takes where the leap is largest, which is the one move
-   that makes this a market rather than a giveaway. So the ceiling tracks the
-   running peak with headroom; a slot mid-leap counts at its destination, so
-   the frame opens ahead of the climb rather than being caught by it. It cannot
-   ratchet away, because a restart price is capped and every price decays to
-   zero within the hour, so the peak comes back down on its own. */
-const AXIS_HEAD = 1.09; // headroom above the dearest slot
-const AXIS_MIN = 6; // a quiet board still fills the frame
-const AXIS_RISE = 10; // sim-seconds: opens fast, ahead of a leap
-const AXIS_FALL = 90; // …and closes slowly, so the field never flickers
-const AXIS_SAFE = 1.035; // hard floor: nothing being painted is ever cut
-
-function pad2(n: number): string {
-  return String(n).padStart(2, '0');
-}
-
-/** The house curve, in canvas terms: fast away, settling in. */
-function easeOut(t: number): number {
-  const c = t < 0 ? 0 : t > 1 ? 1 : t;
-  return 1 - Math.pow(1 - c, 3);
-}
 
 // Deterministic initial shell for the four detail cells: the geometry is final
 // in the server HTML; the effect's pre-run overwrites the text before the first
@@ -168,16 +96,6 @@ const CELL_SHELL = DETAIL.map((i) => {
   };
 });
 
-interface Slot {
-  owner: string | null;
-  initialPrice: number;
-  startedAt: number;
-  lastAccruedAt: number;
-  tps: number;
-  mined: number;
-  reserve: number;
-}
-
 interface CellRefs {
   root: HTMLElement;
   owner: HTMLElement;
@@ -187,25 +105,6 @@ interface CellRefs {
   timer: ReturnType<typeof setTimeout> | null;
 }
 
-/** A payment allocation in flight. It falls out of the taken column into the
-    lane and then runs along the lane to one of its two ends. `a`/`b` are its
-    window inside the event, so the claim and GBX that follows it never overlap. */
-interface Part {
-  x0: number;
-  x1: number;
-  age: number;
-  a: number;
-  b: number;
-  size: number;
-  colour: string;
-  /* The square is the keyed mark and takes its destination's exact tone; the
-     figure beside it is text and takes whatever tone survives 10px antialiasing
-     on the knockout. They are the same colour except on the 80% leg, whose
-     segment tone is far too dark to carry type — see CHIP_INK_80. */
-  ink: string;
-  label: string;
-  align: CanvasTextAlign;
-}
 
 interface Layout {
   w: number;
@@ -230,42 +129,6 @@ interface Layout {
   barW: number;
   narrow: boolean;
   wide: boolean;
-}
-
-function globalTps(elapsedSinceStart: number): number {
-  // Mirrors Mine._globalTps: only deployment-time age selects the prospective
-  // rate. Minted and pending supply do not participate.
-  const halvings = Math.floor(Math.max(0, elapsedSinceStart) / HALVING_PERIOD);
-  return Math.max(INITIAL_TPS / Math.pow(2, halvings), TAIL_TPS);
-}
-
-function money(n: number): string {
-  if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
-  if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'k';
-  return '$' + n.toFixed(2);
-}
-
-function gbx(n: number): string {
-  if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M';
-  if (n >= 1000) return Math.round(n).toLocaleString();
-  return n.toFixed(1);
-}
-
-/* The annotation on a restart leap is derived from the two prices the leap is
-   drawn between — the ghost tick at what was paid, and the head of the column
-   it climbed to. Mine fixes the multiplier at ×2; this display never approaches
-   the contract's uint192 raw-price cap.
-
-   When the FLOOR is what set the price, the label names the floor instead of
-   quoting a ratio. Nothing was multiplied — a $0.17 take does not restart at
-   $0.34, it restarts at the minimum — and a ratio there would be a figure the
-   reader cannot check: the panel prints money to the cent, so "$0.17 → $1.00"
-   reads as ×5.88 on screen while the unrounded prices make it ×5.74. Naming
-   the floor is both the true cause and the one statement the two printed
-   prices confirm exactly. */
-function leapNote(paid: number, restart: number): string {
-  if (paid * MULT < MIN_PRICE) return '$' + MIN_PRICE + ' floor';
-  return '×' + (restart / paid).toFixed(2).replace(/\.?0+$/, '');
 }
 
 export function Mining() {
@@ -438,103 +301,17 @@ export function Mining() {
     });
     if (cells.size !== DETAIL.length) return;
 
-    const S = { t: 0, totalMined: 0, routerDeposits: 0, paidToMiners: 0, slots: [] as Slot[] };
-    // Per-slot event emphasis, in sim seconds, decayed every step so lit
-    // states can never accumulate.
-    const flash = new Array<number>(SLOTS).fill(0);
-    // What the slot last sold for, and how far its restart leap has climbed.
-    // leapP === 1 means the leap is over; nothing lingers.
-    const paidAt = new Array<number>(SLOTS).fill(0);
-    const leapP = new Array<number>(SLOTS).fill(1);
-    const parts: Part[] = [];
-    let scaleTop = 30; // the dollar axis, eased so it never snaps
-    // The deposit bar states the rule at rest and shows the exception while the
-    // narrated take is the one that deposited everything. It is tied to the tape,
-    // never to a timer, so bar and narration can never disagree.
-    let depositFull = false;
-    // …and it moves as a fixed-length ease between the two allocations, so it is
-    // done inside the event window rather than creeping after it.
-    let divFrom = 0.8;
-    let divTo = 0.8;
-    let divP = 1;
-    let divShown = 0.8;
-    // The one column the tape is talking about — whoever's take it is. It gets
-    // the emphasis: brighter stroke, solid marker, full-brightness price.
-    let featured = -1;
-    // The one slot the reader holds, or -1. Capped at one by construction: the
-    // programme only buys when this is -1, and ambient takes never touch it.
-    let youSlot = -1;
-    // The ×2 annotation that rides the payment lane under the narrated take.
-    let x2Col = -1;
-    let x2Age = 0;
-    // True only while the board is being pre-run to build history off-screen.
-    let warming = false;
+    /* The model lives in lib/models/mine.ts, moved there verbatim so this
+       section and the plate step the identical code. Everything below this
+       point is the paint layer. `flash`, `paidAt`, `leapP` and `parts` are
+       aliased by reference; the scalars are read straight off the state. */
+    const S = createMineState();
+    const flash = S.flash;
+    const paidAt = S.paidAt;
+    const leapP = S.leapP;
+    const parts = S.parts;
     let L: Layout | null = null;
-
-    function seedBoard(): void {
-      S.t = SIM_ARRIVAL_TIME;
-      S.totalMined = 0;
-      S.routerDeposits = 0;
-      S.paidToMiners = 0;
-      S.slots.length = 0;
-      flash.fill(0);
-      paidAt.fill(0);
-      leapP.fill(1);
-      parts.length = 0;
-      depositFull = false;
-      divFrom = 0.8;
-      divTo = 0.8;
-      divP = 1;
-      divShown = 0.8;
-      featured = -1;
-      youSlot = -1;
-      x2Col = -1;
-      x2Age = 0;
-      NAMES.forEach((name, i) => {
-        const open = OPEN_AT_START.has(i);
-        const slot: Slot = {
-          // Start occupied slots at independently reachable times after deployment,
-          // otherwise the whole board reaches its reservation together and all
-          // sixteen change hands at once. Empty slots retain Mine's deployment-time
-          // $1 auction and never get silently reopened.
-          owner: open ? null : name,
-          initialPrice: open ? MIN_PRICE : 4 + Math.random() * 26,
-          startedAt: open ? MINE_START_TIME : MINE_START_TIME + Math.random() * S.t,
-          lastAccruedAt: open ? MINE_START_TIME : MINE_START_TIME + Math.random() * S.t,
-          tps: open ? 0 : globalTps(S.t - MINE_START_TIME) / SLOTS, // vacant slots emit nothing
-          mined: 0,
-          // Reservation as a fraction of the slot's own price, redrawn per tenure —
-          // the desync that keeps the board from churning in lockstep.
-          reserve: 0,
-        };
-        if (!open) {
-          slot.lastAccruedAt = slot.startedAt;
-          slot.mined = (S.t - slot.startedAt) * slot.tps;
-        }
-        slot.reserve = slot.initialPrice * (0.25 + Math.random() * 0.55);
-        S.slots.push(slot);
-      });
-    }
-    seedBoard();
-
-    /** The decay law at any point of a slot's own hour — Mine._price, which is
-        as valid read forward as read now. */
-    function priceAt(slot: Slot, at: number): number {
-      const elapsed = at - slot.startedAt;
-      if (elapsed >= DECAY) return 0;
-      return slot.initialPrice * (1 - elapsed / DECAY);
-    }
-    function priceOf(slot: Slot): number {
-      return priceAt(slot, S.t);
-    }
-
-    function neverTaken(): number {
-      let n = 0;
-      S.slots.forEach((s) => {
-        if (s.owner === null) n++;
-      });
-      return n;
-    }
+    const priceNow = (slot: Slot): number => priceOf(S, slot);
 
     /* ------------------------------------------------- canvas measurements */
     const view = { w: 0, h: 0, dpr: 1 };
@@ -600,13 +377,13 @@ export function Mining() {
     }
 
     function yOf(l: Layout, price: number): number {
-      const f = Math.max(0, Math.min(1, price / scaleTop));
+      const f = Math.max(0, Math.min(1, price / S.scaleTop));
       return l.baseY - f * (l.baseY - l.chartTop);
     }
     /** Unclamped: a ramp that begins above the ceiling must keep its true slope
         and be cut by the frame, not bent flat along the top of it. */
     function yRaw(l: Layout, price: number): number {
-      return l.baseY - (price / scaleTop) * (l.baseY - l.chartTop);
+      return l.baseY - (price / S.scaleTop) * (l.baseY - l.chartTop);
     }
     function colX(l: Layout, i: number): { x0: number; x1: number; mid: number } {
       const gap = Math.min(3.5, l.cw * 0.14);
@@ -617,7 +394,7 @@ export function Mining() {
     function markerXY(l: Layout, i: number, slot: Slot): { x: number; y: number } {
       const { x0, x1 } = colX(l, i);
       const e = Math.max(0, Math.min(1, (S.t - slot.startedAt) / DECAY));
-      return { x: x0 + (x1 - x0) * e, y: yOf(l, priceOf(slot)) };
+      return { x: x0 + (x1 - x0) * e, y: yOf(l, priceNow(slot)) };
     }
 
     /* ------------------------------------------------------ the transfer fx */
@@ -653,7 +430,7 @@ export function Mining() {
        runs left to the displaced miner's claim, the bright blue runs right to
        ResonanceRouter. */
     function transferFx(from: { x: number }, toMiner: number, toRouter: number, accrued: number): void {
-      if (warming || !L) return;
+      if (S.warming || !L) return;
       const l = L;
       if (toMiner > 0) {
         spawn(from.x, l.laneL, 9, BLUE_80, 'claim ' + money(toMiner), 'left', 0, 0.78, CHIP_INK_80);
@@ -689,7 +466,7 @@ export function Mining() {
     ): void {
       const who = buyer === 'you' ? 'You take slot ' : '@' + buyer + ' takes slot ';
       setText(els.buyline, who + pad2(index + 1) + ' for ' + money(paid) + '.');
-      depositFull = !displaced;
+      S.depositFull = !displaced;
       if (displaced) {
         setText(els.labMiner, '80% claim → ' + (displaced === 'you' ? 'you' : '@' + displaced));
         setText(els.valMiner, money(toMiner));
@@ -712,65 +489,16 @@ export function Mining() {
       els.labMiner.classList.toggle('is-off', !displaced);
     }
 
-    /** A miner from the pool who is not the one being displaced. */
-    function otherName(exclude: string | null): string {
-      for (let k = 0; k < 8; k++) {
-        const n = NAMES[Math.floor(Math.random() * NAMES.length)];
-        if (n && n !== exclude) return n;
-      }
-      return NAMES[0]!;
-    }
+    /* The scripted beats, the payment allocation and the never-taken walk all
+       live with the model in lib/models/mine.ts. */
 
-    function buy(index: number, forcedOwner: string | undefined, narrated: boolean): void {
-      const slot = S.slots[index];
-      if (!slot) return;
-      const from = L ? markerXY(L, index, slot) : null;
-      const paid = priceOf(slot);
-      const displaced = slot.owner;
-
-      // Settle the outgoing tenure: its accrual mints to the displaced miner.
-      let accrued = 0;
-      if (displaced !== null) {
-        accrued = (S.t - slot.lastAccruedAt) * slot.tps;
-        S.totalMined += accrued;
-      }
-
-      // Allocate the payment: vacant slot → 100% Router deposit; occupied →
-      // an 80% pull claim plus the exact 20% Router deposit.
-      let toMiner = 0;
-      let toRouter = 0;
-      if (paid > 0) {
-        if (displaced === null) {
-          toRouter = paid;
-        } else {
-          toMiner = (paid * MINER_BPS) / BPS;
-          toRouter = paid - toMiner;
-        }
-        S.routerDeposits += toRouter;
-        S.paidToMiners += toMiner;
-      }
-
-      // New tenure: restart price at paid ×2 with the $1 floor; only deployment-
-      // time age selects the prospective rate, which is divided by sixteen and
-      // locked until this slot is replaced.
-      // Nobody displaces themselves: the incoming miner is never the outgoing one.
-      slot.owner = forcedOwner || otherName(displaced);
-      slot.initialPrice = Math.max(paid * MULT, MIN_PRICE);
-      slot.startedAt = S.t;
-      slot.lastAccruedAt = S.t;
-      slot.tps = globalTps(S.t - MINE_START_TIME) / SLOTS;
-      slot.mined = 0;
-      slot.reserve = slot.initialPrice * (0.3 + Math.random() * 0.55);
-
-      if (displaced === 'you') youSlot = -1;
-      if (slot.owner === 'you') youSlot = index;
-
-      if (!warming) {
-        // The leap: the marker climbs from what was paid to what it restarts at.
-        flash[index] = 1;
-        paidAt[index] = paid;
-        leapP[index] = 0;
-        // A detail cell names its own consequence for ~1s, then cleans up.
+    
+    /* The step is the frozen model's; this section supplies the three effects
+       the model cannot own — the tape, the detail-cell flash, and where on
+       this canvas a payment's chips are launched from. */
+    const fx: MineFx = {
+      narrate,
+      cellEvent(index) {
         const cell = cells.get(index);
         if (cell) {
           cell.root.classList.remove('evt-blue');
@@ -781,213 +509,19 @@ export function Mining() {
             cell.root.classList.remove('evt-blue');
           }, 1100);
         }
-      }
-
-      if (narrated) {
-        featured = index;
-        narrate(index, slot.owner, displaced, paid, toMiner, toRouter, accrued);
-        if (!warming) {
-          x2Col = index;
-          x2Age = 1;
-          if (from) transferFx(from, toMiner, toRouter, accrued);
-        }
-      }
-    }
-
-    /* ---------------------------------------------------- the scripted beats
-       No one operates this board. On its own clock — sim time, so a section
-       that has never been on screen has not burned its cycle — one take is
-       narrated every BEAT. The cycle guarantees, in order: an ordinary 80/20
-       take by a miner; a never-taken slot depositing 100% in the Router; the
-       reader's own take; another miner's; and the reader being displaced and
-       credited its claim. Ambient miner purchases keep running underneath, unnarrated. */
-    let beatIdx = 0;
-    let nextBeat = 0;
-    // The two beats the reader's tenure spans, drawn fresh each time they buy.
-    let youLegA = BEAT;
-    let youLegB = BEAT;
-
-    /** Which never-taken slot the scripted first-take spends next.
-
-        CHEAPEST FIRST, and it matters. There are exactly four slots that can
-        ever deposit 100%, they are spent one at a time over about forty seconds,
-        and every one of them is decaying towards zero the whole while. Spending
-        the dearest first leaves the cheapest — the one closest to being worth
-        nothing — to carry the last and most recent demonstration of the
-        headline allocation, which is how the panel came to teach "the whole
-        payment is deposited" over a payment of $0.00 and a Router tally that did
-        not move. Cheapest first spends each vacancy while it still has a price
-        to spend and leaves the dearest standing, so the last 100% take on
-        screen — the one a reader arriving late sees — is the one worth the
-        most. Same four slots, same prices, same order of magnitude of total
-        Router deposits: only which of the eligible slots the beat targets changes,
-        exactly as the reader's own beat already chooses among occupied slots.
-
-        Cheapest measured AT THE MOMENT ITS TURN WOULD COME, not at this
-        instant, and the difference decides the tail. The four vacancies fall at
-        four different rates — a slot's whole price is surrendered across one
-        hour, so the dearest one is also the one shedding cents fastest — and
-        the walk takes about a beat and a half per slot. Ranking on the price
-        right now therefore keeps back whichever slot happens to be dearest
-        today and hands the last beat a slot that has since expired: over 30,000
-        modelled walks that lands the final 100% take on exactly $0.00 in 3.6%
-        of them. Ranking on the price the slot will still have when its turn
-        arrives spends the ones that are about to run their hour out while they
-        are still worth something and keeps back the one that will still be
-        alive at the end — $0.00 in 0.8%, and a median final take of $2.43
-        against $0.58 for taking the dearest first.
-
-        Nothing is skipped and nothing is re-opened: every vacancy is still
-        spent, in a different order, so the counter's walk down to "every slot
-        has been taken once" always completes.
-
-        Still weighted toward the detail strip, so a named cell is seen flipping
-        open → taken. */
-    const FIRST_GAP = 720; // sim seconds between scripted first-takes, measured
-    function pickFirst(): number {
-      const open: number[] = [];
-      S.slots.forEach(function (slot, i) {
-        if (slot.owner === null) open.push(i);
-      });
-      if (!open.length) return -1;
-      const turn = S.t + (open.length - 1) * FIRST_GAP;
-      const bias = (i: number) => (DETAIL.includes(i) ? 1 / 1.35 : 1);
-      const worth = (i: number, at: number) => priceAt(S.slots[i]!, at) * bias(i);
-      // …and where two will both be worth nothing by then, spend the deader one
-      // now and leave the other its remaining minutes.
-      open.sort((a, b) => worth(a, turn) - worth(b, turn) || worth(a, S.t) - worth(b, S.t));
-      return open[0]!;
-    }
-
-    /** An occupied slot the reader does not hold, from the dearer middle of the
-        board so the 80/20 split is worth reading, picked with enough spread that
-        the narrated column moves around the board instead of sitting on one
-        slot and bidding it into the price cap. */
-    function pickOccupied(): number {
-      const held: { i: number; p: number }[] = [];
-      const any: { i: number; p: number }[] = [];
-      S.slots.forEach(function (slot, i) {
-        if (slot.owner === null || slot.owner === 'you') return;
-        const entry = { i, p: priceOf(slot) };
-        any.push(entry);
-        // Longer than a beat, so the tape can never narrate the same column
-        // twice running, and no slot churns in lockstep with the programme.
-        if (S.t - slot.startedAt > BEAT + 60) held.push(entry);
-      });
-      const pool = held.length ? held : any;
-      if (!pool.length) return -1;
-      pool.sort(function (a, b) {
-        return a.p - b.p;
-      });
-      const lo = Math.floor(pool.length * 0.35);
-      const hi = Math.max(lo, pool.length - 1 - Math.floor(pool.length * 0.2));
-      const k = Math.min(pool.length - 1, lo + Math.floor(Math.random() * (hi - lo + 1)));
-      return pool[k]!.i;
-    }
-
-    function runBeat(): void {
-      const scripted = PROGRAM[beatIdx % PROGRAM.length] ?? 'other-occ';
-      /* A never-taken slot's hour runs out whether or not anyone takes it, and
-         those four are the only slots that can ever deposit 100%. So while any
-         remain, the cycle's second miner beat spends one too: all four are seen
-         at a real price, and the foot counter's walk down to "every slot has
-         been taken once" is a thing that happens rather than a thing that
-         stalls. Nothing is re-opened — when they are gone the beat is an
-         ordinary 80/20 take, which is the truth from then on. */
-      const slot0 = beatIdx % PROGRAM.length;
-      const kind: Beat = slot0 === 3 && scripted === 'other-occ' && pickFirst() >= 0 ? 'other-first' : scripted;
-      beatIdx++;
-      /* The reader's tenure runs from the 'you-buy' beat to the 'you-out' beat
-         two beats later, so those two beats carry its length between them.
-         Both stay long enough to read the take they narrate. */
-      if (slot0 === 2) {
-        const span = YOU_MIN + Math.random() * (YOU_MAX - YOU_MIN);
-        youLegA = span * (0.4 + Math.random() * 0.2);
-        youLegB = span - youLegA;
-      }
-      nextBeat = S.t + (slot0 === 2 ? youLegA : slot0 === 3 ? youLegB : BEAT);
-      if (kind === 'you-out' && youSlot >= 0) {
-        // Someone takes the slot the reader holds: 80% and the GBX go to them.
-        buy(youSlot, undefined, true);
-        return;
-      }
-      if (kind === 'you-buy' && youSlot < 0) {
-        const i = pickOccupied();
-        if (i >= 0) {
-          buy(i, 'you', true);
-          return;
-        }
-      }
-      if (kind === 'other-first') {
-        const i = pickFirst();
-        if (i >= 0) {
-          buy(i, undefined, true);
-          return;
-        }
-        // Every slot has been taken once: the 100% deposit honestly no longer
-        // exists, and the foot counter has already said so.
-      }
-      const i = pickOccupied();
-      if (i >= 0) buy(i, undefined, true);
-    }
+      },
+      transfer(index, slot, toMiner, toRouter, accrued) {
+        const from = L ? markerXY(L, index, slot) : null;
+        if (from) transferFx(from, toMiner, toRouter, accrued);
+      },
+      beforeFirstBeat() {
+        if (resize()) paintCanvas();
+      },
+    };
 
     function stepSim(dt: number): void {
-      S.t += dt;
-      S.slots.forEach(function (slot, i) {
-        if (slot.owner !== null) slot.mined += dt * slot.tps;
-        // Never inside the first stretch of a tenure, so slots cannot churn in
-        // lockstep. Never-taken slots are left for the scripted first-take, and
-        // the reader's own slot is left for the scripted displacement.
-        if (slot.owner !== null && slot.owner !== 'you' && S.t - slot.startedAt > 240 && priceOf(slot) <= slot.reserve)
-          buy(i, undefined, false);
-        if (flash[i]! > 0) flash[i] = Math.max(0, flash[i]! - dt / EVT);
-        if (leapP[i]! < 1) leapP[i] = Math.min(1, leapP[i]! + dt / LEAP);
-      });
-      if (x2Age > 0) x2Age = Math.max(0, x2Age - dt / EVT);
-
-      /* The axis. `peak` is what the frame has to hold a moment from now — a
-         slot mid-leap counts at the price it is climbing to — and `drawn` is
-         what is on the glass this frame, computed exactly as the painter
-         computes it. The ceiling eases toward a round-dollar peak, quick to
-         open and slow to close, and is then floored just above `drawn`, so no
-         column can ever terminate at the ceiling with its price flattened
-         against its neighbours'. */
-      let peak = 0;
-      let drawn = 0;
-      S.slots.forEach(function (slot, i) {
-        const p = priceOf(slot);
-        if (leapP[i]! < 1) {
-          peak = Math.max(peak, slot.initialPrice);
-          drawn = Math.max(drawn, paidAt[i]! + (slot.initialPrice - paidAt[i]!) * easeOut(leapP[i]!));
-        } else {
-          peak = Math.max(peak, p);
-          drawn = Math.max(drawn, p);
-        }
-      });
-      const raw = Math.max(AXIS_MIN, peak * AXIS_HEAD);
-      const step = raw > 48 ? 10 : raw > 24 ? 4 : raw > 9 ? 2 : 1;
-      const wanted = Math.ceil(raw / step) * step;
-      scaleTop += (wanted - scaleTop) * Math.min(1, dt / (wanted > scaleTop ? AXIS_RISE : AXIS_FALL));
-      scaleTop = Math.max(scaleTop, drawn * AXIS_SAFE, AXIS_MIN);
-
-      const divWant = depositFull ? 0 : 0.8;
-      if (divWant !== divTo) {
-        divFrom = divShown;
-        divTo = divWant;
-        divP = 0;
-      }
-      if (divP < 1) {
-        divP = Math.min(1, divP + dt / DIV_EASE);
-        divShown = divFrom + (divTo - divFrom) * easeOut(divP);
-      }
-      for (let j = parts.length - 1; j >= 0; j--) {
-        const part = parts[j]!;
-        part.age += dt / EVT;
-        if (part.age >= part.b) parts.splice(j, 1);
-      }
-      if (S.t >= nextBeat) runBeat();
+      stepMine(S, dt, fx);
     }
-
     /* --------------------------------------------------------- the drawing */
     function paintCanvas(): void {
       if (!resize()) return;
@@ -1007,7 +541,7 @@ export function Mining() {
       ctx.strokeStyle = RULE;
       ctx.lineWidth = 1;
       [1, 0.5].forEach((f) => {
-        const y = Math.round(yOf(l, scaleTop * f)) + 0.5;
+        const y = Math.round(yOf(l, S.scaleTop * f)) + 0.5;
         ctx.beginPath();
         ctx.moveTo(l.axisW, y);
         ctx.lineTo(l.w - 2, y);
@@ -1024,7 +558,7 @@ export function Mining() {
       ctx.font = mono(axSize);
       ctx.textAlign = 'right';
       ctx.fillStyle = FAINT;
-      ctx.fillText('$' + Math.round(scaleTop), l.axisW - 7, yOf(l, scaleTop) + 3);
+      ctx.fillText('$' + Math.round(S.scaleTop), l.axisW - 7, yOf(l, S.scaleTop) + 3);
       ctx.fillText('$0', l.axisW - 7, l.baseY + 3);
 
       /* --- the reader's own lane -------------------------------------------
@@ -1036,8 +570,8 @@ export function Mining() {
          other emphasis here is a stroke weight or a hue on a mark that already
          existed; this is the only plate and the only full-height line, so it
          cannot be read as anything but the reader. */
-      if (youSlot >= 0) {
-        const gx = Math.round(colX(l, youSlot).mid) + 0.5;
+      if (S.youSlot >= 0) {
+        const gx = Math.round(colX(l, S.youSlot).mid) + 0.5;
         ctx.strokeStyle = inkA(0.34);
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -1066,8 +600,8 @@ export function Mining() {
         const e = Math.max(0, Math.min(1, (S.t - slot.startedAt) / DECAY));
         // Mid-leap the marker is climbing from what was paid to the restart
         // price, and its number rides with it — the ×2 made visible.
-        const shown = leaping ? paidAt[i]! + (slot.initialPrice - paidAt[i]!) * easeOut(lp) : priceOf(slot);
-        const over = shown > scaleTop;
+        const shown = leaping ? paidAt[i]! + (slot.initialPrice - paidAt[i]!) * easeOut(lp) : priceNow(slot);
+        const over = shown > S.scaleTop;
         return {
           slot,
           i,
@@ -1089,7 +623,7 @@ export function Mining() {
       geo.forEach((g) => {
         const { slot, i, x0, x1, mx, my } = g;
         const open = slot.owner === null;
-        const isFeat = i === featured;
+        const isFeat = i === S.featured;
         const top = yRaw(l, slot.initialPrice);
         const age = flash[i]!;
 
@@ -1187,7 +721,7 @@ export function Mining() {
         geo.forEach((g) => {
           const { slot, i, x0, x1, mx, my } = g;
           const open = slot.owner === null;
-          const isFeat = i === featured;
+          const isFeat = i === S.featured;
           const label = '$' + g.shown.toFixed(2);
           const half = ctx.measureText(label).width / 2;
           // A slot dearer than the frame keeps its number, pinned above the
@@ -1234,7 +768,7 @@ export function Mining() {
       geo.forEach((g) => {
         const { slot, i, mid, x0, x1 } = g;
         const you = slot.owner === 'you';
-        const isFeat = i === featured;
+        const isFeat = i === S.featured;
         let text = pad2(i + 1);
         if (you && !l.narrow) {
           const withCaption = text + ' YOU';
@@ -1305,11 +839,11 @@ export function Mining() {
          row directly under the column that leapt — above the money, never in
          its way. Read off the leap itself: ghost tick → column head, so the
          label can only ever say what the drawing is doing. */
-      const leapt = x2Col >= 0 ? S.slots[x2Col] : undefined;
-      if (x2Age > 0 && leapt) {
-        const { x0 } = colX(l, x2Col);
-        const note = leapNote(paidAt[x2Col]!, leapt.initialPrice);
-        ctx.globalAlpha = Math.min(1, x2Age * 2.4);
+      const leapt = S.x2Col >= 0 ? S.slots[S.x2Col] : undefined;
+      if (S.x2Age > 0 && leapt) {
+        const { x0 } = colX(l, S.x2Col);
+        const note = leapNote(paidAt[S.x2Col]!, leapt.initialPrice);
+        ctx.globalAlpha = Math.min(1, S.x2Age * 2.4);
         ctx.font = mono(l.narrow ? 8.5 : 9.5);
         ctx.textAlign = 'left';
         const tw = ctx.measureText(note).width;
@@ -1328,8 +862,8 @@ export function Mining() {
       // --- where the payment goes ------------------------------------------
       // A bar permanently divided 80 / 20, that widens to the whole width for
       // the one case that deposits everything: a slot nobody has ever taken.
-      const div = divShown;
-      const isFull = depositFull;
+      const div = S.divShown;
+      const isFull = S.depositFull;
 
       ctx.strokeStyle = RULE;
       ctx.lineWidth = 1;
@@ -1379,7 +913,7 @@ export function Mining() {
         c.owner.classList.toggle('cell__owner--open', open);
         c.owner.classList.toggle('cell__owner--you', you);
         c.root.classList.toggle('cell--open', open);
-        setText(c.price, '$' + priceOf(slot).toFixed(2));
+        setText(c.price, '$' + priceNow(slot).toFixed(2));
         // Slot clock — EMPTY at (re)start, FULL at the hour, when the price has
         // decayed to zero. It fills; it does not drain.
         setWidth(c.bar, (frac * 100).toFixed(1) + '%');
@@ -1389,7 +923,7 @@ export function Mining() {
       const h = Math.floor((S.t % 86400) / 3600);
       const m = Math.floor((S.t % 3600) / 60);
       setText(els.clock, 'day ' + d + ', ' + pad2(h) + ':' + pad2(m));
-      const n = neverTaken();
+      const n = neverTaken(S);
       setText(
         els.stateLine,
         n > 0
@@ -1413,50 +947,8 @@ export function Mining() {
       paintCanvas();
     }
 
-    // Arrive mid-life: pre-run ten sim minutes so the reader lands on a board with
-    // history — tallies non-zero, prices spread across the axis — and then
-    // watches live purchases happen on top of it. `landOn` walks the programme
-    // forward off-screen to a chosen beat, which is how the reduced-motion still
-    // is composed without faking a state the mechanism cannot reach.
-    function warmStart(landOn?: Beat): void {
-      seedBoard();
-      beatIdx = 0;
-      nextBeat = Infinity; // no scripted beats during the warm-up
-      warming = true;
-      for (let k = 0; k < 100; k++) stepSim(6);
-      if (landOn) {
-        let guard = 0;
-        // One beat per turn regardless of how long that beat is scheduled to
-        // run for, so the walk cannot stall on a long scripted tenure.
-        while (guard++ < 24 && PROGRAM[beatIdx % PROGRAM.length] !== landOn) {
-          nextBeat = S.t;
-          stepSim(BEAT);
-        }
-        nextBeat = Infinity;
-      }
-      warming = false;
-      parts.length = 0;
-      flash.fill(0);
-      paidAt.fill(0);
-      leapP.fill(1);
-      x2Col = -1;
-      x2Age = 0;
-      depositFull = false;
-      divFrom = 0.8;
-      divTo = 0.8;
-      divP = 1;
-      divShown = 0.8;
-      // Land on a real take rather than a placeholder: the tape, the deposit
-      // bar and the money all tell the truth from the very first frame.
-      if (resize()) paintCanvas();
-      runBeat();
-      // …including the bar. There is no previous allocation to ease away from on a
-      // cold start, so the divider begins where the take it is drawn beside
-      // already is, rather than sliding into agreement with its own caption.
-      divShown = divFrom = divTo = depositFull ? 0 : 0.8;
-      divP = 1;
-    }
-    warmStart();
+    /* warmStart lives with the model in lib/models/mine.ts. */
+    warmStart(S, fx);
     paintSim();
 
     let ro: ResizeObserver | null = null;
@@ -1489,7 +981,7 @@ export function Mining() {
       // harness only calls this on the off-screen → on-screen edge after 30s
       // away, so the board is never rewound under the reader's eyes.
       reset: function () {
-        warmStart();
+        warmStart(S, fx);
         paintSim();
       },
       static: function () {
@@ -1498,7 +990,7 @@ export function Mining() {
         // ghost tick and ×2 still showing, both halves of the payment caught in
         // the lane, and the counter still reporting the never-taken slots that
         // deposit 100% — both allocations taught in one frozen frame.
-        warmStart('you-buy');
+        warmStart(S, fx, 'you-buy');
         stepSim(18);
         paintSim();
       },

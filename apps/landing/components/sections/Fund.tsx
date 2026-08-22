@@ -2,6 +2,30 @@
 
 import { useLayoutEffect } from 'react';
 import { fontFamily, registerSim } from '../../lib/harness';
+import {
+  DRAIN_END,
+  EPOCH,
+  QQQ,
+  TS,
+  aucStep as stepAuc,
+  createAucState,
+  drainAt,
+  fair,
+  seedHistory,
+  type AucFx,
+} from '../../lib/models/auction';
+import {
+  SUPPLY0,
+  TRAVEL,
+  amtFmt,
+  begin,
+  createRedState,
+  finalize,
+  redStep as stepRed,
+  takenFmt,
+  type RedFx,
+  type RedHold,
+} from '../../lib/models/redeem';
 import './fund.css';
 
 /* The vault's four holdings. The fund holds MANY DIFFERENT THINGS, so each bay
@@ -599,7 +623,7 @@ export function Fund() {
     /* ================================================ acquisition auction ==
        Lifted from docs/deck/gumball6900-deck.html (auc, lines 1673-1846) and
        documented in docs/MODELS.md §4. Everything is measured in QQQ units,
-       never dollars: fair() is what the USDG lot is worth in QQQ, and the ask
+       never dollars: fair(auc) is what the USDG lot is worth in QQQ, and the ask
        decays linearly over a six-hour epoch. The lot keeps growing while the
        auction is open; the display freezes at the moment of fill.
 
@@ -607,108 +631,16 @@ export function Fund() {
        being poured, with a visible meniscus — while a pink blade, the ask,
        descends on a rail toward it. Where the blade meets the surface is the
        price, and the sim HOLDS there, because that crossing is the argument. */
-    const QQQ = 486; /* $ per unit — illustrative */
-    const EPOCH = 21600; /* six-hour epoch, inside Strategy's 1h-365d bounds */
-    const BRIBE = 0.1; /* signaler share: default 10%, capped at 20% in code */
-    const TS = 450; /* harness timeScale: 1 real s = 450 sim s */
-    /* A reader arrives mid-auction rather than at second zero, so the first
-       settle lands ~6s after the panel scrolls in instead of ~13s. */
-    const SEED = EPOCH * 0.12;
-    /* The settle window. The pour starts on the frame the ring appears and
-       runs the whole window: a labelled stage is never left with nothing on
-       it. What holds the argument to the end is not the candy but the ghost
-       of the lot — a hatched band standing at the settle height, revealed as
-       the lot leaves, with the meet-line and the ring still on top of it.
-       The pour finishes at DRAIN_END and the window runs on: the empty vessel
-       — hatch still standing, ask frozen, surface at nothing — is the frame
-       that says the whole lot went to the buyer, so it is HELD before the
-       cut rather than flashed for a frame. */
-    const DRAIN_END = 3.5;
-    const EMPTY_HOLD = 0.4;
-    const TRADE_END = DRAIN_END + EMPTY_HOLD;
-    /* the pour: a beat of contact, then it empties, accelerating */
-    const drainAt = (u: number) => {
-      const x = Math.max(0, Math.min(1, u));
-      return x * (0.34 + 0.66 * x);
-    };
-    /** inverse of drainAt: when the pour has given up `frac` of the lot */
-    const drainU = (frac: number) => (-0.34 + Math.sqrt(0.1156 + 2.64 * frac)) / 1.32;
-    /* the departures are the pour: sphere i leaves as the level passes its own
-       course, over the first 62% of the lot — the tail drains behind them so
-       the last sphere still lands inside the window */
-    const USDG_N = 12;
-    const USDG_SP = 1 / 0.85; /* one real second of flight, near enough */
-    const RETURN_SP = 1 / 1.05;
-    const PAY_LANDS = 2.05; /* the return leg touches down; the wells rise then */
-    const PAY_RISE = 0.72; /* real seconds the pile — and the ruler — take to move */
-    /* THE RULER. It opens low enough that the lot the reader arrives holding
-       is candy on sight and the first live settle is a real pour — and high
-       enough that the pile has somewhere to climb for the next six. It is
-       shared by both destinations, so 90/10 stays one comparison. */
-    const CAP0 = 10; /* QQQ — where the axis opens */
-    const FILL_TRIG = 0.92; /* above this the next total no longer fits under it */
-    /* When the ruler has to grow, the payment still closes this much of what
-       is left between the surface and the rim — so the level always RISES on
-       the beat, and the relabel reads as headroom added, not candy removed. */
-    const CLOSE = 0.3;
-    const FILL_MAX = 0.985;
-    const easeOut = (u: number) => 1 - Math.pow(1 - u, 3);
-    const clamp01 = (u: number) => (u < 0 ? 0 : u > 1 ? 1 : u);
+    /* The auction's constants live with the model in lib/models/auction.ts. */
     /* MODELS.md §4: "blue USDG auction→trader, white QQQ trader→fund, pink QQQ
        trader→signalers". The ninety and the tenth are different inks, so the
        split is legible without counting — and the count backs it up, 9 to 1. */
     const FUND_INK = C.hi;
     const SIG_INK = C.pink;
 
-    /* a coin knows when it left and how fast it flies; its position is read
-       off the settle clock, so nothing accumulates drift across a frame drop */
-    interface Coin {
-      t0: number;
-      sp: number;
-      kind: 'usdg' | 'fund' | 'sig';
-    }
-    interface Drop {
-      x: number;
-      p: number;
-    }
-
-    const auc = {
-      t: 0,
-      phase: 'open' as 'open' | 'trade',
-      tradeT: 0,
-      lot: 486,
-      inflow: 0.045,
-      ask: 0,
-      initialAsk: 0,
-      started: 0,
-      openedAt: 0,
-      fundTotal: 0,
-      sigTotal: 0,
-      fundShown: 0,
-      sigShown: 0,
-      toFund: 0,
-      toSig: 0,
-      cap: CAP0,
-      capShown: CAP0,
-      capTo: CAP0 /* where the ruler is going on THIS payment's beat */,
-      capLit: 0 /* the axis stays emphasised for a beat after it moves */,
-      payFund0: 0 /* the surfaces the payment beat starts from */,
-      paySig0: 0,
-      payCap0: CAP0,
-      epoch: 0,
-      parts: [] as Coin[],
-      drops: [] as Drop[],
-      dropT: 0,
-      deltaT: -1 /* -1 = no receipt showing */,
-      lastPaid: 0,
-      lastLot: 0,
-      landed: false,
-      still: false,
-      /* geometry stashed by the stage paint so the overlay can launch the lot
-         from the vessel's actual surface at any breakpoint */
-      geo: { mouthX: 0, rimRightX: 0, rimY: 0, surfaceY: 0 },
-    };
-    const fair = () => auc.lot / QQQ;
+    /* The model lives in lib/models/auction.ts, moved there verbatim so this
+       panel and the plate step the identical code. */
+    const auc = createAucState();
     /* measured once per layout, not once per frame */
     let wireKey = '';
     let stageOff = 0;
@@ -724,169 +656,42 @@ export function Fund() {
         n.textContent = '';
       });
     }
-    function openAuction(seed: number) {
-      auc.phase = 'open';
-      auc.started = auc.t - seed;
-      auc.openedAt = auc.t;
-      auc.initialAsk = fair() * (1.85 + Math.random() * 0.35);
-      auc.lot += auc.inflow * seed;
-      auc.ask = auc.initialAsk * (1 - seed / EPOCH);
-      auc.landed = false;
-      auc.parts = [];
-      auc.drops = [];
-      auc.dropT = 0;
-      el.meet.textContent = 'settles when they meet';
-      el.meet.classList.remove('is-met');
-    }
-    /* A READER ARRIVES AT A STRATEGY THAT IS ALREADY RUNNING. The lot in front
-       of them is part-grown and the ask part-fallen; the treasury it feeds is
-       likewise not at zero. That opening pile is not asserted — it is stepped:
-       one auction is opened, run against the model's own equations until the
-       ask meets what the lot is worth, and its ninety/ten booked. So the
-       vessel a cold arrival meets is holding a lot the model actually settled,
-       and the panel never spends its first ten seconds as two empty boxes. */
-    function seedHistory() {
-      auc.lot = 420 + Math.random() * 180;
-      openAuction(0);
-      let guard = 0;
-      while (auc.ask > fair() && guard++ < 4000) {
-        const dt = 30;
-        auc.t += dt;
-        auc.lot += auc.inflow * dt;
-        const elapsed = auc.t - auc.started;
-        auc.ask = elapsed >= EPOCH ? 0 : auc.initialAsk * (1 - elapsed / EPOCH);
-      }
-      auc.fundTotal = auc.ask * (1 - BRIBE);
-      auc.sigTotal = auc.ask * BRIBE;
-      auc.fundShown = auc.fundTotal;
-      auc.sigShown = auc.sigTotal;
-      auc.epoch = 1;
-      auc.cap = CAP0;
-      auc.capShown = CAP0;
-      auc.capTo = CAP0;
-      auc.capLit = 0;
-      auc.lot = 420 + Math.random() * 180;
-      openAuction(SEED);
-    }
-    seedHistory();
-
-    function fill() {
-      auc.phase = 'trade';
-      auc.tradeT = 0;
-      auc.lastPaid = auc.ask;
-      auc.lastLot = auc.lot;
-      auc.toFund = auc.lastPaid * (1 - BRIBE);
-      auc.toSig = auc.lastPaid * BRIBE;
-      auc.fundTotal += auc.toFund;
-      auc.sigTotal += auc.toSig;
-      /* THE RULER MOVES WITH THE PAYMENT — never on its own, and never after
-         it. When the new total will not fit under the ceiling, the ceiling is
-         raised on the very beat the spheres land, and the new maximum is
-         chosen from the surface that is currently on screen so that the
-         post-payment surface stands HIGHER than the pre-payment one. The pile
-         and the ruler then run on ONE eased progress (aucStep), and
-         level = total/ceiling is monotone in that progress exactly when
-         post > pre — so no frame in between can show the pile fall. */
-      auc.payFund0 = auc.fundShown;
-      auc.paySig0 = auc.sigShown;
-      auc.payCap0 = auc.capShown;
-      auc.capTo = auc.cap;
-      if (auc.fundTotal > auc.cap * FILL_TRIG) {
-        const pre = auc.payFund0 / Math.max(1e-6, auc.payCap0);
-        const post = Math.min(FILL_MAX, pre + CLOSE * (1 - pre));
-        auc.capTo = Math.max(auc.cap, auc.fundTotal / post);
-      }
-      auc.epoch++;
-      auc.drops = [];
-      /* The lot empties into the trader; the asset comes back and splits.
-         Ten spheres return — nine to the treasury, one to the signalers — so
-         the 90/10 is countable as well as coloured. Each USDG sphere leaves as
-         the level passes its own course: the pour and the transfer are one
-         event, not a drain beside an unrelated flight of coins. */
-      auc.parts = [];
-      for (let i = 0; i < USDG_N; i++) {
-        auc.parts.push({ t0: drainU(((i + 0.6) / USDG_N) * 0.62) * DRAIN_END, sp: USDG_SP, kind: 'usdg' });
-      }
-      for (let f = 0; f < 9; f++) auc.parts.push({ t0: 1.0 + f * 0.115, sp: RETURN_SP, kind: 'fund' });
-      auc.parts.push({ t0: 1.575, sp: RETURN_SP, kind: 'sig' });
-      el.meet.textContent = 'they met — settled';
-      el.meet.classList.add('is-met');
-      /* the receipt: two-tone, and it LIVES FOR ONE EVENT. deltaT ages it out
-         so an open auction never asserts a settle that is not happening. */
-      auc.deltaT = 0;
-      [el.dTrader, el.dFund, el.dSig].forEach((n) => n.classList.remove('is-fading'));
-      el.dTrader.innerHTML =
-        '<span class="blue">+ ' +
-        money(auc.lastLot) +
-        ' USDG in</span> · <span class="pink">' +
-        auc.lastPaid.toFixed(2) +
-        ' QQQ out</span>';
-      el.dFund.textContent = '+ ' + auc.toFund.toFixed(2) + ' QQQ';
-      el.dSig.textContent = '+ ' + auc.toSig.toFixed(2) + ' QQQ';
-      flash(el.trader, 'evt-blue');
-    }
+    /* the six DOM events the model hands back out */
+    const aucFx: AucFx = {
+      meet(text, met) {
+        el.meet.textContent = text;
+        el.meet.classList.toggle('is-met', met);
+      },
+      receipt(lastLot, lastPaid, toFund, toSig) {
+        [el.dTrader, el.dFund, el.dSig].forEach((n) => n.classList.remove('is-fading'));
+        el.dTrader.innerHTML =
+          '<span class="blue">+ ' +
+          money(lastLot) +
+          ' USDG in</span> · <span class="pink">' +
+          lastPaid.toFixed(2) +
+          ' QQQ out</span>';
+        el.dFund.textContent = '+ ' + toFund.toFixed(2) + ' QQQ';
+        el.dSig.textContent = '+ ' + toSig.toFixed(2) + ' QQQ';
+      },
+      fadeReceipt() {
+        [el.dTrader, el.dFund, el.dSig].forEach((n) => n.classList.add('is-fading'));
+      },
+      receiptIsFading: () => el.dTrader.classList.contains('is-fading'),
+      clearReceipt,
+      flashTrader() {
+        flash(el.trader, 'evt-blue');
+      },
+      flashSplit() {
+        flash(el.fund, 'evt-white');
+        flash(el.sig, 'evt-pink');
+      },
+    };
+    seedHistory(auc, aucFx);
 
     function aucStep(dt: number) {
-      /* dt is simulated seconds (x450) */
-      auc.t += dt;
-      const rdt = dt / TS;
-      /* the receipt ages on the sim's own accumulated time, never wall-clock */
-      if (auc.deltaT >= 0 && !auc.still) {
-        auc.deltaT += rdt;
-        /* the figure outlives the arrival it names: it is still on screen while
-           the asset lands and the two vessels rise, and gone before the next
-           auction opens */
-        if (auc.deltaT > 2.45 && !el.dTrader.classList.contains('is-fading')) {
-          [el.dTrader, el.dFund, el.dSig].forEach((n) => n.classList.add('is-fading'));
-        }
-        if (auc.deltaT > 3.1) clearReceipt();
-      }
-      if (auc.phase === 'open') {
-        auc.lot += auc.inflow * dt; /* the lot keeps growing during the auction */
-        const elapsed = auc.t - auc.started;
-        auc.ask = elapsed >= EPOCH ? 0 : auc.initialAsk * (1 - elapsed / EPOCH);
-        /* the stream keeps arriving: a slow drip into the open vessel */
-        auc.dropT += rdt;
-        if (auc.dropT > 0.7 && auc.drops.length < 3) {
-          auc.dropT = 0;
-          auc.drops.push({ x: 0.16, p: 0 });
-        }
-        auc.drops.forEach((d) => {
-          d.p += rdt * 1.5;
-        });
-        auc.drops = auc.drops.filter((d) => d.p < 1);
-        if (auc.ask <= fair()) fill();
-      } else {
-        auc.tradeT += rdt;
-        if (!auc.landed && auc.tradeT > PAY_LANDS) {
-          auc.landed = true; /* the asset's return leg arrives: light the split */
-          flash(el.fund, 'evt-white');
-          flash(el.sig, 'evt-pink');
-        }
-        if (auc.tradeT > TRADE_END) {
-          /* an event lasts ONE event: whatever the frame rate did, no receipt
-             from the settle just closed survives into the auction just opened */
-          clearReceipt();
-          auc.fundShown = auc.fundTotal;
-          auc.sigShown = auc.sigTotal;
-          auc.cap = auc.capTo;
-          auc.capShown = auc.capTo;
-          auc.lot = 420 + Math.random() * 180;
-          openAuction(0);
-        }
-      }
-      /* THE PAYMENT BEAT. The pile rises WHEN THE ASSET LANDS, not when the
-         model books it — and the ruler, if it has to grow, grows on the same
-         progress, so the two can never be read as separate events and the
-         surface is a monotone function of one number. */
-      if (auc.phase === 'trade') {
-        const u = easeOut(clamp01((auc.tradeT - PAY_LANDS) / PAY_RISE));
-        auc.fundShown = auc.payFund0 + (auc.fundTotal - auc.payFund0) * u;
-        auc.sigShown = auc.paySig0 + (auc.sigTotal - auc.paySig0) * u;
-        auc.capShown = auc.payCap0 + (auc.capTo - auc.payCap0) * u;
-      }
-      auc.capLit = Math.abs(auc.capTo - auc.capShown) > 0.02 ? 1 : Math.max(0, auc.capLit - rdt);
+      stepAuc(auc, dt, aucFx);
     }
+
 
     /* ---- the stage: the vessel, the ruler, the descending blade ---------- */
     function aucStage() {
@@ -895,7 +700,7 @@ export function Fund() {
       sctx.clearRect(0, 0, s.w, s.h);
       if (s.w < 40 || s.h < 40) return;
       const trading = auc.phase === 'trade';
-      const worth = trading ? auc.lastLot / QQQ : fair();
+      const worth = trading ? auc.lastLot / QQQ : fair(auc);
       const asking = trading ? auc.lastPaid : auc.ask;
 
       const rulerW = Math.max(26, Math.min(46, s.w * 0.105));
@@ -1222,7 +1027,7 @@ export function Fund() {
 
     function aucPaint() {
       const trading = auc.phase === 'trade';
-      const worth = trading ? auc.lastLot / QQQ : fair();
+      const worth = trading ? auc.lastLot / QQQ : fair(auc);
       const asking = trading ? auc.lastPaid : auc.ask;
 
       el.lot.textContent = money(trading ? auc.lastLot : auc.lot);
@@ -1376,7 +1181,7 @@ export function Fund() {
       clearReceipt();
       /* a returning reader arrives the same way the first one did: one settled
          lot already in the vessel, against the ruler's opening ceiling */
-      seedHistory();
+      seedHistory(auc, aucFx);
     }
 
     /* Paint once at wiring time so every readout carries its final shape
@@ -1447,22 +1252,10 @@ export function Fund() {
        different asset in its own hue and grain. A burn lifts the same
        proportion out of EVERY bay at the same instant; those spheres leave by
        each bay's own chute, run one manifold, and fill the redeemer's cup. */
-    const HOLDERS = ['@ava', '@pike', '@juno', '@wren', '@sol', '@bex'];
-    const SUPPLY0 = 100000000;
+    /* HOLDERS · SUPPLY0 · amtFmt · takenFmt live with the model in
+       lib/models/redeem.ts. */
 
-    function amtFmt(v: number) {
-      return v.toFixed(v < 10 ? 4 : 1);
-    }
-    function takenFmt(v: number) {
-      return v.toFixed(v < 10 ? 4 : 2);
-    }
-
-    interface Hold {
-      sym: string;
-      amt: number;
-      base: number;
-      hue: string;
-      grain: number;
+    interface Hold extends RedHold {
       el: HTMLElement;
       amtEl: HTMLElement;
       wellEl: HTMLCanvasElement;
@@ -1470,59 +1263,35 @@ export function Fund() {
       outEl: HTMLElement;
       levelY: number;
     }
+    /* The model lives in lib/models/redeem.ts, moved there verbatim so this
+       panel and the plate step the identical code. Its holds are the objects
+       this panel wires its bay elements onto. */
+    const red = createRedState(ASSETS.map((a) => ({ ...a, base: a.amt })));
+    const holds = red.holds as Hold[];
     /* The cells are server-rendered (zero CLS) — wire them, don't rebuild. */
     const cells = Array.from(rdmVault.querySelectorAll<HTMLElement>('.hold'));
     if (cells.length !== ASSETS.length) return;
-    const holds: Hold[] = [];
     for (let i = 0; i < ASSETS.length; i++) {
-      const def = ASSETS[i];
+      const hold = holds[i];
       const cell = cells[i];
-      if (!def || !cell) return;
+      if (!hold || !cell) return;
       const amtEl = cell.querySelector<HTMLElement>('.hold__amt');
       const wellEl = cell.querySelector<HTMLCanvasElement>('canvas.hold__well');
       const outEl = cell.querySelector<HTMLElement>('.hold__out');
       if (!amtEl || !wellEl || !outEl) return;
       const wellCtx = wellEl.getContext('2d');
       if (!wellCtx) return;
-      holds.push({
-        sym: def.sym,
-        amt: def.amt,
-        base: def.amt,
-        hue: def.hue,
-        grain: def.grain,
-        el: cell,
-        amtEl,
-        wellEl,
-        wellCtx,
-        outEl,
-        levelY: 0,
-      });
+      hold.el = cell;
+      hold.amtEl = amtEl;
+      hold.wellEl = wellEl;
+      hold.wellCtx = wellCtx;
+      hold.outEl = outEl;
+      hold.levelY = 0;
     }
 
-    const red = {
-      t: 0,
-      supply: SUPPLY0,
-      next: 1.6,
-      phase: 'idle' as 'idle' | 'burn',
-      pt: 0,
-      who: '',
-      mine: false,
-      pct: 0,
-      burned: 0,
-      still: false,
-      taken: [] as number[],
-      parts: [] as { i: number; d: number }[],
-      /* what the cup holds, PER BAY: the four piles are the proof that the
-         same proportion came out of every holding, and they sit under the bay
-         each one fell from */
-      cupBy: ASSETS.map(() => 0),
-      cupX: [] as number[],
-      holds,
-    };
-    const TRAVEL = 0.62; /* real seconds a sphere spends on the manifold */
     /* Same-shape zero-state line so the destination card wraps to its final
        height at load instead of shifting on the first burn. */
-    rdmTake.textContent = '→ ' + red.holds.map((h) => takenFmt(0) + ' ' + h.sym).join(' · ');
+    rdmTake.textContent = '→ ' + holds.map((h) => takenFmt(0) + ' ' + h.sym).join(' · ');
 
     /* indexed reads under noUncheckedIndexedAccess: taken[] always mirrors
        holds[] (built together in begin()), so a missing slot reads as 0 */
@@ -1533,99 +1302,44 @@ export function Fund() {
         '<strong>' +
         red.who +
         '</strong> received ' +
-        red.holds.map((h, i) => '<strong>' + takenFmt(takenAt(i)) + ' ' + h.sym + '</strong>').join(', ') +
+        holds.map((h, i) => '<strong>' + takenFmt(takenAt(i)) + ' ' + h.sym + '</strong>').join(', ') +
         ' — the same ' +
         (red.pct * 100).toFixed(2) +
         '% of every holding, in one transaction.'
       );
     }
     function takeLine(k: number) {
-      return '→ ' + red.holds.map((h, i) => takenFmt(takenAt(i) * k) + ' ' + h.sym).join(' · ');
+      return '→ ' + holds.map((h, i) => takenFmt(takenAt(i) * k) + ' ' + h.sym).join(' · ');
     }
 
-    function begin(who: string, pct: number) {
-      red.phase = 'burn';
-      red.pt = 0;
-      red.who = who;
-      red.mine = who === '@you';
-      red.pct = pct;
-      red.burned = red.supply * pct;
-      red.taken = red.holds.map((h) => h.amt * pct);
-      red.holds.forEach((h) => h.el.classList.add('is-paying'));
-      rdmVault.classList.add('is-paying');
-      rdmDest.classList.add('is-receiving');
-      rdmDest.classList.toggle('is-mine', red.mine);
-      rdmWho.textContent = who + (red.mine ? ' receive' : ' receives');
-      /* every bay gives up the same proportion at the same instant, so all
-         four emit the same count, interleaved — the cup fills with a mix */
-      const per = Math.max(3, Math.min(10, Math.round(pct * 70)));
-      red.parts = [];
-      const total = per * red.holds.length;
-      for (let k = 0; k < per; k++) {
-        for (let i = 0; i < red.holds.length; i++) {
-          const n = red.parts.length;
-          red.parts.push({ i, d: (n / Math.max(1, total - 1)) * 0.52 });
-        }
-      }
-      red.cupBy = red.holds.map(() => 0);
-      rdmOut.innerHTML =
-        '<strong>' +
-        red.who +
-        '</strong> burns <strong>' +
-        Math.round(red.burned).toLocaleString('en-US') +
-        ' GBX</strong> — ' +
-        (red.pct * 100).toFixed(2) +
-        '% of everything in existence.';
-    }
-    function finalize() {
-      red.supply -= red.burned;
-      red.holds.forEach((h, i) => {
-        h.amt -= takenAt(i);
-        h.el.classList.remove('is-paying');
-      });
-      rdmVault.classList.remove('is-paying');
-      rdmDest.classList.remove('is-receiving');
-      rdmTake.textContent = takeLine(1);
-      /* the cup keeps what it received until the next redeemer takes theirs,
-         so the vessel and the receipt printed under it never disagree */
-      red.cupBy = red.holds.map((_, i) => red.parts.filter((p) => p.i === i).length);
-      red.parts = [];
-      rdmOut.innerHTML = receiptHTML();
-      red.phase = 'idle';
-      red.next = red.t + (red.mine ? 4.6 + Math.random() : 3.0 + Math.random() * 0.9);
-    }
 
-    /* The programme: the reader's own burn first, then an ambient one, and so
-       on. Deterministic order, so the headline beat is guaranteed, not lucky. */
-    let burnIdx = 0;
-    function nextScheduledBurn() {
-      const mine = burnIdx % 2 === 0;
-      burnIdx++;
-      if (mine) begin('@you', 0.1);
-      else begin(HOLDERS[Math.floor(Math.random() * HOLDERS.length)] ?? '@ava', 0.04 + Math.random() * 0.04);
-    }
-
+    /* The step is the frozen model's; this panel supplies the DOM events. */
+    const redFx: RedFx = {
+      onBegin(who, mine, burned, pct) {
+        holds.forEach((h) => h.el.classList.add('is-paying'));
+        rdmVault.classList.add('is-paying');
+        rdmDest.classList.add('is-receiving');
+        rdmDest.classList.toggle('is-mine', mine);
+        rdmWho.textContent = who + (mine ? ' receive' : ' receives');
+        rdmOut.innerHTML =
+          '<strong>' +
+          who +
+          '</strong> burns <strong>' +
+          Math.round(burned).toLocaleString('en-US') +
+          ' GBX</strong> — ' +
+          (pct * 100).toFixed(2) +
+          '% of everything in existence.';
+      },
+      onFinalize() {
+        holds.forEach((h) => h.el.classList.remove('is-paying'));
+        rdmVault.classList.remove('is-paying');
+        rdmDest.classList.remove('is-receiving');
+        rdmTake.textContent = takeLine(1);
+        rdmOut.innerHTML = receiptHTML();
+      },
+    };
     function redStep(rdt: number) {
-      red.t += rdt;
-      if (red.phase === 'idle') {
-        /* between burns the panel is never still: the Strategies keep buying,
-           so each holding creeps back toward its pre-burn baseline, and the
-           Mine keeps issuing, so the supply ticks steadily back up. */
-        const g = 1 - Math.exp(-rdt * 0.13);
-        red.holds.forEach((h) => {
-          h.amt = Math.min(h.base, h.amt + (h.base - h.amt) * g + h.base * 0.004 * rdt);
-        });
-        red.supply = Math.min(SUPPLY0, red.supply + (SUPPLY0 - red.supply) * g + 45000 * rdt);
-        if (red.t >= red.next) nextScheduledBurn();
-        return;
-      }
-      red.pt += rdt;
-      const landed = red.holds.map(() => 0);
-      red.parts.forEach((p) => {
-        if ((red.pt - p.d) / TRAVEL >= 1) landed[p.i] = (landed[p.i] ?? 0) + 1;
-      });
-      red.cupBy = landed;
-      if (red.pt >= 1.5) finalize();
+      stepRed(red, rdt, redFx);
     }
 
     /* ---- one bay of the vault: a compartment of the fund, in spheres ----- */
@@ -1709,7 +1423,7 @@ export function Fund() {
       const inset = d / 2 + 4;
       const vstep = d * 0.86;
       counts.forEach((n, i) => {
-        const hue = red.holds[i]?.hue;
+        const hue = holds[i]?.hue;
         if (!hue) return;
         const cx = red.cupX[i] ?? (s.w * (i + 0.5)) / Math.max(1, counts.length);
         const wide = n > 6 ? 4 : 3;
@@ -1767,7 +1481,7 @@ export function Fund() {
       const k = burning ? Math.min(1, red.pt / 1.1) : 0;
       /* every text write first, then every canvas measure — interleaving them
          would force one layout per bay instead of one for the whole frame */
-      const frac = red.holds.map((h, i) => {
+      const frac = holds.map((h, i) => {
         const out = burning ? takenAt(i) * k : 0;
         const shown = h.amt - out;
         h.amtEl.textContent = amtFmt(shown);
@@ -1789,7 +1503,7 @@ export function Fund() {
       } else {
         rdmSupplySlice.style.width = '0';
       }
-      red.holds.forEach((h, i) => {
+      holds.forEach((h, i) => {
         const f = frac[i];
         drawWell(h, i, f?.[0] ?? 0, f?.[1] ?? 0, burning);
       });
@@ -1818,16 +1532,16 @@ export function Fund() {
         const boardBottom = boardR.bottom - base.top;
         const mouthY = cr.top - base.top + 3;
         const gapH = mouthY - boardBottom;
-        const cxRaw = red.holds.map((h) => {
+        const cxRaw = holds.map((h) => {
           const wr = h.wellEl.getBoundingClientRect();
           return wr.left - base.left + wr.width / 2;
         });
         /* the rows of the board as it is actually laid out: four across at a
            full width, two by two when it reflows */
-        const rowTops = Array.from(new Set(red.holds.map((h) => Math.round(h.el.getBoundingClientRect().top)))).sort(
+        const rowTops = Array.from(new Set(holds.map((h) => Math.round(h.el.getBoundingClientRect().top)))).sort(
           (a, b) => a - b,
         );
-        const rowOf = (i: number) => rowTops.indexOf(Math.round((red.holds[i] as Hold).el.getBoundingClientRect().top));
+        const rowOf = (i: number) => rowTops.indexOf(Math.round((holds[i] as Hold).el.getBoundingClientRect().top));
         const stacked = rowTops.length > 1;
         /* THE CLEAR MARGINS either side of the instrument. A bay with another
            bay beneath it cannot descend inside the board without drawing one
@@ -1845,11 +1559,11 @@ export function Fund() {
            it fell from. Reflowed, two bays share a column and cannot — so the
            piles are laid out in the order of the receipt printed under them,
            which is also the reading order of the bays above. */
-        const landX = red.holds.map((h, i) =>
-          stacked ? cr.left - base.left + ((i + 0.5) / red.holds.length) * cr.width : (cxRaw[i] ?? 0),
+        const landX = holds.map((h, i) =>
+          stacked ? cr.left - base.left + ((i + 0.5) / holds.length) * cr.width : (cxRaw[i] ?? 0),
         );
         red.cupX = landX.map((x) => x + base.left - cr.left);
-        rdmPaths = red.holds.map((h, i) => {
+        rdmPaths = holds.map((h, i) => {
           const wr = h.wellEl.getBoundingClientRect();
           const cellR = h.el.getBoundingClientRect();
           const wellCx = cxRaw[i] ?? 0;
@@ -1874,7 +1588,7 @@ export function Fund() {
             [drop, mouthY],
           ]);
         });
-        rdmWellTop = red.holds.map((h) => h.wellEl.getBoundingClientRect().top - base.top);
+        rdmWellTop = holds.map((h) => h.wellEl.getBoundingClientRect().top - base.top);
         rdmBoxes = textBoxes(
           base,
           rdmWrap,
@@ -1883,7 +1597,7 @@ export function Fund() {
       }
       /* the surface each track leaves from moves with the level; the rim
          offsets were cached with the paths, so this touches no layout */
-      red.holds.forEach((h, i) => {
+      holds.forEach((h, i) => {
         const p = rdmPaths[i];
         const f = p?.[0];
         if (!p || !f) return;
@@ -1900,7 +1614,7 @@ export function Fund() {
       rctx.setLineDash([1.5, 5]);
       rctx.lineWidth = 1;
       rctx.globalAlpha = red.mine ? 0.62 : 0.42;
-      red.holds.forEach((h, i) => {
+      holds.forEach((h, i) => {
         const p = rdmPaths[i];
         if (!p) return;
         rctx.strokeStyle = liftOf(h.hue, 0.3);
@@ -1913,7 +1627,7 @@ export function Fund() {
       if (red.still) {
         /* frozen: the share already in flight on all four tracks, so the
            journey reads with nothing moving */
-        red.holds.forEach((h, i) => {
+        holds.forEach((h, i) => {
           const p = rdmPaths[i];
           if (!p) return;
           for (let n = 0; n < 3; n++) {
@@ -1929,7 +1643,7 @@ export function Fund() {
         const pr = (red.pt - pt.d) / TRAVEL;
         if (pr <= 0 || pr >= 1) return;
         const p = rdmPaths[pt.i];
-        const h = red.holds[pt.i];
+        const h = holds[pt.i];
         if (!p || !h) return;
         const xy = pathPoint(p, pr);
         /* what is leaving is the BRIGHTEST ink in the panel */
@@ -1951,11 +1665,11 @@ export function Fund() {
         red.still = false;
         red.phase = 'idle';
         red.parts = [];
-        red.cupBy = red.holds.map(() => 0);
-        red.holds.forEach((h) => h.el.classList.remove('is-paying'));
+        red.cupBy = holds.map(() => 0);
+        holds.forEach((h) => h.el.classList.remove('is-paying'));
         rdmVault.classList.remove('is-paying');
         rdmDest.classList.remove('is-receiving');
-        burnIdx = 0;
+        red.burnIdx = 0;
         red.next = red.t + 1.4;
         redPaint();
       },
@@ -1964,8 +1678,8 @@ export function Fund() {
            gone, four tracks converging out of four bays, the share on its way
            and the receipt naming the same proportion of every holding */
         red.still = true;
-        begin('@you', 0.1);
-        finalize();
+        begin(red, redFx, '@you', 0.1);
+        finalize(red, redFx);
         /* the same share out of every bay, part of it already in the cup and
            part of it still on the four lanes below the board */
         red.cupBy = red.cupBy.map((n) => Math.round(n * 0.55));
