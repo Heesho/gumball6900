@@ -133,11 +133,69 @@ single change most likely to make these read as engineering drawings rather than
 - a **published legend**: learn six glyphs once, read all five figures. Same move as the
   ball-colour law.
 
+## OWNER AMENDMENT — 22 Aug 2026: the overview's altitude
+
+**Decided by the owner, looking at the rendered overview. This binds, and it supersedes anything
+below that contradicts it.**
+
+The owner's verdict on the current overview: *"it tries to get too granular instead focusing on
+the whole flow of the system."*
+
+That is the diagnosis for `overview-flow`. The figure is **competing with the sections below it**.
+Bands 01 and 03 redraw mechanisms that `mining-board` and `fund-flows` already own properly —
+sixteen individual slot ticks with their own price marks, four separate auction cylinders each with
+a price-falls line and a fill level — and band 04 draws ninety individual spheres. Having spent its
+width on mechanism detail, the figure has nothing left with which to draw the flow itself, which is
+why the flow is currently carried by **drifting specks**. The specks are a symptom, not the disease.
+
+### 1. Altitude — one conserved flow, five stations
+
+Strip the mechanism detail out. The overview becomes **one Sankey of the whole system**, and a
+reader can trace one unit of value from entry to exit:
+
+```
+01 DEPOSITED   ▓▓▓▓▓▓▓▓ miners ──▶ [ROUTER ▤ holds ]
+                                        │ route()
+02 AIMED       ────────────────────────▼▓▓▓▓▓▓▓▓ 7-day stream
+                        signal ⌁ splits it ─┬─┬─┬─┬─
+03 CONVERTED               ▓▓ ▓▓ ▓▓ ▓▓  (one valve, not four auctions)
+04 THE FUND    [ NVDA ▉▉▉ │ QQQ ▉▉ │ WBTC ▉ │ AAPL ▉▉ ]
+05 YOUR SHARE       burn ▷ ══════════════▶ YOU
+```
+
+- **Width is quantity everywhere, strictly conserved.**
+- The sixteen slot ticks, the four auction cylinders and the price-fall lines **go**. The sections
+  below teach them properly and in more depth; the overview must not restate them.
+- The drifting specks **go**. Flow is drawn as a quantity, not implied by particles.
+- The Router stays a **holding vessel with its own outlet** — the deposit-is-not-a-stream rule in
+  "THE ONE RULE" is unaffected by this amendment and still binds.
+
+### 2. Band 04 — four asset-hued sphere groups
+
+The sphere ledger **survives, regrouped**. Keep the spheres (the art direction is explicit that
+holdings are naturally spheres and that spheres are the brand's native shape), but group them into
+**four blocks, one per asset, each in its own hue, block width ∝ holdings**:
+
+```
+04 · THE FUND
+  NVDA        QQQ       WBTC   AAPL
+ ●●●●●●●●●   ●●●●●●●   ●●●●   ●●●●●
+ ●●●●●●●●●   ●●●●●●●   ●●●●   ●●●●●
+ └ #9E5CF2 ┘ └#F92B92┘ └#FF6274┘└#F57ACD┘
+```
+
+This single move fixes the granularity **and** the flat-pink defect: the overview and the fund
+section finally encode holdings identically, which is a named deliverable of this gauntlet.
+
+**This amends "Keep the five-band vertical composition and the sphere ledger (the best thing in the
+figure)" in the table below.** The five-band composition stays. The ledger stays *as four hued
+groups*, not as ninety flat-pink spheres.
+
 ## The grammar, per figure
 
 | Figure | Grammar | Libraries |
 |---|---|---|
-| **Overview** — the whole loop | **Stock-and-flow / Sankey: width = quantity, strictly conserved.** Keep the five-band vertical composition and the sphere ledger (the best thing in the figure). Close the loop with an explicit labelled exit stub and return rule as *art direction* — the burn is a sink, not a re-entrant flow. **Draw the Router as a holding vessel with its own outlet, never as a pass-through elbow** — see the deposit-is-not-a-stream rule above. | `d3-shape` ribbons; hand conservation math |
+| **Overview** — the whole loop | **Stock-and-flow / Sankey: width = quantity, strictly conserved.** **⚠ READ THE OWNER AMENDMENT ABOVE FIRST — it sets the altitude and overrides parts of this cell.** Keep the five-band vertical composition; the sphere ledger survives **as four asset-hued groups, width ∝ holdings**, not as ninety flat-pink spheres. Strip the mechanism detail (16 slot ticks, 4 auction cylinders, price-fall lines) and the drifting specks — the sections below own those. Close the loop with an explicit labelled exit stub and return rule as *art direction* — the burn is a sink, not a re-entrant flow. **Draw the Router as a holding vessel with its own outlet, never as a pass-through elbow** — see the deposit-is-not-a-stream rule above. | `d3-shape` ribbons; hand conservation math |
 | **Mining** — 16 slots | **Small-multiples instrument board.** Sixteen identical mechanisms, mono labels, one job each. Slot meters read as **clocks** — empty at restart, full at the hour (standing owner rule; overrides DESIGN.md's shrink rule for these meters only). | none — the decay is a straight line; `bezier-easing` for the take/restart snap |
 | **Resonance** — signal aimed at strategies | **Conserved streamgraph — already implemented, and correctly.** The existing cross-section machinery with per-station lag so four channels always sum to the whole stream is *better than any library provides*. **Do not replace it.** | `bezier-easing` only |
 | **Fund** — acquisition + redemption | **Proportional stacked bays (stock) + tapered claim ribbons (flow).** Redemption is where a library visibly raises craft: *n* parallel ribbons, one per bay, each leaving at width ∝ (burn share × holdings), converging on the burner, asset-hued; the GBX burn drawn neutral. | `d3-shape` via the shared `lib/ribbon.ts` |
