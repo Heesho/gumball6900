@@ -1251,7 +1251,11 @@ export function Resonance() {
           a.deltaEl.textContent = d;
           a.lastDelta = d;
         }
-        a.deltaEl.style.opacity = a.moved > 0 ? Math.min(1, a.moved * 1.6).toFixed(2) : '0';
+        /* Hold at 1 for the delta's whole life, then let the CSS transition
+           fade it in ~320ms — a linear ramp here kept it on screen below AA
+           for over a second (see .rz-row__delta). */
+        const op = a.moved > 0 ? '1' : '0';
+        if (a.deltaEl.style.opacity !== op) a.deltaEl.style.opacity = op;
         const est = Math.round((weekly * share) / 100) * 100;
         const sub = a.stake.toLocaleString('en-US') + ' GBX · ≈$' + est.toLocaleString('en-US') + '/wk at this weight';
         if (sub !== a.lastSub) {

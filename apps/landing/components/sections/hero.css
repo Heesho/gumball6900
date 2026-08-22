@@ -488,6 +488,16 @@
   #sec-hero .hero__margin {
     display: contents;
   }
+  /* A display:contents element generates no box, so the reveal observer can
+     never intersect it and .is-in never lands. Today that is harmless only
+     because opacity is inert on display:contents — pin the revealed state so
+     the status/honesty copy cannot vanish if the display type above ever
+     changes. */
+  #sec-hero .hero__margin.reveal {
+    opacity: 1;
+    translate: 0 0;
+    transition: none;
+  }
   #sec-hero .hero__kicker,
   #sec-hero .hero__wm,
   #sec-hero .hero__say,

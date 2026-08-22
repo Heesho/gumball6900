@@ -79,6 +79,10 @@
   /* --- editorial metrics -------------------------------------------------- */
   --marg: clamp(20px, 4.4vw, 64px); /* page margin, inside the max width */
   --maxw: 1312px; /* the spread, margins included */
+  /* NOTE: 100vw includes the classic-scrollbar gutter that clientWidth
+     excludes, so at ≥1312px a bleed plane computed from this overshoots the
+     true viewport by the scrollbar width (~8px). The `overflow-x: clip` on
+     html/body absorbs that overshoot — the clip is load-bearing for --bleed. */
   --bleed: max(0px, (100vw - 1312px) / 2); /* max width edge → viewport edge */
   --edge: calc(var(--bleed) + var(--marg)); /* content edge → viewport edge */
 
@@ -160,7 +164,11 @@ html {
   -webkit-text-size-adjust: 100%;
   /* clip, not hidden: bleeding planes and rules run past the container to the
      viewport edge without ever producing a horizontal scrollbar, and clip
-     (unlike hidden) does not turn the root into a scroll container. */
+     (unlike hidden) does not turn the root into a scroll container.
+       LOAD-BEARING: --bleed is computed from 100vw, which includes the
+     classic-scrollbar gutter, so bleed planes overshoot the viewport by the
+     scrollbar width at ≥1312px. This clip (here and on body) is what absorbs
+     that overshoot — removing it reintroduces a horizontal scrollbar. */
   overflow-x: clip;
 }
 body {
@@ -1246,7 +1254,12 @@ b {
   background: var(--rule);
   border: var(--hair) solid var(--rule);
   border-radius: var(--r-s);
-  overflow: hidden;
+  /* clip with a 2px margin, not hidden: a cell's one-shot event ring
+     (`0 0 0 1px` box-shadow) sits just outside its box, and plain hidden
+     shaved the top edge off every cell's ring and the outer side off the end
+     cells. 2px is exactly the ring's reach — nothing else may leak. */
+  overflow: clip;
+  overflow-clip-margin: 2px;
 }
 .board--2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1481,12 +1494,15 @@ b {
    ~93% spent by 200ms, so easing straight from lit to clear turned "one
    second of visible consequence" into a 150ms blink nobody could catch. Same
    class, same token, same total duration — the second is simply spent where
-   the reader can see it. Demonstrated in §09 of /specimen. */
+   the reader can see it. Demonstrated in §09 of /specimen.
+     The lit inset is .10, not more: at .16 the raised ground pushed the
+   cell's faint mono ink (.cell__id/.cell__sub, the open label, the fund's
+   .acq__label) below 4.5:1 for the whole 400ms hold. */
 @keyframes evt-pink {
   0%,
   40% {
     box-shadow:
-      inset 0 0 0 999px rgba(249, 43, 146, 0.16),
+      inset 0 0 0 999px rgba(249, 43, 146, 0.1),
       0 0 0 1px var(--pink);
   }
   100% {
@@ -1499,7 +1515,7 @@ b {
   0%,
   40% {
     box-shadow:
-      inset 0 0 0 999px rgba(41, 182, 240, 0.16),
+      inset 0 0 0 999px rgba(41, 182, 240, 0.1),
       0 0 0 1px var(--blue);
   }
   100% {

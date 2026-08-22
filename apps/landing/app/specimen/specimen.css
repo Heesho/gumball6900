@@ -575,6 +575,14 @@
 .sp-wm {
   font-size: clamp(52px, 9.4vw, 132px);
 }
+/* The 52px floor sets "GumBall6900" ~324px wide — wider than the box at a
+   320px viewport, and overflow-x: clip was silently cropping it. Below 390px
+   the floor tracks the viewport instead; at ≥390px nothing changes. */
+@media (max-width: 389px) {
+  .sp-wm {
+    font-size: clamp(40px, 13vw, 52px);
+  }
+}
 .sp-wm__plain {
   font-family: var(--font-display);
   font-weight: 400;

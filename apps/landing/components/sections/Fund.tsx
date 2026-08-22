@@ -131,16 +131,51 @@ export function Fund() {
     function money(x: number) {
       return '$' + Math.round(x).toLocaleString('en-US');
     }
+    /* Canvas CSS sizes are cached and kept fresh by a ResizeObserver so a
+       paint NEVER reads clientWidth: both paints here run after the frame's
+       DOM text writes, and a layout read at that point forces one synchronous
+       reflow per sim per frame (Overview's 0.00ms is the proof the read can
+       be hoisted). The observer also marks the redemption panel's cached
+       geometry dirty, replacing what used to be per-frame rect reads.
+       Browsers without a ResizeObserver fall back to the live reads. */
+    const cssSize = new Map<HTMLCanvasElement, { w: number; h: number }>();
+    let rdmDirty = true;
+    const sizeRO =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver((entries) => {
+            entries.forEach((e) => {
+              if (e.target instanceof HTMLCanvasElement) {
+                cssSize.set(e.target, {
+                  w: Math.round(e.contentRect.width),
+                  h: Math.round(e.contentRect.height),
+                });
+              }
+            });
+            rdmDirty = true;
+          })
+        : null;
+    function measure(canvas: HTMLCanvasElement) {
+      if (!sizeRO) return { w: canvas.clientWidth, h: canvas.clientHeight };
+      let s = cssSize.get(canvas);
+      if (!s) {
+        /* first touch happens once, at wiring time — not in the frame loop */
+        s = { w: canvas.clientWidth, h: canvas.clientHeight };
+        cssSize.set(canvas, s);
+        sizeRO.observe(canvas);
+      }
+      return s;
+    }
     function fit(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D) {
+      const { w: cw, h: ch } = measure(canvas);
       const dpr = dprNow();
-      const w = Math.round(canvas.clientWidth * dpr);
-      const h = Math.round(canvas.clientHeight * dpr);
+      const w = Math.round(cw * dpr);
+      const h = Math.round(ch * dpr);
       if (canvas.width !== w || canvas.height !== h) {
         canvas.width = w;
         canvas.height = h;
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      return { w: canvas.clientWidth, h: canvas.clientHeight };
+      return { w: cw, h: ch };
     }
     function niceStep(raw: number) {
       const p = Math.pow(10, Math.floor(Math.log10(Math.max(raw, 1e-6))));
@@ -1719,11 +1754,13 @@ export function Fund() {
       return;
     }
 
-    let rdmKey = '';
     let rdmPaths: Seg[][] = [];
     let rdmBoxes: number[][] = [];
     /* measured with the rest of the layout, never per frame */
     let supplyBarW = 0;
+    /* each bay's rim offset inside the transfer layer, cached with the paths
+       so the per-frame surface tracking never touches layout */
+    let rdmWellTop: number[] = [];
 
     function redPaint() {
       const burning = red.phase === 'burn';
@@ -1767,11 +1804,15 @@ export function Fund() {
          covers: where the bays reflow, that canvas reaches past the
          composition into the panel's margin so a stream can descend outside
          the board. At full width the two coincide. */
-      const base = rdmWireEl.getBoundingClientRect();
-      const cr = cupEl.getBoundingClientRect();
-      const key = `${ws.w}x${ws.h}|${(cr.top - base.top).toFixed(0)}`;
-      if (key !== rdmKey) {
-        rdmKey = key;
+      /* Rects are read only when the ResizeObserver reported a real reflow
+         (every observed canvas spans or sits inside this block, so any
+         change that moves the cup resizes one of them) — reading them every
+         frame after this paint's text writes forced a synchronous layout
+         per frame. */
+      if (rdmDirty || !sizeRO) {
+        rdmDirty = false;
+        const base = rdmWireEl.getBoundingClientRect();
+        const cr = cupEl.getBoundingClientRect();
         supplyBarW = (rdmSupplyFill.parentElement as HTMLElement | null)?.clientWidth ?? 0;
         const boardR = rdmVault.getBoundingClientRect();
         const boardBottom = boardR.bottom - base.top;
@@ -1833,19 +1874,20 @@ export function Fund() {
             [drop, mouthY],
           ]);
         });
+        rdmWellTop = red.holds.map((h) => h.wellEl.getBoundingClientRect().top - base.top);
         rdmBoxes = textBoxes(
           base,
           rdmWrap,
           '.hold__sym, .hold__amt, .hold__out, .rdm__supply, .rdm__dest > *, .rdm__out',
         );
       }
-      /* the surface each track leaves from moves with the level */
+      /* the surface each track leaves from moves with the level; the rim
+         offsets were cached with the paths, so this touches no layout */
       red.holds.forEach((h, i) => {
         const p = rdmPaths[i];
         const f = p?.[0];
         if (!p || !f) return;
-        const wr = h.wellEl.getBoundingClientRect();
-        f.y0 = wr.top - base.top + h.levelY;
+        f.y0 = (rdmWellTop[i] ?? 0) + h.levelY;
       });
       /* painted after the lanes are measured, so every pile sits under the bay
          it fell out of from the very first frame */
@@ -1936,6 +1978,7 @@ export function Fund() {
     return () => {
       unregisterAcquire();
       unregisterRedeem();
+      sizeRO?.disconnect();
       flashTimers.forEach((timer) => clearTimeout(timer));
       flashTimers.clear();
       [el.trader, el.fund, el.sig].forEach((n) => n.classList.remove('evt-blue', 'evt-pink', 'evt-white'));

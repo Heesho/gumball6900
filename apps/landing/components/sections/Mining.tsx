@@ -538,9 +538,16 @@ export function Mining() {
 
     /* ------------------------------------------------- canvas measurements */
     const view = { w: 0, h: 0, dpr: 1 };
+    /* The canvas's CSS size, read OUTSIDE the frame loop: paintSim writes DOM
+       text before paintCanvas runs, so a clientWidth read here would force
+       one synchronous layout every frame (Overview registers 0.00ms because
+       its layout is clean when it reads). The ResizeObserver below keeps this
+       cache fresh; browsers without one fall back to the live read. */
+    const hasRO = typeof ResizeObserver !== 'undefined';
+    const meas = { w: canvas.clientWidth, h: canvas.clientHeight };
     function resize(): boolean {
-      const w = canvas.clientWidth;
-      const h = canvas.clientHeight;
+      const w = hasRO ? meas.w : canvas.clientWidth;
+      const h = hasRO ? meas.h : canvas.clientHeight;
       if (w <= 0 || h <= 0) return false;
       const dpr = Math.min(2, window.devicePixelRatio || 1);
       if (w === view.w && h === view.h && dpr === view.dpr) return true;
@@ -1345,7 +1352,9 @@ export function Mining() {
       const labY = l.barY + l.barH + 12;
       ctx.font = mono(l.narrow ? 8.5 : 9.5);
       ctx.textAlign = 'left';
-      ctx.fillStyle = isFull ? inkA(0.3) : MUTED;
+      // inkA(0.55), not fainter: this label teaches the undisplaced case that
+      // routes 100%, and at 0.3 it printed at 2.48:1 against the panel — below AA.
+      ctx.fillStyle = isFull ? inkA(0.55) : MUTED;
       ctx.fillText(
         isFull ? 'NO ONE DISPLACED' : l.narrow ? '80% → CLAIM' : '80% → DISPLACED MINER CLAIM',
         l.barX,
@@ -1451,8 +1460,15 @@ export function Mining() {
     paintSim();
 
     let ro: ResizeObserver | null = null;
-    if ('ResizeObserver' in window) {
-      ro = new ResizeObserver(() => {
+    if (hasRO) {
+      ro = new ResizeObserver((entries) => {
+        const e = entries[entries.length - 1];
+        if (e) {
+          /* refresh the size cache here, where the observer hands the box
+             over for free, so the paint loop never reads layout */
+          meas.w = Math.round(e.contentRect.width);
+          meas.h = Math.round(e.contentRect.height);
+        }
         const w = view.w;
         const h = view.h;
         if (resize() && (view.w !== w || view.h !== h)) paintCanvas();

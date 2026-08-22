@@ -82,6 +82,10 @@
   font-weight: 600;
   color: var(--pink);
   opacity: 0;
+  /* the fund's .acq__delta pattern: hold at full ink, then fade fast. The
+     old per-frame linear ramp left ~1.2s of the delta's ~3.3s life under
+     3:1; a 320ms transition spends the whole life legible. */
+  transition: opacity var(--t-slow) var(--ease);
   margin-left: auto; /* the move marker owns the space the control used to */
 }
 /* An ambient holder moving on their own clock gets the ledger delta and
