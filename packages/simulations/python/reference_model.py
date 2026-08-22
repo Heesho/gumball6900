@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 WAD = 10**18
+GENESIS_LP_GBX = 20_000_000 * WAD
 
 
 def mul_div(a: int, b: int, denominator: int) -> int:
@@ -18,16 +19,29 @@ def mining_price(initial: int, elapsed: int) -> int:
     return 0 if elapsed >= 3_600 else initial - mul_div(initial, elapsed, 3_600)
 
 
-def mining_rate(economically_mined: int, initial: int, halving: int, tail: int) -> int:
-    halvings = 0
-    threshold = halving
-    while economically_mined >= threshold:
-        halvings += 1
-        shifted = initial >> halvings
-        if shifted <= tail:
-            return tail
-        threshold += halving >> halvings
+def mining_rate(elapsed_since_start: int, initial: int, halving_period: int, tail: int) -> int:
+    halvings = elapsed_since_start // halving_period
     return max(initial >> halvings, tail)
+
+
+def synchronized_mining_emission(
+    elapsed_since_start: int, initial: int, halving_period: int, tail: int
+) -> int:
+    if elapsed_since_start < 0 or halving_period <= 0 or initial <= 0 or tail <= 0:
+        raise ValueError("invalid synchronized mining input")
+
+    emission = 0
+    remaining = elapsed_since_start
+    for era in range(256):
+        if remaining == 0:
+            return emission
+        shifted = initial >> era
+        if shifted <= tail:
+            return emission + tail * remaining
+        active_seconds = min(remaining, halving_period)
+        emission += shifted * active_seconds
+        remaining -= active_seconds
+    raise ValueError("positive tail must be reached within uint256 shift bounds")
 
 
 def auction_price(initial: int, elapsed: int, duration: int) -> int:
@@ -51,9 +65,15 @@ def compute(scenarios: dict[str, Any]) -> dict[str, Any]:
         seconds = int(case["accrualSeconds"])
         emissions = [int(rate) * seconds for rate in case["slotTps"]]
         next_global = mining_rate(
-            int(case["economicallyMined"]),
+            int(case["elapsedSinceStart"]),
             int(case["initialTps"]),
-            int(case["halvingAmount"]),
+            int(case["halvingPeriod"]),
+            int(case["tailTps"]),
+        )
+        synchronized_emission = synchronized_mining_emission(
+            int(case["elapsedSinceStart"]),
+            int(case["initialTps"]),
+            int(case["halvingPeriod"]),
             int(case["tailTps"]),
         )
         mining_quotes.append(
@@ -66,6 +86,8 @@ def compute(scenarios: dict[str, Any]) -> dict[str, Any]:
                 "totalEmission": str(sum(emissions)),
                 "nextGlobalTps": str(next_global),
                 "nextSlotTps": str(next_global // 16),
+                "synchronizedMiningEmission": str(synchronized_emission),
+                "synchronizedGrossSupply": str(GENESIS_LP_GBX + synchronized_emission),
             }
         )
 
@@ -156,7 +178,7 @@ def compute(scenarios: dict[str, Any]) -> dict[str, Any]:
         "usdGDecimals": scenarios["usdGDecimals"],
         "targetDecimals": scenarios["targetDecimals"],
         "infiniteSupply": True,
-        "genesisLiquidityAllocation": str(20_000_000 * WAD),
+        "genesisLiquidityAllocation": str(GENESIS_LP_GBX),
         "miningQuotes": mining_quotes,
         "auctionQuotes": auction_quotes,
         "rewardQuotes": reward_quotes,

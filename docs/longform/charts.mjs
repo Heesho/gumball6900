@@ -4,8 +4,8 @@
  * These are charts rather than flowcharts, which is why they are not Mermaid: Mermaid
  * draws graphs and state machines, not decay curves or step functions, and the things
  * hardest to picture from this protocol's prose are exactly the curves — a price falling
- * to zero, a stream that emits one extra unit per second for part of a period, a rate that
- * halves on a schedule which itself halves.
+ * to zero, a stream that emits one extra unit per second for part of a period, and a rate
+ * that halves at fixed elapsed-time boundaries.
  *
  * Every number is derived from `contractConstants`, which mirrors the Solidity and is
  * cross-checked against the tested simulation fixture. A figure here cannot print a split
@@ -75,7 +75,7 @@ const miningSplit = () => {
       txt(x0 + barW + 10, 34, 'Displaced miner', { size: 10, fill: ink }),
       txt(x0 + barW + 10, 46, 'pull claim', { size: 9, fill: muted }),
       txt(x0, 66, `${minerPct}% is a claim the displaced miner withdraws.`, { size: 9.5, fill: muted }),
-      txt(x0, 78, `${revenuePct}% becomes protocol revenue and enters the stream.`, { size: 9.5, fill: muted }),
+      txt(x0, 78, `${revenuePct}% is deposited in Router for later routing.`, { size: 9.5, fill: muted }),
 
       txt(x0, 106, 'EMPTY SLOT — NOBODY TO COMPENSATE', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
       rect(x0, 114, barW, 26, pink),
@@ -138,7 +138,7 @@ const auctionDecay = () => {
 /* ---------------------------------------------------- 3. acquisition split ---- */
 
 const acquisitionSplit = () => {
-  const { fundBps, bribeBps } = contractConstants.bribeRouter;
+  const { defaultFundBps: fundBps, defaultBribeBps: bribeBps } = contractConstants.resonance;
   const fundPct = fundBps / 100;
   const bribePct = bribeBps / 100;
   const x0 = 8;
@@ -148,7 +148,7 @@ const acquisitionSplit = () => {
   return svg(
     128,
     [
-      txt(x0, 16, 'EVERY ACQUIRED PAYMENT', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
+      txt(x0, 16, 'DEFAULT ACQUISITION CLASSIFICATION', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
       rect(x0, 26, fundW, 30, ink),
       rect(x0 + fundW, 26, barW - fundW, 30, pink),
       txt(x0 + fundW / 2, 46, `${fundPct}%`, { anchor: 'middle', fill: '#fff', weight: 600, size: 13 }),
@@ -162,7 +162,7 @@ const acquisitionSplit = () => {
       txt(x0, 87, 'treasury backing for every GBX holder', { size: 9.5, fill: muted }),
       txt(x0 + fundW, 74, 'Signalers', { size: 11, weight: 600, fill: pink }),
       txt(x0 + fundW, 87, 'reward for signaling this Strategy', { size: 9.5, fill: muted }),
-      txt(x0, 112, 'Fixed in code. No setter, no governance parameter, no caller-chosen destination.', {
+      txt(x0, 112, 'Bribe share: 0–20% prospectively; Fund receives 100–80%. No caller-chosen destination.', {
         size: 9.5,
         fill: muted,
       }),
@@ -264,57 +264,58 @@ const halvingCurve = () => {
   const oy = 132;
   const w = 300;
   const top = 46;
-
-  const steps = [
-    { x: 0, w: 0.5, h: 1.0, label: 'u₀' },
-    { x: 0.5, w: 0.25, h: 0.5, label: 'u₀/2' },
-    { x: 0.75, w: 0.125, h: 0.25, label: 'u₀/4' },
-    { x: 0.875, w: 0.0625, h: 0.125, label: '' },
-    { x: 0.9375, w: 0.0625, h: 0.0625, label: '' },
-  ];
-  const H = oy - top;
-  const tailY = oy - H * 0.05;
-
-  const bars = steps
-    .map((s) =>
-      [
-        rect(ox + w * s.x, oy - H * s.h, w * s.w - 1, H * s.h, pink, { rx: 0, opacity: 0.85 }),
-        s.label
-          ? txt(ox + w * s.x + (w * s.w) / 2, oy - H * s.h - 6, s.label, {
-              anchor: 'middle',
-              size: 9,
-              fill: muted,
-            })
-          : '',
-      ].join(''),
-    )
-    .join('');
+  const periodDays = Number(contractConstants.mine.halvingPeriodSeconds) / 86_400;
+  let tailIndex = 0;
+  let shiftedRate = contractConstants.mine.initialTps;
+  while (shiftedRate > contractConstants.mine.tailTps) {
+    shiftedRate >>= 1n;
+    tailIndex += 1;
+  }
+  const horizonDays = (tailIndex + 1) * periodDays;
+  const xForDay = (day) => ox + (w * day) / horizonDays;
+  // Logarithmic vertical spacing keeps every halving legible in print.
+  const yForIndex = (index) => top + ((oy - top) * index) / tailIndex;
+  const segments = [];
+  for (let index = 0; index < tailIndex; index += 1) {
+    const x0 = xForDay(index * periodDays);
+    const x1 = xForDay((index + 1) * periodDays);
+    const y0 = yForIndex(index);
+    const y1 = yForIndex(index + 1);
+    segments.push(line(x0, y0, x1, y0, { stroke: pink, width: 2 }));
+    segments.push(line(x1, y0, x1, y1, { stroke: pink, width: 1.2 }));
+  }
+  const tailX = xForDay(tailIndex * periodDays);
+  const tailY = yForIndex(tailIndex);
+  segments.push(line(tailX, tailY, xForDay(horizonDays), tailY, { stroke: blue, width: 2 }));
 
   return svg(
     196,
     [
-      txt(8, 16, 'GLOBAL RATE AGAINST CUMULATIVE MINING', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
-      txt(8, 32, 'The thresholds halve too, so the whole schedule finishes below 2H —', { size: 9.5, fill: muted }),
-      txt(8, 44, 'unlike a Bitcoin-style curve, where halvings continue indefinitely.', { size: 9.5, fill: muted }),
+      txt(8, 16, 'GLOBAL RATE AGAINST TIME SINCE MINE DEPLOYMENT', {
+        size: 9,
+        fill: faint,
+        tracking: 0.6,
+        weight: 600,
+      }),
+      txt(8, 32, `Fixed ${periodDays}-day intervals; vertical spacing is logarithmic for legibility.`, {
+        size: 9.5,
+        fill: muted,
+      }),
 
       line(ox, oy, ox + w + 30, oy, { stroke: rule, width: 1.2 }),
       line(ox, oy, ox, top - 6, { stroke: rule, width: 1.2 }),
-      bars,
-
-      // tail
-      line(ox, tailY, ox + w + 26, tailY, { stroke: blue, width: 1.4, dash: '5 3' }),
-      txt(ox + w + 30, tailY + 3, 'tail', { size: 9.5, fill: blue, weight: 600 }),
-
-      // 2H marker
-      line(ox + w, oy, ox + w, top - 6, { stroke: ink, width: 1, dash: '3 3' }),
-      txt(ox + w, oy + 15, '2H', { anchor: 'middle', size: 10, fill: ink, family: MONO }),
+      segments.join(''),
+      txt(ox + 3, top - 6, 'u₀', { size: 9, fill: pink, weight: 600 }),
+      txt(tailX + 4, tailY - 6, 'u∞ tail', { size: 9, fill: blue, weight: 600 }),
       txt(ox, oy + 15, '0', { anchor: 'middle', size: 9, fill: faint }),
-      txt(ox - 30, (oy + top) / 2, 'GBX/s', { size: 9.5, fill: muted, anchor: 'middle' }),
+      txt(xForDay(periodDays), oy + 15, `${periodDays}d`, { anchor: 'middle', size: 9, fill: faint }),
+      txt(tailX, oy + 15, `${tailIndex * periodDays}d`, { anchor: 'middle', size: 9, fill: faint }),
+      txt(ox - 30, (oy + top) / 2, 'GBX/s (log)', { size: 9, fill: muted, anchor: 'middle' }),
 
       txt(
         8,
         180,
-        'After the last halving the rate is permanently the tail. Issuance never stops and never reaches zero.',
+        `The provisional clock advances even while slots are empty; at day ${tailIndex * periodDays} the prospective rate reaches the tail.`,
         {
           size: 9.5,
           fill: muted,
@@ -472,8 +473,8 @@ const mineGrid = () => {
   const y0 = 34;
 
   // Illustrative board state: most slots held at differing tenure rates, one empty, one
-  // mid-auction. The rates are relative labels, not protocol constants — production
-  // values are unselected (finding M-04), so no absolute figure is printed.
+  // mid-auction. The rates are relative labels so the board emphasizes tenure generations;
+  // the fixed absolute rates and their independent-review gate are documented elsewhere.
   const board = [
     ['held', '1.00×'],
     ['held', '1.00×'],
@@ -500,7 +501,7 @@ const mineGrid = () => {
       return [
         `<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" rx="3" fill="none" stroke="${rule}" stroke-width="1" stroke-dasharray="3 2" />`,
         txt(x + cellW / 2, y + 20, 'empty', { anchor: 'middle', size: 9.5, fill: faint }),
-        txt(x + cellW / 2, y + 33, 'routes 100%', { anchor: 'middle', size: 8.5, fill: faint }),
+        txt(x + cellW / 2, y + 33, 'deposits 100%', { anchor: 'middle', size: 8.5, fill: faint }),
       ];
     }
     if (state === 'auction') {
@@ -557,9 +558,9 @@ const mineGrid = () => {
 /* ------------------------------------------------------ 10. tenure lock ---- */
 
 /**
- * Why the aggregate can exceed the global rate (finding M-01). The global rate halves on
- * a threshold, but nobody is repriced: incumbents keep the rate they were sold. The
- * shaded band is the transitional excess, and it is a fairness decision rather than a
+ * Why the aggregate can exceed the global rate (finding M-01). The global rate halves at
+ * a time boundary, but nobody is repriced: incumbents keep the rate they were sold. The
+ * shaded band persists until replacement, and it is a fairness decision rather than a
  * defect, which is exactly the thing prose struggles to make legible.
  */
 const tenureLock = () => {
@@ -580,21 +581,21 @@ const tenureLock = () => {
       line(ox, oy, ox, yFor(1) - 12, { stroke: rule }),
       txt(ox - 6, yFor(1) + 3, 'r', { anchor: 'end', size: 9, fill: faint, family: MONO }),
       txt(ox - 6, yFor(0.5) + 3, 'r/2', { anchor: 'end', size: 9, fill: faint, family: MONO }),
-      txt(ox + w, oy + 26, 'cumulative GBX mined', { anchor: 'end', size: 9, fill: faint }),
+      txt(ox + w, oy + 26, 'time since Mine deployment', { anchor: 'end', size: 9, fill: faint }),
 
-      // the transitional excess, which is the whole point of the figure
+      // the legacy-rate excess, which is the whole point of the figure
       rect(halvingX, yFor(1), 84, h * 0.5, pink, { rx: 0, opacity: 0.16 }),
 
-      // global rate, stepping down at the threshold
+      // global rate, stepping down at the time boundary
       `<path d="M ${ox} ${yFor(1)} L ${halvingX} ${yFor(1)} L ${halvingX} ${yFor(0.5)} L ${ox + w} ${yFor(0.5)}" fill="none" stroke="${ink}" stroke-width="1.6" />`,
 
-      // one incumbent carrying its pre-halving rate past the threshold
+      // one incumbent carrying its pre-halving rate past the time boundary
       `<path d="M ${halvingX - 46} ${yFor(1) - 7} L ${halvingX + 84} ${yFor(1) - 7}" fill="none" stroke="${pink}" stroke-width="1.6" stroke-dasharray="4 2.5" />`,
       `<circle cx="${halvingX + 84}" cy="${yFor(1) - 7}" r="2.6" fill="${pink}" />`,
 
-      // threshold marker, labelled below the axis so it clears the title and the curve
+      // boundary marker, labelled below the axis so it clears the title and the curve
       line(halvingX, oy, halvingX, yFor(1) - 4, { stroke: rule, width: 0.8, dash: '2 2' }),
-      txt(halvingX, oy + 13, 'halving threshold', { anchor: 'middle', size: 8.5, fill: faint }),
+      txt(halvingX, oy + 13, 'time boundary', { anchor: 'middle', size: 8.5, fill: faint }),
 
       txt(ox + w + 6, yFor(0.5) + 3, 'new tenures', { size: 9, fill: ink }),
       txt(halvingX + 92, yFor(1) - 4, 'incumbent, unchanged', { size: 9, fill: pink, weight: 600 }),
@@ -622,52 +623,64 @@ const tenureLock = () => {
 
 /**
  * The governance answer as a picture. With ADR 0034 the interesting fact is negative
- * space: one contract has an owner and ten do not, and the owner's reach stops at three
- * calls. A reader who takes nothing else from the governance section should take this.
+ * space: only Resonance retains continuing custom owner authority, and that custom protocol
+ * reach stops at four calls besides inherited ownership transfer and renunciation. The chart
+ * also preserves the production obligation to renounce the three setup-only Ownable shells.
  */
 const authorityMap = () => {
-  const ownerless = [
+  const noContinuingCustomAuthority = [
     ['Mine', 'sixteen slots, fixed'],
     ['Fund', 'the treasury itself'],
     ['LiquidityPosition', 'the v4 position'],
     ['GBX', 'minter locked once'],
     ['Strategy', 'auction parameters fixed'],
-    ['BribeRouter', '90/10 hard-coded'],
+    ['BribeRouter', 'Bribe 0–20% · Fund 80–100%'],
   ];
   const rowH = 21;
   const x0 = 8;
-  const colW = 226;
-  const rx = x0 + colW + 20;
+  const colW = 242;
+  const rx = x0 + colW + 14;
+  const rightW = W - rx - 8;
   const top = 44;
 
-  const left = ownerless.flatMap(([name, note], i) => {
+  const left = noContinuingCustomAuthority.flatMap(([name, note], i) => {
     const y = top + i * rowH;
     return [
       txt(x0 + 2, y + 11, name, { size: 10, weight: 600, fill: ink }),
-      txt(x0 + 110, y + 11, note, { size: 9, fill: muted }),
+      txt(x0 + 110, y + 11, note, { size: name === 'BribeRouter' ? 8 : 9, fill: muted }),
       line(x0, y + 17, x0 + colW - 8, y + 17, { stroke: palette.rule, width: 0.6 }),
     ];
   });
 
-  const actions = ['add a Strategy', 'retire a Strategy', 'register a Bribe reward token'];
+  const actions = ['add a Strategy', 'retire a Strategy', 'register a reward token', 'set Bribe share (0–20%)'];
   const right = actions.flatMap((a, i) => [txt(rx + 14, top + 32 + i * 16, `— ${a}`, { size: 9.5, fill: ink })]);
 
-  const bottom = top + ownerless.length * rowH;
+  const bottom = top + noContinuingCustomAuthority.length * rowH;
 
   return svg(
-    bottom + 62,
+    bottom + 90,
     [
-      txt(x0, 16, 'NO OWNER', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
-      txt(x0, 30, 'Nothing can be changed by anyone, ever.', { size: 9.5, fill: muted }),
+      txt(x0, 16, 'NO CONTINUING CUSTOM OWNER AUTHORITY', {
+        size: 6.9,
+        fill: faint,
+        tracking: 0.35,
+        weight: 600,
+      }),
+      txt(x0, 30, 'No local custom owner-administration calls.', { size: 8.8, fill: muted }),
       ...left,
 
-      txt(rx, 16, 'ONE OWNER', { size: 9, fill: pink, tracking: 0.6, weight: 600 }),
-      txt(rx, 30, 'Resonance, and only these three calls:', { size: 9.5, fill: muted }),
-      rect(rx, top + 12, colW - 40, 56, palette.paperTint, { rx: 3 }),
-      rect(rx, top + 12, 3, 56, pink, { rx: 0 }),
+      txt(rx, 16, 'CONTINUING CUSTOM OWNER AUTHORITY', {
+        size: 6.9,
+        fill: pink,
+        tracking: 0.35,
+        weight: 600,
+      }),
+      txt(rx, 30, 'Resonance — four custom protocol calls:', { size: 8.8, fill: muted }),
+      rect(rx, top + 12, rightW, 76, palette.paperTint, { rx: 3 }),
+      rect(rx, top + 12, 3, 76, pink, { rx: 0 }),
       ...right,
-      txt(rx, top + 82, 'The holder of that address is', { size: 9.5, fill: ink }),
-      txt(rx, top + 95, 'not yet chosen.', { size: 9.5, fill: pink, weight: 600 }),
+      txt(rx, top + 100, 'The holder of that address is', { size: 9.5, fill: ink }),
+      txt(rx, top + 113, 'not yet chosen.', { size: 9.5, fill: pink, weight: 600 }),
 
       line(x0, bottom + 22, W - 8, bottom + 22, { stroke: palette.rule, width: 0.6 }),
       txt(
@@ -681,6 +694,16 @@ const authorityMap = () => {
       ),
       txt(x0, bottom + 53, 'so this map is the complete authority surface, not a summary of it.', {
         size: 9.5,
+        fill: muted,
+      }),
+      txt(
+        x0,
+        bottom + 68,
+        'SignalGBX, StrategyFactory, and BribeFactory retain setup-only Ownable shells until production',
+        { size: 8.5, fill: muted },
+      ),
+      txt(x0, bottom + 80, 'explicitly renounces them; after binding, those owners have no custom protocol call.', {
+        size: 8.5,
         fill: muted,
       }),
     ].join(''),
@@ -845,7 +868,8 @@ const CHARTS = {
   },
   'acquisition-split': {
     svg: acquisitionSplit,
-    caption: 'Every asset the protocol acquires is divided by an immutable rule the moment it arrives.',
+    caption:
+      'The default is 90% Fund / 10% Bribe. Resonance may set the prospective Bribe share from 0% through 20%; Fund always receives the 80%-to-100% complement.',
   },
   'cumulative-split': {
     svg: cumulativeSplit,
@@ -860,7 +884,7 @@ const CHARTS = {
   'halving-curve': {
     svg: halvingCurve,
     caption:
-      'Issuance halves at thresholds that themselves halve, so the entire schedule completes below twice the first threshold and then runs on a permanent tail.',
+      'The prospective rate halves every 69 days from Mine deployment. At day 414 it reaches the permanent positive tail.',
   },
   'signal-allocation': {
     svg: signalAllocation,
@@ -878,12 +902,12 @@ const CHARTS = {
   'tenure-lock': {
     svg: tenureLock,
     caption:
-      'Halvings apply to newly taken slots, never to sitting miners. The excess is transitional, bounded by turnover, and accepted as the price of not changing a deal after it is paid for.',
+      'Time-based halvings apply to newly taken slots, never to sitting miners. Excess issuance persists until the legacy tenure is replaced, which is not guaranteed.',
   },
   'authority-map': {
     svg: authorityMap,
     caption:
-      'The complete authority surface. One contract has an owner; the rest cannot be altered by anyone. Who holds that owner address is the protocol’s largest open question.',
+      'The complete custom protocol authority surface: four bounded calls on Resonance, with no local administration on the contracts at left. Inherited ownership transfer and renunciation remain; who holds that owner address is the largest open question.',
   },
   'pending-emission': {
     svg: pendingEmission,

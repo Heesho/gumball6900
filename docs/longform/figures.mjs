@@ -5,7 +5,7 @@
  * measured rather than assumed: the package resolves and installs fine, and it costs
  * 9,638 lines of lockfile churn and 83MB for two diagrams. That is not a trade a docs
  * build should make, and Mermaid's default output would not match the typeset editions
- * anyway — a hand-set diagram can label the 90/10 split on the edges that carry it.
+ * anyway — a hand-set diagram can label the bounded Fund/Bribe split on the edges that carry it.
  *
  * The cost of drawing by hand is drift: edit the Mermaid and the PDF would silently keep
  * the old picture. Each figure therefore pins the SHA-256 of the Mermaid source it was
@@ -101,30 +101,31 @@ const protocolLoop = `
   ${node(536, 24, 96, 40, ['Fund', 'treasury'])}
   ${node(536, 112, 96, 40, ['Signalers'], 'pink')}
   ${node(536, 208, 96, 40, ['GBX holders'])}
-  ${edge('M 112 44 L 154 78', '20% / 100%', 133, 38)}
+  ${edge('M 112 44 L 154 78', 'deposit', 133, 38)}
   ${edge('M 112 124 L 154 90', 'USDG', 133, 136)}
   ${edge('M 60 64 L 60 196', '80%', 74, 134)}
   ${edge('M 112 134 L 154 164', 'GBX', 133, 176)}
-  ${edge('M 254 84 L 292 84', '', 0, 0)}
+  ${edge('M 254 84 L 292 84', 'route()', 273, 76)}
   ${edge('M 342 158 L 342 106', 'directs', 368, 136)}
   ${edge('M 342 226 L 342 198', '', 0, 0)}
   ${edge('M 392 84 L 430 84', '', 0, 0)}
-  ${edge('M 530 74 L 536 52', '90%', 516, 52, true)}
-  ${edge('M 530 94 L 536 128', '10%', 516, 122, true)}
+  ${edge('M 530 74 L 536 52', 'Fund 80–100%', 500, 52, true)}
+  ${edge('M 530 94 L 536 128', 'Bribe 0–20%', 500, 122, true)}
   ${edge('M 584 152 L 584 208', 'burn to redeem', 584, 184)}
-  <text x="320" y="300" text-anchor="middle" ${S.tag}>NO ORACLE · NO MANAGER · NO DISCRETION AT ANY STEP</text>
+  <text x="320" y="300" text-anchor="middle" ${S.tag}>NO ORACLE · NO MANAGER · EACH FILL FOLLOWS CURRENT SIGNAL AND BRIBEBPS STATE</text>
 </svg>`;
 
 /**
- * The contract graph, for the whitepaper: eleven deployed contract types in five layers,
- * with the deployment edges that create the per-Strategy graph and the single ownership
- * edge that remains. The owner sits outside every band on purpose — after ADR 0034 it is
- * not part of this repository, and the picture should say so before the prose does.
+ * The contract graph, for the whitepaper: twelve deployed contract types in five layers,
+ * with the deployment edges that create the per-Strategy graph and the single continuing
+ * custom-owner authority edge. The three setup-only Ownable shells remain explicit production
+ * renunciation obligations. Resonance's owner sits outside every band on purpose — after
+ * ADR 0034 it is not part of this repository, and the picture should say so before the prose does.
  */
 const contractGraph = `
-<svg viewBox="0 0 640 500" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Contract graph">
+<svg viewBox="0 0 640 516" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Contract graph">
   ${arrowDefs}
-  <text x="8" y="12" ${S.tag}>ELEVEN DEPLOYED CONTRACT TYPES · ONE OWNERSHIP EDGE</text>
+  <text x="8" y="12" ${S.tag}>TWELVE DEPLOYED CONTRACT TYPES · ONE CONTINUING CUSTOM OWNER-AUTHORITY EDGE</text>
   ${band(8, 22, 400, 66, 'Token layer')}
   ${node(24, 44, 116, 40, ['GBX', 'ERC20 + Permit'], 'deep')}
   ${node(188, 44, 152, 40, ['SignalGBX', 'ERC20Votes, non-transferable'], 'blue')}
@@ -138,14 +139,14 @@ const contractGraph = `
   ${node(264, 232, 140, 40, ['Resonance', '7-day stream, 1e36'])}
   ${band(8, 304, 400, 66, 'Per-Strategy graph, one set each')}
   ${node(24, 326, 104, 40, ['Strategy', 'falling-price sale'])}
-  ${node(188, 326, 96, 40, ['BribeRouter', '90 / 10'])}
+  ${node(188, 326, 96, 40, ['BribeRouter', '0–20% Bribe'])}
   ${node(312, 326, 92, 40, ['Bribe', '≤ 8 tokens'])}
   ${band(8, 398, 400, 68, 'Custody')}
   ${node(200, 418, 140, 40, ['Fund', 'ownerless treasury'])}
   <text x="24" y="432" ${S.label}>Redemption and GBX burning</text>
   <text x="24" y="446" ${S.label}>are the only exits.</text>
   ${edge('M 82 84 L 82 138', 'mint authority, once', 82, 104)}
-  ${edge('M 140 64 L 188 64', 'stake 1:1', 164, 56)}
+  ${edge('M 140 64 L 188 64', 'signal 1:1', 164, 56)}
   ${edge('M 136 158 L 168 158', '', 0, 0)}
   ${edge('M 300 158 L 280 158', '', 0, 0)}
   ${edge('M 222 178 L 222 196 L 300 196 L 300 232', 'notifyRevenue', 261, 191)}
@@ -155,9 +156,9 @@ const contractGraph = `
   ${edge('M 76 272 L 76 326', '', 0, 0)}
   ${edge('M 196 272 L 196 326', '', 0, 0)}
   ${edge('M 128 346 L 188 346', 'routePayment', 158, 338)}
-  ${edge('M 284 346 L 312 346', '', 0, 0)}
-  ${edge('M 236 366 L 250 418', '90%', 220, 394, true)}
-  ${edge('M 358 366 L 310 418', 'carry', 356, 394)}
+  ${edge('M 284 346 L 312 346', '0–20%', 298, 338)}
+  ${edge('M 236 366 L 250 418', '80–100%', 220, 394, true)}
+  ${edge('M 358 366 L 310 418', 'remainders', 356, 394)}
   ${edge('M 440 252 L 408 252', 'owns', 424, 244, true)}
   <rect x="440" y="232" width="192" height="96" rx="5" fill="none" stroke="${palette.pink}" stroke-width="1.1" stroke-dasharray="4 3" />
   <text x="452" y="252" ${S.tagPink}>RESONANCE OWNER</text>
@@ -165,30 +166,32 @@ const contractGraph = `
   <text x="452" y="282" ${S.label}>Not in this repository.</text>
   <text x="452" y="302" ${S.tag}>ADDSTRATEGY · KILLSTRATEGY</text>
   <text x="452" y="314" ${S.tag}>ADDBRIBEREWARD</text>
+  <text x="452" y="326" ${S.tag}>SETBRIBEBPS (0–20%)</text>
   <text x="440" y="118" ${S.tag}>IVOTES CHECKPOINTS ARE KEPT</text>
   <text x="440" y="130" ${S.tag}>BUT READ BY NOTHING IN THE CORE</text>
-  <text x="8" y="486" ${S.tag}>EVERY CONTRACT SHOWN IS OWNERLESS OR HAS CONSUMED ITS ONE-TIME BINDING, EXCEPT</text>
-  <text x="8" y="496" ${S.tag}>RESONANCE — WHOSE OWNER IS THE DASHED BOX, AND IS NOT PART OF THIS REPOSITORY.</text>
+  <text x="8" y="486" ${S.tag}>RESONANCE HAS THE ONLY CONTINUING CUSTOM OWNER AUTHORITY. SIGNALGBX, STRATEGYFACTORY,</text>
+  <text x="8" y="496" ${S.tag}>AND BRIBEFACTORY RETAIN SETUP-ONLY OWNABLE SHELLS UNTIL PRODUCTION RENOUNCES THEM.</text>
+  <text x="8" y="506" ${S.tag}>THE EXTERNAL RESONANCE OWNER IS UNSELECTED AND NOT PART OF THIS REPOSITORY.</text>
 </svg>`;
 
 const FIGURES = [
   {
     id: 'contract-graph',
     /** Hash of the `flowchart TB` contract graph in the whitepaper. */
-    hashes: ['a65bdd0732c00113'],
+    hashes: ['617aab6694856011'],
     match: (src) => src.includes('StrategyFactory'),
     svg: contractGraph,
     caption:
-      'The deployed contract graph. Eleven contract types, one ownership edge, and an owner that is deliberately drawn outside the system because ADR 0034 removed it from this repository.',
+      'The deployed contract graph. Twelve contract types, one continuing custom-owner authority edge, three setup-only Ownable shells that production must explicitly renounce, and an external Resonance owner deliberately drawn outside the system because ADR 0034 removed governance implementation from this repository.',
   },
   {
     id: 'protocol-loop',
     /** Hash of the `flowchart LR` economic loop in the one-pager. */
-    hashes: ['4c04b8da0615e5e0'],
+    hashes: ['657cfe182bbbe2c7'],
     match: (src) => src.includes('slot auctions') && !src.includes('StrategyFactory'),
     svg: protocolLoop,
     caption:
-      'The economic loop. Revenue enters at the Mine and the liquidity position, is streamed by Resonance under live signal weights, and every acquired payment splits 90% to Fund and 10% to that Strategy’s signalers.',
+      'The economic loop. Mine deposits revenue into ResonanceRouter for a later permissionless route, while LiquidityPosition attempts routing atomically; Resonance then streams forwarded USDG under live signal weights. Each acquired payment uses the current 0%-to-20% Bribe share (10% by default), with Fund receiving the 80%-to-100% complement.',
   },
 ];
 

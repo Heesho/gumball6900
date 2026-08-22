@@ -8,10 +8,11 @@ price promises, deployment configurations, or investment projections.
 - USDG uses raw 6-decimal units; GBX and modeled target assets use raw 18-decimal units.
 - GBX starts with exactly 20M genesis-liquidity tokens and then has unbounded Mine issuance.
 - A live slot accrues `elapsedSeconds * assignedTps`; the assigned TPS remains fixed until replacement.
-- Mine has exactly sixteen slots; cumulative-mining halvings affect only newly occupied or replaced slots.
-- A new tenure receives `globalTps(totalMined + pendingEmission) / 16`; division residue is unissued.
-- A nonempty-slot replacement pays `floor(price * 80%)` to the displaced miner and routes the residue to Resonance.
-  An empty slot routes 100%.
+- Mine has exactly sixteen slots; time-based halvings affect only newly occupied or replaced slots.
+- A new tenure receives `globalTps(elapsedSinceStart) / 16`; division residue is unissued.
+- A nonempty-slot replacement pays `floor(price * 80%)` to the displaced miner and deposits the residue into
+  ResonanceRouter. An empty slot deposits 100%. Mine stops after that deposit; a later permissionless `route()` call
+  may forward Router custody into Resonance.
 - Resonance uses a `1e36` reward-per-signal index and a seven-day raw-unit stream. Integer division remainder is emitted
   during the first seconds of the period. A live top-up qualifies when the new amount is at least the exact active
   reward left; it checkpoints elapsed rewards and restarts seven days with `new reward + left`. Zero-signal emission,
@@ -33,10 +34,10 @@ price promises, deployment configurations, or investment projections.
 
 `fixtures/economic-scenarios.json` covers:
 
-- 20M genesis supply, unbounded mint/burn reconciliation, cumulative halvings, and a positive tail;
+- 20M genesis supply, unbounded mint/burn reconciliation, time-based halvings, and a positive tail;
 - hourly price endpoints, replacement transitions, zero-price rollover, and 80/20 payment conservation;
 - staggered fixed-slot handoffs where an incumbent keeps its old TPS and later miners receive the halved TPS;
-- a threshold crossing where the incumbent retains its rate and only the next replacement receives the lower rate;
+- a time boundary where the incumbent retains its rate and only the next replacement receives the lower rate;
 - genesis-position budgeting, Strategy auctions, cumulative weighted settlement across 10% → 0% → 5% → 20% rate
   changes, Bribe rewards, Fund-held GBX burns, and raw-basket redemptions.
 
@@ -68,12 +69,13 @@ agree, then regenerates the committed SVGs.
 
 ## Traceability
 
-| Requirement                         | Fixture path / evidence                                    |
-| ----------------------------------- | ---------------------------------------------------------- |
-| 20M genesis and unbounded issuance  | `assumptions.genesisSupply`, `mining.supplyReconciliation` |
-| Tenure-locked fixed-slot TPS        | `mining.staggeredFixedSlots`                               |
-| Thresholds affect only handoffs     | `mining.handoffHalving`                                    |
-| Hourly decay and 80/20 split        | `mining.priceCurve`, `mining.paymentExamples`              |
-| Strategy and Bribe arithmetic       | `strategyAuction`, `bribeRewards`, conservation models     |
-| Resonance streaming and signal time | TypeScript/Python `conservation-model` tests               |
-| Raw redemptions and GBX burns       | `redemptionAndGbxBurn`                                     |
+| Requirement                           | Fixture path / evidence                                    |
+| ------------------------------------- | ---------------------------------------------------------- |
+| 20M genesis and unbounded issuance    | `assumptions.genesisSupply`, `mining.supplyReconciliation` |
+| Tenure-locked fixed-slot TPS          | `mining.staggeredFixedSlots`                               |
+| Exact time boundaries and empty aging | `mining.timeBasedSchedule`                                 |
+| Time boundaries affect only handoffs  | `mining.handoffHalving`                                    |
+| Hourly decay and 80/20 split          | `mining.priceCurve`, `mining.paymentExamples`              |
+| Strategy and Bribe arithmetic         | `strategyAuction`, `bribeRewards`, conservation models     |
+| Resonance streaming and signal time   | TypeScript/Python `conservation-model` tests               |
+| Raw redemptions and GBX burns         | `redemptionAndGbxBurn`                                     |

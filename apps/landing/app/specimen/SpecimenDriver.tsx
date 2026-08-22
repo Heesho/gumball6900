@@ -24,22 +24,22 @@ import { registerSim, startHarness } from '../../lib/harness';
 
 /* ------------------------------------------------------- 05 · the board -- */
 /* Bound by Mine.sol exactly as components/sections/Mining.tsx is: a linear
-   decay to zero over PRICE_DECAY_PERIOD, 80/20 routing on an occupied slot and
-   100% to the fund on a never-taken one, the next price at paid × MULT with
-   the $1 floor, and a per-slot rate locked for the tenure. Illustrative
-   parameters — the same chip the panel already flies. */
+   decay to zero over PRICE_DECAY_PERIOD, an 80% pull claim plus 20% Router
+   deposit on an occupied slot, a 100% Router deposit on a never-taken one, the
+   next price at paid ×2 with the $1 floor, and a per-slot rate locked for the
+   tenure. The specimen shows illustrative market activity in Mine's first era. */
 const DECAY = 3600; // Mine.PRICE_DECAY_PERIOD, seconds
 const MINER_BPS = 8000; // Mine.PREVIOUS_MINER_BPS
 const BPS = 10000;
-const MULT = 2.0; // an illustrative pick inside Mine's 1.1–3.0 bound
-const MIN_PRICE = 1; // Mine.MIN_INITIAL_PRICE
-const MAX_PRICE = 60; // stands in for Mine's MAX_INITIAL_PRICE cap
-const SLOT_TPS = 250 / 3600; // one slot's share of 4,000 GBX/h across sixteen
+const MULT = 2; // Mine.PRICE_MULTIPLIER
+const MIN_PRICE = 1; // Mine.MINIMUM_INITIAL_PRICE = 1e6 raw USDG
+const SLOT_TPS = 64 / 16; // Mine.INITIAL_TPS divided across sixteen first-era tenures
 const BOARD_SCALE = 90; // one modelled hour ≈ 40s on the wall
 const DWELL = 240; // no slot changes hands inside its first four minutes
 
-// day 3, 14:08 — the clock the server HTML is printed at.
-const CLOCK_BASE = 3 * 86400 + 14 * 3600 + 8 * 60;
+// Twenty minutes after the simulated Mine start — the clock printed in the
+// server HTML. This keeps the never-taken $1 auction in a reachable state.
+const CLOCK_BASE = 20 * 60;
 
 const NAMES = ['ava', 'kai', 'rin', 'moss', 'juno', 'pike', 'wren', 'isla', 'odin', 'nix', 'sol', 'vega'];
 
@@ -55,12 +55,12 @@ interface Slot {
    in the server HTML at t = 0. Each slot carries its own reservation, so the
    four never come up for sale together. */
 const OPENING: Slot[] = [
-  { owner: 'odin', initialPrice: 19.868, startedAt: -0.62 * DECAY, reserve: 5.07 },
-  { owner: 'kai', initialPrice: 17.983, startedAt: -0.41 * DECAY, reserve: 5.66 },
-  { owner: null, initialPrice: 15.696, startedAt: -0.21 * DECAY, reserve: 2.2 },
-  { owner: 'wren', initialPrice: 20.566, startedAt: -0.24 * DECAY, reserve: 6.89 },
+  { owner: 'odin', initialPrice: 19.868, startedAt: -0.22 * DECAY, reserve: 5.07 },
+  { owner: 'kai', initialPrice: 17.983, startedAt: -0.12 * DECAY, reserve: 5.66 },
+  { owner: null, initialPrice: MIN_PRICE, startedAt: -CLOCK_BASE, reserve: 0.5 },
+  { owner: 'wren', initialPrice: 20.566, startedAt: -0.18 * DECAY, reserve: 6.89 },
 ];
-const OPENING_FUND = 18.65;
+const OPENING_ROUTER = 18.65;
 const OPENING_PAID = 38.09;
 const OPENING_MINTED = 1240;
 
@@ -122,7 +122,7 @@ function mountBoard(): (() => void) | null {
   const timers: ReturnType<typeof setTimeout>[] = [];
   let rnd = lcg(0x6900);
   let t = 0;
-  let fund = 0;
+  let routerDeposits = 0;
   let paidOut = 0;
   let minted = 0;
   let evtText = '';
@@ -133,7 +133,7 @@ function mountBoard(): (() => void) | null {
     OPENING.forEach((s) => slots.push({ ...s }));
     rnd = lcg(0x6900);
     t = 0;
-    fund = OPENING_FUND;
+    routerDeposits = OPENING_ROUTER;
     paidOut = OPENING_PAID;
     minted = OPENING_MINTED;
     evtText = '';
@@ -180,24 +180,24 @@ function mountBoard(): (() => void) | null {
       minted += accrued;
     }
 
-    // Route the payment. A never-taken slot has no one to pay back, so the
-    // whole of it becomes the fund's buying power.
+    // Allocate the payment. A never-taken slot has no prior-miner claim, so
+    // Mine deposits the whole nonzero payment in ResonanceRouter.
     let toMiner = 0;
-    let toFund = 0;
+    let toRouter = 0;
     if (paid > 0) {
       if (displaced === null) {
-        toFund = paid;
+        toRouter = paid;
       } else {
         toMiner = (paid * MINER_BPS) / BPS;
-        toFund = paid - toMiner;
+        toRouter = paid - toMiner;
       }
-      fund += toFund;
+      routerDeposits += toRouter;
       paidOut += toMiner;
     }
 
     const buyer = NAMES[Math.floor(rnd() * NAMES.length)] ?? 'ava';
     slot.owner = buyer;
-    slot.initialPrice = Math.min(Math.max(paid * MULT, MIN_PRICE), MAX_PRICE);
+    slot.initialPrice = Math.max(paid * MULT, MIN_PRICE);
     slot.startedAt = t;
     slot.reserve = slot.initialPrice * (0.3 + rnd() * 0.55);
 
@@ -206,13 +206,13 @@ function mountBoard(): (() => void) | null {
         pad2(i + 1) +
         ' retaken at ' +
         money(paid) +
-        ' — 80% ' +
+        ' — 80% claim ' +
         money(toMiner) +
-        ' → @' +
+        ' for @' +
         displaced +
         ', 20% ' +
-        money(toFund) +
-        ' → the fund. ' +
+        money(toRouter) +
+        ' deposited in ResonanceRouter. ' +
         gbx(accrued) +
         ' GBX minted to @' +
         displaced +
@@ -222,8 +222,8 @@ function mountBoard(): (() => void) | null {
         ' taken for the first time at ' +
         money(paid) +
         ' — no one to displace, so 100% ' +
-        money(toFund) +
-        ' → the fund.';
+        money(toRouter) +
+        ' deposited in ResonanceRouter.';
 
     // The open cell has just stopped being open; the chrome must follow.
     cell.root.classList.remove('cell--open');
@@ -252,7 +252,7 @@ function mountBoard(): (() => void) | null {
       // by which point the price has decayed to zero.
       cell.bar.style.width = (frac * 100).toFixed(1) + '%';
       cell.sub.textContent =
-        slot.owner === null ? 'never taken · 0/h' : ((t - slot.startedAt) * SLOT_TPS).toFixed(1) + ' GBX · 250/h';
+        slot.owner === null ? 'never taken · 0/h' : ((t - slot.startedAt) * SLOT_TPS).toFixed(1) + ' GBX · 14,400/h';
     }
     const total = CLOCK_BASE + t;
     els.clockEl.textContent =
@@ -263,7 +263,7 @@ function mountBoard(): (() => void) | null {
       ':' +
       pad2(Math.floor((total % 3600) / 60));
     els.evtEl.textContent = evtText || 'waiting — no slot has reached a taker’s reservation yet.';
-    els.tFund.textContent = money(fund);
+    els.tFund.textContent = money(routerDeposits);
     els.tPaid.textContent = money(paidOut);
     els.tGbx.textContent = gbx(minted);
   }

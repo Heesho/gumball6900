@@ -27,6 +27,11 @@ export const contractConstants = {
     previousMinerBps: 8_000,
     resonanceBps: 2_000,
     slotCount: 16,
+    priceMultiplier: 2n,
+    minimumInitialPrice: 1_000_000n,
+    initialTps: 64n * 10n ** 18n,
+    halvingPeriodSeconds: 69n * 86_400n,
+    tailTps: 1n * 10n ** 18n,
     tenureRatesLocked: true,
     constantTimePendingEmission: true,
   },
@@ -56,23 +61,24 @@ export const contractConstants = {
 };
 
 export const status = {
-  editionVersion: 'v0.7',
-  editionDate: '21 August 2026',
-  contractsCommit: '4938773f8fd9540a5486c23cfd4098dee6d75bfa',
-  contractsCommitShort: '4938773',
+  editionVersion: 'v0.8',
+  editionDate: '22 August 2026',
+  contractsCommit: 'uncommitted working tree based on e3ebdd7987653969b31dbf0e8d20b68a838dfa5d',
+  contractsCommitShort: 'uncommitted',
   auditCandidateCommit: 'none for the current architecture',
   auditCandidateCommitShort: 'none',
   deployment: 'Not deployed and not authorized for user funds',
   externalAudit: 'Independent external audit not completed',
-  licensing: 'Farplace, give.fun, Liquid Signal, and transitive lineage remain unresolved release blockers',
+  licensing: 'donut-miner, give.fun, Liquid Signal, and transitive lineage remain unresolved release blockers',
   architectureImplementation:
-    'ADRs 0031 and 0034-0037 implemented in the development tree; external governance owner unselected and review pending',
+    'ADRs 0031 and 0033-0044 implemented in the development tree; the provisional Mine emission schedule and external governance owner remain under review',
 };
 
 export function verifyProtocolFacts() {
   const fixturePath = resolve(repoRoot, 'packages/simulations/fixtures/economic-scenarios.json');
   const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'));
   const expected = contractConstants.mine;
+  const mineSource = readFileSync(resolve(repoRoot, contractConstants.mine.source), 'utf8');
   const resonanceSource = readFileSync(resolve(repoRoot, contractConstants.resonance.source), 'utf8');
   const routerSource = readFileSync(resolve(repoRoot, contractConstants.bribeRouter.source), 'utf8');
   const bribeSource = readFileSync(resolve(repoRoot, contractConstants.bribe.source), 'utf8');
@@ -82,6 +88,11 @@ export function verifyProtocolFacts() {
     ['previous miner bps', BigInt(fixture.assumptions.previousMinerBps), BigInt(expected.previousMinerBps)],
     ['resonance bps', BigInt(fixture.assumptions.resonanceRevenueBps), BigInt(expected.resonanceBps)],
     ['fixed slot count', BigInt(fixture.assumptions.fixedSlotCount), BigInt(expected.slotCount)],
+    ['Mine price multiplier', BigInt(fixture.assumptions.minePriceMultiplier), expected.priceMultiplier],
+    ['Mine minimum initial price', BigInt(fixture.assumptions.mineMinimumInitialPrice), expected.minimumInitialPrice],
+    ['Mine initial TPS', BigInt(fixture.assumptions.mineInitialTps), expected.initialTps],
+    ['Mine halving period', BigInt(fixture.assumptions.mineHalvingPeriodSeconds), expected.halvingPeriodSeconds],
+    ['Mine tail TPS', BigInt(fixture.assumptions.mineTailTps), expected.tailTps],
     [
       'default Strategy Bribe bps',
       BigInt(fixture.assumptions.defaultStrategyBribeBps),
@@ -123,6 +134,39 @@ export function verifyProtocolFacts() {
   for (const [name, pattern] of resonancePins) {
     if (!pattern.test(resonanceSource)) failures.push([name, false, true]);
   }
+  const minePins = [
+    ['Mine price multiplier source', /uint256 public constant PRICE_MULTIPLIER = 2;/],
+    ['Mine minimum initial price source', /uint256 public constant MINIMUM_INITIAL_PRICE = 1e6;/],
+    ['Mine initial TPS source', /uint256 public constant INITIAL_TPS = 64 ether;/],
+    ['Mine halving period source', /uint256 public constant HALVING_PERIOD = 69 days;/],
+    ['Mine tail TPS source', /uint256 public constant TAIL_TPS = 1 ether;/],
+    ['Mine start time declaration', /uint256 public immutable startTime;/],
+    ['Mine start time assignment', /startTime = block\.timestamp;/],
+    ['Mine elapsed-time era calculation', /uint256 halvings = \(block\.timestamp - startTime\) \/ HALVING_PERIOD;/],
+    ['Mine prospective rate shift', /tps = INITIAL_TPS >> halvings;/],
+    ['Mine tail clamp', /if \(tps < TAIL_TPS\) tps = TAIL_TPS;/],
+    [
+      'Mine Router-deposit event',
+      /event RevenueDeposited\(uint256 indexed index, uint256 indexed epochId, uint256 amount\);/,
+    ],
+    ['Mine exact Router deposit', /usdg\.safeTransfer\(resonanceRouter, revenueAmount\);/],
+  ];
+  for (const [name, pattern] of minePins) {
+    if (!pattern.test(mineSource)) failures.push([name, false, true]);
+  }
+  const removedMinePins = [
+    ['removed cumulative halving amount', /\bHALVING_AMOUNT\b/],
+    ['removed iterative rate state', /\b_rateState\b/],
+    ['removed economic-supply rate input', /totalMined\s*\+\s*pendingEmission\s*\(/],
+    ['removed synchronous Mine route call', /\.route\(\);/],
+    [
+      'removed ambiguous Mine revenue event',
+      /event RevenueRouted\(uint256 indexed index, uint256 indexed epochId, uint256 amount\);/,
+    ],
+  ];
+  for (const [name, pattern] of removedMinePins) {
+    if (pattern.test(mineSource)) failures.push([name, true, false]);
+  }
   const routerPins = [
     ['router bps', /uint256 public constant BPS = 10_000;/],
     ['router rate snapshot', /uint256 appliedBribeBps = ICoreResonance\(resonance\)\.bribeBps\(\);/],
@@ -150,7 +194,14 @@ export function verifyProtocolFacts() {
       `Protocol fact check failed:\n${failures.map(([name, a, e]) => `  ${name}: ${a} != ${e}`).join('\n')}`,
     );
   return {
-    checks: checks.length + 5 + resonancePins.length + routerPins.length + bribePins.length,
+    checks:
+      checks.length +
+      5 +
+      resonancePins.length +
+      minePins.length +
+      removedMinePins.length +
+      routerPins.length +
+      bribePins.length,
     genesisLiquidityTokens: contractConstants.gbx.genesisLiquidityTokens,
     slotCount: expected.slotCount,
   };

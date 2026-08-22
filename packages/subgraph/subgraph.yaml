@@ -55,13 +55,13 @@ dataSources:
         - event: EmissionSettled(indexed address,indexed uint256,indexed uint256,uint256)
           handler: handleEmissionSettled
         - event: Mined(indexed address,indexed address,indexed
-            uint256,uint256,address,uint256,uint256,uint256)
+            uint256,uint256,address,uint256,uint256,uint256,string)
           handler: handleMined
         - event: MinerPaymentAccrued(indexed address,indexed uint256,indexed
             uint256,uint256)
           handler: handleMinerPaymentAccrued
-        - event: RevenueRouted(indexed uint256,indexed uint256,uint256)
-          handler: handleMiningRevenueRouted
+        - event: RevenueDeposited(indexed uint256,indexed uint256,uint256)
+          handler: handleMiningRevenueDeposited
       file: ./src/mine.ts
   - kind: ethereum/contract
     name: LiquidityPosition

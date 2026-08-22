@@ -334,9 +334,17 @@ function assertNoProtocolFee() {
       ['PREVIOUS_MINER_BPS = 8_000', /uint256 public constant PREVIOUS_MINER_BPS = 8_000;/],
       ['BPS = 10_000', /uint256 public constant BPS = 10_000;/],
       ['exhaustive two-way split', /revenueAmount = paid - previousMinerAmount;/],
+      [
+        'RevenueDeposited event',
+        /event RevenueDeposited\(uint256 indexed index, uint256 indexed epochId, uint256 amount\);/,
+      ],
+      ['exact ResonanceRouter deposit', /usdg\.safeTransfer\(resonanceRouter, revenueAmount\);/],
     ];
     for (const [label, pattern] of pins) {
       if (!pattern.test(mine.text)) hits.push(`Mine.sol: ${label} no longer holds`);
+    }
+    if (/\.route\(\);/.test(mine.text)) {
+      hits.push('Mine.sol: synchronous downstream route call returned');
     }
     // Any basis-point constant beyond the two pinned ones is a third share.
     const bpsConstants = [...mine.text.matchAll(/constant\s+(\w*BPS\w*)\s*=/g)].map((match) => match[1]);

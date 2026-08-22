@@ -12,6 +12,7 @@ import {
   resonanceAbi,
   resonanceRouterAbi,
 } from './abis.js';
+import { MINE_MAX_MESSAGE_BYTES } from './math/constants.js';
 import { assertUint, bytes32Schema, positiveBigIntSchema, unsignedBigIntSchema } from './validation.js';
 
 /** Wallet-ready contract call with no native-currency transfer. */
@@ -69,14 +70,22 @@ export interface MineParameters {
   readonly expectedEpochId: bigint;
   readonly deadline: bigint;
   readonly maximumPrice: bigint;
+  readonly message: string;
 }
 
-/** Replaces one Mine slot with caller-bounded epoch, deadline, and USDG price protection. */
+/**
+ * Replaces one Mine slot with caller-bounded epoch, deadline, USDG price, and event-only message protection.
+ * Set `deadline` before the next halving boundary when the quoted prospective TPS must remain valid.
+ */
 export function buildMine(parameters: MineParameters): ContractTransaction {
   uint256(parameters.slotIndex, 'slotIndex');
   uint256(parameters.expectedEpochId, 'expectedEpochId');
   uint256(parameters.deadline, 'deadline');
   uint256(parameters.maximumPrice, 'maximumPrice');
+  const messageLength = new TextEncoder().encode(parameters.message).length;
+  if (messageLength > MINE_MAX_MESSAGE_BYTES) {
+    throw new RangeError(`message cannot exceed ${MINE_MAX_MESSAGE_BYTES} UTF-8 bytes`);
+  }
   return transaction(
     parameters.mine,
     encodeFunctionData({
@@ -88,6 +97,7 @@ export function buildMine(parameters: MineParameters): ContractTransaction {
         parameters.expectedEpochId,
         parameters.deadline,
         parameters.maximumPrice,
+        parameters.message,
       ],
     }),
   );

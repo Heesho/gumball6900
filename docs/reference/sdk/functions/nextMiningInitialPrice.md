@@ -6,18 +6,15 @@
 
 # Function: nextMiningInitialPrice()
 
-> **nextMiningInitialPrice**(`payment`, `priceMultiplier`, `minimumInitialPrice`, `maximumInitialPrice`): `bigint`
+> **nextMiningInitialPrice**(`payment`): `bigint`
 
-Computes the next slot starting price using Mine's floor multiplication and immutable clamps.
+Computes the next slot starting price using Mine's fixed multiplier, floor, and ceiling.
 
 ## Parameters
 
-| Parameter             | Type     |
-| --------------------- | -------- |
-| `payment`             | `bigint` |
-| `priceMultiplier`     | `bigint` |
-| `minimumInitialPrice` | `bigint` |
-| `maximumInitialPrice` | `bigint` |
+| Parameter | Type     |
+| --------- | -------- |
+| `payment` | `bigint` |
 
 ## Returns
 

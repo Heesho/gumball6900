@@ -22,11 +22,11 @@ the grid, the hairlines, the tabular mono and the instrument-grade panels carry 
 
 ## Faces
 
-| Token            | Face              | Use                                                                                                                                                                        |
-| ---------------- | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Token            | Face              | Use                                                                                                                                                                                                                                        |
+| ---------------- | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `--font-display` | Modak             | The wordmark (`.wordmark` / `.wm`), display numerals (`.dnum` / `.display-num`), outlined ordinals. Nothing else. All pin `font-weight: 400; font-synthesis: none` — Modak ships one weight and a synthetic bold smears the counters shut. |
-| `--font-sans`    | Schibsted Grotesk | Prose and headlines. Weights loaded: 400, 500, 600, 700, 800.                                                                                                               |
-| `--font-mono`    | JetBrains Mono    | **Every eyebrow, chip, button, clock, tally, cell caption and figure.** Weights loaded: 400, 500, 600. Prose figures stay in the sans; anything a reader might compare is `.num`. |
+| `--font-sans`    | Schibsted Grotesk | Prose and headlines. Weights loaded: 400, 500, 600, 700, 800.                                                                                                                                                                              |
+| `--font-mono`    | JetBrains Mono    | **Every eyebrow, chip, button, clock, tally, cell caption and figure.** Weights loaded: 400, 500, 600. Prose figures stay in the sans; anything a reader might compare is `.num`.                                                          |
 
 Families come from `next/font` in `app/layout.tsx` as `--nf-*` variables. Canvas code must resolve
 `--font-mono` at runtime (`fontFamily()` in `lib/harness.ts`) — never hardcode a family name.
@@ -35,26 +35,26 @@ Families come from `next/font` in `app/layout.tsx` as `--nf-*` variables. Canvas
 
 Accents are semantic. If a colour doesn't mean the thing below, don't use the colour.
 
-| Token           | Value     | Meaning / use                                                                              |
-| --------------- | --------- | ------------------------------------------------------------------------------------------ |
-| `--bg`          | `#0C0C0C` | Page ground. Sections never repaint it.                                                     |
-| `--panel`       | `#101017` | Instrument ground: sim panels, board cells, tallies. First surface step.                    |
-| `--raised`      | `#17171F` | Chips and inset blocks. Second step, and never a third.                                     |
-| `--rule`        | `#26262F` | The hairline. Dividers, meter tracks, board gaps.                                           |
-| `--rule-strong` | `#3B3B48` | Control borders, table heads, the rule that opens a `.card`. Non-text only.                 |
-| `--hi`          | `#FFFFFF` | Headlines, values, instrument titles.                                                       |
-| `--text`        | `#EFEFF4` | Default body ink.                                                                           |
-| `--muted`       | `#ADADC0` | Ledes, card bodies, secondary UI.                                                           |
-| `--faint`       | `#8A8AA0` | Eyebrows, notes, cell captions.                                                             |
-| `--on-field`    | `#0C0C0C` | **Type on a colour plane is always this black.** Never white — see the ratios.               |
-| `--pink`        | `#F92B92` | **Signal and what it buys**: signal weights, acquisitions, holder-directed anything, the primary action, the plane colour. |
-| `--blue`        | `#29B6F0` | **USDG capital arriving**: miner payments, buying power, streams. Also the focus ring.       |
-| `--pink-soft` / `--blue-soft` | 13% alpha | Tinted fills behind accent content.                                             |
-| `--pink-line` / `--blue-line` | 45% alpha | Accent **borders**. A `-line` tint is a 1px rule and never glyph ink — see below. |
-| `--pink-wash` / `--blue-wash` | 5.5% / 5% | The faintest state tint (`.cell--open`).                                        |
-| `--pink-label`  | `#FB63AC` | Pink text **on a pink tint** — brand pink on that composite is 4.12:1 and fails AA.          |
-| `--blue-label`  | `#9BDDFA` | Blue text on a blue tint (`.btn--blue`).                                                     |
-| `--outline`     | `#6E6E85` | Stroke colour for neutral outlined Modak ordinals. 3.94:1 on `--bg`.                         |
+| Token                         | Value     | Meaning / use                                                                                                              |
+| ----------------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `--bg`                        | `#0C0C0C` | Page ground. Sections never repaint it.                                                                                    |
+| `--panel`                     | `#101017` | Instrument ground: sim panels, board cells, tallies. First surface step.                                                   |
+| `--raised`                    | `#17171F` | Chips and inset blocks. Second step, and never a third.                                                                    |
+| `--rule`                      | `#26262F` | The hairline. Dividers, meter tracks, board gaps.                                                                          |
+| `--rule-strong`               | `#3B3B48` | Control borders, table heads, the rule that opens a `.card`. Non-text only.                                                |
+| `--hi`                        | `#FFFFFF` | Headlines, values, instrument titles.                                                                                      |
+| `--text`                      | `#EFEFF4` | Default body ink.                                                                                                          |
+| `--muted`                     | `#ADADC0` | Ledes, card bodies, secondary UI.                                                                                          |
+| `--faint`                     | `#8A8AA0` | Eyebrows, notes, cell captions.                                                                                            |
+| `--on-field`                  | `#0C0C0C` | **Type on a colour plane is always this black.** Never white — see the ratios.                                             |
+| `--pink`                      | `#F92B92` | **Signal and what it buys**: signal weights, acquisitions, holder-directed anything, the primary action, the plane colour. |
+| `--blue`                      | `#29B6F0` | **USDG capital arriving**: miner payments, buying power, streams. Also the focus ring.                                     |
+| `--pink-soft` / `--blue-soft` | 13% alpha | Tinted fills behind accent content.                                                                                        |
+| `--pink-line` / `--blue-line` | 45% alpha | Accent **borders**. A `-line` tint is a 1px rule and never glyph ink — see below.                                          |
+| `--pink-wash` / `--blue-wash` | 5.5% / 5% | The faintest state tint (`.cell--open`).                                                                                   |
+| `--pink-label`                | `#FB63AC` | Pink text **on a pink tint** — brand pink on that composite is 4.12:1 and fails AA.                                        |
+| `--blue-label`                | `#9BDDFA` | Blue text on a blue tint (`.btn--blue`).                                                                                   |
+| `--outline`                   | `#6E6E85` | Stroke colour for neutral outlined Modak ordinals. 3.94:1 on `--bg`.                                                       |
 
 Neutral (white/grey) is the third semantic: **GBX supply and burns**. A burn is white/neutral,
 never pink or blue. Honesty flags use `.chip--warn` — neutral, carried by weight, so the accents
@@ -109,7 +109,7 @@ or `--blue` **#29B6F0 (8.42:1)** at full strength. `.col__n` — the oversized o
 live section already rendered. The only permitted uses of a `-line` token are `border-color` and
 `border-top`: chips, `.btn--blue` / `.btn--pink`, and the rules on the section stylesheets.
 
-**Nothing white ever lands on a plane.** Beyond the per-class list, `.field` pins *every*
+**Nothing white ever lands on a plane.** Beyond the per-class list, `.field` pins _every_
 text-bearing descendant to `--on-field` — including bare `<b>`/`<strong>`, which the base rules
 paint `--hi` white, and `.pink`/`.blue`, which would vanish into their own plane. `.chip` is
 excluded because it brings its own `--raised` ground. An inline code token on a plane is set apart
@@ -119,13 +119,13 @@ composite falls to `#DD2782` and black on it measures 4.37:1 — under the body 
 
 ## Editorial metrics
 
-| Token      | Value                             | Meaning                                              |
-| ---------- | --------------------------------- | ---------------------------------------------------- |
-| `--maxw`   | `1312px`                          | The spread — **margins included**.                    |
-| `--marg`   | `clamp(20px, 4.4vw, 64px)`        | Page margin, inside the max width.                    |
-| `--bleed`  | `max(0px, (100vw - 1312px) / 2)`  | Max-width edge → viewport edge.                       |
-| `--edge`   | `bleed + marg`                    | **Content edge → viewport edge.** Bleed by this much. |
-| `--sec-pad`| `var(--s-sec)`                    | Section vertical padding. Alias — see the table below.|
+| Token       | Value                            | Meaning                                                |
+| ----------- | -------------------------------- | ------------------------------------------------------ |
+| `--maxw`    | `1312px`                         | The spread — **margins included**.                     |
+| `--marg`    | `clamp(20px, 4.4vw, 64px)`       | Page margin, inside the max width.                     |
+| `--bleed`   | `max(0px, (100vw - 1312px) / 2)` | Max-width edge → viewport edge.                        |
+| `--edge`    | `bleed + marg`                   | **Content edge → viewport edge.** Bleed by this much.  |
+| `--sec-pad` | `var(--s-sec)`                   | Section vertical padding. Alias — see the table below. |
 
 `.container` = `max-width: var(--maxw)` + `padding-inline: var(--marg)`, centred.
 `.container--narrow` (820px of content) stands alone or combines with `.container`.
@@ -144,30 +144,30 @@ The full resolved ramp — size / line-height / tracking / weight for **every** 
 beside a live sample of it — is §03 of `/specimen`. That page is the source of truth; this table is
 the index.
 
-| Class            | Spec                                              | Use                                                                 |
-| ---------------- | ------------------------------------------------- | --------------------------------------------------------------------- |
-| `.wm`            | Modak 400, clamp(50–164px), lh .88, misregistered | The display wordmark. `.wm__line` breaks it into lines.               |
-| `.wordmark`      | Modak 400, misregistered, inherits size           | The name at any smaller size. Size it in your section CSS.            |
+| Class       | Spec                                              | Use                                                        |
+| ----------- | ------------------------------------------------- | ---------------------------------------------------------- |
+| `.wm`       | Modak 400, clamp(50–164px), lh .88, misregistered | The display wordmark. `.wm__line` breaks it into lines.    |
+| `.wordmark` | Modak 400, misregistered, inherits size           | The name at any smaller size. Size it in your section CSS. |
 
 The misregistration is **two opaque plates**, never a plate and a shadow. On the ground: solid
 `--pink` down-right (+.026em/+.016em), solid `--blue` up-left, zero blur. Inside a `.field` it
 inverts to solid `--on-field` down-right and solid `--white` up-left at the same offsets. An alpha
 value on either copy renders it as a drop shadow, which is the exact thing rule 4 is defined
 against. §04 of `/specimen` shows both, plus untreated Modak for comparison.
-| `.dnum` / `.display-num` | Modak 400, lh 1                           | Display numerals. Inherits neutral; `.dnum--pink` / `--blue` only when the numeral IS that semantic. |
-| `.dnum--outline` | transparent + 2px stroke                          | An ordinal — a number that marks a place, not a quantity.             |
-| `.display`       | clamp(38–72px), 800, −.032em                      | The largest statement on a page. One per page at most.                |
-| `.h1`            | clamp(31–56px), 800, −.03em, lh 1.03              | Section headline (the section's `<h2>` element).                      |
-| `.h2`            | clamp(20–26px), 700, −.018em                      | Sub-headline inside a section.                                        |
-| `.h3`            | 19px, 700, −.012em                                | Card-level heading.                                                   |
-| `.lede`          | clamp(16.5–20px), muted, max 62ch                 | The sentence under a headline.                                        |
-| body             | 16px/1.6 `--text`                                 | Default prose.                                                        |
-| `.small`         | 14px/1.62                                         | Secondary prose, card bodies.                                         |
-| `.note`          | 12.5px, faint                                     | Footnotes, honesty text, illustrative-parameter labels.               |
-| `.mnote`         | mono 11.5px, faint                                | Mono micro-copy inside a panel.                                       |
-| `.eyebrow`       | **mono** 11.5px caps, +.19em, faint               | Kicker above a headline. `--pink` / `--blue` variants are assigned per section — see below. |
-| `.num`           | mono, tabular-nums                                | Every figure in a table, stat, chip or instrument.                    |
-| `.mono`          | mono, tabular-nums                                | Any run of mono micro-copy.                                           |
+| `.dnum` / `.display-num` | Modak 400, lh 1 | Display numerals. Inherits neutral; `.dnum--pink` / `--blue` only when the numeral IS that semantic. |
+| `.dnum--outline` | transparent + 2px stroke | An ordinal — a number that marks a place, not a quantity. |
+| `.display` | clamp(38–72px), 800, −.032em | The largest statement on a page. One per page at most. |
+| `.h1` | clamp(31–56px), 800, −.03em, lh 1.03 | Section headline (the section's `<h2>` element). |
+| `.h2` | clamp(20–26px), 700, −.018em | Sub-headline inside a section. |
+| `.h3` | 19px, 700, −.012em | Card-level heading. |
+| `.lede` | clamp(16.5–20px), muted, max 62ch | The sentence under a headline. |
+| body | 16px/1.6 `--text` | Default prose. |
+| `.small` | 14px/1.62 | Secondary prose, card bodies. |
+| `.note` | 12.5px, faint | Footnotes, honesty text, illustrative-parameter labels. |
+| `.mnote` | mono 11.5px, faint | Mono micro-copy inside a panel. |
+| `.eyebrow` | **mono** 11.5px caps, +.19em, faint | Kicker above a headline. `--pink` / `--blue` variants are assigned per section — see below. |
+| `.num` | mono, tabular-nums | Every figure in a table, stat, chip or instrument. |
+| `.mono` | mono, tabular-nums | Any run of mono micro-copy. |
 
 Utilities: `.muted .faint .hi .pink .blue .measure` (62ch).
 
@@ -180,16 +180,16 @@ The section head flies a 3px brand rule (`--flag`) that runs past the container 
 edge. A section that declares its meaning on the eyebrow gets the matching flag automatically
 (`.sec-head:has(.eyebrow--pink)`); otherwise set `--flag` in the section's own CSS.
 
-| Section      | Eyebrow                    | `--flag`         | Why                              |
-| ------------ | -------------------------- | ---------------- | -------------------------------- |
-| hero         | none — the wordmark leads  | —                |                                  |
-| overview     | `.eyebrow`                 | blue (default)   | the loop starts with money in    |
-| mining       | `.eyebrow eyebrow--blue`   | blue (auto)      | capital arriving                 |
-| resonance    | `.eyebrow eyebrow--pink`   | pink (auto)      | signal                           |
-| fund         | `.eyebrow`                 | blue (default)   | what the capital bought          |
-| extras       | `.eyebrow`                 | pink             | signal and what it buys          |
-| why          | `.eyebrow`                 | pink             | who steers                       |
-| close        | `.eyebrow`                 | `--rule-strong`  | status is neither               |
+| Section   | Eyebrow                   | `--flag`        | Why                           |
+| --------- | ------------------------- | --------------- | ----------------------------- |
+| hero      | none — the wordmark leads | —               |                               |
+| overview  | `.eyebrow`                | blue (default)  | the loop starts with money in |
+| mining    | `.eyebrow eyebrow--blue`  | blue (auto)     | capital arriving              |
+| resonance | `.eyebrow eyebrow--pink`  | pink (auto)     | signal                        |
+| fund      | `.eyebrow`                | blue (default)  | what the capital bought       |
+| extras    | `.eyebrow`                | pink            | signal and what it buys       |
+| why       | `.eyebrow`                | pink            | who steers                    |
+| close     | `.eyebrow`                | `--rule-strong` | status is neither             |
 
 ## Section skeleton
 
@@ -243,18 +243,18 @@ of numbers measured off an existing one.** Every row is printed with a rendered 
 gap in §02 of `/specimen`, the same way §03 prints the type ramp — a spacing system nobody can read
 off the page is not specified, it is only obeyed by whoever wrote it.
 
-| Token          | Value                        | At 1440 | Meaning                                                |
-| -------------- | ---------------------------- | ------- | ------------------------------------------------------ |
-| `--s-sec`      | `clamp(60px, 7.4vw, 112px)`  | 106.6px | Section padding, block. `.section` and `.sp-sec`.      |
-| `--s-headfoot` | `clamp(30px, 3.6vw, 52px)`   | 51.8px  | Section head → first content. `.sec-head` margin.      |
-| `--s-headgap`  | `clamp(20px, 3vw, 48px)`     | 43.2px  | Ordinal column → headline column.                      |
-| `--s-headrow`  | `var(--s3)`                  | 12px    | Rule → eyebrow → headline → lede.                      |
-| `--s-index`    | `180px`                      | 180px   | The ordinal column of an indexed head.                 |
-| `--s-spread`   | `clamp(24px, 3.2vw, 52px)`   | 46.1px  | Wide column → narrow column, in any spread.            |
-| `--s-split`    | `0.62fr`                     | 703/436 | The narrow column of a body spread, against `1fr`.     |
-| `--s-aside`    | `420px`                      | 892/420 | The **fixed** narrow column of an opening spread.      |
-| `--s-stack`    | `clamp(20px, 2.4vw, 32px)`   | 32px    | Between blocks stacked inside one column.              |
-| `--s-gutter`   | `var(--s5)`                  | 24px    | Between cards in a row. `.cols` gap.                   |
+| Token          | Value                       | At 1440 | Meaning                                            |
+| -------------- | --------------------------- | ------- | -------------------------------------------------- |
+| `--s-sec`      | `clamp(60px, 7.4vw, 112px)` | 106.6px | Section padding, block. `.section` and `.sp-sec`.  |
+| `--s-headfoot` | `clamp(30px, 3.6vw, 52px)`  | 51.8px  | Section head → first content. `.sec-head` margin.  |
+| `--s-headgap`  | `clamp(20px, 3vw, 48px)`    | 43.2px  | Ordinal column → headline column.                  |
+| `--s-headrow`  | `var(--s3)`                 | 12px    | Rule → eyebrow → headline → lede.                  |
+| `--s-index`    | `180px`                     | 180px   | The ordinal column of an indexed head.             |
+| `--s-spread`   | `clamp(24px, 3.2vw, 52px)`  | 46.1px  | Wide column → narrow column, in any spread.        |
+| `--s-split`    | `0.62fr`                    | 703/436 | The narrow column of a body spread, against `1fr`. |
+| `--s-aside`    | `420px`                     | 892/420 | The **fixed** narrow column of an opening spread.  |
+| `--s-stack`    | `clamp(20px, 2.4vw, 32px)`  | 32px    | Between blocks stacked inside one column.          |
+| `--s-gutter`   | `var(--s5)`                 | 24px    | Between cards in a row. `.cols` gap.               |
 
 `--sec-pad` is kept as an alias of `--s-sec` — the section stylesheets already call it that. There
 is now **one** section rhythm: the specimen used to run its own `clamp(52px, 6.4vw, 92px)` and
@@ -313,7 +313,7 @@ down the left edge.
 ground is `#0C0C0C`, so the darkest shadow that can fall on it measures 1.07:1 and paints nothing.
 The panel carried `0 24px 60px -40px rgba(0,0,0,.9)` for exactly that reason — zero rendered
 pixels — while §02 of `/specimen` described "a long soft shadow beneath" to the reader. Making a
-shadow visible here means *lightening* the ground, which is a glow, and glow is the one material
+shadow visible here means _lightening_ the ground, which is a glow, and glow is the one material
 `docs/ART-DIRECTION.md` rules out. Panels separate from the ground by an edge, like everything
 else: a 1px white top edge at 7% says which way is up, the 1px rule draws the boundary, the blue
 haze falls from the head.
@@ -327,7 +327,7 @@ asserting a value the tile is not painted in. §02 of `/specimen` is the referen
 <div class="sim-panel">
   <div class="sim-panel__head">
     <span class="sim-panel__title sim-panel__title--blue">Mine — live model</span>
-    <span class="chip chip--warn">Illustrative parameters</span>
+    <span class="chip chip--warn">Illustrative market activity</span>
   </div>
   <div class="sim-panel__body">
     <p class="sim-cap">…what this instrument shows…</p>
@@ -335,7 +335,7 @@ asserting a value the tile is not painted in. §02 of `/specimen` is the referen
   </div>
   <div class="sim-panel__foot">
     <span class="sim-clock">day 3, 14:08</span>
-    <p class="note sim-note">Production parameters are unselected; figures shown are illustrative.</p>
+    <p class="note sim-note">Fixed development constants are provisional; market activity is illustrative.</p>
   </div>
 </div>
 ```
@@ -345,9 +345,9 @@ default (signal), `--blue` on the title for capital, `--gbx` for supply/burns (w
 `.sim-panel--blue` / `--pink` / `--neutral` modifiers exist for new work.
 
 **The foot narrates; it never asks.** There are no controls anywhere — every simulation runs its
-own programme (see the owner directive in `docs/ART-DIRECTION.md`). Any sim whose figures depend
-on unselected production parameters carries the `Illustrative parameters` chip in its head AND the
-`.sim-note` in its foot. §05 of `/specimen` runs this chrome against a live model — bound by the
+own programme (see the owner directive in `docs/ART-DIRECTION.md`). A sim that combines provisional
+source constants with invented market activity distinguishes them in its chip and `.sim-note`.
+§05 of `/specimen` runs this chrome against a live model — bound by the
 same Mine.sol law as the mining section, registered through `registerSim()` — so the panel that
 says LIVE MODEL is one. Anything you label live must actually be live; if it is a mock, label it
 one.
@@ -379,7 +379,7 @@ token, same total duration — the second is just spent where it can be seen. Bo
 3s loop in §09 of `/specimen`; sample frames there before tuning anything.
 
 **A comparison goes in one figure, on one axis.** §09 runs a dot down the same distance on each of
-the two curves — the transition reads `var(--ease)` / `var(--ease-out)` directly, so the demo *is*
+the two curves — the transition reads `var(--ease)` / `var(--ease-out)` directly, so the demo _is_
 the token — and draws each bezier beside its rail. The two rails are **24px apart with nothing
 between them**: both labels sit under both rails, in rail order, at every width. A caption between
 the two things being compared is the one arrangement this figure may not take.
@@ -393,7 +393,7 @@ the comb is sampled in time, not in space — at 389px the last four `--ease` ti
 0.9px apart and the decelerating half of the comb, the half the figure exists to show, was a
 smudge. At 1125px they fall **16.5 / 8.6 / 2.6px** and all ten read. `--ease-out`'s last two
 samples are 0.14px apart and no width will separate them — that curve is at 99.996% of the travel
-by 900ms — and the pile-up at the wall *is* that curve's finding.
+by 900ms — and the pile-up at the wall _is_ that curve's finding.
 
 The load-bearing part is the **comb**: a 1px tick at the dot's position every 100ms of the travel,
 solved by bisection from the element's own `--curve` (whose computed value is the substituted

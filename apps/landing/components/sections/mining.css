@@ -92,7 +92,7 @@
 #sec-mining .mn-stage {
   min-width: 0;
 }
-/* The plot, the slot-number row, the reserved payment lane and the routing bar
+/* The plot, the slot-number row, the reserved payment lane and the deposit bar
    all live inside this one box, so its height is the sum of four bands — not a
    round number. Keep the plot itself tall enough to read at every width. */
 #sec-mining .mn-stage canvas {
@@ -102,7 +102,7 @@
 }
 
 /* The tape: what the last transfer actually was. It persists until the next
-   one, so the route is readable in any frozen frame. */
+   one, so the allocation is readable in any frozen frame. */
 #sec-mining .mn-tape {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 0.9fr);
@@ -182,7 +182,7 @@
 }
 
 /* The never-taken counter, beside the clock on the foot rail. It is the honest
-   reason the 100% route stops appearing: those slots run out. */
+   reason the 100% Router deposit stops appearing: those slots run out. */
 #sec-mining .mn-state {
   font-family: var(--font-mono);
   font-size: 11px;

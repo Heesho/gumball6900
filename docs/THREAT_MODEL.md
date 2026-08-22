@@ -26,8 +26,12 @@
   realized only after later nonzero-rate payments add enough numerator. Individual tiny-payment splits may therefore
   differ visibly from the nominal rate while the complete weighted history remains exact and the Bribe share never
   exceeds 20% cumulatively.
-- A halving can temporarily leave aggregate GBX issuance above the new global rate because incumbents keep their fixed
-  tenure TPS while new tenures receive the lower rate. This is an accepted fairness tradeoff.
+- A halving can leave aggregate GBX issuance above the new global rate for as long as incumbents keep their fixed
+  tenure TPS while new tenures receive the lower rate. Turnover is not guaranteed; this is an accepted fairness
+  tradeoff.
+- A Mine handoff submitted before a halving boundary can execute after it and lock the lower rate for the complete
+  tenure. `epochId` and `maximumPrice` do not bind TPS. Callers and interfaces that require the quoted rate must set
+  `deadline` strictly before the next boundary; ordering and timestamp influence remain relevant near that boundary.
 - Miners face rollover risk: without a replacement, an incumbent continues earning GBX but never receives the 80%
   handoff claim. A replacement can also occur at zero USDG after the hourly price reaches zero.
 - Accrued Mine rewards are unminted until the individual slot is replaced. Fund includes cached pending emission in its
@@ -46,10 +50,12 @@
   restarts seven days from the current timestamp. It may raise or lower the rate and extend the prior finish. The new
   reward must be at least the complete amount left, so forcing an early reset requires economically matching that
   remainder; timing influence is nevertheless intentional and accepted.
-- ResonanceRouter retains its complete balance while it is nonzero but smaller than the active amount left. Mine and
-  LiquidityPosition delivery may therefore wait in the Router before becoming a Resonance notification. The balance has
-  no absolute minimum and eventually qualifies as the active remainder decays, but interfaces must distinguish delivery
-  to the Router from delivery into the active stream.
+- ResonanceRouter retains its complete balance until a permissionless caller invokes `route()`. A nonzero balance
+  smaller than the active amount left remains held; a balance eventually qualifies as the active remainder decays, but
+  qualification does not execute a transaction. Mine only deposits and is isolated from later Router/Resonance
+  failure. LiquidityPosition still attempts routing atomically during fee harvest. Interfaces must distinguish delivery
+  to the Router from delivery into the active stream, and operators must accept that Mine revenue may wait indefinitely
+  without a manual, frontend, volunteer-keeper, or cron caller.
 - Resonance does not carry global-index or per-Strategy division remainders. `1e36` precision makes ordinary individual
   floors small, but checkpoint frequency and protocol lifetime can accumulate unclassified USDG surplus. No exact
   conservation or lifetime dust bound is claimed.

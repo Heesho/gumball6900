@@ -1,7 +1,8 @@
 # ADR 0024: Immutable multislot Mine with tenure-locked rates
 
-- Status: superseded in part by ADR 0033 and in its GBX ERC20Votes statement by ADR 0030; not approved for deployment
-  or user funds
+- Status: superseded in part by ADR 0033, in its GBX ERC20Votes statement by ADR 0030, in its configurable Mine
+  economics by ADR 0038, in its cumulative-mining halving model by ADR 0041, and in synchronous downstream routing by
+  ADR 0044; not approved for deployment or user funds
 - Date: 2026-08-12
 - Supersedes: ADR 0023 and the Fundraiser/supply portions of ADR 0014
 
@@ -11,8 +12,8 @@ The daily pooled Fundraiser allowed late contributions to change earlier contrib
 encouraged last-block or MEV-heavy participation. The desired mechanism is a continuously clearing market in which a
 miner can be replaced at any time, USDG enters frequently, and rollover risk disciplines the price.
 
-Farplace's MineRig provides a previously exercised hourly reverse-Dutch handoff shape. This repository adapts the
-mechanism rather than importing its complete graph.
+The hourly reverse-Dutch handoff shape traces to donut-miner. This repository adapts the mechanism rather than
+importing its complete graph.
 
 ## Decision
 
@@ -41,12 +42,12 @@ issuance above the current undivided global rate when old-rate miners coexist wi
 
 ## Emission curve
 
-Constructor-immutable cumulative-mining thresholds halve the global rate used for future handoffs. A strictly positive
-tail rate continues forever. Capacity division floors; the remainder is unissued. Constructor validation keeps the tail
-large enough that a new slot remains positive at maximum capacity.
+ADR 0041 replaces the cumulative-mining thresholds recorded here with a fixed time-based schedule anchored to Mine
+deployment. A strictly positive tail rate continues forever. Capacity division floors; the remainder is unissued.
 
-Exact production values for initial rate, halving amount, tail, minimum USDG price, and multiplier are deployment
-inputs and remain release blockers until independently modeled, reviewed, and signed.
+ADR 0038 later fixes the initial rate, tail, minimum USDG price, and multiplier directly in Mine. ADR 0041 replaces its
+halving amount with a provisional fixed period.
+Independent economic review and signed deployment evidence remain release blockers.
 
 ## Redemption denominator
 
@@ -70,7 +71,6 @@ Fund and LiquidityPosition stay ownerless. The system remains direct and non-upg
 
 ## Provenance
 
-The adaptation reviewed Farplace at commit `8cf7423016b108e7bd8d7854c14e0ac6585bb935`, principally
-`packages/hardhat/contracts/rigs/mine/MineRig.sol` (SHA-256
-`57b8a2940986b21adcdacb5f447ed5f9dcb598b8b64de82bd77176c8362cfdc2`). Licensing/provenance clearance remains a
-release blocker; see `NOTICE` and `docs/LEGAL-PROVENANCE-BLOCKER.md`.
+The handoff lineage is [Heesho/donut-miner](https://github.com/Heesho/donut-miner). The exact reviewed upstream commit,
+source-file hashes, and licensing/provenance clearance remain release blockers; see `NOTICE` and
+`docs/LEGAL-PROVENANCE-BLOCKER.md`.

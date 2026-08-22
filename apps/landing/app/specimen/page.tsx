@@ -681,7 +681,7 @@ export default function SpecimenPage() {
             <div className="sp-ramp__row">
               <span className="sp-ramp__k">.num</span>
               <span className="sp-ramp__s num hi" style={{ fontSize: '15px' }}>
-                $10.61 · 250/h · day 3, 14:08
+                $15.83 · 14,400/h · day 0, 00:20
               </span>
               <span className="sp-ramp__spec">mono · inherits size / tabular-nums / 0 tracking</span>
             </div>
@@ -838,7 +838,7 @@ export default function SpecimenPage() {
           <div className="sim-panel sim-panel--blue" id="sp-panel">
             <div className="sim-panel__head">
               <span className="sim-panel__title sim-panel__title--blue">Specimen — live model</span>
-              <span className="chip chip--warn">Illustrative parameters</span>
+              <span className="chip chip--warn">Illustrative market activity</span>
             </div>
             <div className="sim-panel__body">
               <p className="sim-cap">
@@ -854,31 +854,31 @@ export default function SpecimenPage() {
                     <span className="cell__id">01</span>
                     <span className="cell__owner">@odin</span>
                   </div>
-                  <div className="cell__price">$7.55</div>
+                  <div className="cell__price">$15.50</div>
                   <div className="meter meter--blue">
-                    <i style={v('62.0%')} />
+                    <i style={v('22.0%')} />
                   </div>
-                  <div className="cell__sub">155.0 GBX · 250/h</div>
+                  <div className="cell__sub">3,168.0 GBX · 14,400/h</div>
                 </div>
                 <div className="cell" id="sp-cell-2">
                   <div className="cell__top">
                     <span className="cell__id">02</span>
                     <span className="cell__owner">@kai</span>
                   </div>
-                  <div className="cell__price">$10.61</div>
+                  <div className="cell__price">$15.83</div>
                   <div className="meter meter--blue">
-                    <i style={v('41.0%')} />
+                    <i style={v('12.0%')} />
                   </div>
-                  <div className="cell__sub">102.5 GBX · 250/h</div>
+                  <div className="cell__sub">1,728.0 GBX · 14,400/h</div>
                 </div>
                 <div className="cell cell--open" id="sp-cell-3">
                   <div className="cell__top">
                     <span className="cell__id">03</span>
                     <span className="cell__owner cell__owner--open">open</span>
                   </div>
-                  <div className="cell__price">$12.40</div>
+                  <div className="cell__price">$0.67</div>
                   <div className="meter meter--blue">
-                    <i style={v('21.0%')} />
+                    <i style={v('33.3%')} />
                   </div>
                   <div className="cell__sub">never taken · 0/h</div>
                 </div>
@@ -887,11 +887,11 @@ export default function SpecimenPage() {
                     <span className="cell__id">04</span>
                     <span className="cell__owner">@wren</span>
                   </div>
-                  <div className="cell__price">$15.63</div>
+                  <div className="cell__price">$16.86</div>
                   <div className="meter meter--blue">
-                    <i style={v('24.0%')} />
+                    <i style={v('18.0%')} />
                   </div>
-                  <div className="cell__sub">60.0 GBX · 250/h</div>
+                  <div className="cell__sub">2,592.0 GBX · 14,400/h</div>
                 </div>
                 <div className="cell--ghost">
                   <em>+ twelve more cells</em>
@@ -912,13 +912,13 @@ export default function SpecimenPage() {
 
               <dl className="tallies tallies--4" style={{ marginTop: '20px' }}>
                 <div className="tally">
-                  <dt>Capital routed to the fund</dt>
+                  <dt>USDG deposited in ResonanceRouter</dt>
                   <dd className="blue" id="sp-t-fund">
                     $18.65
                   </dd>
                 </div>
                 <div className="tally">
-                  <dt>Paid back to the displaced</dt>
+                  <dt>Claims credited to the displaced</dt>
                   <dd id="sp-t-paid">$38.09</dd>
                 </div>
                 <div className="tally">
@@ -926,14 +926,14 @@ export default function SpecimenPage() {
                   <dd id="sp-t-gbx">1,240</dd>
                 </div>
                 <div className="tally">
-                  <dt>Per hour, all cells</dt>
-                  <dd>4,000</dd>
+                  <dt>First-era rate, all 16 slots</dt>
+                  <dd>230,400/h</dd>
                 </div>
               </dl>
             </div>
             <div className="sim-panel__foot">
               <span className="sim-clock" id="sp-clock">
-                day 3, 14:08
+                day 0, 00:20
               </span>
               <p className="note sim-note">
                 The foot narrates; it never asks. There are no controls in this system — every simulation runs its own
@@ -948,10 +948,9 @@ export default function SpecimenPage() {
             colour its label contradicts.
           </p>
           <p className="note" style={{ marginTop: '10px' }}>
-            The model is the one the mine obeys — linear decay to zero over the hour, 80/20 to the displaced miner and
-            the fund, 100% to the fund on a slot nobody has ever taken, the next price at twice what was paid with a $1
-            floor — driven by the same shared harness as the site, so it pauses off screen and freezes to a
-            mid-simulation still under a reduced-motion preference.
+            The model follows Mine&apos;s fixed mechanics — linear decay to zero over the hour, an 80% displaced-miner
+            claim plus a 20% ResonanceRouter deposit, a 100% Router deposit on a first fill, and a ×2 restart with a $1
+            floor. Market activity is illustrative; Mine never calls the later permissionless route.
           </p>
         </div>
       </section>
@@ -1387,8 +1386,8 @@ export default function SpecimenPage() {
               rather than mostly parked. Each rail carries a tick at the dot&apos;s position every 100ms, solved from
               the same custom property the transition reads, and lit as the dot passes it. Read the combs, not the dots:
               --ease-out is a hair under halfway at 100ms — 49% of the travel against 32% for --ease — and inside the
-              last 3% by 500ms, where --ease is still at 91%.
-              The dots finish together, which is exactly why a still of two dots taught nothing.
+              last 3% by 500ms, where --ease is still at 91%. The dots finish together, which is exactly why a still of
+              two dots taught nothing.
             </p>
           </div>
 

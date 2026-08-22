@@ -545,7 +545,7 @@ ul{padding:0;list-style:none}
           <span class="toc__n dnum">1</span>
           <span class="toc__txt">
             <span class="toc__t">Miners pay</span>
-            <span class="toc__d">Sixteen permanent slots. Their USDG is the fund's only money.</span>
+            <span class="toc__d">Sixteen permanent slots. Mine deposits protocol USDG in the Router.</span>
           </span>
           <span class="toc__arw" aria-hidden="true">→</span>
         </a>
@@ -604,9 +604,9 @@ ul{padding:0;list-style:none}
       <div class="sec-head__body">
         <div class="sec-head__rule" aria-hidden="true"></div>
         <h2 class="display" id="h-mining">Sixteen slots pay for everything</h2>
-        <p class="lede">Mining is where the fund's money comes from. Miners pay USDG for one of sixteen
-          permanent slots, and that USDG is the fund's buying power. There is no other source — no
-          team allocation, no presale.</p>
+        <p class="lede">Mining supplies the protocol's revenue. Miners pay USDG for one of sixteen
+          permanent slots. Mine deposits the protocol share in ResonanceRouter for a later,
+          separate permissionless route. There is no team allocation or presale.</p>
       </div>
     </header>
 
@@ -615,7 +615,7 @@ ul{padding:0;list-style:none}
         <span class="sim__flag" aria-hidden="true"></span>
         <span class="sim__title"><i aria-hidden="true"></i>Mine — live model</span>
         <span class="sim__spacer"></span>
-        <span class="chip"><i aria-hidden="true"></i>Illustrative parameters</span>
+        <span class="chip"><i aria-hidden="true"></i>Illustrative market activity</span>
       </div>
 
       <div class="sim__body">
@@ -625,27 +625,27 @@ ul{padding:0;list-style:none}
         <div class="board">
             <div class="cell">
               <div class="cell__top"><span class="cell__id">01</span><span class="cell__owner">@odin</span></div>
-              <div class="cell__price">$7.55</div>
-              <div class="meter meter--blue"><i style="width:62%"></i></div>
-              <div class="cell__sub">51.7 GBX · 250/h</div>
+              <div class="cell__price">$15.50</div>
+              <div class="meter meter--blue"><i style="width:22%"></i></div>
+              <div class="cell__sub">3,168 GBX · 14,400/h</div>
             </div>
             <div class="cell">
               <div class="cell__top"><span class="cell__id">02</span><span class="cell__owner">@kai</span></div>
-              <div class="cell__price">$10.61</div>
-              <div class="meter meter--blue"><i style="width:41%"></i></div>
-              <div class="cell__sub">82.2 GBX · 250/h</div>
+              <div class="cell__price">$15.83</div>
+              <div class="meter meter--blue"><i style="width:12%"></i></div>
+              <div class="cell__sub">1,728 GBX · 14,400/h</div>
             </div>
             <div class="cell cell--open">
               <div class="cell__top"><span class="cell__id">03</span><span class="cell__owner is-open">open</span></div>
-              <div class="cell__price">$4.04</div>
-              <div class="meter meter--blue"><i style="width:87%"></i></div>
+              <div class="cell__price">$0.67</div>
+              <div class="meter meter--blue"><i style="width:33.3%"></i></div>
               <div class="cell__sub">never taken · 0/h</div>
             </div>
             <div class="cell">
               <div class="cell__top"><span class="cell__id">04</span><span class="cell__owner">@wren</span></div>
-              <div class="cell__price">$15.63</div>
-              <div class="meter meter--blue"><i style="width:24%"></i></div>
-              <div class="cell__sub">51.7 GBX · 250/h</div>
+              <div class="cell__price">$16.86</div>
+              <div class="meter meter--blue"><i style="width:18%"></i></div>
+              <div class="cell__sub">2,592 GBX · 14,400/h</div>
             </div>
             <div class="cell--ghost"><em>+ twelve more slots</em><i aria-hidden="true"></i><em>each on its own clock</em></div>
           </div>
@@ -655,28 +655,28 @@ ul{padding:0;list-style:none}
               <div class="transfer__cap">Where the money goes</div>
               <p class="transfer__line">@moss takes slot 06 for $9.79.</p>
               <div class="route">
-                <div class="route__top"><span>80% → @pike, displaced</span><span class="route__val">$7.83</span></div>
+                <div class="route__top"><span>80% claim → @pike</span><span class="route__val">$7.83</span></div>
                 <div class="meter meter--thick"><i style="width:80%"></i></div>
               </div>
               <div class="route">
-                <div class="route__top"><span>20% → the fund's buying power</span><span class="route__val is-blue">$1.96</span></div>
+                <div class="route__top"><span>20% deposited → ResonanceRouter</span><span class="route__val is-blue">$1.96</span></div>
                 <div class="meter meter--thick meter--blue"><i style="width:20%"></i></div>
               </div>
-              <p class="note">@pike exits with 40.8 GBX, minted on the spot.</p>
+              <p class="note">@pike exits with 40.8 GBX minted; the USDG claim is withdrawable.</p>
             </div>
             <dl class="tallies" aria-label="Running totals">
-              <div class="tally"><dt>USDG to the fund's buying power</dt><dd class="is-blue">$18.65</dd></div>
-              <div class="tally"><dt>Paid back to displaced miners</dt><dd>$38.09</dd></div>
+              <div class="tally"><dt>USDG deposited in ResonanceRouter</dt><dd class="is-blue">$18.65</dd></div>
+              <div class="tally"><dt>Claims credited to displaced miners</dt><dd>$38.09</dd></div>
               <div class="tally"><dt>GBX mined so far</dt><dd>83.8</dd></div>
-              <div class="tally"><dt>GBX per hour, all slots</dt><dd>4,000</dd></div>
+              <div class="tally"><dt>First-era rate, all slots</dt><dd>230,400/h</dd></div>
             </dl>
           </div>
       </div>
 
       <div class="sim__foot">
         <button class="btn btn--sm btn--blue" type="button">Take the cheapest slot · pay USDG</button>
-        <span class="sim__clock">day 3, 14:08</span>
-        <p class="note sim__note">Sped up ~60×. Production parameters are unselected; figures shown are illustrative.</p>
+        <span class="sim__clock">day 0, 00:20</span>
+        <p class="note sim__note">Sped up ~60×. Fixed Mine constants are provisional; market activity is illustrative. Mine does not call the later permissionless route.</p>
       </div>
     </div>
   </div>
@@ -796,7 +796,7 @@ ul{padding:0;list-style:none}
         <div class="spec"><span class="spec__k">Display 60/800</span><span style="font-size:26px;font-weight:800;letter-spacing:-.03em;color:var(--hi)">Sixteen slots pay</span></div>
         <div class="spec"><span class="spec__k">Lede 20/1.55</span><span class="lede" style="font-size:16px">Mining is where the money comes from.</span></div>
         <div class="spec"><span class="spec__k">Body 16/1.6</span><span class="small">Schibsted Grotesk — kept. The voice comes from scale and colour, not a novelty face.</span></div>
-        <div class="spec"><span class="spec__k">Mono / num</span><span class="mono" style="font-size:15px;color:var(--hi)">$10.61 · 250/h · day 3, 14:08</span></div>
+        <div class="spec"><span class="spec__k">Mono / num</span><span class="mono" style="font-size:15px;color:var(--hi)">$15.83 · 14,400/h · day 0, 00:20</span></div>
         <div class="spec"><span class="spec__k">Eyebrow</span><span class="eyebrow">Mining · JetBrains Mono, .19em</span></div>
 
         <div class="leg-h" style="margin-top:32px">The five rules</div>

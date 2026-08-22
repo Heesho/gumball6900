@@ -31,7 +31,7 @@ export const currentPages = [
                 <div class="kpi__label">Genesis GBX</div>
               </div>
               <div>
-                <div class="kpi__value">1–16</div>
+                <div class="kpi__value">16</div>
                 <div class="kpi__label">Mining slots</div>
               </div>
               <div>
@@ -59,13 +59,13 @@ export const currentPages = [
             <div class="col-main">
               <p style="color:${palette.onDeep}">
                 GumBall6900 is experimental software. It is not deployed, has not received an independent external
-                audit, and is not authorized for user funds. Exact Mine economics, target-chain dependencies, legal
-                provenance, and a signed deployment manifest remain unresolved.
+                audit, and is not authorized for user funds. Independent review of Mine's fixed economics, target-chain
+                dependencies, legal provenance, and a signed deployment manifest remain unresolved.
               </p>
               <p style="color:${palette.onDeepMuted}">
-                This edition describes the architecture introduced by ADRs 0031, 0034, 0035, 0036, and 0037, whose core
-                Solidity is implemented and covered by the current suites. ADR 0036 supersedes ADR 0032's fixed-rate
-                rule. External governance remains unselected. A local green build is engineering evidence, never a
+                This edition describes the uncommitted development tree implementing ADRs 0031 and 0033-0044. Its full
+                deterministic current-tree matrix passed locally on 22 August 2026, but there is no commit-pinned review
+                candidate. External governance remains unselected. A local green build is engineering evidence, never a
                 safety, audit, or release claim.
               </p>
             </div>
@@ -119,8 +119,8 @@ export const currentPages = [
                 'A participant takes a mining slot at its current hourly decaying USDG price.',
                 'The incumbent accrues GBX continuously at the fixed rate assigned on entry.',
                 'A signal atomically escrows GBX, mints non-transferable voting sGBX, and assigns every unit to one live Strategy.',
-                'Twenty percent of a nonempty-slot handoff routes through Resonance; eighty percent becomes a displaced-miner claim.',
-                'ResonanceRouter waits below the active amount left; a qualifying balance restarts seven days with new USDG plus that remainder.',
+                'Twenty percent of a nonempty-slot handoff is deposited into ResonanceRouter; eighty percent becomes a displaced-miner claim.',
+                'Mine stops after deposit. A later permissionless route of a qualifying balance restarts seven days with new USDG plus the remainder.',
                 'Strategies pull released USDG; each acquired-asset payment uses the current global 0%-to-20% Bribe rate and its Fund complement, with 1e36 reward-index precision.',
                 'A GBX holder may burn GBX for a selected pro-rata basket of raw Fund assets.',
               ])}
@@ -129,7 +129,7 @@ export const currentPages = [
               ${note({
                 label: 'Empty slots',
                 kind: 'capital',
-                body: 'A first occupation routes 100% of its USDG payment because no displaced miner exists.',
+                body: 'A first occupation deposits 100% into the Router. Mine stops there; permissionless routing has no guaranteed caller.',
               })}
               ${note({ label: 'No team fee', body: 'Mining has no team, founder, management, or protocol fee.' })}
             </div>
@@ -166,7 +166,7 @@ export const currentPages = [
                   ['Start of hour', 'Price equals the slot opening price'],
                   ['Thirty minutes', 'Approximately half remains'],
                   ['One hour or later', 'Price is zero; replacement still allowed'],
-                  ['Nonempty replacement', '80% claim / 20% Resonance'],
+                  ['Nonempty replacement', '80% claim / 20% Router deposit'],
                 ],
               })}
             </div>
@@ -197,21 +197,21 @@ export const currentPages = [
             deck: 'A slot rate changes only when that slot changes hands.',
           })}
           <p class="lead">
-            Claims, cumulative-mining thresholds, redemptions, and other slots' handoffs never rewrite an occupied
+            Time-based halving boundaries, claims, redemptions, and other slots' handoffs never rewrite an occupied
             slot's GBX-per-second rate.
           </p>
           ${table({
             head: ['State', 'Earlier incumbent', 'New tenure'],
             rows: [
-              ['Global 100 GBX/hour', '6.25 GBX/hour', '6.25 GBX/hour'],
-              ['Global rate halves', 'Still 6.25 GBX/hour', '3.125 GBX/hour'],
-              ['Incumbent is replaced', 'Tenure ends', '3.125 GBX/hour'],
+              ['Global 230,400 GBX/hour', '14,400 GBX/hour', '14,400 GBX/hour'],
+              ['Global rate halves', 'Still 14,400 GBX/hour', '7,200 GBX/hour'],
+              ['Incumbent is replaced', 'Tenure ends', '7,200 GBX/hour'],
             ],
           })}
           <div class="spread stack-2">
             <div class="col-main">
               <p>
-                All sixteen slots divide the current global rate by sixteen when a tenure begins. A threshold crossing
+                All sixteen slots divide the current global rate by sixteen when a tenure begins. A time boundary
                 changes only the rate offered at a later handoff, never an incumbent's already-assigned rate.
               </p>
             </div>
@@ -219,7 +219,7 @@ export const currentPages = [
               ${note({
                 label: 'Accepted tradeoff',
                 kind: 'supply',
-                body: 'Aggregate issuance can temporarily exceed the current global rate while old high-rate tenures remain.',
+                body: 'Aggregate issuance can exceed the current global rate for as long as old high-rate tenures remain; turnover is not guaranteed.',
               })}
             </div>
           </div>`,
@@ -242,9 +242,9 @@ export const currentPages = [
               <p>
                 GBX begins with ${Number(contractConstants.gbx.genesisLiquidityTokens).toLocaleString('en-US')} genesis
                 tokens. Its only later issuer is the permanently bound Mine. Global rates offered to future occupants
-                halve at immutable cumulative-mining thresholds, then continue at a positive tail on every modeled
-                horizon. GBX supports permit approvals but has no governance checkpoints; votes begin only after
-                signaling into sGBX.
+                halve every 69 days measured from Mine deployment and reach a 1 GBX-per-second tail at day 414. That
+                schedule is provisional pending independent economic review. GBX supports permit approvals but has no
+                governance checkpoints; votes begin only after signaling into sGBX.
               </p>
               <p>
                 Rewards accrue continuously but each slot mints only when it changes hands. Fund reads Mine's

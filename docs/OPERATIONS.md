@@ -15,8 +15,9 @@ Before any external funding or public availability, verify the exact candidate i
 
 - GBX created exactly 20 million genesis tokens; `minterLocked()` is true; `minter()` is the reviewed Mine; and
   `totalSupply() == lifetimeMinted() - lifetimeBurned()`.
-- Mine points to the exact GBX, USDG, and ResonanceRouter; `SLOT_COUNT()` is exactly 16; the tail TPS
-  is positive; every immutable emission parameter matches the signed candidate.
+- Mine points to the exact GBX, USDG, and ResonanceRouter; `SLOT_COUNT()` is exactly 16; `startTime()` equals the
+  deployment-block timestamp; `HALVING_PERIOD()` is the reviewed constant; the tail TPS is positive; and every fixed
+  emission value matches the signed candidate. Record and minimize the delay from `startTime` to public exposure.
 - SignalGBX and both factories are permanently bound to the exact Resonance. Resonance is bound to the exact
   ResonanceRouter, USDG, Fund, SignalGBX, and factories.
 - Every reviewed initial Strategy was created before ownership handoff. For each Strategy, verify the payment token,
@@ -52,10 +53,10 @@ substitute indexed data for contract state.
 | Surface            | Check                                                                                                                                                                                                                   |
 | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | GBX                | Supply equals lifetime minted minus lifetime burned; minter remains the locked Mine.                                                                                                                                    |
-| Mine               | Slot count remains 16; cached pending/TPS equal the per-slot sums; each slot's accrued and claimed accounting is solvent.                                                                                               |
+| Mine               | Slot count remains 16; cached pending/TPS equal per-slot sums; claims are solvent; record `startTime`, elapsed era, formula-derived prospective TPS, next 69-day boundary, and deployment-to-exposure delay.            |
 | Signaling          | SignalGBX supply equals GBX backing; each account aggregate equals its Strategy allocations; each Strategy's Bribe supply equals that Strategy weight; Resonance active weight equals the sum of live Strategy weights. |
 | Resonance          | USDG balance covers accrued Strategy claims plus the exact scheduled remainder; dead Strategy weight is excluded; at least one Strategy remains live.                                                                   |
-| Revenue router     | A retained nonzero balance is expected only while it is below the exact active-period amount left; a qualifying balance should route completely.                                                                        |
+| Revenue router     | Reconcile Mine `RevenueDeposited`, Router balance, `left`, route attempts, `RevenueHeld`, and Router `RevenueRouted`; a qualifying balance can remain until a caller submits `route()`.                                 |
 | Bribe              | Actual token balance covers accounted rewards; liabilities, schedules, queues, and carry reconcile; token count is at most eight; each monotonic lifetime notification total is at or below its fixed raw-unit cap.     |
 | Strategy payments  | Each BribeRouter's balance and accounted amount cover its exact Fund and Bribe liabilities; weighted classification reconciles against every payment's applied global rate and the stored remainder.                    |
 | Bribe rate         | Resonance's global rate remains within 0-2,000 basis points; every change matches governance execution, and no change mutates an existing Router liability, stream, claim, or carry.                                    |
@@ -80,14 +81,37 @@ payments create only Fund liability and that signal, move, partial and full with
 Bribe-liability settlement, existing reward claims, and independent reward funding remain available. A change back to
 a nonzero rate must preserve and continue the prior weighted remainder rather than reset it.
 
+## Permissionless revenue routing
+
+A paid Mine handoff is operationally complete when its exact protocol share reaches ResonanceRouter and Mine emits
+`RevenueDeposited`. Do not report that event as a Resonance notification or active stream restart. The later
+`ResonanceRouter.route()` call is permissionless and has no keeper role, bounty, reimbursement, or guaranteed caller.
+Revenue can remain in the Router indefinitely even after its balance qualifies.
+
+Project-operated automation is optional periphery. A frontend may expose a route button, and an unprivileged cron or
+volunteer keeper may call `route()` after checking `pendingRevenue() != 0`. Record the pending balance, `left`, submitted
+transaction, and either `RevenueHeld` or the Router's `RevenueRouted`. An empty Router reverts `NoRevenue`; a nonempty
+sub-threshold balance is held without advancing the schedule. Failure inside Router or Resonance affects only that
+route attempt and cannot roll back an earlier Mine handoff. A future frontend helper may offer mine-then-route
+composition, but it is not required now and must never make Mine correctness or liveness depend on routing success.
+
+LiquidityPosition is a separate atomic boundary. `harvestFees()` still transfers USDG into ResonanceRouter and calls
+`route()` in the harvest transaction while burning harvested GBX. A downstream failure can therefore revert that
+complete harvest. Do not infer Mine's failure isolation for the liquidity-fee path.
+
+Before every Mine halving boundary, surface the exact boundary timestamp and prospective post-boundary TPS. A handoff
+deadline equal to the boundary still permits execution at that boundary; interfaces that promise the quoted TPS must
+set the deadline strictly earlier and derive it from a pinned block timestamp, never a local wall clock. Record
+handoffs on both sides of each boundary because either assigned tenure rate can persist indefinitely.
+
 ## Incident response
 
 | Severity      | Examples                                                                                                                                                                   | Authorized response                                                                                                                                                                                                                                     |
 | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Critical      | Supply identity failure, mint authority mismatch, ownership/role mismatch, LP custody or principal change, apparent asset loss                                             | Freeze project-controlled frontend writes and automation, preserve block-pinned evidence and logs, notify reviewers/users, and determine whether the observation is an indexing error. Do not claim a pause or recovery capability that does not exist. |
-| High          | Accounting deficit, unexpected live-weight reconciliation failure, qualifying Router balance not forwarded, repeated exact-transfer failure                                | Disable the affected project-controlled convenience flow, preserve a minimal reproduction, identify the affected token/path, and disclose the immutable limitation. Other permissionless paths remain available only if their own invariants hold.      |
+| High          | Accounting deficit, unexpected live-weight reconciliation failure, a submitted qualifying route failing to forward completely, repeated exact-transfer failure             | Disable the affected project-controlled convenience flow, preserve a minimal reproduction, identify the affected token/path, and disclose the immutable limitation. Other permissionless paths remain available only if their own invariants hold.      |
 | Medium        | Dead zero-supply Bribe with scheduled/queued rewards, exhausted Bribe notification cap, stalled nonconventional token liability, unexpected governance or Bribe-rate state | Warn affected users and integrators, stop directing new activity to the path, and record the accepted or token-specific liveness consequence. Do not add or imply a rescue route.                                                                       |
-| Informational | Expected sub-threshold Router retention, pending Fund GBX burn, accepted floor surplus                                                                                     | Surface accurate state and guidance; no emergency action is warranted.                                                                                                                                                                                  |
+| Informational | Expected Router retention without a route attempt, sub-threshold retention, pending Fund GBX burn, accepted floor surplus                                                  | Surface accurate state and guidance; no emergency action is warranted.                                                                                                                                                                                  |
 
 The continuing protocol administration surface is limited to `Resonance.addStrategy`, `Resonance.killStrategy`,
 `Resonance.addBribeReward`, and bounded global `Resonance.setBribeBps`, plus inherited ownership transfer and

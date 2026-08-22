@@ -5,7 +5,8 @@ seqLen: 150
 timeout: 3600
 seed: 6900
 shrinkLimit: 5000
-maxTimeDelay: 172800
+# One random step can cross a complete 69-day Mine halving period; a sequence can reach the permanent tail.
+maxTimeDelay: 5961600
 maxBlockDelay: 50400
 coverage: true
 # The constructor-only campaign graph produces a test harness runtime of roughly 31 KB.

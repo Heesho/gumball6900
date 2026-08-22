@@ -2,13 +2,13 @@
 
 ## The index fund that chooses itself
 
-Whitepaper v0.7 — 21 August 2026 — by Heesho
+Whitepaper v0.8 — 22 August 2026 — by Heesho
 
 > Development status: experimental, not deployed, not independently audited, and not authorized for user funds.
-> Exact mining economics, deployment parameters, third-party provenance, and independent security review remain open
-> release gates. ADRs 0031, 0034, 0035, 0036, and 0037 are authoritative development decisions; ADR 0036 supersedes ADR
-> 0032's fixed-rate rule while retaining cumulative settlement. Governance execution and the production Resonance
-> owner remain an unselected external integration, so deployment is blocked.
+> Independent review of the fixed mining economics, deployment parameters, third-party provenance, and security remain
+> open release gates. ADRs 0031 and 0033-0044 are authoritative development decisions; ADRs 0042 and 0043 record the
+> current provisional Mine rates and period. Governance execution and the production Resonance owner remain an unselected
+> external integration, so deployment is blocked.
 
 ## Abstract
 
@@ -20,9 +20,10 @@ prospective automatic-Bribe rate. The rate defaults to 10%, is owner-settable fr
 80%-to-100% complement to an ownerless Fund. GBX holders may burn GBX to redeem a caller-selected pro-rata share of
 raw Fund assets.
 
-GBX distribution uses an immutable multislot Mine adapted from Farplace MineRig. A slot can change hands at any time.
+GBX distribution uses an immutable multislot Mine. A slot can change hands at any time.
 Its USDG price decays to zero over one hour, creating a continuously clearing market rather than a pooled daily round.
-The displaced miner receives 80% of a nonzero replacement payment and 20% enters the signal-directed acquisition flow.
+The displaced miner receives 80% of a nonzero replacement payment, while Mine deposits the 20% remainder into
+ResonanceRouter for later permissionless routing into the signal-directed acquisition flow.
 
 ## 1. Economic loop
 
@@ -30,22 +31,24 @@ The protocol has five recurring actions:
 
 1. A participant takes a mining slot at its current USDG price.
 2. The incumbent accrues GBX continuously at the rate fixed when that tenure began.
-3. Mining revenue enters a seven-day Resonance stream whose elapsed flow follows current sGBX signals.
+3. Mine deposits protocol revenue into ResonanceRouter; a later permissionless call can enter it into a seven-day
+   Resonance stream whose elapsed flow follows current sGBX signals.
 4. Strategies atomically pull released USDG and exchange their accumulated balance for configured payment assets,
    which are classified cumulatively at the current 0%-to-20% global Bribe rate and its Fund complement.
 5. A GBX holder may burn GBX for selected Fund assets in kind.
 
 ```text
 slot replacement -> 80% displaced miner
-                -> 20% ResonanceRouter -> Resonance stream -> Strategies -> 80%-100% Fund
-                                                                       \-> 0%-20% paired Bribe
+                -> 20% ResonanceRouter --permissionless route()--> Resonance stream -> Strategies -> 80%-100% Fund
+                                                                                       \-> 0%-20% paired Bribe
 
 GBX -> sGBX -> live signals ------------------------------^
            \-> IVotes checkpoints -> external governance (unselected) -> Resonance owner actions
 GBX burn -> selected Fund assets -> redeemer
 ```
 
-The first purchase of an empty slot routes 100% of its payment because no miner was displaced. There is no team,
+The first purchase of an empty slot deposits 100% of its payment into ResonanceRouter because no miner was displaced.
+Mine then ends without calling `route()`. There is no team,
 management, or protocol fee in mining.
 
 ## 2. GBX supply and issuance
@@ -55,9 +58,10 @@ minter then permanently assigns the only mint authority to one deployed Mine. Th
 reopened.
 
 There is no protocol-defined economic maximum GBX supply. The global issuance rate used for future handoffs halves at
-immutable cumulative-mining thresholds and eventually reaches a strictly positive tail. The tail allows mining—and
+fixed intervals measured from Mine deployment and eventually reaches a strictly positive tail. The tail allows mining—and
 therefore potential USDG inflow—to continue indefinitely. GBX retains ERC-2612 permit approvals but does not carry
-governance checkpoints. Exact production rates and thresholds are not selected in this paper.
+governance checkpoints. Mine hard-codes a 64 GBX-per-second initial global rate, a provisional 69-day halving period,
+and a 1 GBX-per-second global tail; those values still require independent economic review.
 
 The supply identity is simple:
 
@@ -68,8 +72,8 @@ total GBX supply = lifetime GBX minted - lifetime GBX burned
 ## 3. The mining market
 
 Mine starts with exactly sixteen permanent slots. Every slot has a replacement price that begins at its
-`initialPrice` and falls linearly to zero across one hour. After a handoff, the next initial price is the paid amount
-times an immutable multiplier, bounded below by an immutable minimum.
+`initialPrice` and falls linearly to zero across one hour. After a handoff, the next initial price is twice the paid
+amount, bounded below by 1 USDG and above by `type(uint192).max` raw units.
 
 A participant is buying two things: the right to accrue GBX until replacement and the possibility of receiving 80% of
 the next participant's payment. The second component is not guaranteed. If nobody replaces the miner, it receives no
@@ -83,21 +87,22 @@ Because price falls with elapsed time and resets upward on every handoff, a pend
 whoever lands first. `mine` therefore takes three caller-supplied bounds. An `epochId` must equal the slot's current
 epoch, so a transaction written against one tenure cannot execute against its successor. A `deadline` bounds how long
 the transaction may remain valid. A `maximumPrice` caps what the caller will pay. Without these a miner front-run at
-the moment of purchase would pay the reset opening price—the amount just paid times the multiplier—rather than the
+the moment of purchase would pay the reset opening price—twice the amount just paid—rather than the
 decayed price they submitted for. Each bound is supplied per call; the contract holds no allowance for slippage of its
-own.
+own. When the quoted TPS must also remain valid, the caller sets `deadline` strictly before the next time-based halving
+boundary; `epochId` and `maximumPrice` do not bind the assigned rate.
 
 ## 4. Fixed-tenure fairness
 
 A slot's TPS rate is written when a miner enters and remains fixed until that miner is replaced. It is not changed by
-a cumulative-mining threshold crossing, Fund redemption, or another slot's handoff.
+a time-based halving boundary, Fund redemption, or another slot's handoff.
 
-Suppose the system's global rate is 100 GBX/hour. Each new tenure receives one sixteenth, or 6.25 GBX/hour. If the
-global rate later halves, an incumbent still receives 6.25 GBX/hour while a new tenure receives 3.125 GBX/hour.
+The initial global rate is 230,400 GBX/hour. Each new tenure receives one sixteenth, or 14,400 GBX/hour. If the global
+rate later halves, an incumbent still receives 14,400 GBX/hour while a new tenure receives 7,200 GBX/hour.
 
-The accepted cost is temporary aggregate issuance above the current global rate while old high-rate tenures coexist
-with new divided-rate slots. This ends slot by slot as incumbents are replaced. Integer division residue for a new slot
-is unissued.
+The accepted cost is aggregate issuance above the current global rate while old high-rate tenures coexist with new
+divided-rate slots. It falls slot by slot only if incumbents are replaced; turnover has no deadline and is not
+guaranteed. Integer division residue for a new slot is unissued.
 
 ## 5. Accrual and redemption supply
 
@@ -133,17 +138,23 @@ Strategy's paired Bribe stores account-by-Strategy balances and that Strategy's 
 only the active total across live Strategies and accepts signal mutation hooks only from SignalGBX. A separate
 `allocatedBalance` duplicate is not maintained.
 
-Resonance schedules routed USDG in one active seven-day stream. Each signal mutation first checkpoints the elapsed
+Resonance schedules forwarded USDG in one active seven-day stream. Each signal mutation first checkpoints the elapsed
 interval under the old weights, so a signal moved now affects later flow without a lock, cooldown, or voting epoch. A
 Strategy purchase checkpoints and pulls its released share before reading auction inventory. Consequently, signaling a
-thin Strategy, routing new mining USDG, and filling its stale cheap auction in one transaction cannot capture that new
+thin Strategy, separately routing newly deposited mining USDG, and filling its stale cheap auction in one transaction cannot capture that new
 USDG: no stream time has elapsed.
 
 The raw schedule uses a quotient plus a front-loaded remainder, so every scheduled six-decimal USDG unit is released,
 including a one-raw-unit schedule. Its global reward-per-signal index uses `1e36` precision. During an active period,
-ResonanceRouter waits while its complete balance is below the exact amount left. Once the balance is at least `left`, a
-notification checkpoints elapsed revenue and restarts seven days with `reward + left`. The reset may raise or lower the
+ResonanceRouter waits until someone calls `route()`. If its complete balance is below the exact amount left, the call
+holds it; once the balance is at least `left`, a notification checkpoints elapsed revenue and restarts seven days with
+`reward + left`. The reset may raise or lower the
 rate and move the prior finish; there is no separate absolute minimum.
+
+Mine's `RevenueDeposited` event proves only exact delivery into ResonanceRouter. `route()` has no caller role or bounty,
+so revenue may remain there indefinitely even after qualifying. A manual caller, frontend, volunteer keeper, or cron
+process may advance it. This optional periphery does not affect Mine handoff correctness or liveness. LiquidityPosition
+fee harvesting remains different: it attempts routing atomically during the harvest.
 
 Settlement remains lazy—ordinary signal, distribution, purchase, and qualifying-notification calls materialize elapsed
 revenue—so the protocol needs no per-second keeper. Global-index and per-Strategy floors are accepted surplus rather
@@ -213,7 +224,7 @@ external governance executor and removing the temporary setup authority.
 
 - GBX price, liquidity, mining profitability, replacement frequency, Strategy fills, and Fund value are uncertain.
 - A miner can be replaced at any time and is not guaranteed an 80% successor payment.
-- Capacity expansion temporarily raises aggregate issuance under the fixed-tenure fairness rule.
+- Legacy tenures can keep aggregate issuance above the prospective global rate indefinitely if they never turn over.
 - A bad immutable deployment or token dependency cannot be repaired by governance.
 - SignalGBX checkpoints do not lock withdrawals. If the selected external governance system uses historical snapshots,
   a holder may withdraw after the snapshot and retain that proposal's weight. Its delegation, quorum, capture, and
@@ -229,7 +240,7 @@ external governance executor and removing the temporary setup authority.
 - An exhausted Bribe lifetime notification cap permanently rejects that token's later notifications in the old pool;
   replacement requires a new Strategy and paired Bribe rather than a reset or rescue.
 - Fund assets omitted from redemption remain permanently for the post-redemption supply.
-- The protocol has not received an independent audit, and Farplace/give.fun/Liquid Signal provenance remains legally
+- The protocol has not received an independent audit, and donut-miner/give.fun/Liquid Signal provenance remains legally
   unresolved.
 
 ## 10. Status

@@ -20,7 +20,7 @@ const contracts = [
 const deploymentInputs = [
   'USDG, Uniswap v4, genesis price, and single-sided range inputs',
   'Exact external governance release, plugins, permissions, voting parameters, and execution semantics',
-  'Mine multiplier, minimum USDG price, initial GBX/second, halving amount, and positive tail',
+  'Independent economic review of the hard-coded Mine multiplier, USDG floor, 64 GBX/second initial rate, 69-day periods, and 1 GBX/second tail',
   'Initial Strategy payment tokens and bounded auction parameters',
   'Independent security review of the immutable final bytecode',
   'Written third-party licensing and provenance clearance',
@@ -66,7 +66,7 @@ export default function HomePage() {
 
         <Panel eyebrow="Core economics" title="Simple, explicit value flows">
           <dl className="space-y-5">
-            <Definition label="Mining revenue" value="20% Resonance · 80% displaced miner" />
+            <Definition label="Mining revenue" value="20% Router deposit · 80% displaced miner" />
             <Definition label="v4 position fees" value="USDG → Resonance · GBX → Fund burn · principal fixed" />
             <Definition label="Strategy payment" value="80–100% Fund · 0–20% paired Bribe" />
             <Definition label="GBX payment" value="Fund receipt · optional later burn" />
@@ -89,6 +89,7 @@ export default function HomePage() {
             <li>Every sGBX unit is backed by an active Strategy signal; SignalGBX is the sole signal coordinator.</li>
             <li>GBX supports permit approvals; non-transferable sGBX supports votes but no approval permit.</li>
             <li>Mine has exactly sixteen ownerless slots and no all-slot checkpoint.</li>
+            <li>Mine deposits revenue into ResonanceRouter; later routing is a separate permissionless action.</li>
             <li>A 0% automatic Bribe rate leaves signaling, movement, withdrawal, and independent rewards live.</li>
             <li>The deployed core has no proxy, upgrade path, treasury recovery, or successor migration.</li>
             <li>Supported token movements fail closed unless sender debit and receiver credit are both exact.</li>

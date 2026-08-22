@@ -11,6 +11,11 @@ MAX_STRATEGY_BRIBE_BPS = 2_000
 HOUR = 3_600
 YEAR = 365 * 24 * HOUR
 GENESIS = 20_000_000 * WAD
+MINE_PRICE_MULTIPLIER = 2
+MINE_MINIMUM_INITIAL_PRICE = 1_000_000
+MINE_INITIAL_TPS = 64 * WAD
+MINE_HALVING_PERIOD = 69 * 24 * HOUR
+MINE_TAIL_TPS = WAD
 
 
 def mul_div(a: int, b: int, denominator: int) -> int:
@@ -19,6 +24,39 @@ def mul_div(a: int, b: int, denominator: int) -> int:
 
 def mining_price(initial: int, elapsed: int) -> int:
     return 0 if elapsed >= HOUR else initial - mul_div(initial, elapsed, HOUR)
+
+
+def mining_rate_at(elapsed_since_start: int) -> int:
+    shifted = MINE_INITIAL_TPS >> (elapsed_since_start // MINE_HALVING_PERIOD)
+    return max(shifted, MINE_TAIL_TPS)
+
+
+def first_tail_boundary() -> int:
+    for boundary in range(256):
+        if MINE_INITIAL_TPS >> boundary <= MINE_TAIL_TPS:
+            return boundary
+    raise ValueError("positive tail must be reached within uint256 shift bounds")
+
+
+MINE_TAIL_BOUNDARY_COUNT = first_tail_boundary()
+
+
+def synchronized_mining_emission(elapsed_since_start: int) -> int:
+    if elapsed_since_start < 0:
+        raise ValueError("elapsed time must be non-negative")
+
+    emission = 0
+    for era in range(MINE_TAIL_BOUNDARY_COUNT):
+        era_start = era * MINE_HALVING_PERIOD
+        if elapsed_since_start <= era_start:
+            break
+        active_seconds = min(elapsed_since_start - era_start, MINE_HALVING_PERIOD)
+        emission += mining_rate_at(era_start) * active_seconds
+
+    tail_start = MINE_TAIL_BOUNDARY_COUNT * MINE_HALVING_PERIOD
+    if elapsed_since_start > tail_start:
+        emission += MINE_TAIL_TPS * (elapsed_since_start - tail_start)
+    return emission
 
 
 def split(payment: int, has_previous: bool) -> dict[str, int]:
@@ -57,16 +95,75 @@ def classify_strategy_payments(
 
 
 def compute() -> dict[str, object]:
-    global_tps = 100 * WAD
+    global_tps = mining_rate_at(0) * HOUR
     incumbent = global_tps // 16
-    post_halving = (global_tps // 2) // 16
+    post_halving = (mining_rate_at(MINE_HALVING_PERIOD) * HOUR) // 16
     all_slot_rates = [incumbent] * 16
+    time_based_schedule = [
+        MINE_HALVING_PERIOD - 1,
+        MINE_HALVING_PERIOD,
+        2 * MINE_HALVING_PERIOD - 1,
+        2 * MINE_HALVING_PERIOD,
+        MINE_TAIL_BOUNDARY_COUNT * MINE_HALVING_PERIOD - 1,
+        MINE_TAIL_BOUNDARY_COUNT * MINE_HALVING_PERIOD,
+        1_000 * MINE_HALVING_PERIOD,
+    ]
+    boundary_rates = [
+        {
+            "boundaryIndex": boundary,
+            "elapsedSinceStart": boundary * MINE_HALVING_PERIOD,
+            "globalTps": mining_rate_at(boundary * MINE_HALVING_PERIOD),
+        }
+        for boundary in range(MINE_TAIL_BOUNDARY_COUNT + 1)
+    ]
+    synchronized_boundary_supply = []
+    for point in boundary_rates:
+        mining_emission = synchronized_mining_emission(point["elapsedSinceStart"])
+        synchronized_boundary_supply.append(
+            {
+                **point,
+                "miningEmission": mining_emission,
+                "grossSupply": GENESIS + mining_emission,
+            }
+        )
+    synchronized_horizon_supply = []
+    for years in (1, 3, 5, 10, 40):
+        elapsed_since_start = years * YEAR
+        mining_emission = synchronized_mining_emission(elapsed_since_start)
+        synchronized_horizon_supply.append(
+            {
+                "years": years,
+                "elapsedSinceStart": elapsed_since_start,
+                "miningEmission": mining_emission,
+                "grossSupply": GENESIS + mining_emission,
+            }
+        )
+    tail_starts_at_seconds = MINE_TAIL_BOUNDARY_COUNT * MINE_HALVING_PERIOD
+    synchronized_tail_relative_horizon_supply = []
+    for years_after_tail in (1, 2, 5, 10):
+        elapsed_since_tail = years_after_tail * YEAR
+        elapsed_since_start = tail_starts_at_seconds + elapsed_since_tail
+        mining_emission = synchronized_mining_emission(elapsed_since_start)
+        gross_supply = GENESIS + mining_emission
+        synchronized_tail_relative_horizon_supply.append(
+            {
+                "yearsAfterTail": years_after_tail,
+                "elapsedSinceTail": elapsed_since_tail,
+                "elapsedSinceStart": elapsed_since_start,
+                "miningEmission": mining_emission,
+                "grossSupply": gross_supply,
+                "annualTailInflationPpm": mul_div(
+                    MINE_TAIL_TPS * YEAR, 1_000_000, gross_supply
+                ),
+            }
+        )
+    mining_emission_at_tail = synchronized_mining_emission(tail_starts_at_seconds)
     supply = 100_000_000 * WAD
     pending = 1_000_000 * WAD
     fund_usdg = 50_000_000 * 10**6
     redeem = 1_000_000 * WAD
     return {
-        "schemaVersion": 9,
+        "schemaVersion": 13,
         "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
         "assumptions": {
             "genesisLiquidityAllocationGBXRaw": GENESIS,
@@ -75,6 +172,12 @@ def compute() -> dict[str, object]:
             "previousMinerBps": 8_000,
             "resonanceRevenueBps": 2_000,
             "fixedSlotCount": 16,
+            "minePriceMultiplier": MINE_PRICE_MULTIPLIER,
+            "mineMinimumInitialPrice": MINE_MINIMUM_INITIAL_PRICE,
+            "mineInitialTps": MINE_INITIAL_TPS,
+            "mineHalvingPeriodSeconds": MINE_HALVING_PERIOD,
+            "mineTailTps": MINE_TAIL_TPS,
+            "mineTailBoundaryCount": MINE_TAIL_BOUNDARY_COUNT,
             "tenureRatesLocked": True,
             "redemptionsUseConstantTimeEffectiveSupply": True,
             "checkpointAllExists": False,
@@ -84,6 +187,39 @@ def compute() -> dict[str, object]:
             "strategyFundBpsIsDerived": True,
         },
         "mining": {
+            "timeBasedSchedule": {
+                "points": [
+                    {"elapsedSinceStart": elapsed, "globalTps": mining_rate_at(elapsed)}
+                    for elapsed in time_based_schedule
+                ],
+                "boundaryRates": boundary_rates,
+                "emptyMarketAtFirstBoundary": {
+                    "elapsedSinceStart": MINE_HALVING_PERIOD,
+                    "totalMined": 0,
+                    "pendingEmission": 0,
+                    "globalTps": mining_rate_at(MINE_HALVING_PERIOD),
+                },
+                "explanation": "The prospective rate depends only on elapsed deployment time; empty occupancy and zero mining do not pause it.",
+            },
+            "synchronizedSupply": {
+                "referenceCase": "synchronized-full-refresh-no-burn",
+                "modelAssumption": "Synchronized full-refresh, no-burn reference: all sixteen slots are occupied from deployment, all sixteen refresh to the prospective rate at every boundary, and all accrued emission is settled. Actual tenure-locked issuance depends on slot occupancy and turnover; this is neither a supply cap nor a forecast.",
+                "boundaryPoints": synchronized_boundary_supply,
+                "horizonPoints": synchronized_horizon_supply,
+                "tailRelativeHorizonPoints": synchronized_tail_relative_horizon_supply,
+                "tailBoundaryCount": MINE_TAIL_BOUNDARY_COUNT,
+                "tailStartsAtSeconds": tail_starts_at_seconds,
+                "miningEmissionAtTail": mining_emission_at_tail,
+                "grossSupplyAtTail": GENESIS + mining_emission_at_tail,
+                "minedBpsOfGrossSupplyAtTail": mul_div(
+                    mining_emission_at_tail, BPS, GENESIS + mining_emission_at_tail
+                ),
+                "annualTailInflationPpmAtTail": mul_div(
+                    MINE_TAIL_TPS * YEAR,
+                    1_000_000,
+                    GENESIS + mining_emission_at_tail,
+                ),
+            },
             "priceCurve": [
                 {"elapsedSeconds": elapsed, "priceRaw": mining_price(2_000_000, elapsed)}
                 for elapsed in (0, 900, 1_800, 2_700, 3_600)
@@ -109,18 +245,18 @@ def compute() -> dict[str, object]:
                 "explanation": "Sixteen occupied slots at the same generation exactly reproduce the global rate.",
             },
             "handoffHalving": {
-                "halvingAmount": 490_000_000 * WAD,
-                "globalRateBefore": global_tps,
-                "globalRateAfter": global_tps // 2,
-                "incumbentSlotRateAfterThreshold": incumbent,
-                "nextReplacementSlotRate": post_halving,
-                "aggregateLockedSixteenSlots": sum(all_slot_rates),
+                "halvingPeriodSeconds": MINE_HALVING_PERIOD,
+                "globalRateBeforePerHour": global_tps,
+                "globalRateAfterPerHour": mining_rate_at(MINE_HALVING_PERIOD) * HOUR,
+                "incumbentSlotRateAfterBoundaryPerHour": incumbent,
+                "nextReplacementSlotRatePerHour": post_halving,
+                "aggregateLockedSixteenSlotsPerHour": sum(all_slot_rates),
             },
             "infiniteTail": {
-                "tailRatePerSecond": 10**16,
-                "annualTailEmission": 10**16 * YEAR,
+                "tailRatePerSecond": MINE_TAIL_TPS,
+                "annualTailEmission": MINE_TAIL_TPS * YEAR,
                 "years": [
-                    {"years": years, "emission": 10**16 * YEAR * years} for years in (1, 10, 100)
+                    {"years": years, "emission": MINE_TAIL_TPS * YEAR * years} for years in (1, 10, 100)
                 ],
             },
         },

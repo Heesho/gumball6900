@@ -34,7 +34,7 @@ export const numbers = {
   genesisLiquidityShort: `${contractConstants.gbx.genesisLiquidityTokens / 1_000_000}M`,
   /** Mine.sol PREVIOUS_MINER_BPS: the displaced miner's share of a nonempty handoff. */
   minerShare: percentFromBps(contractConstants.mine.previousMinerBps),
-  /** The remainder, which is the share that reaches the fund's buying flow. */
+  /** The remainder, which Mine deposits into ResonanceRouter for later permissionless routing. */
   routedShare: percentFromBps(contractConstants.mine.resonanceBps),
   /** Mine.sol PRICE_DECAY_PERIOD, printed as the unit a reader thinks in. */
   priceDecay: `${contractConstants.mine.priceDecaySeconds / 3_600} hour`,

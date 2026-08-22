@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "9",
+  "schemaVersion": "11",
   "usdGDecimals": "6",
   "targetDecimals": "18",
   "miningCases": [
@@ -9,12 +9,12 @@
       "elapsedSeconds": "1800",
       "payment": "1000000",
       "hasPreviousMiner": true,
-      "slotTps": ["6250000000000000000"],
+      "slotTps": ["4000000000000000000"],
       "accrualSeconds": "3600",
-      "economicallyMined": "0",
-      "initialTps": "100000000000000000000",
-      "halvingAmount": "490000000000000000000000000",
-      "tailTps": "10000000000000000"
+      "elapsedSinceStart": "0",
+      "initialTps": "64000000000000000000",
+      "halvingPeriod": "5961600",
+      "tailTps": "1000000000000000000"
     },
     {
       "id": "protected-staggered-halving",
@@ -22,12 +22,103 @@
       "elapsedSeconds": "3600",
       "payment": "0",
       "hasPreviousMiner": true,
-      "slotTps": ["6250000000000000000", "3125000000000000000", "3125000000000000000"],
+      "slotTps": ["4000000000000000000", "2000000000000000000", "2000000000000000000"],
       "accrualSeconds": "3600",
-      "economicallyMined": "490000000000000000000000000",
-      "initialTps": "100000000000000000000",
-      "halvingAmount": "490000000000000000000000000",
-      "tailTps": "10000000000000000"
+      "elapsedSinceStart": "5961600",
+      "initialTps": "64000000000000000000",
+      "halvingPeriod": "5961600",
+      "tailTps": "1000000000000000000"
+    },
+    {
+      "id": "just-before-first-time-boundary",
+      "initialPrice": "1000000",
+      "elapsedSeconds": "0",
+      "payment": "0",
+      "hasPreviousMiner": false,
+      "slotTps": [],
+      "accrualSeconds": "0",
+      "elapsedSinceStart": "5961599",
+      "initialTps": "64000000000000000000",
+      "halvingPeriod": "5961600",
+      "tailTps": "1000000000000000000"
+    },
+    {
+      "id": "just-before-second-time-boundary",
+      "initialPrice": "1000000",
+      "elapsedSeconds": "0",
+      "payment": "0",
+      "hasPreviousMiner": false,
+      "slotTps": [],
+      "accrualSeconds": "0",
+      "elapsedSinceStart": "11923199",
+      "initialTps": "64000000000000000000",
+      "halvingPeriod": "5961600",
+      "tailTps": "1000000000000000000"
+    },
+    {
+      "id": "at-second-time-boundary",
+      "initialPrice": "1000000",
+      "elapsedSeconds": "0",
+      "payment": "0",
+      "hasPreviousMiner": false,
+      "slotTps": [],
+      "accrualSeconds": "0",
+      "elapsedSinceStart": "11923200",
+      "initialTps": "64000000000000000000",
+      "halvingPeriod": "5961600",
+      "tailTps": "1000000000000000000"
+    },
+    {
+      "id": "just-before-tail-time-boundary",
+      "initialPrice": "1000000",
+      "elapsedSeconds": "0",
+      "payment": "0",
+      "hasPreviousMiner": false,
+      "slotTps": [],
+      "accrualSeconds": "0",
+      "elapsedSinceStart": "35769599",
+      "initialTps": "64000000000000000000",
+      "halvingPeriod": "5961600",
+      "tailTps": "1000000000000000000"
+    },
+    {
+      "id": "at-tail-time-boundary",
+      "initialPrice": "1000000",
+      "elapsedSeconds": "0",
+      "payment": "0",
+      "hasPreviousMiner": false,
+      "slotTps": [],
+      "accrualSeconds": "0",
+      "elapsedSinceStart": "35769600",
+      "initialTps": "64000000000000000000",
+      "halvingPeriod": "5961600",
+      "tailTps": "1000000000000000000"
+    },
+    {
+      "id": "far-after-tail",
+      "initialPrice": "1000000",
+      "elapsedSeconds": "0",
+      "payment": "0",
+      "hasPreviousMiner": false,
+      "slotTps": [],
+      "accrualSeconds": "0",
+      "elapsedSinceStart": "5961600000",
+      "initialTps": "64000000000000000000",
+      "halvingPeriod": "5961600",
+      "tailTps": "1000000000000000000"
+    },
+    {
+      "id": "ten-years-synchronized-supply",
+      "initialPrice": "1000000",
+      "elapsedSeconds": "0",
+      "payment": "0",
+      "hasPreviousMiner": false,
+      "slotTps": [],
+      "accrualSeconds": "0",
+      "elapsedSinceStart": "315360000",
+      "initialTps": "64000000000000000000",
+      "halvingPeriod": "5961600",
+      "tailTps": "1000000000000000000"
     }
   ],
   "auctionCases": [

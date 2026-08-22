@@ -158,7 +158,7 @@ export const rules = {
       body:
         `Mining slots are always for sale, each price falling to zero over ${numbers.priceDecay}. ` +
         `The buyer pays USDG and earns GBX until replaced: ${numbers.minerShare} of each payment repays ` +
-        `the miner replaced, ${numbers.routedShare} is what the fund spends. Nobody is promised a replacement.`,
+        `the miner replaced; ${numbers.routedShare} is deposited for later permissionless routing, which has no guaranteed caller. Nobody is promised a replacement.`,
     },
   ],
 };

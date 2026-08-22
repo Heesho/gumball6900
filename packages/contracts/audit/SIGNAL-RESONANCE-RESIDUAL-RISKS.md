@@ -41,7 +41,11 @@ Bribe index. The following remain after the 2026-08-16 run and the 2026-08-21 de
 11. No exact external-governance release, permission/admin graph, execution policy, ownership handoff, mainnet fork,
     deployment receipt, legal clearance, signed manifest, or independent review was produced. The tree is suitable
     for independent review, not release authorization.
-12. The Resonance owner may set the global prospective automatic-Bribe share anywhere from 0% through 20%. The change
+12. Mine revenue routing is intentionally asynchronous after exact Router deposit. `route()` is permissionless but has
+    no designated caller or bounty, so qualifying USDG may wait indefinitely and the eventual caller can influence
+    notification timing. Optional frontend or cron automation is periphery, not a protocol liveness guarantee;
+    LiquidityPosition remains atomically coupled to its own route attempt.
+13. The Resonance owner may set the global prospective automatic-Bribe share anywhere from 0% through 20%. The change
     cannot reprice old liabilities and 0% does not block signal operations, but governance can materially change
     future Fund backing and signaler incentives around pending auctions. The external integration must define delay,
     cancellation, batching, monitoring, and emergency behavior for this lever; the current core supplies none.

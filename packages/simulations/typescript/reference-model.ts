@@ -16,6 +16,9 @@ import {
 } from '@gumball-6900/sdk';
 
 type StringRecord = Record<string, unknown>;
+const WAD = 10n ** 18n;
+const GENESIS_LP_GBX = 20_000_000n * WAD;
+
 export interface ReferenceScenarios extends StringRecord {
   schemaVersion: string;
   usdGDecimals: string;
@@ -69,16 +72,38 @@ export function parseReferenceScenarios(value: unknown): ReferenceScenarios {
 const big = (entry: StringRecord, key: string): bigint => BigInt(text(entry[key], key));
 const decimal = (value: bigint): string => value.toString();
 
+function synchronizedMiningEmission(
+  elapsedSinceStart: bigint,
+  curve: { halvingPeriod: bigint; initialTps: bigint; tailTps: bigint },
+): bigint {
+  if (elapsedSinceStart < 0n || curve.halvingPeriod <= 0n || curve.initialTps <= 0n || curve.tailTps <= 0n) {
+    throw new RangeError('invalid synchronized mining input');
+  }
+
+  let emission = 0n;
+  let remaining = elapsedSinceStart;
+  for (let era = 0n; era < 256n; era += 1n) {
+    if (remaining === 0n) return emission;
+    const shifted = curve.initialTps >> era;
+    if (shifted <= curve.tailTps) return emission + curve.tailTps * remaining;
+    const activeSeconds = remaining < curve.halvingPeriod ? remaining : curve.halvingPeriod;
+    emission += shifted * activeSeconds;
+    remaining -= activeSeconds;
+  }
+  throw new RangeError('positive tail must be reached within uint256 shift bounds');
+}
+
 export function computeReferenceResults(scenarios: ReferenceScenarios) {
   const miningQuotes = scenarios.miningCases.map((entry) => {
     const slotTps = array(entry.slotTps, 'slotTps').map((value) => BigInt(text(value, 'slotTps')));
     const accrual = quoteMiningAccrual({ elapsedSeconds: big(entry, 'accrualSeconds'), slotTps });
     const curve = {
-      halvingAmount: big(entry, 'halvingAmount'),
+      halvingPeriod: big(entry, 'halvingPeriod'),
       initialTps: big(entry, 'initialTps'),
       tailTps: big(entry, 'tailTps'),
     };
-    const nextGlobalTps = miningRateAt(big(entry, 'economicallyMined'), curve);
+    const nextGlobalTps = miningRateAt(big(entry, 'elapsedSinceStart'), curve);
+    const synchronizedEmission = synchronizedMiningEmission(big(entry, 'elapsedSinceStart'), curve);
     const payment = quoteMiningPayment(big(entry, 'payment'), entry.hasPreviousMiner === true);
     return {
       id: id(entry.id, 'id'),
@@ -89,6 +114,8 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
       totalEmission: decimal(accrual.totalEmission),
       nextGlobalTps: decimal(nextGlobalTps),
       nextSlotTps: decimal(nextGlobalTps / 16n),
+      synchronizedMiningEmission: decimal(synchronizedEmission),
+      synchronizedGrossSupply: decimal(GENESIS_LP_GBX + synchronizedEmission),
     };
   });
 
@@ -185,7 +212,7 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
     usdGDecimals: scenarios.usdGDecimals,
     targetDecimals: scenarios.targetDecimals,
     infiniteSupply: true,
-    genesisLiquidityAllocation: (20_000_000n * 10n ** 18n).toString(),
+    genesisLiquidityAllocation: GENESIS_LP_GBX.toString(),
     miningQuotes,
     auctionQuotes,
     rewardQuotes,

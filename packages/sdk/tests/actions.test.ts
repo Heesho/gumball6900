@@ -55,14 +55,30 @@ describe('minimal typed transaction builders', () => {
           deadline: 1_000n,
           expectedEpochId: 7n,
           maximumPrice: 50n,
+          message: 'hello from the mine',
           mine: A,
           slotIndex: 2n,
         }).data,
       }),
     ).toMatchObject({
-      args: [B, 2n, 7n, 1_000n, 50n],
+      args: [B, 2n, 7n, 1_000n, 50n, 'hello from the mine'],
       functionName: 'mine',
     });
+  });
+
+  it('rejects Mine messages above 280 UTF-8 bytes', () => {
+    const parameters = {
+      beneficiary: B,
+      deadline: 1_000n,
+      expectedEpochId: 7n,
+      maximumPrice: 50n,
+      mine: A,
+      slotIndex: 2n,
+    } as const;
+
+    expect(() => buildMine({ ...parameters, message: 'a'.repeat(280) })).not.toThrow();
+    expect(() => buildMine({ ...parameters, message: 'a'.repeat(281) })).toThrow(RangeError);
+    expect(() => buildMine({ ...parameters, message: '🍬'.repeat(71) })).toThrow(RangeError);
   });
 
   it('targets SignalGBX for mandatory deposit-and-signal, permit, moves, atomic exits, and delegation', () => {

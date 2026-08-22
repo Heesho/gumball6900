@@ -288,7 +288,7 @@ export function Fund() {
       h: number;
       dpr: number;
       color: string;
-      rows: Sph[][]; /* index 0 is the bottom course */
+      rows: Sph[][] /* index 0 is the bottom course */;
       centre: number[];
     }
     interface Grain {
@@ -400,17 +400,7 @@ export function Fund() {
         const sy = Math.max(0, (fld.centre[base] ?? 0) + 0.5);
         const sPx = Math.round(sy * fld.dpr);
         if (fld.cv.height - sPx > 0) {
-          ctx.drawImage(
-            fld.cv,
-            0,
-            sPx,
-            fld.cv.width,
-            fld.cv.height - sPx,
-            x0,
-            topY + sy,
-            fld.w,
-            fld.h - sy,
-          );
+          ctx.drawImage(fld.cv, 0, sPx, fld.cv.width, fld.cv.height - sPx, x0, topY + sy, fld.w, fld.h - sy);
         }
       }
       /* the surface courses, drawn whole — this is the meniscus */
@@ -444,14 +434,7 @@ export function Fund() {
       ctx.fillText(text, x, y);
     }
     /** The waterline: ruled behind the candy, ticked bright on both walls. */
-    function levelRule(
-      ctx: CanvasRenderingContext2D,
-      x0: number,
-      x1: number,
-      y: number,
-      color: string,
-      alpha = 0.5,
-    ) {
+    function levelRule(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: number, color: string, alpha = 0.5) {
       ctx.strokeStyle = color;
       ctx.globalAlpha = alpha;
       ctx.lineWidth = 1;
@@ -461,14 +444,7 @@ export function Fund() {
       ctx.stroke();
       ctx.globalAlpha = 1;
     }
-    function levelTicks(
-      ctx: CanvasRenderingContext2D,
-      x0: number,
-      x1: number,
-      y: number,
-      color: string,
-      len = 9,
-    ) {
+    function levelTicks(ctx: CanvasRenderingContext2D, x0: number, x1: number, y: number, color: string, len = 9) {
       ctx.strokeStyle = color;
       ctx.lineWidth = 2;
       ctx.beginPath();
@@ -522,8 +498,7 @@ export function Fund() {
       return out;
     }
     function seg(x0: number, y0: number, cx: number, cy: number, x1: number, y1: number): Seg {
-      const len =
-        Math.hypot(cx - x0, cy - y0) + Math.hypot(x1 - cx, y1 - cy) + Math.hypot(x1 - x0, y1 - y0);
+      const len = Math.hypot(cx - x0, cy - y0) + Math.hypot(x1 - cx, y1 - cy) + Math.hypot(x1 - x0, y1 - y0);
       return { x0, y0, cx, cy, x1, y1, len: Math.max(1, len / 2) };
     }
     function pathPoint(segs: Seg[], t: number): Pt {
@@ -538,10 +513,7 @@ export function Fund() {
         }
         const u = Math.max(0, Math.min(1, want / s.len));
         const mu = 1 - u;
-        return [
-          mu * mu * s.x0 + 2 * mu * u * s.cx + u * u * s.x1,
-          mu * mu * s.y0 + 2 * mu * u * s.cy + u * u * s.y1,
-        ];
+        return [mu * mu * s.x0 + 2 * mu * u * s.cx + u * u * s.x1, mu * mu * s.y0 + 2 * mu * u * s.cy + u * u * s.y1];
       }
       const last = segs[segs.length - 1] as Seg;
       return [last.x1, last.y1];
@@ -683,16 +655,16 @@ export function Fund() {
       toSig: 0,
       cap: CAP0,
       capShown: CAP0,
-      capTo: CAP0, /* where the ruler is going on THIS payment's beat */
-      capLit: 0, /* the axis stays emphasised for a beat after it moves */
-      payFund0: 0, /* the surfaces the payment beat starts from */
+      capTo: CAP0 /* where the ruler is going on THIS payment's beat */,
+      capLit: 0 /* the axis stays emphasised for a beat after it moves */,
+      payFund0: 0 /* the surfaces the payment beat starts from */,
       paySig0: 0,
       payCap0: CAP0,
       epoch: 0,
       parts: [] as Coin[],
       drops: [] as Drop[],
       dropT: 0,
-      deltaT: -1, /* -1 = no receipt showing */
+      deltaT: -1 /* -1 = no receipt showing */,
       lastPaid: 0,
       lastLot: 0,
       landed: false,
@@ -878,8 +850,7 @@ export function Fund() {
         auc.sigShown = auc.paySig0 + (auc.sigTotal - auc.paySig0) * u;
         auc.capShown = auc.payCap0 + (auc.capTo - auc.payCap0) * u;
       }
-      auc.capLit =
-        Math.abs(auc.capTo - auc.capShown) > 0.02 ? 1 : Math.max(0, auc.capLit - rdt);
+      auc.capLit = Math.abs(auc.capTo - auc.capShown) > 0.02 ? 1 : Math.max(0, auc.capLit - rdt);
     }
 
     /* ---- the stage: the vessel, the ruler, the descending blade ---------- */
@@ -1358,8 +1329,7 @@ export function Fund() {
         if (p < 0 || p > 1) return;
         const segs = pt.kind === 'usdg' ? pathLot : pt.kind === 'fund' ? pathFund : pathSig;
         const xy = pathPoint(segs, p);
-        const ink =
-          pt.kind === 'usdg' ? liftOf(C.blue, 0.16) : pt.kind === 'fund' ? FUND_INK : liftOf(SIG_INK, 0.2);
+        const ink = pt.kind === 'usdg' ? liftOf(C.blue, 0.16) : pt.kind === 'fund' ? FUND_INK : liftOf(SIG_INK, 0.2);
         drawSphere(wctx, ink, xy[0], xy[1], d, dpr, true);
       });
       wctx.restore();
@@ -1816,8 +1786,7 @@ export function Fund() {
         const rowTops = Array.from(new Set(red.holds.map((h) => Math.round(h.el.getBoundingClientRect().top)))).sort(
           (a, b) => a - b,
         );
-        const rowOf = (i: number) =>
-          rowTops.indexOf(Math.round((red.holds[i] as Hold).el.getBoundingClientRect().top));
+        const rowOf = (i: number) => rowTops.indexOf(Math.round((red.holds[i] as Hold).el.getBoundingClientRect().top));
         const stacked = rowTops.length > 1;
         /* THE CLEAR MARGINS either side of the instrument. A bay with another
            bay beneath it cannot descend inside the board without drawing one
@@ -1836,9 +1805,7 @@ export function Fund() {
            piles are laid out in the order of the receipt printed under them,
            which is also the reading order of the bays above. */
         const landX = red.holds.map((h, i) =>
-          stacked
-            ? cr.left - base.left + ((i + 0.5) / red.holds.length) * cr.width
-            : (cxRaw[i] ?? 0),
+          stacked ? cr.left - base.left + ((i + 0.5) / red.holds.length) * cr.width : (cxRaw[i] ?? 0),
         );
         red.cupX = landX.map((x) => x + base.left - cr.left);
         rdmPaths = red.holds.map((h, i) => {
@@ -1998,8 +1965,8 @@ export function Fund() {
               A vault with no manager, and one way out
             </h2>
             <p className="lede">
-              Everything the Strategies buy lands in the Fund and stays there. No one can pause it, upgrade it, or
-              reach in — the only way assets leave is a holder burning GBX for their share.
+              Everything the Strategies buy lands in the Fund and stays there. No one can pause it, upgrade it, or reach
+              in — the only way assets leave is a holder burning GBX for their share.
             </p>
           </div>
         </header>

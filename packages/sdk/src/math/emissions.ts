@@ -1,9 +1,16 @@
-import { BPS_DENOMINATOR, MINE_PRICE_DECAY_PERIOD, PREVIOUS_MINER_BPS, WAD } from './constants.js';
+import {
+  BPS_DENOMINATOR,
+  MINE_MAX_INITIAL_PRICE,
+  MINE_MINIMUM_INITIAL_PRICE,
+  MINE_PRICE_DECAY_PERIOD,
+  MINE_PRICE_MULTIPLIER,
+  PREVIOUS_MINER_BPS,
+} from './constants.js';
 import { assertNonNegative, assertPositive, mulDiv } from './integer.js';
 
 export interface MiningCurveConfig {
   readonly initialTps: bigint;
-  readonly halvingAmount: bigint;
+  readonly halvingPeriod: bigint;
   readonly tailTps: bigint;
 }
 
@@ -23,28 +30,20 @@ export interface MiningPaymentQuote {
   readonly resonanceAmount: bigint;
 }
 
-/** Returns the global TPS assigned at the next handoff, before dividing it across sixteen fixed slots. */
-export function miningRateAt(economicallyMined: bigint, config: MiningCurveConfig): bigint {
-  assertNonNegative(economicallyMined, 'economicallyMined');
+/** Returns the prospective global TPS after the given number of seconds since Mine deployment. */
+export function miningRateAt(elapsedSinceStart: bigint, config: MiningCurveConfig): bigint {
+  assertNonNegative(elapsedSinceStart, 'elapsedSinceStart');
   assertPositive(config.initialTps, 'initialTps');
-  assertPositive(config.halvingAmount, 'halvingAmount');
+  assertPositive(config.halvingPeriod, 'halvingPeriod');
   assertPositive(config.tailTps, 'tailTps');
   if (config.tailTps > config.initialTps) throw new RangeError('tailTps must not exceed initialTps');
 
-  let halvings = 0n;
-  let nextThreshold = config.halvingAmount;
-  while (economicallyMined >= nextThreshold) {
-    halvings += 1n;
-    const shifted = config.initialTps >> halvings;
-    if (shifted <= config.tailTps) return config.tailTps;
-    nextThreshold += config.halvingAmount >> halvings;
-  }
-
+  const halvings = elapsedSinceStart / config.halvingPeriod;
   const shifted = config.initialTps >> halvings;
-  return shifted <= config.tailTps ? config.tailTps : shifted;
+  return shifted < config.tailTps ? config.tailTps : shifted;
 }
 
-/** Quotes fixed per-slot tenure accrual; thresholds never reprice an occupied slot. */
+/** Quotes fixed per-slot tenure accrual; time-based halvings never reprice an occupied slot. */
 export function quoteMiningAccrual(input: MiningAccrualInput): MiningAccrualQuote {
   assertNonNegative(input.elapsedSeconds, 'elapsedSeconds');
   const slotEmissions = input.slotTps.map((tps, index) => {
@@ -62,26 +61,18 @@ export function quoteMiningPrice(initialPrice: bigint, elapsedSeconds: bigint): 
   return initialPrice - mulDiv(initialPrice, elapsedSeconds, MINE_PRICE_DECAY_PERIOD);
 }
 
-/** Quotes the exact 80/20 replacement split; an empty slot routes its complete payment to Resonance. */
+/** Quotes the exact 80/20 replacement split; an empty slot deposits its complete payment into ResonanceRouter. */
 export function quoteMiningPayment(payment: bigint, hasPreviousMiner: boolean): MiningPaymentQuote {
   assertNonNegative(payment, 'payment');
   const previousMinerAmount = hasPreviousMiner ? mulDiv(payment, PREVIOUS_MINER_BPS, BPS_DENOMINATOR) : 0n;
   return { payment, previousMinerAmount, resonanceAmount: payment - previousMinerAmount };
 }
 
-/** Computes the next slot starting price using Mine's floor multiplication and immutable clamps. */
-export function nextMiningInitialPrice(
-  payment: bigint,
-  priceMultiplier: bigint,
-  minimumInitialPrice: bigint,
-  maximumInitialPrice: bigint,
-): bigint {
+/** Computes the next slot starting price using Mine's fixed multiplier, floor, and ceiling. */
+export function nextMiningInitialPrice(payment: bigint): bigint {
   assertNonNegative(payment, 'payment');
-  assertPositive(priceMultiplier, 'priceMultiplier');
-  assertPositive(minimumInitialPrice, 'minimumInitialPrice');
-  assertPositive(maximumInitialPrice, 'maximumInitialPrice');
-  const multiplied = mulDiv(payment, priceMultiplier, WAD);
-  if (multiplied < minimumInitialPrice) return minimumInitialPrice;
-  if (multiplied > maximumInitialPrice) return maximumInitialPrice;
+  const multiplied = payment * MINE_PRICE_MULTIPLIER;
+  if (multiplied < MINE_MINIMUM_INITIAL_PRICE) return MINE_MINIMUM_INITIAL_PRICE;
+  if (multiplied > MINE_MAX_INITIAL_PRICE) return MINE_MAX_INITIAL_PRICE;
   return multiplied;
 }

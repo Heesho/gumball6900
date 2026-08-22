@@ -1,16 +1,18 @@
 # Internal security finding register
 
-Date: 2026-08-16. Governance, Bribe-cap, payment-share, and Bribe-precision dispositions reconciled 2026-08-21 for
-ADRs 0034–0037.
+Date: 2026-08-16. Governance, Bribe-cap, payment-share, Bribe-precision, Mine-halving, and Mine-routing dispositions
+reconciled 2026-08-22 through ADR 0044.
 
-Status: the ADR 0031 mandatory-signal, ADR 0033 fixed-slot Mine, ADR 0034 external-governance ownership, ADR 0035 Bribe
-lifetime cap, ADR 0036 governed global Bribe share, and ADR 0037 high-precision Bribe index form an uncommitted
-development candidate. Fresh current-tree validation passed 353/353 default-profile Forge tests, 19/19 integration
-tests, Hardhat compiler parity, the 49/49 mutation campaign, and the complete workspace gates. The pinned native
-external-fuzzer and static-analyzer campaigns still predate ADRs 0036 and 0037. The current candidate has not received
-an independent audit, compatible symbolic analysis,
-external-governance integration review, or release review required for deployment. Current campaign-specific findings are in
-`SIGNAL-RESONANCE-FINDINGS.md`.
+Status: ADRs 0031 and 0033-0044 form an uncommitted development candidate. On 2026-08-22, the current ADR 0044 working
+tree passed the full deterministic repository matrix: 356/356 default-profile Forge tests across 25 suites, 19/19
+integration tests across 2 suites, Hardhat 4/4, SDK 50/50, TypeScript simulations 39/39, Python environment-policy
+checks 5/5 and simulations 25/25, subgraph specification checks 4/4 plus Matchstick 10/10 and build, web unit tests
+3/3, Playwright 6/6, and the ABI, documentation, formatting, lint, typecheck, and workspace-build gates. The Forge
+matrix includes 27 stateful invariant entries at 1,000 runs of depth 500 plus two deterministic reachability regressions
+(29/29 for the suite) with zero handler reverts. The pinned mutation, native external-fuzzer, and static-analyzer
+campaigns still predate ADR 0044 and are not current Mine evidence. The candidate has no pinned review commit and has
+not received an independent audit, compatible symbolic analysis, external-governance integration review, or release
+review required for deployment. Current campaign-specific findings are in `SIGNAL-RESONANCE-FINDINGS.md`.
 
 ## Current dispositions
 
@@ -24,10 +26,11 @@ external-governance integration review, or release review required for deploymen
 | A-09 | Medium   | Resonance accepted by ADR 0029; Bribe resolved by ADR 0027    | Resonance accepts flooring surplus; Bribe fixes old-denominator carry to Fund before signal-supply changes.                 |
 | A-10 | High     | Superseded design; current mechanism mitigates the same class | Fund includes constant-time pending Mine accrual in every redemption denominator snapshot.                                  |
 | A-11 | High     | Resolved in development by ADR 0029                           | Checkpoint-first signals prevent same-transaction capture; qualifying top-ups reset behind a Router threshold.              |
+| A-12 | Medium   | Resolved in development by ADR 0044                           | Mine ends after exact Router deposit; downstream routing failure cannot revert a completed paid handoff.                    |
 | BR-1 | Medium   | Accepted by ADR 0028                                          | A killed Strategy's Bribe remains a closed reward pool for incumbent signalers; final exit can permanently abandon rewards. |
 | BR-2 | High     | Fixed locally by ADR 0035                                     | A per-token lifetime notification cap prevents a reset current balance from reopening cumulative-index overflow capacity.   |
 | BR-3 | High     | Fixed locally by ADR 0037                                     | A `1e36` Bribe index prevents economically material low-decimal reward carry from becoming Fund-bound on signal churn.      |
-| M-01 | Economic | Accepted by ADR 0033                                          | Fixed-tenure fairness temporarily allows aggregate issuance above the current global rate after halving crossings.          |
+| M-01 | Economic | Accepted by ADR 0033 and retained by ADR 0041                 | Fixed-tenure fairness allows aggregate issuance above the current global rate for as long as legacy tenures remain.         |
 | M-02 | Economic | Accepted by ADR 0024                                          | A miner receives the 80% handoff amount only if a successor pays a nonzero replacement price.                               |
 | E-01 | High     | Resolved in development                                       | Fund rejects selected-token transfers that reduce another selected address's snapshotted backing.                           |
 | E-02 | High     | Mitigated; M-03 release gate remains                          | One-time bindings require reciprocal protocol identities; codehash, parameter, and manifest review remains external.        |
@@ -35,7 +38,7 @@ external-governance integration review, or release review required for deploymen
 | E-04 | Medium   | Resolved in development                                       | Exact-consumed allowances skip incompatible redundant zero-approval calls.                                                  |
 | E-05 | Low      | Resolved in development                                       | The subgraph records Bribe carry classified to Fund even when no whole-token liability accrues.                             |
 | M-03 | High     | Mitigated; open release gate                                  | Reciprocal identity checks prevent crossed graphs, but incorrect parameters or malicious lookalikes remain unrecoverable.   |
-| M-04 | High     | Open release gate                                             | Exact initial rate, thresholds, tail, multiplier, and minimum price have not been selected or independently reviewed.       |
+| M-04 | High     | Open independent-review gate                                  | The provisional halving period, fixed rates, multiplier, and minimum price have not been independently reviewed.            |
 | G-01 | High     | Token property retained; external-integration review required | Snapshot checkpoints survive sGBX withdrawal; consequences depend on the unselected external governance system.             |
 | G-02 | Medium   | Superseded by ADR 0034                                        | The removed ProtocolGovernor/Timelock had no public cancellation path after queueing.                                       |
 | G-03 | High     | Superseded locally; external-integration gate remains         | Local quorum liveness parameters were removed; exact external voting and delegation semantics remain unselected.            |
@@ -138,8 +141,10 @@ between same-transaction operations, so the fill can acquire only inventory that
 deterministic regression test is `test_SameTransactionSignalAndPurchaseCannotCaptureNewlyNotifiedRevenue`.
 
 The Router holds a nonzero balance below the active period's exact remaining reward. Once the complete balance
-qualifies, Resonance checkpoints and restarts seven days with the new reward plus the old remainder. This deliberately
-permits qualifying reset/top-up behavior while preventing sub-threshold Mine and liquidity revenue from reverting.
+qualifies and a permissionless caller invokes `route()`, Resonance checkpoints and restarts seven days with the new
+reward plus the old remainder. This deliberately permits qualifying reset/top-up behavior. ADR 0044 separately removes
+Mine's synchronous route attempt, so downstream Router or Resonance failure cannot revert an already completed Mine
+handoff; LiquidityPosition remains atomically coupled to its route attempt.
 The regressions include `test_SubThresholdRevenueWaitsUntilTheRouterBalanceQualifies`,
 `test_TopUpBelowLeftRevertsAtomicallyAtResonance`, and
 `test_QualifyingTopUpCheckpointsAndRestartsWithRewardPlusLeft`.
@@ -147,6 +152,21 @@ The regressions include `test_SubThresholdRevenueWaitsUntilTheRouterBalanceQuali
 Disposition: resolved in the development candidate. Existing Strategy inventory can still be bought at its current
 price, and a signal held over real elapsed time earns future flow. Reopen if notification becomes immediately
 distributable, signal mutations stop checkpointing, or Strategy stops synchronizing before its inventory snapshot.
+
+## A-12 — Mine handoff coupled to downstream revenue routing
+
+Mine previously called `ResonanceRouter.route()` synchronously after exact-transferring the protocol share. A failure
+inside the Router or Resonance could therefore revert an otherwise valid paid slot handoff, even though Mine's claim
+accounting required only delivery into its immutable staging Router.
+
+ADR 0044 makes that deposit Mine's terminal revenue action and renames the Mine event to `RevenueDeposited`.
+`ResonanceRouter.route()` remains permissionless and separate. A transfer failure into the Router still reverts the
+handoff; any later routing failure is isolated. LiquidityPosition deliberately retains its atomic route attempt.
+
+Disposition: resolved in the development candidate and covered by current-tree regression and integration evidence.
+The accepted residual risk is unbounded Router latency if no manual, frontend, volunteer-keeper, or cron caller acts.
+No role or bounty guarantees routing, and a future optional frontend helper must not make Mine liveness depend on its
+routing leg.
 
 ## BR-1 — closed Bribe reward pool after Strategy death
 
@@ -237,13 +257,16 @@ full-graph, fuzz, invariant, overflow, model, and mutation campaigns retain this
 ## M-01 — fixed-tenure fairness raises transitional aggregate issuance
 
 An incumbent keeps the `tps` recorded when it entered. All sixteen slots are permanent, and only a new or replaced
-tenure receives the current global rate divided by sixteen when cumulative issuance crosses a halving threshold.
+tenure receives the current global rate divided by sixteen. Under ADR 0041 that prospective rate changes at fixed
+elapsed-time boundaries measured from the Mine deployment timestamp; cumulative mined and pending emission do not
+select it.
 
 This prevents governance or another user from changing the economic deal after a miner paid. It also means aggregate
-issuance can exceed the current undivided global rate until old tenures turn over.
+issuance can exceed the current undivided global rate indefinitely if old tenures do not turn over.
 
-Disposition: accepted economic behavior in ADR 0033. Tests and both independent models assert that incumbents retain
-their exact rate. Reopen if rate assignment or turnover assumptions change.
+Disposition: accepted economic behavior in ADR 0033 and retained by ADR 0041. Tests and both independent models
+assert that incumbents retain their exact rate. A handoff immediately before a boundary can therefore lock the older
+rate for that complete tenure. Reopen if rate assignment or turnover assumptions change.
 
 ## M-02 — rollover risk and zero-price replacement
 
@@ -265,19 +288,25 @@ Disposition: open High release gate. A signed manifest must prove constructor ar
 minter identity, all dependencies, the exact external governance executor, and removal of the temporary Resonance
 owner before any user funds are accepted.
 
-## M-04 — production economics are unresolved
+## M-04 — fixed Mine economics require independent review
 
-Tests use illustrative values. The initial GBX/second rate, cumulative halving amount, tail rate, USDG price
-multiplier, and minimum initial price control dilution, mining economics, and protocol revenue. Selecting them without
-independent modeling could produce unsafe or unusable economics even if the Solidity behaves exactly as written.
+ADR 0038 selects and hard-codes a 2× USDG price reset and 1 USDG floor. ADR 0041 replaces its cumulative-mining
+threshold with a period anchored to immutable Mine `startTime`, ADR 0042 selects a 64 GBX-per-second initial global
+rate and `69 days` between prospective halvings, and ADR 0043 selects a 1 GBX-per-second global tail. Independent
+TypeScript and Python models pin the current time-based formula, but selection and deterministic modelling do not
+establish that the schedule is economically safe or usable. The 771,161,600 GBX day-414 gross-supply figure and
+approximately 4.089% initial annual tail ratio are synchronized, fully occupied, fully refreshed, fully
+settled, no-burn references only; the ratio declines as supply grows, and legacy tenures can keep aggregate issuance
+above that path.
 
-Disposition: open High release gate. Review scenarios for demand collapse, persistent high-rate incumbents, threshold
-timing, tail dilution, MEV, and thin GBX liquidity before signing parameters.
+Disposition: open High independent-review gate. Review scenarios for demand collapse, persistent high-rate incumbents,
+the fact that empty time and deployment-to-launch delay consume the schedule, boundary-timed handoffs, tail dilution,
+MEV, and thin GBX liquidity before approving any deployment.
 
 ## Evidence status
 
-The following results are pinned to the pre-ADR-0034 campaign and must not be represented as current-tree governance
-or release evidence:
+The following older results are retained as historical engineering evidence and must not be represented as
+current-tree governance or release evidence:
 
 - The recorded default Foundry campaign passed 335 tests. Its stateful suite passed 27 properties at 1,000 runs of 500
   calls (13.5 million aggregate calls), with all 31 selectors reached about 16,000 times and zero handler reverts or
@@ -291,10 +320,15 @@ or release evidence:
 - Native Medusa 1.5.1 completed 101,602 calls with zero failures across 65 surfaces. Pinned Echidna 2.3.2 completed
   100,213 calls with all 25 properties passing. The recorded 43-mutant focused campaign killed every mutant.
 - Mythril 0.24.8 was incompatible with constructor-resolved immutable/Cancun runtimes and was not a proof.
-- Current ADR 0037 engineering evidence adds 353/353 Forge tests, including 29 whole-protocol and three six-decimal
-  Bribe properties at 1,000 runs of 500 calls with zero handler reverts; 19/19 integration tests; Hardhat parity;
-  49/49 killed mutants; SDK 49/49; TypeScript 35/35; Python 21/21; subgraph, browser, documentation, ABI, build,
-  formatting, lint, and typecheck gates.
+- The immediately preceding ADR 0042 tree passed 356/356 Forge tests, 19/19 integration tests, and its wider workspace
+  gates. Those results remain historical even though the current tree independently produced the same Forge totals.
+- On 2026-08-22, the current uncommitted ADR 0044 tree passed 356/356 default-profile Forge tests across 25 suites,
+  19/19 integration tests across 2 suites, Hardhat 4/4, SDK 50/50, TypeScript simulations 39/39, Python
+  environment-policy checks 5/5 and simulations 25/25, subgraph specification checks 4/4 plus Matchstick 10/10 and
+  build, web unit tests 3/3, Playwright 6/6, and the ABI, documentation, formatting, lint, typecheck, and workspace-build
+  gates. This is unpinned local deterministic engineering evidence, not release evidence.
+- The recorded 49/49 mutation result also predates ADR 0044's Mine changes and is historical rather than current Mine
+  evidence.
 - Current-tree native external-fuzzer and static-analyzer reruns, independent audit, a second external-fuzzer seed,
   legal clearance, reviewed production parameters, exact external-governance integration review, monitored testnet
   rehearsal, and a signed deployment manifest remain open.

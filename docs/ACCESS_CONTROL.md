@@ -51,6 +51,9 @@ or generic executors in the core protocol contracts.
 Mining, displaced-miner claims, routing, `signal`, `signalWithPermit`, `moveSignal`,
 `withdrawSignal`, Strategy purchases, reward claims, Fund-liability payment, paired-Bribe notification, liquidity fee
 harvesting, Fund GBX burning, and redemption are permissionless. There is no standalone staking or unstaking surface.
+Mine stops after exact revenue deposit into ResonanceRouter. The later permissionless `route()` has no keeper role,
+bounty, or liveness guarantee and belongs to optional manual, frontend, or cron execution; LiquidityPosition retains
+its separate atomic route attempt.
 Resonance's signal hooks accept only SignalGBX, preventing a second user-facing coordinator. Permissionless
 `payFundPayment` and `notifyBribeReward` can settle only their immutable destinations and cannot redirect either
 liability.

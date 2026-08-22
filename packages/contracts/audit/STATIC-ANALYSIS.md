@@ -5,7 +5,9 @@ not an independent audit or release approval.
 
 > Historical current-at-run evidence: ADRs 0034–0036 changed the ownership graph, Bribe lifetime accounting, and
 > Resonance administration after this record. In particular, `setBribeBps` and the Router's policy snapshot have not
-> been analyzed by the pinned run below. The exact disposition register must be regenerated and manually reviewed.
+> been analyzed by the pinned run below. ADR 0044 later removed Mine's synchronous Router call and renamed its deposit
+> helper and event; the stored dispositions still contain the prior symbols. The exact disposition register must be
+> regenerated and manually reviewed.
 
 ## Recorded pinned run
 

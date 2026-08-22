@@ -30,23 +30,45 @@ function frame(title: string, subtitle: string, body: string): string {
   ].join('\n');
 }
 
-function miningRates(root: { [key: string]: DecimalJson }): string {
-  const slots = object(object(root.mining!, 'mining').staggeredFixedSlots!, 'staggeredFixedSlots');
-  const emissions = array(slots.oneHourEmissions, 'oneHourEmissions').map((value) => BigInt(string(value, 'rate')));
-  const maximum = emissions[0]!;
-  const colors = ['#f7c948', '#56b4e9', '#56b4e9'];
-  const bars = emissions.map((amount, index) => {
-    const height = Number((amount * 280n) / maximum);
-    const x = 170 + index * 190;
-    return [
-      `  <rect x="${x}" y="${410 - height}" width="100" height="${height}" rx="8" fill="${colors[index]}"/>`,
-      `  <text x="${x + 50}" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="12">${index === 0 ? 'incumbent' : `new slot ${index}`}</text>`,
-    ].join('\n');
+function miningSupply(root: { [key: string]: DecimalJson }): string {
+  const synchronized = object(object(root.mining!, 'mining').synchronizedSupply!, 'synchronizedSupply');
+  const boundaries = array(synchronized.boundaryPoints, 'boundaryPoints').map((entry) => object(entry, 'boundary'));
+  const supplies = boundaries.map((point) => BigInt(string(point.grossSupply, 'grossSupply')));
+  const maximum = supplies.at(-1)!;
+  const coordinates = supplies.map((supply, index) => {
+    const x = 78 + (index * 720) / (supplies.length - 1);
+    const y = 410 - Number((supply * 280n) / maximum);
+    return { x, y };
   });
+  const markers = coordinates
+    .map(({ x, y }) => {
+      return `  <circle cx="${x}" cy="${y}" r="5" fill="#f7c948"/>`;
+    })
+    .join('\n');
+  const tailSupply = maximum / 10n ** 18n;
+  const tailDay = BigInt(string(boundaries.at(-1)!.elapsedSinceStart, 'elapsedSinceStart')) / 86_400n;
+  const boundaryLabels = boundaries
+    .map((boundary, index) => {
+      const day = BigInt(string(boundary.elapsedSinceStart, 'elapsedSinceStart')) / 86_400n;
+      const rate = BigInt(string(boundary.globalTps, 'globalTps')) / 10n ** 18n;
+      const tenthsOfMillions = (supplies[index]! + 50_000n * 10n ** 18n) / (100_000n * 10n ** 18n);
+      const supplyLabel = `${tenthsOfMillions / 10n}.${tenthsOfMillions % 10n}M`;
+      const { x, y } = coordinates[index]!;
+      return [
+        `  <text x="${x}" y="${y - 12}" text-anchor="middle" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="11">${supplyLabel}</text>`,
+        `  <text x="${x}" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">day ${day}</text>`,
+        `  <text x="${x}" y="452" text-anchor="middle" fill="#697586" font-family="ui-sans-serif,system-ui" font-size="10">${rate} GBX/s</text>`,
+      ].join('\n');
+    })
+    .join('\n');
   return frame(
-    'Fixed-slot halving preserves incumbent TPS',
-    'The incumbent keeps 6.25 GBX/hour; later tenures receive the halved 3.125 GBX/hour',
-    bars.join('\n'),
+    'Synchronized Mine supply path',
+    `Full-refresh, no-burn reference: ${tailSupply.toLocaleString('en-US')} GBX at day ${tailDay}; actual issuance depends on turnover`,
+    [
+      `  <polyline points="${coordinates.map(({ x, y }) => `${x},${y}`).join(' ')}" fill="none" stroke="#f7c948" stroke-width="4"/>`,
+      markers,
+      boundaryLabels,
+    ].join('\n'),
   );
 }
 
@@ -97,7 +119,7 @@ function redemptionChart(root: { [key: string]: DecimalJson }): string {
 export function renderEconomicCharts(): Record<string, string> {
   const root = object(computeEconomicSuite(), 'suite');
   return {
-    'emissions-supply.svg': miningRates(root),
+    'emissions-supply.svg': miningSupply(root),
     'auction-curve.svg': miningPriceChart(root),
     'genesis-liquidity.svg': genesisChart(root),
     'gbx-acquisition-burn.svg': redemptionChart(root),

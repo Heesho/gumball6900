@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 21. Documented ABI entries: 515. Documented public ABI functions: 272.
+Documented source surfaces: 21. Documented ABI entries: 503. Documented public ABI functions: 265.
 
 ## Bribe
 
@@ -2043,19 +2043,7 @@ Source: [`src/core/Mine.sol`](../../packages/contracts/src/core/Mine.sol)
 
 Artifact: `out/Mine.sol/IRevenueRouterIdentity.json`
 
-Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `route()`
-
-```solidity
-function route() external returns (uint256 amount);
-```
-
-Routes the complete nonzero pending USDG balance into Resonance.
-
-**Returns**
-
-- `amount`: Amount delivered to Resonance.
+Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
 ### `usdg()`
 
@@ -2071,12 +2059,12 @@ Source: [`src/core/Mine.sol`](../../packages/contracts/src/core/Mine.sol)
 
 Artifact: `out/Mine.sol/Mine.json`
 
-Public ABI: 36 functions, 5 events, 16 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 30 functions, 5 events, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
-### `constructor(address,address,address,(uint256,uint256,uint256,uint256,uint256))`
+### `constructor(address,address,address)`
 
 ```solidity
-constructor(contract GBX gbx_, contract IERC20 usdg_, address resonanceRouter_, struct Mine.Config config);
+constructor(contract GBX gbx_, contract IERC20 usdg_, address resonanceRouter_);
 ```
 
 Creates the immutable mining market with sixteen empty slots.
@@ -2089,13 +2077,21 @@ function BPS() external view returns (uint256 arg0);
 
 Basis-point denominator used for replacement-payment allocation.
 
-### `MAX_HALVING_AMOUNT()`
+### `HALVING_PERIOD()`
 
 ```solidity
-function MAX_HALVING_AMOUNT() external view returns (uint256 arg0);
+function HALVING_PERIOD() external view returns (uint256 arg0);
 ```
 
-Highest accepted cumulative raw-GBX interval between the first two halving thresholds.
+Provisional fixed interval between prospective global-rate halvings.
+
+### `INITIAL_TPS()`
+
+```solidity
+function INITIAL_TPS() external view returns (uint256 arg0);
+```
+
+Initial global GBX tokens-per-second rate.
 
 ### `MAX_INITIAL_PRICE()`
 
@@ -2103,55 +2099,23 @@ Highest accepted cumulative raw-GBX interval between the first two halving thres
 function MAX_INITIAL_PRICE() external view returns (uint256 arg0);
 ```
 
-Highest accepted raw USDG starting price for a new auction.
+Highest raw USDG starting price for a new auction.
 
-### `MAX_INITIAL_TPS()`
-
-```solidity
-function MAX_INITIAL_TPS() external view returns (uint256 arg0);
-```
-
-Highest accepted initial global raw-GBX tokens-per-second rate.
-
-### `MAX_PRICE_MULTIPLIER()`
+### `MAX_MESSAGE_BYTES()`
 
 ```solidity
-function MAX_PRICE_MULTIPLIER() external view returns (uint256 arg0);
+function MAX_MESSAGE_BYTES() external view returns (uint256 arg0);
 ```
 
-Highest accepted fixed-point replacement-price multiplier.
+Maximum raw byte length of the event-only message attached to a mining handoff.
 
-### `MIN_HALVING_AMOUNT()`
+### `MINIMUM_INITIAL_PRICE()`
 
 ```solidity
-function MIN_HALVING_AMOUNT() external view returns (uint256 arg0);
+function MINIMUM_INITIAL_PRICE() external view returns (uint256 arg0);
 ```
 
-Lowest accepted cumulative raw-GBX interval between the first two halving thresholds.
-
-### `MIN_INITIAL_PRICE()`
-
-```solidity
-function MIN_INITIAL_PRICE() external view returns (uint256 arg0);
-```
-
-Lowest accepted raw USDG starting price for a new auction.
-
-### `MIN_PRICE_MULTIPLIER()`
-
-```solidity
-function MIN_PRICE_MULTIPLIER() external view returns (uint256 arg0);
-```
-
-Lowest accepted fixed-point replacement-price multiplier.
-
-### `MIN_TAIL_TPS()`
-
-```solidity
-function MIN_TAIL_TPS() external view returns (uint256 arg0);
-```
-
-Lowest accepted global tail rate, preserving at least one raw unit per slot per second.
+Raw USDG floor for every newly started reverse Dutch auction.
 
 ### `PREVIOUS_MINER_BPS()`
 
@@ -2169,13 +2133,13 @@ function PRICE_DECAY_PERIOD() external view returns (uint256 arg0);
 
 Duration over which each replacement price decays linearly to zero.
 
-### `PRICE_PRECISION()`
+### `PRICE_MULTIPLIER()`
 
 ```solidity
-function PRICE_PRECISION() external view returns (uint256 arg0);
+function PRICE_MULTIPLIER() external view returns (uint256 arg0);
 ```
 
-Fixed-point precision used by the replacement-price multiplier.
+Multiplier applied to each paid price to start the next auction.
 
 ### `SLOT_COUNT()`
 
@@ -2184,6 +2148,14 @@ function SLOT_COUNT() external view returns (uint256 arg0);
 ```
 
 Permanent number of independent mining slots.
+
+### `TAIL_TPS()`
+
+```solidity
+function TAIL_TPS() external view returns (uint256 arg0);
+```
+
+Strictly positive global GBX tokens-per-second tail rate.
 
 ### `aggregateTps()`
 
@@ -2233,37 +2205,14 @@ function getSlot(uint256 index) external view returns (struct Mine.Slot slot);
 
 Returns the complete state of one mining slot.
 
-### `halvingAmount()`
+### `mine(address,uint256,uint256,uint256,uint256,string)`
 
 ```solidity
-function halvingAmount() external view returns (uint256 arg0);
-```
-
-Cumulative raw-GBX interval used to derive immutable halving thresholds.
-
-### `initialTps()`
-
-```solidity
-function initialTps() external view returns (uint256 arg0);
-```
-
-Initial global raw-GBX tokens-per-second rate.
-
-### `mine(address,uint256,uint256,uint256,uint256)`
-
-```solidity
-function mine(address miner, uint256 index, uint256 epochId, uint256 deadline, uint256 maximumPrice) external returns (uint256 paid);
+function mine(address miner, uint256 index, uint256 epochId, uint256 deadline, uint256 maximumPrice, string message) external returns (uint256 paid);
 ```
 
 Replaces one slot's miner at its current linearly decaying USDG price.
-
-### `minimumInitialPrice()`
-
-```solidity
-function minimumInitialPrice() external view returns (uint256 arg0);
-```
-
-Floor for every newly started reverse Dutch auction.
+The optional message is emitted in `Mined` and is never stored in contract state.
 
 ### `nextGlobalTps()`
 
@@ -2305,14 +2254,6 @@ function price(uint256 index) external view returns (uint256 amount);
 
 Returns one slot's current linearly decaying USDG replacement price.
 
-### `priceMultiplier()`
-
-```solidity
-function priceMultiplier() external view returns (uint256 arg0);
-```
-
-Fixed-point multiplier applied to each paid price to start the next auction.
-
 ### `resonanceRouter()`
 
 ```solidity
@@ -2329,6 +2270,14 @@ function slots(uint256 index) external view returns (uint256 epochId, uint256 in
 
 Mining-slot state by zero-based slot index.
 
+### `startTime()`
+
+```solidity
+function startTime() external view returns (uint256 arg0);
+```
+
+Timestamp anchoring the immutable time-based halving schedule.
+
 ### `storedPendingEmission()`
 
 ```solidity
@@ -2336,14 +2285,6 @@ function storedPendingEmission() external view returns (uint256 arg0);
 ```
 
 Total unminted slot emission accrued through `pendingUpdatedAt`.
-
-### `tailTps()`
-
-```solidity
-function tailTps() external view returns (uint256 arg0);
-```
-
-Strictly positive global raw-GBX tokens-per-second tail rate.
 
 ### `totalClaimable()`
 
@@ -2387,10 +2328,10 @@ event EmissionSettled(address indexed miner, uint256 indexed index, uint256 inde
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `Mined(address,address,uint256,uint256,address,uint256,uint256,uint256)`
+#### `Mined(address,address,uint256,uint256,address,uint256,uint256,uint256,string)`
 
 ```solidity
-event Mined(address indexed payer, address indexed miner, uint256 indexed index, uint256 epochId, address previousMiner, uint256 price, uint256 initialPrice, uint256 tps);
+event Mined(address indexed payer, address indexed miner, uint256 indexed index, uint256 epochId, address previousMiner, uint256 price, uint256 initialPrice, uint256 tps, string message);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2403,10 +2344,10 @@ event MinerPaymentAccrued(address indexed miner, uint256 indexed index, uint256 
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `RevenueRouted(uint256,uint256,uint256)`
+#### `RevenueDeposited(uint256,uint256,uint256)`
 
 ```solidity
-event RevenueRouted(uint256 indexed index, uint256 indexed epochId, uint256 amount);
+event RevenueDeposited(uint256 indexed index, uint256 indexed epochId, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2429,14 +2370,6 @@ error EpochIdMismatch(uint256 expected, uint256 actual);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `HalvingAmountOutOfRange(uint256)`
-
-```solidity
-error HalvingAmountOutOfRange(uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `IndexOutOfBounds(uint256)`
 
 ```solidity
@@ -2453,22 +2386,6 @@ error InexactTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCre
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InitialPriceOutOfRange(uint256)`
-
-```solidity
-error InitialPriceOutOfRange(uint256 price);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InitialTpsOutOfRange(uint256)`
-
-```solidity
-error InitialTpsOutOfRange(uint256 tps);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `MaxPriceExceeded(uint256,uint256)`
 
 ```solidity
@@ -2477,10 +2394,10 @@ error MaxPriceExceeded(uint256 price, uint256 maximumPrice);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `MiningAuthorityNotFinalized(address,bool)`
+#### `MessageTooLong(uint256)`
 
 ```solidity
-error MiningAuthorityNotFinalized(address minter, bool locked);
+error MessageTooLong(uint256 length);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2489,14 +2406,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error NothingToClaim(address account);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `PriceMultiplierOutOfRange(uint256)`
-
-```solidity
-error PriceMultiplierOutOfRange(uint256 multiplier);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2513,14 +2422,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `TailTpsOutOfRange(uint256)`
-
-```solidity
-error TailTpsOutOfRange(uint256 tps);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._

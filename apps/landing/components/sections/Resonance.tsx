@@ -73,8 +73,9 @@ export function Resonance() {
        Sim time ×900 like the deck; particles advance in real time so the flow reads at a
        human pace whatever the sim clock does.
 
-       The drawing is the mechanism, not a chart of it. A seven-day tank on the left holds
-       the stream that mining revenue funds. One undivided blue band leaves it. At the comb,
+       The drawing begins after a separate successful ResonanceRouter.route call. A seven-day
+       tank on the left holds the stream that forwarded revenue funds. One undivided blue band
+       leaves it. At the comb,
        pink blades cut that band into four contiguous channels whose thicknesses ARE the live
        signal weights — so the four always sum to the whole stream. Each channel pours into a
        vessel that fills with USDG until that Strategy's auction takes the lot. Move signal and
@@ -396,7 +397,8 @@ export function Resonance() {
         for (let n = NODES; n >= 1; n--) a.chain[n]! += (a.chain[n - 1]! - a.chain[n]!) * carry;
       });
 
-      /* Mining revenue restarts the seven-day stream once the last one ends. */
+      /* Illustrative revenue already forwarded from the Router restarts this
+         display stream once the last one ends. */
       if (flow.pending > 0 && flow.t >= flow.finish) {
         flow.rate = flow.pending / STREAM;
         flow.finish = flow.t + STREAM;
@@ -404,8 +406,8 @@ export function Resonance() {
         flow.refill = 1;
         flow.pending = 0;
       }
-      /* Mining revenue keeps accruing for next week's stream (in the deck the mine sim
-         feeds this directly; here it accrues at the illustrative weekly rate). */
+      /* The model accrues an illustrative forwarded amount for its next week.
+         It does not model or promise the separate permissionless route call. */
       flow.pending += (WEEKLY * dt) / STREAM;
       if (flow.refill > 0) flow.refill = Math.max(0, flow.refill - dt / 1500);
 
@@ -1430,16 +1432,16 @@ export function Resonance() {
               Where the signal sits is where the money goes
             </h2>
             <p className="lede">
-              Deposit GBX and point it at a Strategy — that is the whole vote. The fund&#39;s buying power follows the
-              signal moment to moment: no proposals, no ballots, no waiting for anyone.
+              Deposit GBX and point it at a Strategy — that is the whole vote. Once revenue is inside Resonance, the
+              fund&#39;s buying power follows signal moment to moment: no proposals or ballots.
             </p>
           </div>
         </header>
 
         <p className="small muted measure rz-how reveal" style={{ '--d': '90ms' } as React.CSSProperties}>
-          Underneath, mining revenue is released as a rolling seven-day stream, and the stream is split across
-          Strategies by live signal weights — the instant a holder moves signal, the split moves with it. Each Strategy
-          collects its share as USDG; turning that USDG into the asset is the next section.
+          Once someone separately forwards qualifying Router revenue, Resonance releases it as a rolling seven-day
+          stream and splits it across Strategies by live signal weights. Mine does not perform that forwarding. Each
+          Strategy collects its released share as USDG; turning it into the asset is the next section.
         </p>
 
         <div className="sim-panel reveal" style={{ '--d': '180ms' } as React.CSSProperties}>
@@ -1490,7 +1492,8 @@ export function Resonance() {
             </div>
             <p className="sim-note">
               Weights, amounts and symbols are illustrative — the tickers are example strategies, not holdings. The
-              seven-day stream is fixed in code; production revenue is unselected.
+              seven-day stream is fixed in code; this model starts after a successful permissionless route and implies
+              no routing cadence or guarantee.
             </p>
           </div>
         </div>

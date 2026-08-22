@@ -1,4 +1,4 @@
-import { Claimed, EmissionSettled, Mined, MinerPaymentAccrued, RevenueRouted } from '../generated/Mine/Mine';
+import { Claimed, EmissionSettled, Mined, MinerPaymentAccrued, RevenueDeposited } from '../generated/Mine/Mine';
 import { BigInt } from '@graphprotocol/graph-ts';
 import { getAccount, getMiningSlot, getProtocol, recordEvent } from './entities';
 
@@ -10,6 +10,7 @@ export function handleMined(event: Mined): void {
   const slot = getMiningSlot(event.address, event.params.index, event);
   slot.epoch = event.params.epochId.plus(BigInt.fromI32(1));
   slot.currentMiner = event.params.miner;
+  slot.currentMessage = event.params.message;
   slot.initialPriceRaw = event.params.initialPrice;
   slot.auctionStartedAt = event.block.timestamp;
   slot.tpsRaw = event.params.tps;
@@ -74,12 +75,12 @@ export function handleClaimed(event: Claimed): void {
   record.save();
 }
 
-export function handleMiningRevenueRouted(event: RevenueRouted): void {
+export function handleMiningRevenueDeposited(event: RevenueDeposited): void {
   const protocol = getProtocol(event);
-  protocol.miningRevenueRoutedRaw = protocol.miningRevenueRoutedRaw.plus(event.params.amount);
+  protocol.miningRevenueDepositedRaw = protocol.miningRevenueDepositedRaw.plus(event.params.amount);
   protocol.save();
 
-  const record = recordEvent(event, 'MINE_REVENUE_ROUTED');
+  const record = recordEvent(event, 'MINE_REVENUE_DEPOSITED');
   record.values = [event.params.index, event.params.epochId, event.params.amount];
   record.save();
 }

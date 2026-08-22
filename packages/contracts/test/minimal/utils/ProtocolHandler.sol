@@ -224,7 +224,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
         vm.startPrank(actor);
         if (payment != 0) usdg.approve(address(mineContract), payment);
-        mineContract.mine(actor, index, slot.epochId, block.timestamp, payment);
+        mineContract.mine(actor, index, slot.epochId, block.timestamp, payment, "");
         vm.stopPrank();
 
         ghostCalls["mine"] += 1;

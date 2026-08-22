@@ -18,23 +18,24 @@ pendingEmission = sum_slots((now - lastAccruedAt) * slot.tps)
 effectiveTotalSupply = totalSupply + pendingEmission
 ```
 
-`slot.tps` is written only when a slot receives a new miner. It is not rewritten by a cumulative-mining threshold or a
+`slot.tps` is written only when a slot receives a new miner. It is not rewritten by a time-based halving boundary or a
 Fund redemption. On a handoff, only the outgoing slot is settled, then:
 
 ```text
-newSlot.tps = globalTps(totalMined + pendingEmission) / 16
+newSlot.tps = globalTps(now - startTime) / 16
 ```
 
 For a positive nonempty-slot payment:
 
 ```text
 previousMinerClaim = floor(price * 8,000 / 10,000)
-routedRevenue = price - previousMinerClaim
+routerDeposit = price - previousMinerClaim
 Mine USDG balance = totalClaimable
 ```
 
-For an empty slot, `routedRevenue = price`; for a zero-price handoff both values are zero. Every nonzero token movement
-checks exact sender debit and receiver credit.
+For an empty slot, `routerDeposit = price`; for a zero-price handoff both values are zero. Every nonzero token movement
+checks exact sender debit and receiver credit. The deposit is Mine's terminal revenue action: a later permissionless
+`ResonanceRouter.route()` call is neither part of nor a precondition for the handoff.
 
 ## Signals and virtual Bribe balances
 

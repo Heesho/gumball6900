@@ -8,7 +8,7 @@
 
 > **quoteMiningPayment**(`payment`, `hasPreviousMiner`): [`MiningPaymentQuote`](../interfaces/MiningPaymentQuote.md)
 
-Quotes the exact 80/20 replacement split; an empty slot routes its complete payment to Resonance.
+Quotes the exact 80/20 replacement split; an empty slot deposits its complete payment into ResonanceRouter.
 
 ## Parameters
 

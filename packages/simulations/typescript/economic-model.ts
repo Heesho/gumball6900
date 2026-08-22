@@ -7,6 +7,11 @@ const MAX_STRATEGY_BRIBE_BPS = 2_000n;
 const HOUR = 3_600n;
 const YEAR = 365n * 24n * HOUR;
 const GENESIS_LP_GBX = 20_000_000n * WAD;
+const MINE_PRICE_MULTIPLIER = 2n;
+const MINE_MINIMUM_INITIAL_PRICE = 1_000_000n;
+const MINE_INITIAL_TPS = 64n * WAD;
+const MINE_HALVING_PERIOD = 69n * 24n * HOUR;
+const MINE_TAIL_TPS = WAD;
 
 type JsonPrimitive = string | boolean | null;
 export type DecimalJson = JsonPrimitive | DecimalJson[] | { [key: string]: DecimalJson };
@@ -18,6 +23,37 @@ function mulDiv(a: bigint, b: bigint, denominator: bigint): bigint {
 
 function miningPrice(initialPrice: bigint, elapsed: bigint): bigint {
   return elapsed >= HOUR ? 0n : initialPrice - mulDiv(initialPrice, elapsed, HOUR);
+}
+
+function miningRateAt(elapsedSinceStart: bigint): bigint {
+  const shifted = MINE_INITIAL_TPS >> (elapsedSinceStart / MINE_HALVING_PERIOD);
+  return shifted < MINE_TAIL_TPS ? MINE_TAIL_TPS : shifted;
+}
+
+function firstTailBoundary(): bigint {
+  for (let boundary = 0n; boundary < 256n; boundary += 1n) {
+    if (MINE_INITIAL_TPS >> boundary <= MINE_TAIL_TPS) return boundary;
+  }
+  throw new RangeError('positive tail must be reached within uint256 shift bounds');
+}
+
+const MINE_TAIL_BOUNDARY_COUNT = firstTailBoundary();
+
+function synchronizedMiningEmission(elapsedSinceStart: bigint): bigint {
+  if (elapsedSinceStart < 0n) throw new RangeError('elapsed time must be non-negative');
+
+  let emission = 0n;
+  for (let era = 0n; era < MINE_TAIL_BOUNDARY_COUNT; era += 1n) {
+    const eraStart = era * MINE_HALVING_PERIOD;
+    if (elapsedSinceStart <= eraStart) break;
+    const remaining = elapsedSinceStart - eraStart;
+    const activeSeconds = remaining < MINE_HALVING_PERIOD ? remaining : MINE_HALVING_PERIOD;
+    emission += miningRateAt(eraStart) * activeSeconds;
+  }
+
+  const tailStart = MINE_TAIL_BOUNDARY_COUNT * MINE_HALVING_PERIOD;
+  if (elapsedSinceStart > tailStart) emission += MINE_TAIL_TPS * (elapsedSinceStart - tailStart);
+  return emission;
 }
 
 function splitPayment(payment: bigint, hasPreviousMiner: boolean) {
@@ -63,10 +99,54 @@ function redemption(balance: bigint, burned: bigint, supply: bigint): bigint {
 }
 
 function rawSuite() {
-  const globalTpsPerHour = 100n * WAD;
+  const globalTpsPerHour = miningRateAt(0n) * HOUR;
   const incumbentRatePerHour = globalTpsPerHour / 16n;
-  const newTenureRatePerHour = globalTpsPerHour / 2n / 16n;
+  const newTenureRatePerHour = (miningRateAt(MINE_HALVING_PERIOD) * HOUR) / 16n;
   const allSlotRates = Array<bigint>(16).fill(incumbentRatePerHour);
+  const timeBasedSchedule = [
+    MINE_HALVING_PERIOD - 1n,
+    MINE_HALVING_PERIOD,
+    2n * MINE_HALVING_PERIOD - 1n,
+    2n * MINE_HALVING_PERIOD,
+    MINE_TAIL_BOUNDARY_COUNT * MINE_HALVING_PERIOD - 1n,
+    MINE_TAIL_BOUNDARY_COUNT * MINE_HALVING_PERIOD,
+    1_000n * MINE_HALVING_PERIOD,
+  ].map((elapsedSinceStart) => ({ elapsedSinceStart, globalTps: miningRateAt(elapsedSinceStart) }));
+  const boundaryRates = Array.from({ length: Number(MINE_TAIL_BOUNDARY_COUNT) + 1 }, (_, boundaryIndex) => {
+    const elapsedSinceStart = BigInt(boundaryIndex) * MINE_HALVING_PERIOD;
+    return { boundaryIndex: BigInt(boundaryIndex), elapsedSinceStart, globalTps: miningRateAt(elapsedSinceStart) };
+  });
+  const synchronizedBoundarySupply = boundaryRates.map(({ boundaryIndex, elapsedSinceStart, globalTps }) => {
+    const miningEmission = synchronizedMiningEmission(elapsedSinceStart);
+    return {
+      boundaryIndex,
+      elapsedSinceStart,
+      globalTps,
+      miningEmission,
+      grossSupply: GENESIS_LP_GBX + miningEmission,
+    };
+  });
+  const synchronizedHorizonSupply = [1n, 3n, 5n, 10n, 40n].map((years) => {
+    const elapsedSinceStart = years * YEAR;
+    const miningEmission = synchronizedMiningEmission(elapsedSinceStart);
+    return { years, elapsedSinceStart, miningEmission, grossSupply: GENESIS_LP_GBX + miningEmission };
+  });
+  const tailStartsAtSeconds = MINE_TAIL_BOUNDARY_COUNT * MINE_HALVING_PERIOD;
+  const synchronizedTailRelativeHorizonSupply = [1n, 2n, 5n, 10n].map((yearsAfterTail) => {
+    const elapsedSinceTail = yearsAfterTail * YEAR;
+    const elapsedSinceStart = tailStartsAtSeconds + elapsedSinceTail;
+    const miningEmission = synchronizedMiningEmission(elapsedSinceStart);
+    const grossSupply = GENESIS_LP_GBX + miningEmission;
+    return {
+      yearsAfterTail,
+      elapsedSinceTail,
+      elapsedSinceStart,
+      miningEmission,
+      grossSupply,
+      annualTailInflationPpm: mulDiv(MINE_TAIL_TPS * YEAR, 1_000_000n, grossSupply),
+    };
+  });
+  const miningEmissionAtTail = synchronizedMiningEmission(tailStartsAtSeconds);
 
   const mintedSupplyBefore = 100_000_000n * WAD;
   const pendingMining = 1_000_000n * WAD;
@@ -74,7 +154,7 @@ function rawSuite() {
   const redeemGBX = 1_000_000n * WAD;
 
   return {
-    schemaVersion: 9,
+    schemaVersion: 13,
     purpose: 'Deterministic protocol mechanics; not forecasts, valuations, or investment projections.',
     assumptions: {
       genesisLiquidityAllocationGBXRaw: GENESIS_LP_GBX,
@@ -83,6 +163,12 @@ function rawSuite() {
       previousMinerBps: 8_000n,
       resonanceRevenueBps: 2_000n,
       fixedSlotCount: 16n,
+      minePriceMultiplier: MINE_PRICE_MULTIPLIER,
+      mineMinimumInitialPrice: MINE_MINIMUM_INITIAL_PRICE,
+      mineInitialTps: MINE_INITIAL_TPS,
+      mineHalvingPeriodSeconds: MINE_HALVING_PERIOD,
+      mineTailTps: MINE_TAIL_TPS,
+      mineTailBoundaryCount: MINE_TAIL_BOUNDARY_COUNT,
       tenureRatesLocked: true,
       redemptionsUseConstantTimeEffectiveSupply: true,
       checkpointAllExists: false,
@@ -92,6 +178,32 @@ function rawSuite() {
       strategyFundBpsIsDerived: true,
     },
     mining: {
+      timeBasedSchedule: {
+        points: timeBasedSchedule,
+        boundaryRates,
+        emptyMarketAtFirstBoundary: {
+          elapsedSinceStart: MINE_HALVING_PERIOD,
+          totalMined: 0n,
+          pendingEmission: 0n,
+          globalTps: miningRateAt(MINE_HALVING_PERIOD),
+        },
+        explanation:
+          'The prospective rate depends only on elapsed deployment time; empty occupancy and zero mining do not pause it.',
+      },
+      synchronizedSupply: {
+        referenceCase: 'synchronized-full-refresh-no-burn',
+        modelAssumption:
+          'Synchronized full-refresh, no-burn reference: all sixteen slots are occupied from deployment, all sixteen refresh to the prospective rate at every boundary, and all accrued emission is settled. Actual tenure-locked issuance depends on slot occupancy and turnover; this is neither a supply cap nor a forecast.',
+        boundaryPoints: synchronizedBoundarySupply,
+        horizonPoints: synchronizedHorizonSupply,
+        tailRelativeHorizonPoints: synchronizedTailRelativeHorizonSupply,
+        tailBoundaryCount: MINE_TAIL_BOUNDARY_COUNT,
+        tailStartsAtSeconds,
+        miningEmissionAtTail,
+        grossSupplyAtTail: GENESIS_LP_GBX + miningEmissionAtTail,
+        minedBpsOfGrossSupplyAtTail: mulDiv(miningEmissionAtTail, BPS, GENESIS_LP_GBX + miningEmissionAtTail),
+        annualTailInflationPpmAtTail: mulDiv(MINE_TAIL_TPS * YEAR, 1_000_000n, GENESIS_LP_GBX + miningEmissionAtTail),
+      },
       priceCurve: [0n, 900n, 1_800n, 2_700n, 3_600n].map((elapsedSeconds) => ({
         elapsedSeconds,
         priceRaw: miningPrice(2_000_000n, elapsedSeconds),
@@ -122,17 +234,17 @@ function rawSuite() {
         explanation: 'Sixteen occupied slots at the same generation exactly reproduce the global rate.',
       },
       handoffHalving: {
-        halvingAmount: 490_000_000n * WAD,
-        globalRateBefore: globalTpsPerHour,
-        globalRateAfter: globalTpsPerHour / 2n,
-        incumbentSlotRateAfterThreshold: incumbentRatePerHour,
-        nextReplacementSlotRate: newTenureRatePerHour,
-        aggregateLockedSixteenSlots: allSlotRates.reduce((sum, rate) => sum + rate, 0n),
+        halvingPeriodSeconds: MINE_HALVING_PERIOD,
+        globalRateBeforePerHour: globalTpsPerHour,
+        globalRateAfterPerHour: miningRateAt(MINE_HALVING_PERIOD) * HOUR,
+        incumbentSlotRateAfterBoundaryPerHour: incumbentRatePerHour,
+        nextReplacementSlotRatePerHour: newTenureRatePerHour,
+        aggregateLockedSixteenSlotsPerHour: allSlotRates.reduce((sum, rate) => sum + rate, 0n),
       },
       infiniteTail: {
-        tailRatePerSecond: 10n ** 16n,
-        annualTailEmission: 10n ** 16n * YEAR,
-        years: [1n, 10n, 100n].map((years) => ({ years, emission: 10n ** 16n * YEAR * years })),
+        tailRatePerSecond: MINE_TAIL_TPS,
+        annualTailEmission: MINE_TAIL_TPS * YEAR,
+        years: [1n, 10n, 100n].map((years) => ({ years, emission: MINE_TAIL_TPS * YEAR * years })),
       },
     },
     redemption: {

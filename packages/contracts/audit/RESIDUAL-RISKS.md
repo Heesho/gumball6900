@@ -2,16 +2,24 @@
 
 ## Mine and supply
 
-- Fixed-tenure rates prevent mid-mine dilution but temporarily raise aggregate issuance after a future-handoff
-  halving. Old slots keep their earlier rates until replacement.
+- Fixed-tenure rates prevent mid-mine dilution but can keep aggregate issuance above the prospective rate after a
+  future-handoff halving. Old slots keep their earlier rates indefinitely unless replaced.
 - Miners face rollover risk and may be replaced at zero USDG after one hour. The 80% successor payment is not a refund
   or guarantee.
 - GBX has no protocol-defined economic supply cap. Immutable future-handoff halvings converge to a positive tail, so
   dilution does not terminate on any modeled horizon. SignalGBX voting checkpoints impose a `uint208` ceiling on the
   amount that can be signaled for governance, even though GBX itself has no such implementation ceiling.
-- Exact production Mine parameters remain unresolved and materially affect demand, dilution, revenue, and MEV.
+- The hard-coded Mine parameters, including the provisional 64 GBX-per-second initial rate, 69-day halving period, and
+  1 GBX-per-second tail, lack independent economic review and materially affect demand, dilution, revenue, and MEV.
+- The 771,161,600 GBX day-414 supply and approximately 4.089% initial annual tail ratio are synchronized, fully
+  occupied, fully refreshed, fully settled, no-burn references—not caps or forecasts. The ratio declines as supply
+  grows; legacy tenures can emit above that path, empty slots can emit below it, and burns alter the denominator.
 - Accrued GBX is unminted until a slot handoff. Fund uses Mine's constant-time effective supply, and indexers should
   use the same view for inclusive supply displays.
+- Mine revenue becomes a Router deposit rather than an automatic stream notification. Permissionless `route()` has no
+  designated caller or bounty, so even qualifying revenue may wait indefinitely and its eventual caller can influence
+  notification timing. This cannot block a completed Mine handoff, but it can delay Strategy revenue. LiquidityPosition
+  remains atomically coupled to its route attempt.
 - Mine handoffs and effective-supply reads are constant time; rigorous tests separately traverse all sixteen slots as
   a differential oracle.
 - The permanent GBX minter handoff and immutable dependencies cannot be repaired after an incorrect deployment.
@@ -60,4 +68,5 @@ permanent. Deployment evidence must prove the exact integration and that no temp
 No independent audit, compatible symbolic proof, exact external-governance integration review, legal clearance, or
 signed deployment manifest exists. The pinned Echidna and Medusa campaigns and the recorded full 43-mutant
 SignalGBX/Resonance/BribeRouter campaign predate ADRs 0034–0036 and are internal engineering evidence, not independent
-review. The current 49-mutant campaign passes with no survivors, but remains narrow internal engineering evidence.
+review. A later narrow 49-mutant campaign passed with no survivors against the ADR 0036/0037 tree, but it predates ADR
+0043 and remains historical internal engineering evidence.

@@ -14,5 +14,6 @@
 | <a id="property-deadline"></a> `deadline`               | `readonly` | `bigint`            |
 | <a id="property-expectedepochid"></a> `expectedEpochId` | `readonly` | `bigint`            |
 | <a id="property-maximumprice"></a> `maximumPrice`       | `readonly` | `bigint`            |
+| <a id="property-message"></a> `message`                 | `readonly` | `string`            |
 | <a id="property-mine"></a> `mine`                       | `readonly` | `` `0x${string}` `` |
 | <a id="property-slotindex"></a> `slotIndex`             | `readonly` | `bigint`            |

@@ -27,8 +27,36 @@ describe('Mine reference model', () => {
       resonanceAmount: '200000',
     });
     expect(results.miningQuotes[1]?.price).toBe('0');
-    expect(results.miningQuotes[1]?.slotEmissions[0]).toBe('22500000000000000000000');
-    expect(results.miningQuotes[1]?.nextGlobalTps).toBe('50000000000000000000');
+    expect(results.miningQuotes[1]?.slotEmissions[0]).toBe('14400000000000000000000');
+    expect(results.miningQuotes[1]?.nextGlobalTps).toBe('32000000000000000000');
+  });
+
+  it('pins exact time boundaries and the tail independently of occupancy', () => {
+    const rates = Object.fromEntries(
+      loadTypeScriptResults().miningQuotes.map((quote) => [quote.id, quote.nextGlobalTps]),
+    );
+    expect(rates).toMatchObject({
+      'just-before-first-time-boundary': '64000000000000000000',
+      'protected-staggered-halving': '32000000000000000000',
+      'just-before-second-time-boundary': '32000000000000000000',
+      'at-second-time-boundary': '16000000000000000000',
+      'just-before-tail-time-boundary': '2000000000000000000',
+      'at-tail-time-boundary': '1000000000000000000',
+      'far-after-tail': '1000000000000000000',
+      'ten-years-synchronized-supply': '1000000000000000000',
+    });
+  });
+
+  it('pins synchronized full-occupancy supply without treating it as guaranteed turnover', () => {
+    const quotes = Object.fromEntries(loadTypeScriptResults().miningQuotes.map((quote) => [quote.id, quote]));
+    expect(quotes['at-tail-time-boundary']).toMatchObject({
+      synchronizedMiningEmission: '751161600000000000000000000',
+      synchronizedGrossSupply: '771161600000000000000000000',
+    });
+    expect(quotes['ten-years-synchronized-supply']).toMatchObject({
+      synchronizedMiningEmission: '1030752000000000000000000000',
+      synchronizedGrossSupply: '1050752000000000000000000000',
+    });
   });
 
   it('matches cumulative default-rate acquired-asset classification across payment partitions', () => {

@@ -21,6 +21,15 @@ export const PREVIOUS_MINER_BPS = 8_000n;
 export const RESONANCE_REVENUE_BPS = BPS_DENOMINATOR - PREVIOUS_MINER_BPS;
 export const MINE_PRICE_DECAY_PERIOD = 3_600n;
 export const MINE_SLOT_COUNT = 16n;
+export const MINE_PRICE_MULTIPLIER = 2n;
+export const MINE_MINIMUM_INITIAL_PRICE = 1_000_000n;
+export const MINE_MAX_INITIAL_PRICE = (1n << 192n) - 1n;
+export const MINE_INITIAL_TPS = 64n * WAD;
+/** Provisional fixed interval between prospective global-rate halvings. */
+export const MINE_HALVING_PERIOD = 69n * 86_400n;
+export const MINE_TAIL_TPS = WAD;
+/** Maximum UTF-8 byte length accepted for a Mine handoff message. */
+export const MINE_MAX_MESSAGE_BYTES = 280;
 
 export const MIN_AUCTION_EPOCH_PERIOD = 3_600n;
 export const MAX_AUCTION_EPOCH_PERIOD = 365n * 86_400n;

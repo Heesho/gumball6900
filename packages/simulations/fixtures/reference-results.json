@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "9",
+  "schemaVersion": "11",
   "usdGDecimals": "6",
   "targetDecimals": "18",
   "infiniteSupply": true,
@@ -10,20 +10,108 @@
       "price": "1000000",
       "previousMinerAmount": "800000",
       "resonanceAmount": "200000",
-      "slotEmissions": ["22500000000000000000000"],
-      "totalEmission": "22500000000000000000000",
-      "nextGlobalTps": "100000000000000000000",
-      "nextSlotTps": "6250000000000000000"
+      "slotEmissions": ["14400000000000000000000"],
+      "totalEmission": "14400000000000000000000",
+      "nextGlobalTps": "64000000000000000000",
+      "nextSlotTps": "4000000000000000000",
+      "synchronizedMiningEmission": "0",
+      "synchronizedGrossSupply": "20000000000000000000000000"
     },
     {
       "id": "protected-staggered-halving",
       "price": "0",
       "previousMinerAmount": "0",
       "resonanceAmount": "0",
-      "slotEmissions": ["22500000000000000000000", "11250000000000000000000", "11250000000000000000000"],
-      "totalEmission": "45000000000000000000000",
-      "nextGlobalTps": "50000000000000000000",
-      "nextSlotTps": "3125000000000000000"
+      "slotEmissions": ["14400000000000000000000", "7200000000000000000000", "7200000000000000000000"],
+      "totalEmission": "28800000000000000000000",
+      "nextGlobalTps": "32000000000000000000",
+      "nextSlotTps": "2000000000000000000",
+      "synchronizedMiningEmission": "381542400000000000000000000",
+      "synchronizedGrossSupply": "401542400000000000000000000"
+    },
+    {
+      "id": "just-before-first-time-boundary",
+      "price": "1000000",
+      "previousMinerAmount": "0",
+      "resonanceAmount": "0",
+      "slotEmissions": [],
+      "totalEmission": "0",
+      "nextGlobalTps": "64000000000000000000",
+      "nextSlotTps": "4000000000000000000",
+      "synchronizedMiningEmission": "381542336000000000000000000",
+      "synchronizedGrossSupply": "401542336000000000000000000"
+    },
+    {
+      "id": "just-before-second-time-boundary",
+      "price": "1000000",
+      "previousMinerAmount": "0",
+      "resonanceAmount": "0",
+      "slotEmissions": [],
+      "totalEmission": "0",
+      "nextGlobalTps": "32000000000000000000",
+      "nextSlotTps": "2000000000000000000",
+      "synchronizedMiningEmission": "572313568000000000000000000",
+      "synchronizedGrossSupply": "592313568000000000000000000"
+    },
+    {
+      "id": "at-second-time-boundary",
+      "price": "1000000",
+      "previousMinerAmount": "0",
+      "resonanceAmount": "0",
+      "slotEmissions": [],
+      "totalEmission": "0",
+      "nextGlobalTps": "16000000000000000000",
+      "nextSlotTps": "1000000000000000000",
+      "synchronizedMiningEmission": "572313600000000000000000000",
+      "synchronizedGrossSupply": "592313600000000000000000000"
+    },
+    {
+      "id": "just-before-tail-time-boundary",
+      "price": "1000000",
+      "previousMinerAmount": "0",
+      "resonanceAmount": "0",
+      "slotEmissions": [],
+      "totalEmission": "0",
+      "nextGlobalTps": "2000000000000000000",
+      "nextSlotTps": "125000000000000000",
+      "synchronizedMiningEmission": "751161598000000000000000000",
+      "synchronizedGrossSupply": "771161598000000000000000000"
+    },
+    {
+      "id": "at-tail-time-boundary",
+      "price": "1000000",
+      "previousMinerAmount": "0",
+      "resonanceAmount": "0",
+      "slotEmissions": [],
+      "totalEmission": "0",
+      "nextGlobalTps": "1000000000000000000",
+      "nextSlotTps": "62500000000000000",
+      "synchronizedMiningEmission": "751161600000000000000000000",
+      "synchronizedGrossSupply": "771161600000000000000000000"
+    },
+    {
+      "id": "far-after-tail",
+      "price": "1000000",
+      "previousMinerAmount": "0",
+      "resonanceAmount": "0",
+      "slotEmissions": [],
+      "totalEmission": "0",
+      "nextGlobalTps": "1000000000000000000",
+      "nextSlotTps": "62500000000000000",
+      "synchronizedMiningEmission": "6676992000000000000000000000",
+      "synchronizedGrossSupply": "6696992000000000000000000000"
+    },
+    {
+      "id": "ten-years-synchronized-supply",
+      "price": "1000000",
+      "previousMinerAmount": "0",
+      "resonanceAmount": "0",
+      "slotEmissions": [],
+      "totalEmission": "0",
+      "nextGlobalTps": "1000000000000000000",
+      "nextSlotTps": "62500000000000000",
+      "synchronizedMiningEmission": "1030752000000000000000000000",
+      "synchronizedGrossSupply": "1050752000000000000000000000"
     }
   ],
   "auctionQuotes": [

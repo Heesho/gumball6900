@@ -54,7 +54,8 @@ illustrations, or branding.
 The reader never clicks anything to make a diagram do its job. **This is already implemented — your
 job is to preserve and extend it, not to redo it.** Every control was removed and the behaviour it
 demonstrated is now a scripted beat inside that simulation's own cycle: mining runs a fixed
-programme alternating the 100%-to-fund and 80/20 routes with one take as "you"; resonance runs
+programme alternating the 100%-to-Router deposit and occupied-slot 80/20 allocations with one take
+as "you"; resonance runs
 hold → move → settle so a signal move is never buried by ambient drift; the fund alternates a
 10%-of-supply burn with ambient ones. Schedules advance on each sim's **accumulated time**, so a
 section reached by scrolling has not already spent its cycle, and the harness `reset()` re-arms the
@@ -64,8 +65,9 @@ When you re-choreograph a diagram, keep that contract: a reader who only scrolls
 see every teaching state, in a legible order, on a cycle short enough to catch in a normal viewing,
 and the important beats must be guaranteed rather than left to chance. Do not reintroduce a button.
 Do not let a beat depend on wall-clock time. Never fake a state the mechanism cannot actually reach
-— e.g. the 100%-to-fund route only exists while never-taken slots remain, and re-opening a taken
-slot to keep it repeating would be a lie about the protocol.
+— e.g. the 100%-to-Router deposit only exists while never-taken slots remain, and re-opening a
+taken slot to keep it repeating would be a lie about the protocol. Mine must never be drawn as
+calling `route()` or starting the seven-day stream in its handoff.
 
 Links remain links. The page must still be fully keyboard-navigable and screen-reader sane. Any
 `aria-live` region that was written on user action must now either be removed or rate-limited so an
@@ -73,8 +75,8 @@ autonomous loop does not spam assistive technology.
 
 ### What must not change
 
-- All copy, all numbers, all honesty content: the hero and close honesty blocks, the "Illustrative
-  parameters" chips, and the sim notes. If a redesign would bury them, the redesign is wrong.
+- All copy, all numbers, all honesty content: the hero and close honesty blocks, the illustrative
+  activity chips, and the sim notes. If a redesign would bury them, the redesign is wrong.
 - **Contract accuracy.** The models are verified against the Solidity in
   `packages/contracts/src/core`. Restyle and re-choreograph freely; never change what a mechanism
   does or the figures it obeys. Ground truth is `apps/landing/docs/BRIEF.md`; the model

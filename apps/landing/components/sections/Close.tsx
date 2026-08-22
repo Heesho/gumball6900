@@ -39,8 +39,8 @@ export function Close() {
             <div className="close-status__row">
               <dt>Parameters</dt>
               <dd>
-                Production mining and pricing parameters are not yet selected. Every figure on this page is
-                illustrative.
+                Mine&apos;s fixed development constants are provisional pending independent economic review. Simulated
+                market activity and holdings are illustrative.
               </dd>
             </div>
             <div className="close-status__row">

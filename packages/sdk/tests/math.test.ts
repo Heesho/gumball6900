@@ -7,6 +7,13 @@ import {
   DEFAULT_STRATEGY_BRIBE_BPS,
   GENESIS_LIQUIDITY_ALLOCATION,
   MINE_SLOT_COUNT,
+  MINE_PRICE_MULTIPLIER,
+  MINE_MINIMUM_INITIAL_PRICE,
+  MINE_MAX_INITIAL_PRICE,
+  MINE_INITIAL_TPS,
+  MINE_HALVING_PERIOD,
+  MINE_TAIL_TPS,
+  MINE_MAX_MESSAGE_BYTES,
   MAX_AUCTION_EPOCH_PERIOD,
   MAX_AUCTION_PRICE_MULTIPLIER,
   MAX_STRATEGY_BRIBE_BPS,
@@ -54,6 +61,13 @@ describe('multislot mining economics', () => {
     expect(GENESIS_LIQUIDITY_ALLOCATION).toBe(token(20_000_000n));
     expect(MINE_PRICE_DECAY_PERIOD).toBe(3_600n);
     expect(MINE_SLOT_COUNT).toBe(16n);
+    expect(MINE_PRICE_MULTIPLIER).toBe(2n);
+    expect(MINE_MINIMUM_INITIAL_PRICE).toBe(1_000_000n);
+    expect(MINE_MAX_INITIAL_PRICE).toBe((1n << 192n) - 1n);
+    expect(MINE_INITIAL_TPS).toBe(token(64n));
+    expect(MINE_HALVING_PERIOD).toBe(69n * 86_400n);
+    expect(MINE_TAIL_TPS).toBe(WAD);
+    expect(MINE_MAX_MESSAGE_BYTES).toBe(280);
   });
 
   it('quotes the exact linear replacement price', () => {
@@ -62,7 +76,7 @@ describe('multislot mining economics', () => {
     expect(quoteMiningPrice(2_000_000n, 3_600n)).toBe(0n);
   });
 
-  it('routes 80% to a displaced miner and 20% to Resonance', () => {
+  it('allocates 80% to a displaced miner and deposits 20% into ResonanceRouter', () => {
     expect(quoteMiningPayment(1_000_000n, true)).toEqual({
       payment: 1_000_000n,
       previousMinerAmount: 800_000n,
@@ -76,17 +90,19 @@ describe('multislot mining economics', () => {
     expect(quote).toEqual({ slotEmissions: [400n, 200n], totalEmission: 600n });
   });
 
-  it('applies halvings only when a slot is next assigned', () => {
-    const curve = { halvingAmount: 1_000n, initialTps: 10n, tailTps: 1n };
+  it('calculates the prospective time-based rate without repricing existing slots', () => {
+    const curve = { halvingPeriod: 1_000n, initialTps: 10n, tailTps: 1n };
     expect(miningRateAt(999n, curve)).toBe(10n);
     expect(miningRateAt(1_000n, curve)).toBe(5n);
-    expect(miningRateAt(1_500n, curve)).toBe(2n);
+    expect(miningRateAt(1_500n, curve)).toBe(5n);
+    expect(miningRateAt(2_000n, curve)).toBe(2n);
     expect(miningRateAt(10_000n, curve)).toBe(1n);
   });
 
   it('clamps the next mining initial price', () => {
-    expect(nextMiningInitialPrice(1_000_000n, 2n * WAD, 1_000_000n, 10_000_000n)).toBe(2_000_000n);
-    expect(nextMiningInitialPrice(0n, 2n * WAD, 1_000_000n, 10_000_000n)).toBe(1_000_000n);
+    expect(nextMiningInitialPrice(1_000_000n)).toBe(2_000_000n);
+    expect(nextMiningInitialPrice(0n)).toBe(MINE_MINIMUM_INITIAL_PRICE);
+    expect(nextMiningInitialPrice(MINE_MAX_INITIAL_PRICE)).toBe(MINE_MAX_INITIAL_PRICE);
   });
 });
 

@@ -87,7 +87,7 @@ abstract contract ProtocolFixture is Test {
         resonanceRouter = new ResonanceRouter(IERC20(address(usdg)), address(resonance));
         resonance.setResonanceRouter(address(resonanceRouter));
 
-        mine = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), defaultMineConfig());
+        mine = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter));
         gbx.setMinter(address(mine));
 
         (address targetStrategyAddress, address targetBribeAddress, address targetRouterAddress) =
@@ -120,17 +120,6 @@ abstract contract ProtocolFixture is Test {
             epochDuration: DEFAULT_EPOCH_DURATION,
             priceMultiplier: DEFAULT_PRICE_MULTIPLIER,
             minimumPrice: DEFAULT_MINIMUM_PRICE
-        });
-    }
-
-    /// @notice Returns the immutable mining parameters used throughout the minimal test graph.
-    function defaultMineConfig() internal pure returns (Mine.Config memory config) {
-        return Mine.Config({
-            priceMultiplier: 2e18,
-            minimumInitialPrice: 1e6,
-            initialTps: 4 ether,
-            halvingAmount: 490_000_000 ether,
-            tailTps: 0.01 ether
         });
     }
 

@@ -3,7 +3,7 @@
 > This is an unexecuted development outline, not a deployment manifest or release authorization.
 
 Required inputs include reviewed USDG and Uniswap v4 addresses, the hookless pool configuration, genesis price and
-one-sided range, initial Strategies, all immutable Mine parameters, provenance clearance, independent security evidence,
+one-sided range, initial Strategies, independent review of the hard-coded Mine economics, provenance clearance, independent security evidence,
 and a later ADR selecting the exact external governance provider, release, executor, plugins, voting configuration,
 permission graph, upgrade model, execution delay, cancellation rules, and ownership-handoff evidence.
 
@@ -17,11 +17,16 @@ The intended order is:
    and complete Resonance's one-time router binding. Each call verifies the candidate points back to the exact
    SignalGBX, factory, Resonance, and USDG identities before storing the irreversible binding. SignalGBX cannot accept
    signals before this step completes.
-4. Deploy the ownerless Mine with the exact signed values for price multiplier, minimum initial USDG price, initial
-   global TPS, cumulative halving amount, and positive tail TPS. Verify its GBX, USDG, ResonanceRouter, and fixed
-   sixteen-slot identities.
+4. Deploy the ownerless Mine with GBX, USDG, and ResonanceRouter. Record and verify that `startTime` equals the Mine
+   deployment timestamp. Verify those identities, its fixed sixteen slots, and the hard-coded Mine constants: 2×
+   price reset, 1 USDG floor, 64 GBX-per-second initial global rate, provisional `69 days` halving period, and 1
+   GBX-per-second global tail. The prospective-rate clock starts at deployment even while all slots are empty, so
+   minimize and report any delay between Mine deployment and public market exposure. Verify Mine emits
+   `RevenueDeposited` after exact Router delivery and contains no synchronous `route()` call.
 5. From the temporary GBX minter, call `GBX.setMinter(Mine)` exactly once. Verify `minterLocked == true`, Mine is the
-   minter, `Mine.gbx()` equals GBX, and no alternative mint authority exists. This step is irreversible.
+   minter, `Mine.gbx()` equals GBX, and no alternative mint authority exists. This step is irreversible and must be
+   complete before publishing or exposing the Mine address because Mine does not repeat these deployment checks on
+   every handoff.
 6. While the temporary setup owner still controls Resonance, create every reviewed initial Strategy and register any
    reviewed initial Bribe reward tokens. Verify the complete Strategy, BribeRouter, and Bribe graph. Do not defer
    bootstrap membership until after ownership handoff.
@@ -39,11 +44,16 @@ The intended order is:
     and prove that the deployment coordinator retains no authority.
 11. Reconcile runtime bytecode, constructor arguments, one-time bindings, bootstrap Strategies, external governance
     configuration and ownership, the 20-million allocation, permanent Mine authority, fixed slot count sixteen,
-    PoolKey, ticks, NFT ID, and NFT custody.
+    Mine `startTime`, elapsed deployment-to-exposure delay, Mine/Router event and call boundary, PoolKey, ticks, NFT
+    ID, and NFT custody.
 
-The frontend must remain read-only until a signed manifest proves those facts. Exact Mine parameters are release
-inputs, not values to infer from tests or examples. The external governance integration is unselected, and no signed
-manifest exists for this repository state; deployment is therefore blocked.
+Optional manual, frontend, volunteer-keeper, or cron calls to permissionless `ResonanceRouter.route()` are periphery,
+not deployment dependencies. No keeper role or bounty is configured, and no automation may be presented as a protocol
+liveness guarantee. LiquidityPosition retains its separate atomic route attempt during fee harvest.
+
+The frontend must remain read-only until a signed manifest proves those facts. Mine's constants still require
+independent economic review. The external governance integration is unselected, and no signed manifest exists for
+this repository state; deployment is therefore blocked.
 
 No script in this repository is authorized to broadcast these steps. A failed setup must be abandoned before use;
 the immutable deployed system has no migration or repair authority.

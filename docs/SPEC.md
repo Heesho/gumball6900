@@ -1,6 +1,7 @@
 # Protocol specification
 
-This is the authoritative target-development specification under ADRs 0031, 0034, 0035, 0036, and 0037. The current
+This is the authoritative target-development specification under ADRs 0031 and 0033-0044 in whole or in their
+recorded unsuperseded parts. The current
 development tree implements these decisions and reconciles their generated consumers. This remains unaudited local
 engineering evidence, not deployment approval or authorization for user funds.
 
@@ -9,11 +10,13 @@ The required behavior is:
 1. GBX creates 20 million genesis-liquidity tokens and permanently assigns all later minting to one immutable Mine
    only after the Mine identifies that same GBX.
 2. Mine has exactly sixteen ownerless hourly reverse-Dutch slots and no all-slot checkpoint.
-3. Each mining tenure has a fixed GBX TPS. Cumulative-mining thresholds and redemptions do not dilute an incumbent;
+3. Each mining tenure has a fixed GBX TPS. Time-based halving boundaries and redemptions do not dilute an incumbent;
    only a new occupant receives current global TPS divided by sixteen.
 4. A nonempty-slot replacement settles only that slot's accrual, makes 80% of the exact USDG price claimable by the displaced
-   miner, and routes 20% through ResonanceRouter. An empty slot routes 100%; there is no team fee.
-5. Global rates used for future handoffs halve at immutable cumulative-mining thresholds and continue at a positive
+   miner, and exact-transfers the 20% remainder into ResonanceRouter. An empty slot deposits 100%; there is no team
+   fee. Mine then ends without calling `route()`. Its `RevenueDeposited` event proves only Router deposit, while the later
+   Router-to-Resonance action is permissionless and may be manual or automated without a role or bounty.
+5. Global rates used for future handoffs halve at immutable intervals measured from Mine deployment and continue at a positive
    immutable tail. GBX therefore has no protocol-defined economic maximum. It retains ERC-2612 permit but has no
    ERC20Votes checkpoints.
 6. SignalGBX accepts `signal` or underlying-GBX-permit `signalWithPermit` only after reciprocal Resonance binding and
@@ -22,8 +25,8 @@ The required behavior is:
    staking or unstaking do not exist. `moveSignal` changes allocation but not GBX custody, sGBX supply, or voting units.
    `withdrawSignal` atomically removes the selected Strategy and Bribe position, burns the same sGBX, and returns the
    same GBX. SignalGBX has no ERC-2612 approval permit or withdrawal lock.
-7. Resonance uses one active seven-day USDG schedule. During an active period ResonanceRouter holds a balance below the
-   exact amount left; once its complete balance is at least that amount, Resonance checkpoints and restarts seven days
+7. Resonance uses one active seven-day USDG schedule. During an active period ResonanceRouter may hold a balance below
+   or above the exact amount left until someone calls `route`; on a qualifying call, Resonance checkpoints and restarts seven days
    with `reward + left`. The raw schedule uses quotient-plus-front-loaded-remainder release, while the global reward
    index uses `1e36` precision. Index and Strategy floors, zero-active-signal emission, and direct donations are accepted
    Resonance surplus rather than Fund liabilities. SignalGBX-coordinated changes checkpoint prior elapsed flow and Strategy purchases
@@ -39,8 +42,9 @@ The required behavior is:
 8. Fund reads Mine's constant-time effective supply before every redemption denominator snapshot, then performs registry-free,
    caller-selected in-kind redemption atomically with the GBX burn.
 9. LiquidityPosition permanently holds one precommitted single-sided GBX/USDG v4 position at fixed principal. Anyone
-   may harvest fees; USDG transfers to ResonanceRouter, which may retain it until the balance qualifies, and GBX is
-   burned through Fund atomically.
+   may harvest fees; USDG transfers to ResonanceRouter and the harvest still attempts `route()` in the same atomic
+   transaction, while GBX is burned through Fund atomically. This downstream coupling is specific to fee harvesting,
+   not Mine handoffs.
 10. The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. SignalGBX
     retains non-transferable ERC20Votes checkpoints on the block-number clock for a future external integration, but
     the core assigns them no proposal, quorum, delay, cancellation, or execution semantics. Resonance is the only core

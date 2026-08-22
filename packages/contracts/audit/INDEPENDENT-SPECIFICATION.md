@@ -2,7 +2,7 @@
 
 Date: 2026-08-15. Authority model reconciled 2026-08-21 for ADRs 0034 and 0036.
 
-This is the review target for ADRs 0027, 0028, 0029, 0031, 0033, 0034, 0035, and 0036 in the development
+This is the review target for ADRs 0027, 0028, 0029, 0031, 0033-0036, and 0044 in the development
 candidate. It is not an independent audit result.
 
 ## Authority model
@@ -31,12 +31,16 @@ candidate. It is not an independent audit result.
 - Mine has exactly sixteen permanent slots from construction.
 - Each slot price decays linearly to zero over one hour. Epoch ID, deadline, and maximum price protect handoffs.
 - A handoff settles only the displaced slot. Each tenure receives `elapsed * slot.tps`, and `slot.tps` is never recomputed.
-- The incoming tenure receives `globalTps(totalMined + pendingEmission) / 16`.
+- The incoming tenure receives `globalTps(now - startTime) / 16`.
 - `aggregateTps`, `storedPendingEmission`, and `pendingUpdatedAt` make total pending emission and effective supply
   constant-time without iterating or mutating all slots.
-- Future-handoff global rates halve at immutable cumulative-mining thresholds and stop falling at a positive tail.
-- A nonempty price splits into an 80% displaced-miner pull claim plus a 20% Resonance route. An empty slot routes 100%.
-- Exact USDG balance deltas are required. Mine retains only outstanding claims, and claims cannot be redirected.
+- Future-handoff global rates halve at immutable intervals measured from Mine deployment and stop falling at a positive tail.
+- A nonempty price splits into an 80% displaced-miner pull claim plus a 20% exact deposit into ResonanceRouter. An
+  empty slot deposits 100%.
+- Exact USDG balance deltas are required. Mine retains only outstanding claims, claims cannot be redirected, and
+  `RevenueDeposited` proves the protocol share reached ResonanceRouter.
+- Mine never calls `ResonanceRouter.route()`. Routing is a later permissionless action with no caller role, bounty, or
+  liveness guarantee. A failed Router deposit can revert a paid handoff; later Router or Resonance failure cannot.
 
 ## Signals, Strategies, and Bribes
 
@@ -57,6 +61,8 @@ candidate. It is not an independent audit result.
   same-transaction notifications release zero new revenue. A live top-up qualifies only when Router revenue is at
   least the exact active `left`; qualifying revenue restarts seven days with `reward + left`, while smaller balances
   remain in ResonanceRouter for a later permissionless attempt.
+- A qualifying Router balance does not execute itself and may wait indefinitely until a manual, frontend, volunteer-
+  keeper, or cron caller invokes `route()`.
 - Killing a Strategy checkpoints and preserves its accrued claim, excludes its full weight from future rewards, blocks
   later additions, and leaves incumbent signalers free to exit without decrementing the active total twice.
 - One uniform Strategy type checkpoints and pulls released revenue before auctioning its complete USDG lot. Each
@@ -77,8 +83,9 @@ candidate. It is not an independent audit result.
 - Every selected token uses one effective pre-burn supply and raw balance snapshot. The burn and
   all exact transfers are atomic. Zero, GBX, and duplicates are rejected with EIP-1153 marks. A basket-wide final
   balance check rejects distinct selected addresses whose transfers consume the same snapshotted backing.
-- LiquidityPosition permanently holds one exact hookless GBX/USDG v4 NFT. Harvesting removes zero principal, routes
-  complete USDG through ResonanceRouter, burns complete GBX through Fund, and reverts on any failure.
+- LiquidityPosition permanently holds one exact hookless GBX/USDG v4 NFT. Harvesting removes zero principal, deposits
+  complete USDG into ResonanceRouter and attempts `route()` in the same transaction, burns complete GBX through Fund,
+  and reverts on any failure. ADR 0044 does not decouple this path.
 
 ## Release properties
 

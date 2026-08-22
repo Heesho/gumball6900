@@ -6,8 +6,10 @@ import './mining.css';
 
 /* The mine — sixteen reverse Dutch auctions, lifted from docs/deck (mine sim).
    Mirrors Mine.sol mechanics: linear decay to zero over PRICE_DECAY_PERIOD,
-   80/20 vs 100% payment routing, tenure-locked tps, halving thresholds that
-   themselves halve. Illustrative parameters only.
+   80/20 vs 100% payment allocation, tenure-locked tps, and the prospective
+   time-based rate schedule anchored to Mine.startTime. The model stops the
+   protocol share at ResonanceRouter: the later permissionless route call is a
+   separate action with no timing guarantee. Market activity is illustrative.
 
    THE DRAWING. A falling price is a descent, so the mine is drawn as sixteen
    descents on one shared dollar axis: each slot owns a column, each column is
@@ -23,31 +25,32 @@ import './mining.css';
        paid. That leap is the sawtooth — the single move that makes this a
        market rather than a giveaway — so it is drawn, not implied.
      · THE PAYMENT LANE. A reserved strip below the columns and above the
-       routing bar that nothing else is ever drawn in. Money drops out of the
+       deposit bar that nothing else is ever drawn in. Money drops out of the
        taken column into the lane and runs along it to a fixed end: left is the
-       person displaced (their 80%, and the GBX minted to them on the spot),
-       right is the fund's 20%, landing on the blue segment of the bar below.
-     · THE ROUTING BAR, permanently divided 80 / 20, widening to the full width
-       for the one case that routes everything: a slot nobody has ever taken.
+       displaced miner's 80% pull claim (and the GBX minted on settlement),
+       right is the protocol's 20% Router deposit, landing on the blue segment
+       of the bar below.
+     · THE DEPOSIT BAR, permanently divided 80 / 20, widening to the full width
+       for the one case that deposits everything: a slot nobody has ever taken.
 
    Nothing is ever drawn over a price label: prices are painted in their own
    pass on top of every mark, and the lane clips its own traffic. Nothing is
    ever cut off by the frame either — see the axis note below.
 
    TWO ENCODINGS, BOTH KEYED. A column drawn in brand blue is a slot nobody has
-   ever taken, which is the only state that routes the whole payment to the
-   fund; the rail above the plot says so beside the plot itself, not four
+   ever taken, which is the only state that deposits the whole payment in the
+   Router; the rail above the plot says so beside the plot itself, not four
    hundred pixels below it. And the reader's own lane carries a mark nothing
    else uses — a full-height hairline guide under a white YOU plate — so it
    survives the width at which the number row has no room to spell the word.
 
    WHO IS BUYING. Sixteen slots change hands constantly and the reader is one
    participant among them, not the market. The narrated programme is a five-beat
-   cycle — another miner's 80/20 take, a never-taken slot routing 100%, the
+   cycle — another miner's 80/20 take, a never-taken slot depositing 100%, the
    reader's own take, another miner's take, and then the reader being displaced
-   and cashed out. One narrated take in five is the reader's; the reader holds
+   and credited a claim. One narrated take in five is the reader's; the reader holds
    at most one slot at a time; and the last beat is the only place the 80%
-   cash-out is taught from the side of the person receiving it. How long that
+   claim is taught from the side of the person receiving it. How long that
    tenure runs is redrawn every cycle, so what the reader walks away with is a
    different number each time rather than a figure they can predict. */
 
@@ -56,14 +59,15 @@ const SLOTS = 16;
 const DECAY = 3600; // Mine.PRICE_DECAY_PERIOD, seconds
 const MINER_BPS = 8000; // Mine.PREVIOUS_MINER_BPS
 const BPS = 10000;
-const MULT = 2.0; // illustrative pick inside Mine's 1.1–3.0 bound
-const MIN_PRICE = 1; // Mine.MIN_INITIAL_PRICE, in dollars
-const MAX_PRICE = 60; // stands in for Mine's MAX_INITIAL_PRICE cap
-
-// Illustrative emission curve.
-const INITIAL_TPS = 4000 / 3600; // GBX/s, all slots combined
-const HALVING = 250000;
-const TAIL = 200 / 3600;
+const MULT = 2; // Mine.PRICE_MULTIPLIER
+const MIN_PRICE = 1; // Mine.MINIMUM_INITIAL_PRICE = 1e6 raw six-decimal USDG
+const INITIAL_TPS = 64; // Mine.INITIAL_TPS, GBX/s globally
+const HALVING_PERIOD = 69 * 86400; // Mine.HALVING_PERIOD, seconds from startTime
+const TAIL_TPS = 1; // Mine.TAIL_TPS, GBX/s globally
+const MINE_START_TIME = 0;
+const SIM_ARRIVAL_TIME = 10 * 60; // enough reachable history to desynchronise occupied tenures
+const SLOT_HOURLY = (INITIAL_TPS / SLOTS) * 3600;
+const SLOT_HOURLY_LABEL = SLOT_HOURLY.toLocaleString('en-US');
 
 const NAMES = [
   'ava',
@@ -83,7 +87,7 @@ const NAMES = [
   'koi',
   'lux',
 ];
-// Never-taken slots: the only ones that can route 100%. Two of the four sit
+// Never-taken slots: the only ones that can deposit 100%. Two of the four sit
 // inside the detail strip, so the reader watches a cell go open → taken.
 const OPEN_AT_START = new Set([1, 2, 9, 13]);
 // The four slots the detail strip names. The other twelve are drawn, not
@@ -113,7 +117,7 @@ const DROP = 0.17; // the share of a chip's flight spent falling into the lane
    drawn on top of its twin — one frame in a thousand, but it is a number over
    a number. They pick up their figures a beat after they have parted. */
 const PART = DROP + 0.06;
-/* The routing divider has to be telling the truth while the money it explains
+/* The allocation divider has to be telling the truth while the money it explains
    is still in the air. A payment's chips are airborne for well under a second,
    so a bar that is still easing at +1s draws the inverse of its own caption for
    the whole transfer — the reader is told 80/20 and shown 3% at the moment they
@@ -160,7 +164,7 @@ const CELL_SHELL = DETAIL.map((i) => {
     owner: open ? 'open' : '@' + NAMES[i],
     price: '$' + (4 + ((i * 397) % 2600) / 100).toFixed(2),
     width: ((i * 53) % 88) + 6 + '%',
-    sub: open ? 'never taken · 0/h' : ((i * 13) % 40).toFixed(1) + ' GBX · 250/h',
+    sub: open ? 'never taken · 0/h' : ((i * 13) % 40).toFixed(1) + ' GBX · ' + SLOT_HOURLY_LABEL + '/h',
   };
 });
 
@@ -183,9 +187,9 @@ interface CellRefs {
   timer: ReturnType<typeof setTimeout> | null;
 }
 
-/** A payment in flight. It falls out of the taken column into the lane and then
-    runs along the lane to one of its two ends. `a`/`b` are its window inside the
-    event, so the cash and the GBX that follows it never sit on top of each other. */
+/** A payment allocation in flight. It falls out of the taken column into the
+    lane and then runs along the lane to one of its two ends. `a`/`b` are its
+    window inside the event, so the claim and GBX that follows it never overlap. */
 interface Part {
   x0: number;
   x1: number;
@@ -228,19 +232,11 @@ interface Layout {
   wide: boolean;
 }
 
-function globalTps(mined: number): number {
-  // Mirrors Mine._rateState: thresholds halve alongside the rate.
-  let halvings = 0;
-  let next = HALVING;
-  let tps = INITIAL_TPS;
-  while (mined >= next && halvings < 64) {
-    halvings++;
-    tps = INITIAL_TPS / Math.pow(2, halvings);
-    if (tps <= TAIL) return TAIL;
-    next += HALVING / Math.pow(2, halvings);
-  }
-  tps = INITIAL_TPS / Math.pow(2, halvings);
-  return tps <= TAIL ? TAIL : tps;
+function globalTps(elapsedSinceStart: number): number {
+  // Mirrors Mine._globalTps: only deployment-time age selects the prospective
+  // rate. Minted and pending supply do not participate.
+  const halvings = Math.floor(Math.max(0, elapsedSinceStart) / HALVING_PERIOD);
+  return Math.max(INITIAL_TPS / Math.pow(2, halvings), TAIL_TPS);
 }
 
 function money(n: number): string {
@@ -255,17 +251,10 @@ function gbx(n: number): string {
   return n.toFixed(1);
 }
 
-/* The annotation on a restart leap, DERIVED from the two prices the leap is
+/* The annotation on a restart leap is derived from the two prices the leap is
    drawn between — the ghost tick at what was paid, and the head of the column
-   it climbed to. The rule is paid × MULT, but the restart is clamped into
-   [MIN_PRICE, MAX_PRICE], and on any take dear enough for the ceiling to bite
-   the drawn leap is simply not ×MULT: paying $48.69 restarts the slot at $60,
-   which is ×1.23. A constant label would print ×2 over a leap that is nothing
-   of the sort, with both contradicting figures on screen at once. So the label
-   states what the drawing is actually doing.
-
-   Two decimals, the same convention every price in this panel uses, with the
-   trailing zeros dropped so an unclamped leap still reads a clean "×2".
+   it climbed to. Mine fixes the multiplier at ×2; this display never approaches
+   the contract's uint192 raw-price cap.
 
    When the FLOOR is what set the price, the label names the floor instead of
    quoting a ratio. Nothing was multiplied — a $0.17 take does not restart at
@@ -387,7 +376,7 @@ export function Mining() {
     const faintRGB = rgb(FAINT);
     const blueA = (a: number) => `rgba(${blueRGB[0]},${blueRGB[1]},${blueRGB[2]},${a})`;
     const inkA = (a: number) => `rgba(${inkRGB[0]},${inkRGB[1]},${inkRGB[2]},${a})`;
-    /* The routing bar keys two blues: the 20% leg is brand blue at full
+    /* The deposit bar keys two blues: the 20% leg is brand blue at full
        strength, the 80% leg is the same blue laid down at .6. Flatten that
        second tone to one opaque value — resolved by the browser's own
        compositor against the panel ground, so it is exact rather than
@@ -449,7 +438,7 @@ export function Mining() {
     });
     if (cells.size !== DETAIL.length) return;
 
-    const S = { t: 0, totalMined: 0, revenue: 0, paidToMiners: 0, slots: [] as Slot[] };
+    const S = { t: 0, totalMined: 0, routerDeposits: 0, paidToMiners: 0, slots: [] as Slot[] };
     // Per-slot event emphasis, in sim seconds, decayed every step so lit
     // states can never accumulate.
     const flash = new Array<number>(SLOTS).fill(0);
@@ -459,11 +448,11 @@ export function Mining() {
     const leapP = new Array<number>(SLOTS).fill(1);
     const parts: Part[] = [];
     let scaleTop = 30; // the dollar axis, eased so it never snaps
-    // The routing bar states the rule at rest and shows the exception while the
-    // narrated take is the one that routed everything. It is tied to the tape,
+    // The deposit bar states the rule at rest and shows the exception while the
+    // narrated take is the one that deposited everything. It is tied to the tape,
     // never to a timer, so bar and narration can never disagree.
-    let routeFull = false;
-    // …and it moves as a fixed-length ease between the two routes, so it is
+    let depositFull = false;
+    // …and it moves as a fixed-length ease between the two allocations, so it is
     // done inside the event window rather than creeping after it.
     let divFrom = 0.8;
     let divTo = 0.8;
@@ -483,16 +472,16 @@ export function Mining() {
     let L: Layout | null = null;
 
     function seedBoard(): void {
-      S.t = 0;
+      S.t = SIM_ARRIVAL_TIME;
       S.totalMined = 0;
-      S.revenue = 0;
+      S.routerDeposits = 0;
       S.paidToMiners = 0;
       S.slots.length = 0;
       flash.fill(0);
       paidAt.fill(0);
       leapP.fill(1);
       parts.length = 0;
-      routeFull = false;
+      depositFull = false;
       divFrom = 0.8;
       divTo = 0.8;
       divP = 1;
@@ -504,20 +493,24 @@ export function Mining() {
       NAMES.forEach((name, i) => {
         const open = OPEN_AT_START.has(i);
         const slot: Slot = {
-          // Start every slot at its own point in its own cycle, otherwise the whole
-          // board reaches its reservation together and all sixteen change hands at once.
+          // Start occupied slots at independently reachable times after deployment,
+          // otherwise the whole board reaches its reservation together and all
+          // sixteen change hands at once. Empty slots retain Mine's deployment-time
+          // $1 auction and never get silently reopened.
           owner: open ? null : name,
-          initialPrice: 4 + Math.random() * 26,
-          // A never-taken slot has only been decaying since deployment, so it is
-          // early in its hour; a held slot is anywhere in its own cycle.
-          startedAt: -Math.random() * DECAY * (open ? 0.14 : 0.9),
-          lastAccruedAt: 0,
-          tps: open ? 0 : INITIAL_TPS / SLOTS, // vacant slots emit nothing (Mine.sol)
-          mined: open ? 0 : Math.random() * 40,
+          initialPrice: open ? MIN_PRICE : 4 + Math.random() * 26,
+          startedAt: open ? MINE_START_TIME : MINE_START_TIME + Math.random() * S.t,
+          lastAccruedAt: open ? MINE_START_TIME : MINE_START_TIME + Math.random() * S.t,
+          tps: open ? 0 : globalTps(S.t - MINE_START_TIME) / SLOTS, // vacant slots emit nothing
+          mined: 0,
           // Reservation as a fraction of the slot's own price, redrawn per tenure —
           // the desync that keeps the board from churning in lockstep.
           reserve: 0,
         };
+        if (!open) {
+          slot.lastAccruedAt = slot.startedAt;
+          slot.mined = (S.t - slot.startedAt) * slot.tps;
+        }
         slot.reserve = slot.initialPrice * (0.25 + Math.random() * 0.55);
         S.slots.push(slot);
       });
@@ -560,7 +553,7 @@ export function Mining() {
     }
 
     /* Vertical order, top to bottom: the plot, the slot-number row, the
-       payment lane, the rule, the routing bar. The lane is reserved: no ramp,
+       payment lane, the rule, the deposit bar. The lane is reserved: no ramp,
        marker or price ever enters it, and no payment ever leaves it. */
     function layout(): Layout {
       const w = view.w;
@@ -643,40 +636,40 @@ export function Mining() {
 
        The geometry is the argument: both legs enter the lane directly beneath
        the taken column — the one that is leaping at that moment — settle onto
-       the rail and run to a fixed end of it. Left is the person who just left
-       the mine: their 80% of the payment, and behind it the GBX minted to them
-       at settlement. Right is the fund, directly above the blue segment of the
-       bar that the 20% becomes.
+       the rail and run to a fixed end of it. Left is the pull claim credited to
+       the person who just left the mine, and behind it the GBX minted to them at
+       settlement. Right is ResonanceRouter, directly above the blue segment of
+       the bar that the 20% deposit becomes.
 
        Each chip is painted in the exact tone of the segment it is flying to, so
        the colour says where the money is going before it arrives: the deep blue
-       runs left to the displaced miner, the bright blue runs right to the
-       fund. */
-    function transferFx(from: { x: number }, toMiner: number, toFund: number, accrued: number): void {
+       runs left to the displaced miner's claim, the bright blue runs right to
+       ResonanceRouter. */
+    function transferFx(from: { x: number }, toMiner: number, toRouter: number, accrued: number): void {
       if (warming || !L) return;
       const l = L;
       if (toMiner > 0) {
-        spawn(from.x, l.laneL, 9, BLUE_80, money(toMiner), 'left', 0, 0.78, CHIP_INK_80);
-        spawn(from.x, l.laneR, 5, BLUE, money(toFund), 'right', 0, 0.78);
+        spawn(from.x, l.laneL, 9, BLUE_80, 'claim ' + money(toMiner), 'left', 0, 0.78, CHIP_INK_80);
+        spawn(from.x, l.laneR, 5, BLUE, money(toRouter), 'right', 0, 0.78);
       } else {
-        spawn(from.x, l.laneR, 10, BLUE, money(toFund), 'right', 0, 0.86);
+        spawn(from.x, l.laneR, 10, BLUE, money(toRouter), 'right', 0, 0.86);
       }
-      /* Whoever is displaced walks away with their mined GBX as well as the
-         cash, so it follows the 80% leg down the same lane, one pass behind it.
+      /* Whoever is displaced receives their mined GBX as well as the 80% claim,
+         so the GBX follows that leg down the same lane, one pass behind it.
          Strictly behind: it enters at 0.78, the exact age the two USDG chips
          are retired at, because it enters at the taken column — where the
-         fund's figure is still standing while that figure is on its way out.
+         Router figure is still standing while that figure is on its way out.
          Overlapping the two passes put a white square and a white knockout on
          top of a live money label for a fifth of a second. The lane carries the
-         cash pass, then the GBX pass; never both. */
+         claim pass, then the GBX pass; never both. */
       if (accrued > 0) {
         spawn(from.x, l.laneL, 5, inkA(0.92), '+' + gbx(accrued) + ' GBX', 'left', 0.78, 1.28);
       }
     }
 
     /* The tape. Every narrated take says who bought, who was displaced, and
-       where each half of the money went — including the beat where the reader
-       is the one displaced, which is the only place the cash-out is shown from
+       where each allocated share went — including the beat where the reader
+       is the one displaced, which is the only place the claim is shown from
        the receiving side. */
     function narrate(
       index: number,
@@ -684,30 +677,30 @@ export function Mining() {
       displaced: string | null,
       paid: number,
       toMiner: number,
-      toFund: number,
+      toRouter: number,
       accrued: number,
     ): void {
       const who = buyer === 'you' ? 'You take slot ' : '@' + buyer + ' takes slot ';
       setText(els.buyline, who + pad2(index + 1) + ' for ' + money(paid) + '.');
-      routeFull = !displaced;
+      depositFull = !displaced;
       if (displaced) {
-        setText(els.labMiner, '80% → ' + (displaced === 'you' ? 'you' : '@' + displaced) + ', displaced');
+        setText(els.labMiner, '80% claim → ' + (displaced === 'you' ? 'you' : '@' + displaced));
         setText(els.valMiner, money(toMiner));
-        setText(els.labFund, '20% → the fund’s buying power');
-        setText(els.valFund, money(toFund));
+        setText(els.labFund, '20% deposited → ResonanceRouter');
+        setText(els.valFund, money(toRouter));
         setText(
           els.exitline,
           (displaced === 'you' ? 'You exit' : '@' + displaced + ' exits') +
             ' with ' +
             gbx(accrued) +
-            ' GBX, minted on the spot.',
+            ' GBX minted; the USDG claim is withdrawable.',
         );
       } else {
         setText(els.labMiner, 'no one displaced — first-ever take');
         setText(els.valMiner, '—');
-        setText(els.labFund, '100% → the fund’s buying power');
-        setText(els.valFund, money(toFund));
-        setText(els.exitline, 'The whole payment becomes buying power.');
+        setText(els.labFund, '100% deposited → ResonanceRouter');
+        setText(els.valFund, money(toRouter));
+        setText(els.exitline, 'Mine deposits the whole payment and stops there.');
       }
       els.labMiner.classList.toggle('is-off', !displaced);
     }
@@ -735,28 +728,30 @@ export function Mining() {
         S.totalMined += accrued;
       }
 
-      // Route the payment: vacant slot → 100% revenue; occupied → 80/20.
+      // Allocate the payment: vacant slot → 100% Router deposit; occupied →
+      // an 80% pull claim plus the exact 20% Router deposit.
       let toMiner = 0;
-      let toFund = 0;
+      let toRouter = 0;
       if (paid > 0) {
         if (displaced === null) {
-          toFund = paid;
+          toRouter = paid;
         } else {
           toMiner = (paid * MINER_BPS) / BPS;
-          toFund = paid - toMiner;
+          toRouter = paid - toMiner;
         }
-        S.revenue += toFund;
+        S.routerDeposits += toRouter;
         S.paidToMiners += toMiner;
       }
 
-      // New tenure: restart price at paid × MULT with the $1 floor; the new rate
-      // re-divides the current global rate by sixteen and is locked until replaced.
+      // New tenure: restart price at paid ×2 with the $1 floor; only deployment-
+      // time age selects the prospective rate, which is divided by sixteen and
+      // locked until this slot is replaced.
       // Nobody displaces themselves: the incoming miner is never the outgoing one.
       slot.owner = forcedOwner || otherName(displaced);
-      slot.initialPrice = Math.min(Math.max(paid * MULT, MIN_PRICE), MAX_PRICE);
+      slot.initialPrice = Math.max(paid * MULT, MIN_PRICE);
       slot.startedAt = S.t;
       slot.lastAccruedAt = S.t;
-      slot.tps = globalTps(S.totalMined) / SLOTS;
+      slot.tps = globalTps(S.t - MINE_START_TIME) / SLOTS;
       slot.mined = 0;
       slot.reserve = slot.initialPrice * (0.3 + Math.random() * 0.55);
 
@@ -783,11 +778,11 @@ export function Mining() {
 
       if (narrated) {
         featured = index;
-        narrate(index, slot.owner, displaced, paid, toMiner, toFund, accrued);
+        narrate(index, slot.owner, displaced, paid, toMiner, toRouter, accrued);
         if (!warming) {
           x2Col = index;
           x2Age = 1;
-          if (from) transferFx(from, toMiner, toFund, accrued);
+          if (from) transferFx(from, toMiner, toRouter, accrued);
         }
       }
     }
@@ -796,9 +791,9 @@ export function Mining() {
        No one operates this board. On its own clock — sim time, so a section
        that has never been on screen has not burned its cycle — one take is
        narrated every BEAT. The cycle guarantees, in order: an ordinary 80/20
-       take by a miner; a never-taken slot routing 100% to the fund; the
+       take by a miner; a never-taken slot depositing 100% in the Router; the
        reader's own take; another miner's; and the reader being displaced and
-       cashed out. Ambient miner purchases keep running underneath, unnarrated. */
+       credited its claim. Ambient miner purchases keep running underneath, unnarrated. */
     let beatIdx = 0;
     let nextBeat = 0;
     // The two beats the reader's tenure spans, drawn fresh each time they buy.
@@ -808,17 +803,17 @@ export function Mining() {
     /** Which never-taken slot the scripted first-take spends next.
 
         CHEAPEST FIRST, and it matters. There are exactly four slots that can
-        ever route 100%, they are spent one at a time over about forty seconds,
+        ever deposit 100%, they are spent one at a time over about forty seconds,
         and every one of them is decaying towards zero the whole while. Spending
         the dearest first leaves the cheapest — the one closest to being worth
         nothing — to carry the last and most recent demonstration of the
-        headline route, which is how the panel came to teach "the whole payment
-        becomes buying power" over a payment of $0.00 and a fund tally that did
+        headline allocation, which is how the panel came to teach "the whole
+        payment is deposited" over a payment of $0.00 and a Router tally that did
         not move. Cheapest first spends each vacancy while it still has a price
         to spend and leaves the dearest standing, so the last 100% take on
         screen — the one a reader arriving late sees — is the one worth the
         most. Same four slots, same prices, same order of magnitude of total
-        revenue: only which of the eligible slots the beat targets changes,
+        Router deposits: only which of the eligible slots the beat targets changes,
         exactly as the reader's own beat already chooses among occupied slots.
 
         Cheapest measured AT THE MOMENT ITS TURN WOULD COME, not at this
@@ -886,7 +881,7 @@ export function Mining() {
     function runBeat(): void {
       const scripted = PROGRAM[beatIdx % PROGRAM.length] ?? 'other-occ';
       /* A never-taken slot's hour runs out whether or not anyone takes it, and
-         those four are the only slots that can ever route 100%. So while any
+         those four are the only slots that can ever deposit 100%. So while any
          remain, the cycle's second miner beat spends one too: all four are seen
          at a real price, and the foot counter's walk down to "every slot has
          been taken once" is a thing that happens rather than a thing that
@@ -922,7 +917,7 @@ export function Mining() {
           buy(i, undefined, true);
           return;
         }
-        // Every slot has been taken once: the 100% route honestly no longer
+        // Every slot has been taken once: the 100% deposit honestly no longer
         // exists, and the foot counter has already said so.
       }
       const i = pickOccupied();
@@ -936,12 +931,7 @@ export function Mining() {
         // Never inside the first stretch of a tenure, so slots cannot churn in
         // lockstep. Never-taken slots are left for the scripted first-take, and
         // the reader's own slot is left for the scripted displacement.
-        if (
-          slot.owner !== null &&
-          slot.owner !== 'you' &&
-          S.t - slot.startedAt > 240 &&
-          priceOf(slot) <= slot.reserve
-        )
+        if (slot.owner !== null && slot.owner !== 'you' && S.t - slot.startedAt > 240 && priceOf(slot) <= slot.reserve)
           buy(i, undefined, false);
         if (flash[i]! > 0) flash[i] = Math.max(0, flash[i]! - dt / EVT);
         if (leapP[i]! < 1) leapP[i] = Math.min(1, leapP[i]! + dt / LEAP);
@@ -973,7 +963,7 @@ export function Mining() {
       scaleTop += (wanted - scaleTop) * Math.min(1, dt / (wanted > scaleTop ? AXIS_RISE : AXIS_FALL));
       scaleTop = Math.max(scaleTop, drawn * AXIS_SAFE, AXIS_MIN);
 
-      const divWant = routeFull ? 0 : 0.8;
+      const divWant = depositFull ? 0 : 0.8;
       if (divWant !== divTo) {
         divFrom = divShown;
         divTo = divWant;
@@ -1243,8 +1233,7 @@ export function Mining() {
           const withCaption = text + ' YOU';
           if (ctx.measureText(withCaption).width <= x1 - x0 + 5) text = withCaption;
         }
-        ctx.fillStyle =
-          you || isFeat ? HI : mix(DETAIL.includes(i) ? mutedRGB : faintRGB, hiRGB, flash[i]!);
+        ctx.fillStyle = you || isFeat ? HI : mix(DETAIL.includes(i) ? mutedRGB : faintRGB, hiRGB, flash[i]!);
         ctx.fillText(text, mid, l.numY);
         if (you) {
           const tw = ctx.measureText(text).width;
@@ -1256,7 +1245,7 @@ export function Mining() {
       /* --- the payment lane -------------------------------------------------
          A reserved strip, empty at rest but for its rail and the two ends the
          money runs to. Left end sits over "the displaced miner", right end over
-         "the fund" and the blue segment of the bar below it. */
+         "ResonanceRouter" and the blue segment of the bar below it. */
       ctx.strokeStyle = inkA(0.09);
       ctx.lineWidth = 1;
       ctx.beginPath();
@@ -1331,9 +1320,9 @@ export function Mining() {
 
       // --- where the payment goes ------------------------------------------
       // A bar permanently divided 80 / 20, that widens to the whole width for
-      // the one case that routes everything: a slot nobody has ever taken.
+      // the one case that deposits everything: a slot nobody has ever taken.
       const div = divShown;
-      const isFull = routeFull;
+      const isFull = depositFull;
 
       ctx.strokeStyle = RULE;
       ctx.lineWidth = 1;
@@ -1345,7 +1334,7 @@ export function Mining() {
       ctx.font = mono(l.narrow ? 8.5 : 9.5);
       ctx.textAlign = 'left';
       ctx.fillStyle = FAINT;
-      ctx.fillText('EVERY PAYMENT SPLITS HERE', l.barX, l.sepY + 14);
+      ctx.fillText('MINE ALLOCATES THE PAYMENT', l.barX, l.sepY + 14);
 
       const dw = 2;
       ctx.fillStyle = BLUE_80;
@@ -1357,14 +1346,14 @@ export function Mining() {
       ctx.font = mono(l.narrow ? 8.5 : 9.5);
       ctx.textAlign = 'left';
       ctx.fillStyle = isFull ? inkA(0.3) : MUTED;
-      ctx.fillText(isFull ? 'NO ONE DISPLACED' : l.narrow ? '80% → MINER' : '80% → THE DISPLACED MINER', l.barX, labY);
-      ctx.textAlign = 'right';
-      ctx.fillStyle = BLUE;
       ctx.fillText(
-        isFull ? (l.narrow ? '100% → FUND' : '100% → THE FUND') : l.narrow ? '20% → FUND' : '20% → THE FUND',
-        l.barX + l.barW,
+        isFull ? 'NO ONE DISPLACED' : l.narrow ? '80% → CLAIM' : '80% → DISPLACED MINER CLAIM',
+        l.barX,
         labY,
       );
+      ctx.textAlign = 'right';
+      ctx.fillStyle = BLUE;
+      ctx.fillText(isFull ? '100% → ROUTER' : '20% → ROUTER', l.barX + l.barW, labY);
     }
 
     /* ------------------------------------------------------------ DOM paint */
@@ -1385,10 +1374,7 @@ export function Mining() {
         // Slot clock — EMPTY at (re)start, FULL at the hour, when the price has
         // decayed to zero. It fills; it does not drain.
         setWidth(c.bar, (frac * 100).toFixed(1) + '%');
-        setText(
-          c.sub,
-          open ? 'never taken · 0/h' : gbx(slot.mined) + ' GBX · ' + Math.round(slot.tps * 3600) + '/h',
-        );
+        setText(c.sub, open ? 'never taken · 0/h' : gbx(slot.mined) + ' GBX · ' + Math.round(slot.tps * 3600) + '/h');
       });
       const d = Math.floor(S.t / 86400);
       const h = Math.floor((S.t % 86400) / 3600);
@@ -1398,23 +1384,23 @@ export function Mining() {
       setText(
         els.stateLine,
         n > 0
-          ? n + (n === 1 ? ' slot never taken · it routes 100%' : ' slots never taken · they route 100%')
+          ? n + (n === 1 ? ' slot never taken · it deposits 100%' : ' slots never taken · they deposit 100%')
           : 'every slot has been taken once · every take now splits 80/20',
       );
       /* …and the plot's own key says the same thing the counter does. While a
-         never-taken slot remains, the blue key names a live route and a blue
+         never-taken slot remains, the blue key names a live deposit and a blue
          column is on the plot to point at. Once the last one is spent there is
          no blue column left and there never can be again, so the key stops
-         advertising a route the reader can no longer see: it dims to spent
+         advertising a deposit the reader can no longer see: it dims to spent
          rather than disappearing, because the history of watching it drain is
          the argument. Driven off the same count as the counter, so the head of
          the panel and its foot cannot say different things — including after a
          reset re-arms the board and the count returns to four. */
       els.keyOpen.classList.toggle('is-spent', n === 0);
-      setText(els.tFund, money(S.revenue));
+      setText(els.tFund, money(S.routerDeposits));
       setText(els.tPaid, money(S.paidToMiners));
       setText(els.tGbx, gbx(S.totalMined));
-      setText(els.tRate, Math.round(live * 3600).toLocaleString());
+      setText(els.tRate, Math.round(live * 3600).toLocaleString('en-US'));
       paintCanvas();
     }
 
@@ -1446,19 +1432,19 @@ export function Mining() {
       leapP.fill(1);
       x2Col = -1;
       x2Age = 0;
-      routeFull = false;
+      depositFull = false;
       divFrom = 0.8;
       divTo = 0.8;
       divP = 1;
       divShown = 0.8;
-      // Land on a real take rather than a placeholder: the tape, the routing
+      // Land on a real take rather than a placeholder: the tape, the deposit
       // bar and the money all tell the truth from the very first frame.
       if (resize()) paintCanvas();
       runBeat();
-      // …including the bar. There is no previous route to ease away from on a
+      // …including the bar. There is no previous allocation to ease away from on a
       // cold start, so the divider begins where the take it is drawn beside
       // already is, rather than sliding into agreement with its own caption.
-      divShown = divFrom = divTo = routeFull ? 0 : 0.8;
+      divShown = divFrom = divTo = depositFull ? 0 : 0.8;
       divP = 1;
     }
     warmStart();
@@ -1495,7 +1481,7 @@ export function Mining() {
         // points of their own hours, the reader's own take mid-leap with its
         // ghost tick and ×2 still showing, both halves of the payment caught in
         // the lane, and the counter still reporting the never-taken slots that
-        // route 100% — both routes taught in one frozen frame.
+        // deposit 100% — both allocations taught in one frozen frame.
         warmStart('you-buy');
         stepSim(18);
         paintSim();
@@ -1528,8 +1514,9 @@ export function Mining() {
               Sixteen slots pay for everything
             </h2>
             <p className="lede">
-              Mining is where the fund&apos;s money comes from. Miners pay USDG for one of sixteen permanent slots, and
-              that USDG is the fund&apos;s buying power. There is no other source — no team allocation, no presale.
+              Mining funds the protocol&apos;s buying power. Miners pay USDG for one of sixteen permanent slots; Mine
+              deposits the protocol share in ResonanceRouter for a later, separate routing call. There is no team
+              allocation or presale.
             </p>
           </div>
         </header>
@@ -1537,7 +1524,7 @@ export function Mining() {
         <div className="sim-panel reveal" style={{ '--d': '90ms' } as React.CSSProperties}>
           <div className="sim-panel__head">
             <span className="sim-panel__title sim-panel__title--blue">Mine — live model</span>
-            <span className="chip chip--warn">Illustrative parameters</span>
+            <span className="chip chip--warn">Illustrative market activity</span>
           </div>
           <div className="sim-panel__body">
             <p className="note mn-cap">
@@ -1550,7 +1537,7 @@ export function Mining() {
               <span className="mn-axis__key">
                 <span className="mn-axis__k mn-axis__k--open" id="mn-key-open">
                   <i />
-                  Never taken · 100% to the fund
+                  Never taken · 100% to Router
                 </span>
                 <span className="mn-axis__k mn-axis__k--held">
                   <i />
@@ -1563,7 +1550,7 @@ export function Mining() {
               <canvas
                 id="mn-canvas"
                 role="img"
-                aria-label="Sixteen slot prices drawn as sixteen straight descents on one dollar axis, each falling to zero one hour after its own tenure began. When a slot is taken its price leaps to a multiple of what was paid, and the payment runs along a lane below the columns into a bar that is eighty per cent to the displaced miner and twenty per cent to the fund."
+                aria-label="Sixteen slot prices drawn as sixteen straight descents on one dollar axis, each falling to zero one hour after its own tenure began. When an occupied slot is taken, eighty per cent becomes a pull claim for the displaced miner and twenty per cent is deposited in ResonanceRouter. A first fill deposits the complete payment. Mine does not forward that Router deposit into Resonance."
               />
             </div>
 
@@ -1578,13 +1565,13 @@ export function Mining() {
               </div>
               <dl className="mn-route">
                 <div className="mn-route__leg">
-                  <dt id="mn-lab-miner">80% → @pike, displaced</dt>
+                  <dt id="mn-lab-miner">80% claim → @pike</dt>
                   <dd className="num" id="mn-val-miner">
                     $7.83
                   </dd>
                 </div>
                 <div className="mn-route__leg">
-                  <dt id="mn-lab-fund">20% → the fund&apos;s buying power</dt>
+                  <dt id="mn-lab-fund">20% deposited → ResonanceRouter</dt>
                   <dd className="num blue" id="mn-val-fund">
                     $1.96
                   </dd>
@@ -1615,13 +1602,13 @@ export function Mining() {
 
             <dl className="tallies tallies--4 mn-tallies">
               <div className="tally">
-                <dt>USDG to the fund&apos;s buying power</dt>
+                <dt>USDG deposited in ResonanceRouter</dt>
                 <dd className="blue" id="mn-t-fund">
                   $0
                 </dd>
               </div>
               <div className="tally">
-                <dt>Paid back to displaced miners</dt>
+                <dt>Claims credited to displaced miners</dt>
                 <dd id="mn-t-paid">$0</dd>
               </div>
               <div className="tally">
@@ -1640,12 +1627,13 @@ export function Mining() {
                 day 0, 00:00
               </span>
               <span className="mn-state" id="mn-state">
-                4 slots never taken · they route 100%
+                4 slots never taken · they deposit 100%
               </span>
             </div>
             <p className="sim-note">
-              Sped up ~60×. Restart multiplier shown as ×2 — the contract fixes it at deployment, anywhere from 1.1× to
-              3×, with a $1 floor. Production parameters are unselected; figures are illustrative.
+              Sped up ~60×; prices and taker timing are illustrative. Fixed development constants: ×2 restart, $1 USDG
+              floor, and 64 GBX/s initially. The prospective rate halves every 69 days from Mine deployment to a 1 GBX/s
+              tail; only new tenures receive the new rate.
             </p>
           </div>
         </div>
@@ -1658,18 +1646,20 @@ export function Mining() {
             <h3 className="h3 col__t">One hour to zero</h3>
             <p className="col__b">
               Every slot&apos;s price falls in a straight line to zero over one hour, forever. Take one and it restarts
-              at a multiple of what you paid — so a slot nobody wants gets cheap and a contested slot gets expensive,
-              with no oracle and no admin.
+              at twice what you paid, with a $1 USDG floor — so a slot nobody wants gets cheap and a contested slot gets
+              expensive, with no oracle and no admin.
             </p>
           </div>
           <div className="col">
             <span className="col__n" aria-hidden="true">
               02
             </span>
-            <h3 className="h3 col__t">80% cash-out, 20% buying power</h3>
+            <h3 className="h3 col__t">80% claim, 20% Router deposit</h3>
             <p className="col__b">
-              Taking an occupied slot pays 80% of the price to the miner you displace — that is how miners exit with
-              cash — and 20% to the fund. A slot taken for the first time sends 100% to the fund.
+              Taking an occupied slot credits 80% of the price as the displaced miner&apos;s pull claim and
+              exact-transfers the other 20% into ResonanceRouter. A paid first fill deposits 100%. Mine then emits{' '}
+              <span className="num">RevenueDeposited</span> and never calls <span className="num">route()</span>; a
+              zero-price handoff moves no USDG.
             </p>
           </div>
           <div className="col">
@@ -1678,14 +1668,15 @@ export function Mining() {
             </span>
             <h3 className="h3 col__t">Your rate is locked</h3>
             <p className="col__b">
-              GBX issuance splits evenly across the sixteen slots. The per-second rate you get when you take a slot is
-              fixed for your entire tenure, and what you mined is minted to you when your tenure ends. GBX itself begins
-              as a single 20,000,000 allocation locked forever into market liquidity; every token after that is mined.
+              A new tenure receives one-sixteenth of the prospective global rate at that moment. The schedule starts at
+              64 GBX/s, halves every 69 days from Mine deployment, and stops falling at 1 GBX/s. Your assigned rate
+              stays fixed for the whole tenure; what you mined is minted when that tenure ends.
             </p>
           </div>
         </div>
         <p className="small muted measure mn-next reveal" style={{ '--d': '270ms' } as React.CSSProperties}>
-          Where that USDG goes next is decided by the holders — that&rsquo;s Resonance.
+          Router deposits can wait indefinitely. If anyone later calls the permissionless route, qualifying revenue can
+          enter Resonance&apos;s seven-day schedule — the Mine handoff itself never promises that step.
         </p>
       </div>
     </section>

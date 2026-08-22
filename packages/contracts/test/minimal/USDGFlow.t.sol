@@ -37,6 +37,7 @@ contract USDGFlowTest is ProtocolFixture {
         _signalOne(ALICE, address(targetStrategy));
 
         uint256 firstPayment = _occupyMineSlot(BOB);
+        resonanceRouter.route();
         uint256 elapsed = bound(rawElapsed, 0, 1 hours);
         vm.warp(block.timestamp + elapsed);
         uint256 replacementPayment = _occupyMineSlot(DAVE);
@@ -64,12 +65,11 @@ contract USDGFlowTest is ProtocolFixture {
         assertEq(resonance.left(address(usdg)), 0);
     }
 
-    /// @notice A temporary USDG block at Resonance rolls the complete Mine replacement back and remains retryable.
-    function test_BlockedRevenueIngressCannotPartiallyAdvanceAMineSlot() external {
+    /// @notice A blocked Resonance ingress cannot block Mine deposits, and a later permissionless route can retry.
+    function test_BlockedRevenueIngressDoesNotBlockMineAndRemainsPermissionlesslyRetryable() external {
         HostileRevenueGraph memory graph = _deployHostileRevenueGraph();
         GBX isolatedGBX = new GBX(GENESIS, address(this));
-        Mine isolatedMine =
-            new Mine(isolatedGBX, IERC20(address(graph.revenue)), address(graph.router), defaultMineConfig());
+        Mine isolatedMine = new Mine(isolatedGBX, IERC20(address(graph.revenue)), address(graph.router));
         isolatedGBX.setMinter(address(isolatedMine));
 
         Mine.Slot memory initialSlot = isolatedMine.getSlot(0);
@@ -79,25 +79,29 @@ contract USDGFlowTest is ProtocolFixture {
 
         vm.startPrank(DAVE);
         graph.revenue.approve(address(isolatedMine), payment);
-        vm.expectRevert("BLOCKED");
-        isolatedMine.mine(DAVE, 0, initialSlot.epochId, block.timestamp, payment);
+        isolatedMine.mine(DAVE, 0, initialSlot.epochId, block.timestamp, payment, "");
         vm.stopPrank();
 
-        Mine.Slot memory rolledBackSlot = isolatedMine.getSlot(0);
-        assertEq(rolledBackSlot.epochId, initialSlot.epochId);
-        assertEq(rolledBackSlot.miner, address(0));
-        assertEq(graph.revenue.balanceOf(DAVE), payment);
+        Mine.Slot memory occupiedSlot = isolatedMine.getSlot(0);
+        assertEq(occupiedSlot.epochId, initialSlot.epochId + 1);
+        assertEq(occupiedSlot.miner, DAVE);
+        assertEq(graph.revenue.balanceOf(DAVE), 0);
         assertEq(graph.revenue.balanceOf(address(isolatedMine)), 0);
-        assertEq(graph.revenue.balanceOf(address(graph.router)), 0);
+        assertEq(graph.revenue.balanceOf(address(graph.router)), payment);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), 0);
         assertEq(graph.resonance.left(address(graph.revenue)), 0);
 
-        graph.revenue.setBlocked(address(graph.resonance), false);
-        vm.prank(DAVE);
-        isolatedMine.mine(DAVE, 0, initialSlot.epochId, block.timestamp, payment);
+        vm.prank(KEEPER);
+        vm.expectRevert("BLOCKED");
+        graph.router.route();
 
-        assertEq(isolatedMine.getSlot(0).miner, DAVE);
-        assertEq(graph.revenue.balanceOf(DAVE), 0);
+        assertEq(graph.revenue.balanceOf(address(graph.router)), payment);
+        assertEq(graph.revenue.balanceOf(address(graph.resonance)), 0);
+
+        graph.revenue.setBlocked(address(graph.resonance), false);
+        vm.prank(CAROL);
+        graph.router.route();
+
         assertEq(graph.revenue.balanceOf(address(graph.router)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), payment);
         assertEq(graph.resonance.left(address(graph.revenue)), payment);
@@ -210,7 +214,7 @@ contract USDGFlowTest is ProtocolFixture {
 
         vm.startPrank(minerAccount);
         if (payment != 0) usdg.approve(address(mine), payment);
-        mine.mine(minerAccount, 0, slot.epochId, block.timestamp, payment);
+        mine.mine(minerAccount, 0, slot.epochId, block.timestamp, payment, "");
         vm.stopPrank();
     }
 

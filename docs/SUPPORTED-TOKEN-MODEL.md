@@ -56,9 +56,10 @@ selected token reverts the complete redemption, while omitted assets remain perm
 supply. Every selected address must also retain at least its own snapshotted balance less its payout after the complete
 basket transfer, preventing two token facades backed by one shared ledger from consuming the same backing twice.
 
-Mine USDG is also isolated through pull accounting. Exact USDG receipt is required at replacement, exact routed
-revenue must reach ResonanceRouter, and the contract retains only displaced-miner claims. A blocked claim recipient
-does not redirect the liability or block another miner's claim.
+Mine USDG is also isolated through pull accounting. Exact USDG receipt is required at replacement, and the exact
+protocol share must reach ResonanceRouter; the contract retains only displaced-miner claims. A blocked transfer into
+the Router still reverts the paid handoff, but later Router or Resonance failures occur in a separate transaction and
+cannot roll it back. A blocked claim recipient does not redirect the liability or block another miner's claim.
 
 ## Offchain presentation
 

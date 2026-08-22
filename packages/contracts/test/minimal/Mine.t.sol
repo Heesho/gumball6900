@@ -15,10 +15,6 @@ contract MineRouterIdentityHarness {
     constructor(IERC20 usdg_) {
         usdg = usdg_;
     }
-
-    function route() external pure returns (uint256 amount) {
-        return 0;
-    }
 }
 
 contract SenderFeeToken is MockERC20 {
@@ -47,12 +43,33 @@ contract SenderFeeToken is MockERC20 {
 /// @title MineTest
 /// @notice Covers fixed-slot handoffs, tenure-locked TPS, exact payment accounting, and cached pending emissions.
 contract MineTest is ProtocolFixture {
+    event Transfer(address indexed from, address indexed to, uint256 amount);
+    event Mined(
+        address indexed payer,
+        address indexed miner,
+        uint256 indexed index,
+        uint256 epochId,
+        address previousMiner,
+        uint256 price,
+        uint256 initialPrice,
+        uint256 tps,
+        string message
+    );
+    event RevenueDeposited(uint256 indexed index, uint256 indexed epochId, uint256 amount);
+
     function setUp() external {
         _deployProtocol();
     }
 
     function test_LaunchesWithSixteenEmptySlotsAndPermanentMiningAuthority() external view {
         assertEq(mine.SLOT_COUNT(), 16);
+        assertEq(mine.PRICE_MULTIPLIER(), 2);
+        assertEq(mine.MINIMUM_INITIAL_PRICE(), 1e6);
+        assertEq(mine.INITIAL_TPS(), 64 ether);
+        assertEq(mine.HALVING_PERIOD(), 69 days);
+        assertEq(mine.TAIL_TPS(), 1 ether);
+        assertEq(mine.MAX_MESSAGE_BYTES(), 280);
+        assertEq(mine.startTime(), DEPLOYED_AT);
         assertEq(mine.aggregateTps(), 0);
         assertEq(mine.storedPendingEmission(), 0);
         assertEq(mine.pendingUpdatedAt(), DEPLOYED_AT);
@@ -69,81 +86,29 @@ contract MineTest is ProtocolFixture {
         }
     }
 
-    function test_ConstructorRejectsInvalidDependenciesAndEconomicBounds() external {
-        Mine.Config memory config = defaultMineConfig();
+    function test_ConstructorRejectsInvalidDependenciesAndMismatchedRouter() external {
+        vm.expectRevert(Mine.ZeroAddress.selector);
+        new Mine(GBX(address(0)), IERC20(address(usdg)), address(resonanceRouter));
 
         vm.expectRevert(Mine.ZeroAddress.selector);
-        new Mine(GBX(address(0)), IERC20(address(usdg)), address(resonanceRouter), config);
+        new Mine(gbx, IERC20(address(0)), address(resonanceRouter));
 
         vm.expectRevert(Mine.ZeroAddress.selector);
-        new Mine(gbx, IERC20(address(0)), address(resonanceRouter), config);
-
-        vm.expectRevert(Mine.ZeroAddress.selector);
-        new Mine(gbx, IERC20(address(usdg)), address(0), config);
-
-        config.priceMultiplier = mine.MIN_PRICE_MULTIPLIER() - 1;
-        vm.expectRevert(abi.encodeWithSelector(Mine.PriceMultiplierOutOfRange.selector, config.priceMultiplier));
-        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), config);
-
-        config = defaultMineConfig();
-        config.priceMultiplier = mine.MAX_PRICE_MULTIPLIER() + 1;
-        vm.expectRevert(abi.encodeWithSelector(Mine.PriceMultiplierOutOfRange.selector, config.priceMultiplier));
-        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), config);
-
-        config = defaultMineConfig();
-        config.minimumInitialPrice = mine.MIN_INITIAL_PRICE() - 1;
-        vm.expectRevert(abi.encodeWithSelector(Mine.InitialPriceOutOfRange.selector, config.minimumInitialPrice));
-        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), config);
-
-        config = defaultMineConfig();
-        config.minimumInitialPrice = mine.MAX_INITIAL_PRICE() + 1;
-        vm.expectRevert(abi.encodeWithSelector(Mine.InitialPriceOutOfRange.selector, config.minimumInitialPrice));
-        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), config);
-
-        config = defaultMineConfig();
-        config.initialTps = 0;
-        vm.expectRevert(abi.encodeWithSelector(Mine.InitialTpsOutOfRange.selector, 0));
-        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), config);
-
-        config = defaultMineConfig();
-        config.initialTps = mine.MAX_INITIAL_TPS() + 1;
-        vm.expectRevert(abi.encodeWithSelector(Mine.InitialTpsOutOfRange.selector, config.initialTps));
-        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), config);
-
-        config = defaultMineConfig();
-        config.tailTps = mine.MIN_TAIL_TPS() - 1;
-        vm.expectRevert(abi.encodeWithSelector(Mine.TailTpsOutOfRange.selector, config.tailTps));
-        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), config);
-
-        config = defaultMineConfig();
-        config.tailTps = config.initialTps + 1;
-        vm.expectRevert(abi.encodeWithSelector(Mine.TailTpsOutOfRange.selector, config.tailTps));
-        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), config);
-
-        config = defaultMineConfig();
-        config.halvingAmount = mine.MIN_HALVING_AMOUNT() - 1;
-        vm.expectRevert(abi.encodeWithSelector(Mine.HalvingAmountOutOfRange.selector, config.halvingAmount));
-        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), config);
-
-        config = defaultMineConfig();
-        config.halvingAmount = mine.MAX_HALVING_AMOUNT() + 1;
-        vm.expectRevert(abi.encodeWithSelector(Mine.HalvingAmountOutOfRange.selector, config.halvingAmount));
-        new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter), config);
+        new Mine(gbx, IERC20(address(usdg)), address(0));
 
         MineRouterIdentityHarness wrongRouter = new MineRouterIdentityHarness(IERC20(address(target)));
-        config = defaultMineConfig();
         vm.expectRevert(abi.encodeWithSelector(Mine.UnexpectedRevenueToken.selector, address(usdg), address(target)));
-        new Mine(gbx, IERC20(address(usdg)), address(wrongRouter), config);
+        new Mine(gbx, IERC20(address(usdg)), address(wrongRouter));
     }
 
     function test_MineAndSlotViewsRejectInvalidInputs() external {
         Mine.Slot memory slot = mine.getSlot(0);
 
         vm.expectRevert(Mine.ZeroAddress.selector);
-        mine.mine(address(0), 0, slot.epochId, block.timestamp, type(uint256).max);
+        mine.mine(address(0), 0, slot.epochId, block.timestamp, type(uint256).max, "");
 
         vm.expectRevert(abi.encodeWithSelector(Mine.IndexOutOfBounds.selector, 16));
-        mine.mine(ALICE, 16, slot.epochId, block.timestamp, type(uint256).max);
+        mine.mine(ALICE, 16, slot.epochId, block.timestamp, type(uint256).max, "");
 
         vm.expectRevert(abi.encodeWithSelector(Mine.IndexOutOfBounds.selector, 16));
         mine.price(16);
@@ -165,43 +130,73 @@ contract MineTest is ProtocolFixture {
         mine.claim(ALICE);
     }
 
-    function test_MiningRequiresThePermanentGBXHandover() external {
-        MockERC20 payment = new MockERC20("Payment", "PAY", 6);
-        MineRouterIdentityHarness router = new MineRouterIdentityHarness(IERC20(address(payment)));
-        GBX unboundGBX = new GBX(GENESIS, address(this));
-        Mine unboundMine = new Mine(unboundGBX, IERC20(address(payment)), address(router), defaultMineConfig());
-
-        vm.expectRevert(abi.encodeWithSelector(Mine.MiningAuthorityNotFinalized.selector, address(this), false));
-        unboundMine.mine(ALICE, 0, 1, block.timestamp, type(uint256).max);
-    }
-
     function test_NextStartingPriceCapsAtTheAbsoluteMaximum() external {
         MockERC20 payment = new MockERC20("Payment", "PAY", 6);
-        Mine.Config memory config = defaultMineConfig();
-        config.minimumInitialPrice = mine.MAX_INITIAL_PRICE();
-        config.priceMultiplier = mine.MAX_PRICE_MULTIPLIER();
-        (GBX cappedGBX, Mine cappedMine,) = _deployIsolatedMine(payment, config);
+        (GBX cappedGBX, Mine cappedMine,) = _deployIsolatedMine(payment);
         cappedGBX.setMinter(address(cappedMine));
 
-        _mineIsolated(cappedMine, payment, ALICE, 0);
+        while (cappedMine.getSlot(0).initialPrice < cappedMine.MAX_INITIAL_PRICE()) {
+            _mineIsolated(cappedMine, payment, ALICE, 0);
+        }
 
         assertEq(cappedMine.getSlot(0).initialPrice, cappedMine.MAX_INITIAL_PRICE());
     }
 
-    function test_GlobalRateUsesTheTailWhenTheInitialRateAlreadyEqualsIt() external {
-        MockERC20 payment = new MockERC20("Payment", "PAY", 6);
-        Mine.Config memory config = defaultMineConfig();
-        config.initialTps = mine.MIN_TAIL_TPS();
-        config.tailTps = mine.MIN_TAIL_TPS();
-        (GBX tailGBX, Mine tailMine,) = _deployIsolatedMine(payment, config);
-        tailGBX.setMinter(address(tailMine));
+    function test_GlobalRateEventuallyUsesTheFixedTail() external {
+        vm.warp(mine.startTime() + 6 * mine.HALVING_PERIOD() - 1);
+        assertEq(mine.nextGlobalTps(), mine.INITIAL_TPS() >> 5);
 
-        assertEq(tailMine.nextGlobalTps(), tailMine.MIN_TAIL_TPS());
+        vm.warp(mine.startTime() + 6 * mine.HALVING_PERIOD());
+        assertEq(mine.nextGlobalTps(), mine.TAIL_TPS());
+
+        _mine(ALICE, 0);
+        uint256 tailSlotTps = mine.TAIL_TPS() / mine.SLOT_COUNT();
+        assertEq(mine.getSlot(0).tps, tailSlotTps, "a tenure opened at the tail receives the tail slot rate");
+
+        vm.warp(block.timestamp + 1 days);
+        uint256 tailAccrual = tailSlotTps * 1 days;
+        assertEq(mine.pendingEmission(0), tailAccrual, "the assigned tail tenure accrues at the tail slot rate");
+
+        _mine(BOB, 0);
+        assertEq(gbx.balanceOf(ALICE), tailAccrual, "replacing the tail tenure settles its exact accrual");
+        assertEq(mine.totalMined(), tailAccrual);
+        assertEq(mine.getSlot(0).tps, tailSlotTps);
+
+        vm.warp(mine.startTime() + 1_000 * mine.HALVING_PERIOD());
+        assertEq(mine.nextGlobalTps(), mine.TAIL_TPS());
+    }
+
+    function test_GlobalRateHalvesByDeploymentTimeEvenWhenEverySlotIsEmpty() external {
+        vm.warp(mine.startTime() + mine.HALVING_PERIOD() - 1);
+        assertEq(mine.nextGlobalTps(), mine.INITIAL_TPS());
+
+        vm.warp(mine.startTime() + mine.HALVING_PERIOD());
+        assertEq(mine.nextGlobalTps(), mine.INITIAL_TPS() / 2);
+
+        vm.warp(mine.startTime() + 2 * mine.HALVING_PERIOD() - 1);
+        assertEq(mine.nextGlobalTps(), mine.INITIAL_TPS() / 2);
+
+        vm.warp(mine.startTime() + 2 * mine.HALVING_PERIOD());
+        assertEq(mine.nextGlobalTps(), mine.INITIAL_TPS() / 4);
+        assertEq(mine.pendingEmission(), 0);
+        assertEq(mine.totalMined(), 0);
+    }
+
+    function test_DeadlineCanProtectAQuotedTpsAcrossATimeBoundary() external {
+        Mine.Slot memory slot = mine.getSlot(0);
+        uint256 boundary = mine.startTime() + mine.HALVING_PERIOD();
+
+        vm.warp(boundary);
+        vm.expectRevert(abi.encodeWithSelector(Mine.DeadlinePassed.selector, boundary - 1));
+        mine.mine(ALICE, 0, slot.epochId, boundary - 1, type(uint256).max, "");
+
+        assertEq(mine.nextGlobalTps(), mine.INITIAL_TPS() / 2);
+        assertEq(mine.getSlot(0).miner, address(0));
     }
 
     function test_MineRejectsAnInexactIncomingPayment() external {
         FeeOnTransferToken payment = new FeeOnTransferToken(6);
-        (GBX feeGBX, Mine feeMine,) = _deployIsolatedMine(payment, defaultMineConfig());
+        (GBX feeGBX, Mine feeMine,) = _deployIsolatedMine(payment);
         feeGBX.setMinter(address(feeMine));
         uint256 paid = feeMine.price(0);
         payment.mint(ALICE, paid);
@@ -210,13 +205,13 @@ contract MineTest is ProtocolFixture {
         vm.startPrank(ALICE);
         payment.approve(address(feeMine), paid);
         vm.expectRevert(abi.encodeWithSelector(Mine.InexactTransfer.selector, paid, paid, paid * 9_900 / 10_000));
-        feeMine.mine(ALICE, 0, 1, block.timestamp, paid);
+        feeMine.mine(ALICE, 0, 1, block.timestamp, paid, "");
         vm.stopPrank();
     }
 
     function test_MineRejectsAnInexactRouterCredit() external {
         SenderFeeToken payment = new SenderFeeToken();
-        (GBX feeGBX, Mine feeMine,) = _deployIsolatedMine(payment, defaultMineConfig());
+        (GBX feeGBX, Mine feeMine,) = _deployIsolatedMine(payment);
         feeGBX.setMinter(address(feeMine));
         uint256 paid = feeMine.price(0);
         payment.mint(ALICE, paid);
@@ -225,13 +220,13 @@ contract MineTest is ProtocolFixture {
         vm.startPrank(ALICE);
         payment.approve(address(feeMine), paid);
         vm.expectRevert(abi.encodeWithSelector(Mine.InexactTransfer.selector, paid, paid, paid * 9_900 / 10_000));
-        feeMine.mine(ALICE, 0, 1, block.timestamp, paid);
+        feeMine.mine(ALICE, 0, 1, block.timestamp, paid, "");
         vm.stopPrank();
     }
 
     function test_ClaimRejectsAnInexactRecipientCreditAndRestoresLiability() external {
         SenderFeeToken payment = new SenderFeeToken();
-        (GBX feeGBX, Mine feeMine,) = _deployIsolatedMine(payment, defaultMineConfig());
+        (GBX feeGBX, Mine feeMine,) = _deployIsolatedMine(payment);
         feeGBX.setMinter(address(feeMine));
 
         _mineIsolated(feeMine, payment, ALICE, 0);
@@ -251,21 +246,36 @@ contract MineTest is ProtocolFixture {
         assertEq(payment.balanceOf(ALICE), 0);
     }
 
-    function test_FirstMinerRoutesCompletePaymentAndReceivesOneSixteenthGlobalTps() external {
-        uint256 paid = _mine(ALICE, 0);
+    function test_FirstMinerDepositsCompletePaymentAndReceivesOneSixteenthGlobalTps() external {
+        Mine.Slot memory emptySlot = mine.getSlot(0);
+        uint256 paid = mine.price(0);
+        usdg.mint(ALICE, paid);
+
+        vm.startPrank(ALICE);
+        usdg.approve(address(mine), paid);
+        vm.expectEmit(true, true, false, true, address(usdg));
+        emit Transfer(ALICE, address(mine), paid);
+        vm.expectEmit(true, true, false, true, address(usdg));
+        emit Transfer(address(mine), address(resonanceRouter), paid);
+        vm.expectEmit(true, true, false, true, address(mine));
+        emit RevenueDeposited(0, 1, 1e6);
+        mine.mine(ALICE, 0, emptySlot.epochId, block.timestamp, paid, "");
+        vm.stopPrank();
 
         assertEq(paid, 1e6);
         assertEq(mine.claimable(ALICE), 0);
         assertEq(mine.totalClaimable(), 0);
         assertEq(usdg.balanceOf(address(mine)), 0);
-        assertEq(usdg.balanceOf(address(resonance)), paid);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), paid);
+        assertEq(usdg.balanceOf(address(resonance)), 0);
+        assertEq(resonance.left(address(usdg)), 0);
 
         Mine.Slot memory slot = mine.getSlot(0);
         assertEq(slot.miner, ALICE);
         assertEq(slot.epochId, 2);
         assertEq(slot.initialPrice, 2e6);
-        assertEq(slot.tps, 0.25 ether);
-        assertEq(mine.aggregateTps(), 0.25 ether);
+        assertEq(slot.tps, 4 ether);
+        assertEq(mine.aggregateTps(), 4 ether);
     }
 
     function test_ReplacementAfterThirtyMinutesSettlesOnlyThatSlotAndSplitsEightyTwenty() external {
@@ -275,13 +285,14 @@ contract MineTest is ProtocolFixture {
         uint256 paid = _mine(BOB, 0);
 
         assertEq(paid, 1e6);
-        assertEq(gbx.balanceOf(ALICE), 450 ether);
-        assertEq(mine.totalMined(), 450 ether);
+        assertEq(gbx.balanceOf(ALICE), 7_200 ether);
+        assertEq(mine.totalMined(), 7_200 ether);
         assertEq(mine.pendingEmission(), 0);
         assertEq(mine.claimable(ALICE), 800_000);
         assertEq(mine.totalClaimable(), 800_000);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
-        assertEq(usdg.balanceOf(address(resonanceRouter)), 200_000);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 1_200_000);
+        assertEq(usdg.balanceOf(address(resonance)), 0);
     }
 
     function test_StaggeredSlotsSettleIndependentlyWhileCachedTotalRemainsExact() external {
@@ -290,18 +301,18 @@ contract MineTest is ProtocolFixture {
         _mine(BOB, 1);
         vm.warp(block.timestamp + 200);
 
-        assertEq(mine.pendingEmission(0), 75 ether);
-        assertEq(mine.pendingEmission(1), 50 ether);
-        assertEq(mine.pendingEmission(), 125 ether);
+        assertEq(mine.pendingEmission(0), 1_200 ether);
+        assertEq(mine.pendingEmission(1), 800 ether);
+        assertEq(mine.pendingEmission(), 2_000 ether);
 
         _mine(CAROL, 1);
 
-        assertEq(gbx.balanceOf(BOB), 50 ether);
+        assertEq(gbx.balanceOf(BOB), 800 ether);
         assertEq(gbx.balanceOf(ALICE), 0);
-        assertEq(mine.totalMined(), 50 ether);
-        assertEq(mine.pendingEmission(), 75 ether);
-        assertEq(mine.storedPendingEmission(), 75 ether);
-        assertEq(mine.pendingEmission(0), 75 ether);
+        assertEq(mine.totalMined(), 800 ether);
+        assertEq(mine.pendingEmission(), 1_200 ether);
+        assertEq(mine.storedPendingEmission(), 1_200 ether);
+        assertEq(mine.pendingEmission(0), 1_200 ether);
         assertEq(mine.pendingEmission(1), 0);
     }
 
@@ -327,7 +338,7 @@ contract MineTest is ProtocolFixture {
         uint256 paid = _mine(ALICE, 0);
 
         assertEq(paid, 0);
-        assertEq(gbx.balanceOf(ALICE), 900 ether);
+        assertEq(gbx.balanceOf(ALICE), 14_400 ether);
         assertEq(mine.claimable(ALICE), 0);
         assertEq(mine.getSlot(0).initialPrice, 1e6);
         assertEq(mine.getSlot(0).miner, ALICE);
@@ -337,13 +348,45 @@ contract MineTest is ProtocolFixture {
         Mine.Slot memory slot = mine.getSlot(0);
 
         vm.expectRevert(abi.encodeWithSelector(Mine.EpochIdMismatch.selector, slot.epochId + 1, slot.epochId));
-        mine.mine(ALICE, 0, slot.epochId + 1, block.timestamp, type(uint256).max);
+        mine.mine(ALICE, 0, slot.epochId + 1, block.timestamp, type(uint256).max, "");
 
         vm.expectRevert(abi.encodeWithSelector(Mine.DeadlinePassed.selector, block.timestamp - 1));
-        mine.mine(ALICE, 0, slot.epochId, block.timestamp - 1, type(uint256).max);
+        mine.mine(ALICE, 0, slot.epochId, block.timestamp - 1, type(uint256).max, "");
 
         vm.expectRevert(abi.encodeWithSelector(Mine.MaxPriceExceeded.selector, 1e6, 1e6 - 1));
-        mine.mine(ALICE, 0, slot.epochId, block.timestamp, 1e6 - 1);
+        mine.mine(ALICE, 0, slot.epochId, block.timestamp, 1e6 - 1, "");
+    }
+
+    function test_MineEmitsTheBoundedMessageWithoutStoringIt() external {
+        Mine.Slot memory slot = mine.getSlot(0);
+        uint256 paid = mine.price(0);
+        usdg.mint(ALICE, paid);
+
+        vm.startPrank(ALICE);
+        usdg.approve(address(mine), paid);
+        vm.expectEmit(true, true, true, true, address(mine));
+        emit Mined(ALICE, BOB, 0, slot.epochId, address(0), paid, 2e6, 4 ether, "hello from the mine");
+        mine.mine(BOB, 0, slot.epochId, block.timestamp, paid, "hello from the mine");
+        vm.stopPrank();
+
+        assertEq(mine.getSlot(0).miner, BOB);
+    }
+
+    function test_MineMessageLimitCountsRawBytes() external {
+        Mine.Slot memory slot = mine.getSlot(0);
+        string memory tooLong = string(new bytes(281));
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.MessageTooLong.selector, 281));
+        mine.mine(ALICE, 0, slot.epochId, block.timestamp, type(uint256).max, tooLong);
+
+        uint256 paid = mine.price(0);
+        usdg.mint(ALICE, paid);
+        vm.startPrank(ALICE);
+        usdg.approve(address(mine), paid);
+        mine.mine(ALICE, 0, slot.epochId, block.timestamp, paid, string(new bytes(280)));
+        vm.stopPrank();
+
+        assertEq(mine.getSlot(0).miner, ALICE);
     }
 
     function test_EffectiveSupplyIncludesPendingEmissionWithoutMintingOrChangingSlots() external {
@@ -352,8 +395,8 @@ contract MineTest is ProtocolFixture {
         uint256 supplyBefore = gbx.totalSupply();
         vm.warp(block.timestamp + 1_000);
 
-        assertEq(mine.pendingEmission(), 250 ether);
-        assertEq(mine.effectiveTotalSupply(), supplyBefore + 250 ether);
+        assertEq(mine.pendingEmission(), 4_000 ether);
+        assertEq(mine.effectiveTotalSupply(), supplyBefore + 4_000 ether);
         assertEq(gbx.totalSupply(), supplyBefore);
         assertEq(mine.getSlot(0).lastAccruedAt, beforeSlot.lastAccruedAt);
     }
@@ -366,7 +409,7 @@ contract MineTest is ProtocolFixture {
         gbx.approve(address(fund), redeemAmount);
         vm.warp(block.timestamp + 1_000);
 
-        uint256 pending = 250 ether;
+        uint256 pending = 4_000 ether;
         uint256 supplyBefore = gbx.totalSupply();
         uint256 expectedPayout = Math.mulDiv(4_000 ether, redeemAmount, supplyBefore + pending);
         vm.prank(GENESIS);
@@ -380,53 +423,43 @@ contract MineTest is ProtocolFixture {
         assertEq(mine.pendingEmission(0), pending);
     }
 
-    function test_HalvingUsesEconomicAccrualAndNeverRepricesAnIncumbent() external {
+    function test_TimeBasedHalvingNeverRepricesAnIncumbent() external {
         MockERC20 payment = new MockERC20("Payment", "PAY", 6);
-        Mine.Config memory config = Mine.Config({
-            priceMultiplier: 2e18,
-            minimumInitialPrice: 1e6,
-            initialTps: 160 ether,
-            halvingAmount: 1_000 ether,
-            tailTps: 16 ether
-        });
-        (GBX halvingGBX, Mine halvingMine,) = _deployIsolatedMine(payment, config);
+        (GBX halvingGBX, Mine halvingMine,) = _deployIsolatedMine(payment);
         halvingGBX.setMinter(address(halvingMine));
 
         _mineIsolated(halvingMine, payment, ALICE, 0);
-        assertEq(halvingMine.getSlot(0).tps, 10 ether);
-        vm.warp(block.timestamp + 100);
+        uint256 incumbentTps = halvingMine.INITIAL_TPS() / halvingMine.SLOT_COUNT();
+        assertEq(halvingMine.getSlot(0).tps, incumbentTps);
+        vm.warp(halvingMine.startTime() + halvingMine.HALVING_PERIOD());
 
-        assertEq(halvingMine.totalMined(), 0, "claim timing must not control the halving");
-        assertEq(halvingMine.pendingEmission(), 1_000 ether);
-        assertEq(halvingMine.nextGlobalTps(), 80 ether);
+        uint256 incumbentAccrual = halvingMine.HALVING_PERIOD() * incumbentTps;
+
+        assertEq(halvingMine.totalMined(), 0, "settlement timing must not control the halving");
+        assertEq(halvingMine.pendingEmission(), incumbentAccrual);
+        assertEq(halvingMine.nextGlobalTps(), halvingMine.INITIAL_TPS() / 2);
 
         _mineIsolated(halvingMine, payment, BOB, 1);
-        assertEq(halvingMine.getSlot(0).tps, 10 ether, "occupied tenure remains locked");
-        assertEq(halvingMine.getSlot(1).tps, 5 ether, "only the new tenure gets the halved rate");
-        assertEq(halvingMine.aggregateTps(), 15 ether);
-        assertEq(halvingMine.pendingEmission(), 1_000 ether);
+        uint256 halvedSlotTps = halvingMine.INITIAL_TPS() / 2 / halvingMine.SLOT_COUNT();
+        assertEq(halvingMine.getSlot(0).tps, incumbentTps, "occupied tenure remains locked");
+        assertEq(halvingMine.getSlot(1).tps, halvedSlotTps, "only the new tenure gets the halved rate");
+        assertEq(halvingMine.aggregateTps(), incumbentTps + halvedSlotTps);
+        assertEq(halvingMine.pendingEmission(), incumbentAccrual);
         assertEq(halvingMine.totalMined(), 0);
 
         _mineIsolated(halvingMine, payment, CAROL, 0);
-        assertEq(halvingGBX.balanceOf(ALICE), 1_000 ether);
-        assertEq(halvingMine.totalMined(), 1_000 ether);
+        assertEq(halvingGBX.balanceOf(ALICE), incumbentAccrual);
+        assertEq(halvingMine.totalMined(), incumbentAccrual);
         assertEq(halvingMine.pendingEmission(), 0);
-        assertEq(halvingMine.getSlot(0).tps, 5 ether);
-        assertEq(halvingMine.getSlot(1).tps, 5 ether);
+        assertEq(halvingMine.getSlot(0).tps, halvedSlotTps);
+        assertEq(halvingMine.getSlot(1).tps, halvedSlotTps);
     }
 
     function testFuzz_CachedAccumulatorMatchesNaiveSlotsAndIndependentEconomicModel(uint256 seed, uint8 rawSteps)
         external
     {
         MockERC20 payment = new MockERC20("Payment", "PAY", 6);
-        Mine.Config memory config = Mine.Config({
-            priceMultiplier: 2e18,
-            minimumInitialPrice: 1e6,
-            initialTps: 160 ether,
-            halvingAmount: 1_000 ether,
-            tailTps: 16 ether
-        });
-        (GBX modelGBX, Mine modelMine,) = _deployIsolatedMine(payment, config);
+        (GBX modelGBX, Mine modelMine,) = _deployIsolatedMine(payment);
         modelGBX.setMinter(address(modelMine));
 
         uint256 steps = bound(uint256(rawSteps), 16, 64);
@@ -436,7 +469,7 @@ contract MineTest is ProtocolFixture {
 
         for (uint256 step; step < steps; ++step) {
             seed = uint256(keccak256(abi.encode(seed, step)));
-            uint256 elapsed = (seed >> 8) % 7_201;
+            uint256 elapsed = (seed >> 8) % (modelMine.HALVING_PERIOD() + 1);
             vm.warp(block.timestamp + elapsed);
             modelEconomicEmission += elapsed * modelAggregateTps;
 
@@ -446,7 +479,11 @@ contract MineTest is ProtocolFixture {
             address miner = _modelMiner(seed >> 32);
             _mineIsolated(modelMine, payment, miner, index);
 
-            uint256 newTps = modelMine.getSlot(index).tps;
+            uint256 elapsedHalvings = (block.timestamp - modelMine.startTime()) / modelMine.HALVING_PERIOD();
+            uint256 expectedGlobalTps = modelMine.INITIAL_TPS() >> elapsedHalvings;
+            if (expectedGlobalTps < modelMine.TAIL_TPS()) expectedGlobalTps = modelMine.TAIL_TPS();
+            uint256 newTps = expectedGlobalTps / modelMine.SLOT_COUNT();
+            assertEq(modelMine.getSlot(index).tps, newTps, "assigned TPS diverged from independent time model");
             modelAggregateTps = modelAggregateTps - modelSlotTps[index] + newTps;
             modelSlotTps[index] = newTps;
 
@@ -463,9 +500,8 @@ contract MineTest is ProtocolFixture {
         _mine(BOB, 0);
 
         assertEq(
-            mine.claimable(ALICE) + (usdg.balanceOf(address(resonance)) - 1e6)
-                + usdg.balanceOf(address(resonanceRouter)),
-            price
+            mine.claimable(ALICE) + usdg.balanceOf(address(resonanceRouter)) + usdg.balanceOf(address(resonance)),
+            1e6 + price
         );
         assertEq(mine.claimable(ALICE), price * 8_000 / 10_000);
     }
@@ -512,17 +548,17 @@ contract MineTest is ProtocolFixture {
 
         vm.startPrank(account);
         if (paid != 0) usdg.approve(address(mine), paid);
-        mine.mine(account, index, slot.epochId, block.timestamp, paid);
+        mine.mine(account, index, slot.epochId, block.timestamp, paid, "");
         vm.stopPrank();
     }
 
-    function _deployIsolatedMine(MockERC20 payment, Mine.Config memory config)
+    function _deployIsolatedMine(MockERC20 payment)
         private
         returns (GBX isolatedGBX, Mine isolatedMine, MineRouterIdentityHarness router)
     {
         isolatedGBX = new GBX(GENESIS, address(this));
         router = new MineRouterIdentityHarness(IERC20(address(payment)));
-        isolatedMine = new Mine(isolatedGBX, IERC20(address(payment)), address(router), config);
+        isolatedMine = new Mine(isolatedGBX, IERC20(address(payment)), address(router));
     }
 
     function _mineIsolated(Mine isolatedMine, MockERC20 payment, address account, uint256 index)
@@ -535,7 +571,7 @@ contract MineTest is ProtocolFixture {
 
         vm.startPrank(account);
         if (paid != 0) payment.approve(address(isolatedMine), paid);
-        isolatedMine.mine(account, index, slot.epochId, block.timestamp, paid);
+        isolatedMine.mine(account, index, slot.epochId, block.timestamp, paid, "");
         vm.stopPrank();
     }
 }

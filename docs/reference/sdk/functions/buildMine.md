@@ -8,7 +8,8 @@
 
 > **buildMine**(`parameters`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Replaces one Mine slot with caller-bounded epoch, deadline, and USDG price protection.
+Replaces one Mine slot with caller-bounded epoch, deadline, USDG price, and event-only message protection.
+Set `deadline` before the next halving boundary when the quoted prospective TPS must remain valid.
 
 ## Parameters
 

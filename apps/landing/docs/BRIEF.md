@@ -58,14 +58,18 @@ Colour meaning (from the whitepaper's diagram grammar — keep it): **blue = USD
   deployment into permanently locked market liquidity, and issuance to miners after that. No team
   allocation, no presale, no discretionary mint. Mint authority passes to the Mine once and locks.
 - **Mining.** **Sixteen** permanent slots. Every slot is always for sale; its price falls in a
-  straight line to zero over **one hour** and restarts when taken. Taking an occupied slot pays
-  **80%** to the displaced miner and **20%** to the fund's buying power; an untaken slot routes
-  **100%**. Your issuance rate is fixed for your whole tenure. Mining is where the fund's money
-  comes from — miners pay USDG, and that USDG is what gets spent.
+  straight line to zero over **one hour** and restarts at twice the accepted price, subject to a
+  **$1 USDG floor**. Taking an occupied slot credits **80%** as the displaced miner's pull claim and
+  exact-deposits **20%** in ResonanceRouter; an untaken slot deposits **100%**. Mine emits
+  `RevenueDeposited` and stops: it never calls `route()`. A later Router call is permissionless but
+  has no liveness guarantee. A new tenure receives one-sixteenth of the prospective rate, which
+  starts at **64 GBX/second**, halves every **69 days** from `Mine.startTime`, and bottoms at **1
+  GBX/second**. That assigned rate is fixed for the whole tenure.
 - **Signalling.** Deposit GBX, receive a non-transferable receipt, point it at one Strategy, all
   in one transaction. No idle state. Withdraw any time; no lock-up.
-- **Resonance.** Revenue is released as a rolling **seven-day** stream and split by live signal
-  weights, moment to moment. It goes to each **Strategy** as USDG — not straight to assets.
+- **Resonance.** Once separately forwarded from ResonanceRouter, revenue is released as a rolling
+  **seven-day** stream and split by live signal weights, moment to moment. It goes to each
+  **Strategy** as USDG — not straight to assets.
 - **Acquisition.** Each Strategy pools its USDG and sells the whole lot in a falling-price
   auction, asking to be paid **in the target asset itself, never in dollars**. The lot keeps
   growing during the auction. A trader fills when the ask drops to what the lot is worth.
@@ -87,8 +91,9 @@ Colour meaning (from the whitepaper's diagram grammar — keep it): **blue = USD
 
 - **Not deployed on any network. Not independently audited.** Must appear in the hero AND the
   close, not buried.
-- Production mining and pricing parameters are **unselected**. Any figure shown in an animation
-  is illustrative and must be labelled as such in the section where it appears.
+- Mine's fixed source constants are a **provisional development candidate** pending independent
+  economic review, not deployment approval. Simulated takers, prices, holdings, and revenue amounts
+  are illustrative and must be labelled as such where they appear.
 - The external governance owner is **unselected**. Do not imply a DAO exists.
 - **Robinhood Chain is the intended target, not a commitment.** Never state it as settled.
 - Never call it an ETF or a regulated fund product. "Index fund" is the brand's own language and
@@ -128,8 +133,8 @@ appear on any crypto site is filler — cut it.
 ## Definition of done
 
 - Every section reads correctly at 1440×900, 1280×720 and 390×844, no horizontal scroll.
-- Every animation is contract-accurate, labelled illustrative where parameters are unselected,
-  and pauses when off-screen.
+- Every animation is contract-accurate, clearly distinguishes fixed constants from illustrative
+  activity, and pauses when off-screen.
 - `prefers-reduced-motion` honoured everywhere.
 - Text contrast passes AA; every interactive element has a visible focus state.
 - The honesty block survives in the hero and the close.

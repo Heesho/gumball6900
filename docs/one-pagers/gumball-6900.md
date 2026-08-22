@@ -1,11 +1,12 @@
 ---
 title: GUM BALL 6900 at a Glance
 version: 2.0.0
-date: 2026-08-20
-source_commit: dc67d7c4d634097fa6e285fa33ce964d591d2bd2
-protocol_status: Development snapshot at the pinned commit. Describes the current core after ADR 0033, ADR 0034, and ADR 0035; not approved for user funds.
+date: 2026-08-22
+source_commit: uncommitted-working-tree
+base_commit: e3ebdd7987653969b31dbf0e8d20b68a838dfa5d
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0044; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: Internal engineering review and automated test campaigns at the pinned commit. Open release gates recorded in packages/contracts/audit/FINDINGS.md.
+internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
 independent_audit_status: No independent external audit has been performed.
 ---
 
@@ -20,7 +21,7 @@ Pooled investment vehicles ask you to trust a manager. Onchain versions often ke
 admin key that changes holdings, an upgradeable contract that changes rules, a pause switch that stops withdrawals, an
 oracle that decides what things are worth.
 
-GUM BALL 6900 removes the manager. At this commit there is no upgrade path, proxy, pause switch, sweep function,
+GUM BALL 6900 removes the manager. In this development tree there is no upgrade path, proxy, pause switch, sweep function,
 arbitrary-call executor, migration route, price oracle, NAV calculation, or rebalancing engine. The treasury has no
 owner at all. What gets bought is decided by stake; what you can withdraw is decided by arithmetic you can verify.
 
@@ -29,7 +30,7 @@ owner at all. What gets bought is decided by stake; what you can withdraw is dec
 **GBX** is the protocol's transferable token. It is created two ways only: a single 20,000,000-token allocation at
 deployment that becomes permanent market liquidity, and continuous issuance to miners after that. Mint authority is
 handed to one contract exactly once and can never be changed, revoked, or duplicated. There is no supply cap;
-issuance halves at fixed cumulative-mining thresholds down to a permanent, strictly positive floor.
+the prospective issuance rate halves at fixed deployment-time intervals down to a permanent, strictly positive floor.
 
 Holding GBX gives two rights: **signal with it** to direct the protocol, or **burn it** to redeem treasury assets.
 
@@ -50,20 +51,23 @@ retroactively redirects money.
 
 Revenue arrives in USDG from two sources. **Mining:** the mine is a permanent grid of **sixteen slots**, each running
 its own hourly descending-price auction. GBX is issued continuously to whoever occupies each slot, and taking a slot
-means paying that slot's current price — 80% goes to the miner you displaced, 20% becomes revenue; an empty slot
-routes 100%. Your issuance rate is fixed the moment you take a slot and never changes while you hold it. There is no
+means paying that slot's current price — 80% goes to the miner you displaced, while Mine deposits 20% into
+ResonanceRouter; an empty slot deposits 100%. Mine does not call `route()`. Your issuance rate is fixed the moment you
+take a slot and never changes while you hold it. There is no
 team fee. **Liquidity fees:** the permanent GBX/USDG Uniswap v4 position earns fees that anyone can harvest, with the
 USDG becoming revenue, the GBX burned, and the underlying liquidity never moving.
 
-**Resonance** releases that revenue as a rolling seven-day stream, split by live signal weights. Each Strategy
+Anyone may later call the Router to move a qualifying balance into **Resonance**, which releases it as a rolling
+seven-day stream split by live signal weights. There is no routing role or bounty, so Mine revenue may wait indefinitely
+without a manual, frontend, volunteer-keeper, or cron caller. Liquidity fee harvesting keeps its atomic route attempt.
+Each Strategy
 accumulates USDG and sells all of it in a descending-price auction, asking to be paid in the asset it acquires. No
 oracle is consulted — the auction is the price discovery.
 
-Every acquired payment is then split by one bounded rule: **90% becomes treasury backing, 10% becomes an automatic
-reward for that Strategy's signalers.** The split is cumulatively exact — paying in a thousand dust increments yields
-the Bribe the same total as one lump sum. The reward share is the single governed economic parameter: it starts at 10%
-and can be set anywhere from 0% to a hard maximum of 20%, so **at least 80% of everything acquired always reaches the
-treasury.** Neither destination can be changed.
+Every acquired payment is classified at one bounded global rate. The automatic Bribe share **defaults to 10% and may
+be set prospectively from 0% through 20%**; Fund receives the 100%-minus-Bribe complement, so its share defaults to
+90% and always remains between 80% and 100%. The weighted split is cumulatively exact across rate changes — paying in
+a thousand dust increments cannot erase the Bribe entitlement. Neither destination can be redirected.
 
 The **Fund** is an ownerless treasury with no administrator and no asset registry. To redeem, burn GBX, name the
 assets you want, and receive for each:
@@ -78,24 +82,24 @@ choice that stops one broken token from freezing everyone else's redemption.
 
 ## Why signalers participate
 
-Two stacked incentives: the automatic 10% share of everything their Strategy acquires, and **Bribes** — anyone may
-permissionlessly stream additional rewards into a Strategy's pool to pull signal toward it, up to eight reward tokens
-per Strategy including the asset that Strategy buys.
+Two stacked incentives: the bounded automatic share of everything their Strategy acquires — 10% by default, adjustable
+prospectively from 0% through 20% — and **Bribes**, which anyone may permissionlessly stream into a Strategy's pool to
+pull signal toward it, up to eight reward tokens per Strategy including the asset that Strategy buys.
 
 ## The loop
 
 ```mermaid
 flowchart LR
-  M[Mine<br/>16 slot auctions] -->|20% / 100%| RR[ResonanceRouter]
+  M[Mine<br/>16 slot auctions] -->|20% / 100% deposit| RR[ResonanceRouter]
   M -->|80%| DM[Displaced miner]
   LP[LiquidityPosition<br/>Uniswap v4 fees] -->|USDG| RR
   LP -->|GBX| BURN[Burned]
-  RR -->|qualifying balance| R[Resonance<br/>7-day USDG stream]
+  RR -->|permissionless route of qualifying balance| R[Resonance<br/>7-day USDG stream]
   SG[sGBX signal weights] -.->|directs| R
   R -->|signal-weighted| S[Strategies]
   S -->|descending-price auction| A[Acquired asset]
-  A -->|90%| F[Fund]
-  A -->|10%| SIG[Signalers]
+  A -->|Fund complement: 80–100%| F[Fund]
+  A -->|Bribe share: 0–20%, 10% default| SIG[Signalers]
   B[Anyone] -->|extra Bribe rewards| SIG
   F -->|burn GBX, redeem| H[GBX holders]
 ```
@@ -109,7 +113,7 @@ flowchart LR
 | `SignalGBX`         | Non-transferable signal token; sole coordinator. No idle state.                       |
 | `Resonance`         | Holds revenue in a seven-day stream and allocates it by signal weight.                |
 | `Strategy`          | Descending-price auction trading accumulated USDG for a target asset.                 |
-| `BribeRouter`       | Splits every acquired payment 90% Fund / 10% paired Bribe, cumulatively exact.        |
+| `BribeRouter`       | Applies the global 0–20% Bribe share and 80–100% Fund complement with weighted carry. |
 | `Bribe`             | Streams up to eight reward tokens to a Strategy's signalers.                          |
 | `Fund`              | Ownerless treasury; redemption and GBX burning are its only exits.                    |
 | `LiquidityPosition` | Permanently holds the GBX/USDG v4 position; fees harvestable by anyone.               |
@@ -117,10 +121,12 @@ flowchart LR
 ## What can be changed, and by whom
 
 **Four things**, all on one contract: add a Strategy, retire a Strategy, register a Bribe reward token, and set the
-signaler reward share within its 0–20% bound. Every other contract in the protocol is ownerless. The **final live
-Strategy cannot be retired** — a replacement must be added first — so a valid signal destination always exists.
+signaler reward share within its 0–20% bound. Resonance is the only contract with continuing custom owner authority;
+SignalGBX, StrategyFactory, and BribeFactory retain setup-only Ownable shells that production must explicitly
+renounce after their one-time bindings are consumed. The **final live Strategy cannot be retired** — a replacement
+must be added first — so a valid signal destination always exists.
 
-Those three actions sit behind a single owner address on `Resonance`. That address is intended to be an external
+Those four actions sit behind a single owner address on `Resonance`. That address is intended to be an external
 governance system, and **that system has not been chosen yet.** The protocol itself contains no voting contract, no
 proposal rules, no quorum, and no execution delay. sGBX does record vote checkpoints in the standard format such a
 system could read, but nothing in the protocol reads them today. Until that choice is made and reviewed, the honest
@@ -147,20 +153,20 @@ only — it can never reclassify an amount already settled. No contract has an u
   solvency risk.
 - **Miner rollover risk.** The 80% handoff arrives only if someone later replaces the miner at a nonzero price; after
   an hour the price is zero.
-- **Unresolved economics.** The mine's rate, halving threshold, tail rate, and price parameters are not yet selected
-  or independently modelled.
+- **Economic review remains open.** The Mine's initial rate, provisional 69-day halving period, tail rate, and
+  price constants are hard-coded and modelled, but have not received independent review.
 
 ## Status
 
-| Field                        | Status                                                                                                                                                                                                                                                                                                                                                                                                               |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Protocol status**          | Development candidate. Implementation complete at this commit; not approved for user funds.                                                                                                                                                                                                                                                                                                                          |
-| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG / Uniswap v4 addresses are unresolved candidates.                                                                                                                                                                                                                                                                 |
-| **Internal review status**   | At this commit: 329 default Foundry tests and 18 integration tests pass, 0 failed, 0 skipped, including 29 stateful invariants at 1,000 runs × depth 500 with zero handler reverts. Hardhat bytecode parity, SDK, subgraph, simulation, ABI, docs, lint, typecheck, and build gates pass. Static analysis and external fuzzing were last run before ADR 0034 and ADR 0035 and are historical, not current, evidence. |
-| **Open release gates**       | Production mining and pricing parameters unselected (M-04); signed deployment manifest and dependency verification outstanding (M-03); external governance system unselected and unreviewed (G-01, G-03).                                                                                                                                                                                                            |
-| **Independent audit status** | None. No independent external audit, compatible symbolic analysis, or release review has been completed.                                                                                                                                                                                                                                                                                                             |
-| **Legal status**             | Upstream code provenance and license reconciliation are unresolved release blockers.                                                                                                                                                                                                                                                                                                                                 |
-| **Source commit**            | `dc67d7c4d634097fa6e285fa33ce964d591d2bd2`                                                                                                                                                                                                                                                                                                                                                                           |
+| Field                        | Status                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Protocol status**          | Uncommitted development candidate based on `e3ebdd7`; not a commit-pinned review artifact and not approved for user funds.                                                                                                                                                                                                                                                        |
+| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG / Uniswap v4 addresses are unresolved candidates.                                                                                                                                                                                                                              |
+| **Internal review status**   | The full deterministic ADR 0044 workspace matrix passes locally: Foundry 356/356 default and 19/19 integration, Hardhat 4/4, SDK 50/50, both simulation implementations, subgraph, web/E2E, documentation, ABI, formatting, lint, typecheck, and build gates. Static analysis, mutation testing, and external fuzzing remain historical; no independent audit has been performed. |
+| **Open release gates**       | Fixed Mine economics require independent review (M-04); signed deployment manifest and dependency verification outstanding (M-03); external governance system unselected and unreviewed (G-01, G-03).                                                                                                                                                                             |
+| **Independent audit status** | None. No independent external audit, compatible symbolic analysis, or release review has been completed.                                                                                                                                                                                                                                                                          |
+| **Legal status**             | Upstream code provenance and license reconciliation are unresolved release blockers.                                                                                                                                                                                                                                                                                              |
+| **Source state**             | Uncommitted working tree based on `e3ebdd7987653969b31dbf0e8d20b68a838dfa5d`; no reviewed candidate commit is pinned.                                                                                                                                                                                                                                                             |
 
 ---
 

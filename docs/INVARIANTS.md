@@ -12,15 +12,16 @@
   the minter nor the lock can change.
 - Mine has exactly sixteen immutable, ownerless slots.
 - Every occupied slot accrues `elapsedSeconds * slot.tps`. Its `tps` is fixed from occupation until replacement.
-- Cumulative-mining thresholds and redemptions never reprice an occupied slot.
-- A new occupation assigns `globalTps(totalMined + pendingEmission) / 16`; floor remainder is unissued.
-- Global rates used for future handoffs halve at immutable cumulative-mining thresholds and never fall below the
+- Time-based halving boundaries and redemptions never reprice an occupied slot.
+- A new occupation assigns `globalTps(now - startTime) / 16`; floor remainder is unissued.
+- Global rates used for future handoffs halve at immutable intervals measured from Mine deployment and never fall below the
   positive immutable tail.
 - `Mine.aggregateTps() == sum(Mine.getSlot(i).tps)` across all sixteen slots.
 - `Mine.effectiveTotalSupply() == GBX.totalSupply() + Mine.pendingEmission()`.
 - A replacement settles only its outgoing slot before assigning the incoming tenure.
-- A nonempty-slot USDG payment is exactly `80% displaced-miner claim + 20% routed revenue`. An empty-slot payment is
-  100% routed revenue. A zero-price handoff transfers nothing.
+- A nonempty-slot USDG payment is exactly `80% displaced-miner claim + 20% Router deposit`. An empty-slot payment is
+  100% deposited into ResonanceRouter. A zero-price handoff transfers nothing. Mine never requires a downstream
+  Router-to-Resonance call to complete the handoff.
 - Mine USDG balance equals total outstanding pull claims; claim execution reduces both by the same exact amount.
 - Every Fund redemption uses Mine's constant-time effective supply without checkpointing or mutating Mine.
 

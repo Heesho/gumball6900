@@ -13,28 +13,46 @@ authorized for user funds. A green local build is engineering evidence, never a 
   non-upgradeable deployments. `StrategyFactory` and `BribeFactory` are allowed only as Resonance-controlled factories;
   do not add generic public factories, arbitrary vault calls, NAV/price oracles, or governance implementation contracts
   inside the core. Governance is a separately selected and reviewed external integration.
+- Keep the core protocol surface limited to invariant-, custody-, and accounting-critical actions. Frontend convenience,
+  transaction batching, and cron/keeper automation belong in optional periphery and must not become a correctness or
+  liveness dependency of a core action. A future helper may compose `Mine.mine()` with
+  `ResonanceRouter.route()`, but no such helper is required now and Mine must remain complete if routing fails.
 
 ## Revenue, signaling, and acquisitions
 
-- Mining revenue follows `Mine -> ResonanceRouter -> Resonance seven-day stream -> Strategy`. On a nonempty-slot replacement, 80% of
-  the USDG payment becomes a pull claim for the displaced miner and 20% routes to Resonance. The first occupation of
-  an empty slot routes 100% to Resonance. There is no team fee.
+- Mining revenue follows `Mine -> ResonanceRouter -> Resonance seven-day stream -> Strategy`. On a nonempty-slot
+  replacement, 80% of the USDG payment becomes a pull claim for the displaced miner and Mine exact-transfers the 20%
+  remainder into ResonanceRouter. The first occupation of an empty slot deposits 100% into ResonanceRouter. There is
+  no team fee.
+- Mine never calls `ResonanceRouter.route()` during a handoff. Routing is a separate permissionless manual, frontend,
+  keeper, or cron action with no role or bounty and no liveness guarantee; Router revenue may wait indefinitely if
+  nobody calls. `Mine.RevenueDeposited` means the exact protocol share reached ResonanceRouter, not that it reached
+  Resonance or entered the seven-day stream in that transaction. A failed transfer into the Router still reverts the
+  paid handoff, but later Router or Resonance failure is isolated from Mine. LiquidityPosition's fee harvest remains
+  atomic and still attempts `route()` in the harvest transaction unless a later ADR changes that boundary.
 - GBX creates only 20 million tokens for the genesis-liquidity recipient. Deployment permanently hands its sole mint
   authority to one deployed `Mine`; the handover is one-time and cannot be replaced or reopened. There is no
   protocol-defined economic supply cap, and supply reconciles as `totalSupply == lifetimeMinted - lifetimeBurned`.
   GBX retains ERC-2612 permit approvals but does not carry ERC20Votes checkpoints or governance weight.
+- Deployment must verify `GBX.minter() == Mine`, `GBX.minterLocked() == true`, and `Mine.gbx() == GBX` before exposing
+  the market. Mine does not repeatedly read those permanent deployment facts on each handoff; GBX itself continues to
+  enforce them whenever Mine mints.
 - Mine has exactly 16 immutable slots. Each slot uses an independent hourly reverse Dutch replacement auction and may
   change hands at any time. Mine is ownerless and has no capacity or all-slot checkpoint operation.
+- Every Mine handoff may attach an event-only message of at most 280 raw bytes. The message is emitted unindexed in
+  `Mined` and is never written to Mine storage. Empty messages are permitted.
 - A slot's assigned GBX tokens-per-second (`tps`) rate is locked for that miner's complete tenure. Redemptions and
-  cumulative-mining threshold crossings must not reprice or dilute an occupied slot. Only a newly occupied or replaced
-  slot receives `current global tps / 16`. Accept that aggregate issuance can temporarily exceed the current global
-  rate while legacy-rate miners remain.
+  time-based halving boundaries must not reprice or dilute an occupied slot. Only a newly occupied or replaced
+  slot receives `current global tps / 16`. Accept that aggregate issuance can exceed the current global rate for as
+  long as legacy-rate miners remain; turnover is not guaranteed.
 - Mine must maintain `aggregateTps` and a timestamped `storedPendingEmission` so total pending emission is available in
   constant time. Before one slot changes rate, accrue the old aggregate through the current timestamp; settle and mint
-  only the replaced slot; then replace its contribution to `aggregateTps`. Halvings use
-  `totalMined + pendingEmission()` so miners cannot postpone a threshold by delaying their own replacement.
-- Global rates use constructor-immutable cumulative-mining halvings and a strictly positive tail rate. Do not add a
-  rate setter, emissions controller, migration authority, oracle, entropy source, team fee, or claim redirection.
+  only the replaced slot; then replace its contribution to `aggregateTps`. Pending emission does not select the
+  prospective global rate.
+- Global rates use a hard-coded time-based halving schedule anchored to Mine deployment: `INITIAL_TPS = 64 ether`,
+  `HALVING_PERIOD = 69 days`, and `TAIL_TPS = 1 ether`. These are provisional development constants pending
+  independent economic review. Do not add a rate setter, emissions controller, migration authority, oracle, entropy
+  source, team fee, or claim redirection.
 - `SignalGBX` is the non-transferable, one-for-one GBX escrow receipt, the ERC20Votes governance token on the default
   block-number clock, and the sole public signal coordinator. Idle sGBX is forbidden: every successful raw-unit mint
   must atomically deposit the same GBX amount, assign the same amount to one live Strategy through Resonance, and give
@@ -167,6 +185,10 @@ authorized for user funds. A green local build is engineering evidence, never a 
 
 ## Source and generated artifacts
 
+- Keep Solidity contract bodies in this order: types, constants, immutables/state, events, errors, modifiers,
+  constructor, external/public state-changing functions, external/public view or pure functions, internal/private
+  state-changing helpers, then internal/private view or pure helpers. Keep overloads adjacent and related functions in
+  execution order within each section rather than sorting alphabetically.
 - Edit Solidity under `packages/contracts/src`, then run Forge and Hardhat against the same source. Do not hand-edit
   compiler output under `artifacts`, `cache`, `out`, or `typechain-types`.
 - SDK ABI files are generated from Foundry artifacts with `pnpm sdk:abi:generate`; verify with

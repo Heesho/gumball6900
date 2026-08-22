@@ -10,7 +10,7 @@ import {
 } from 'matchstick-as/assembly/index';
 import { Burned, Minted } from '../generated/GBX/GBX';
 import { FeesHarvested } from '../generated/LiquidityPosition/LiquidityPosition';
-import { Claimed, EmissionSettled, Mined, MinerPaymentAccrued } from '../generated/Mine/Mine';
+import { Claimed, EmissionSettled, Mined, MinerPaymentAccrued, RevenueDeposited } from '../generated/Mine/Mine';
 import { RewardCarryFunded } from '../generated/templates/BribeTemplate/Bribe';
 import {
   BribePaymentAccrued,
@@ -35,7 +35,13 @@ import {
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
 import { handleFeesHarvested } from '../src/liquidity-position';
-import { handleClaimed, handleEmissionSettled, handleMined, handleMinerPaymentAccrued } from '../src/mine';
+import {
+  handleClaimed,
+  handleEmissionSettled,
+  handleMined,
+  handleMinerPaymentAccrued,
+  handleMiningRevenueDeposited,
+} from '../src/mine';
 import {
   handleBribeBpsSet,
   handleRevenueDistributed,
@@ -47,7 +53,18 @@ import {
 } from '../src/resonance';
 import { handleSignaled, handleSignalWithdrawn } from '../src/signal-gbx';
 import { Signaled, SignalWithdrawn } from '../generated/SignalGBX/SignalGBX';
-import { ASSET, CONTRACT, REWARDS, STRATEGY, USER, USER_TWO, addressParam, configureEvent, uintParam } from './helpers';
+import {
+  ASSET,
+  CONTRACT,
+  REWARDS,
+  STRATEGY,
+  USER,
+  USER_TWO,
+  addressParam,
+  configureEvent,
+  stringParam,
+  uintParam,
+} from './helpers';
 
 export {
   handleBribeBpsSet,
@@ -57,6 +74,7 @@ export {
   handleFeesHarvested,
   handleMined,
   handleMinerPaymentAccrued,
+  handleMiningRevenueDeposited,
   handleMinted,
   handleRevenueDistributed,
   handleRevenueNotified,
@@ -120,6 +138,7 @@ describe('core protocol mappings', () => {
     mined.parameters.push(uintParam('price', 50));
     mined.parameters.push(uintParam('initialPrice', 100));
     mined.parameters.push(uintParam('tps', 4));
+    mined.parameters.push(stringParam('message', 'hello from the mine'));
     handleMined(mined);
 
     const accrued = changetype<MinerPaymentAccrued>(newMockEvent());
@@ -138,13 +157,24 @@ describe('core protocol mappings', () => {
     claim.parameters.push(uintParam('amount', 40));
     handleClaimed(claim);
 
+    const deposited = changetype<RevenueDeposited>(newMockEvent());
+    configureEvent(deposited, CONTRACT, 4);
+    deposited.parameters = new Array<ethereum.EventParam>();
+    deposited.parameters.push(uintParam('index', 0));
+    deposited.parameters.push(uintParam('epochId', 7));
+    deposited.parameters.push(uintParam('amount', 10));
+    handleMiningRevenueDeposited(deposited);
+
     const slotId = '4663-' + CONTRACT.toHexString() + '-slot-0';
     assert.fieldEquals('MiningSlot', slotId, 'epoch', '8');
     assert.fieldEquals('MiningSlot', slotId, 'currentMiner', USER_TWO.toHexString());
+    assert.fieldEquals('MiningSlot', slotId, 'currentMessage', 'hello from the mine');
     assert.fieldEquals('MiningSlot', slotId, 'tpsRaw', '4');
     assert.fieldEquals('ProtocolState', '4663', 'miningPaymentsRaw', '50');
+    assert.fieldEquals('ProtocolState', '4663', 'miningRevenueDepositedRaw', '10');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'miningPaymentAccruedRaw', '40');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'miningUSDGClaimedRaw', '40');
+    assert.fieldEquals('ProtocolEvent', eventId(deposited), 'eventType', 'MINE_REVENUE_DEPOSITED');
   });
 
   test('tracks target-slot mining settlement and fixed-principal fee harvesting', () => {

@@ -22,34 +22,58 @@ Each slot is an hourly reverse Dutch auction. Its replacement price falls linear
 slot changes hands:
 
 - the displaced miner receives an 80% USDG pull claim;
-- 20% routes through ResonanceRouter; and
-- the first occupation of an empty slot routes 100% to ResonanceRouter because nobody was displaced.
+- Mine deposits the 20% remainder into ResonanceRouter; and
+- the first occupation of an empty slot deposits 100% into ResonanceRouter because nobody was displaced.
 
 There is no team fee. A miner accepts rollover risk: if no successor pays to replace them, they receive GBX but no 80%
 handoff payment.
 
 ## Tenure-locked rates
 
-The TPS assigned when a slot is occupied is fixed until that slot changes hands. Redemptions and later
-cumulative-mining halvings never dilute an incumbent. A new or replaced slot receives:
+The TPS assigned when a slot is occupied is fixed until that slot changes hands. Redemptions and later time-based
+halvings never dilute an incumbent. A new or replaced slot receives:
 
 ```text
 current global GBX tokens per second / 16
 ```
 
-Integer division residue is unissued. Protecting incumbents means a halving can temporarily leave aggregate issuance
-above the new global rate: legacy slots retain older TPS while new slots receive the new rate. The reproduced scenario in
+Integer division residue is unissued. Protecting incumbents means aggregate issuance can remain above the new global
+rate for as long as legacy slots retain older TPS; turnover is not guaranteed. The reproduced scenario in
 `packages/simulations/fixtures/economic-scenarios.json` makes this tradeoff explicit.
 
 ## Emission curve
 
-The constructor fixes the initial global rate, cumulative issuance threshold per halving, and positive tail rate. The
-global rate is halved at geometric cumulative-mining thresholds, but the lower rate applies only at a later slot
-handoff. Exact deployment parameters remain release inputs and must be recorded in a signed manifest.
+Mine hard-codes an initial global rate of 64 GBX per second, a provisional 69-day halving period measured from
+deployment, and a positive global tail of 1 GBX per second. A lower prospective rate applies only when a slot next
+changes hands. The schedule remains subject to independent economic review even though deployments cannot choose an
+alternative after deployment.
+
+In the synchronized reference path—every slot occupied, refreshed and settled at each boundary, with no burns—the
+sixth boundary at day 414 follows 751,161,600 GBX of mining and gives a 771,161,600 GBX gross supply including genesis.
+The 31,536,000 GBX annual tail flow is initially about 4.089% of that reference supply and declines as supply grows.
+This is not a cap, forecast, or guaranteed inflation rate: empty slots reduce issuance, legacy tenures can keep higher
+rates indefinitely and exceed this path, and burns change the live denominator.
+
+| Boundary | Day | Fresh global TPS | Synchronized no-burn gross supply |
+| -------- | --- | ---------------- | --------------------------------- |
+| Launch   | 0   | 64               | 20,000,000                        |
+| 1        | 69  | 32               | 401,542,400                       |
+| 2        | 138 | 16               | 592,313,600                       |
+| 3        | 207 | 8                | 687,699,200                       |
+| 4        | 276 | 4                | 735,392,000                       |
+| 5        | 345 | 2                | 759,238,400                       |
+| 6 (tail) | 414 | 1                | 771,161,600                       |
+
+After the tail, that same synchronized no-burn reference reaches 802,697,600 GBX after one year, 834,233,600 after
+two years, 928,841,600 after five years, and 1,086,521,600 after ten years. These are measured from the day-414 tail,
+not from Mine deployment.
 
 ## Revenue, acquisitions, and redemption
 
-Mining and liquidity USDG route into Resonance's global seven-day stream. Each elapsed interval follows the SignalGBX
+Mining handoffs deposit their protocol USDG share into ResonanceRouter without calling it. A later permissionless
+`route()` call moves a qualifying Router balance into Resonance's global seven-day stream; there is no caller bounty or
+liveness guarantee, so deposit and stream entry may be separated indefinitely. Liquidity fee harvesting keeps its
+atomic route attempt. Each elapsed interval follows the SignalGBX
 weights active during that interval; moving a signal checkpoints the old interval first and affects only later flow.
 A holder mints sGBX only by atomically assigning the same amount to a live Strategy. SignalGBX coordinates every
 change; its account balance is the aggregate signal, paired Bribes store per-Strategy positions and supply, and
@@ -84,8 +108,9 @@ signalers. A 0% automatic share does not disable the paired Bribe: signal, move,
 and independently funded rewards continue normally.
 
 Streaming is lazy accounting: no keeper transaction is required each second. A later signal change, distribution,
-purchase, or qualifying notification materializes the elapsed amount. During an active schedule ResonanceRouter holds
-its balance while it is below the exact amount left. A qualifying complete balance checkpoints the stream and restarts
+purchase, or qualifying notification materializes the elapsed amount. A separate caller is required to attempt Router
+forwarding, however. During an active schedule ResonanceRouter holds its balance until `route()` is called. A
+qualifying complete balance checkpoints the stream and restarts
 seven days with `reward + left`; this can raise or lower the rate and move the finish.
 
 The raw quotient plus front-loaded remainder releases every scheduled six-decimal USDG unit, including a one-raw-unit

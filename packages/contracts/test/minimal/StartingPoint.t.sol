@@ -114,18 +114,7 @@ contract StartingPointTest is Test {
         targetStrategy = Strategy(targetStrategyAddress);
         gbxStrategy = Strategy(gbxStrategyAddress);
 
-        mine = new Mine(
-            gbx,
-            IERC20(address(usdg)),
-            address(resonanceRouter),
-            Mine.Config({
-                priceMultiplier: 2e18,
-                minimumInitialPrice: 1e6,
-                initialTps: 4 ether,
-                halvingAmount: 490_000_000 ether,
-                tailTps: 0.01 ether
-            })
-        );
+        mine = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter));
         gbx.setMinter(address(mine));
         gbx.transfer(ALICE, 200 ether);
         gbx.transfer(BOB, 200 ether);
@@ -135,7 +124,7 @@ contract StartingPointTest is Test {
         assertEq(signalGBX.symbol(), "sGBX");
     }
 
-    function test_MiningRoutesRevenueMintsContinuouslyAndPaysTheDisplacedMiner() external {
+    function test_MiningDepositsRevenueMintsContinuouslyAndPaysTheDisplacedMiner() external {
         _signalFixture();
         uint256 firstPrice = _mine(ALICE, 0);
         vm.warp(block.timestamp + 30 minutes);
@@ -143,12 +132,12 @@ contract StartingPointTest is Test {
 
         assertEq(firstPrice, 1e6);
         assertEq(secondPrice, 1e6);
-        assertEq(usdg.balanceOf(address(resonance)), 1_000_000);
-        assertEq(usdg.balanceOf(address(resonanceRouter)), 200_000);
-        assertEq(resonance.left(address(usdg)), 996_400);
+        assertEq(usdg.balanceOf(address(resonance)), 0);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 1_200_000);
+        assertEq(resonance.left(address(usdg)), 0);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
         assertEq(usdg.balanceOf(address(fund)), 0);
-        assertEq(gbx.balanceOf(ALICE), 100 ether + 450 ether);
+        assertEq(gbx.balanceOf(ALICE), 100 ether + 7_200 ether);
         assertEq(gbx.balanceOf(BOB), 100 ether);
 
         mine.claim(ALICE);
@@ -160,11 +149,11 @@ contract StartingPointTest is Test {
         _mine(BOB, 1);
 
         assertEq(mine.SLOT_COUNT(), 16);
-        assertEq(mine.getSlot(0).tps, 0.25 ether);
-        assertEq(mine.getSlot(1).tps, 0.25 ether);
+        assertEq(mine.getSlot(0).tps, 4 ether);
+        assertEq(mine.getSlot(1).tps, 4 ether);
 
         vm.warp(block.timestamp + 1 hours);
-        assertEq(mine.pendingEmission(), 1_800 ether);
+        assertEq(mine.pendingEmission(), 28_800 ether);
     }
 
     function test_AcquisitionClassifiesTheCompletePaymentNinetyTen() external {
@@ -412,7 +401,7 @@ contract StartingPointTest is Test {
 
         vm.startPrank(account);
         if (paid != 0) usdg.approve(address(mine), paid);
-        mine.mine(account, index, slot.epochId, block.timestamp, paid);
+        mine.mine(account, index, slot.epochId, block.timestamp, paid, "");
         vm.stopPrank();
     }
 

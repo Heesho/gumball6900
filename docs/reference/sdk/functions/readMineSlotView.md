@@ -6,9 +6,9 @@
 
 # Function: readMineSlotView()
 
-> **readMineSlotView**(`client`, `mine`, `index`, `account`, `options?`): `Promise`\<\{ `aggregateTps`: `bigint`; `auctionStartedAt`: `bigint`; `blockNumber`: `bigint`; `claimablePayment`: `bigint`; `currentPrice`: `bigint`; `effectiveTotalSupply`: `bigint`; `epochId`: `bigint`; `index`: `bigint`; `initialPrice`: `bigint`; `lastAccruedAt`: `bigint`; `mine`: `` `0x${string}` ``; `nextGlobalTps`: `bigint`; `pendingEmission`: `bigint`; `slotCount`: `bigint`; `slotMiner`: `` `0x${string}` ``; `totalClaimable`: `bigint`; `totalMined`: `bigint`; `totalPendingEmission`: `bigint`; `tps`: `bigint`; \}\>
+> **readMineSlotView**(`client`, `mine`, `index`, `account`, `options?`): `Promise`\<\{ `aggregateTps`: `bigint`; `auctionStartedAt`: `bigint`; `blockNumber`: `bigint`; `blockTimestamp`: `bigint`; `claimablePayment`: `bigint`; `currentHalvingEra`: `bigint`; `currentPrice`: `bigint`; `effectiveTotalSupply`: `bigint`; `epochId`: `bigint`; `halvingPeriod`: `bigint`; `index`: `bigint`; `initialPrice`: `bigint`; `lastAccruedAt`: `bigint`; `mine`: `` `0x${string}` ``; `nextGlobalTps`: `bigint`; `nextHalvingBoundary`: `bigint` \| `null`; `pendingEmission`: `bigint`; `prospectiveSlotTps`: `bigint`; `slotCount`: `bigint`; `slotMiner`: `` `0x${string}` ``; `startTime`: `bigint`; `tailTps`: `bigint`; `totalClaimable`: `bigint`; `totalMined`: `bigint`; `totalPendingEmission`: `bigint`; `tps`: `bigint`; \}\>
 
-Reads one slot's tenure-locked rate, auction state, pending GBX, and account USDG claim at one block.
+Reads one slot, Mine accounting, and the time-based prospective-rate boundary at one canonical block.
 
 ## Parameters
 
@@ -22,4 +22,4 @@ Reads one slot's tenure-locked rate, auction state, pending GBX, and account USD
 
 ## Returns
 
-`Promise`\<\{ `aggregateTps`: `bigint`; `auctionStartedAt`: `bigint`; `blockNumber`: `bigint`; `claimablePayment`: `bigint`; `currentPrice`: `bigint`; `effectiveTotalSupply`: `bigint`; `epochId`: `bigint`; `index`: `bigint`; `initialPrice`: `bigint`; `lastAccruedAt`: `bigint`; `mine`: `` `0x${string}` ``; `nextGlobalTps`: `bigint`; `pendingEmission`: `bigint`; `slotCount`: `bigint`; `slotMiner`: `` `0x${string}` ``; `totalClaimable`: `bigint`; `totalMined`: `bigint`; `totalPendingEmission`: `bigint`; `tps`: `bigint`; \}\>
+`Promise`\<\{ `aggregateTps`: `bigint`; `auctionStartedAt`: `bigint`; `blockNumber`: `bigint`; `blockTimestamp`: `bigint`; `claimablePayment`: `bigint`; `currentHalvingEra`: `bigint`; `currentPrice`: `bigint`; `effectiveTotalSupply`: `bigint`; `epochId`: `bigint`; `halvingPeriod`: `bigint`; `index`: `bigint`; `initialPrice`: `bigint`; `lastAccruedAt`: `bigint`; `mine`: `` `0x${string}` ``; `nextGlobalTps`: `bigint`; `nextHalvingBoundary`: `bigint` \| `null`; `pendingEmission`: `bigint`; `prospectiveSlotTps`: `bigint`; `slotCount`: `bigint`; `slotMiner`: `` `0x${string}` ``; `startTime`: `bigint`; `tailTps`: `bigint`; `totalClaimable`: `bigint`; `totalMined`: `bigint`; `totalPendingEmission`: `bigint`; `tps`: `bigint`; \}\>

@@ -368,13 +368,16 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             assertLe(mine.price(i), slot.initialPrice);
             assertLe(slot.lastAccruedAt, block.timestamp);
             if (slot.miner == address(0)) assertEq(slot.tps, 0);
-            assertLe(slot.tps, mine.initialTps());
+            assertLe(slot.tps, mine.INITIAL_TPS());
             combinedTps += slot.tps;
             naivePending += mine.pendingEmission(i);
         }
         assertEq(combinedTps, mine.aggregateTps());
         assertEq(naivePending, mine.pendingEmission());
-        assertGe(mine.nextGlobalTps(), mine.tailTps());
+        uint256 elapsedHalvings = (block.timestamp - mine.startTime()) / mine.HALVING_PERIOD();
+        uint256 expectedGlobalTps = mine.INITIAL_TPS() >> elapsedHalvings;
+        if (expectedGlobalTps < mine.TAIL_TPS()) expectedGlobalTps = mine.TAIL_TPS();
+        assertEq(mine.nextGlobalTps(), expectedGlobalTps);
         assertLe(mine.totalMined(), gbx.lifetimeMinted() - gbx.GENESIS_LIQUIDITY_ALLOCATION());
     }
 
@@ -438,6 +441,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.claimMiningPayment(0);
         handler.donateRevenue(50_000e6);
         handler.donateDirectRevenue(1);
+        vm.warp(block.timestamp + 1 hours);
         handler.distributeAll();
         handler.buy(1, 1);
         handler.notifyTinyReward(0, 1);

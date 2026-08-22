@@ -15,8 +15,8 @@ of patience.
 ## The decision that is already made
 
 The five simulations on this page are currently drawn in **canvas 2D**. The owner reviewed them,
-called them **"a bit messy"**, asked for *"gumballs in an intricate system of pipes"* and *"a
-factory flow that really models out what's going on at each level"*, saw a Three.js prototype, and
+called them **"a bit messy"**, asked for _"gumballs in an intricate system of pipes"_ and _"a
+factory flow that really models out what's going on at each level"_, saw a Three.js prototype, and
 chose it.
 
 **Convert all of them to Three.js. The renderer question is settled — do not re-open it.**
@@ -34,12 +34,12 @@ picture of a falling-price auction than bars were; and per-asset hues in the fun
 What is wrong with it, and is your first work: the perspective camera makes the left dispensers much
 larger than the right, so **sixteen equal slots do not read as peers** — try an orthographic or
 near-orthographic camera; the fund bays are cropped and band 05 is not visible; the right third is
-dead space; the band labels are too dim; and `TO THE MINER · 80% + GBX` floats disconnected, which
-is the same unjustified-label problem the 2D version had.
+dead space; the band labels are too dim; and `TO THE MINER · 80% + GBX` both floats disconnected
+and mistakes the 80% pull claim for a pushed payment.
 
 ## THE ONE RULE THAT OUTRANKS EVERYTHING
 
-**The model layer is frozen. You are replacing the paint layer only.**
+**The reconciled model layer is frozen. You are replacing the paint layer only.**
 
 `lib/harness.ts` already splits every simulation into `step(dt)` — advance the model on accumulated
 sim time — and `paint()` — draw it — plus `static()` for the reduced-motion still. **The models
@@ -55,6 +55,10 @@ are invisible in a screenshot:
 - redemption reading as **pro-rata** and impossible to misread as picking assets;
 - mining's never-taken slots **honestly exhausting**, with no slot silently re-opened;
 - mining's reader-take dwell **varied** so the exit figure is never the same twice.
+- mining's protocol share ending at **ResonanceRouter**, with no synchronous `route()` or implied
+  seven-day-stream start;
+- new-tenure TPS selected only from Mine deployment age: **64 GBX/s**, halving every **69 days**,
+  with a **1 GBX/s** tail and incumbents staying locked.
 
 **Reuse `step()` verbatim. If a builder finds itself editing model code, it must stop and ask you.**
 Every figure a diagram prints must still come from the model, and `docs/MODELS.md` stays ground
@@ -84,11 +88,11 @@ truth. A rewrite is exactly how this gets silently lost.
 
 A reader learns three ball types **once** and can then read any diagram on the page.
 
-| ball | colour | rule |
-|---|---|---|
-| **USDG** — capital arriving | `#29B6F0` blue | **always**, everywhere, no variation |
-| **GBX** — supply, and what gets burned | neutral / white | **always**, everywhere, no variation |
-| **Assets** — what signal buys | one distinct hue per asset | differ from each other; each consistent with itself |
+| ball                                   | colour                     | rule                                                |
+| -------------------------------------- | -------------------------- | --------------------------------------------------- |
+| **USDG** — capital arriving            | `#29B6F0` blue             | **always**, everywhere, no variation                |
+| **GBX** — supply, and what gets burned | neutral / white            | **always**, everywhere, no variation                |
+| **Assets** — what signal buys          | one distinct hue per asset | differ from each other; each consistent with itself |
 
 Asset palette, already shipped by `Fund.tsx`: `NVDA #9E5CF2` · `QQQ #F92B92` · `WBTC #FF6274` ·
 `AAPL #F57ACD`.
@@ -154,7 +158,7 @@ These were found by cross-cutting audits and are **not yet applied**. Apply them
    Combined with (1) the ring goes from 50% to 100% perimeter and **the flash reads stronger than
    what shipped**.
 3. **Mining's canvas prints `NO ONE DISPLACED` at 2.48:1** — the label that teaches the
-   100%-to-fund route. `inkA(0.55)` gives 5.57:1.
+   100%-to-Router deposit. `inkA(0.55)` gives 5.57:1.
 4. **Resonance's ledger delta lingers sub-AA** — a linear opacity ramp leaves ~1.2s of a ~3.3s life
    below 3:1. The fund's `.acq__delta` pattern (hold at 1, fade with a 320ms transition) passes 99%
    of its life. Adopt it.

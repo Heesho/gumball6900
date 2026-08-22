@@ -6,15 +6,15 @@
 
 # Function: miningRateAt()
 
-> **miningRateAt**(`economicallyMined`, `config`): `bigint`
+> **miningRateAt**(`elapsedSinceStart`, `config`): `bigint`
 
-Returns the global TPS assigned at the next handoff, before dividing it across sixteen fixed slots.
+Returns the prospective global TPS after the given number of seconds since Mine deployment.
 
 ## Parameters
 
 | Parameter           | Type                                                      |
 | ------------------- | --------------------------------------------------------- |
-| `economicallyMined` | `bigint`                                                  |
+| `elapsedSinceStart` | `bigint`                                                  |
 | `config`            | [`MiningCurveConfig`](../interfaces/MiningCurveConfig.md) |
 
 ## Returns

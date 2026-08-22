@@ -1,13 +1,36 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="500" viewBox="0 0 840 500" role="img">
   <rect width="840" height="500" rx="18" fill="#0b0d12"/>
-  <text x="42" y="46" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="24" font-weight="700">Fixed-slot halving preserves incumbent TPS</text>
-  <text x="42" y="72" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="13">The incumbent keeps 6.25 GBX/hour; later tenures receive the halved 3.125 GBX/hour</text>
+  <text x="42" y="46" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="24" font-weight="700">Synchronized Mine supply path</text>
+  <text x="42" y="72" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="13">Full-refresh, no-burn reference: 771,161,600 GBX at day 414; actual issuance depends on turnover</text>
   <line x1="78" y1="410" x2="798" y2="410" stroke="#394150"/>
-  <rect x="170" y="130" width="100" height="280" rx="8" fill="#f7c948"/>
-  <text x="220" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="12">incumbent</text>
-  <rect x="360" y="270" width="100" height="140" rx="8" fill="#56b4e9"/>
-  <text x="410" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="12">new slot 1</text>
-  <rect x="550" y="270" width="100" height="140" rx="8" fill="#56b4e9"/>
-  <text x="600" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="12">new slot 2</text>
+  <polyline points="78,403 198,265 318,195 438,161 558,143 678,135 798,130" fill="none" stroke="#f7c948" stroke-width="4"/>
+  <circle cx="78" cy="403" r="5" fill="#f7c948"/>
+  <circle cx="198" cy="265" r="5" fill="#f7c948"/>
+  <circle cx="318" cy="195" r="5" fill="#f7c948"/>
+  <circle cx="438" cy="161" r="5" fill="#f7c948"/>
+  <circle cx="558" cy="143" r="5" fill="#f7c948"/>
+  <circle cx="678" cy="135" r="5" fill="#f7c948"/>
+  <circle cx="798" cy="130" r="5" fill="#f7c948"/>
+  <text x="78" y="391" text-anchor="middle" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="11">20.0M</text>
+  <text x="78" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">day 0</text>
+  <text x="78" y="452" text-anchor="middle" fill="#697586" font-family="ui-sans-serif,system-ui" font-size="10">64 GBX/s</text>
+  <text x="198" y="253" text-anchor="middle" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="11">401.5M</text>
+  <text x="198" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">day 69</text>
+  <text x="198" y="452" text-anchor="middle" fill="#697586" font-family="ui-sans-serif,system-ui" font-size="10">32 GBX/s</text>
+  <text x="318" y="183" text-anchor="middle" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="11">592.3M</text>
+  <text x="318" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">day 138</text>
+  <text x="318" y="452" text-anchor="middle" fill="#697586" font-family="ui-sans-serif,system-ui" font-size="10">16 GBX/s</text>
+  <text x="438" y="149" text-anchor="middle" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="11">687.7M</text>
+  <text x="438" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">day 207</text>
+  <text x="438" y="452" text-anchor="middle" fill="#697586" font-family="ui-sans-serif,system-ui" font-size="10">8 GBX/s</text>
+  <text x="558" y="131" text-anchor="middle" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="11">735.4M</text>
+  <text x="558" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">day 276</text>
+  <text x="558" y="452" text-anchor="middle" fill="#697586" font-family="ui-sans-serif,system-ui" font-size="10">4 GBX/s</text>
+  <text x="678" y="123" text-anchor="middle" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="11">759.2M</text>
+  <text x="678" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">day 345</text>
+  <text x="678" y="452" text-anchor="middle" fill="#697586" font-family="ui-sans-serif,system-ui" font-size="10">2 GBX/s</text>
+  <text x="798" y="118" text-anchor="middle" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="11">771.2M</text>
+  <text x="798" y="435" text-anchor="middle" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="11">day 414</text>
+  <text x="798" y="452" text-anchor="middle" fill="#697586" font-family="ui-sans-serif,system-ui" font-size="10">1 GBX/s</text>
   <text x="798" y="474" text-anchor="end" fill="#697586" font-family="ui-sans-serif,system-ui" font-size="11">Mechanics scenario — not an investment projection</text>
 </svg>

@@ -79,8 +79,7 @@ export function Hero() {
       <div className="hero__grid">
         <div className="hero__left">
           <p className="hero__kicker reveal" style={d(0)}>
-            <span className="hero__kickrule" aria-hidden="true" />
-            A fund with no manager
+            <span className="hero__kickrule" aria-hidden="true" />A fund with no manager
           </p>
 
           <h1 className="wm hero__wm reveal" id="sec-hero-h" style={d(70)}>
@@ -91,8 +90,8 @@ export function Hero() {
           <div className="hero__body">
             <div className="hero__say">
               <p className="hero__lede reveal" style={d(150)}>
-                An index fund that lives onchain: it holds <b>real tokenized assets</b>, its holders steer what it
-                buys, and any holder can burn their tokens to walk away with their share of everything inside.
+                An index fund that lives onchain: it holds <b>real tokenized assets</b>, its holders steer what it buys,
+                and any holder can burn their tokens to walk away with their share of everything inside.
               </p>
               <div className="hero__cta reveal" style={d(210)}>
                 <a className="btn btn--primary" href={WHITEPAPER}>
@@ -127,8 +126,8 @@ export function Hero() {
                 </li>
               </ul>
               <p className="note hero__statusnote">
-                Robinhood Chain is the intended target, not a commitment. Production mining and pricing parameters are
-                unselected.
+                Robinhood Chain is the intended target, not a commitment. Mine&apos;s fixed development economics are
+                provisional pending independent review.
               </p>
             </div>
           </div>

@@ -1,5 +1,6 @@
 {
   "version": 2,
+  "evidenceStatus": "Historical internal dispositions from 2026-08-16; not regenerated after ADR 0044, contains pre-ADR-0044 Mine symbols, and is not current-tree release evidence.",
   "reviewedAt": "2026-08-16",
   "expiresAt": "2026-08-23T23:59:59Z",
   "reviewers": {

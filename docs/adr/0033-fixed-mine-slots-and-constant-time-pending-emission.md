@@ -3,6 +3,9 @@
 - Status: accepted for development; not approved for deployment or user funds
 - Date: 2026-08-18
 - Supersedes: ADR 0024's capacity, checkpoint, emission-settlement, redemption-denominator, and Mine-administration decisions
+- Partially superseded by: ADR 0041 replaces the cumulative-mining halving rule with a deployment-time schedule; ADR
+  0042 replaces ADR 0041's provisional period and initial rate; ADR 0043 replaces the tail rate; ADR 0044 replaces
+  Mine's synchronous downstream revenue-routing behavior
 
 ## Context
 
@@ -11,8 +14,10 @@ ADR 0024 began with one slot, allowed governance to grow capacity to sixteen, an
 with no capacity governance and no redemption path whose success depends on mutating every mining position.
 
 The difficult accounting requirement is that all sixteen slots can start at different times and retain different
-tenure-locked rates. Pending emission must still be exact and available in constant time. A cumulative-mining halving
-must depend on economically accrued emission, not on when a miner chooses to realize it.
+tenure-locked rates. Pending emission must still be exact and available in constant time. This ADR originally made
+prospective halvings depend on economically accrued emission rather than realization timing; ADR 0041 supersedes that
+rate-selection rule. Pending emission remains authoritative for supply accounting, but no longer selects a new
+tenure's prospective rate.
 
 ## Decision
 
@@ -21,11 +26,18 @@ price. A first occupation routes its complete payment to Resonance. A nonempty r
 miner as a pull claim and routes 20% to Resonance. Every slot price decays linearly to zero in one hour. A zero-price
 replacement, including self-replacement, is valid and restarts the slot at the minimum price.
 
-Each new tenure receives:
+The preceding routing sentences record this ADR's historical decision. ADR 0044 supersedes their synchronous
+downstream step: current Mine deposits the protocol share into ResonanceRouter, emits `RevenueDeposited`, and ends
+without calling `route()`.
 
-`slot.tps = globalTps(totalMined + pendingEmission()) / 16`
+ADR 0033 originally assigned each new tenure from cumulative minted-plus-pending emission. ADR 0041 supersedes that
+formula. The current assignment is:
 
-The rate is never changed during that tenure. Mine names rates `tps` (tokens per second), not `ups`.
+`slot.tps = max(INITIAL_TPS >> floor((block.timestamp - startTime) / HALVING_PERIOD), TAIL_TPS) / 16`
+
+`startTime` is the Mine deployment timestamp. ADR 0041 provisionally selected `4 * 365 days`; ADR 0042 supersedes that
+value with the current 69-day development candidate, and ADR 0043 selects the current 1 GBX-per-second tail. The rate
+is never changed during that tenure. Mine names rates `tps` (tokens per second), not `ups`.
 
 Mine maintains three aggregate values:
 
@@ -53,7 +65,9 @@ change any mining timestamp.
 - In the absence of burns, `GBX.totalSupply == genesis allocation + totalMined`.
 - `totalMined + pendingEmission()` changes only by exact elapsed aggregate emission.
 - Settling one slot moves its accrual from pending to minted without changing their sum.
-- Claim timing cannot delay a halving because new-tenure rates use minted plus pending economic emission.
+- Pending emission and claim timing do not influence the prospective global rate.
+- The prospective global rate changes only at elapsed-time boundaries measured from `startTime` and never reprices an
+  occupied slot.
 - Fund redemption includes pending emission exactly once and does not settle it.
 
 ## Consequences
@@ -63,5 +77,7 @@ change any mining timestamp.
 - There is no capacity action, Mine owner, Mine Timelock dependency, or all-slot checkpoint failure mode.
 - A current miner realizes GBX only when that slot is replaced; after one hour they may self-replace for zero USDG.
 - Aggregate issuance may temporarily exceed the current global rate after a halving because incumbents keep prior TPS.
+- The time schedule advances while every slot is empty, and deployment-to-launch delay consumes part of the first
+  period. A handoff immediately before a boundary can lock the older rate for that complete tenure.
 - Production pending-supply reads and handoffs are constant time. Tests deliberately traverse all sixteen slots as an
   independent differential oracle.

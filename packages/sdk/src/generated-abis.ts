@@ -3579,38 +3579,6 @@ export const mineAbi = [
         type: 'address',
         internalType: 'address',
       },
-      {
-        name: 'config',
-        type: 'tuple',
-        internalType: 'struct Mine.Config',
-        components: [
-          {
-            name: 'priceMultiplier',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'minimumInitialPrice',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'initialTps',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'halvingAmount',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-          {
-            name: 'tailTps',
-            type: 'uint256',
-            internalType: 'uint256',
-          },
-        ],
-      },
     ],
     stateMutability: 'nonpayable',
   },
@@ -3629,7 +3597,20 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'MAX_HALVING_AMOUNT',
+    name: 'HALVING_PERIOD',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'INITIAL_TPS',
     inputs: [],
     outputs: [
       {
@@ -3655,7 +3636,7 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'MAX_INITIAL_TPS',
+    name: 'MAX_MESSAGE_BYTES',
     inputs: [],
     outputs: [
       {
@@ -3668,59 +3649,7 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'MAX_PRICE_MULTIPLIER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MIN_HALVING_AMOUNT',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MIN_INITIAL_PRICE',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MIN_PRICE_MULTIPLIER',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'MIN_TAIL_TPS',
+    name: 'MINIMUM_INITIAL_PRICE',
     inputs: [],
     outputs: [
       {
@@ -3759,7 +3688,7 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'PRICE_PRECISION',
+    name: 'PRICE_MULTIPLIER',
     inputs: [],
     outputs: [
       {
@@ -3773,6 +3702,19 @@ export const mineAbi = [
   {
     type: 'function',
     name: 'SLOT_COUNT',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'TAIL_TPS',
     inputs: [],
     outputs: [
       {
@@ -3907,32 +3849,6 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'halvingAmount',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'initialTps',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'mine',
     inputs: [
       {
@@ -3960,6 +3876,11 @@ export const mineAbi = [
         type: 'uint256',
         internalType: 'uint256',
       },
+      {
+        name: 'message',
+        type: 'string',
+        internalType: 'string',
+      },
     ],
     outputs: [
       {
@@ -3969,19 +3890,6 @@ export const mineAbi = [
       },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'minimumInitialPrice',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -4062,19 +3970,6 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'priceMultiplier',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'resonanceRouter',
     inputs: [],
     outputs: [
@@ -4132,7 +4027,7 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'storedPendingEmission',
+    name: 'startTime',
     inputs: [],
     outputs: [
       {
@@ -4145,7 +4040,7 @@ export const mineAbi = [
   },
   {
     type: 'function',
-    name: 'tailTps',
+    name: 'storedPendingEmission',
     inputs: [],
     outputs: [
       {
@@ -4297,6 +4192,12 @@ export const mineAbi = [
         indexed: false,
         internalType: 'uint256',
       },
+      {
+        name: 'message',
+        type: 'string',
+        indexed: false,
+        internalType: 'string',
+      },
     ],
     anonymous: false,
   },
@@ -4333,7 +4234,7 @@ export const mineAbi = [
   },
   {
     type: 'event',
-    name: 'RevenueRouted',
+    name: 'RevenueDeposited',
     inputs: [
       {
         name: 'index',
@@ -4385,17 +4286,6 @@ export const mineAbi = [
   },
   {
     type: 'error',
-    name: 'HalvingAmountOutOfRange',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'IndexOutOfBounds',
     inputs: [
       {
@@ -4428,28 +4318,6 @@ export const mineAbi = [
   },
   {
     type: 'error',
-    name: 'InitialPriceOutOfRange',
-    inputs: [
-      {
-        name: 'price',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InitialTpsOutOfRange',
-    inputs: [
-      {
-        name: 'tps',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'MaxPriceExceeded',
     inputs: [
       {
@@ -4466,17 +4334,12 @@ export const mineAbi = [
   },
   {
     type: 'error',
-    name: 'MiningAuthorityNotFinalized',
+    name: 'MessageTooLong',
     inputs: [
       {
-        name: 'minter',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'locked',
-        type: 'bool',
-        internalType: 'bool',
+        name: 'length',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
   },
@@ -4493,17 +4356,6 @@ export const mineAbi = [
   },
   {
     type: 'error',
-    name: 'PriceMultiplierOutOfRange',
-    inputs: [
-      {
-        name: 'multiplier',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'ReentrancyGuardReentrantCall',
     inputs: [],
   },
@@ -4515,17 +4367,6 @@ export const mineAbi = [
         name: 'token',
         type: 'address',
         internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'TailTpsOutOfRange',
-    inputs: [
-      {
-        name: 'tps',
-        type: 'uint256',
-        internalType: 'uint256',
       },
     ],
   },

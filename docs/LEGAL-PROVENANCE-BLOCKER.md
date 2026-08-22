@@ -8,8 +8,8 @@ The active contracts are narrow adaptations of pinned give.fun commit
 `14b5fbbbe1945f2e6501f84976e5f12b39fb227a`. Strategy's reverse-Dutch shape has a transitive Euler Fee Flow ancestor
 at commit `3bee858a1568d1313f37d615953f83391a897866`, whose reviewed file is GPL-2.0-or-later. The Liquid Signal Bribe and
 Voter lineage statements also name Synthetix StakingRewards and Solidly without exact repository, commit, or path.
-Mine additionally adapts Farplace MineRig at commit `8cf7423016b108e7bd8d7854c14e0ac6585bb935`. Its reviewed source
-file declares MIT, but the pinned repository does not provide a root license that resolves distribution rights.
+Mine additionally adapts [donut-miner](https://github.com/Heesho/donut-miner), but its exact source revision, path,
+file hashes, and licensing have not yet been pinned or reviewed.
 
 The reviewed upstream files have per-file MIT headers, but the pinned upstream repository states and transitive GPL
 lineage do not establish a complete distribution conclusion. The current BUSL-1.1 headers are not a legal resolution.
@@ -23,7 +23,7 @@ declares BUSL-1.1, so the repository-level and file-level terms are not reconcil
 | Active file             | Recorded behavioral source                                                                      | Status                                                                      |
 | ----------------------- | ----------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `GBX.sol`               | give.fun `packages/hardhat/contracts/Coin.sol` at `ef6ee14a...`                                 | Adapted; exact upstream SHA-256 is in `NOTICE`.                             |
-| `Mine.sol`              | Farplace `packages/hardhat/contracts/rigs/mine/MineRig.sol` at `8cf74230...`                    | Adapted; exact upstream SHA-256 is in `NOTICE`; root licensing unresolved.  |
+| `Mine.sol`              | `Heesho/donut-miner`; exact commit and source path unresolved                                   | Adapted; upstream pin, file hash, and licensing unresolved.                 |
 | `Fund.sol`              | give.fun `packages/hardhat/contracts/Core.sol` at `ef6ee14a...`                                 | Materially redesigned ownerless redemption treasury.                        |
 | `SignalGBX.sol`         | Liquid Signal `contracts/GovernanceToken.sol` at `14b5fbbb...`                                  | Adapted; exact upstream SHA-256 is in `NOTICE`.                             |
 | `Resonance.sol`         | Liquid Signal `contracts/Voter.sol` at `14b5fbbb...`                                            | Materially redesigned Bribe-shaped reward allocator.                        |
@@ -48,7 +48,7 @@ Before any public distribution or deployment, counsel must approve:
 - the repository-wide license and every active Solidity SPDX identifier;
 - GPL compatibility and source-availability consequences for Euler-derived auction behavior;
 - exact Solidly and Synthetix ancestor identification and attribution;
-- Farplace MineRig ownership, license scope, and required attribution;
+- donut-miner ownership, source pin, license scope, and required attribution;
 - `NOTICE`, copyright ownership, author attribution, and dependency notices;
 - whether generated ABI, documentation, SDK, subgraph, and frontend artifacts have matching distribution terms.
 

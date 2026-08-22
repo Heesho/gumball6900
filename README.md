@@ -9,18 +9,27 @@ burned for caller-selected Fund assets.
 
 > Architecture status: [ADR 0031](docs/adr/0031-mandatory-signal-backed-signalgbx.md),
 > [ADR 0032](docs/adr/0032-fixed-90-10-acquired-asset-settlement.md),
-> [ADR 0034](docs/adr/0034-external-governance-ownership.md), and
+> [ADR 0033](docs/adr/0033-fixed-mine-slots-and-constant-time-pending-emission.md),
+> [ADR 0034](docs/adr/0034-external-governance-ownership.md),
 > [ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md),
 > [ADR 0036](docs/adr/0036-governed-global-bribe-share.md), and
-> [ADR 0037](docs/adr/0037-high-precision-bribe-index.md) are implemented in the development tree. ADR 0036
+> [ADR 0037](docs/adr/0037-high-precision-bribe-index.md), together with the Mine decisions
+> [ADR 0038](docs/adr/0038-fixed-mine-economics.md),
+> [ADR 0039](docs/adr/0039-event-only-mine-messages.md),
+> [ADR 0040](docs/adr/0040-deployment-time-mine-authority-verification.md),
+> [ADR 0041](docs/adr/0041-time-based-mine-halvings.md),
+> [ADR 0042](docs/adr/0042-provisional-accelerated-mine-emissions.md),
+> [ADR 0043](docs/adr/0043-provisional-one-gbx-tail.md), and
+> [ADR 0044](docs/adr/0044-decouple-mine-from-revenue-routing.md), are implemented in the development tree. ADR 0036
 > supersedes ADR 0032's fixed-rate rule while retaining its cumulative liability accounting. Governance execution
 > remains an unselected external integration, so deployment is blocked. This is local engineering evidence only;
 > independent review and every deployment gate remain outstanding.
 
 ## Protocol loop
 
-1. A user replaces an hourly Mine slot. If a miner is displaced, 80% of the USDG payment becomes their claim and 20%
-   routes to Resonance. An empty slot routes 100% to Resonance.
+1. A user replaces an hourly Mine slot. If a miner is displaced, 80% of the USDG payment becomes their claim and Mine
+   deposits the 20% remainder into ResonanceRouter. An empty slot deposits 100%. A later permissionless `route()` call
+   may forward the Router balance into Resonance.
 2. The slot miner continuously accrues GBX at a rate fixed for that complete tenure.
 3. GBX holders call SignalGBX (`sGBX`), the non-transferable governance token and sole signal coordinator, to deposit
    GBX, mint the same sGBX amount, and assign every minted unit to one live Strategy atomically. They may move an
@@ -32,8 +41,8 @@ burned for caller-selected Fund assets.
 5. A GBX holder burns tokens to redeem a proportional share of caller-selected Fund assets.
 
 ```text
-replacement USDG -> Mine --20%--> ResonanceRouter -> Resonance --7-day stream--> Strategies
-                         \--80%--> displaced miner
+replacement USDG -> Mine --20% deposit--> ResonanceRouter --permissionless route()--> Resonance
+                         \--80%--> displaced miner                                  \--7-day stream--> Strategies
 Mine -> continuous GBX
 GBX -> SignalGBX --mandatory signal--> Resonance allocation weights
 SignalGBX --IVotes checkpoints-------> external governance (unselected) --owns--> Resonance
@@ -41,6 +50,10 @@ Strategy acquired-asset payment -> BribeRouter --80%-100% complement--> Fund
                                               \--0%-20% current rate--> paired Bribe -> signalers
 GBX burn -> Fund selected assets
 ```
+
+Mine stops after exact delivery to ResonanceRouter; it does not call `route()` during a handoff. Anyone may route
+later, directly or through optional frontend/cron automation, but there is no keeper role, bounty, or liveness
+guarantee. LiquidityPosition fee harvesting retains its separate atomic route attempt.
 
 ResonanceRouter waits while its USDG balance is below the exact amount left in the active stream. A qualifying balance
 checkpoints elapsed revenue and restarts seven days with the new reward plus that remainder. Resonance uses a `1e36`
@@ -54,12 +67,14 @@ retains ERC-2612 permit approvals but carries no governance checkpoints; voting 
 active Strategy signal through sGBX.
 
 Mine has exactly 16 ownerless slots. Every slot's USDG replacement price decays linearly to zero over one hour and can
-be filled at any time.
+be filled at any time. The payer may attach up to 280 raw bytes of message metadata to the `Mined` event; Mine does
+not store it in contract state.
 
 An occupied slot's GBX TPS cannot be changed mid-tenure. Mining halvings apply only when a slot is newly occupied or
-replaced. This protects miners from mid-tenure dilution, while accepting that aggregate issuance can temporarily
-exceed the current global TPS as old-rate and new-rate slots coexist. Constructor-fixed cumulative-mining
-halvings end in a positive tail so mining and revenue can continue indefinitely.
+replaced. This protects miners from mid-tenure dilution, while accepting that aggregate issuance can exceed the
+current global TPS for as long as old-rate and new-rate slots coexist; turnover is not guaranteed. The prospective
+global rate halves on a fixed deployment-time schedule and ends in a positive tail so mining and revenue can continue
+indefinitely.
 
 ## Redemption
 
@@ -160,11 +175,18 @@ Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
 [ADR 0034](docs/adr/0034-external-governance-ownership.md), and
 [ADR 0035](docs/adr/0035-bribe-lifetime-reward-cap.md),
 [ADR 0036](docs/adr/0036-governed-global-bribe-share.md), and
-[ADR 0037](docs/adr/0037-high-precision-bribe-index.md).
+[ADR 0037](docs/adr/0037-high-precision-bribe-index.md), and
+[ADR 0038](docs/adr/0038-fixed-mine-economics.md),
+[ADR 0039](docs/adr/0039-event-only-mine-messages.md),
+[ADR 0040](docs/adr/0040-deployment-time-mine-authority-verification.md),
+[ADR 0041](docs/adr/0041-time-based-mine-halvings.md),
+[ADR 0042](docs/adr/0042-provisional-accelerated-mine-emissions.md), and
+[ADR 0043](docs/adr/0043-provisional-one-gbx-tail.md), and
+[ADR 0044](docs/adr/0044-decouple-mine-from-revenue-routing.md).
 
 ## Provenance
 
-The signaling and acquisition graph adapts pinned give.fun and Liquid Signal Governance sources. Mine adapts the
-Farplace MineRig mechanics, with protocol-specific changes for a strict 80/20 split, bounded multislot capacity,
-tenure-locked rates, permanent GBX mint authority, and redemption checkpointing. Exact pins and unresolved licensing
-clearance are recorded in [NOTICE](NOTICE).
+The signaling and acquisition graph adapts pinned give.fun and Liquid Signal Governance sources. Mine's mining-market
+lineage is donut-miner, with protocol-specific changes for a strict 80/20 split, fixed multislot capacity,
+tenure-locked rates, permanent GBX mint authority, and constant-time redemption supply. Its exact upstream pin and
+unresolved licensing clearance are recorded in [NOTICE](NOTICE).

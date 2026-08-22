@@ -1,81 +1,74 @@
-# MODELS — the five live simulations in docs/deck/gumball6900-deck.html
+# MODELS — the five live simulations in `apps/landing`
 
-Source of truth: `docs/deck/gumball6900-deck.html` (all line numbers below refer to that file).
-WARNING: lines 621 and 1069 are ~428KB data-URI images. Never read a range containing them.
+The live component implementations are the source of truth. The old
+`docs/deck/gumball6900-deck.html` is an art-direction ancestor, not a current Mine model. Every
+simulation registers with `lib/harness.ts`, which provides one animation loop, visibility pausing,
+reset behavior, and a meaningful reduced-motion still.
 
-All five sims live in one IIFE, lines 1183–1975. They model contract mechanics, not canned
-animation. Shared scaffolding:
+Mine-bound constants used by `components/sections/Mining.tsx`:
 
-- **Shared constants** (1186–1199): `SLOTS=16`, `DECAY=3600` (Mine.PRICE_DECAY_PERIOD s),
-  `MINER_BPS=8000`, `BPS=10000`, `MULT=2.0` ("within Mine's 1.1–3.0 bound"), `MIN_PRICE=1` ($),
-  `STREAM=7*86400` (Resonance.DURATION), `BRIBE_BPS=1000` (Resonance default).
-  Illustrative emission curve: `INITIAL_TPS=4000/3600` GBX/s all slots, `HALVING=250000`,
-  `TAIL=200/3600`. Names pool at 1201.
-- **`globalTps(mined)`** (1203–1214): mirrors `Mine._rateState` — rate halves per threshold AND the
-  interval to the next threshold also halves (`next += HALVING / 2^halvings`); clamps to `TAIL`.
-- **Formatters** `money()` / `gbx()` (1216–1225).
-- **Reduced motion** (1184): `prefers-reduced-motion` sets `running=false` on mine/flow/auc
-  (they still paint one static frame). sig and red ignore it.
-- **Visibility gating** (1931–1945): an IntersectionObserver (threshold 0.25) on each sim's
-  `.slide` sets `visible[key]`; a sim only steps/paints while its slide is ≥25% on screen.
-- **Frame loop** (1947–1974): rAF, `dtms` clamped to 64ms. Time scales differ per sim:
-  mine `dt*60`, flow `step(dt*900)` + `animate(realDt)`, sig `dt*3600`, auc `step(dt*450)` +
-  `animate(realDt)`, red runs in real time. Seed before first frame (1971): `flow.pending=46000;
-flow.step(1)` so the flow diagram is not empty on first view.
+- `SLOTS = 16` and `DECAY = 3600` seconds.
+- `MINER_BPS = 8_000`, `BPS = 10_000`.
+- `MULT = 2` and `MIN_PRICE = 1` displayed USDG (`1e6` raw six-decimal USDG).
+- `INITIAL_TPS = 64` GBX/s globally, `HALVING_PERIOD = 69 days`, and `TAIL_TPS = 1` GBX/s.
 
-Honest-register comment worth copying (1175–1182): "Both mirror the contract mechanics rather
-than replaying a canned animation … Illustrative parameters only. The production rate, halving
-amount, tail, multiplier and starting price are unselected (finding M-04)."
+`globalTps(elapsedSinceStart)` mirrors `Mine._globalTps`:
+
+```text
+halvings = floor(elapsedSinceStart / 69 days)
+prospectiveGlobalTps = max(64 / 2^halvings, 1) GBX/s
+```
+
+Elapsed time is measured from `Mine.startTime`. Minted supply, pending emission, occupancy, and
+turnover do not select the prospective rate. The simulated prices, reservations, takers, and timing
+are illustrative; the constants above are provisional source constants, not constructor choices.
 
 ---
 
-## 1. mine — sixteen reverse Dutch auctions (lines 1227–1363; markup 831–854)
+## 1. mine — sixteen reverse Dutch auctions
 
-State: `{ t, speed:60, running, totalMined, revenue, paidToMiners, slots[16], cells[16] }`.
-Per slot: `{ owner, initialPrice, startedAt, lastAccruedAt, tps, mined, reserve, flash }`.
+State: `{ t, totalMined, routerDeposits, paidToMiners, slots[16] }`. Per slot:
+`{ owner, initialPrice, startedAt, lastAccruedAt, tps, mined, reserve }`.
 
-Init (1242–1274): each slot starts owned by a fixed name, `initialPrice = 4 + rand*26` dollars,
-and — critically — `startedAt = -rand * DECAY * 0.9` so every slot is at its own point in its own
-cycle ("otherwise the whole board reaches its reservation together and sixteen slots change hands
-in one frame", 1244–1245). `tps = INITIAL_TPS/16`, `mined = rand*40`,
-`reserve = MIN_PRICE * (0.2 + rand*0.55)`.
+Init: the display opens on a reachable post-deployment snapshot with twelve occupied slots and four
+never-taken slots. Every never-taken slot keeps Mine's `$1` deployment auction and deployment-time
+start; it is never reopened after a first fill. Occupied tenures are staggered to prevent lockstep.
+Vacant slots have zero TPS. Occupied era-zero slots have `64 / 16 = 4 GBX/s` each, or `14,400
+GBX/hour`, and keep that assigned rate until replacement.
 
-Price (1276–1280): `priceOf = initialPrice * (1 - elapsed/DECAY)`, 0 once `elapsed >= DECAY`.
-Pure linear decay to zero over one (sim) hour — matches `Mine._price`.
+Price: `priceOf = initialPrice * (1 - elapsed/DECAY)`, returning zero once `elapsed >= DECAY`.
+This is the same linear one-hour decay as `Mine._price`.
 
-Step (1327–1339): accrue `dt*tps` to each occupied slot's `mined`; a slot is bought when
-`priceOf(slot) <= slot.reserve` **and** tenure age `> 240` sim-seconds (the dwell that stops
-lockstep churn, 1335–1336).
+Step: accrue `dt * tps` to each occupied slot's display balance. An illustrative taker buys once
+`priceOf(slot) <= slot.reserve` and the display-only four-minute dwell has elapsed. The dwell and
+reservation are choreography, not Mine rules.
 
-Buy event (1282–1325) — the exact contract-shaped order:
+Buy event — the contract-shaped accounting shown by the model:
 
 1. Settle the outgoing tenure: `accrued = (t - lastAccruedAt) * tps` is "minted" to the displaced
-   miner (`totalMined += accrued`) — issuance is realized only at replacement, as in the contract.
-2. Route the payment: **vacant slot → 100% to `revenue`; occupied → 80% to `paidToMiners`,
-   20% to `revenue`** (1294–1302).
-3. New tenure: random new owner; **`initialPrice = max(paid * MULT, MIN_PRICE)`** (1305) — the
-   restart rule, including the $1 floor after a zero-price take; `tps = globalTps(totalMined)/16`
-   (new tenure re-divides the current global rate by sixteen, 1308); `mined = 0`; new random
-   reservation `initialPrice * (0.18 + rand*0.6)` (1310).
-4. Emphasis: cell `.fx` text names the transfer — `'@name  +$X  +Y GBX'` or
-   `'first fill  ·  100% to the fund'` — class `is-bought` is removed, forced reflow
-   (`void cell.root.offsetWidth`, 1319) to restart the CSS flash on repeat purchase, re-added,
-   and cleared by `setTimeout` after **1100ms** (1322).
-5. Cross-sim feed (1324): the fund's share of the payment is pushed into `flow.pending`.
-   (Note: at this point `slot.owner` was already reassigned, so the vacant-slot branch of that
-   ternary is dead — it always adds the 20% share. Harmless, since revenue was computed above.)
+   miner (`totalMined += accrued`) at replacement.
+2. Allocate a nonzero payment: an empty slot deposits 100% in ResonanceRouter; an occupied slot
+   credits `floor(paid * 8_000 / 10_000)` as the displaced miner's pull claim and deposits the exact
+   remainder in ResonanceRouter. The Router tally means deposited, not forwarded or streamed.
+3. Start the new tenure at `max(paid * 2, $1)`. Assign
+   `globalTps(t - MINE_START_TIME) / 16`, independent of `totalMined`, and lock it until replacement.
+4. Show the restart leap, the pull claim, the Router deposit, and the outgoing GBX settlement for
+   about one second. The first-fill state is consumed once and never fabricated again.
 
-Paint (1341–1361) — DOM cells, not canvas. Grid `#mineBoard` of 16 `.cell` divs, each with owner
-(`@name` or `open`), price `$X.XX`, a decay bar whose width is the **fraction of time remaining**
-(`1 - elapsed/DECAY` — identical to price fraction because decay is linear; the bar must shrink
-as the slot gets cheaper), GBX-mined line, and the fx line. Tallies: total GBX mined, USDG to the
-fund (`tRev`, pink), USDG paid back to displaced miners (`tPaid`, blue), and live GBX/hour
-(`sum(slot.tps)*3600`). Clock `day D, HH:MM` from sim time.
+Mine emits `RevenueDeposited` after an exact nonzero Router deposit and stops. The model deliberately
+does not feed the deposit directly into the Resonance simulation: `ResonanceRouter.route()` is a
+separate permissionless action with no role, bounty, or liveness guarantee, and funds may wait in
+the Router indefinitely.
 
-Re-implementer traps: price restarts at `paid × MULT` with a **floor**, never a fixed number;
-new tps is locked for the whole tenure (drift only happens at handoffs); accrued GBX mints at
-replacement, not continuously; the 240s dwell and per-tenure random reserve are what keep the
-board from synchronising.
+Paint: all sixteen auctions are drawn as one-hour descending ramps. Four detailed DOM cells show
+owner, price, a clock that fills from tenure start to the one-hour zero, pending GBX, and locked
+GBX/hour. Tallies show Router deposits, displaced-miner claims, GBX settled so far, and the live sum
+of all assigned slot rates.
+
+Re-implementer traps: the restart is fixed at `paid × 2` with a `$1` floor; new TPS depends on elapsed
+time from Mine deployment, never cumulative emission; incumbents do not reprice at a halving; the
+aggregate rate may therefore exceed the prospective global rate; accrued GBX mints at replacement;
+and a Router deposit does not prove that a seven-day stream began.
 
 ## 2. sig — signal and earn (lines 1591–1671; markup 856–877)
 
@@ -113,10 +106,10 @@ Step (1409–1462), sim time ×900:
   Set `delta = ±lot`, `moved = 1`; `moved` decays over 2600 sim-s and clears `delta`.
   `nextShift = t + 3200 + rand*5200`. Between moves the weights hold still — deliberate:
   "Signalers move stake in discrete decisions, not as a continuous trickle" (1412–1415).
-- **Stream restart** (1439–1444): only when the current stream is finished (`t >= finish`) and
-  `pending > 0`: `rate = pending/STREAM; finish = t + STREAM; pending = 0`. While expired,
-  fresh mining revenue trickles in: `pending += 5200 * dt / STREAM`. `pending` is also fed live
-  by `mine.buy` (1324) and seeded with 46000 at 1971.
+- **Stream restart**: this isolated Resonance model begins after revenue has been forwarded from
+  ResonanceRouter. It accumulates an illustrative weekly amount locally and restarts only after the
+  current display stream finishes. It is deliberately not a claim that a Mine handoff forwards or
+  schedules revenue synchronously.
 - **Allocation and fills** (1446–1461): `released = rate*dt` while streaming; each asset's
   `pot += released * (stake/totalStake)`. When `t >= epochEnd` and `pot > 0` the auction flushes:
   `units = pot/price`; `lastFill = units * (1 - 0.10)`; `held += lastFill`; `pot = 0`;
@@ -143,10 +136,11 @@ center text "signal / N GBX". Legend row per asset: `%`, and
 `rate*STREAM*share/price*0.90`; row gets class `is-moved` while `moved > 0`.
 Clock: `week N = ceil(t/STREAM)`.
 
-Traps: weights change only in whole-lot steps, never drift; the stream restarts only after the
-previous seven days fully elapse (the contract also allows an early restart when the new reward
-covers what's left — see CONTRACT FACTS); each asset flushes whatever pot it has on its own
-random epoch; the 10% bribe cut is taken at fill time in asset units.
+Traps: weights change only in whole-lot steps, never drift; the display starts downstream of a
+successful permissionless Router call; the stream restarts only after the previous seven days fully
+elapse (the contract also allows an early restart when Router revenue covers what is left — see
+CONTRACT FACTS); each asset flushes whatever pot it has on its own random epoch; the 10% bribe cut
+is taken at fill time in asset units.
 
 ## 4. auc — one live acquisition auction (lines 1673–1846; markup 900–920)
 
@@ -223,33 +217,28 @@ state (display interpolates with `k`; the decrement happens once at the end); re
 
 `packages/contracts/src/core/Mine.sol`:
 
-- 16 slots, permanent: `SLOT_COUNT = 16` (Mine.sol:32).
-- Linear decay to zero over one hour: `PRICE_DECAY_PERIOD = 1 hours` (Mine.sol:30);
-  `_price` returns 0 when `elapsed >= PRICE_DECAY_PERIOD`, else
-  `initialPrice - initialPrice*elapsed/PRICE_DECAY_PERIOD` (Mine.sol:348–352).
-- **Restart price when a slot is taken is NOT hard-coded "double"**:
-  `_nextInitialPrice = paid * priceMultiplier / 1e18`, clamped up to `minimumInitialPrice` and
-  down to `MAX_INITIAL_PRICE` (Mine.sol:210–214). `priceMultiplier` is an immutable deployment
-  choice bounded `MIN_PRICE_MULTIPLIER = 1.1e18` … `MAX_PRICE_MULTIPLIER = 3e18`
-  (Mine.sol:34–36, validated at 137–139). The deck's MULT=2.0 is an illustrative pick inside
-  that bound (deck 1191); the slide prose "the price restarts at double" (deck 837) states the
-  illustrative value as if fixed. Floor: `MIN_INITIAL_PRICE = 1e6` raw USDG = $1 (Mine.sol:38).
-- 80/20 vs 100% routing: `PREVIOUS_MINER_BPS = 8_000` (Mine.sol:26). `_allocatePayment`
-  (Mine.sol:216–228): vacant slot (`previousMiner == address(0)`) → the **entire** payment is
-  revenue; occupied → 80% accrued to the displaced miner as a **pull-based claim**
-  (`claimable[previousMiner] +=`, withdrawn via `claim()`, Mine.sol:253–269 — not pushed), and
-  the 20% remainder is transferred to the ResonanceRouter and `route()` is called
-  (Mine.sol:230–249).
-- Fixed issuance per tenure: at replacement the new slot's rate is
-  `_globalTps(totalMined + storedPendingEmission) / SLOT_COUNT` and is **tenure-locked** — "Each
-  occupied slot keeps its assigned tokens-per-second rate until replacement" (Mine.sol:16,
-  191–203). The outgoing tenure's accrual `(now - lastAccruedAt) * slot.tps` is minted to the
-  displaced miner only at settlement (`_settleSlot`, Mine.sol:313–325). Vacant slots have
-  `tps = 0` (Mine.sol:354–363).
-- Halvings: `_rateState` (Mine.sol:331–346) — rate `initialTps >> halvings`, and the interval to
-  the next threshold also halves (`nextThreshold += halvingAmount >> halvings`); floor `tailTps`.
-  `initialTps`, `halvingAmount`, `tailTps`, `priceMultiplier`, `minimumInitialPrice` are all
-  unset deployment parameters (Config, Mine.sol:83–89) — hence the deck's "illustrative" labels.
+- Exactly 16 immutable slots: `SLOT_COUNT = 16`.
+- Linear decay to zero over one hour: `PRICE_DECAY_PERIOD = 1 hours`; `_price` returns zero once
+  the hour elapses.
+- The next starting price is hard-coded as `paid * PRICE_MULTIPLIER`, where
+  `PRICE_MULTIPLIER = 2`, clamped up to `MINIMUM_INITIAL_PRICE = 1e6` raw USDG and down to the
+  `uint192` raw-price cap. These are source constants, not constructor inputs or settings.
+- Payment allocation uses `PREVIOUS_MINER_BPS = 8_000`. An occupied-slot payment credits
+  `floor(paid * 8_000 / 10_000)` to the displaced miner as a pull claim; the exact remainder is
+  transferred into the immutable ResonanceRouter. An empty-slot first fill deposits the complete
+  payment. Zero-price handoffs move no USDG.
+- A successful paid deposit emits `Mine.RevenueDeposited(index, epochId, amount)`. Mine never calls
+  `ResonanceRouter.route()`. Routing is a later permissionless action with no caller role, reward,
+  or liveness guarantee, so Router revenue may wait indefinitely. Only
+  `ResonanceRouter.RevenueRouted` proves a later successful forward into Resonance.
+- `startTime` anchors the prospective schedule. `INITIAL_TPS = 64 ether`,
+  `HALVING_PERIOD = 69 days`, and `TAIL_TPS = 1 ether`. A new tenure gets
+  `max(INITIAL_TPS >> floor((now - startTime) / HALVING_PERIOD), TAIL_TPS) / 16`.
+- A slot's assigned TPS is tenure-locked. A time boundary does not reprice incumbents, so aggregate
+  issuance may exceed the current prospective global rate until higher-rate slots turn over.
+  Pending emission is kept exact in constant time but does not select the prospective rate.
+- The 64/69-day/1 curve is the provisional development candidate pending independent economic
+  review. It is fixed in source and cannot be reconfigured after deployment.
 
 `packages/contracts/src/core/Resonance.sol`:
 
@@ -264,16 +253,3 @@ state (display interpolates with `k`; the decrement happens once at the end); re
   `MAX_BRIBE_BPS = 2_000` — "Hard governance ceiling preserving at least 80% of cumulative
   classified payments for Fund" (Resonance.sol:35–36); `setBribeBps` reverts above the max
   (Resonance.sol:279–285) and never reprices existing liabilities (Resonance.sol:276–277).
-
-## Deck disclaimer / honesty copy (markup 609–1095), verbatim
-
-- Cover chip (635): `Not deployed · not audited`
-- Assets note (704–708): `Redemption is always in kind: you receive the tokens themselves, in the proportion you are owed, and you choose which ones. The equity symbols above are reviewed candidates, not holdings. Robinhood Chain is the intended venue and is not finalised; nothing has been deployed or bought.`
-- Mine sim bar (842): `Illustrative parameters; the real ones are not chosen yet.`
-- Sig sim bar (868): `Three holders, each moving their stake when they change their mind.`
-- Flow sim bar (890): `Each Strategy sells its USDG in a falling-price auction, then 90% of the asset backs GBX.`
-- Auction sim bar (914): `Both stacks are measured in QQQ. They settle when the asking stack drops to the worth stack.`
-- Listing note (1007–1010): `Nothing here is a promise about anyone's token price. It is a description of where the protocol's revenue mechanically goes, and who decides.`
-- Thesis note (1055–1060): `Stated as design intent, not as a forecast. Nothing guarantees GBX trades at or above its redemption value: that argument depends on the acquired assets being liquid enough to arbitrage, and on there being real demand for signal. Supply also grows continuously, so a holder who neither signals nor mines is diluted over time. This is the mechanism, not a promise about price.`
-- Close card 1 (1076–1081): `Before you pass this on` / `Not deployed on any network. Not independently audited. The real mining and pricing numbers have not been chosen, and neither has the governance owner. Nothing here is an offer, a solicitation, or investment advice, and it is not a regulated fund product.`
-- Close card 2 (1083–1089): `Where it actually stands` / `The contracts are written and heavily tested in-house: 347 automated tests pass with zero failures. Immutability cuts both ways — a bug cannot be patched and a deployment mistake cannot be corrected.`

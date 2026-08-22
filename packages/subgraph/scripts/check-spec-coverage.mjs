@@ -25,7 +25,7 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleMinerPaymentAccrued',
   'handleMinterSet',
   'handleMinted',
-  'handleMiningRevenueRouted',
+  'handleMiningRevenueDeposited',
   'handlePositionRecorded',
   'handleRedeemed',
   'handleRevenueDistributed',

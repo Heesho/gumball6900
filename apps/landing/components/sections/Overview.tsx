@@ -13,8 +13,8 @@ import './overview.css';
    live callout that names the beat and runs a leader line to the exact part
    it is talking about.
 
-     01 money in     sixteen slot mouths, each on its own clock; USDG falls
-                     into the seven-day stream
+     01 deposited    sixteen slot mouths, each on its own clock; Mine deposits
+                     protocol USDG in ResonanceRouter for a later route call
      02 aimed        the stream meets a gate bar whose openings ARE the
                      signal weights; the flow fans into channels
      03 converted    worth rises in each channel while the ask falls; when
@@ -43,7 +43,7 @@ interface Beat {
    section reached by scrolling has not already spent its cycle. Each beat
    lights one stratum and dims the rest: one idea at a time, guaranteed. */
 const BEATS: Beat[] = [
-  { start: 0.0, card: 0, band: 0, label: 'Miners pay in', tint: 'blue' },
+  { start: 0.0, card: 0, band: 0, label: 'Mine deposits', tint: 'blue' },
   { start: 3.0, card: 1, band: 1, label: 'Holders aim it', tint: 'pink' },
   { start: 6.4, card: 2, band: 2, label: 'Auctions convert it', tint: 'pink' },
   { start: 9.4, card: 3, band: 3, label: 'The fund holds it', tint: 'gbx' },
@@ -75,7 +75,7 @@ const SLOTS = 16;
 const REST_A = 0.86;
 /* The band names carry the ordinal, and they are the only thing allowed in
    the label gutter — one line each, never wrapped, never a peer of another. */
-const BAND_LABEL = ['01 · MONEY IN', '02 · AIMED', '03 · CONVERTED', '04 · THE FUND', '05 · YOUR SHARE'];
+const BAND_LABEL = ['01 · DEPOSITED', '02 · AIMED', '03 · CONVERTED', '04 · THE FUND', '05 · YOUR SHARE'];
 /* One asset hue. The vessel holds what signal bought, so pink is the honest
    colour; the only variation is a deterministic ±4% in lightness keyed to
    grid position, which reads as light falling across a field of spheres and
@@ -93,16 +93,16 @@ interface Stage {
 const STAGES: Stage[] = [
   {
     n: '01',
-    tag: 'Money in',
-    head: 'Miners pay in',
-    body: "Sixteen mining slots, every one always for sale. The USDG miners pay is the fund's only buying power.",
+    tag: 'Deposited',
+    head: 'Mine deposits',
+    body: 'Mine exact-deposits its payment share in ResonanceRouter. It never forwards or schedules that USDG itself.',
     tone: 'blue',
   },
   {
     n: '02',
     tag: 'Aimed',
     head: 'Holders aim it',
-    body: 'Revenue releases as a rolling seven-day stream, split moment to moment by where holders point their GBX.',
+    body: 'After a separate permissionless route call, revenue releases over seven days and follows live signal.',
     tone: 'pink',
   },
   {
@@ -565,9 +565,7 @@ export function Overview() {
          where there is one, otherwise above the band's rule. Band 05's name
          goes UNDER the vessel floor, never inside the vessel. The callout
          then takes the row beneath the name. Nothing else may enter either. */
-      const labelY = band.map((b, i) =>
-        narrow ? (i === 4 ? vy1 + fs + 9 : b - 6) : b + fs * 0.36,
-      );
+      const labelY = band.map((b, i) => (narrow ? (i === 4 ? vy1 + fs + 9 : b - 6) : b + fs * 0.36));
       const calloutY = band.map((b, i) => (narrow && i === 4 ? vy1 + fs + 9 : b) + strip - 6);
 
       const vx0 = px0 + (narrow ? 3 : 10);
@@ -878,13 +876,17 @@ export function Overview() {
     /* both return the runs they actually DREW, so an arrowhead can be put on
        the end of a line that exists rather than floating in a cut gap */
     function hRun(x0: number, x1: number, y: number, boxes: Box[], color: string, alpha: number) {
-      const blocks = boxes.filter((b) => y >= b.y0 - 4 && y <= b.y1 + 4).map((b) => [b.x0 - 6, b.x1 + 6] as [number, number]);
+      const blocks = boxes
+        .filter((b) => y >= b.y0 - 4 && y <= b.y1 + 4)
+        .map((b) => [b.x0 - 6, b.x1 + 6] as [number, number]);
       const segs = cutRun(Math.min(x0, x1), Math.max(x0, x1), blocks);
       segs.forEach(([a, b]) => tick(a, y, b, y, color, alpha));
       return segs;
     }
     function vRun(y0: number, y1: number, x: number, boxes: Box[], color: string, alpha: number) {
-      const blocks = boxes.filter((b) => x >= b.x0 - 4 && x <= b.x1 + 4).map((b) => [b.y0 - 6, b.y1 + 6] as [number, number]);
+      const blocks = boxes
+        .filter((b) => x >= b.x0 - 4 && x <= b.x1 + 4)
+        .map((b) => [b.y0 - 6, b.y1 + 6] as [number, number]);
       const segs = cutRun(Math.min(y0, y1), Math.max(y0, y1), blocks);
       segs.forEach(([a, b]) => tick(x, a, x, b, color, alpha));
       return segs;
@@ -1326,7 +1328,10 @@ export function Overview() {
         }
       });
 
-      /* ---- the stream: bursty in, smooth out ---- */
+      /* ---- the downstream stream: bursty in, smooth out -----------------
+         This overview compresses the separate permissionless Router call into
+         the seam between bands 01 and 02. The copy names that boundary; a Mine
+         handoff itself never schedules this trough. */
       const inRate = SLOTS / l.periodBase;
       trough.acc += dt * inRate * (0.35 + trough.level * 1.1);
       while (trough.acc >= 1 && trough.level > 0.03) {
@@ -2217,7 +2222,13 @@ export function Overview() {
           let j = i;
           while (j + 1 < keys.length) {
             const f = rows.get(keys[j + 1] ?? -1);
-            if (!f || (keys[j + 1] ?? 0) !== (keys[j] ?? 0) + 1 || Math.abs(f.a - e.a) > 0.5 || Math.abs(f.b - e.b) > 0.5) break;
+            if (
+              !f ||
+              (keys[j + 1] ?? 0) !== (keys[j] ?? 0) + 1 ||
+              Math.abs(f.a - e.a) > 0.5 ||
+              Math.abs(f.b - e.b) > 0.5
+            )
+              break;
             j++;
           }
           const top = rows.get(keys[j] ?? -1) ?? e;
@@ -2366,7 +2377,15 @@ export function Overview() {
       /* ------------------------------------------------- the three parties */
       party(l, l.minerX, l.minerY, 'MINERS', pal.blueL, a0, 0);
       party(l, l.traderX, l.traderY, 'TRADER', pal.faint, a2, coins.length > 0 ? 0.8 : 0, true);
-      party(l, l.youX, l.youY, 'YOU', pal.hi, Math.max(a1, a4), Math.max(youTake, burnP >= 0 || aimP >= 0 ? 0.9 : 0.25));
+      party(
+        l,
+        l.youX,
+        l.youY,
+        'YOU',
+        pal.hi,
+        Math.max(a1, a4),
+        Math.max(youTake, burnP >= 0 || aimP >= 0 ? 0.9 : 0.25),
+      );
       if (youTake > 0.02) {
         /* the terminal takes delivery: a ring off the marker, over the chute
            end, so the payoff lands IN the marker instead of burying it */
@@ -2458,7 +2477,15 @@ export function Overview() {
          Every drawn word is printed last, over the whole machine, each on a
          plate of the panel's own ground. A sphere, a drop or a rail passing
          behind a label can never eat it, at any width. */
-      lab('USDG', l.mx1 - 9, l.trY0 - 7, l.fs, pal.blueL, 'right', 0.14);
+      lab(
+        l.narrow ? 'ROUTER → ROUTE() → STREAM' : 'RESONANCE ROUTER → ROUTE() → 7-DAY USDG STREAM',
+        l.mx1 - 9,
+        l.trY0 - 7,
+        l.fs,
+        pal.blueL,
+        'right',
+        0.14,
+      );
 
       /* The three parts of a falling-price auction, named where they happen.
          The caption row is pinned to the top of the band — PRICE FALLS on its
@@ -2798,8 +2825,9 @@ export function Overview() {
               Money in, aimed by holders, out as assets you can claim
             </h2>
             <p className="lede">
-              Miners pay USDG for mining slots — the only money in. Holders point that stream at assets, falling-price
-              auctions convert it, and burning GBX takes your share out at any time.
+              Miners pay USDG for mining slots — the only money in. Mine deposits its share in ResonanceRouter; after a
+              separate permissionless route call, holders point the seven-day stream at assets. Falling-price auctions
+              convert it, and burning GBX takes your share out.
             </p>
           </div>
         </header>
@@ -2813,7 +2841,7 @@ export function Overview() {
               id="ovCanvas"
               className="ov-canvas"
               role="img"
-              aria-label="Diagram of the whole loop: USDG paid for sixteen mining slots collects in a seven-day stream, gates sized by holder signal split it into channels, a falling-price auction in each channel trades the USDG to a trader for the asset itself, the assets stack up in the fund in ranks of ten, and burning GBX opens a floor gate that sends the same share of every holding down a chute to the holder."
+              aria-label="Diagram of the whole loop: Mine deposits its share of USDG paid for sixteen mining slots in ResonanceRouter. A separate permissionless route call, which may never happen, can forward qualifying revenue into a seven-day stream. Gates sized by holder signal split that stream into channels, falling-price auctions trade the USDG for assets, the assets stack up in the fund, and burning GBX sends the holder the same share of each selected holding."
             />
           </div>
           <div className="sim-panel__foot">
@@ -2826,8 +2854,8 @@ export function Overview() {
         </div>
 
         <p className="note ov-note reveal" style={{ '--d': '140ms' } as CSSProperties}>
-          Every arrow is a contract call anyone can make — no step waits on a person. The sections below zoom in: the
-          money, the aim, the assets.
+          The calls are permissionless, not automatic. Router deposits can wait indefinitely until someone calls{' '}
+          <span className="num">route()</span>; the sections below separate the deposit, the aim, and the assets.
         </p>
 
         <ol className="cardrow cardrow--4 ov-stages reveal" id="ovStages" style={{ '--d': '180ms' } as CSSProperties}>

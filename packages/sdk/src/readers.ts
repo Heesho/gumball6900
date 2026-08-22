@@ -81,18 +81,25 @@ export const mineSlotViewSchema = z.object({
   aggregateTps: unsignedBigIntSchema,
   auctionStartedAt: unsignedBigIntSchema,
   blockNumber: unsignedBigIntSchema,
+  blockTimestamp: unsignedBigIntSchema,
   claimablePayment: unsignedBigIntSchema,
+  currentHalvingEra: unsignedBigIntSchema,
   currentPrice: unsignedBigIntSchema,
   effectiveTotalSupply: unsignedBigIntSchema,
   epochId: unsignedBigIntSchema,
+  halvingPeriod: unsignedBigIntSchema,
   index: unsignedBigIntSchema,
   initialPrice: unsignedBigIntSchema,
   lastAccruedAt: unsignedBigIntSchema,
   mine: addressSchema,
+  nextHalvingBoundary: unsignedBigIntSchema.nullable(),
   nextGlobalTps: unsignedBigIntSchema,
   pendingEmission: unsignedBigIntSchema,
+  prospectiveSlotTps: unsignedBigIntSchema,
   slotCount: unsignedBigIntSchema,
   slotMiner: addressSchema,
+  startTime: unsignedBigIntSchema,
+  tailTps: unsignedBigIntSchema,
   totalPendingEmission: unsignedBigIntSchema,
   totalClaimable: unsignedBigIntSchema,
   totalMined: unsignedBigIntSchema,
@@ -100,7 +107,7 @@ export const mineSlotViewSchema = z.object({
 });
 export type MineSlotView = z.infer<typeof mineSlotViewSchema>;
 
-/** Reads one slot's tenure-locked rate, auction state, pending GBX, and account USDG claim at one block. */
+/** Reads one slot, Mine accounting, and the time-based prospective-rate boundary at one canonical block. */
 export async function readMineSlotView(
   client: PublicClient,
   mine: Address,
@@ -112,15 +119,19 @@ export async function readMineSlotView(
   const claimant = getAddress(account);
   const pinned = await snapshot(client, options);
   const { blockNumber } = pinned;
+  const blockTimestamp = unsignedBigIntSchema.parse(pinned.blockTimestamp);
   const [
     aggregateTps,
     claimablePayment,
     currentPrice,
     effectiveTotalSupply,
+    halvingPeriodRaw,
     slot,
     nextGlobalTps,
     pendingEmission,
     slotCount,
+    startTimeRaw,
+    tailTps,
     totalClaimable,
     totalMined,
     totalPendingEmission,
@@ -129,10 +140,13 @@ export async function readMineSlotView(
     read(client, blockNumber, mine, mineAbi, 'claimable', [claimant]),
     read(client, blockNumber, mine, mineAbi, 'price', [index]),
     read(client, blockNumber, mine, mineAbi, 'effectiveTotalSupply'),
+    read(client, blockNumber, mine, mineAbi, 'HALVING_PERIOD'),
     read(client, blockNumber, mine, mineAbi, 'getSlot', [index]),
     read(client, blockNumber, mine, mineAbi, 'nextGlobalTps'),
     read(client, blockNumber, mine, mineAbi, 'pendingEmission', [index]),
     read(client, blockNumber, mine, mineAbi, 'SLOT_COUNT'),
+    read(client, blockNumber, mine, mineAbi, 'startTime'),
+    read(client, blockNumber, mine, mineAbi, 'TAIL_TPS'),
     read(client, blockNumber, mine, mineAbi, 'totalClaimable'),
     read(client, blockNumber, mine, mineAbi, 'totalMined'),
     read(client, blockNumber, mine, mineAbi, 'pendingEmission'),
@@ -148,22 +162,40 @@ export async function readMineSlotView(
         slotRecord.tps,
         slotRecord.miner,
       ];
+  const halvingPeriod = unsignedBigIntSchema.parse(halvingPeriodRaw);
+  const startTime = unsignedBigIntSchema.parse(startTimeRaw);
+  const parsedNextGlobalTps = unsignedBigIntSchema.parse(nextGlobalTps);
+  const parsedSlotCount = unsignedBigIntSchema.parse(slotCount);
+  const parsedTailTps = unsignedBigIntSchema.parse(tailTps);
+  if (blockTimestamp < startTime) throw new RangeError('Mine startTime cannot exceed the pinned block timestamp');
+  if (halvingPeriod === 0n) throw new RangeError('Mine HALVING_PERIOD must be positive');
+  if (parsedSlotCount === 0n) throw new RangeError('Mine SLOT_COUNT must be positive');
+  const currentHalvingEra = (blockTimestamp - startTime) / halvingPeriod;
+  const nextHalvingBoundary =
+    parsedNextGlobalTps <= parsedTailTps ? null : startTime + (currentHalvingEra + 1n) * halvingPeriod;
   const result = mineSlotViewSchema.parse({
     aggregateTps,
     auctionStartedAt: values[2],
     blockNumber,
+    blockTimestamp,
     claimablePayment,
+    currentHalvingEra,
     currentPrice,
     effectiveTotalSupply,
     epochId: values[0],
+    halvingPeriod,
     index,
     initialPrice: values[1],
     lastAccruedAt: values[3],
     mine,
+    nextHalvingBoundary,
     nextGlobalTps,
     pendingEmission,
+    prospectiveSlotTps: parsedNextGlobalTps / parsedSlotCount,
     slotCount,
     slotMiner: values[5],
+    startTime,
+    tailTps,
     totalClaimable,
     totalMined,
     totalPendingEmission,

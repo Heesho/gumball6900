@@ -5,39 +5,48 @@ This is the canonical development source, not a deployment or authorization for 
 ## System flow
 
 ```text
-mining:       replacement USDG -> 80% displaced-miner claim + 20% ResonanceRouter
-empty slot:   first-payment USDG -> 100% ResonanceRouter
-issuance:     Mine checkpoint -> accrued GBX to current slot miners
+mining:       replacement USDG -> 80% displaced-miner claim + 20% ResonanceRouter deposit
+empty slot:   first-payment USDG -> 100% ResonanceRouter deposit
+issuance:     slot handoff -> accrued GBX to the displaced slot miner
 acquisitions: buyer payment -> BribeRouter -> complementary Fund + global 0%-20% paired-Bribe liabilities
-redemptions:  Mine checkpoint -> user GBX burn -> selected Fund assets to receiver
+redemptions:  effective-supply snapshot -> user GBX burn -> selected Fund assets to receiver
 liquidity:    accrued USDG -> ResonanceRouter; accrued GBX -> Fund -> atomic burn
 ```
 
 ## Contracts
 
-| Contract            | Responsibility                                                                                        |
-| ------------------- | ----------------------------------------------------------------------------------------------------- |
-| `GBX`               | Creates 20M genesis-liquidity GBX, binds Mine as minter, and retains ERC-2612 permit approvals.       |
-| `Mine`              | One-to-sixteen hourly reverse-Dutch replacement slots with fixed-tenure GBX rates and 80/20 payments. |
-| `LiquidityPosition` | Permanently holds one canonical GBX/USDG v4 NFT at fixed principal and routes fees.                   |
-| `SignalGBX`         | Non-transferable signal-backed GBX, ERC20Votes governance power, and sole signal coordinator.         |
-| `ResonanceRouter`   | Forwards a complete USDG balance once it meets Resonance's current live-period threshold.             |
-| `Resonance`         | Bribe-shaped seven-day USDG rewards over Strategy signal weights, plus Strategy and Bribe creation.   |
-| `StrategyFactory`   | Resonance-only Strategy and BribeRouter deployment.                                                   |
-| `Strategy`          | Uniform bounded reverse-Dutch acquisition whose payment becomes fixed Fund/Bribe liabilities.         |
-| `BribeFactory`      | Resonance-only Bribe deployment.                                                                      |
-| `BribeRouter`       | Applies the global bounded Bribe rate with weighted carry and isolates permissionless liabilities.    |
-| `Bribe`             | Seven-day reward streams with at most eight tokens and a fixed per-token lifetime notification cap.   |
-| `Fund`              | Ownerless raw treasury, GBX burn boundary, and caller-selected in-kind redemption.                    |
+| Contract            | Responsibility                                                                                         |
+| ------------------- | ------------------------------------------------------------------------------------------------------ |
+| `GBX`               | Creates 20M genesis-liquidity GBX, binds Mine as minter, and retains ERC-2612 permit approvals.        |
+| `Mine`              | Exactly sixteen hourly reverse-Dutch replacement slots with fixed-tenure GBX rates and 80/20 payments. |
+| `LiquidityPosition` | Permanently holds one canonical GBX/USDG v4 NFT at fixed principal and routes fees.                    |
+| `SignalGBX`         | Non-transferable signal-backed GBX, ERC20Votes governance power, and sole signal coordinator.          |
+| `ResonanceRouter`   | Forwards a complete USDG balance once it meets Resonance's current live-period threshold.              |
+| `Resonance`         | Bribe-shaped seven-day USDG rewards over Strategy signal weights, plus Strategy and Bribe creation.    |
+| `StrategyFactory`   | Resonance-only Strategy and BribeRouter deployment.                                                    |
+| `Strategy`          | Uniform bounded reverse-Dutch acquisition whose payment becomes fixed Fund/Bribe liabilities.          |
+| `BribeFactory`      | Resonance-only Bribe deployment.                                                                       |
+| `BribeRouter`       | Applies the global bounded Bribe rate with weighted carry and isolates permissionless liabilities.     |
+| `Bribe`             | Seven-day reward streams with at most eight tokens and a fixed per-token lifetime notification cap.    |
+| `Fund`              | Ownerless raw treasury, GBX burn boundary, and caller-selected in-kind redemption.                     |
 
-Mine has exactly sixteen slots. A slot's assigned GBX/second rate never changes during that miner's tenure. Halving
-thresholds affect new occupations only. This deliberately prevents other users from diluting a miner after entry,
-while temporarily allowing aggregate issuance above the current global rate until old slots turn over.
+Mine has exactly sixteen slots. A slot's assigned GBX/second rate never changes during that miner's tenure. Time-based
+halving boundaries affect new occupations only. This deliberately prevents other users from diluting a miner after
+entry, while allowing aggregate issuance above the current global rate for as long as old slots remain; turnover is
+not guaranteed.
 
-A nonempty-slot replacement makes 80% of its USDG payment claimable by the displaced miner and routes 20% through
-ResonanceRouter. An empty slot routes 100%. There is no team fee. GBX has no protocol-defined economic supply cap, with
-immutable cumulative-mining halvings for future handoffs and a positive tail. GBX is permit-enabled but has no voting
-checkpoints; governance power is the SignalGBX minted when GBX is deposited directly into a Strategy signal.
+Each handoff may include an empty or nonempty message of at most 280 raw bytes. Mine emits the message in `Mined` but
+does not keep it in contract storage. The payer and beneficiary are separate indexed event fields, so clients must
+attribute the message to the payer rather than assume the beneficiary authored it.
+
+A nonempty-slot replacement makes 80% of its USDG payment claimable by the displaced miner and deposits the 20%
+remainder into ResonanceRouter. An empty slot deposits 100%. `Mine.RevenueDeposited` means this exact deposit completed;
+Mine does not call `route()`, so the event does not prove same-transaction delivery into Resonance. There is no team
+fee. GBX has no protocol-defined economic supply cap, with
+immutable time-based halvings for future handoffs and a positive tail. GBX is permit-enabled but has no voting
+checkpoints; governance power is the SignalGBX minted when GBX is deposited directly into a Strategy signal. The
+deployment process verifies GBX's permanent reciprocal Mine binding; Mine does not re-read that immutable fact on
+every handoff, while GBX itself continues to enforce it on every mint.
 
 SignalGBX is the only external signaling entrypoint. Every mint atomically deposits GBX and adds the same amount of
 signal to one live Strategy; every burn atomically removes signal and returns the same GBX. Paired Bribes own
@@ -50,8 +59,10 @@ destination is paid through its own permissionless function, so failure at one d
 payments create only Fund liability while signals, exits, existing rewards, and independent rewards remain live.
 Donations remain surplus.
 
-ResonanceRouter forwards a nonzero balance when it is at least the active period's exact remaining reward; smaller
-balances wait in the Router without reverting Mine or liquidity-fee collection. A qualifying notification checkpoints
+ResonanceRouter forwards a nonzero balance when a permissionless caller invokes `route()` and it is at least the active
+period's exact remaining reward; smaller balances remain held. Mine handoffs are already complete and cannot be
+reverted by that later call. Liquidity-fee collection remains atomically coupled to its route attempt. There is no
+keeper role, bounty, or guaranteed caller, so Router funds may wait indefinitely. A qualifying notification checkpoints
 elapsed rewards and restarts seven days with the new USDG plus the old remainder. Resonance uses a `1e36` index and a
 raw quotient with a front-loaded remainder. Per-index and per-Strategy flooring, elapsed zero-signal revenue, and direct
 Resonance donations remain explicit surplus. Killing a Strategy checkpoints its pre-kill claim, removes its complete
@@ -70,10 +81,11 @@ new paired Bribe without reopening the old closed reward pool.
 
 ## Fund redemption
 
-`redeem(gbxAmount, receiver, tokens)` checkpoints every mining slot before calculating payouts, then uses one post-
-checkpoint, pre-burn supply snapshot. EIP-1153 transient storage rejects duplicate selected assets without a registry.
-The complete basket must also leave every selected address with at least its snapshot less its own payout, rejecting
-different facades that debit one shared ledger. Omitted assets remain for the post-redemption supply.
+`redeem(gbxAmount, receiver, tokens)` reads `Mine.effectiveTotalSupply()` in constant time and uses that single pre-burn
+supply snapshot without checkpointing or settling any mining slot. EIP-1153 transient storage rejects duplicate selected
+assets without a registry. The complete basket must also leave every selected address with at least its snapshot less
+its own payout, rejecting different facades that debit one shared ledger. Omitted assets remain for the post-redemption
+supply.
 
 ## Administration
 
@@ -86,5 +98,5 @@ or capacity change.
 
 ## Credit
 
-The core adapts give.fun, Liquid Signal Governance, and Farplace MineRig. Strategy's auction also credits Euler Fee
-Flow. Exact repository pins and unresolved licensing status are recorded in `NOTICE`.
+The core adapts give.fun, Liquid Signal Governance, and donut-miner. Strategy's auction also credits Euler Fee Flow.
+Exact and unresolved repository pins and licensing status are recorded in `NOTICE`.

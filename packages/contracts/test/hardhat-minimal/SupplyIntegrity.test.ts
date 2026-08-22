@@ -39,18 +39,7 @@ describe('GBX mining authority integrity', function () {
 
     const router = await ethers.deployContract('ResonanceRouter', [tokenAddress, tokenAddress]);
     await router.waitForDeployment();
-    const mine = await ethers.deployContract('Mine', [
-      tokenAddress,
-      tokenAddress,
-      await router.getAddress(),
-      {
-        priceMultiplier: ethers.parseEther('1.1'),
-        minimumInitialPrice: 1_000_000n,
-        initialTps: 16n,
-        halvingAmount: ethers.parseEther('1000'),
-        tailTps: 16n,
-      },
-    ]);
+    const mine = await ethers.deployContract('Mine', [tokenAddress, tokenAddress, await router.getAddress()]);
     await mine.waitForDeployment();
 
     const mineAddress = await mine.getAddress();
@@ -58,5 +47,44 @@ describe('GBX mining authority integrity', function () {
     expect(await token.getFunction('minter')()).to.equal(mineAddress);
     expect(await token.getFunction('minterLocked')()).to.equal(true);
     await expect(token.getFunction('setMinter')(mineAddress)).to.be.revertedWithCustomError(token, 'NotMinter');
+  });
+
+  it('matches the deployment-time halving boundaries and permanent tail', async function () {
+    const [deployer] = await ethers.getSigners();
+    if (deployer === undefined) throw new Error('Hardhat signer unavailable');
+
+    const token = await ethers.deployContract('GBX', [deployer.address, deployer.address]);
+    await token.waitForDeployment();
+    const tokenAddress = await token.getAddress();
+    const router = await ethers.deployContract('ResonanceRouter', [tokenAddress, tokenAddress]);
+    await router.waitForDeployment();
+    const mine = await ethers.deployContract('Mine', [tokenAddress, tokenAddress, await router.getAddress()]);
+    await mine.waitForDeployment();
+
+    const startTime = (await mine.getFunction('startTime')()) as bigint;
+    const period = (await mine.getFunction('HALVING_PERIOD')()) as bigint;
+    const initialTps = (await mine.getFunction('INITIAL_TPS')()) as bigint;
+    const tailTps = (await mine.getFunction('TAIL_TPS')()) as bigint;
+
+    expect(period).to.equal(69n * 86_400n);
+    expect(initialTps).to.equal(ethers.parseEther('64'));
+    expect(tailTps).to.equal(ethers.parseEther('1'));
+
+    await ethers.provider.send('evm_setNextBlockTimestamp', [Number(startTime + period - 1n)]);
+    await ethers.provider.send('evm_mine', []);
+    expect(await mine.getFunction('nextGlobalTps')()).to.equal(initialTps);
+
+    await ethers.provider.send('evm_setNextBlockTimestamp', [Number(startTime + period)]);
+    await ethers.provider.send('evm_mine', []);
+    expect(await mine.getFunction('nextGlobalTps')()).to.equal(initialTps / 2n);
+    expect(await mine.getFunction('pendingEmission')()).to.equal(0n);
+
+    await ethers.provider.send('evm_setNextBlockTimestamp', [Number(startTime + 6n * period - 1n)]);
+    await ethers.provider.send('evm_mine', []);
+    expect(await mine.getFunction('nextGlobalTps')()).to.equal(initialTps >> 5n);
+
+    await ethers.provider.send('evm_setNextBlockTimestamp', [Number(startTime + 6n * period)]);
+    await ethers.provider.send('evm_mine', []);
+    expect(await mine.getFunction('nextGlobalTps')()).to.equal(tailTps);
   });
 });

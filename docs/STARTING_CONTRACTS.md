@@ -1,13 +1,14 @@
 # Canonical contract starting point
 
-> This is the target development architecture under ADRs 0031, 0034, 0035, 0036, and 0037, not a claim of current Solidity
+> This is the target development architecture under ADRs 0031 and 0033-0044 in whole or in their recorded
+> unsuperseded parts, not a claim of current Solidity
 > conformance, deployment, audit, or authorization for user funds. Implementation gaps are listed in
 > [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
 
 ## Core graph
 
 ```text
-slot replacement -> Mine -> 20% ResonanceRouter -> Resonance -> seven-day stream -> Strategies
+slot replacement -> Mine -> 20% deposit -> ResonanceRouter --permissionless route()--> Resonance -> seven-day stream -> Strategies
                           -> 80% displaced-miner claim
                                       |       |
                                       |       +-> acquired payment -> BribeRouter --complement--> Fund
@@ -21,27 +22,27 @@ GBX -> SignalGBX -> signals -> Resonance
                   -> IVotes checkpoints -> external governance (unselected) -> Resonance ownership
 ```
 
-The first purchase of an empty mining slot has no displaced miner, so its complete USDG payment routes through
-ResonanceRouter. GBX holders atomically deposit GBX, mint one-for-one non-transferable SignalGBX (`sGBX`), and assign
+The first purchase of an empty mining slot has no displaced miner, so its complete USDG payment is deposited into
+ResonanceRouter. Mine never calls `route()` during a handoff. GBX holders atomically deposit GBX, mint one-for-one non-transferable SignalGBX (`sGBX`), and assign
 every minted unit to a live Strategy. sGBX retains ERC20Votes checkpoints for a future external governance integration
 and is the sole user-facing signal coordinator; an idle receipt state is not permitted.
 
 ## Contract responsibilities
 
-| Contract            | Responsibility and important boundaries                                                                                                                              |
-| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GBX`               | Creates the 20 million genesis-liquidity allocation, permanently hands mint authority to Mine, and supports ERC-2612 permit. It has no voting checkpoints.           |
-| `Mine`              | Runs one to sixteen independently replaceable hourly reverse-Dutch slots, checkpoints continuous GBX accrual, and splits nonempty-slot replacement payments 80%/20%. |
-| `LiquidityPosition` | Ownerless holder of one precommitted hookless GBX/USDG v4 NFT. Harvesting preserves principal, sends USDG to ResonanceRouter, and burns collected GBX through Fund.  |
-| `SignalGBX`         | Holds GBX, mints only signal-backed non-transferable ERC20Votes sGBX, and coordinates every signal and withdrawal. It has no approval permit or idle state.          |
-| `ResonanceRouter`   | Holds USDG below the active amount left, then permissionlessly forwards its complete qualifying balance.                                                             |
-| `Resonance`         | Maintains the active signal total and one Bribe-shaped seven-day USDG schedule, and creates the fixed Strategy/Bribe graph.                                          |
-| `StrategyFactory`   | Bound once to Resonance; only that Resonance may deploy Strategies and their BribeRouters.                                                                           |
-| `Strategy`          | Sells its complete USDG balance through a bounded linearly declining price. Its acquired-asset payment enters its fixed BribeRouter.                                 |
-| `BribeFactory`      | Bound once to Resonance; only that Resonance may deploy Bribes.                                                                                                      |
-| `BribeRouter`       | Pulls exact Strategy payment, applies Resonance's global 0%-20% Bribe rate with weighted carry, and isolates both settlement legs.                                   |
-| `Bribe`             | Streams the automatic acquired-asset share and additional rewards over virtual signal balances, within fixed token-count and lifetime-notification caps.             |
-| `Fund`              | Ownerless raw-token treasury, permissionless GBX burn boundary, and caller-selected pro-rata redemption mechanism.                                                   |
+| Contract            | Responsibility and important boundaries                                                                                                                                                                                                  |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GBX`               | Creates the 20 million genesis-liquidity allocation, permanently hands mint authority to Mine, and supports ERC-2612 permit. It has no voting checkpoints.                                                                               |
+| `Mine`              | Runs exactly sixteen independently replaceable hourly reverse-Dutch slots, checkpoints continuous GBX accrual, splits nonempty-slot replacement payments 80%/20%, and deposits protocol revenue into ResonanceRouter without calling it. |
+| `LiquidityPosition` | Ownerless holder of one precommitted hookless GBX/USDG v4 NFT. Harvesting preserves principal, sends USDG to ResonanceRouter, and burns collected GBX through Fund.                                                                      |
+| `SignalGBX`         | Holds GBX, mints only signal-backed non-transferable ERC20Votes sGBX, and coordinates every signal and withdrawal. It has no approval permit or idle state.                                                                              |
+| `ResonanceRouter`   | Holds USDG below the active amount left, then permissionlessly forwards its complete qualifying balance.                                                                                                                                 |
+| `Resonance`         | Maintains the active signal total and one Bribe-shaped seven-day USDG schedule, and creates the fixed Strategy/Bribe graph.                                                                                                              |
+| `StrategyFactory`   | Bound once to Resonance; only that Resonance may deploy Strategies and their BribeRouters.                                                                                                                                               |
+| `Strategy`          | Sells its complete USDG balance through a bounded linearly declining price. Its acquired-asset payment enters its fixed BribeRouter.                                                                                                     |
+| `BribeFactory`      | Bound once to Resonance; only that Resonance may deploy Bribes.                                                                                                                                                                          |
+| `BribeRouter`       | Pulls exact Strategy payment, applies Resonance's global 0%-20% Bribe rate with weighted carry, and isolates both settlement legs.                                                                                                       |
+| `Bribe`             | Streams the automatic acquired-asset share and additional rewards over virtual signal balances, within fixed token-count and lifetime-notification caps.                                                                                 |
+| `Fund`              | Ownerless raw-token treasury, permissionless GBX burn boundary, and caller-selected pro-rata redemption mechanism.                                                                                                                       |
 
 ## Supply and mining
 
@@ -55,18 +56,20 @@ GBX total supply = GBX lifetime minted - GBX lifetime burned
 
 Mine starts with exactly sixteen permanent slots and has no owner or capacity control. Each slot may
 be replaced at any time. Its quoted USDG price falls linearly from `initialPrice` to zero over one hour. A nonempty-slot
-replacement makes 80% of the price claimable by the displaced miner and routes 20% through ResonanceRouter. An empty
-slot routes 100% because there is no displaced miner. Payments are exact-transfer checked.
+replacement makes 80% of the price claimable by the displaced miner and deposits the 20% remainder into
+ResonanceRouter. An empty slot deposits 100% because there is no displaced miner. Payments are exact-transfer checked.
+Mine's `RevenueDeposited` event means that exact deposit completed; it does not mean Resonance received a notification in
+the same transaction. Each handoff may attach up
+to 280 raw bytes of event-only message metadata; empty messages are allowed and Mine never stores the message.
 
-Each new occupant receives `current global TPS / 16`. That assigned rate is locked for the entire tenure. Threshold
-crossings, Fund redemptions, and other slots' handoffs do not change it. The accepted consequence is temporarily higher
-aggregate issuance after a halving until older slots turn over. Mine maintains exact total pending emission in constant
-time, and Fund reads effective supply without calling or mutating all slots.
+Each new occupant receives `current global TPS / 16`. That assigned rate is locked for the entire tenure. Time-based
+halving boundaries, Fund redemptions, and other slots' handoffs do not change it. The accepted consequence is higher
+aggregate issuance after a halving for as long as older slots remain; turnover is not guaranteed. Mine maintains exact
+total pending emission in constant time, and Fund reads effective supply without calling or mutating all slots.
 
-The global rate used for future handoffs halves at constructor-immutable cumulative-mining thresholds and eventually
-reaches a strictly positive immutable tail. There is no protocol-defined economic maximum GBX supply, rate setter,
-oracle, migration, or team
-fee. Exact production parameters remain deployment inputs.
+The global rate used for future handoffs begins at 64 GBX per second, halves on a hard-coded 69-day schedule measured
+from Mine deployment, and reaches a 1 GBX-per-second tail at day 414. These values are provisional pending independent
+economic review. There is no protocol-defined economic maximum GBX supply, rate setter, oracle, migration, or team fee.
 
 ## Genesis liquidity and fees
 
@@ -75,8 +78,9 @@ genesis allocation. `LiquidityPosition` accepts only the precommitted PositionMa
 tick range, and a nonzero-liquidity position.
 
 Anyone may call `harvestFees`. A zero-liquidity decrease collects fees while preserving principal. Complete USDG
-proceeds transfer to ResonanceRouter, which forwards them when its complete balance qualifies and otherwise retains
-them. Complete GBX proceeds transfer to Fund and are burned atomically. The NFT never moves.
+proceeds transfer to ResonanceRouter and `harvestFees` attempts `route()` atomically; a sub-threshold balance remains
+there, while downstream failure reverts the complete harvest. Complete GBX proceeds transfer to Fund and are burned
+atomically. The NFT never moves.
 
 ## Revenue and acquisition rules
 
@@ -90,8 +94,10 @@ them. Complete GBX proceeds transfer to Fund and are burned atomically. The NFT 
 - `signal`, `signalWithPermit`, `moveSignal`, and `withdrawSignal` are the only public SignalGBX position workflows.
   Minting and initial allocation are one transition; withdrawal is its exact inverse. The permit variant uses GBX's
   ERC-2612 permit; SignalGBX has no approval permit.
-- During an active schedule ResonanceRouter holds a balance below the exact amount left. Once its complete balance is at
-  least `left`, Resonance checkpoints and restarts seven days with `reward + left`; there is no absolute minimum.
+- `ResonanceRouter.route()` is permissionless. A manual caller, frontend, volunteer keeper, or cron process may call;
+  there is no role, bounty, or protocol liveness guarantee. During an active schedule the Router can hold any balance
+  until called. If the balance is at least `left`, Resonance checkpoints and restarts seven days with `reward + left`;
+  a nonzero smaller balance remains held and there is no absolute minimum.
 - Released revenue is indexed pro rata across live Strategy weights. Global-index and per-Strategy floors remain
   accepted surplus. Revenue elapsed while active signal weight is zero and USDG donated directly to Resonance are also
   unclaimable or unscheduled surplus, with no Fund classification, synchronization, rescue, or recovery path.
@@ -154,11 +160,13 @@ unselected, so deployment is blocked.
 
 - Deployment broadcasting is intentionally absent.
 - The external governance integration and production Resonance owner remain unresolved release inputs.
-- Exact Mine economics and v4 pool parameters remain unresolved deployment inputs.
+- Mine replacement-price constants are fixed by ADR 0038, its time-based schedule by ADR 0041, and the current
+  provisional rates and period by ADRs 0042 and 0043; independent review and v4 pool parameters remain unresolved
+  release inputs.
 - Independent security review and production deployment evidence remain required.
-- Farplace provenance and licensing clearance remain a release blocker recorded in `NOTICE`.
+- donut-miner provenance and licensing clearance remain a release blocker recorded in `NOTICE`.
 
 ## Credit
 
-The starting mechanics are adapted from give.fun, Liquid Signal Governance, and Farplace MineRig. Strategy's auction
-design also credits Euler Fee Flow. Exact repository pins are recorded in `NOTICE`.
+The starting mechanics are adapted from give.fun, Liquid Signal Governance, and donut-miner. Strategy's auction design
+also credits Euler Fee Flow. Exact and unresolved repository pins are recorded in `NOTICE`.

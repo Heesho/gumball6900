@@ -30,9 +30,14 @@ prose and pictures rather than derived figures. Two constraints are worth keepin
 
 - **Slides must fit one viewport.** Nothing is clipped at 1366x640 or wider. The vertical budget is
   tight; check any slide you add.
-- **Simulations mirror the contracts, not a canned animation.** The sixteen slots, one-hour decay,
-  80/20 handoff, seven-day stream and bounded signaler share all come from the real constants.
-  Parameters that production has not selected are labelled illustrative on the slide itself.
+- **Simulations mirror the contracts, not a canned animation.** The exactly sixteen slots, one-hour decay,
+  80/20 replacement handoff (100% deposited on first occupation), Mine/Router failure isolation, Router restart
+  threshold, seven-day stream,
+  old-weight checkpointing, and bounded global signaler share all come from the real contract behavior.
+  Mine's 2x reset, 1 USDG floor, 64 GBX/s initial rate, 69-day eras, and 1 GBX/s tail are fixed
+  development constants pending independent economic review. Simulated asset prices and revenue sizes are illustrative.
+  The flow animation models an optional unprivileged cron caller; the protocol itself assigns no routing role or bounty,
+  and Mine never calls `route()`.
 - **Define a sim before the visibility observer runs.** The observer only animates on-screen slides;
   a sim declared after it is hoisted as `undefined`, silently never observed, and never paints.
 - **No controls.** Every simulation runs itself. The deck is watched, not operated, so there are no
@@ -43,7 +48,8 @@ prose and pictures rather than derived figures. Two constraints are worth keepin
 
 ## Status claims
 
-The deck states that the protocol is not deployed, not independently audited, that production mining
-and pricing parameters are unselected, and that the external governance owner is unselected. Those
+The deck states that the protocol is not deployed or independently audited, that Mine's fixed development economics
+still need independent review, and that the external governance executor is unselected. It also preserves the
+production obligation to transfer Resonance and renounce the three consumed setup-only Ownable shells. Those
 are release facts, not modesty: keep them accurate against
 `packages/contracts/audit/FINDINGS.md` when the deck is updated.

@@ -31,6 +31,7 @@ const occupy = buildMine({
   expectedEpochId: slot.epochId,
   deadline,
   maximumPrice,
+  message: 'hello from the mine',
 });
 const claim = buildClaimMiningPayment(mine, displacedMiner);
 const signal = buildSignal(signalGBX, strategy, 1_000n * 10n ** 18n);
@@ -49,7 +50,16 @@ const purchase = buildStrategyBuy({ strategy, revenueReceiver: receiver, expecte
 ```
 
 `quoteMiningAccrual` accepts explicit per-slot TPS values because occupied rates are tenure-locked. `miningRateAt`
-computes the global TPS that a future handoff will divide by sixteen; it must not be used to reprice an incumbent.
+computes the global TPS from elapsed Mine deployment time that a future handoff will divide by sixteen; it must not be
+used to reprice an incumbent. A handoff executing across a halving boundary receives the new lower TPS. When a quoted
+TPS must remain valid, set the `buildMine` deadline strictly before `slot.nextHalvingBoundary`. The composed Mine read
+derives that value from onchain `startTime`, `HALVING_PERIOD`, and its pinned block timestamp; it is `null` once the
+permanent tail has begun. Do not derive this deadline from the caller's wall clock.
+
+Development API migration: `miningRateAt` now interprets its first `bigint` as elapsed seconds since Mine deployment,
+not cumulative raw GBX, and `MiningCurveConfig.halvingAmount` was replaced by `halvingPeriod`. Old calls can still
+typecheck because both values are `bigint`, so consumers must update semantics rather than rely on the compiler to flag
+the change. No production deployment or compatibility shim exists.
 
 Every composed reader pins its RPC calls to one block and revalidates that block before returning. Generated ABIs and
 API docs are updated by repository scripts and must not be edited by hand.

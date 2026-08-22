@@ -1,20 +1,25 @@
 # Release checklist
 
-Current description: **ADR 0024/0029/0031/0033/0034/0035/0036/0037 development candidate; external governance unselected and
-independent review required**. This is not production-ready or deployment-authorized.
+Current description: **ADR 0024/0029/0031/0033-0044 development candidate;
+external governance unselected and independent review required**. This is not production-ready or
+deployment-authorized.
 
 ## Internal engineering
 
 - [x] Fundraiser removed and immutable multislot Mine implemented.
-- [x] Incumbent slot rates remain fixed through thresholds, redemptions, and other slot handoffs.
+- [x] Incumbent slot rates remain fixed through time boundaries, redemptions, and other slot handoffs.
 - [x] Sixteen slots are fixed at construction and Mine has no administrative surface.
-- [x] Nonempty payments classify 80% to displaced miner and 20% to Resonance; empty slots route 100%.
+- [x] Nonempty payments classify 80% to displaced miner and deposit 20% into ResonanceRouter; empty slots deposit 100%.
+- [x] Mine emits `RevenueDeposited` and performs no synchronous `route()` call; permissionless routing has no role,
+      bounty, or liveness guarantee, while LiquidityPosition retains its atomic route attempt.
 - [x] Fund uses constant-time effective supply, including all pending mining, for the redemption denominator.
-- [x] SDK, subgraph, whitepaper, frontend, audit records, and generated references reconciled after ADRs 0036 and 0037.
-- [x] Full current-tree Foundry, Hardhat, SDK, subgraph, simulation, frontend, documentation, and workspace gates pass.
+- [x] SDK, subgraph, whitepaper, frontend, audit records, and generated references reconciled through ADR 0044.
+- [x] Full current-tree Foundry, Hardhat, SDK, subgraph, simulation, frontend, documentation, and workspace gates
+      rerun after ADR 0044.
 - [ ] Static findings regenerated and manually dispositioned for the Mine graph.
 - [ ] Current-tree coverage thresholds recorded for Mine.
-- [x] Current-tree 49-mutant campaign complete with zero survivors.
+- [ ] Current-tree mutation campaign rerun after ADR 0044; the recorded 49-mutant result is historical evidence from
+      the pre-ADR-0043 tree.
 - [ ] Current-tree Medusa and pinned Echidna campaigns complete.
 - [ ] Compatible symbolic analysis or explicit independent disposition complete.
 - [x] Bribe A-09 carry is fixed to Fund before signal-supply changes, with entry, exit, and remainder regressions.
@@ -24,8 +29,8 @@ independent review required**. This is not production-ready or deployment-author
       numerator carry, existing liabilities, and signal liveness are covered by deterministic and integration tests.
 - [x] Bribe reward accounting uses `1e36` precision with a precision-coupled lifetime cap; six-decimal direct and
       automatic rewards are covered by deterministic, fuzz, stateful, integration, and independent-model tests.
-- [ ] Full current-tree invariant, Medusa, Echidna, static, ABI, model, subgraph, and consumer gates rerun
-      after ADRs 0036 and 0037.
+- [ ] Current-tree Medusa, Echidna, and static-analysis campaigns rerun after ADR 0044; campaign time-jump bounds must
+      reach the first 69-day boundary and the day-414 tail boundary.
 - [ ] Current-tree static findings regenerated and manually dispositioned after the governance-architecture removal.
 - [ ] SignalGBX checkpoint/delegation compatibility and voting-power rental risk reviewed against the exact external
       governance release.
@@ -35,17 +40,21 @@ independent review required**. This is not production-ready or deployment-author
 
 ## Economic and independent review
 
-- [ ] Initial GBX/second, cumulative halving amount, positive tail, USDG multiplier, and minimum price approved.
-- [ ] Fixed-tenure transitional over-issuance modeled under staggered halving and turnover scenarios.
+- [ ] Initial GBX/second, time-based halving period, positive tail, USDG multiplier, and minimum price independently
+      reviewed. ADRs 0042 and 0043 record a provisional 64 GBX/second, 69-day, 1 GBX/second development schedule.
+- [ ] Fixed Mine economic schedule independently reviewed and approved.
+- [ ] Fixed-tenure excess issuance modeled under staggered, frequent-turnover, slow-turnover, and permanent-no-turnover
+      scenarios.
 - [ ] Rollover, zero-price replacement, MEV, demand collapse, and thin-liquidity scenarios reviewed.
 - [ ] Independent external audit complete; all material findings resolved.
-- [ ] Farplace, give.fun, Liquid Signal, Euler, Solidly, Synthetix, and dependency provenance cleared by counsel.
+- [ ] donut-miner, give.fun, Liquid Signal, Euler, Solidly, Synthetix, and dependency provenance cleared by counsel.
 - [ ] Repository license, SPDX identifiers, attribution, and notices approved.
 
 ## Deployment evidence
 
 - [ ] Canonical USDG and Uniswap dependencies approved with runtime code hashes.
-- [ ] Signed manifest verifies chain, bytecode, constructor arguments, immutable Mine parameters, and dependencies.
+- [ ] Signed manifest verifies chain, bytecode, constructor arguments, fixed Mine constants, `startTime`, deployment
+      block timestamp, first boundary, deployment-to-exposure delay, and dependencies.
 - [ ] GBX genesis recipient receives exactly 20M and permanent minter handoff resolves to the deployed Mine.
 - [ ] Reviewed initial Strategies are created and receipt-recorded before external-governance ownership handoff.
 - [ ] Mine starts with exactly sixteen slots and no owner; Resonance ownership resolves to the exact reviewed external

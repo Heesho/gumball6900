@@ -1,18 +1,20 @@
 ---
 title: How GUM BALL 6900 Turns Community Conviction Into an Onchain Portfolio
 version: 2.0.0
-date: 2026-08-20
-source_commit: dc67d7c4d634097fa6e285fa33ce964d591d2bd2
-protocol_status: Development snapshot at the pinned commit. Describes the current core after ADR 0033, ADR 0034, and ADR 0035; not approved for user funds.
+date: 2026-08-22
+source_commit: uncommitted-working-tree
+base_commit: e3ebdd7987653969b31dbf0e8d20b68a838dfa5d
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0044; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: Internal engineering review and automated test campaigns at the pinned commit. Open release gates recorded in packages/contracts/audit/FINDINGS.md.
+internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
 independent_audit_status: No independent external audit has been performed.
 ---
 
 # How GUM BALL 6900 Turns Community Conviction Into an Onchain Portfolio
 
 > **Before you read on:** this protocol is not deployed, not audited, and not approved for user funds. This article
-> describes what the code at commit `dc67d7c` does, not a live product. Nothing here is investment advice.
+> describes the current uncommitted development tree based on `e3ebdd7`, not a live product or commit-pinned review
+> artifact. Nothing here is investment advice.
 
 ## 1. The central idea
 
@@ -44,7 +46,7 @@ switch that can stop withdrawals, and an oracle that decides what everything is 
 paperwork.
 
 GUM BALL 6900's premise is that if you remove _every_ discretionary lever, what remains is either verifiable or
-absent. At this commit the protocol has no upgrade path, proxy, pause switch, rescue or sweep function,
+absent. In this development tree the protocol has no upgrade path, proxy, pause switch, rescue or sweep function,
 arbitrary-call executor, migration route, price oracle, NAV calculation, rebalancing engine, or keeper role. The
 treasury has no owner at all.
 
@@ -64,8 +66,8 @@ permanently locked. There is no way to add a second minter, replace the first, o
 doesn't reopen it either. Supply reconciles exactly: total supply always equals everything ever minted minus
 everything ever burned.
 
-There is **no supply cap**. Issuance halves as cumulative mining crosses fixed thresholds, but it settles at a
-permanent floor that is strictly positive rather than falling to zero. GBX inflates forever, slowly.
+There is **no supply cap**. The prospective issuance rate halves at fixed intervals measured from Mine deployment, but
+it settles at a permanent floor that is strictly positive rather than falling to zero. GBX inflates forever, slowly.
 
 Holding GBX gives you two rights, and it is worth being precise about which is which:
 
@@ -154,6 +156,9 @@ protocol revenue. When you take an **empty** slot, there is nobody to compensate
 There is no team fee anywhere in this. The displaced miner's 80% is held as a claim they withdraw when they like —
 anyone can trigger the withdrawal, but the money can only ever go to the miner.
 
+Mine exact-deposits that protocol-revenue share into **ResonanceRouter** and stops. Its `RevenueDeposited` event means
+the deposit succeeded; it does not mean the money entered Resonance's stream in the same transaction.
+
 Two things a prospective miner should understand. First, your GBX rate is **locked for your entire tenure** — halving
 issuance, redemptions, and other slots' handoffs never change it. Only a newly occupied or replaced slot receives the
 current global TPS divided by sixteen. Second, less comfortably: **the 80% handoff is not guaranteed.** You receive it only if
@@ -180,12 +185,16 @@ Strategies in proportion to the sGBX signaling them _at that moment_.
 
 Two design details exist to prevent specific attacks.
 
-**Revenue waits in a router until it is worth restarting the stream for.** New revenue accumulates in a staging
-contract called **ResonanceRouter**, which forwards its balance only once that balance is at least as large as the
-exact amount still left in the current schedule. Once it qualifies, the router forwards _everything_, and Resonance
+**Revenue waits in a router until someone advances it.** New revenue accumulates in a staging contract called
+**ResonanceRouter**. Anyone can call `route()`; if the balance is smaller than the exact amount still left in the current
+schedule, it stays put. When someone calls after it qualifies, the router forwards _everything_, and Resonance
 combines the new money with the old remainder and restarts a fresh seven-day stream. So restarting the stream early is
 possible but expensive — you must match what's left. It also means a mining payment can sit in the router for a while
-before it appears in the stream; interfaces must show those as different states.
+before it appears in the stream—or indefinitely if nobody calls. There is no keeper role or bounty; a frontend,
+volunteer keeper, or cron job is optional convenience infrastructure. A future mine-and-route helper could live in
+that periphery, but Mine itself must remain correct even if routing fails. Liquidity fee harvesting keeps its existing
+atomic route attempt, so downstream failure can still revert that harvest. Interfaces must show Router deposit and
+stream entry as different states.
 
 **Streaming is lazy.** Entitlement accrues with time in the arithmetic, but tokens move only when someone triggers a
 settling action — a signal change, a revenue notification, a payout, or a purchase. So a Strategy's visible token
@@ -292,12 +301,17 @@ The buyer fills. They pay **1.8 WBTC** and receive **180,313.043477 USDG**. (The
 released to the Strategy through that exact timestamp, so they receive everything the Strategy is owed, not just its
 visible balance.)
 
-**Settlement — the 90/10 split.** The 1.8 WBTC is immediately divided by the protocol's one bounded rule:
+**Settlement — the default 90/10 setting.** With Resonance's prospective `bribeBps` at its 10% deployment default,
+the 1.8 WBTC is classified as:
 
 ```text
-Fund   90%  →  1.62 WBTC   (treasury backing for every GBX holder)
-Bribe  10%  →  0.18 WBTC   (reward for Ana and Ben, who signaled Strategy A)
+Fund   90% (default)  →  1.62 WBTC   (treasury backing for every GBX holder)
+Bribe  10% (default)  →  0.18 WBTC   (reward for Ana and Ben, who signaled Strategy A)
 ```
+
+This walkthrough uses the default, not an immutable split. The Resonance owner may set the Bribe share for later
+payments anywhere from 0% through 20%; Fund receives the 100%-minus-Bribe complement, or 80% through 100%. A change
+cannot reclassify this payment or any other liability recorded before the change.
 
 Each share is recorded as a separate liability and delivered by its own call that anyone can make. This matters: if
 the treasury or the reward pool has a problem with that token, **only that leg stalls**. The other leg still settles,
@@ -305,15 +319,15 @@ and neither can freeze the auction itself.
 
 <!-- figure: acquisition-split -->
 
-The split is also **cumulatively exact**. It carries the fractional remainder between payments, so a buyer cannot
-starve the reward share by paying in tiny increments. Ten separate one-unit payments produce exactly 9 units to the
-Fund and 1 to the Bribe — not zero to the Bribe ten times over.
+The split is also **cumulatively exact across rate changes**. It carries the weighted fractional remainder between
+payments, so a buyer cannot starve the reward share by paying in tiny increments. At the 10% default, ten separate
+one-unit payments produce exactly 9 units to the Fund and 1 to the Bribe — not zero to the Bribe ten times over.
 
 The next auction round then starts at 1.8 WBTC × the configured multiplier — at 1.5×, that is **2.7 WBTC**.
 
-**So Ana and Ben are paid directly out of the acquisition.** They split 0.18 WBTC in proportion to their signal —
-Ana 1,000/4,000 and Ben 3,000/4,000, so 0.045 and 0.135 WBTC respectively. On top of that they may also earn separately
-funded **Bribes** — see section 12.
+**So, at the default setting, Ana and Ben are paid directly out of the acquisition.** They split 0.18 WBTC in
+proportion to their signal — Ana 1,000/4,000 and Ben 3,000/4,000, so 0.045 and 0.135 WBTC respectively. On top of that
+they may also earn separately funded **Bribes** — see section 12.
 
 **Redemption.** Time passes. Many auctions run. Suppose the Fund now holds **50 WBTC** and **400 ETH**, GBX total
 supply is **100,000,000**, and miners have accrued **1,000,000 GBX** that has not yet been minted.
@@ -367,10 +381,11 @@ remaining supply. There is no partial-claim ledger.
 
 Signalers have two stacked income sources, and they arrive through the same contract.
 
-**First, the automatic 10%.** Every time their Strategy acquires an asset, a tenth of that asset is streamed to
-whoever is signaling it, split in proportion to signal. This requires no external party and no negotiation — it is
-simply what the protocol does with every acquisition. It also aligns the incentive neatly: you earn the asset you
-voted to accumulate, so signaling for something worthless pays you in something worthless.
+**First, the automatic acquisition share — 10% by default.** Every time their Strategy acquires an asset, the
+prospective global Bribe share then active on Resonance is streamed to whoever is signaling it, split in proportion to
+signal. The owner can set that share from 0% through 20%; the Fund receives the complement. It also aligns the
+incentive neatly: when the share is nonzero, you earn the asset you voted to accumulate, so signaling for something
+worthless pays you in something worthless.
 
 **Second, Bribes.** A "bribe," here, is not corruption — it is the standard term for an open, permissionless reward
 stream used to attract attention. Anyone can deposit additional reward tokens into a Strategy's pool, which streams
@@ -409,11 +424,13 @@ anyone can ever change:
 
 <!-- figure: authority-map -->
 
-That is the complete list. All four live on **Resonance**, and Resonance is the only contract in the protocol that
-has an owner at all. The Mine has no owner. The Fund has no owner. The liquidity position has no owner. Nobody — not a
-developer, not a voter, not a future administrator — can change mining prices, issuance rates, halving parameters, the
-tail rate, mint authority, Fund assets, liquidity custody, the auction mechanism, or the sixteen-slot count. There is
-no upgrade path, no pause switch, and no sweep function to add one later.
+That is the complete list. All four live on **Resonance**, which is the only contract with continuing custom owner
+authority. SignalGBX, StrategyFactory, and BribeFactory retain setup-only Ownable shells until production explicitly
+renounces them after their one-time Resonance bindings are consumed; those shells expose no custom protocol action
+after setup. The Mine has no owner. The Fund has no owner. The liquidity position has no owner. Nobody — not a
+developer, not a voter, not a future administrator — can change mining prices, issuance rates, halving parameters,
+the tail rate, mint authority, Fund assets, liquidity custody, the auction mechanism, or the sixteen-slot count. There
+is no upgrade path, no pause switch, and no sweep function to add one later.
 
 The fourth item is the one genuine economic dial, and it is deliberately fenced. The reward share starts at 10% and
 can never exceed **20%**, so at least 80% of every acquisition reaches the treasury no matter who holds the owner
@@ -426,7 +443,7 @@ signal, which matters because signaling is the only way to hold sGBX at all.
 
 ### The part that is not finished
 
-Those three actions sit behind a **single owner address** on Resonance. Who holds that address has not been decided.
+Those four actions sit behind a **single owner address** on Resonance. Who holds that address has not been decided.
 
 The protocol used to ship its own voting contract and its own timelock. Both were removed
 ([ADR 0034](../adr/0034-external-governance-ownership.md)), because the intended deployment will hand ownership to an
@@ -435,9 +452,11 @@ going to be deployed meant carrying security surface for nothing. Removing it wa
 that today the protocol contains **no voting rules, no quorum, no proposal filter, and no execution delay of its own**.
 What sGBX offers is the vote checkpoints described in §5, sitting ready for a system that has not yet been attached.
 
-Concretely, at this commit: whoever holds the Resonance owner address can add a Strategy, retire a Strategy, or
-register a reward token immediately — no vote, no waiting period, no way for anyone to object. They can also hand that
-address to someone else, or throw it away permanently. In development that address is simply the deployment fixture.
+Concretely, in this development tree, whoever holds the Resonance owner address can add a Strategy, retire a Strategy, register
+a reward token, or call `setBribeBps` to set the prospective automatic reward share from 0% through 20% immediately —
+no vote, no waiting period, no way for anyone to object. The rate change cannot reclassify prior liabilities. The owner
+can also hand that address to someone else, or throw it away permanently. In development that address is simply the
+deployment fixture.
 
 Four honest limitations follow:
 
@@ -498,39 +517,38 @@ Read this section twice.
 
 ## 16. Major risks, summarized
 
-| Risk                   | What it means                                                                                    |
-| ---------------------- | ------------------------------------------------------------------------------------------------ |
-| No independent audit   | No third party has reviewed this code. The single largest unknown.                               |
-| Immutability           | No patch, no pause, no rescue. A bug or deployment error is permanent.                           |
-| Deployment correctness | Parameters, pool configuration, and role setup must be right the first time, forever.            |
-| Unresolved economics   | Mining rate, halving threshold, tail rate, and price parameters not yet selected or modelled.    |
-| Unfinished governance  | The external owner of Resonance is unselected; today one address holds all four powers outright. |
-| Miner rollover         | The 80% handoff arrives only if a successor pays. It can be zero.                                |
-| Abandoned rewards      | A retired Strategy's last signaler can strand an unbounded amount of rewards.                    |
-| Accepted dust          | Rounding and zero-signal intervals accumulate unrecoverable USDG in Resonance.                   |
-| Third-party tokens     | USDG and every acquired asset carry independent freeze, upgrade, and solvency risk.              |
-| Legal and provenance   | Upstream code lineage and license reconciliation are unresolved release blockers.                |
+| Risk                   | What it means                                                                                              |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| No independent audit   | No third party has reviewed this code. The single largest unknown.                                         |
+| Immutability           | No patch, no pause, no rescue. A bug or deployment error is permanent.                                     |
+| Deployment correctness | Parameters, pool configuration, and role setup must be right the first time, forever.                      |
+| Unresolved economics   | The provisional 64 GBX/s, 69-day, 1 GBX/s Mine schedule and other fixed economics lack independent review. |
+| Unfinished governance  | The external owner of Resonance is unselected; today one address holds all four powers outright.           |
+| Miner rollover         | The 80% handoff arrives only if a successor pays. It can be zero.                                          |
+| Abandoned rewards      | A retired Strategy's last signaler can strand an unbounded amount of rewards.                              |
+| Accepted dust          | Rounding and zero-signal intervals accumulate unrecoverable USDG in Resonance.                             |
+| Third-party tokens     | USDG and every acquired asset carry independent freeze, upgrade, and solvency risk.                        |
+| Legal and provenance   | Upstream code lineage and license reconciliation are unresolved release blockers.                          |
 
 ## 17. Current project status
 
-To be exact about where this stands at commit `dc67d7c`:
+To be exact about the current uncommitted development tree:
 
 - **Not deployed.** No contract is live on any network. No signed deployment manifest exists. The intended target
   chain and the canonical USDG and Uniswap v4 addresses remain unresolved candidates.
 - **Not audited.** No independent external audit has been performed, and symbolic analysis and formal verification
   have not been completed.
-- **Internally tested.** At this commit the default test suite passes 329 tests and the integration suite passes 18,
-  with zero failures and zero skips. That includes 29 stateful invariants each run 1,000 times to a depth of 500
-  transitions, with zero handler reverts. Hardhat bytecode parity, the SDK, the subgraph, the independent
-  TypeScript and Python economic simulations, documentation generation, linting, and type checking all pass. Real
-  Uniswap v4 fee harvesting is exercised.
-- **Static analysis, mutation testing, and external fuzzing are pinned to an older tree.** Those campaigns — Slither,
-  Aderyn, Semgrep, Gitleaks, a Medusa run of 101,602 calls, an Echidna run of 100,213 calls, and a 43-mutant campaign
-  that killed every mutant — were last executed before the governance removal (ADR 0034) and the Bribe reward cap
-  (ADR 0035) landed. They remain useful engineering history. They are **not** current evidence for the code described
-  in this article, and re-running them is an open task.
-- **Four High-severity release gates remain open.** Two concern deployment: production mining and pricing parameters
-  have not been selected or independently modelled, and no signed manifest yet proves the deployed bytecode,
+- **The full deterministic workspace matrix passes locally.** The current uncommitted ADR 0044 tree passed 356/356
+  default Foundry tests across 25 suites, 19/19 integration tests across two suites, Hardhat 4/4, SDK 50/50,
+  TypeScript simulations 39/39, Python environment-policy checks 5/5 and simulations 25/25, subgraph specification
+  checks 4/4 plus Matchstick 10/10 and build, web unit tests 3/3, Playwright 6/6, and the documentation, ABI,
+  formatting, lint, typecheck, and workspace-build gates. This is unpinned local engineering evidence, not an audit or
+  release approval.
+- **Static analysis, mutation testing, and external fuzzing are pinned to older trees.** Those campaigns remain useful
+  engineering history, but they predate ADR 0044 and are **not** current evidence for the code
+  described in this article. Re-running and manually reviewing them remains open.
+- **Four High-severity release gates remain open.** Two concern deployment: Mine's selected, hard-coded, and modelled
+  economics have not received independent review, and no signed manifest yet proves the deployed bytecode,
   constructor arguments, and dependency addresses. Two concern governance: the external system that will own Resonance
   is unselected, and its voting, delegation, and delay semantics therefore remain unreviewed. Also outstanding: a
   second external-fuzzer seed, a monitored testnet rehearsal, and release review.

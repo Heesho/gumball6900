@@ -1,8 +1,8 @@
 # Signal and Resonance executable specification
 
-Status: implemented locally on 2026-08-16 and reconciled for ADRs 0034–0036 on 2026-08-21; engineering evidence
-only. The external governance integration is unselected, current-tree gates require rerun, and nothing is
-independently audited, deployed, or authorized for user funds.
+Status: implemented locally on 2026-08-16, reconciled for ADRs 0034–0036 on 2026-08-21, and covered by the deterministic
+current-tree workspace gates on 2026-08-22; engineering evidence only. The external governance integration is
+unselected, and nothing is independently audited, deployed, or authorized for user funds.
 
 ## SignalGBX state machine
 

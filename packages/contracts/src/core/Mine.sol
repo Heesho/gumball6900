@@ -7,45 +7,48 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { GBX } from "./GBX.sol";
-import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
 
 /// @title GUM BALL 6900 Fixed-Slot Mine
 /// @author Heesho
 /// @notice Distributes GBX through sixteen independently replaceable mining slots priced by reverse Dutch auctions.
-/// @dev Adapted from Farplace MineRig. A replacement pays USDG, the displaced miner accrues 80% as a pull claim,
-///      and the remainder is routed into Resonance. Each occupied slot keeps its assigned tokens-per-second rate until
-///      replacement. A system-wide pending-emission accumulator makes total pending supply constant-time while a
-///      handoff settles only the replaced slot. There is no all-slot checkpoint or administrative surface.
-/// @custom:version 1.1.0
+/// @dev Each slot has its own hourly reverse Dutch auction and tenure-locked GBX emission rate. Replacing an occupied
+///      slot settles its accrued GBX, credits 80% of the USDG price to the displaced miner, and deposits the remainder
+///      into ResonanceRouter. The first occupation of an empty slot deposits the complete payment into the Router.
+/// @custom:version 1.3.0
 contract Mine is ReentrancyGuard {
     using SafeERC20 for IERC20;
+
+    struct Slot {
+        uint256 epochId;
+        uint256 initialPrice;
+        uint256 auctionStartedAt;
+        uint256 lastAccruedAt;
+        uint256 tps;
+        address miner;
+    }
 
     /// @notice Basis-point denominator used for replacement-payment allocation.
     uint256 public constant BPS = 10_000;
     /// @notice Share of a paid replacement price credited to the displaced miner, in basis points.
     uint256 public constant PREVIOUS_MINER_BPS = 8_000;
-    /// @notice Fixed-point precision used by the replacement-price multiplier.
-    uint256 public constant PRICE_PRECISION = 1e18;
     /// @notice Duration over which each replacement price decays linearly to zero.
     uint256 public constant PRICE_DECAY_PERIOD = 1 hours;
     /// @notice Permanent number of independent mining slots.
     uint256 public constant SLOT_COUNT = 16;
-    /// @notice Lowest accepted fixed-point replacement-price multiplier.
-    uint256 public constant MIN_PRICE_MULTIPLIER = 1.1e18;
-    /// @notice Highest accepted fixed-point replacement-price multiplier.
-    uint256 public constant MAX_PRICE_MULTIPLIER = 3e18;
-    /// @notice Lowest accepted raw USDG starting price for a new auction.
-    uint256 public constant MIN_INITIAL_PRICE = 1e6;
-    /// @notice Highest accepted raw USDG starting price for a new auction.
+    /// @notice Multiplier applied to each paid price to start the next auction.
+    uint256 public constant PRICE_MULTIPLIER = 2;
+    /// @notice Raw USDG floor for every newly started reverse Dutch auction.
+    uint256 public constant MINIMUM_INITIAL_PRICE = 1e6;
+    /// @notice Highest raw USDG starting price for a new auction.
     uint256 public constant MAX_INITIAL_PRICE = type(uint192).max;
-    /// @notice Highest accepted initial global raw-GBX tokens-per-second rate.
-    uint256 public constant MAX_INITIAL_TPS = 1e24;
-    /// @notice Lowest accepted global tail rate, preserving at least one raw unit per slot per second.
-    uint256 public constant MIN_TAIL_TPS = SLOT_COUNT;
-    /// @notice Lowest accepted cumulative raw-GBX interval between the first two halving thresholds.
-    uint256 public constant MIN_HALVING_AMOUNT = 1_000 ether;
-    /// @notice Highest accepted cumulative raw-GBX interval between the first two halving thresholds.
-    uint256 public constant MAX_HALVING_AMOUNT = 1e27;
+    /// @notice Initial global GBX tokens-per-second rate.
+    uint256 public constant INITIAL_TPS = 64 ether;
+    /// @notice Provisional fixed interval between prospective global-rate halvings.
+    uint256 public constant HALVING_PERIOD = 69 days;
+    /// @notice Strictly positive global GBX tokens-per-second tail rate.
+    uint256 public constant TAIL_TPS = 1 ether;
+    /// @notice Maximum raw byte length of the event-only message attached to a mining handoff.
+    uint256 public constant MAX_MESSAGE_BYTES = 280;
 
     /// @notice Canonical GBX token whose sole mint authority is this Mine.
     GBX public immutable gbx;
@@ -53,17 +56,8 @@ contract Mine is ReentrancyGuard {
     IERC20 public immutable usdg;
     /// @notice Router receiving the Resonance share of replacement payments.
     address public immutable resonanceRouter;
-    /// @notice Fixed-point multiplier applied to each paid price to start the next auction.
-    uint256 public immutable priceMultiplier;
-    /// @notice Floor for every newly started reverse Dutch auction.
-    uint256 public immutable minimumInitialPrice;
-    /// @notice Initial global raw-GBX tokens-per-second rate.
-    uint256 public immutable initialTps;
-    /// @notice Cumulative raw-GBX interval used to derive immutable halving thresholds.
-    uint256 public immutable halvingAmount;
-    /// @notice Strictly positive global raw-GBX tokens-per-second tail rate.
-    uint256 public immutable tailTps;
-
+    /// @notice Timestamp anchoring the immutable time-based halving schedule.
+    uint256 public immutable startTime;
     /// @notice Sum of all occupied slots' tenure-locked tokens-per-second rates.
     uint256 public aggregateTps;
     /// @notice Total unminted slot emission accrued through `pendingUpdatedAt`.
@@ -80,23 +74,6 @@ contract Mine is ReentrancyGuard {
     /// @notice Pull-based USDG replacement proceeds owed to each displaced miner.
     mapping(address account => uint256 amount) public claimable;
 
-    struct Config {
-        uint256 priceMultiplier;
-        uint256 minimumInitialPrice;
-        uint256 initialTps;
-        uint256 halvingAmount;
-        uint256 tailTps;
-    }
-
-    struct Slot {
-        uint256 epochId;
-        uint256 initialPrice;
-        uint256 auctionStartedAt;
-        uint256 lastAccruedAt;
-        uint256 tps;
-        address miner;
-    }
-
     event Claimed(address indexed account, uint256 amount);
     event EmissionSettled(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
     event Mined(
@@ -107,60 +84,37 @@ contract Mine is ReentrancyGuard {
         address previousMiner,
         uint256 price,
         uint256 initialPrice,
-        uint256 tps
+        uint256 tps,
+        string message
     );
     event MinerPaymentAccrued(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
-    event RevenueRouted(uint256 indexed index, uint256 indexed epochId, uint256 amount);
+    /// @notice Emitted after mining revenue is deposited into ResonanceRouter for later permissionless routing.
+    event RevenueDeposited(uint256 indexed index, uint256 indexed epochId, uint256 amount);
 
     error DeadlinePassed(uint256 deadline);
     error EpochIdMismatch(uint256 expected, uint256 actual);
-    error HalvingAmountOutOfRange(uint256 amount);
     error InexactTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
     error IndexOutOfBounds(uint256 index);
-    error InitialPriceOutOfRange(uint256 price);
-    error InitialTpsOutOfRange(uint256 tps);
     error MaxPriceExceeded(uint256 price, uint256 maximumPrice);
-    error MiningAuthorityNotFinalized(address minter, bool locked);
+    error MessageTooLong(uint256 length);
     error NothingToClaim(address account);
-    error PriceMultiplierOutOfRange(uint256 multiplier);
-    error TailTpsOutOfRange(uint256 tps);
     error UnexpectedRevenueToken(address expected, address actual);
     error ZeroAddress();
 
     /// @notice Creates the immutable mining market with sixteen empty slots.
-    constructor(GBX gbx_, IERC20 usdg_, address resonanceRouter_, Config memory config) {
+    constructor(GBX gbx_, IERC20 usdg_, address resonanceRouter_) {
         if (
             address(gbx_) == address(0) || address(usdg_) == address(0) || resonanceRouter_ == address(0)
                 || address(gbx_).code.length == 0 || address(usdg_).code.length == 0
                 || resonanceRouter_.code.length == 0
         ) revert ZeroAddress();
-        if (config.priceMultiplier < MIN_PRICE_MULTIPLIER || config.priceMultiplier > MAX_PRICE_MULTIPLIER) {
-            revert PriceMultiplierOutOfRange(config.priceMultiplier);
-        }
-        if (config.minimumInitialPrice < MIN_INITIAL_PRICE || config.minimumInitialPrice > MAX_INITIAL_PRICE) {
-            revert InitialPriceOutOfRange(config.minimumInitialPrice);
-        }
-        if (config.initialTps == 0 || config.initialTps > MAX_INITIAL_TPS) {
-            revert InitialTpsOutOfRange(config.initialTps);
-        }
-        if (config.tailTps < MIN_TAIL_TPS || config.tailTps > config.initialTps) {
-            revert TailTpsOutOfRange(config.tailTps);
-        }
-        if (config.halvingAmount < MIN_HALVING_AMOUNT || config.halvingAmount > MAX_HALVING_AMOUNT) {
-            revert HalvingAmountOutOfRange(config.halvingAmount);
-        }
-
         address routerToken = address(IRevenueRouterIdentity(resonanceRouter_).usdg());
         if (routerToken != address(usdg_)) revert UnexpectedRevenueToken(address(usdg_), routerToken);
 
         gbx = gbx_;
         usdg = usdg_;
         resonanceRouter = resonanceRouter_;
-        priceMultiplier = config.priceMultiplier;
-        minimumInitialPrice = config.minimumInitialPrice;
-        initialTps = config.initialTps;
-        halvingAmount = config.halvingAmount;
-        tailTps = config.tailTps;
+        startTime = block.timestamp;
         pendingUpdatedAt = block.timestamp;
 
         for (uint256 i; i < SLOT_COUNT; ++i) {
@@ -169,16 +123,20 @@ contract Mine is ReentrancyGuard {
     }
 
     /// @notice Replaces one slot's miner at its current linearly decaying USDG price.
-    function mine(address miner, uint256 index, uint256 epochId, uint256 deadline, uint256 maximumPrice)
-        external
-        nonReentrant
-        returns (uint256 paid)
-    {
+    /// @dev The optional message is emitted in `Mined` and is never stored in contract state.
+    function mine(
+        address miner,
+        uint256 index,
+        uint256 epochId,
+        uint256 deadline,
+        uint256 maximumPrice,
+        string calldata message
+    ) external nonReentrant returns (uint256 paid) {
         if (miner == address(0)) revert ZeroAddress();
         if (index >= SLOT_COUNT) revert IndexOutOfBounds(index);
         if (block.timestamp > deadline) revert DeadlinePassed(deadline);
-        _requireMiningAuthority();
-
+        uint256 messageLength = bytes(message).length;
+        if (messageLength > MAX_MESSAGE_BYTES) revert MessageTooLong(messageLength);
         Slot memory previousSlot = slots[index];
         if (epochId != previousSlot.epochId) revert EpochIdMismatch(epochId, previousSlot.epochId);
 
@@ -189,64 +147,23 @@ contract Mine is ReentrancyGuard {
         _settleSlot(index);
 
         uint256 revenueAmount = _allocatePayment(previousSlot.miner, index, epochId, paid);
-        uint256 nextInitialPrice = _nextInitialPrice(paid);
-        uint256 nextTps = _globalTps(totalMined + storedPendingEmission) / SLOT_COUNT;
-
-        aggregateTps = aggregateTps - previousSlot.tps + nextTps;
-        slots[index] = Slot({
+        Slot memory nextSlot = Slot({
             epochId: epochId + 1,
-            initialPrice: nextInitialPrice,
+            initialPrice: _nextInitialPrice(paid),
             auctionStartedAt: block.timestamp,
             lastAccruedAt: block.timestamp,
-            tps: nextTps,
+            tps: _globalTps() / SLOT_COUNT,
             miner: miner
         });
 
-        if (paid != 0) _collectAndRoute(msg.sender, index, epochId, paid, revenueAmount);
+        aggregateTps = aggregateTps - previousSlot.tps + nextSlot.tps;
+        slots[index] = nextSlot;
 
-        emit Mined(msg.sender, miner, index, epochId, previousSlot.miner, paid, nextInitialPrice, nextTps);
-    }
+        if (paid != 0) _collectAndDeposit(msg.sender, index, epochId, paid, revenueAmount);
 
-    function _nextInitialPrice(uint256 paid) private view returns (uint256 nextInitialPrice) {
-        nextInitialPrice = Math.mulDiv(paid, priceMultiplier, PRICE_PRECISION);
-        if (nextInitialPrice > MAX_INITIAL_PRICE) return MAX_INITIAL_PRICE;
-        if (nextInitialPrice < minimumInitialPrice) return minimumInitialPrice;
-    }
-
-    function _allocatePayment(address previousMiner, uint256 index, uint256 epochId, uint256 paid)
-        private
-        returns (uint256 revenueAmount)
-    {
-        if (paid == 0) return 0;
-        if (previousMiner == address(0)) return paid;
-
-        uint256 previousMinerAmount = Math.mulDiv(paid, PREVIOUS_MINER_BPS, BPS);
-        revenueAmount = paid - previousMinerAmount;
-        claimable[previousMiner] += previousMinerAmount;
-        totalClaimable += previousMinerAmount;
-        emit MinerPaymentAccrued(previousMiner, index, epochId, previousMinerAmount);
-    }
-
-    function _collectAndRoute(address payer, uint256 index, uint256 epochId, uint256 paid, uint256 revenueAmount)
-        private
-    {
-        uint256 payerBalanceBefore = usdg.balanceOf(payer);
-        uint256 minerBalanceBefore = usdg.balanceOf(address(this));
-        usdg.safeTransferFrom(payer, address(this), paid);
-        uint256 payerDebit = payerBalanceBefore - usdg.balanceOf(payer);
-        uint256 minerCredit = usdg.balanceOf(address(this)) - minerBalanceBefore;
-        if (payerDebit != paid || minerCredit != paid) revert InexactTransfer(paid, payerDebit, minerCredit);
-
-        uint256 routerBalanceBefore = usdg.balanceOf(resonanceRouter);
-        usdg.safeTransfer(resonanceRouter, revenueAmount);
-        uint256 minerDebit = minerBalanceBefore + paid - usdg.balanceOf(address(this));
-        uint256 routerCredit = usdg.balanceOf(resonanceRouter) - routerBalanceBefore;
-        if (minerDebit != revenueAmount || routerCredit != revenueAmount) {
-            revert InexactTransfer(revenueAmount, minerDebit, routerCredit);
-        }
-
-        IResonanceRouter(resonanceRouter).route();
-        emit RevenueRouted(index, epochId, revenueAmount);
+        emit Mined(
+            msg.sender, miner, index, epochId, previousSlot.miner, paid, nextSlot.initialPrice, nextSlot.tps, message
+        );
     }
 
     /// @notice Claims accumulated USDG replacement payments for an account.
@@ -300,7 +217,7 @@ contract Mine is ReentrancyGuard {
 
     /// @notice Returns the global tokens-per-second rate that the next handoff will divide by sixteen.
     function nextGlobalTps() external view returns (uint256 tps) {
-        return _globalTps(totalMined + pendingEmission());
+        return _globalTps();
     }
 
     /// @dev Incorporates elapsed emission at the old aggregate rate before any slot settlement or rate mutation.
@@ -324,25 +241,51 @@ contract Mine is ReentrancyGuard {
         emit EmissionSettled(slot.miner, index, slot.epochId, amount);
     }
 
-    function _globalTps(uint256 economicallyMined) private view returns (uint256 tps) {
-        (tps,) = _rateState(economicallyMined);
+    function _allocatePayment(address previousMiner, uint256 index, uint256 epochId, uint256 paid)
+        private
+        returns (uint256 revenueAmount)
+    {
+        if (paid == 0) return 0;
+        if (previousMiner == address(0)) return paid;
+
+        uint256 previousMinerAmount = Math.mulDiv(paid, PREVIOUS_MINER_BPS, BPS);
+        revenueAmount = paid - previousMinerAmount;
+        claimable[previousMiner] += previousMinerAmount;
+        totalClaimable += previousMinerAmount;
+        emit MinerPaymentAccrued(previousMiner, index, epochId, previousMinerAmount);
     }
 
-    function _rateState(uint256 economicallyMined) private view returns (uint256 tps, uint256 nextThreshold) {
-        uint256 halvings = 0;
-        nextThreshold = halvingAmount;
-        while (economicallyMined >= nextThreshold) {
-            ++halvings;
-            tps = initialTps >> halvings;
-            if (tps <= tailTps) return (tailTps, type(uint256).max);
-            nextThreshold += halvingAmount >> halvings;
+    function _collectAndDeposit(address payer, uint256 index, uint256 epochId, uint256 paid, uint256 revenueAmount)
+        private
+    {
+        uint256 payerBalanceBefore = usdg.balanceOf(payer);
+        uint256 minerBalanceBefore = usdg.balanceOf(address(this));
+        usdg.safeTransferFrom(payer, address(this), paid);
+        uint256 payerDebit = payerBalanceBefore - usdg.balanceOf(payer);
+        uint256 minerCredit = usdg.balanceOf(address(this)) - minerBalanceBefore;
+        if (payerDebit != paid || minerCredit != paid) revert InexactTransfer(paid, payerDebit, minerCredit);
+
+        uint256 routerBalanceBefore = usdg.balanceOf(resonanceRouter);
+        usdg.safeTransfer(resonanceRouter, revenueAmount);
+        uint256 minerDebit = minerBalanceBefore + paid - usdg.balanceOf(address(this));
+        uint256 routerCredit = usdg.balanceOf(resonanceRouter) - routerBalanceBefore;
+        if (minerDebit != revenueAmount || routerCredit != revenueAmount) {
+            revert InexactTransfer(revenueAmount, minerDebit, routerCredit);
         }
 
-        tps = initialTps >> halvings;
-        if (tps <= tailTps) {
-            tps = tailTps;
-            nextThreshold = type(uint256).max;
-        }
+        emit RevenueDeposited(index, epochId, revenueAmount);
+    }
+
+    function _nextInitialPrice(uint256 paid) private pure returns (uint256 nextInitialPrice) {
+        nextInitialPrice = paid * PRICE_MULTIPLIER;
+        if (nextInitialPrice > MAX_INITIAL_PRICE) return MAX_INITIAL_PRICE;
+        if (nextInitialPrice < MINIMUM_INITIAL_PRICE) return MINIMUM_INITIAL_PRICE;
+    }
+
+    function _globalTps() private view returns (uint256 tps) {
+        uint256 halvings = (block.timestamp - startTime) / HALVING_PERIOD;
+        tps = INITIAL_TPS >> halvings;
+        if (tps < TAIL_TPS) tps = TAIL_TPS;
     }
 
     function _price(Slot memory slot) private view returns (uint256 amount) {
@@ -354,22 +297,16 @@ contract Mine is ReentrancyGuard {
     function _emptySlot() private view returns (Slot memory slot) {
         return Slot({
             epochId: 1,
-            initialPrice: minimumInitialPrice,
+            initialPrice: MINIMUM_INITIAL_PRICE,
             auctionStartedAt: block.timestamp,
             lastAccruedAt: block.timestamp,
             tps: 0,
             miner: address(0)
         });
     }
-
-    function _requireMiningAuthority() private view {
-        address minter = gbx.minter();
-        bool locked = gbx.minterLocked();
-        if (!locked || minter != address(this)) revert MiningAuthorityNotFinalized(minter, locked);
-    }
 }
 
-interface IRevenueRouterIdentity is IResonanceRouter {
+interface IRevenueRouterIdentity {
     /// @notice Returns the USDG token routed through Resonance.
     function usdg() external view returns (IERC20 token);
 }

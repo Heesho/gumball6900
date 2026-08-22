@@ -14,7 +14,7 @@ describe('core starting-point status page', () => {
     expect(screen.getByText(/Deposit GBX directly into a Strategy signal to mint non-transferable sGBX/i)).toBeTruthy();
     expect(screen.getByText('Pro-rata Bribe stream from its explicit notifications')).toBeTruthy();
     expect(screen.getByText('signal() / signalWithPermit() · withdrawSignal()')).toBeTruthy();
-    expect(screen.getByText('20% Resonance · 80% displaced miner')).toBeTruthy();
+    expect(screen.getByText('20% Router deposit · 80% displaced miner')).toBeTruthy();
     expect(screen.getByText('USDG → Resonance · GBX → Fund burn · principal fixed')).toBeTruthy();
     expect(screen.getByText('Internally hardened candidate · not deployed · external audit pending')).toBeTruthy();
     expect(screen.getByText('left(USDG) · distribute(strategy)')).toBeTruthy();

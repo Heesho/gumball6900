@@ -138,18 +138,7 @@ contract ProtocolStateMachineCampaign {
         resonanceRouter = new ResonanceRouter(IERC20(address(usdg)), address(resonance));
         resonance.setResonanceRouter(address(resonanceRouter));
 
-        mineContract = new Mine(
-            gbx,
-            IERC20(address(usdg)),
-            address(resonanceRouter),
-            Mine.Config({
-                priceMultiplier: 2e18,
-                minimumInitialPrice: 1e6,
-                initialTps: 4 ether,
-                halvingAmount: 490_000_000 ether,
-                tailTps: 0.01 ether
-            })
-        );
+        mineContract = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter));
         gbx.setMinter(address(mineContract));
 
         Strategy.Config memory config = Strategy.Config({
@@ -306,7 +295,7 @@ contract ProtocolStateMachineCampaign {
 
         actor.run(
             address(mineContract),
-            abi.encodeCall(Mine.mine, (address(actor), index, slot.epochId, block.timestamp, payment))
+            abi.encodeCall(Mine.mine, (address(actor), index, slot.epochId, block.timestamp, payment, ""))
         );
     }
 
@@ -726,6 +715,9 @@ contract ProtocolStateMachineCampaign {
     function echidna_miningAccountingStaysBoundedAndSolvent() public view returns (bool holds) {
         uint256 slotCount = mineContract.SLOT_COUNT();
         if (slotCount != 16) return false;
+        if (mineContract.INITIAL_TPS() != 64 ether) return false;
+        if (mineContract.HALVING_PERIOD() != 69 days) return false;
+        if (mineContract.TAIL_TPS() != 1 ether) return false;
         if (usdg.balanceOf(address(mineContract)) != mineContract.totalClaimable()) return false;
 
         uint256 combinedTps;
@@ -734,12 +726,15 @@ contract ProtocolStateMachineCampaign {
             Mine.Slot memory slot = mineContract.getSlot(i);
             if (slot.miner == address(0) && slot.tps != 0) return false;
             if (mineContract.price(i) > slot.initialPrice) return false;
-            if (slot.tps > mineContract.initialTps()) return false;
+            if (slot.tps > mineContract.INITIAL_TPS()) return false;
             combinedTps += slot.tps;
             naivePending += mineContract.pendingEmission(i);
         }
+        uint256 elapsedHalvings = (block.timestamp - mineContract.startTime()) / mineContract.HALVING_PERIOD();
+        uint256 expectedGlobalTps = mineContract.INITIAL_TPS() >> elapsedHalvings;
+        if (expectedGlobalTps < mineContract.TAIL_TPS()) expectedGlobalTps = mineContract.TAIL_TPS();
         return combinedTps == mineContract.aggregateTps() && naivePending == mineContract.pendingEmission()
-            && mineContract.nextGlobalTps() >= mineContract.tailTps();
+            && mineContract.nextGlobalTps() == expectedGlobalTps;
     }
 
     /// @notice USDG is only ever moved between accounts, never created or destroyed by the protocol.
