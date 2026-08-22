@@ -49,6 +49,12 @@ are invisible in a screenshot:
 
 - mining's `×2` annotation **derived from the two drawn prices**, naming the `$1` floor where the
   floor set the price — correct on all 25 clamped leaps of 102 takes;
+- mining's revenue leg reading as a **Router deposit, not a forward or a stream** — `MODELS.md` is
+  explicit that a `RevenueDeposited` event proves money reached `ResonanceRouter` and nothing more;
+  a seven-day stream begins only on a separate permissionless `route()` call. A diagram that draws
+  the deposit flowing straight on into resonance is **wrong**, however much better it composes;
+- mining's displaced-miner leg reading as a **pull claim the miner must collect**, not a payment
+  pushed to them;
 - resonance's scripted move **always originating from the largest Strategy** — 24/24, including six
   near-ties decided by 100–200 GBX;
 - the fund's receipts **expiring** instead of asserting a settlement that has ended;
@@ -131,7 +137,7 @@ single change most likely to make these read as engineering drawings rather than
 
 | Figure | Grammar | Libraries |
 |---|---|---|
-| **Overview** — the whole loop | **Stock-and-flow / Sankey: width = quantity, strictly conserved.** Keep the five-band vertical composition and the sphere ledger (the best thing in the figure). Close the loop with an explicit labelled exit stub and return rule as *art direction* — the burn is a sink, not a re-entrant flow. | `d3-shape` ribbons; hand conservation math |
+| **Overview** — the whole loop | **Stock-and-flow / Sankey: width = quantity, strictly conserved.** Keep the five-band vertical composition and the sphere ledger (the best thing in the figure). Close the loop with an explicit labelled exit stub and return rule as *art direction* — the burn is a sink, not a re-entrant flow. **Draw the Router as a holding vessel with its own outlet, never as a pass-through elbow** — see the deposit-is-not-a-stream rule above. | `d3-shape` ribbons; hand conservation math |
 | **Mining** — 16 slots | **Small-multiples instrument board.** Sixteen identical mechanisms, mono labels, one job each. Slot meters read as **clocks** — empty at restart, full at the hour (standing owner rule; overrides DESIGN.md's shrink rule for these meters only). | none — the decay is a straight line; `bezier-easing` for the take/restart snap |
 | **Resonance** — signal aimed at strategies | **Conserved streamgraph — already implemented, and correctly.** The existing cross-section machinery with per-station lag so four channels always sum to the whole stream is *better than any library provides*. **Do not replace it.** | `bezier-easing` only |
 | **Fund** — acquisition + redemption | **Proportional stacked bays (stock) + tapered claim ribbons (flow).** Redemption is where a library visibly raises craft: *n* parallel ribbons, one per bay, each leaving at width ∝ (burn share × holdings), converging on the burner, asset-hued; the GBX burn drawn neutral. | `d3-shape` via the shared `lib/ribbon.ts` |
@@ -335,7 +341,10 @@ apps/landing/
   docs/GAUNTLET-2-FACTORY.md       the cancelled 3D attempt — read only for its method lessons
   docs/ART-DIRECTION.md            the visual brief — binding, except its 3D amendment (moot)
   docs/BRIEF.md                    protocol ground truth + honesty rules — binding
-  docs/MODELS.md                   the verified models + contract citations — FROZEN
+  docs/MODELS.md                   the verified models + contract citations — FROZEN, and recently
+                                   changed by main's `feat(mine): finalize fixed-slot emissions and
+                                   routing` — **read it before you start**, do not work from memory
+                                   or from any older description of the mining routing
   docs/DESIGN.md                   the current design system's spec
 ```
 
