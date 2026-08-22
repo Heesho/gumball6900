@@ -1178,29 +1178,58 @@ function mountGrammar(): (() => void) | null {
          right is the bay wall, and a share printed over a bay is a share
          belonging to nothing */
       const right = !tight;
+      /* THE LABEL HAS TO CLEAR THE WHOLE FAN, NOT ITS OWN BAND.
+         A reading is ~26px of corridor wide and every leg is climbing or
+         falling under it the whole way, so an offset taken from one leg's edge
+         at one x is clear where it starts and 0.5px clear where it ends — and
+         it is the NEIGHBOUR that it lands on, not its own band. So: sample
+         every leg across the label's own x-span, take each band's extreme
+         there, and place the reading in the gap between its leg and the
+         neighbour on that side. Where no gap on either side can hold it, the
+         reading is not drawn: a number laid over a band it does not name is
+         worse than a number a reader has to get from somewhere else. */
+      flowCtx.font = mono(9, 600);
+      const labelW = flowCtx.measureText('100%').width + 6;
+      const xa = right ? busX : busX - labelW;
+      const xb = right ? busX + labelW : busX;
+      const env = splitLegs.map((r) => {
+        let top = Infinity;
+        let bot = -Infinity;
+        for (let k = 0; k <= 6; k++) {
+          const sp = sampleAt(r, xa + ((xb - xa) * k) / 6);
+          if (sp !== null) {
+            top = Math.min(top, sp.c - sp.w / 2);
+            bot = Math.max(bot, sp.c + sp.w / 2);
+          }
+        }
+        return { top, bot };
+      });
+      const GAP_ABOVE = 13; /* 7px cap + a 4px gap + 2px of margin */
+      const GAP_BELOW = 15;
       let y0 = Infinity;
       let y1 = -Infinity;
       splitLegs.forEach((r, i) => {
         const s = sampleAt(r, busX);
-        /* the label runs ~26px along the corridor, and the band it names is
-           climbing or falling under it the whole way. So the edge it clears is
-           the band's EXTREME over the label's own span, not its edge at the
-           reading point — otherwise a label sits 5px clear where it starts and
-           0.5px clear where it ends. */
-        const far = sampleAt(r, busX + (right ? 26 : -26));
-        if (s !== null && far !== null) {
-          y0 = Math.min(y0, s.c);
-          y1 = Math.max(y1, s.c);
-          const dir = GR_TAP_DIR[i] ?? -1;
-          const edge =
-            dir < 0
-              ? Math.min(s.c - s.w / 2, far.c - far.w / 2)
-              : Math.max(s.c + s.w / 2, far.c + far.w / 2);
-          /* the share sits on the OUTSIDE of its leg — the same side the leg is
-             travelling — so four labels diverge with the fan instead of
-             closing on one another as it opens */
-          paths.shares.push({ x: busX, y: s.c, edge, pct: (s.q / outRate) * 100, dir });
-        }
+        const me = env[i];
+        if (s === null || me === undefined) return;
+        y0 = Math.min(y0, s.c);
+        y1 = Math.max(y1, s.c);
+        const up = i === 0 ? Infinity : me.top - (env[i - 1]?.bot ?? -Infinity);
+        const down = i === 3 ? Infinity : (env[i + 1]?.top ?? Infinity) - me.bot;
+        const prefer = GR_TAP_DIR[i] ?? -1;
+        let dir = 0;
+        if (prefer < 0 && up >= GAP_ABOVE) dir = -1;
+        else if (prefer > 0 && down >= GAP_BELOW) dir = 1;
+        else if (up >= GAP_ABOVE) dir = -1;
+        else if (down >= GAP_BELOW) dir = 1;
+        if (dir === 0) return;
+        paths.shares.push({
+          x: busX,
+          y: s.c,
+          edge: dir < 0 ? me.top : me.bot,
+          pct: (s.q / outRate) * 100,
+          dir,
+        });
       });
       if (y0 < y1) paths.bus = { x: busX, y0, y1, right };
     } else if (claim.at.q > 0) {
@@ -1524,7 +1553,7 @@ function mountGrammar(): (() => void) | null {
       const lx = bus !== null && bus.right ? s.x + 4 : s.x - 4;
       /* cleared off the band by the band's OWN half-width: a share printed at a
          fixed offset lands on top of its own leg as soon as that leg is wide */
-      ctx.fillText(fix(s.pct, 0) + '%', lx, s.dir < 0 ? s.edge - 5 : s.edge + 12);
+      ctx.fillText(fix(s.pct, 0) + '%', lx, s.dir < 0 ? s.edge - 4 : s.edge + 11);
     }
 
     /* ---- the collector's stack, named in order ----------------------------

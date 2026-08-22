@@ -1199,6 +1199,11 @@ export function Plate() {
       const gutter = ((l.bays[gap]?.cx ?? l.cx) + halfOf(gap) + (l.bays[gap + 1]?.cx ?? l.cx) - halfOf(gap + 1)) / 2;
       ctx.font = mono(11, 600);
       const tagW = ctx.measureText(n + '  ' + title).width * 1.19;
+      /* a knockout under the tag: a station's name may sit in a gutter that a
+         transient band later runs through, and a title half on a band is worse
+         than a title that has cleared itself a plate */
+      ctx.fillStyle = ink.panel;
+      ctx.fillRect(gutter - tagW / 2 - 8, y + 2, tagW + 16, 18);
       const nw = caps(n, gutter - tagW / 2, y + 15, 11, ink.hi);
       caps(title, gutter - tagW / 2 + nw + 12, y + 15, 11, ink.hi);
     }
@@ -1895,7 +1900,14 @@ export function Plate() {
           );
         }
       });
-      label('USDG out · the asset back — the trade is the price', l.cx, l.yOut - 22, 9, ink.muted, 'center');
+      {
+        const t = 'USDG out · the asset back — the trade is the price';
+        ctx.font = mono(9, 500);
+        const w2 = ctx.measureText(t).width;
+        ctx.fillStyle = ink.panel;
+        ctx.fillRect(l.cx - w2 / 2 - 7, l.yOut - 33, w2 + 14, 15);
+        label(t, l.cx, l.yOut - 22, 9, ink.muted, 'center');
+      }
 
       /* --- the tenth. Drawn and labelled, and deliberately not followed --- */
       rz.assets.forEach((a, i) => {
