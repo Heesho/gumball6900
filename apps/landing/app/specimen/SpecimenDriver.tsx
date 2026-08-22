@@ -1169,8 +1169,15 @@ function mountGrammar(): (() => void) | null {
       /* the bus sits far enough down the corridor that the fan has opened: a
          reading taken where the four legs are still stacked in the trunk is a
          reading laid across three bands it does not name */
-      const busX = g.splitX + corridor * (tight ? 0.55 : GR_SIGNAL_TAP);
-      const right = true;
+      /* On a 50px corridor every leg sweeps through every height, so a reading
+         parked mid-fan is crossed by whichever leg is passing. The bus goes to
+         the far end instead, where each leg has arrived in its own lane and the
+         four readings have 80px of clear air between them. */
+      const busX = g.splitX + corridor * (tight ? 0.92 : GR_SIGNAL_TAP);
+      /* on a narrow canvas the readings hang to the LEFT of the bus: to their
+         right is the bay wall, and a share printed over a bay is a share
+         belonging to nothing */
+      const right = !tight;
       let y0 = Infinity;
       let y1 = -Infinity;
       splitLegs.forEach((r, i) => {
@@ -1626,7 +1633,15 @@ function mountGrammar(): (() => void) | null {
     ctx.fillStyle = ink.muted;
     /* under the splitter, and clear of the widest the trunk can ever be, so
        the label sits in the wedge the fan has not opened into yet */
-    ctx.fillText('SPLIT', g.splitX, g.trunkY + half + 28);
+    /* below the splitter where the fan leaves room, beside it where it does
+       not: at 390 the corridor is 50px and the label and the shares were
+       contending for the same 30px of it */
+    const splitHalf = Math.min(18, g.bayH * 0.4) * 0.58;
+    if (g.w < 560) {
+      ctx.textAlign = 'right';
+      ctx.fillText('SPLIT', g.splitX - splitHalf - 6, g.trunkY + half + 16);
+      ctx.textAlign = 'center';
+    } else ctx.fillText('SPLIT', g.splitX, g.trunkY + half + 28);
     ctx.textAlign = 'left';
     ctx.fillText('SIGNAL', g.splitX + 12, g.nodeY + 4);
     ctx.textAlign = 'center';

@@ -1724,9 +1724,11 @@ export function Plate() {
         ground: ink.raised,
       });
       if (l.narrow) {
-        label('RESONANCE · ' + money(left) + ' left', tx, ty + th + 12, 8.5, ink.hi);
-        label('releasing ' + rate.toFixed(4) + ' USDG/s', tx, ty + th + 24, 8.5, ink.muted);
-        label('FI · milli-USDG/s down this lane', tx, ty + th + 36, 8.5, ink.faint);
+        /* the tank's own readings, kept inside the gutter the trunk leaves */
+        label('RESONANCE', tx, ty + th + 12, 8.5, ink.hi);
+        label(money(left) + ' left', tx, ty + th + 23, 8.5, ink.muted);
+        label(rate.toFixed(4) + ' USDG/s', tx, ty + th + 34, 8.5, ink.muted);
+        label('FI · mUSDG/s', tx, ty + th + 45, 8.5, ink.faint);
       } else {
         label('RESONANCE', tx + tw + 10, ty + 13, 10, ink.hi);
         label(money(left) + ' left of this week', tx + tw + 10, ty + 26, 9.5, ink.muted);
