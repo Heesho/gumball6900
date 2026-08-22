@@ -23,8 +23,10 @@
 - Mine handoffs and effective-supply reads are constant time; rigorous tests separately traverse all sixteen slots as
   a differential oracle.
 - The permanent GBX minter handoff and immutable dependencies cannot be repaired after an incorrect deployment.
-  Reciprocal identity checks reject crossed GBX/Mine, Resonance/SignalGBX/factory, and Resonance/router graphs, but a
-  malicious lookalike contract or incorrect immutable parameter still requires signed bytecode and manifest review.
+  Reciprocal binding checks reject crossed GBX/Mine, Resonance/SignalGBX/factory, and Resonance/router graphs. Mine's
+  separate Router/token pairing is deliberately a post-deployment evidence gate under ADR 0045; a crossed candidate
+  must be abandoned before binding or exposure. Malicious lookalikes and incorrect immutable parameters still require
+  signed bytecode and manifest review.
 
 ## Existing protocol and economic risk
 

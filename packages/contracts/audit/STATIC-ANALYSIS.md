@@ -48,8 +48,9 @@ revisit triggers, and compensating controls are in `static-dispositions.json`.
 
 Aderyn's three High groups are `reentrancy-state-change` (30 instances), `centralization-risk` (13 instances), and
 `contract-locks-ether` (one instance). Runtime value paths are guarded with checks-effects-interactions, exact token
-deltas, and atomic rollback tests; constructor calls validate fixed reciprocal identities before activation. The
-reported administration is the documented Resonance/Mine surface transferred to a no-external-admin Timelock. The
+deltas, and atomic rollback tests; one-time bindings and the remaining constructor calls validate their documented
+reciprocal identities before activation. ADR 0045 deliberately makes Mine's Router/token pairing a post-deployment
+evidence gate. The reported administration is the documented Resonance/Mine surface transferred to a no-external-admin Timelock. The
 Governor rejects ordinary ETH, while unavoidable forced ETH is inert and cannot justify a forbidden rescue path.
 
 The 12 Low groups cover fixed-eight or caller-selected loops, fixed literals, lexical shadowing, one named revenue

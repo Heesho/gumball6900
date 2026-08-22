@@ -98,7 +98,6 @@ contract Mine is ReentrancyGuard {
     error MaxPriceExceeded(uint256 price, uint256 maximumPrice);
     error MessageTooLong(uint256 length);
     error NothingToClaim(address account);
-    error UnexpectedRevenueToken(address expected, address actual);
     error ZeroAddress();
 
     /// @notice Creates the immutable mining market with sixteen empty slots.
@@ -108,8 +107,6 @@ contract Mine is ReentrancyGuard {
                 || address(gbx_).code.length == 0 || address(usdg_).code.length == 0
                 || resonanceRouter_.code.length == 0
         ) revert ZeroAddress();
-        address routerToken = address(IRevenueRouterIdentity(resonanceRouter_).usdg());
-        if (routerToken != address(usdg_)) revert UnexpectedRevenueToken(address(usdg_), routerToken);
 
         gbx = gbx_;
         usdg = usdg_;
@@ -304,9 +301,4 @@ contract Mine is ReentrancyGuard {
             miner: address(0)
         });
     }
-}
-
-interface IRevenueRouterIdentity {
-    /// @notice Returns the USDG token routed through Resonance.
-    function usdg() external view returns (IERC20 token);
 }

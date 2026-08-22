@@ -4,7 +4,7 @@ version: 2.0.0
 date: 2026-08-22
 source_commit: uncommitted-working-tree
 base_commit: e3ebdd7987653969b31dbf0e8d20b68a838dfa5d
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0044; not approved for user funds.
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0045; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
 internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
 independent_audit_status: No independent external audit has been performed.
@@ -538,7 +538,7 @@ To be exact about the current uncommitted development tree:
   chain and the canonical USDG and Uniswap v4 addresses remain unresolved candidates.
 - **Not audited.** No independent external audit has been performed, and symbolic analysis and formal verification
   have not been completed.
-- **The full deterministic workspace matrix passes locally.** The current uncommitted ADR 0044 tree passed 356/356
+- **The full deterministic workspace matrix passed locally before ADR 0045.** The uncommitted ADR 0044 tree passed 356/356
   default Foundry tests across 25 suites, 19/19 integration tests across two suites, Hardhat 4/4, SDK 50/50,
   TypeScript simulations 39/39, Python environment-policy checks 5/5 and simulations 25/25, subgraph specification
   checks 4/4 plus Matchstick 10/10 and build, web unit tests 3/3, Playwright 6/6, and the documentation, ABI,

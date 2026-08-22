@@ -34,9 +34,11 @@ authorized for user funds. A green local build is engineering evidence, never a 
   authority to one deployed `Mine`; the handover is one-time and cannot be replaced or reopened. There is no
   protocol-defined economic supply cap, and supply reconciles as `totalSupply == lifetimeMinted - lifetimeBurned`.
   GBX retains ERC-2612 permit approvals but does not carry ERC20Votes checkpoints or governance weight.
-- Deployment must verify `GBX.minter() == Mine`, `GBX.minterLocked() == true`, and `Mine.gbx() == GBX` before exposing
-  the market. Mine does not repeatedly read those permanent deployment facts on each handoff; GBX itself continues to
-  enforce them whenever Mine mints.
+- Deployment must verify `GBX.minter() == Mine`, `GBX.minterLocked() == true`, `Mine.gbx() == GBX`,
+  `Mine.usdg() == USDG`, `Mine.resonanceRouter() == ResonanceRouter`, and `ResonanceRouter.usdg() == USDG` before
+  exposing the market. Mine does not validate the Router's USDG identity in its constructor or repeatedly read
+  permanent deployment facts on each handoff; GBX itself continues to enforce the permanent minter binding whenever
+  Mine mints.
 - Mine has exactly 16 immutable slots. Each slot uses an independent hourly reverse Dutch replacement auction and may
   change hands at any time. Mine is ownerless and has no capacity or all-slot checkpoint operation.
 - Every Mine handoff may attach an event-only message of at most 280 raw bytes. The message is emitted unindexed in

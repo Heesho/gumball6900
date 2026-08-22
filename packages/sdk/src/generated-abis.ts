@@ -4372,22 +4372,6 @@ export const mineAbi = [
   },
   {
     type: 'error',
-    name: 'UnexpectedRevenueToken',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'actual',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'ZeroAddress',
     inputs: [],
   },

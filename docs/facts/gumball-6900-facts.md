@@ -14,7 +14,7 @@
 > with constant-time pending emission, removing capacity governance and the all-slot checkpoint. ADR 0034 deleted
 > `ProtocolGovernor` and the protocol `TimelockController` entirely, leaving `Resonance` owned by an external
 > governance system that has not been selected; ADR 0035 added the Bribe lifetime reward cap. Those historical
-> revisions were re-derived against `dc67d7c`. ADRs 0036-0044 and the current Mine work were subsequently checked
+> revisions were re-derived against `dc67d7c`. ADRs 0036-0045 and the current Mine work were subsequently checked
 > against an uncommitted development tree based on `40d919e`. HEAD later advanced to `e3ebdd7` for deck and landing-page
 > work without changing the protocol source; the current uncommitted tree is therefore based on `e3ebdd7`. Facts
 > carrying older commit stamps identify the tree where that unchanged claim was originally verified; facts changed by
@@ -30,6 +30,10 @@
 > **Mine-routing revision.** ADR 0044 makes exact delivery into ResonanceRouter the terminal Mine revenue action.
 > Mine emits `RevenueDeposited` and never calls `route()`; Router forwarding is a later permissionless action with no
 > role, bounty, or liveness guarantee. LiquidityPosition's atomic route attempt is unchanged.
+
+> **Mine-dependency revision.** ADR 0045 removes Mine's constructor-time `Router.usdg()` read. A pinned
+> post-deployment check must prove Mine's USDG and Router identities before GBX's permanent minter handoff or market
+> exposure; a mismatched candidate is abandoned and redeployed.
 
 - **Solidity source tree:** `packages/contracts/src`
 - **Compiler:** Solidity `0.8.26`, Cancun target (EIP-1153 transient storage is required)
@@ -81,6 +85,7 @@ the accepted part is authoritative and the superseded part must not be presented
 | ADR 0042 | Provisional accelerated Mine emissions                       | Current provisional 64 GBX/second initial rate and 69-day periods. Its 0.5 GBX/second tail is superseded by ADR 0043. Independent economic review remains open.                                                                                                                                           |
 | ADR 0043 | Provisional one-GBX Mine tail                                | Current provisional 1 GBX/second tail; it begins at the sixth 69-day boundary. Independent economic review remains open.                                                                                                                                                                                  |
 | ADR 0044 | Decouple Mine handoffs from revenue routing                  | Mine exact-deposits the protocol share into ResonanceRouter and emits `RevenueDeposited` without calling `route()`. Permissionless routing has no role, bounty, or liveness guarantee; LiquidityPosition remains atomic.                                                                                  |
+| ADR 0045 | Defer Mine-to-Router token verification to deployment        | Mine stores supplied dependencies without calling the Router; pinned post-deployment evidence must prove the Mine/Router USDG pairing before permanent binding or exposure.                                                                                                                               |
 
 ### Historical context only — partially superseded
 
@@ -117,7 +122,7 @@ the accepted part is authoritative and the superseded part must not be presented
 "Historical evidence only" banners and review commit `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84` (2026-08-09), before
 the ADR 0024 Mine redesign and the ADR 0029/0030/0031/0032 changes. Their counts (including "340 passed") **must not**
 be reported as current. `packages/contracts/audit/FINDINGS.md` is the current disposition register, reconciled on
-2026-08-22 through ADR 0044; campaign-specific findings are in
+2026-08-22 through ADR 0045; campaign-specific findings are in
 `packages/contracts/audit/SIGNAL-RESONANCE-FINDINGS.md`.
 
 **Static analysis, external fuzzing, and mutation results are also historical.** The pinned static-analysis and native
@@ -356,15 +361,16 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   | `INITIAL_TPS` | `64 ether` |
   | `HALVING_PERIOD` | `69 days` (`5_961_600` seconds) |
   | `TAIL_TPS` | `1 ether` |
-  Mine also stores the deployment timestamp in immutable `startTime`. Additionally
-  `IRevenueRouterIdentity(resonanceRouter).usdg()` must equal `usdg`.
+  Mine also stores the deployment timestamp in immutable `startTime`. Mine stores the supplied USDG and Router without
+  calling the Router; ADR 0045 requires pinned post-deployment checks that `Mine.usdg() == USDG`,
+  `Mine.resonanceRouter() == ResonanceRouter`, and `ResonanceRouter.usdg() == USDG`.
 - **Source:** `packages/contracts/src/core/Mine.sol`
 - **Functions/state:** `constructor`, fixed constants
-- **ADR:** ADR 0038, ADR 0041, ADR 0042, ADR 0043
+- **ADR:** ADR 0038, ADR 0041, ADR 0042, ADR 0043, ADR 0045
 - **Tests:** `test_LaunchesWithSixteenEmptySlotsAndPermanentMiningAuthority`,
-  `test_ConstructorRejectsInvalidDependenciesAndMismatchedRouter`
+  `test_ConstructorRejectsInvalidDependenciesAndDefersRouterTokenVerification`
 - **Status:** `implemented`
-- **Commit:** uncommitted ADR 0043 development candidate (2026-08-22)
+- **Commit:** uncommitted ADR 0045 development candidate (2026-08-22)
 - **Caveats:** The emission schedule remains provisional. Selection and deterministic modelling do not constitute
   independent economic review or deployment approval. In the synchronized, fully occupied, fully refreshed, fully
   settled, no-burn reference, mining emits 751,161,600 GBX before the day-414 tail and gross supply including genesis
@@ -812,9 +818,10 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Status:** `open-gate`
 - **Commit:** `dc67d7c`
 - **Caveats:** Open High release gates **M-03** (signed manifest proving bytecode, arguments, dependencies, the exact
-  executor, and removal of the temporary owner) and **G-03** (the integration itself). Reciprocal identity checks
-  reject a crossed graph but cannot detect a malicious lookalike that returns the expected identities, and the
-  protocol has no upgrade, successor, or migration authority to repair a wrong value.
+  executor, and removal of the temporary owner) and **G-03** (the integration itself). Reciprocal binding checks and
+  ADR 0045's post-deployment Mine/Router verification reject a crossed graph but cannot detect a malicious lookalike
+  that returns the expected identities, and the protocol has no upgrade, successor, or migration authority to repair
+  a wrong value after exposure.
 
 ### FACT-GOV-09 — Requirements the external governance ADR must satisfy
 
@@ -1538,10 +1545,10 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 
 ## L. Immutable bindings and deployment topology
 
-### FACT-BIND-01 — Every one-time binding requires a reciprocal identity check and can be set only once
+### FACT-BIND-01 — One-time bindings validate reciprocal identity; Mine/Router pairing is a deployment gate
 
-- **Plain-English claim:** Each contract confirms that the contract it is about to trust points back at it, and once
-  bound, the link is permanent.
+- **Plain-English claim:** Each one-time binding confirms that the contract it is about to trust points back at it. Mine
+  constructor arguments are instead cross-checked immediately after deployment and before its permanent GBX binding.
 - **Technical formulation:**
   | Binding | Guard | Reciprocal check |
   | ------------------------------------ | ---------------------------------------------------- | ----------------------------------------- |
@@ -1550,12 +1557,12 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   | `StrategyFactory.setResonance` | `onlyOwner`, `resonance == address(0)` | `Resonance.strategyFactory() == address(this)` |
   | `BribeFactory.setResonance` | `onlyOwner`, `resonance == address(0)` | `Resonance.bribeFactory() == address(this)` |
   | `Resonance.setResonanceRouter` | `onlyOwner`, `resonanceRouter == address(0)` | `Router.resonance() == address(this)` **and** `Router.usdg() == usdg` |
-  | `Mine` constructor | n/a | `Router.usdg() == usdg` |
   | `LiquidityPosition` constructor | n/a | `Router.usdg() == usdg`, `Fund.gbx() == gbx` |
-  All reciprocal reads are wrapped in `try/catch` and revert on failure.
+  ADR 0045 separately requires pinned reads proving `Mine.usdg() == USDG`, `Mine.resonanceRouter() == Router`, and
+  `Router.usdg() == USDG`; a mismatch invalidates that deployment candidate.
 - **Source:** `GBX.sol:57-73`; `SignalGBX.sol:184-196`; `StrategyFactory.sol:44-57`; `BribeFactory.sol:44-56`;
   `Resonance.sol:247-263`; `Mine.sol:160-161`; `LiquidityPosition.sol:170-179`
-- **ADR:** ADR 0030 (finding **E-02**)
+- **ADR:** ADR 0030 and ADR 0045 (finding **E-02**)
 - **Tests:** `test_SetResonanceIsOwnerOnlyValidatesIdentityAndBindsOnce`, `test_SetResonanceIsOwnerOnlyValidatesIdentityAndBindsOnce`,
   `test_SetResonanceIsOwnerOnlyValidatesIdentityAndBindsOnce`, `test_ResonanceRouterBindingIsOwnerOnlyValidatedAndSingleUse`,
   `test_StrategyFactorySetResonanceIsOwnerOnlyValidatedAndSingleUse`,

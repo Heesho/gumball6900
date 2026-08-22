@@ -1,6 +1,6 @@
 # Protocol specification
 
-This is the authoritative target-development specification under ADRs 0031 and 0033-0044 in whole or in their
+This is the authoritative target-development specification under ADRs 0031 and 0033-0045 in whole or in their
 recorded unsuperseded parts. The current
 development tree implements these decisions and reconciles their generated consumers. This remains unaudited local
 engineering evidence, not deployment approval or authorization for user funds.

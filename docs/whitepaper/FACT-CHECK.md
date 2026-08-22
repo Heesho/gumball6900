@@ -1,7 +1,7 @@
 # Whitepaper fact check
 
 This register covers whitepaper v0.8. Existing Solidity and cross-language fixtures remain authoritative local
-engineering evidence for implemented mechanics. ADRs 0031 and 0033-0044 are implemented in the development tree; no
+engineering evidence for implemented mechanics. ADRs 0031 and 0033-0045 are implemented in the development tree; no
 row is an independent audit or deployment claim.
 
 | Claim                                                                   | Source                                     | Status / limitation                                          |

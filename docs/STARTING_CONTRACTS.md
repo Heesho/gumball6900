@@ -1,6 +1,6 @@
 # Canonical contract starting point
 
-> This is the target development architecture under ADRs 0031 and 0033-0044 in whole or in their recorded
+> This is the target development architecture under ADRs 0031 and 0033-0045 in whole or in their recorded
 > unsuperseded parts, not a claim of current Solidity
 > conformance, deployment, audit, or authorization for user funds. Implementation gaps are listed in
 > [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).

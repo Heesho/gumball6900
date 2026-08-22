@@ -1,6 +1,6 @@
 # Release checklist
 
-Current description: **ADR 0024/0029/0031/0033-0044 development candidate;
+Current description: **ADR 0024/0029/0031/0033-0045 development candidate;
 external governance unselected and independent review required**. This is not production-ready or
 deployment-authorized.
 
@@ -13,7 +13,7 @@ deployment-authorized.
 - [x] Mine emits `RevenueDeposited` and performs no synchronous `route()` call; permissionless routing has no role,
       bounty, or liveness guarantee, while LiquidityPosition retains its atomic route attempt.
 - [x] Fund uses constant-time effective supply, including all pending mining, for the redemption denominator.
-- [x] SDK, subgraph, whitepaper, frontend, audit records, and generated references reconciled through ADR 0044.
+- [x] SDK, subgraph, whitepaper, frontend, audit records, and generated references reconciled through ADR 0045.
 - [x] Full current-tree Foundry, Hardhat, SDK, subgraph, simulation, frontend, documentation, and workspace gates
       rerun after ADR 0044.
 - [ ] Static findings regenerated and manually dispositioned for the Mine graph.
@@ -55,6 +55,9 @@ deployment-authorized.
 - [ ] Canonical USDG and Uniswap dependencies approved with runtime code hashes.
 - [ ] Signed manifest verifies chain, bytecode, constructor arguments, fixed Mine constants, `startTime`, deployment
       block timestamp, first boundary, deployment-to-exposure delay, and dependencies.
+- [ ] Pinned post-deployment reads prove `Mine.gbx() == GBX`, `Mine.usdg() == USDG`,
+      `Mine.resonanceRouter() == ResonanceRouter`, and `ResonanceRouter.usdg() == USDG` before the permanent GBX minter
+      handoff or market exposure.
 - [ ] GBX genesis recipient receives exactly 20M and permanent minter handoff resolves to the deployed Mine.
 - [ ] Reviewed initial Strategies are created and receipt-recorded before external-governance ownership handoff.
 - [ ] Mine starts with exactly sixteen slots and no owner; Resonance ownership resolves to the exact reviewed external

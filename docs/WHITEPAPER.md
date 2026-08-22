@@ -6,7 +6,7 @@ Whitepaper v0.8 — 22 August 2026 — by Heesho
 
 > Development status: experimental, not deployed, not independently audited, and not authorized for user funds.
 > Independent review of the fixed mining economics, deployment parameters, third-party provenance, and security remain
-> open release gates. ADRs 0031 and 0033-0044 are authoritative development decisions; ADRs 0042 and 0043 record the
+> open release gates. ADRs 0031 and 0033-0045 are authoritative development decisions; ADRs 0042 and 0043 record the
 > current provisional Mine rates and period. Governance execution and the production Resonance owner remain an unselected
 > external integration, so deployment is blocked.
 

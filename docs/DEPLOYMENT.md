@@ -17,9 +17,12 @@ The intended order is:
    and complete Resonance's one-time router binding. Each call verifies the candidate points back to the exact
    SignalGBX, factory, Resonance, and USDG identities before storing the irreversible binding. SignalGBX cannot accept
    signals before this step completes.
-4. Deploy the ownerless Mine with GBX, USDG, and ResonanceRouter. Record and verify that `startTime` equals the Mine
-   deployment timestamp. Verify those identities, its fixed sixteen slots, and the hard-coded Mine constants: 2×
-   price reset, 1 USDG floor, 64 GBX-per-second initial global rate, provisional `69 days` halving period, and 1
+4. Deploy the ownerless Mine with GBX, USDG, and ResonanceRouter. At one pinned post-deployment state, verify
+   `Mine.gbx() == GBX`, `Mine.usdg() == USDG`, `Mine.resonanceRouter() == ResonanceRouter`, and
+   `ResonanceRouter.usdg() == USDG`; Mine deliberately does not enforce the final equality in its constructor. Abandon
+   and redeploy the candidate before any permanent binding or exposure if one equality fails. Record and verify that
+   `startTime` equals the Mine deployment timestamp. Verify its fixed sixteen slots and the hard-coded Mine constants:
+   2× price reset, 1 USDG floor, 64 GBX-per-second initial global rate, provisional `69 days` halving period, and 1
    GBX-per-second global tail. The prospective-rate clock starts at deployment even while all slots are empty, so
    minimize and report any delay between Mine deployment and public market exposure. Verify Mine emits
    `RevenueDeposited` after exact Router delivery and contains no synchronous `route()` call.

@@ -71,7 +71,7 @@ export const status = {
   externalAudit: 'Independent external audit not completed',
   licensing: 'donut-miner, give.fun, Liquid Signal, and transitive lineage remain unresolved release blockers',
   architectureImplementation:
-    'ADRs 0031 and 0033-0044 implemented in the development tree; the provisional Mine emission schedule and external governance owner remain under review',
+    'ADRs 0031 and 0033-0045 implemented in the development tree; the provisional Mine emission schedule and external governance owner remain under review',
 };
 
 export function verifyProtocolFacts() {

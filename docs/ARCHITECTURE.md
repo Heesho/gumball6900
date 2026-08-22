@@ -2,7 +2,7 @@
 
 The target graph is direct, immutable, and deliberately small.
 
-> Development architecture: ADRs 0031 and 0033-0044 are authoritative in whole or in their recorded unsuperseded
+> Development architecture: ADRs 0031 and 0033-0045 are authoritative in whole or in their recorded unsuperseded
 > parts. Governance execution remains an
 > unselected external integration, so this document is not deployment approval or evidence of a complete production
 > graph.
@@ -100,5 +100,6 @@ See [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md), [ADR 0024](adr/0024-immutabl
 [ADR 0040](adr/0040-deployment-time-mine-authority-verification.md),
 [ADR 0041](adr/0041-time-based-mine-halvings.md),
 [ADR 0042](adr/0042-provisional-accelerated-mine-emissions.md),
-[ADR 0043](adr/0043-provisional-one-gbx-tail.md), and
-[ADR 0044](adr/0044-decouple-mine-from-revenue-routing.md).
+[ADR 0043](adr/0043-provisional-one-gbx-tail.md),
+[ADR 0044](adr/0044-decouple-mine-from-revenue-routing.md), and
+[ADR 0045](adr/0045-defer-mine-router-token-verification.md).

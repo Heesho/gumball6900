@@ -4,7 +4,7 @@ version: 2.0.0
 date: 2026-08-22
 source_commit: uncommitted-working-tree
 base_commit: e3ebdd7987653969b31dbf0e8d20b68a838dfa5d
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0044; not approved for user funds.
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0045; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
 internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
 independent_audit_status: No independent external audit has been performed.

@@ -4,9 +4,9 @@ version: 2.0.0
 date: 2026-08-22
 source_commit: uncommitted-working-tree
 base_commit: e3ebdd7987653969b31dbf0e8d20b68a838dfa5d
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0044; not approved for user funds.
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0045; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: Local working-tree engineering checks are recorded in FINDINGS.md. Static-analysis, mutation, and external-fuzzing campaigns predate ADR 0044 and are historical. Release gates remain open.
+internal_review_status: Local working-tree engineering checks are recorded in FINDINGS.md. The full deterministic, static-analysis, mutation, and external-fuzzing evidence predates ADR 0045 unless explicitly stated otherwise. Release gates remain open.
 independent_audit_status: No independent external audit has been performed.
 ---
 
@@ -440,7 +440,10 @@ lookalike returning the expected value. This is finding **M-03**, an open High r
 | `HALVING_PERIOD`        | `Δ`     | `5,961,600` | seconds            |
 | `TAIL_TPS`              | `u_∞`   | `1·10^18`   | raw GBX per second |
 
-Additionally `IRevenueRouterIdentity(resonanceRouter).usdg() == usdg` must hold.
+Mine stores its supplied USDG and ResonanceRouter without calling the Router during construction. ADR 0045 instead
+requires pinned post-deployment reads proving `Mine.usdg() == USDG`,
+`Mine.resonanceRouter() == ResonanceRouter`, and `ResonanceRouter.usdg() == USDG` before the permanent GBX minter
+handoff or market exposure.
 
 These values are bytecode constants rather than constructor arguments. The constructor accepts only GBX, USDG, and
 ResonanceRouter. Constants also include `BPS = 10_000`, `PREVIOUS_MINER_BPS = 8_000`,
@@ -1912,10 +1915,13 @@ signed evidence rather than asserted:
   and minimum initial price, and that the LiquidityPosition constructor carries the reviewed pool key, tick range,
   and precommitted position token ID.
 - That the deployed dependencies are the canonical USDG and Uniswap v4 contracts on the target chain.
+- That Mine's immutable USDG and Router form the intended pair; ADR 0045 makes this a pinned post-deployment evidence
+  obligation rather than a Mine constructor invariant.
 
-Reciprocal identity checks reject a _crossed_ protocol graph. They cannot distinguish a malicious lookalike that
-returns the expected identities, and the protocol has no upgrade, successor, or migration authority with which to
-repair a wrong value. This is finding **M-03** — an open High release gate — and the residue of **E-02**.
+Reciprocal binding checks plus ADR 0045's post-deployment Mine/Router verification reject a _crossed_ protocol graph.
+They cannot distinguish a malicious lookalike that returns the expected identities, and the protocol has no upgrade,
+successor, or migration authority with which to repair a wrong value after exposure. This is finding **M-03** — an
+open High release gate — and the residue of **E-02**.
 
 Where any repository document states an ownership or role condition as an "invariant", it is correctly read as a
 **deployment obligation**. This was recorded as discrepancy D-5 (§43).
@@ -1949,19 +1955,22 @@ protocol with a live admin key. There is no contract-level timeout, escrow, or f
 | `StrategyFactory.setResonance` | `onlyOwner`, unset                     | `R.strategyFactory() = this`                               | No        |
 | `BribeFactory.setResonance`    | `onlyOwner`, unset                     | `R.bribeFactory() = this`                                  | No        |
 | `Resonance.setResonanceRouter` | `onlyOwner`, unset                     | `Router.resonance() = this` **and** `Router.usdg() = usdg` | No        |
-| `Mine` constructor             | —                                      | `Router.usdg() = usdg`                                     | n/a       |
 | `LiquidityPosition` ctor       | —                                      | `Router.usdg() = usdg`, `Fund.gbx() = gbx`                 | n/a       |
 | `Bribe` constructor            | —                                      | reads `fund` from the bound `Resonance`                    | n/a       |
 
-Every reciprocal read is `try/catch` guarded and reverts on failure or on a mismatched identity.
+Every listed one-time binding read is guarded and reverts on failure or on a mismatched identity. ADR 0045 deliberately
+moves verification of Mine's exact Router and both contracts' canonical USDG identity out of Mine construction and into
+pinned deployment evidence; a mismatched Mine candidate must be abandoned before GBX binding or exposure.
 
 `SignalGBX` additionally refuses **all** staking and signaling until its Resonance binding completes
 (`ResonanceNotSet`), so no user can deposit into a partially-wired graph.
 
 ### 28.2 What reciprocal checks do and do not prove
 
-They prove **consistency**: contract A and contract B agree they refer to each other, and to the same USDG or GBX.
-They cannot prove **honesty**: a malicious lookalike that returns the expected identities passes every check.
+The onchain checks prove **consistency** for the bindings they guard: contract A and contract B agree they refer to each
+other, and to the same USDG or GBX. Pinned deployment reads provide the equivalent consistency evidence for Mine's
+Router/token pairing. Neither mechanism proves **honesty**: a malicious lookalike that returns the expected identities
+passes every check.
 
 This materially reduces accidental cross-wiring but does not close finding **M-03**, which remains an open High
 release gate requiring exact runtime code hashes, constructor arguments, transaction receipts, and a signed manifest.
@@ -2940,7 +2949,7 @@ campaign-specific findings in `packages/contracts/audit/SIGNAL-RESONANCE-FINDING
 | **M-04** | High     | Mine economics are selected, hard-coded, and modelled, but still require independent economic review before deployment.                           |
 | **G-03** | High     | The external governance system that will own `Resonance` is unselected; its voting, delegation, permission, and delay semantics are unreviewed.   |
 | **G-01** | High     | sGBX checkpoints survive withdrawal; the selected external system's snapshot-to-vote spacing requires independent review of the capture model.    |
-| **E-02** | High     | Materially reduced by reciprocal identity checks, but codehash, parameter, and manifest review remains external.                                  |
+| **E-02** | High     | Materially reduced by binding checks and post-deployment Mine/Router verification, but codehash, parameter, and manifest review remains external. |
 
 ### 41.4 Accepted findings (not gates)
 
@@ -3042,7 +3051,8 @@ pending emission)** · **ADR 0034 (external governance ownership)** · **ADR 003
 **ADR 0036 (governed global Bribe share)** · **ADR 0037 (high-precision Bribe index)** · **ADR 0038 (fixed Mine
 economics)** · **ADR 0039 (event-only Mine messages)** · **ADR 0040 (deployment-time Mine authority
 verification)** · **ADR 0041 (time-based Mine halvings)** · **ADR 0042 (provisional accelerated Mine emissions)** ·
-**ADR 0043 (provisional one-GBX tail)** · **ADR 0044 (Mine deposits without synchronous revenue routing)**.
+**ADR 0043 (provisional one-GBX tail)** · **ADR 0044 (Mine deposits without synchronous revenue routing)** ·
+**ADR 0045 (post-deployment Mine/Router token verification)**.
 
 ### 43.3 Superseded ADRs excluded from this document
 

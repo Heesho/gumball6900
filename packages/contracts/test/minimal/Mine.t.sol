@@ -86,7 +86,7 @@ contract MineTest is ProtocolFixture {
         }
     }
 
-    function test_ConstructorRejectsInvalidDependenciesAndMismatchedRouter() external {
+    function test_ConstructorRejectsInvalidDependenciesAndDefersRouterTokenVerification() external {
         vm.expectRevert(Mine.ZeroAddress.selector);
         new Mine(GBX(address(0)), IERC20(address(usdg)), address(resonanceRouter));
 
@@ -97,8 +97,10 @@ contract MineTest is ProtocolFixture {
         new Mine(gbx, IERC20(address(usdg)), address(0));
 
         MineRouterIdentityHarness wrongRouter = new MineRouterIdentityHarness(IERC20(address(target)));
-        vm.expectRevert(abi.encodeWithSelector(Mine.UnexpectedRevenueToken.selector, address(usdg), address(target)));
-        new Mine(gbx, IERC20(address(usdg)), address(wrongRouter));
+        Mine mismatchedMine = new Mine(gbx, IERC20(address(usdg)), address(wrongRouter));
+        assertEq(address(mismatchedMine.usdg()), address(usdg));
+        assertEq(mismatchedMine.resonanceRouter(), address(wrongRouter));
+        assertEq(address(wrongRouter.usdg()), address(target));
     }
 
     function test_MineAndSlotViewsRejectInvalidInputs() external {

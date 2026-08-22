@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 21. Documented ABI entries: 503. Documented public ABI functions: 265.
+Documented source surfaces: 20. Documented ABI entries: 501. Documented public ABI functions: 264.
 
 ## Bribe
 
@@ -2037,29 +2037,13 @@ error ZeroAddress();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## IRevenueRouterIdentity
-
-Source: [`src/core/Mine.sol`](../../packages/contracts/src/core/Mine.sol)
-
-Artifact: `out/Mine.sol/IRevenueRouterIdentity.json`
-
-Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `usdg()`
-
-```solidity
-function usdg() external view returns (contract IERC20 token);
-```
-
-Returns the USDG token routed through Resonance.
-
 ## Mine
 
 Source: [`src/core/Mine.sol`](../../packages/contracts/src/core/Mine.sol)
 
 Artifact: `out/Mine.sol/Mine.json`
 
-Public ABI: 30 functions, 5 events, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 30 functions, 5 events, 10 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address)`
 
@@ -2422,14 +2406,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `UnexpectedRevenueToken(address,address)`
-
-```solidity
-error UnexpectedRevenueToken(address expected, address actual);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._

@@ -7,7 +7,7 @@ ignored `audit/reports` directory; reviewed conclusions belong in the tracked Ma
 
 The material is internal engineering evidence, not an independent audit, legal clearance, deployment authorization,
 or a claim that the protocol is safe for unlimited value. ADR 0024's unsuperseded Mine decisions, together with ADR
-0033 and ADRs 0038–0044, are authoritative for Mine. Under ADR 0044, Mine ends after exact protocol-revenue deposit
+0033 and ADRs 0038–0045, are authoritative for Mine. Under ADR 0044, Mine ends after exact protocol-revenue deposit
 into ResonanceRouter; a later permissionless `route()` has no caller role, bounty, or liveness guarantee, while
 LiquidityPosition retains its atomic route attempt. ADR 0036 is authoritative for uniform Strategy settlement: each
 auction payment snapshots Resonance's global 0%–20% Bribe

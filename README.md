@@ -20,7 +20,8 @@ burned for caller-selected Fund assets.
 > [ADR 0041](docs/adr/0041-time-based-mine-halvings.md),
 > [ADR 0042](docs/adr/0042-provisional-accelerated-mine-emissions.md),
 > [ADR 0043](docs/adr/0043-provisional-one-gbx-tail.md), and
-> [ADR 0044](docs/adr/0044-decouple-mine-from-revenue-routing.md), are implemented in the development tree. ADR 0036
+> [ADR 0044](docs/adr/0044-decouple-mine-from-revenue-routing.md), and
+> [ADR 0045](docs/adr/0045-defer-mine-router-token-verification.md), are implemented in the development tree. ADR 0036
 > supersedes ADR 0032's fixed-rate rule while retaining its cumulative liability accounting. Governance execution
 > remains an unselected external integration, so deployment is blocked. This is local engineering evidence only;
 > independent review and every deployment gate remain outstanding.
@@ -182,7 +183,8 @@ Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
 [ADR 0041](docs/adr/0041-time-based-mine-halvings.md),
 [ADR 0042](docs/adr/0042-provisional-accelerated-mine-emissions.md), and
 [ADR 0043](docs/adr/0043-provisional-one-gbx-tail.md), and
-[ADR 0044](docs/adr/0044-decouple-mine-from-revenue-routing.md).
+[ADR 0044](docs/adr/0044-decouple-mine-from-revenue-routing.md), and
+[ADR 0045](docs/adr/0045-defer-mine-router-token-verification.md).
 
 ## Provenance
 
