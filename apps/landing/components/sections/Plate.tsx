@@ -33,6 +33,7 @@ import {
   type MineState,
 } from '../../lib/models/mine';
 import {
+  STRATEGIES,
   STREAM,
   WEEKLY,
   createResonanceState,
@@ -41,7 +42,7 @@ import {
   type ResonanceState,
 } from '../../lib/models/resonance';
 import { BRIBE, aucStep, createAucState, fair, seedHistory, type AucState } from '../../lib/models/auction';
-import { SUPPLY0, createRedState, redStep, takenAt, type RedState } from '../../lib/models/redeem';
+import { SUPPLY0, createRedState, redStep, type RedState } from '../../lib/models/redeem';
 import './plate.css';
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -403,12 +404,54 @@ export function Plate() {
     const mint = { mark: SUPPLY0, since: 0, total: 0, burned: 0, rate: 0 };
 
 
-    /* ------------------------------------------------------------- the fund
-       What the auctions have delivered into each bay, in USDG of value spent.
-       This is a plate-level tally of the frozen resonance model's own flushes;
-       it is drawn as a number, never as unbounded geometry. */
-    const bought = [0, 0, 0, 0];
-    const tapped = [0, 0, 0, 0];
+    /* ═══════════════════ THE FUND — ONE STOCK PER BAY ═══════════════════════
+       THE DEFECT THIS FIXES, and it was the plate's worst: the bays were drawn
+       from the redemption model's own idle refill, which creeps every holding
+       back toward its baseline every frame. So a bay gained 15.9 NVDA a second
+       with nothing drawn arriving, and at a settle — a tank going $282 → $0 —
+       it moved by the same 0.3 as any other frame. The chain was severed at
+       exactly the join the whole plate is about.
+
+       A bay is now a stock the plate owns, and it moves at exactly two kinds of
+       DRAWN event and at no other time:
+         · a settle at station 04 adds what that settle bought, in the same
+           frame the tank flushes to zero;
+         · a burn at station 06 takes the same proportion out of every bay, in
+           the same frame the supply steps down.
+       Between events a bay is dead flat. That is the truthful state — the fund
+       changes when a transaction changes it — and it is what lets a reader
+       trace one unit of value from a slot card to a holding. */
+    const FUND_BASE = [1200, 400, 2.4, 860];
+    /* A LOT IS USDG AND A BAY IS ASSET. The plate has no price for NVDA, QQQ,
+       WBTC or AAPL, and it says so in the drawing by giving the returning asset
+       band exactly the width of the USDG that bought it — the trade IS the
+       price. So the conversion from a settled lot to a holding is a published
+       ILLUSTRATIVE PARAMETER of the plate, like every price and every taker on
+       it, and it is the only thing that turns a settle into a bay step.
+
+       It is not a guess. It is solved from the models' own numbers so that a
+       bay's RESTING level is the holding the fund opens with: a bay holds
+       FUND_DWELL seconds of its own lane's share of the seven-day stream, and
+       redemptions take it back out at the same average pace. Change a weight
+       and the bay drifts to a new resting level — which is the mechanism, not
+       a defect. */
+    const FUND_DWELL = 77; // seconds of its own lane's inflow a bay rests at
+    const stakeSum = STRATEGIES.reduce((n, s) => n + s.stake, 0);
+    const fundRate = ASSET_HUES.map((_a, i) => {
+      const share = (STRATEGIES[i]?.stake ?? 1) / stakeSum;
+      const perSec = (WEEKLY / STREAM) * TS_RZ * share * (1 - BRIBE);
+      return (FUND_BASE[i] ?? 1) / Math.max(1e-9, perSec * FUND_DWELL);
+    });
+    /** the holding, in asset units. Stepped only by a settle or a burn. */
+    const fund = FUND_BASE.map((v) => v);
+    /* each bay's own gauge, published as the bay's height. A bay is an
+       accumulator, so a ceiling fixed at load would draw a correct figure today
+       and a band four bays tall tomorrow — the same failure the mine's live
+       dollar axis fixes. The GAUGE eases; the QUANTITY never does. */
+    const fundCap = FUND_BASE.map((v) => v * 1.22);
+    /** what the last burn took out of each bay, and that share of its gauge */
+    const burnTake = FUND_BASE.map(() => 0);
+    const burnFrac = FUND_BASE.map(() => 0);
     /** the live flush, per lane: the lot the auction just took */
     const flush = ASSET_HUES.map(() => ({ age: 2, lot: 0 }));
     const prevFlash = ASSET_HUES.map(() => 0);
@@ -985,11 +1028,13 @@ export function Plate() {
       const burning = rd.phase === 'burn';
       const k = burning ? Math.min(1, rd.pt / 1.1) : 0;
       let sliceSum = 0;
-      rd.holds.forEach((hh, i) => {
-        const cap = 1.22;
-        const frac = Math.max(0, Math.min(hh.amt / hh.base, cap)) / cap;
+      l.bays.forEach((_b, i) => {
+        const frac = Math.max(0, Math.min(1, (fund[i] ?? 0) / Math.max(1e-9, fundCap[i] ?? 1)));
         F.stock[i] = frac * bayH;
-        F.slice[i] = burning ? rd.pct * F.stock[i] : 0;
+        /* the band that leaves is exactly the band that vanished: it is sized
+           from what the burn TOOK, on the same gauge the bay is drawn on, not
+           from what is left behind */
+        F.slice[i] = burning ? (burnFrac[i] ?? 0) * bayH : 0;
         sliceSum += F.slice[i]!;
       });
       if (burning && sliceSum > 0) {
@@ -1200,10 +1245,23 @@ export function Plate() {
          own supply is banked here, and station 06 draws it arriving as a band
          whose width is exactly what it added to the bar. */
       advanceRedeem(dt);
-      /* the burn, as a step: the instant the redemption station fires, the
-         supply readout drops by exactly what it burned, and not before */
+      /* ---- THE BURN, AS ONE STEP -----------------------------------------
+         The instant the redemption station fires, the supply drops by exactly
+         what was burned AND the same proportion leaves every bay — one frame,
+         one event, no travelling delay between the GBX and the assets. What
+         the bands then draw crossing the station is the parcel travelling,
+         which the grammar allows; the NUMBERS have already stepped. */
       const burningNow = rd.phase === 'burn';
-      if (burningNow && !supply.burning) stepSupply(-rd.burned);
+      if (burningNow && !supply.burning) {
+        const pct = rd.pct;
+        fund.forEach((u, i) => {
+          const take = u * pct;
+          burnTake[i] = take;
+          burnFrac[i] = take / Math.max(1e-9, fundCap[i] ?? 1);
+          fund[i] = u - take;
+        });
+        stepSupply(-rd.burned);
+      }
       supply.burning = burningNow;
 
       /* ---- the Router: deposits in, route() out, nothing in between ------
@@ -1251,18 +1309,29 @@ export function Plate() {
       router.cap = capWant > router.cap ? capWant : router.cap + (capWant - router.cap) * Math.min(1, dt * 0.35);
       router.capShown += (router.cap - router.capShown) * Math.min(1, dt * 3.4);
 
-      /* ---- the auctions: the frozen model's own flushes ------------------ */
+      /* ---- the auctions: the frozen model's own flushes ------------------
+         THE SETTLE IS ONE INSTANT. The frozen model zeroes the pot and records
+         the lot in the same statement; the plate steps the bay in the same
+         frame it reads that. Tank → 0 and bay → up are one event, and there is
+         no other way into a bay. */
       rz.assets.forEach((a, i) => {
         const f = flush[i];
         if (!f) return;
         if (a.flash > prevFlash[i]!) {
           f.age = 0;
           f.lot = a.lastLot;
-          bought[i] = (bought[i] ?? 0) + a.lastLot * (1 - BRIBE);
-          tapped[i] = (tapped[i] ?? 0) + a.lastLot * BRIBE;
+          fund[i] = (fund[i] ?? 0) + a.lastLot * (1 - BRIBE) * (fundRate[i] ?? 0);
         }
         prevFlash[i] = a.flash;
         if (f.age < 1) f.age = Math.min(1, f.age + dt / 1.5);
+      });
+
+      /* the bays' own gauges, eased toward what they have to hold. A gauge may
+         ease; the quantity it draws never does. */
+      fund.forEach((u, i) => {
+        const want = Math.max(FUND_BASE[i] ?? 1, u * 1.15);
+        const c = fundCap[i] ?? 1;
+        fundCap[i] = want > c ? want : c + (want - c) * Math.min(1, dt * 0.25);
       });
 
       build(l);
@@ -1819,9 +1888,7 @@ export function Plate() {
          bay full = 1200 NVDA` came out as `gauge · full = 120` at 390 — cut by
          a mark drawn after it, not by its container. One pass for the
          mechanism, one for the type, in that order, always. */
-      rd.holds.forEach((hh, i) => {
-        const bay = l.bays[i];
-        if (!bay) return;
+      l.bays.forEach((bay, i) => {
         const w = l.bayW;
         const x = bay.cx - w / 2;
         const hue = hueOf(i);
@@ -1830,15 +1897,18 @@ export function Plate() {
         ctx.fillRect(x, l.bayTop, w, bayH);
         ctx.fillStyle = hue;
         ctx.fillRect(x + 1, l.bayTop + bayH - stock, w - 2, Math.max(0, stock));
-        /* the slice, marked on the bay it is leaving */
+        /* the level the burn took the bay DOWN FROM, marked on the bay it left.
+           The holding stepped in one frame, so this is where the surface stood
+           an instant ago and the gap below it is exactly the band crossing the
+           station towards the reader. */
         const slice = F.slice[i] ?? 0;
         if (slice > 0.5) {
           ctx.strokeStyle = GBX_BODY;
           ctx.lineWidth = 1.4;
           ctx.setLineDash([]);
           ctx.beginPath();
-          ctx.moveTo(x, hairline(l.bayTop + bayH - stock + slice, l.dpr));
-          ctx.lineTo(x + w, hairline(l.bayTop + bayH - stock + slice, l.dpr));
+          ctx.moveTo(x, hairline(l.bayTop + bayH - stock - slice, l.dpr));
+          ctx.lineTo(x + w, hairline(l.bayTop + bayH - stock - slice, l.dpr));
           ctx.stroke();
         }
         ctx.strokeStyle = hue;
@@ -1851,13 +1921,13 @@ export function Plate() {
         ctx.moveTo(bay.cx, hairline(l.bayTop + bayH, l.dpr));
         ctx.lineTo(bay.cx, hairline(l.bayTop + bayH + 5, l.dpr));
         ctx.stroke();
-        if (i === 0) {
-          /* the bay's own full mark, drawn ACROSS THE BAY IT GAUGES and no
-             further: it used to run from the left margin, where its caption
-             sat under the next bay's rectangle and came out as
-             `gauge · full = 120`. The reading now sits under the vessel with
-             the stock it qualifies. */
-          const byy = l.bayTop + bayH * (1 - 1 / 1.22);
+        {
+          /* THE BAY'S OWN DATUM, drawn ACROSS THE BAY IT GAUGES and no
+             further: the holding the fund opened with, on this bay's own
+             gauge. It is the one mark that makes an accumulating stock
+             readable — above it the fund has bought more than it started
+             with, below it redemptions have taken more than settles put back. */
+          const byy = l.bayTop + bayH * (1 - (FUND_BASE[i] ?? 1) / Math.max(1e-9, fundCap[i] ?? 1));
           ctx.strokeStyle = ink.ruleStrong;
           ctx.lineWidth = 1;
           ctx.setLineDash([2, 3]);
@@ -1876,15 +1946,13 @@ export function Plate() {
        the rows the bays' own readings sit in, so those readings are the last
        layer on the plate, not the first. */
     function paintFundNotes(l: Layout): void {
-      rd.holds.forEach((hh, i) => {
-        const bay = l.bays[i];
-        if (!bay) return;
+      l.bays.forEach((bay, i) => {
         /* the STOCK reading the key publishes: name and number on ONE line,
            ticked to the vessel that holds it — never a bare numeral under a
            bare word */
-        labelK(hh.sym, bay.cx, l.bayTop - 7, 10.5, ink.hi, 'center');
+        const amt = fund[i] ?? 0;
         labelK(
-          hh.sym + '  ' + hh.amt.toFixed(hh.amt < 10 ? 4 : 1),
+          bay.sym + '  ' + amt.toFixed(amt < 10 ? 4 : 1),
           bay.cx,
           l.bayBot + 16,
           l.narrow ? 8.5 : 10,
@@ -1969,9 +2037,10 @@ export function Plate() {
          take a bite out of the merged claim stack that runs down the spine
          between this table's columns; four small plates let the stack pass
          between them, which is what "the band goes behind the label" means. */
-      rd.holds.forEach((hh, i) => {
+      l.bays.forEach((bay, i) => {
         const y = ry + i * 13;
-        const take = (rd.phase === 'burn' ? takenAt(rd, i) : hh.amt * pct) || 0;
+        const hh = { sym: bay.sym, amt: fund[i] ?? 0 };
+        const take = (rd.phase === 'burn' ? (burnTake[i] ?? 0) : hh.amt * pct) || 0;
         labelK(hh.sym, rx, y, 9, hueOf(i));
         labelK((pct * 100).toFixed(2) + '%', rx + rw * (l.narrow ? 0.4 : 0.3), y, 9, ink.muted, 'right');
         labelK(hh.amt.toFixed(hh.amt < 10 ? 4 : 1), rx + rw * (l.narrow ? 0.72 : 0.62), y, 9, ink.muted, 'right');
@@ -2047,7 +2116,21 @@ export function Plate() {
       mint.total = 0;
       mint.burned = 0;
       mint.rate = 0;
+      /* the fund opens at its illustrative holdings and moves only on drawn
+         events from there */
+      FUND_BASE.forEach((v, i) => {
+        fund[i] = v;
+        fundCap[i] = v * 1.22;
+        burnTake[i] = 0;
+        burnFrac[i] = 0;
+      });
+      flush.forEach((f) => {
+        f.age = 2;
+        f.lot = 0;
+      });
+      rz.assets.forEach((a, i) => (prevFlash[i] = a.flash));
       for (let i = 0; i < 40; i++) stepResonance(rz, 240, {});
+      rz.assets.forEach((a, i) => (prevFlash[i] = a.flash));
       seedHistory(au, {});
     }
     seed();
@@ -2083,6 +2166,12 @@ export function Plate() {
           stepMine(mn, 24, mineFx);
           spawnTakes(before, mintedBefore);
           stepResonance(rz, 380, {});
+          /* the still's bays are STEPPED by the still's own settles, exactly as
+             a frame's are — the fund in the still is not asserted */
+          rz.assets.forEach((a, k) => {
+            if (a.flash > prevFlash[k]!) fund[k] = (fund[k] ?? 0) + a.lastLot * (1 - BRIBE) * (fundRate[k] ?? 0);
+            prevFlash[k] = a.flash;
+          });
           aucStep(au, 190, {});
         }
         /* the still catches ONE take part-way along its run: the last one the
@@ -2106,13 +2195,23 @@ export function Plate() {
         router.outTotal = landed * 0.62;
         router.bookedIn = landed;
         router.held = landed - router.outTotal;
+        /* a burn, caught mid-flight: the numbers have ALREADY stepped — the
+           supply and all four bays dropped in one frame — and what the still
+           shows crossing the station is the parcel on its way to the reader */
         rd.phase = 'burn';
         rd.who = '@you';
         rd.mine = true;
         rd.pct = 0.1;
-        rd.burned = rd.supply * 0.1;
-        rd.taken = rd.holds.map((hh) => hh.amt * 0.1);
         rd.pt = 0.78;
+        rd.burned = supply.gbx * 0.1;
+        fund.forEach((u, i) => {
+          const take = u * 0.1;
+          burnTake[i] = take;
+          burnFrac[i] = take / Math.max(1e-9, fundCap[i] ?? 1);
+          fund[i] = u - take;
+        });
+        stepSupply(-rd.burned);
+        supply.burning = true;
         rz.assets.forEach((a, i) => {
           if (i === 3) {
             a.flash = 0.7;
@@ -2120,6 +2219,8 @@ export function Plate() {
           }
         });
         flush[3] = { age: 0.45, lot: 96 };
+        fund[3] = (fund[3] ?? 0) + 96 * (1 - BRIBE) * (fundRate[3] ?? 0);
+        prevFlash[3] = 0.7;
         if (resize()) {
           L = buildLayout();
           build(L);
