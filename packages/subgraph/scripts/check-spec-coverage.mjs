@@ -41,14 +41,7 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleResonanceRouterSet',
   'handleRewardNotified',
   'handleRewardPaid',
-  'handleRewardCarryFunded',
-  'handleBribeFundRewardAccrued',
-  'handleBribeFundRewardPaid',
-  'handleRouterPaymentRouted',
-  'handleRouterFundPaymentAccrued',
-  'handleRouterFundPaymentPaid',
-  'handleRouterBribePaymentAccrued',
-  'handleRouterBribeRewardNotified',
+  'handleRouterRewardsDistributed',
 ]);
 
 function matches(text, expression, captureIndex = 1) {

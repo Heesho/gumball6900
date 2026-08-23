@@ -1,7 +1,7 @@
 # Core invariants
 
-> These are development invariants under ADRs 0031, 0034, 0035, 0036, and 0037. Governance execution remains an unselected
-> external integration and contributes no production invariant until separately reviewed.
+> These are development invariants under ADRs 0031, 0034-0037, 0047, and 0048. Governance execution remains an
+> unselected external integration and contributes no production invariant until separately reviewed.
 
 ## GBX and Mine
 
@@ -42,21 +42,22 @@
   active `totalSignalWeight`.
 - Before the first Strategy is created, live Strategy count may be zero and new signal is impossible. After bootstrap,
   live Strategy count never reaches zero; the final Strategy can be killed only after a replacement is added.
-- An active Resonance schedule finishes seven days after its most recent qualifying notification. Its raw base rate and
-  front-loaded remainder emit the complete scheduled raw USDG amount by that finish.
-- During an active schedule, ResonanceRouter retains a nonzero balance smaller than `left(USDG)`. Once its complete
-  balance is at least `left(USDG)`, it forwards all of it and Resonance restarts seven days with `reward + left`.
-- The Resonance USDG balance is at least its exact scheduled remainder plus every Strategy's previewed whole reward.
-  Index and Strategy floors, zero-active-signal emission, and direct donations are accepted unclassified surplus.
+- An active Resonance schedule finishes seven days after its most recent qualifying notification and emits
+  `DURATION * rewardRate` raw USDG. Rate-division remainder is accepted surplus.
+- ResonanceRouter forwards its complete balance only when it is at least `max(DURATION, left())`; smaller balances
+  remain buffered. Resonance restarts seven days with ordinary Synthetix leftover rollover.
+- The Resonance USDG balance is at least its whole scheduled remainder plus every Strategy's previewed whole reward.
+  Rate, index, and Strategy floors, zero-active-signal emission, and direct donations are accepted surplus.
 - Every signal mutation checkpoints elapsed stream revenue before changing weights, and every Strategy purchase
   checkpoints and pulls released revenue before reading inventory.
+- `SignalGBX.moveSignal` atomically composes source `removeSignalFor` then destination `addSignalFor`; the destination
+  must be live, a failed addition rolls back the removal, and Resonance exposes no dedicated move hook.
 - Killing a Strategy checkpoints and preserves its accrued whole Resonance reward, excludes its complete live weight,
   blocks additions, and lets existing signalers remove without reducing active `totalSignalWeight` again.
-- Before each Bribe signal-weight change, pending carry that cannot be indexed under the old weights moves to its
-  explicit Fund remainder. A fully exiting Bribe account's sub-token remainder does likewise.
-- Every accounted Bribe reward unit is represented by a live schedule, queue, carry, user liability, or Fund liability.
-- Zero Bribe supply pauses rather than consumes stream time, and a live stream is never reset by a top-up.
-- A Bribe has at most eight append-only reward tokens.
+- Bribe streams use ordinary Synthetix rate, index, and account floors; unallocated amounts remain token surplus.
+- Bribe stream time continues at zero signal supply. Notifications are not queued and may restart a live stream only
+  when the new amount is at least both `REWARD_DURATION` and `left(rewardToken)`.
+- A Bribe has at most sixteen append-only reward tokens.
 - For every Bribe reward token,
   `lifetimeRewardNotified[token] <= floor(type(uint256).max / Bribe.REWARD_PRECISION())`. The counter increases by each
   accepted raw notification, never decreases, and excludes direct donations. A notification that would exceed the cap
@@ -82,20 +83,15 @@
 
 ## Strategies, Fund, and liquidity
 
-- For Strategy acquired-asset payments `a_i` classified at global rates `r_i`, cumulative paired-Bribe liability is
-  `floor(sum(a_i * r_i) / 10_000)`, cumulative Fund liability is the remaining `sum(a_i)`, and the Router remainder is
-  `sum(a_i * r_i) mod 10_000`. The fractional basis-point remainder survives rate changes unchanged. Partitioning
-  payments classified at the same rate cannot change the result.
-- A rate change is prospective: it changes no prior classification, existing Router liability, Bribe stream, queued
-  reward, accrued claim, or split remainder. At rate zero, new payments create only Fund liability and add no Bribe
-  numerator; signaling, moving signal, withdrawing signal, killed-Strategy exit, existing reward settlement, and
-  independently funded rewards remain live.
-- Fund payment and paired-Bribe notification are isolated permissionless settlement legs. Neither liability can be
-  redirected, consumed by failure of the other leg, or paid twice. Direct BribeRouter donations alter neither.
-- If the paired Bribe has exhausted a token's lifetime notification cap, notification failure leaves the complete
-  automatic Bribe liability in BribeRouter while Fund settlement remains independently available.
-- A GBX-priced Strategy is supply-neutral until the dynamically Fund-classified GBX is explicitly burned after reaching
-  Fund; any Bribe-classified GBX remains a reward liability and is not burned by settlement.
+- Each Strategy payment `a` snapshots rate `r` before payment-token interaction, sends
+  `floor(a * r / 10_000)` to BribeRouter, and sends the exact complement directly to Fund. There is no split carry;
+  payment partitioning may change cumulative results by sub-token floor amounts.
+- A rate change is prospective and changes no prior transfer, Bribe stream, or accrued claim. At rate zero, new
+  payments go entirely to Fund while signaling, exit, existing rewards, and independent funding remain live.
+- BribeRouter holds only the Bribe share and distributes its complete compatible-token balance permissionlessly once
+  notification gates are met. Direct donations join that balance. Notification failure leaves the balance buffered.
+- A GBX-priced Strategy is supply-neutral until its inline Fund share is burned; its Bribe share remains a reward and
+  is not burned by settlement.
 - Fund redemption uses one effective pre-burn supply snapshot for every selected token and is atomic with the
   GBX burn and every selected transfer.
 - Redemption rejects GBX, the zero address, and duplicates. Fund has no asset registry or administrative withdrawal.

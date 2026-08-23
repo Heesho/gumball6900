@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 20. Documented ABI entries: 501. Documented public ABI functions: 264.
+Documented source surfaces: 20. Documented ABI entries: 447. Documented public ABI functions: 235.
 
 ## Bribe
 
@@ -13,7 +13,7 @@ Source: [`src/core/Bribe.sol`](../../packages/contracts/src/core/Bribe.sol)
 
 Artifact: `out/Bribe.sol/Bribe.json`
 
-Public ABI: 36 functions, 12 events, 14 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 23 functions, 5 events, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address)`
 
@@ -49,7 +49,7 @@ Immutable upper bound on append-only reward tokens and every mandatory reward lo
 function REWARD_DURATION() external view returns (uint256 arg0);
 ```
 
-Fixed duration assigned to each independently started reward stream.
+Fixed duration assigned to every reward stream.
 
 ### `REWARD_PRECISION()`
 
@@ -58,22 +58,6 @@ function REWARD_PRECISION() external view returns (uint256 arg0);
 ```
 
 Fixed-point scale preserving low-decimal rewards over eighteen-decimal virtual signal weights.
-
-### `accountedRewardBalance(address)`
-
-```solidity
-function accountedRewardBalance(address token) external view returns (uint256 amount);
-```
-
-Exact supported-token balance notified minus completed user and Fund payouts.
-
-### `accruedRewardLiability(address)`
-
-```solidity
-function accruedRewardLiability(address token) external view returns (uint256 amount);
-```
-
-Aggregate whole-token user liability represented by `rewards` for each token.
 
 ### `addRewardToken(address)`
 
@@ -111,7 +95,7 @@ Anyone may trigger the claim, but payment can only reach the entitled account.
 
 **Returns**
 
-- `amount`: Exact amount paid.
+- `amount`: Amount paid.
 
 ### `claimRewards(address)`
 
@@ -120,25 +104,11 @@ function claimRewards(address account) external;
 ```
 
 Claims every registered reward token earned by `account`.
-This bounded convenience path may fail on a broken selected token; scalar claims remain independent.
+A broken reward token reverts this convenience path; the scalar claim remains independent.
 
 **Parameters**
 
 - `account`: Account whose accrued rewards are paid.
-
-### `claimRewards(address,address[])`
-
-```solidity
-function claimRewards(address account, address[] rewardTokens_) external;
-```
-
-Claims a caller-selected bounded set of reward tokens for `account`.
-Duplicate or unregistered selections revert deterministically before any token interaction.
-
-**Parameters**
-
-- `account`: Entitled account.
-- `rewardTokens_`: Registered unique tokens to claim.
 
 ### `deposit(uint256,address)`
 
@@ -146,7 +116,7 @@ Duplicate or unregistered selections revert deterministically before any token i
 function deposit(uint256 amount, address account) external;
 ```
 
-Adds virtual signal weight for `account` after checkpointing all bounded reward state.
+Adds virtual signal weight for `account` after checkpointing all registered rewards.
 
 **Parameters**
 
@@ -160,47 +130,6 @@ function earned(address account, address rewardToken) external view returns (uin
 ```
 
 Returns whole rewards currently claimable by one account for one token.
-
-**Parameters**
-
-- `account`: Account whose rewards are queried.
-- `rewardToken`: Registered reward token.
-
-**Returns**
-
-- `amount`: Whole-token accrued amount, including previewed stream progress.
-
-### `fund()`
-
-```solidity
-function fund() external view returns (address arg0);
-```
-
-Fixed treasury destination derived once from Resonance for rounding liabilities that outlive all signalers.
-
-### `fundRewardLiability(address)`
-
-```solidity
-function fundRewardLiability(address token) external view returns (uint256 amount);
-```
-
-Whole-token reward liability irrevocably owed to the immutable Fund.
-
-### `fundRewardRemainder(address)`
-
-```solidity
-function fundRewardRemainder(address token) external view returns (uint256 scaledRemainder);
-```
-
-Sub-token Fund precision carried until it combines into another payable whole unit.
-
-### `indexedRewardScaled(address)`
-
-```solidity
-function indexedRewardScaled(address token) external view returns (uint256 scaledAmount);
-```
-
-Reward precision allocated globally but not yet checkpointed into individual account state.
 
 ### `isRewardToken(address)`
 
@@ -216,15 +145,7 @@ Append-only membership flag for tokens governance registered through Resonance.
 function lastTimeRewardApplicable(address rewardToken) external view returns (uint256 timestamp);
 ```
 
-Returns the last timestamp currently eligible to advance the active stream.
-
-**Parameters**
-
-- `rewardToken`: Token whose stream is queried.
-
-**Returns**
-
-- `timestamp`: Active time capped at finish, or the pause timestamp while supply is zero.
+Returns the last timestamp currently eligible to advance one reward stream.
 
 ### `left(address)`
 
@@ -232,15 +153,7 @@ Returns the last timestamp currently eligible to advance the active stream.
 function left(address rewardToken) external view returns (uint256 amount);
 ```
 
-Returns exact whole tokens remaining in the active stream, excluding its independent queue.
-
-**Parameters**
-
-- `rewardToken`: Token whose active schedule is queried.
-
-**Returns**
-
-- `amount`: Remaining active-stream amount.
+Returns whole reward units remaining in the active stream.
 
 ### `lifetimeRewardNotified(address)`
 
@@ -256,46 +169,13 @@ Monotonic cumulative raw units admitted through notifications for each reward to
 function notifyRewardAmount(address rewardToken, uint256 amount) external;
 ```
 
-Funds an exact seven-day stream or queues behind the currently active stream.
-Live-stream notifications never restart or extend existing rewards, preventing repeated tiny top-up griefing.
+Funds and restarts a seven-day reward stream using the standard leftover-rollover model.
+Permissionless funding must be at least one duration in raw units and at least the active reward left.
 
 **Parameters**
 
-- `amount`: Exact amount pulled from the caller.
+- `amount`: Amount pulled from the caller.
 - `rewardToken`: Registered token to fund.
-
-### `payFundReward(address)`
-
-```solidity
-function payFundReward(address rewardToken) external returns (uint256 amount);
-```
-
-Pays one token's whole Fund-bound liability to the immutable Fund.
-State clears before interaction; a failed token transfer atomically restores the complete liability.
-
-**Parameters**
-
-- `rewardToken`: Registered reward token to pay.
-
-**Returns**
-
-- `amount`: Exact amount paid.
-
-### `pendingRewardScaled(address)`
-
-```solidity
-function pendingRewardScaled(address token) external view returns (uint256 scaledAmount);
-```
-
-Emitted reward precision not yet large enough for another reward-per-token increment.
-
-### `queuedRewards(address)`
-
-```solidity
-function queuedRewards(address token) external view returns (uint256 amount);
-```
-
-Whole-token notifications waiting for the current stream to finish or for signal supply to become nonzero.
 
 ### `resonance()`
 
@@ -308,10 +188,10 @@ Resonance exclusively authorized to maintain virtual balances and register rewar
 ### `rewardData(address)`
 
 ```solidity
-function rewardData(address token) external view returns (uint256 periodFinish, uint256 remainderFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerTokenStored, uint256 pauseStarted);
+function rewardData(address token) external view returns (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerTokenStored);
 ```
 
-Independent exact stream state for every registered reward token.
+Independent stream state for every registered reward token.
 
 ### `rewardPerToken(address)`
 
@@ -319,32 +199,7 @@ Independent exact stream state for every registered reward token.
 function rewardPerToken(address rewardToken) external view returns (uint256 accumulatedReward);
 ```
 
-Returns the exact previewed cumulative reward per virtual signal unit.
-
-**Parameters**
-
-- `rewardToken`: Token whose cumulative index is queried.
-
-**Returns**
-
-- `accumulatedReward`: Cumulative reward per weight scaled by `REWARD_PRECISION`.
-
-### `rewardSurplus(address)`
-
-```solidity
-function rewardSurplus(address rewardToken) external view returns (uint256 amount);
-```
-
-Returns direct token balance not introduced through the notification accounting path.
-Direct donation surplus is classified but intentionally unscheduled and has no privileged recovery path.
-
-**Parameters**
-
-- `rewardToken`: Token whose surplus is queried.
-
-**Returns**
-
-- `amount`: Direct-donation surplus.
+Returns the cumulative reward per virtual signal unit.
 
 ### `rewardTokens()`
 
@@ -354,10 +209,6 @@ function rewardTokens() external view returns (address[] tokens);
 
 Returns all registered reward tokens in immutable insertion order.
 
-**Returns**
-
-- `tokens`: Registered reward tokens.
-
 ### `rewards(address,address)`
 
 ```solidity
@@ -365,14 +216,6 @@ function rewards(address account, address token) external view returns (uint256 
 ```
 
 Whole-token accrued user liability, payable only to the entitled account.
-
-### `scheduledRewards(address)`
-
-```solidity
-function scheduledRewards(address token) external view returns (uint256 amount);
-```
-
-Active-stream whole-token amount not yet moved into scaled reward allocation.
 
 ### `totalSupply()`
 
@@ -390,21 +233,13 @@ function userRewardPerTokenPaid(address account, address token) external view re
 
 Cumulative reward index already incorporated for one account and token.
 
-### `userRewardRemainder(address,address)`
-
-```solidity
-function userRewardRemainder(address account, address token) external view returns (uint256 scaledRemainder);
-```
-
-Sub-token scaled user accrual retained across checkpoints instead of rounded away.
-
 ### `withdraw(uint256,address)`
 
 ```solidity
 function withdraw(uint256 amount, address account) external;
 ```
 
-Removes virtual signal weight after accounting only; no reward token is called or transferred.
+Removes virtual signal weight for `account` after checkpointing all registered rewards.
 
 **Parameters**
 
@@ -413,34 +248,10 @@ Removes virtual signal weight after accounting only; no reward token is called o
 
 ### Events
 
-#### `FundRewardAccrued(address,uint256,uint256)`
-
-```solidity
-event FundRewardAccrued(address indexed rewardToken, uint256 amount, uint256 totalLiability);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `FundRewardPaid(address,address,address,uint256)`
-
-```solidity
-event FundRewardPaid(address indexed caller, address indexed fund, address indexed rewardToken, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `RewardAdded(address)`
 
 ```solidity
 event RewardAdded(address indexed rewardToken);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RewardCarryFunded(address,uint256,uint256)`
-
-```solidity
-event RewardCarryFunded(address indexed rewardToken, uint256 amountScaled, uint256 remainderScaled);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -457,38 +268,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 event RewardPaid(address indexed account, address indexed rewardToken, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RewardQueued(address,uint256,uint256)`
-
-```solidity
-event RewardQueued(address indexed rewardToken, uint256 amount, uint256 totalQueued);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RewardStreamPaused(address,uint256)`
-
-```solidity
-event RewardStreamPaused(address indexed rewardToken, uint256 pausedAt);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RewardStreamResumed(address,uint256,uint256)`
-
-```solidity
-event RewardStreamResumed(address indexed rewardToken, uint256 resumedAt, uint256 pausedDuration);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RewardStreamStarted(address,uint256,uint256,uint256,uint256,uint256)`
-
-```solidity
-event RewardStreamStarted(address indexed rewardToken, uint256 amount, uint256 startedAt, uint256 periodFinish, uint256 rewardRate, uint256 rateRemainder);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -510,30 +289,6 @@ event SignalWeightWithdrawn(address indexed account, uint256 amount);
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
-
-#### `DuplicateRewardToken(address)`
-
-```solidity
-error DuplicateRewardToken(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InexactRewardPayout(address,uint256,uint256,uint256)`
-
-```solidity
-error InexactRewardPayout(address receiver, uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InexactRewardTransfer(uint256,uint256,uint256)`
-
-```solidity
-error InexactRewardTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
 
 #### `NotResonance(address)`
 
@@ -567,10 +322,18 @@ error RewardAlreadyAdded(address token);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `RewardBalanceDeficit(address,uint256,uint256)`
+#### `RewardBelowDuration(uint256)`
 
 ```solidity
-error RewardBalanceDeficit(address token, uint256 accounted, uint256 actual);
+error RewardBelowDuration(uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RewardBelowRemaining(uint256,uint256)`
+
+```solidity
+error RewardBelowRemaining(uint256 amount, uint256 remaining);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -579,14 +342,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error RewardLifetimeCapExceeded(address token, uint256 notified, uint256 requested, uint256 maximum);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `RewardScaleOverflow(address,uint256)`
-
-```solidity
-error RewardScaleOverflow(address token, uint256 balance);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -781,109 +536,40 @@ Source: [`src/core/BribeRouter.sol`](../../packages/contracts/src/core/BribeRout
 
 Artifact: `out/BribeRouter.sol/BribeRouter.json`
 
-Public ABI: 14 functions, 5 events, 8 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 3 functions, 1 event, 2 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
-### `constructor(address,address,address,address,address)`
+### `constructor(address,address)`
 
 ```solidity
-constructor(address resonance_, address strategy_, contract Bribe bribe_, contract IERC20 paymentToken_, address fund_);
+constructor(contract IBribe bribe_, contract IERC20 paymentToken_);
 ```
 
-Creates the fixed route between one Resonance, Strategy, payment token, Bribe, and Fund.
+Creates the fixed route between one payment token and its paired Bribe.
 
 **Parameters**
 
-- `bribe_`: Independently fundable Bribe paired with the Strategy.
-- `fund_`: Treasury receiving every Fund-classified payment share.
+- `bribe_`: Bribe paired with the Strategy.
 - `paymentToken_`: Strategy payment token.
-- `resonance_`: Resonance supplying the governance-selected prospective Bribe share.
-- `strategy_`: Strategy exclusively allowed to route payments.
-
-### `BPS()`
-
-```solidity
-function BPS() external view returns (uint256 arg0);
-```
-
-Denominator for the governance-bounded payment split.
-
-### `accountedPaymentBalance()`
-
-```solidity
-function accountedPaymentBalance() external view returns (uint256 arg0);
-```
-
-Exact payment-token balance pulled from Strategy minus completed Fund and Bribe settlements.
 
 ### `bribe()`
 
 ```solidity
-function bribe() external view returns (contract Bribe arg0);
+function bribe() external view returns (contract IBribe arg0);
 ```
 
-Bribe paired with the Strategy and fixed as its automatic reward destination.
+Bribe paired with the Strategy and fixed as the reward destination.
 
-### `bribePaymentLiability()`
+### `distribute()`
 
 ```solidity
-function bribePaymentLiability() external view returns (uint256 arg0);
+function distribute() external returns (uint256 distributed);
 ```
 
-Payment-token amount irrevocably owed to the paired Bribe and not yet notified.
-
-### `fund()`
-
-```solidity
-function fund() external view returns (address arg0);
-```
-
-Immutable treasury destination for the Fund-classified share.
-
-### `fundPaymentLiability()`
-
-```solidity
-function fundPaymentLiability() external view returns (uint256 arg0);
-```
-
-Payment-token amount irrevocably owed to Fund and payable by any caller.
-
-### `notifyBribeReward()`
-
-```solidity
-function notifyBribeReward() external returns (uint256 amount);
-```
-
-Notifies the complete paired-Bribe liability as an acquired-asset reward.
-State clears before interaction; any failure atomically restores this leg without altering Fund liability.
+Notifies the paired Bribe with the Router's complete balance once it satisfies the top-up gates.
 
 **Returns**
 
-- `amount`: Exact reward amount notified.
-
-### `payFundPayment()`
-
-```solidity
-function payFundPayment() external returns (uint256 amount);
-```
-
-Pays the complete fixed payment liability to the immutable Fund.
-State clears before interaction; a failed transfer atomically restores the liability.
-
-**Returns**
-
-- `amount`: Exact amount paid.
-
-### `paymentSurplus()`
-
-```solidity
-function paymentSurplus() external view returns (uint256 amount);
-```
-
-Returns direct payment-token donations outside Strategy-supplied accounting.
-
-**Returns**
-
-- `amount`: Unaccounted direct-donation surplus.
+- `distributed`: Amount sent to Bribe, or zero when the Router is empty or the balance must keep accumulating.
 
 ### `paymentToken()`
 
@@ -891,127 +577,19 @@ Returns direct payment-token donations outside Strategy-supplied accounting.
 function paymentToken() external view returns (contract IERC20 arg0);
 ```
 
-Strategy payment token routed by this contract.
-
-### `resonance()`
-
-```solidity
-function resonance() external view returns (address arg0);
-```
-
-Resonance supplying the global prospective Bribe share.
-
-### `routePayment(uint256)`
-
-```solidity
-function routePayment(uint256 amount) external;
-```
-
-Pulls one complete auction payment and classifies it at the current global Bribe share.
-
-**Parameters**
-
-- `amount`: Exact payment-token amount to pull.
-
-### `splitRemainder()`
-
-```solidity
-function splitRemainder() external view returns (uint256 arg0);
-```
-
-Sub-token Bribe entitlement in basis-point numerator units, always smaller than `BPS`.
-
-### `strategy()`
-
-```solidity
-function strategy() external view returns (address arg0);
-```
-
-Strategy exclusively authorized to supply completed auction payments.
+Strategy payment token distributed by the paired Bribe.
 
 ### Events
 
-#### `BribePaymentAccrued(address,address,uint256,uint256,uint256)`
+#### `RewardsDistributed(address,address,uint256)`
 
 ```solidity
-event BribePaymentAccrued(address indexed bribe, address indexed paymentToken, uint256 amount, uint256 totalLiability, uint256 remainder);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `BribeRewardNotified(address,address,address,uint256)`
-
-```solidity
-event BribeRewardNotified(address indexed caller, address indexed bribe, address indexed paymentToken, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `FundPaymentAccrued(address,address,uint256,uint256)`
-
-```solidity
-event FundPaymentAccrued(address indexed fund, address indexed paymentToken, uint256 amount, uint256 totalLiability);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `FundPaymentPaid(address,address,address,uint256)`
-
-```solidity
-event FundPaymentPaid(address indexed caller, address indexed fund, address indexed paymentToken, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `PaymentRouted(address,uint256,uint256)`
-
-```solidity
-event PaymentRouted(address indexed strategy, uint256 amount, uint256 bribeBps);
+event RewardsDistributed(address indexed bribe, address indexed rewardToken, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
 ### Custom errors
-
-#### `BribeBpsAboveBasis(uint256)`
-
-```solidity
-error BribeBpsAboveBasis(uint256 requested);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InexactTransfer(uint256,uint256,uint256)`
-
-```solidity
-error InexactTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `NotStrategy(address)`
-
-```solidity
-error NotStrategy(address caller);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `PaymentBalanceDeficit(uint256,uint256)`
-
-```solidity
-error PaymentBalanceDeficit(uint256 accounted, uint256 actual);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ReentrancyGuardReentrantCall()`
-
-```solidity
-error ReentrancyGuardReentrantCall();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
 
 #### `SafeERC20FailedOperation(address)`
 
@@ -1025,14 +603,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ZeroAmount()`
-
-```solidity
-error ZeroAmount();
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2424,7 +1994,7 @@ Source: [`src/core/Resonance.sol`](../../packages/contracts/src/core/Resonance.s
 
 Artifact: `out/Resonance.sol/Resonance.json`
 
-Public ABI: 46 functions, 10 events, 22 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 42 functions, 10 events, 19 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address,address,address)`
 
@@ -2464,7 +2034,7 @@ Fixed duration of every USDG reward period.
 function MAX_BRIBE_BPS() external view returns (uint256 arg0);
 ```
 
-Hard governance ceiling preserving at least 80% of cumulative classified payments for Fund.
+Hard governance ceiling preserving at least 80% of every classified payment for Fund.
 
 ### `REWARD_PRECISION()`
 
@@ -2491,22 +2061,6 @@ function accountSignals(address account, address strategy) external view returns
 
 Returns the SignalGBX one account has assigned to one Strategy.
 The paired Bribe is the canonical account-by-Strategy signal ledger.
-
-### `account_Token_RewardPerTokenPaid(address,address)`
-
-```solidity
-function account_Token_RewardPerTokenPaid(address strategy, address token) external view returns (uint256 paid);
-```
-
-Strategy => token => cumulative reward-per-signal already incorporated.
-
-### `account_Token_Rewards(address,address)`
-
-```solidity
-function account_Token_Rewards(address strategy, address token) external view returns (uint256 reward);
-```
-
-Strategy => token => accrued whole raw reward units.
 
 ### `addBribeReward(address,address)`
 
@@ -2572,10 +2126,10 @@ function distribute(address strategy) external returns (uint256 amount);
 
 Pays one Strategy's accrued USDG. Anyone may trigger payment to the fixed entitled Strategy.
 
-### `earned(address,address)`
+### `earned(address)`
 
 ```solidity
-function earned(address strategy, address rewardToken) external view returns (uint256 reward);
+function earned(address strategy) external view returns (uint256 reward);
 ```
 
 Returns one Strategy's stored plus elapsed USDG reward.
@@ -2588,21 +2142,13 @@ function fund() external view returns (address arg0);
 
 Treasury exposed to the paired Bribe graph and Strategy settlement.
 
-### `getRewardForDuration(address)`
+### `getRewardForDuration()`
 
 ```solidity
-function getRewardForDuration(address rewardToken) external view returns (uint256 reward);
+function getRewardForDuration() external view returns (uint256 reward);
 ```
 
 Returns the complete amount represented by the current seven-day schedule.
-
-### `getRewardTokens()`
-
-```solidity
-function getRewardTokens() external view returns (address[] tokens);
-```
-
-Returns the permanently single-element reward-token registry.
 
 ### `isStrategy(address)`
 
@@ -2629,21 +2175,21 @@ function killStrategy(address strategy) external;
 Permanently stops a Strategy from receiving new signal or future Resonance rewards.
 Rewards accrued through this checkpoint remain claimable. Existing signal remains recorded and removable.
 
-### `lastTimeRewardApplicable(address)`
+### `lastTimeRewardApplicable()`
 
 ```solidity
-function lastTimeRewardApplicable(address rewardToken) external view returns (uint256 timestamp);
+function lastTimeRewardApplicable() external view returns (uint256 timestamp);
 ```
 
 Returns the final timestamp applicable to the active reward period.
 
-### `left(address)`
+### `left()`
 
 ```solidity
-function left(address rewardToken) external view returns (uint256 reward);
+function left() external view returns (uint256 reward);
 ```
 
-Returns exact raw reward units left in the active period.
+Returns whole raw USDG units left at the active period's stored rate.
 
 ### `liveStrategyCount()`
 
@@ -2653,15 +2199,6 @@ function liveStrategyCount() external view returns (uint256 arg0);
 
 Number of registered Strategies eligible for new signal and future Resonance rewards.
 
-### `moveSignalFor(address,address,address,uint256)`
-
-```solidity
-function moveSignalFor(address account, address fromStrategy, address toStrategy, uint256 amount) external;
-```
-
-Atomically moves signal for an account from one Strategy to another through SignalGBX.
-A killed Strategy may be the source, but only a live Strategy may receive the moved signal.
-
 ### `notifyRevenue(uint256)`
 
 ```solidity
@@ -2669,7 +2206,7 @@ function notifyRevenue(uint256 reward) external;
 ```
 
 Pulls qualifying USDG from ResonanceRouter and restarts the seven-day reward period.
-During an active period, the new reward must be at least the exact reward left in that period. The restarted schedule contains the new reward plus that remainder. Raw-unit division remainder is emitted during the first seconds of the new period, so every scheduled USDG unit is represented.
+During an active period, the new reward must be at least the scheduled reward left in that period. As in Synthetix StakingRewards, division by `DURATION` floors and any raw-unit remainder stays as contract surplus.
 
 ### `owner()`
 
@@ -2712,21 +2249,21 @@ function resonanceRouter() external view returns (address arg0);
 
 Sole validated Router authorized to pull USDG into Resonance and notify rewards.
 
-### `rewardPerToken(address)`
+### `rewardData()`
 
 ```solidity
-function rewardPerToken(address rewardToken) external view returns (uint256 accumulatedReward);
+function rewardData() external view returns (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerTokenStored);
+```
+
+The sole USDG reward schedule and cumulative reward-per-signal index.
+
+### `rewardPerToken()`
+
+```solidity
+function rewardPerToken() external view returns (uint256 accumulatedReward);
 ```
 
 Returns cumulative scaled USDG allocated per unit of active SignalGBX.
-
-### `rewardTokens(uint256)`
-
-```solidity
-function rewardTokens(uint256 arg0) external view returns (address arg0);
-```
-
-Registered Resonance reward tokens; permanently contains only USDG.
 
 ### `setBribeBps(uint256)`
 
@@ -2735,7 +2272,7 @@ function setBribeBps(uint256 newBribeBps) external;
 ```
 
 Sets the prospective paired-Bribe share for every later Strategy-payment classification.
-Existing Fund and Bribe liabilities, split carry, and active reward streams are never repriced.
+Earlier purchases and active reward streams are never repriced.
 
 **Parameters**
 
@@ -2765,6 +2302,22 @@ function strategyFactory() external view returns (contract StrategyFactory arg0)
 
 Resonance-bound factory used to create Strategies and their BribeRouters.
 
+### `strategyRewardPerTokenPaid(address)`
+
+```solidity
+function strategyRewardPerTokenPaid(address strategy) external view returns (uint256 paid);
+```
+
+Cumulative USDG reward-per-signal already incorporated for each Strategy.
+
+### `strategyRewards(address)`
+
+```solidity
+function strategyRewards(address strategy) external view returns (uint256 reward);
+```
+
+Accrued whole raw USDG units owed to each Strategy.
+
 ### `strategySignalWeight(address)`
 
 ```solidity
@@ -2773,22 +2326,6 @@ function strategySignalWeight(address strategy) external view returns (uint256 a
 
 Returns the complete SignalGBX weight recorded for one Strategy.
 The paired Bribe is the canonical per-Strategy signal-supply ledger.
-
-### `token_IsReward(address)`
-
-```solidity
-function token_IsReward(address token) external view returns (bool isReward);
-```
-
-Whether a token is registered for Resonance rewards; permanently true only for USDG.
-
-### `token_RewardData(address)`
-
-```solidity
-function token_RewardData(address token) external view returns (uint256 periodFinish, uint256 remainderFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerTokenStored);
-```
-
-Reward schedule and cumulative-index state for a registered token.
 
 ### `totalSignalWeight()`
 
@@ -2938,22 +2475,6 @@ error ForbiddenRewardToken(address token);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InexactRevenuePayout(address,uint256,uint256,uint256)`
-
-```solidity
-error InexactRevenuePayout(address receiver, uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InexactRevenueTransfer(uint256,uint256,uint256)`
-
-```solidity
-error InexactRevenueTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `InsufficientSignal(address,uint256,uint256)`
 
 ```solidity
@@ -3018,14 +2539,6 @@ error SafeERC20FailedOperation(address token);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `SameStrategy(address)`
-
-```solidity
-error SameStrategy(address strategy);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `StrategyAlreadyDead(address)`
 
 ```solidity
@@ -3080,7 +2593,7 @@ Source: [`src/core/ResonanceRouter.sol`](../../packages/contracts/src/core/Reson
 
 Artifact: `out/ResonanceRouter.sol/ResonanceRouter.json`
 
-Public ABI: 4 functions, 2 events, 5 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 4 functions, 2 events, 4 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -3171,14 +2684,6 @@ error ReentrancyGuardReentrantCall();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `RevenueRetained(uint256)`
-
-```solidity
-error RevenueRetained(uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `SafeERC20FailedOperation(address)`
 
 ```solidity
@@ -3201,7 +2706,7 @@ Source: [`src/core/SignalGBX.sol`](../../packages/contracts/src/core/SignalGBX.s
 
 Artifact: `out/SignalGBX.sol/SignalGBX.json`
 
-Public ABI: 31 functions, 9 events, 29 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 31 functions, 9 events, 30 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -3762,6 +3267,14 @@ error SafeERC20FailedOperation(address token);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `SameStrategy(address)`
+
+```solidity
+error SameStrategy(address strategy);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `StringTooLong(string)`
 
 ```solidity
@@ -3808,7 +3321,7 @@ Source: [`src/core/Strategy.sol`](../../packages/contracts/src/core/Strategy.sol
 
 Artifact: `out/Strategy.sol/Strategy.json`
 
-Public ABI: 20 functions, 1 event, 13 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 21 functions, 1 event, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address,(uint256,uint256,uint256,uint256))`
 
@@ -3821,7 +3334,7 @@ Creates one immutable Strategy.
 **Parameters**
 
 - `config`: Immutable auction configuration.
-- `fund_`: Treasury that ultimately receives every auction payment.
+- `fund_`: Treasury that receives the non-Bribe share of every auction payment.
 - `paymentToken_`: Asset buyers pay to fill this Strategy.
 - `resonance_`: Resonance that provides the paired BribeRouter.
 - `revenueToken_`: USDG token sold by this Strategy.
@@ -3841,6 +3354,14 @@ function ABSOLUTE_MINIMUM_PRICE() external view returns (uint256 arg0);
 ```
 
 Absolute lower bound for a configured minimum price.
+
+### `BPS()`
+
+```solidity
+function BPS() external view returns (uint256 arg0);
+```
+
+Basis-point denominator used for the acquired-payment split.
 
 ### `MAX_EPOCH_DURATION()`
 
@@ -3955,7 +3476,7 @@ Timestamp at which the active epoch began.
 function fund() external view returns (address arg0);
 ```
 
-Treasury that ultimately receives every auction payment.
+Treasury that receives the non-Bribe share of every auction payment.
 
 ### `initialPrice()`
 
@@ -4049,22 +3570,6 @@ error EpochIdMismatch(uint256 expected, uint256 actual);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InexactPayment(uint256,uint256,uint256)`
-
-```solidity
-error InexactPayment(uint256 expected, uint256 payerDebit, uint256 strategyCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InexactPayout(address,uint256,uint256,uint256)`
-
-```solidity
-error InexactPayout(address receiver, uint256 expected, uint256 strategyDebit, uint256 receiverCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `InitialPriceOutOfRange(uint256)`
 
 ```solidity
@@ -4153,7 +3658,7 @@ Deploys a Strategy and the BribeRouter paired with it.
 
 - `bribe`: Independently fundable Bribe paired with the Strategy.
 - `config`: Immutable auction configuration.
-- `fund`: Treasury that ultimately receives the complete payment.
+- `fund`: Treasury that receives the non-Bribe share of each payment.
 - `paymentToken`: Asset buyers pay to fill the Strategy.
 - `revenueToken`: USDG token sold by the Strategy.
 
@@ -4290,6 +3795,18 @@ Artifact: `out/IBribe.sol/IBribe.json`
 
 Public ABI: 3 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
+### `REWARD_DURATION()`
+
+```solidity
+function REWARD_DURATION() external view returns (uint256 duration);
+```
+
+Returns the fixed duration required for each reward stream.
+
+**Returns**
+
+- `duration`: Reward duration in seconds.
+
 ### `left(address)`
 
 ```solidity
@@ -4312,24 +3829,12 @@ Returns rewards remaining in a token's active stream.
 function notifyRewardAmount(address rewardToken, uint256 amount) external;
 ```
 
-Starts a reward stream or queues funding behind the current stream without changing its finish time.
+Starts or restarts a seven-day reward stream using standard leftover rollover.
 
 **Parameters**
 
 - `amount`: Amount pulled from the caller and added to the stream.
 - `rewardToken`: Token to stream.
-
-### `totalSupply()`
-
-```solidity
-function totalSupply() external view returns (uint256 weight);
-```
-
-Returns total virtual signal weight.
-
-**Returns**
-
-- `weight`: Total weight assigned to the Bribe.
 
 ## ICoreResonance
 
@@ -4337,23 +3842,19 @@ Source: [`src/core/interfaces/ICoreResonance.sol`](../../packages/contracts/src/
 
 Artifact: `out/ICoreResonance.sol/ICoreResonance.json`
 
-Public ABI: 10 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+Public ABI: 8 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
-### `accountSignalWeight(address)`
+### `DURATION()`
 
 ```solidity
-function accountSignalWeight(address account) external view returns (uint256 signalWeight);
+function DURATION() external view returns (uint256 duration);
 ```
 
-Returns signal weight currently allocated by an account.
-
-**Parameters**
-
-- `account`: Account whose allocation is queried.
+Returns the fixed duration of each Resonance reward period.
 
 **Returns**
 
-- `signalWeight`: Signal weight currently assigned by `account`.
+- `duration`: Reward duration in seconds.
 
 ### `addSignalFor(address,address,uint256)`
 
@@ -4413,48 +3914,17 @@ Checkpoints and transfers one Strategy's currently released USDG.
 
 - `amount`: Amount transferred.
 
-### `fund()`
+### `left()`
 
 ```solidity
-function fund() external view returns (address fundAddress);
+function left() external view returns (uint256 amount);
 ```
 
-Returns the immutable Fund used by Resonance and its reward graph.
+Returns whole raw USDG units left at the active period's stored rate.
 
 **Returns**
 
-- `fundAddress`: Fixed Fund destination.
-
-### `left(address)`
-
-```solidity
-function left(address rewardToken) external view returns (uint256 amount);
-```
-
-Returns exact raw reward units left in one active reward period.
-
-**Parameters**
-
-- `rewardToken`: Token whose active period is queried.
-
-**Returns**
-
-- `amount`: Reward units not yet emitted by the active period.
-
-### `moveSignalFor(address,address,address,uint256)`
-
-```solidity
-function moveSignalFor(address account, address fromStrategy, address toStrategy, uint256 amount) external;
-```
-
-Atomically moves signal between Strategies through the permanently bound SignalGBX coordinator.
-
-**Parameters**
-
-- `account`: Account whose allocation moves.
-- `amount`: Absolute SignalGBX delta moved.
-- `fromStrategy`: Strategy losing signal.
-- `toStrategy`: Live Strategy receiving signal.
+- `amount`: USDG units not yet emitted by the active period.
 
 ### `notifyRevenue(uint256)`
 

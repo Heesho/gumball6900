@@ -1,5 +1,12 @@
 # Signal and Resonance test campaign
 
+> **Pre-ADR-0047 historical campaign.** ADR 0047 replaced the captured exact-carry, queue/pause,
+> deferred-liability, selected-batch, exact-transfer, and weighted-split mechanics with scalar Synthetix scheduling,
+> per-purchase Strategy splitting, direct Fund payment, and a Bribe-only Router. Every test name, count, invariant,
+> gas result, model, and campaign conclusion below remains pinned historical evidence and is not current evidence.
+> ADR 0048 further supersedes this campaign's eight-token and dedicated-move-hook assumptions with a sixteen-token
+> cap and composed moves.
+
 Run date: 2026-08-16. Baseline commit: `281e601ecb3f3989da826a8a7dfba37b63b55ca0`, branch `main`.
 All results are local engineering evidence. No command deployed, broadcast, committed, pushed, published, or transferred
 roles.

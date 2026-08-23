@@ -1,5 +1,10 @@
 # Signal and Resonance adversarial threat model
 
+> **Pre-ADR-0047 historical assessment.** The attack matrix and outcomes below target the former exact-carry,
+> queue/pause, deferred-liability, selected-batch, exact-delta, and weighted-split graph. ADR 0047 replaced those
+> mechanics with scalar Synthetix scheduling, per-purchase Strategy splitting, direct Fund payment, and a Bribe-only
+> Router. The table is preserved as historical evidence only; its test names and conclusions are not current.
+
 Assessment date: 2026-08-16; authority, Bribe-cap, global-share, and reward-precision assumptions reconciled 2026-08-21
 for ADRs 0034–0037. The
 attacker may order transactions, split identities and payments, use callback-capable or malformed ERC-20s where the

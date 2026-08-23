@@ -1,6 +1,7 @@
 # ADR 0028: Closed Bribe pools after Strategy death
 
-- Status: accepted for development; not approved for deployment or user funds
+- Status: partially superseded by ADR 0047: Strategy death and exit remain, but pause/queue terminal-lock mechanics do
+  not; retained as historical analysis; never approved for deployment or user funds
 - Date: 2026-08-14
 - Builds on: ADR 0019 incremental signals, ADR 0020 exact Bribe accounting, and ADR 0027 Bribe carry boundaries
 

@@ -1,6 +1,7 @@
 # ADR 0026: Exact active-plus-successor Resonance revenue stream
 
-- Status: superseded by ADR 0029; never approved for deployment or user funds
+- Status: superseded by ADR 0029 and its exact-schedule successor later superseded by ADR 0047; never approved for
+  deployment or user funds
 - Date: 2026-08-13
 - Supersedes: ADR 0025's router thresholds, rolling reset, `1e18` Resonance precision, and Resonance carry-boundary policy
 - Superseded by: [ADR 0029](0029-bribe-based-resonance.md), which restores a qualifying rolling reset and accepts

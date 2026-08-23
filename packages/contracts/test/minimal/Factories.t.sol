@@ -97,7 +97,6 @@ contract FactoriesTest is ProtocolFixture {
         Bribe created = factory.createBribe();
 
         assertEq(created.resonance(), address(identity));
-        assertEq(created.fund(), address(fund));
         assertEq(created.totalSupply(), 0);
         assertEq(created.rewardTokens().length, 0);
     }
@@ -162,10 +161,8 @@ contract FactoriesTest is ProtocolFixture {
         assertEq(address(strategy.paymentToken()), address(target));
         assertEq(strategy.fund(), address(fund));
 
-        assertEq(router.strategy(), address(strategy), "the router is bound to exactly this Strategy");
         assertEq(address(router.bribe()), address(targetBribe));
         assertEq(address(router.paymentToken()), address(target));
-        assertEq(router.fund(), address(fund));
     }
 
     function test_EachCreationProducesAFreshIndependentGraph() external {

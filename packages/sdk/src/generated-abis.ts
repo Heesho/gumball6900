@@ -67,44 +67,6 @@ export const bribeAbi = [
   },
   {
     type: 'function',
-    name: 'accountedRewardBalance',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'accruedRewardLiability',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'addRewardToken',
     inputs: [
       {
@@ -168,24 +130,6 @@ export const bribeAbi = [
         type: 'address',
         internalType: 'address',
       },
-      {
-        name: 'rewardTokens_',
-        type: 'address[]',
-        internalType: 'address[]',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'claimRewards',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
     ],
     outputs: [],
     stateMutability: 'nonpayable',
@@ -226,76 +170,6 @@ export const bribeAbi = [
     outputs: [
       {
         name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'fund',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'fundRewardLiability',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'fundRewardRemainder',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'scaledRemainder',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'indexedRewardScaled',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'scaledAmount',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -398,63 +272,6 @@ export const bribeAbi = [
   },
   {
     type: 'function',
-    name: 'payFundReward',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'pendingRewardScaled',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'scaledAmount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'queuedRewards',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'resonance',
     inputs: [],
     outputs: [
@@ -483,11 +300,6 @@ export const bribeAbi = [
         internalType: 'uint256',
       },
       {
-        name: 'remainderFinish',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
         name: 'rewardRate',
         type: 'uint256',
         internalType: 'uint256',
@@ -499,11 +311,6 @@ export const bribeAbi = [
       },
       {
         name: 'rewardPerTokenStored',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'pauseStarted',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -523,25 +330,6 @@ export const bribeAbi = [
     outputs: [
       {
         name: 'accumulatedReward',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'rewardSurplus',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -570,25 +358,6 @@ export const bribeAbi = [
         type: 'address',
         internalType: 'address',
       },
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'scheduledRewards',
-    inputs: [
       {
         name: 'token',
         type: 'address',
@@ -643,30 +412,6 @@ export const bribeAbi = [
   },
   {
     type: 'function',
-    name: 'userRewardRemainder',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'scaledRemainder',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'withdraw',
     inputs: [
       {
@@ -685,62 +430,6 @@ export const bribeAbi = [
   },
   {
     type: 'event',
-    name: 'FundRewardAccrued',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'totalLiability',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'FundRewardPaid',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'fund',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'rewardToken',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
     name: 'RewardAdded',
     inputs: [
       {
@@ -748,31 +437,6 @@ export const bribeAbi = [
         type: 'address',
         indexed: true,
         internalType: 'address',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'RewardCarryFunded',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amountScaled',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'remainderScaled',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
       },
     ],
     anonymous: false,
@@ -823,118 +487,6 @@ export const bribeAbi = [
   },
   {
     type: 'event',
-    name: 'RewardQueued',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'totalQueued',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'RewardStreamPaused',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'pausedAt',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'RewardStreamResumed',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'resumedAt',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'pausedDuration',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'RewardStreamStarted',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'startedAt',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'periodFinish',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'rewardRate',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'rateRemainder',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
     name: 'SignalWeightDeposited',
     inputs: [
       {
@@ -970,64 +522,6 @@ export const bribeAbi = [
       },
     ],
     anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'DuplicateRewardToken',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InexactRewardPayout',
-    inputs: [
-      {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'senderDebit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'receiverCredit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InexactRewardTransfer',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'senderDebit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'receiverCredit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
   },
   {
     type: 'error',
@@ -1069,20 +563,26 @@ export const bribeAbi = [
   },
   {
     type: 'error',
-    name: 'RewardBalanceDeficit',
+    name: 'RewardBelowDuration',
     inputs: [
       {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
       },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'RewardBelowRemaining',
+    inputs: [
       {
-        name: 'accounted',
+        name: 'amount',
         type: 'uint256',
         internalType: 'uint256',
       },
       {
-        name: 'actual',
+        name: 'remaining',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -1109,22 +609,6 @@ export const bribeAbi = [
       },
       {
         name: 'maximum',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'RewardScaleOverflow',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'balance',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -1364,58 +848,17 @@ export const bribeRouterAbi = [
     type: 'constructor',
     inputs: [
       {
-        name: 'resonance_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'strategy_',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
         name: 'bribe_',
         type: 'address',
-        internalType: 'contract Bribe',
+        internalType: 'contract IBribe',
       },
       {
         name: 'paymentToken_',
         type: 'address',
         internalType: 'contract IERC20',
       },
-      {
-        name: 'fund_',
-        type: 'address',
-        internalType: 'address',
-      },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'BPS',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'accountedPaymentBalance',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -1425,88 +868,23 @@ export const bribeRouterAbi = [
       {
         name: '',
         type: 'address',
-        internalType: 'contract Bribe',
+        internalType: 'contract IBribe',
       },
     ],
     stateMutability: 'view',
   },
   {
     type: 'function',
-    name: 'bribePaymentLiability',
+    name: 'distribute',
     inputs: [],
     outputs: [
       {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'fund',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'fundPaymentLiability',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'notifyBribeReward',
-    inputs: [],
-    outputs: [
-      {
-        name: 'amount',
+        name: 'distributed',
         type: 'uint256',
         internalType: 'uint256',
       },
     ],
     stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'payFundPayment',
-    inputs: [],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'paymentSurplus',
-    inputs: [],
-    outputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
   },
   {
     type: 'function',
@@ -1522,60 +900,8 @@ export const bribeRouterAbi = [
     stateMutability: 'view',
   },
   {
-    type: 'function',
-    name: 'resonance',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'routePayment',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'splitRemainder',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'strategy',
-    inputs: [],
-    outputs: [
-      {
-        name: '',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
     type: 'event',
-    name: 'BribePaymentAccrued',
+    name: 'RewardsDistributed',
     inputs: [
       {
         name: 'bribe',
@@ -1584,50 +910,7 @@ export const bribeRouterAbi = [
         internalType: 'address',
       },
       {
-        name: 'paymentToken',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'totalLiability',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'remainder',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'BribeRewardNotified',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'bribe',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'paymentToken',
+        name: 'rewardToken',
         type: 'address',
         indexed: true,
         internalType: 'address',
@@ -1640,157 +923,6 @@ export const bribeRouterAbi = [
       },
     ],
     anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'FundPaymentAccrued',
-    inputs: [
-      {
-        name: 'fund',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'paymentToken',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'totalLiability',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'FundPaymentPaid',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'fund',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'paymentToken',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'event',
-    name: 'PaymentRouted',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        indexed: true,
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-      {
-        name: 'bribeBps',
-        type: 'uint256',
-        indexed: false,
-        internalType: 'uint256',
-      },
-    ],
-    anonymous: false,
-  },
-  {
-    type: 'error',
-    name: 'BribeBpsAboveBasis',
-    inputs: [
-      {
-        name: 'requested',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InexactTransfer',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'senderDebit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'receiverCredit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'NotStrategy',
-    inputs: [
-      {
-        name: 'caller',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'PaymentBalanceDeficit',
-    inputs: [
-      {
-        name: 'accounted',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'ReentrancyGuardReentrantCall',
-    inputs: [],
   },
   {
     type: 'error',
@@ -1806,11 +938,6 @@ export const bribeRouterAbi = [
   {
     type: 'error',
     name: 'ZeroAddress',
-    inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'ZeroAmount',
     inputs: [],
   },
 ] as const;
@@ -5477,6 +4604,17 @@ export const signalGbxAbi = [
   },
   {
     type: 'error',
+    name: 'SameStrategy',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'StringTooLong',
     inputs: [
       {
@@ -5583,6 +4721,19 @@ export const strategyAbi = [
   {
     type: 'function',
     name: 'ABSOLUTE_MINIMUM_PRICE',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'BPS',
     inputs: [],
     outputs: [
       {
@@ -5923,53 +5074,6 @@ export const strategyAbi = [
       },
       {
         name: 'actual',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InexactPayment',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'payerDebit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'strategyCredit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InexactPayout',
-    inputs: [
-      {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'strategyDebit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'receiverCredit',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -6448,54 +5552,6 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
-    name: 'account_Token_RewardPerTokenPaid',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'paid',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'account_Token_Rewards',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'reward',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
     name: 'addBribeReward',
     inputs: [
       {
@@ -6683,11 +5739,6 @@ export const resonanceAbi = [
         type: 'address',
         internalType: 'address',
       },
-      {
-        name: 'rewardToken',
-        type: 'address',
-        internalType: 'address',
-      },
     ],
     outputs: [
       {
@@ -6714,31 +5765,12 @@ export const resonanceAbi = [
   {
     type: 'function',
     name: 'getRewardForDuration',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    inputs: [],
     outputs: [
       {
         name: 'reward',
         type: 'uint256',
         internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'getRewardTokens',
-    inputs: [],
-    outputs: [
-      {
-        name: 'tokens',
-        type: 'address[]',
-        internalType: 'address[]',
       },
     ],
     stateMutability: 'view',
@@ -6797,13 +5829,7 @@ export const resonanceAbi = [
   {
     type: 'function',
     name: 'lastTimeRewardApplicable',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    inputs: [],
     outputs: [
       {
         name: 'timestamp',
@@ -6816,13 +5842,7 @@ export const resonanceAbi = [
   {
     type: 'function',
     name: 'left',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    inputs: [],
     outputs: [
       {
         name: 'reward',
@@ -6844,34 +5864,6 @@ export const resonanceAbi = [
       },
     ],
     stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'moveSignalFor',
-    inputs: [
-      {
-        name: 'account',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'fromStrategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'toStrategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -6963,17 +5955,26 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
-    name: 'rewardPerToken',
-    inputs: [
-      {
-        name: 'rewardToken',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
+    name: 'rewardData',
+    inputs: [],
     outputs: [
       {
-        name: 'accumulatedReward',
+        name: 'periodFinish',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'rewardRate',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'lastUpdateTime',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'rewardPerTokenStored',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -6982,19 +5983,13 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
-    name: 'rewardTokens',
-    inputs: [
-      {
-        name: '',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
+    name: 'rewardPerToken',
+    inputs: [],
     outputs: [
       {
-        name: '',
-        type: 'address',
-        internalType: 'address',
+        name: 'accumulatedReward',
+        type: 'uint256',
+        internalType: 'uint256',
       },
     ],
     stateMutability: 'view',
@@ -7053,6 +6048,44 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'strategyRewardPerTokenPaid',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'paid',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'strategyRewards',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'reward',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'strategySignalWeight',
     inputs: [
       {
@@ -7064,64 +6097,6 @@ export const resonanceAbi = [
     outputs: [
       {
         name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'token_IsReward',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'isReward',
-        type: 'bool',
-        internalType: 'bool',
-      },
-    ],
-    stateMutability: 'view',
-  },
-  {
-    type: 'function',
-    name: 'token_RewardData',
-    inputs: [
-      {
-        name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-    outputs: [
-      {
-        name: 'periodFinish',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'remainderFinish',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'rewardRate',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'lastUpdateTime',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'rewardPerTokenStored',
         type: 'uint256',
         internalType: 'uint256',
       },
@@ -7438,53 +6413,6 @@ export const resonanceAbi = [
   },
   {
     type: 'error',
-    name: 'InexactRevenuePayout',
-    inputs: [
-      {
-        name: 'receiver',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'senderDebit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'receiverCredit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'InexactRevenueTransfer',
-    inputs: [
-      {
-        name: 'expected',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'senderDebit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'receiverCredit',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'InsufficientSignal',
     inputs: [
       {
@@ -7575,17 +6503,6 @@ export const resonanceAbi = [
     inputs: [
       {
         name: 'token',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
-    name: 'SameStrategy',
-    inputs: [
-      {
-        name: 'strategy',
         type: 'address',
         internalType: 'address',
       },
@@ -7768,17 +6685,6 @@ export const resonanceRouterAbi = [
     type: 'error',
     name: 'ReentrancyGuardReentrantCall',
     inputs: [],
-  },
-  {
-    type: 'error',
-    name: 'RevenueRetained',
-    inputs: [
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
   },
   {
     type: 'error',

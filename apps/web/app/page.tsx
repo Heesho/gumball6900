@@ -111,19 +111,16 @@ export default function HomePage() {
         </Panel>
       </section>
 
-      <Panel eyebrow="Settlement observability" title="Streams, claims, and classified liabilities stay visible">
+      <Panel eyebrow="Settlement observability" title="Streams, balances, and claims stay visible">
         <p className="max-w-4xl text-sm leading-6 text-[#a8b5b4]">
-          A blocked Strategy, Fund, or reward token cannot strand signal movement or withdrawal. Revenue and settlement
-          liabilities keep immutable receivers and remain permissionlessly retryable. Reward holders can claim one token
-          or a unique selected set so a broken token does not block healthy rewards.
+          A blocked Strategy or reward token cannot strand signal movement or withdrawal. Strategy pays Fund inline,
+          while each BribeRouter buffers only its Bribe share for permissionless distribution. Reward holders can claim
+          one token to isolate a broken asset or claim every registered token in one call.
         </p>
         <dl className="mt-5 grid gap-4 sm:grid-cols-3">
-          <Definition label="Revenue stream" value="left(USDG) · distribute(strategy)" />
-          <Definition
-            label="Acquisition state"
-            value="fundPaymentLiability → payFundPayment() · bribePaymentLiability → notifyBribeReward()"
-          />
-          <Definition label="Reward claims" value="claimReward() · claimRewards(account, tokens)" />
+          <Definition label="Revenue stream" value="left() · distribute(strategy)" />
+          <Definition label="Acquisition state" value="Strategy → Fund · Strategy → BribeRouter → distribute()" />
+          <Definition label="Reward claims" value="claimReward(account, token) · claimRewards(account)" />
         </dl>
       </Panel>
 

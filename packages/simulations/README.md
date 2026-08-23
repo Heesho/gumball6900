@@ -13,19 +13,21 @@ price promises, deployment configurations, or investment projections.
 - A nonempty-slot replacement pays `floor(price * 80%)` to the displaced miner and deposits the residue into
   ResonanceRouter. An empty slot deposits 100%. Mine stops after that deposit; a later permissionless `route()` call
   may forward Router custody into Resonance.
-- Resonance uses a `1e36` reward-per-signal index and a seven-day raw-unit stream. Integer division remainder is emitted
-  during the first seconds of the period. A live top-up qualifies when the new amount is at least the exact active
-  reward left; it checkpoints elapsed rewards and restarts seven days with `new reward + left`. Zero-signal emission,
-  direct donations, global-index residue, and per-Strategy flooring remain unallocated Resonance surplus.
+- Resonance uses a `1e36` reward-per-signal index and a seven-day Synthetix-style stream. Division by the duration
+  floors the rate and leaves the remainder as unallocated surplus. A live top-up qualifies when the new amount is at
+  least the active reward left; it checkpoints elapsed rewards and restarts seven days with `new reward + left`.
+  ResonanceRouter also waits until its balance can sustain at least one raw unit per second. Zero-signal emission,
+  direct donations, rate residue, global-index residue, and per-Strategy flooring remain unallocated surplus.
 - Killing a Strategy checkpoints it against the old active denominator, preserves its stored whole-unit reward, removes
   its complete weight from the future denominator, and leaves its recorded signal available for incremental exit.
-- Bribe uses `1e36` reward precision and assigns unindexable old-supply carry plus fully exiting user remainders to
-  Fund before changing virtual signal supply.
+- Bribe uses `1e36` reward precision with the same Synthetix-style leftover rollover. Reward time does not pause at
+  zero virtual supply, notifications do not queue, and rate/index/account floors remain unallocated token surplus.
 - Strategy payments use one global prospective automatic-Bribe rate: 10% by default, settable from 0% through 20%,
-  with Fund receiving the complement. One weighted basis-point remainder persists across rate changes, so cumulative
-  classification is exact for the full payment-by-rate history; direct BribeRouter donations remain settlement surplus.
+  with Fund receiving the complement directly during each purchase. Each purchase independently computes
+  `floor(payment * rate / 10_000)` for BribeRouter; there is no cross-purchase split carry. Compatible direct
+  BribeRouter donations join the next qualifying Bribe notification.
 - A 0% rate classifies new payments entirely to Fund without disabling paired Bribes, independent rewards, signaling,
-  movement, withdrawal, or settlement of earlier liabilities.
+  movement, withdrawal, or existing reward settlement.
 - Slot price is `initialPrice - floor(initialPrice * elapsed / 3600)` during the hour and zero afterward.
 - The next initial price floors the paid-price multiplier before applying its minimum and maximum.
 - All committed financial JSON values are decimal strings; neither implementation uses floating point arithmetic.
@@ -38,14 +40,14 @@ price promises, deployment configurations, or investment projections.
 - hourly price endpoints, replacement transitions, zero-price rollover, and 80/20 payment conservation;
 - staggered fixed-slot handoffs where an incumbent keeps its old TPS and later miners receive the halved TPS;
 - a time boundary where the incumbent retains its rate and only the next replacement receives the lower rate;
-- genesis-position budgeting, Strategy auctions, cumulative weighted settlement across 10% → 0% → 5% → 20% rate
-  changes, Bribe rewards, Fund-held GBX burns, and raw-basket redemptions.
+- genesis-position budgeting, Strategy auctions, per-purchase settlement across 10% → 0% → 5% → 20% rate changes,
+  Bribe rewards, Fund-held GBX burns, and raw-basket redemptions.
 
 Separate TypeScript and Python conservation models cover one-raw-unit Resonance streams, qualifying live-period resets,
 Router retention below the reset threshold, zero-signal and direct-donation surplus, per-Strategy rounding surplus,
-irreversible Strategy death, cumulative tiny-payment settlement, bounded Bribe-rate changes, zero-rate liveness,
-isolated liability payment, donation surplus, and Bribe carry classification across entry and exit boundaries. These
-state-machine tests are independent of Solidity.
+irreversible Strategy death, partition-sensitive tiny-payment settlement, bounded Bribe-rate changes, zero-rate liveness,
+direct Fund settlement, Router donation inclusion, and ordinary Bribe flooring across entry and exit boundaries.
+These state-machine tests are independent of Solidity.
 
 The smaller `fixtures/reference-results.json` is the SDK formula-vector fixture. Both fixtures are checked across
 TypeScript and Python, and both languages assert the fixed-tenure fairness rule independently.

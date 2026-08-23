@@ -1,9 +1,9 @@
 # Independent adversarial specification
 
-Date: 2026-08-15. Authority model reconciled 2026-08-21 for ADRs 0034 and 0036.
+Date: 2026-08-15. Reconciled 2026-08-23 through ADR 0048.
 
-This is the review target for ADRs 0027, 0028, 0029, 0031, 0033-0036, and 0044 in the development
-candidate. It is not an independent audit result.
+This is the current review target for the unsuperseded portions of ADRs 0028, 0029, 0031, 0033-0048 in the
+development candidate. It is not an independent audit result.
 
 ## Authority model
 
@@ -56,26 +56,37 @@ candidate. It is not an independent audit result.
 - Resonance remains solvent for its scheduled balance and Strategy claims. Per-index and per-Strategy floors,
   zero-active-signal emission, and direct donations are intentionally unclassified surplus rather than Fund
   liabilities.
-- Resonance streams revenue through one active seven-day period at `1e36` index precision. Raw USDG rate remainder is
-  front-loaded so the complete scheduled amount emits. Signal changes checkpoint old weights first, and
-  same-transaction notifications release zero new revenue. A live top-up qualifies only when Router revenue is at
-  least the exact active `left`; qualifying revenue restarts seven days with `reward + left`, while smaller balances
-  remain in ResonanceRouter for a later permissionless attempt.
+- Resonance stores one scalar four-field USDG schedule: `periodFinish`, `rewardRate`, `lastUpdateTime`, and
+  `rewardPerTokenStored`. It streams at `1e36` index precision using the ordinary whole-unit rate. A qualifying top-up
+  checkpoints old weights, combines the new amount with `left()`, and restarts seven days; the rate remainder stays
+  unallocated USDG surplus rather than being front-loaded.
+- ResonanceRouter retains its complete balance below `max(DURATION, Resonance.left())` and notifies the complete
+  balance once it qualifies. A sub-`DURATION` balance needs another deposit even after the old stream ends.
 - A qualifying Router balance does not execute itself and may wait indefinitely until a manual, frontend, volunteer-
   keeper, or cron caller invokes `route()`.
 - Killing a Strategy checkpoints and preserves its accrued claim, excludes its full weight from future rewards, blocks
   later additions, and leaves incumbent signalers free to exit without decrementing the active total twice.
+- SignalGBX moves by calling `removeSignalFor` for the source and then `addSignalFor` for the destination in one
+  transaction. Each hook checkpoints its Strategy before its own weight mutation; destination failure rolls the
+  source removal back. Resonance exposes no dedicated move hook.
 - One uniform Strategy type checkpoints and pulls released revenue before auctioning its complete USDG lot. Each
-  payment snapshots Resonance's current global Bribe rate; the Fund rate is its complement and no Strategy override exists.
-- Across payments `a_i` at rates `r_i`, each BribeRouter classifies
-  `floor(sum(a_i * r_i) / 10_000)` cumulatively to its paired Bribe and the exact complement to Fund. Its weighted
-  numerator remainder survives every rate change, including intervals at zero. Each liability can be paid
-  independently and permissionlessly. Direct router donations remain surplus. Bribes may also be independently funded,
-  have at most eight reward tokens, pause at zero supply, and isolate broken-token
-  claims from signal exit. Old-denominator Bribe carry and a fully exiting account's sub-token remainder move to the
-  fixed Fund classification before virtual supply changes.
-- At a 0% automatic rate, new Strategy payments classify entirely to Fund. Existing reward settlement, independent
+  payment snapshots Resonance's current global Bribe rate; the Fund rate is its complement and no Strategy override
+  exists. For each purchase `a` at its snapshotted rate `r`, Strategy computes
+  `bribeAmount = floor(a * r / 10_000)` and `fundAmount = a - bribeAmount`. No split remainder crosses purchases.
+- Strategy pulls the payment, sends `fundAmount` directly to Fund, and transfers a nonzero `bribeAmount` to the paired
+  BribeRouter. A failed Fund transfer reverts the purchase. The BribeRouter has no Fund leg or liability ledger; its
+  permissionless `distribute()` notifies the paired Bribe with the complete buffered balance only after satisfying
+  both the duration and active-left thresholds. Direct compatible-token Router donations join that notification.
+- Bribes remain independently fundable and have at most sixteen registered reward tokens. Each token uses a four-field
+  seven-day Synthetix schedule and a `1e36` index. Reward time continues at zero supply; notifications are not queued;
+  and rate, index, and account floors remain unallocated Bribe surplus rather than carry or Fund liabilities.
+  `claimRewards(account)` is the bounded all-token convenience path, while `claimReward(account, token)` isolates a
+  broken token. Neither signal movement nor withdrawal transfers a reward token.
+- At a 0% automatic rate, new Strategy payments go entirely to Fund. Existing reward settlement, independent
   notifications, signal, move, withdrawal, and killed-Strategy exit remain unchanged and callable.
+- Strategy, Resonance, and Bribe use `SafeERC20` under a standard, non-rebasing token assumption rather than checking
+  exact sender and receiver deltas. Mine, SignalGBX, Fund redemption, and LiquidityPosition retain their local
+  custody-critical exact-delta checks.
 
 ## Fund and liquidity
 
@@ -91,8 +102,10 @@ candidate. It is not an independent audit result.
 
 - Foundry and Hardhat compile the same Solidity tree; SDK/subgraph ABIs come from current artifacts.
 - TypeScript and Python independently assert fixed sixteen-slot tenure, future-handoff halvings, 80/20 payments, the
-  no-economic-cap issuance model, effective-supply redemption, qualifying Resonance resets and surplus solvency, and
-  boundary-carry Fund routing in Bribe.
+  no-economic-cap issuance model, effective-supply redemption, qualifying Resonance resets and surplus solvency. The
+  Solidity suites cover per-purchase Strategy floors, direct Fund settlement, Router buffering, Synthetix leftover
+  rollover, and Bribe surplus floors. The ADR-0048 focused suites pass 104/104 and the revised mutation campaign kills
+  47/47 mutants; the complete deterministic/workspace and external campaigns still require post-ADR-0048 reruns.
 - Foundry separately proves coordinator rollback, move semantics, and that historical SignalGBX voting checkpoints
   survive withdrawal. A later integration campaign must prove the selected external system's token compatibility,
   permissions, voting, proposal scope, delay, cancellation, execution, and ownership handoff.

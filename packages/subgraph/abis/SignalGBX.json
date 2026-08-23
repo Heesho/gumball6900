@@ -1099,6 +1099,17 @@
   },
   {
     "type": "error",
+    "name": "SameStrategy",
+    "inputs": [
+      {
+        "name": "strategy",
+        "type": "address",
+        "internalType": "address"
+      }
+    ]
+  },
+  {
+    "type": "error",
     "name": "StringTooLong",
     "inputs": [
       {

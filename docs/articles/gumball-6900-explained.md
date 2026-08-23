@@ -1,10 +1,10 @@
 ---
 title: How GUM BALL 6900 Turns Community Conviction Into an Onchain Portfolio
 version: 2.0.0
-date: 2026-08-22
+date: 2026-08-23
 source_commit: uncommitted-working-tree
-base_commit: e3ebdd7987653969b31dbf0e8d20b68a838dfa5d
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0045; not approved for user funds.
+base_commit: d80b92da5e60c0daa54dbae29653898dde514053
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0048; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
 internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
 independent_audit_status: No independent external audit has been performed.
@@ -109,6 +109,10 @@ Three properties matter:
 - **Every signal change first settles the revenue that accrued under the old weights.** Moving your signal never
   claws back or redirects money that already accrued to someone else. It only affects flow from that moment on.
 
+Under the hood, moving is one atomic source removal followed by one destination addition. If the destination is not a
+live Strategy, the addition fails and the complete transaction rolls the removal back; Resonance does not need a
+separate move-only hook.
+
 The complete user surface is four functions: signal, signal using a gasless approval on the underlying GBX, move
 signal between Strategies, and withdraw signal.
 
@@ -186,10 +190,11 @@ Strategies in proportion to the sGBX signaling them _at that moment_.
 Two design details exist to prevent specific attacks.
 
 **Revenue waits in a router until someone advances it.** New revenue accumulates in a staging contract called
-**ResonanceRouter**. Anyone can call `route()`; if the balance is smaller than the exact amount still left in the current
-schedule, it stays put. When someone calls after it qualifies, the router forwards _everything_, and Resonance
-combines the new money with the old remainder and restarts a fresh seven-day stream. So restarting the stream early is
-possible but expensive — you must match what's left. It also means a mining payment can sit in the router for a while
+**ResonanceRouter**. Anyone can call `route()`; if the balance cannot sustain one raw unit per second, or during an
+active period is smaller than the amount still scheduled, it stays put. When someone calls after it qualifies, the
+router forwards _everything_, and Resonance combines the new money with the ordinary Synthetix leftover and restarts
+a fresh seven-day stream. So restarting the stream early is possible but expensive — you must match what's left. It
+also means a mining payment can sit in the router for a while
 before it appears in the stream—or indefinitely if nobody calls. There is no keeper role or bounty; a frontend,
 volunteer keeper, or cron job is optional convenience infrastructure. A future mine-and-route helper could live in
 that periphery, but Mine itself must remain correct even if routing fails. Liquidity fee harvesting keeps its existing
@@ -206,8 +211,8 @@ Let's make this concrete. All figures below are exact integer arithmetic at six 
 sGBX.
 
 **Setup.** Resonance receives a notification of **604,800 USDG**. Seven days is 604,800 seconds, so the stream rate
-works out to exactly **1 USDG per second** with no remainder. (When the division isn't clean, the leftover raw units
-are paid out one extra unit per second at the start of the period — nothing is discarded.)
+works out to exactly **1 USDG per second** with no rate remainder. When the division is not clean, the ordinary
+Synthetix whole-unit rate rounds down and the residue remains unallocated in Resonance.
 
 Three participants and three Strategies:
 
@@ -311,17 +316,17 @@ Bribe  10% (default)  →  0.18 WBTC   (reward for Ana and Ben, who signaled Str
 
 This walkthrough uses the default, not an immutable split. The Resonance owner may set the Bribe share for later
 payments anywhere from 0% through 20%; Fund receives the 100%-minus-Bribe complement, or 80% through 100%. A change
-cannot reclassify this payment or any other liability recorded before the change.
+cannot reclassify this payment or any earlier purchase.
 
-Each share is recorded as a separate liability and delivered by its own call that anyone can make. This matters: if
-the treasury or the reward pool has a problem with that token, **only that leg stalls**. The other leg still settles,
-and neither can freeze the auction itself.
+Strategy performs this split itself. The Fund share is transferred directly as part of the purchase, while the Bribe
+share goes to a small BribeRouter buffer for later permissionless distribution. A failed Fund transfer therefore
+reverts the complete auction purchase. A later Bribe notification failure does not: that share remains buffered.
 
 <!-- figure: acquisition-split -->
 
-The split is also **cumulatively exact across rate changes**. It carries the weighted fractional remainder between
-payments, so a buyer cannot starve the reward share by paying in tiny increments. At the 10% default, ten separate
-one-unit payments produce exactly 9 units to the Fund and 1 to the Bribe — not zero to the Bribe ten times over.
+Each purchase rounds its own Bribe share down. At the 10% default, ten separate one-raw-unit payments therefore send
+all ten units to Fund, while one ten-unit payment sends nine units to Fund and one to Bribe. The protocol accepts this
+partition-dependent dust instead of maintaining another carry ledger.
 
 The next auction round then starts at 1.8 WBTC × the configured multiplier — at 1.5×, that is **2.7 WBTC**.
 
@@ -396,16 +401,15 @@ long-term treasury; a market maker who benefits from the auction flow. The proto
 
 Some deliberate details, which apply to both sources:
 
-- **At most eight reward tokens per Strategy**, hard-coded, append-only. The cap exists so that entering, leaving, and
-  settling a signal position stay bounded in gas no matter what anyone registers.
-- **You cannot disturb someone else's live stream.** Adding rewards while a stream is running queues them behind it
-  rather than restarting or slowing it. (This is the opposite of Resonance's behavior — the two are genuinely
-  different mechanisms.)
-- **If everyone stops signaling, the stream pauses** rather than draining with nobody to pay, and resumes when signal
-  returns.
+- **At most sixteen reward tokens per Strategy**, hard-coded, append-only. The cap exists so that entering, leaving,
+  and settling a signal position stay bounded in gas no matter what anyone registers.
+- **Reward accounting follows the Synthetix shape.** A qualifying top-up combines with the scheduled amount left and
+  restarts seven days. It must be large enough to avoid a zero rate and cheap permissionless stream slowing.
+- **If everyone stops signaling, reward time continues.** That interval remains unallocated token surplus rather
+  than being queued for later signalers.
 - **You can claim one token at a time**, so a single frozen reward token cannot block the rest.
-- **Rewards you arrived too late for are not yours.** Fractional amounts that cannot be fairly assigned are routed to
-  the Fund rather than redistributed to whoever happens to still be signaling.
+- **Rewards you arrived too late for are not yours.** Rate, index, and account division floors remain unallocated in
+  the Bribe rather than being reassigned through carry buckets.
 - **Each reward token has a lifetime ceiling on how much can ever be streamed through it.** The number is
   astronomically large — for a normal eighteen-decimal token, far more than any real supply — and exists purely so
   that a token with an absurd unit count cannot be used to jam the reward arithmetic and trap other people's
@@ -419,7 +423,7 @@ anyone can ever change:
 
 1. Add a Strategy.
 2. Permanently retire a Strategy.
-3. Register a Bribe reward token (within the eight-token cap).
+3. Register a Bribe reward token (within the sixteen-token cap).
 4. Set the signalers' share of each acquisition, anywhere from 0% to a hard ceiling of 20%.
 
 <!-- figure: authority-map -->
@@ -454,7 +458,7 @@ What sGBX offers is the vote checkpoints described in §5, sitting ready for a s
 
 Concretely, in this development tree, whoever holds the Resonance owner address can add a Strategy, retire a Strategy, register
 a reward token, or call `setBribeBps` to set the prospective automatic reward share from 0% through 20% immediately —
-no vote, no waiting period, no way for anyone to object. The rate change cannot reclassify prior liabilities. The owner
+no vote, no waiting period, no way for anyone to object. The rate change cannot reclassify earlier purchases. The owner
 can also hand that address to someone else, or throw it away permanently. In development that address is simply the
 deployment fixture.
 
@@ -475,13 +479,13 @@ The protocol is built so a failure in one place doesn't cascade:
 
 - **A broken token cannot trap your position.** Withdrawing signal is pure accounting — it never transfers
   a reward, payment, or revenue token, so a frozen third-party token cannot block them.
-- **A frozen treasury cannot block an auction.** Auction payments are recorded as a liability and delivered by a
-  separate, retryable call.
+- **A frozen Fund can block its own auction purchase.** The Strategy pays Fund directly, so the purchase is atomic
+  with successful Fund receipt.
 - **A broken asset cannot block redemption for everyone else.** You name what you want, so you can omit it.
-- **A misbehaving token fails loudly.** Every transfer checks that the sender was debited and the receiver credited by
-  exactly the requested amount, so fee-on-transfer and rebasing tokens revert rather than lose value silently. This is
-  fail-closed evidence — it does _not_ make an adversarial token safe.
-- **Failed payouts stay owed and retryable.** A blocked recipient cannot redirect a liability elsewhere.
+- **Only standard, non-rebasing ERC-20s are supported.** SafeERC20 checks call success, but the core deliberately does
+  not duplicate every pre/post balance. Governance must not register fee-on-transfer, rebasing, or hostile tokens.
+- **A failed automatic Bribe notification stays buffered.** It cannot undo the completed purchase or redirect the
+  tokens elsewhere.
 
 One failure mode has no recovery. When a Strategy is retired, its reward pool stays open for existing signalers but
 nobody new can join. If the **last** signaler withdraws while rewards remain, those rewards are stranded permanently —

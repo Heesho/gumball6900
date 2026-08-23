@@ -11,9 +11,9 @@ import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
 /// @title GumBall6900 Permissionless Revenue Router
 /// @author Heesho
 /// @notice Collects USDG revenue and forwards every qualifying balance into Resonance's Strategy reward stream.
-/// @dev A live-period top-up qualifies once the Router balance equals the exact reward left in that period. Smaller
-///      nonzero balances remain available for later permissionless routing without reverting upstream revenue flows.
-/// @custom:version 1.0.0
+/// @dev A top-up qualifies once the Router balance covers both the active reward left and the minimum amount needed for
+///      a nonzero seven-day whole-unit rate. Smaller balances remain available for later permissionless routing.
+/// @custom:version 1.1.0
 contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -26,15 +26,13 @@ contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
     /// @param caller Account that triggered routing.
     /// @param amount Amount of USDG routed.
     event RevenueRouted(address indexed caller, uint256 amount);
-    /// @notice Emitted when a nonzero balance remains below Resonance's live-period top-up threshold.
+    /// @notice Emitted when a nonzero balance remains below Resonance's current routing threshold.
     /// @param caller Account that attempted routing.
     /// @param pending Current USDG retained by the Router.
-    /// @param minimum Exact minimum that would qualify at this timestamp.
+    /// @param minimum Minimum balance that would qualify at this timestamp.
     event RevenueHeld(address indexed caller, uint256 pending, uint256 minimum);
     /// @notice Routing was requested while no USDG was held.
     error NoRevenue();
-    /// @notice Resonance did not pull the complete routed USDG balance.
-    error RevenueRetained(uint256 amount);
     /// @notice A required deployment address is zero.
     error ZeroAddress();
 
@@ -57,7 +55,9 @@ contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
         uint256 pending = usdg.balanceOf(address(this));
         if (pending == 0) revert NoRevenue();
 
-        uint256 minimum = ICoreResonance(resonance).left(address(usdg));
+        uint256 minimum = ICoreResonance(resonance).left();
+        uint256 duration = ICoreResonance(resonance).DURATION();
+        if (minimum < duration) minimum = duration;
         if (pending < minimum) {
             emit RevenueHeld(msg.sender, pending, minimum);
             return 0;
@@ -67,10 +67,6 @@ contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
 
         usdg.forceApprove(resonance, amount);
         ICoreResonance(resonance).notifyRevenue(amount);
-        if (usdg.allowance(address(this), resonance) != 0) usdg.forceApprove(resonance, 0);
-
-        uint256 retained = usdg.balanceOf(address(this));
-        if (retained != 0) revert RevenueRetained(retained);
 
         emit RevenueRouted(msg.sender, amount);
     }

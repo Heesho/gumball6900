@@ -221,12 +221,6 @@ templates:
           handler: handleRewardNotified
         - event: RewardPaid(indexed address,indexed address,uint256)
           handler: handleRewardPaid
-        - event: RewardCarryFunded(indexed address,uint256,uint256)
-          handler: handleRewardCarryFunded
-        - event: FundRewardAccrued(indexed address,uint256,uint256)
-          handler: handleBribeFundRewardAccrued
-        - event: FundRewardPaid(indexed address,indexed address,indexed address,uint256)
-          handler: handleBribeFundRewardPaid
       file: ./src/bribe.ts
   - kind: ethereum/contract
     name: BribeRouterTemplate
@@ -244,16 +238,6 @@ templates:
         - name: BribeRouter
           file: ./abis/BribeRouter.json
       eventHandlers:
-        - event: PaymentRouted(indexed address,uint256,uint256)
-          handler: handleRouterPaymentRouted
-        - event: BribePaymentAccrued(indexed address,indexed
-            address,uint256,uint256,uint256)
-          handler: handleRouterBribePaymentAccrued
-        - event: BribeRewardNotified(indexed address,indexed address,indexed
-            address,uint256)
-          handler: handleRouterBribeRewardNotified
-        - event: FundPaymentAccrued(indexed address,indexed address,uint256,uint256)
-          handler: handleRouterFundPaymentAccrued
-        - event: FundPaymentPaid(indexed address,indexed address,indexed address,uint256)
-          handler: handleRouterFundPaymentPaid
+        - event: RewardsDistributed(indexed address,indexed address,uint256)
+          handler: handleRouterRewardsDistributed
       file: ./src/bribe-router.ts

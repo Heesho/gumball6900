@@ -266,7 +266,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         Strategy strategy = Strategy(strategies[_bound(strategySeed, 0, strategies.length - 1)]);
         if (strategy.availableRevenue() == 0) {
             if (!resonance.isStrategyAlive(address(strategy))) return;
-            if (resonance.earned(address(strategy), address(usdg)) == 0) return;
+            if (resonance.earned(address(strategy)) == 0) return;
         }
 
         uint256 price = strategy.currentPrice();
@@ -296,7 +296,16 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
         Strategy strategy = Strategy(strategies[_bound(strategySeed, 0, strategies.length - 1)]);
         IERC20 payment = strategy.paymentToken();
-        uint256 reward = _bound(amount, 1, Bribe(resonance.bribeFor(address(strategy))).REWARD_DURATION() * 2);
+        Bribe bribe = Bribe(resonance.bribeFor(address(strategy)));
+        uint256 duration = bribe.REWARD_DURATION();
+        uint256 minimum = bribe.left(address(payment));
+        if (minimum < duration) minimum = duration;
+
+        uint256 headroom = bribe.MAX_LIFETIME_REWARD_AMOUNT() - bribe.lifetimeRewardNotified(address(payment));
+        if (minimum > headroom) return;
+        uint256 upper = minimum + (duration * 2);
+        if (upper > headroom) upper = headroom;
+        uint256 reward = _bound(amount, minimum, upper);
 
         if (address(payment) == address(gbx)) {
             if (!_supplyGBX(address(this), reward)) return;
@@ -306,51 +315,19 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
             target.mint(address(this), reward);
         }
 
-        Bribe bribe = Bribe(resonance.bribeFor(address(strategy)));
         payment.approve(address(bribe), reward);
         bribe.notifyRewardAmount(address(payment), reward);
 
         ghostCalls["notifyTinyReward"] += 1;
     }
 
-    function payFixedLiabilities() external {
+    function distributeBribeRewards() external {
         address[] memory strategies = strategyRegistry.all();
         for (uint256 i; i < strategies.length; ++i) {
-            BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
-            router.payFundPayment();
-            router.notifyBribeReward();
-            Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
-            address[] memory tokens = bribe.rewardTokens();
-            for (uint256 t; t < tokens.length; ++t) {
-                bribe.payFundReward(tokens[t]);
-            }
+            BribeRouter(resonance.bribeRouterFor(strategies[i])).distribute();
         }
 
-        ghostCalls["payFixedLiabilities"] += 1;
-    }
-
-    function payFundLiabilities() external {
-        address[] memory strategies = strategyRegistry.all();
-        for (uint256 i; i < strategies.length; ++i) {
-            BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategies[i]));
-            router.payFundPayment();
-            Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
-            address[] memory tokens = bribe.rewardTokens();
-            for (uint256 t; t < tokens.length; ++t) {
-                bribe.payFundReward(tokens[t]);
-            }
-        }
-
-        ghostCalls["payFundLiabilities"] += 1;
-    }
-
-    function notifyBribeLiabilities() external {
-        address[] memory strategies = strategyRegistry.all();
-        for (uint256 i; i < strategies.length; ++i) {
-            BribeRouter(resonance.bribeRouterFor(strategies[i])).notifyBribeReward();
-        }
-
-        ghostCalls["notifyBribeLiabilities"] += 1;
+        ghostCalls["distributeBribeRewards"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -430,7 +407,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
     /// @notice Records the highest revenue index seen so far so monotonicity can be asserted between calls.
     function recordRevenueIndex() external {
-        uint256 current = resonance.rewardPerToken(address(usdg));
+        uint256 current = resonance.rewardPerToken();
         if (current > ghostHighestRevenueIndex) ghostHighestRevenueIndex = current;
     }
 

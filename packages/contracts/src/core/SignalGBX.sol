@@ -17,8 +17,8 @@ import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 /// @author Heesho
 /// @notice Non-transferable signal receipt with ticker sGBX, minted one-for-one only while assigning GBX to a Strategy.
 /// @dev Adapted from Liquid Signal Governance. Idle sGBX is unreachable: minting and burning are atomically coupled to
-///      the matching Resonance and paired-Bribe virtual balance change.
-/// @custom:version 1.0.0
+///      the matching Resonance and paired-Bribe virtual balance change. Moves compose the same remove and add hooks.
+/// @custom:version 1.1.0
 contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
@@ -50,6 +50,8 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     error ResonanceAlreadySet(address resonance);
     /// @notice Staking was attempted before the immutable Resonance graph was validated.
     error ResonanceNotSet();
+    /// @notice A signal move named the same Strategy as both source and destination.
+    error SameStrategy(address strategy);
     /// @notice A required deployment or binding address is zero.
     error ZeroAddress();
     /// @notice A signal operation amount is zero.
@@ -114,8 +116,10 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     function moveSignal(address fromStrategy, address toStrategy, uint256 amount) external nonReentrant {
         _requireAmount(amount);
         address configuredResonance = _configuredResonance();
+        if (fromStrategy == toStrategy) revert SameStrategy(fromStrategy);
 
-        ICoreResonance(configuredResonance).moveSignalFor(msg.sender, fromStrategy, toStrategy, amount);
+        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
+        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);
     }
 
     /// @notice Atomically removes signal, burns the same sGBX amount, and returns the same amount of GBX.

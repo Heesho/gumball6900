@@ -2,7 +2,7 @@
 
 The target graph is direct, immutable, and deliberately small.
 
-> Development architecture: ADRs 0031 and 0033-0045 are authoritative in whole or in their recorded unsuperseded
+> Development architecture: ADRs 0031 and 0033-0048 are authoritative in whole or in their recorded unsuperseded
 > parts. Governance execution remains an
 > unselected external integration, so this document is not deployment approval or evidence of a complete production
 > graph.
@@ -14,8 +14,8 @@ slot replacement USDG -> Mine --20% deposit--> ResonanceRouter --permissionless 
 Mine --continuous GBX--> current slot miners
 GBX --signal deposit--> SignalGBX --signal coordination--> Resonance allocation weights
                                   \--IVotes checkpoints---> external governance (unselected) --owns--> Resonance
-Strategy acquired-asset payment -> BribeRouter --(100% - global bribeBps)--> fixed Fund liability
-                                              \--global bribeBps (0%-20%)--> paired Bribe reward liability
+Strategy acquired-asset payment --(100% - global bribeBps)--> Fund
+                                \--global bribeBps (0%-20%)--> BribeRouter buffer --> paired Bribe
 additional reward funder ------------------------------> Bribe -> Strategy signalers
 GBX holder -> Fund.redeem(selected tokens) -> in-kind assets
 Uniswap v4 fees -> LiquidityPosition -> USDG revenue / GBX burn
@@ -39,32 +39,36 @@ SignalGBX is a non-transferable one-for-one GBX escrow token, retains ERC20Votes
 governance integration, and is the only external signal coordinator. Idle sGBX is invalid. `signal` and
 `signalWithPermit` atomically deposit GBX, mint the same sGBX,
 assign the same amount to one live Strategy through Resonance, and mirror it into the paired Bribe. `moveSignal`
-changes allocation without changing custody, supply, or votes. `withdrawSignal` removes the Strategy and Bribe
-position, burns the same sGBX, and returns the same GBX. The permit path uses underlying GBX authorization; sGBX itself
-has no ERC-2612 approval permit.
+atomically composes the restricted `removeSignalFor` source hook and `addSignalFor` destination hook; Resonance has no
+dedicated move hook. A failed destination addition rolls back the complete move. The successful composition changes
+allocation without changing custody, supply, or votes. `withdrawSignal` removes the Strategy and Bribe position, burns
+the same sGBX, and returns the same GBX. The permit path uses underlying GBX authorization; sGBX itself has no ERC-2612
+approval permit.
 
-Resonance holds forwarded USDG in one global seven-day stream and uses unrestricted absolute SignalGBX allocations for
+Resonance holds forwarded USDG in one scalar global seven-day stream, with no reward-token registry or token-keyed
+reward state, and uses unrestricted absolute SignalGBX allocations for
 each elapsed interval. SignalGBX calls Resonance's restricted coordination hooks, which checkpoint elapsed revenue
 before changing weights. A Strategy purchase also
 checkpoints and pulls its released allocation before reading the auction inventory. During an active period,
-ResonanceRouter holds a nonzero balance until a permissionless caller attempts routing after it is at least the exact
-USDG left in the schedule. A qualifying complete-balance notification checkpoints elapsed emission, combines the new reward with the amount left, and restarts the
-combined schedule for seven days. The raw schedule releases quotient plus a front-loaded remainder; its reward-per-
-signal index uses `1e36` precision. Index and Strategy flooring, zero-active-signal emission, and direct donations remain
-unclassified surplus rather than Fund liabilities.
+ResonanceRouter holds a nonzero balance until it is at least both `DURATION` raw USDG units and the whole reward left
+at the active rate. A qualifying complete-balance notification checkpoints elapsed emission, combines the new reward
+with `remainingSeconds * rewardRate`, and restarts the schedule for seven days. The Synthetix-style rate uses ordinary
+integer division; rate, index, and Strategy floors, zero-active-signal emission, and direct donations remain
+unclassified surplus. The reward-per-signal index uses `1e36` precision.
 
 Signal state is deliberately split rather than duplicated: `SignalGBX.balanceOf(account)` is each account's aggregate
 signal, the paired Bribe stores account-by-Strategy balances and each Strategy's complete supply, and Resonance stores
 the active total across live Strategies. There is no separate `allocatedBalance` duplicate.
 
 StrategyFactory and BribeFactory are bound once to Resonance. Each Strategy has a dedicated Bribe and BribeRouter.
-Resonance stores one global acquired-asset `bribeBps`, defaulting to 10% and bounded from 0% through 20%; Fund receives
-the complement. Every payment snapshots the rate when classified, and each Router preserves one weighted numerator
-remainder across rate changes. Changing the rate cannot alter an existing liability, reward schedule, claim, or carry.
-At 0%, new payments create only Fund liability, while Bribe balance accounting, signals, exits, existing rewards, and
-independent reward funding remain live. Fund payment and Bribe notification are permissionless isolated settlement
-legs. Bribes may also receive independently notified rewards. Bribe old-supply carry and fully exiting user precision
-become fixed Fund classification before virtual signal supply changes. Bribes use `1e36` reward precision, and each
+Resonance stores one global acquired-asset `bribeBps`, defaulting to 10% and bounded from 0% through 20%. Before token
+interaction, Strategy snapshots that rate, transfers the floored Bribe share to its BribeRouter, and pays the
+complement directly to Fund. There is no cumulative split carry or deferred Fund liability. At 0%, new payments go
+entirely to Fund, while Bribe balance accounting, signals, exits, existing rewards, and independent reward funding
+remain live. BribeRouter simply buffers the Bribe share until its complete balance satisfies the Bribe's minimum and
+active-left notification gates. Bribes use ordinary Synthetix rollover and floor semantics, with no queue, pause,
+carry, or Fund rounding state. Each Bribe has a fixed append-only limit of sixteen reward tokens. They retain `1e36`
+reward precision, and each
 reward token has a monotonic lifetime notification cap of `floor(type(uint256).max / 1e36)` raw units, checked
 before checkpointing or transfer so index overflow cannot block signal exits. Killing a Strategy checkpoints and
 preserves its accrued Resonance claim, removes its complete weight from active reward supply, and leaves its Bribe as a
@@ -101,5 +105,8 @@ See [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md), [ADR 0024](adr/0024-immutabl
 [ADR 0041](adr/0041-time-based-mine-halvings.md),
 [ADR 0042](adr/0042-provisional-accelerated-mine-emissions.md),
 [ADR 0043](adr/0043-provisional-one-gbx-tail.md),
-[ADR 0044](adr/0044-decouple-mine-from-revenue-routing.md), and
-[ADR 0045](adr/0045-defer-mine-router-token-verification.md).
+[ADR 0044](adr/0044-decouple-mine-from-revenue-routing.md),
+[ADR 0045](adr/0045-defer-mine-router-token-verification.md),
+[ADR 0046](adr/0046-usdg-only-resonance-accounting.md), and
+[ADR 0047](adr/0047-synthetix-shaped-rewards-and-strategy-settlement.md), and
+[ADR 0048](adr/0048-expand-bribe-rewards-and-compose-signal-moves.md).

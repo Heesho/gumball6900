@@ -6,19 +6,16 @@
 
 # Function: settleStrategyPayment()
 
-> **settleStrategyPayment**(`paymentAmount`, `priorSplitRemainder?`, `bribeBasisPoints?`): [`StrategyPaymentSettlement`](../interfaces/StrategyPaymentSettlement.md)
+> **settleStrategyPayment**(`paymentAmount`, `bribeBasisPoints?`): [`StrategyPaymentSettlement`](../interfaces/StrategyPaymentSettlement.md)
 
-Models BribeRouter's cumulative acquired-asset classification at the supplied global rate.
-The denominator never changes, so carrying `priorSplitRemainder` across rate changes exactly
-classifies floor(sum(payment[i] \* bribeBps[i]) / BPS_DENOMINATOR).
+Models Strategy's per-purchase acquired-asset classification at the supplied global rate.
 
 ## Parameters
 
-| Parameter             | Type     | Default value                |
-| --------------------- | -------- | ---------------------------- |
-| `paymentAmount`       | `bigint` | `undefined`                  |
-| `priorSplitRemainder` | `bigint` | `0n`                         |
-| `bribeBasisPoints`    | `bigint` | `DEFAULT_STRATEGY_BRIBE_BPS` |
+| Parameter          | Type     | Default value                |
+| ------------------ | -------- | ---------------------------- |
+| `paymentAmount`    | `bigint` | `undefined`                  |
+| `bribeBasisPoints` | `bigint` | `DEFAULT_STRATEGY_BRIBE_BPS` |
 
 ## Returns
 

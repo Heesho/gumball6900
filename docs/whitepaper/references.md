@@ -14,10 +14,11 @@ this list; the claim-by-claim mapping lives in `FACT-CHECK.md`.
   `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84`.
 - Independent models and fixtures: `packages/simulations/` (TypeScript and Python,
   cross-checked at build time via `src/protocol-facts.mjs`).
-- Design history: `docs/adr/0013` through `docs/adr/0036`, especially ADR 0019
-  (incremental absolute signals, eight-token cap), ADR 0021 (historical uniform 100% Fund settlement), ADR 0022
-  (fixed-principal LP fee routing), ADR 0031 (mandatory signal-backed sGBX), ADR 0032 (cumulative acquired-asset
-  settlement foundation), and ADR 0036 (bounded global prospective Bribe share).
+- Design history: `docs/adr/0013` through `docs/adr/0048`, especially ADR 0019
+  (incremental absolute signals and the historical eight-token cap), ADR 0021 (historical uniform 100% Fund
+  settlement), ADR 0022 (fixed-principal LP fee routing), ADR 0031 (mandatory signal-backed sGBX), ADR 0036 (bounded
+  global prospective Bribe share), ADR 0047 (Synthetix-shaped rewards and direct Strategy settlement), and ADR 0048
+  (sixteen-token Bribe bound and composed signal movement).
 - Protocol documentation: `docs/ARCHITECTURE.md`, `docs/ECONOMICS.md`, `docs/EMISSIONS.md`,
   `docs/SPEC.md`, `docs/ACCESS_CONTROL.md`, `docs/INVARIANTS.md`,
   `docs/SECURITY-INVARIANTS.md`, `docs/THREAT_MODEL.md`, `docs/TRUST_ASSUMPTIONS.md`,

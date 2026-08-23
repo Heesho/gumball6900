@@ -80,6 +80,19 @@
   },
   {
     "type": "function",
+    "name": "BPS",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "MAX_EPOCH_DURATION",
     "inputs": [],
     "outputs": [
@@ -408,53 +421,6 @@
       },
       {
         "name": "actual",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "InexactPayment",
-    "inputs": [
-      {
-        "name": "expected",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "payerDebit",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "strategyCredit",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
-    "name": "InexactPayout",
-    "inputs": [
-      {
-        "name": "receiver",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "expected",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "strategyDebit",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "receiverCredit",
         "type": "uint256",
         "internalType": "uint256"
       }

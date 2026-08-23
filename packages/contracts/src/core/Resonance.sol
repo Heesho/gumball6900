@@ -17,12 +17,20 @@ import { IResonanceRouterIdentity } from "./interfaces/IResonanceIdentity.sol";
 /// @title GumBall6900 Signal-Directed Revenue Allocator
 /// @author Heesho
 /// @notice Streams USDG to Strategies as virtual stakers weighted by live SignalGBX allocations.
-/// @dev Adapted from Liquid Signal Governance's Bribe rewarder. A qualifying notification checkpoints the current
-///      period and restarts a seven-day stream containing the new reward plus the exact active-period remainder.
-///      USDG uses six decimals while SignalGBX uses eighteen, so the cumulative reward index uses 1e36 precision.
-/// @custom:version 1.1.0
+/// @dev Uses Synthetix-style linear reward accounting. A qualifying notification checkpoints the current period and
+///      restarts a seven-day stream containing the new reward plus the scheduled amount left at the prior whole-unit
+///      rate. USDG uses six decimals while SignalGBX uses eighteen, so the cumulative reward index uses 1e36 precision.
+/// @custom:version 1.4.0
 contract Resonance is ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
+
+    /// @notice USDG reward schedule and cumulative-index state.
+    struct Reward {
+        uint256 periodFinish;
+        uint256 rewardRate;
+        uint256 lastUpdateTime;
+        uint256 rewardPerTokenStored;
+    }
 
     /// @notice Fixed duration of every USDG reward period.
     uint256 public constant DURATION = 7 days;
@@ -32,7 +40,7 @@ contract Resonance is ReentrancyGuard, Ownable {
     uint256 public constant BPS = 10_000;
     /// @notice Initial share of every new Strategy payment assigned to its paired Bribe.
     uint256 public constant DEFAULT_BRIBE_BPS = 1_000;
-    /// @notice Hard governance ceiling preserving at least 80% of cumulative classified payments for Fund.
+    /// @notice Hard governance ceiling preserving at least 80% of every classified payment for Fund.
     uint256 public constant MAX_BRIBE_BPS = 2_000;
     /// @notice Non-transferable signal receipt used as allocation and governance power.
     IERC20 public immutable signalGBX;
@@ -45,27 +53,12 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @notice Resonance-bound factory used to create Strategies and their BribeRouters.
     StrategyFactory public immutable strategyFactory;
 
-    /// @notice Independent reward schedule and cumulative-index state for one token.
-    struct Reward {
-        uint256 periodFinish;
-        uint256 remainderFinish;
-        uint256 rewardRate;
-        uint256 lastUpdateTime;
-        uint256 rewardPerTokenStored;
-    }
-
-    /// @notice Reward schedule and cumulative-index state for a registered token.
-    /// @dev The Bribe-shaped token-keyed ledger is retained even though Resonance permanently registers only USDG.
-    mapping(address token => Reward data) public token_RewardData;
-    /// @notice Whether a token is registered for Resonance rewards; permanently true only for USDG.
-    mapping(address token => bool isReward) public token_IsReward;
-    /// @notice Registered Resonance reward tokens; permanently contains only USDG.
-    address[] public rewardTokens;
-
-    /// @notice Strategy => token => cumulative reward-per-signal already incorporated.
-    mapping(address strategy => mapping(address token => uint256 paid)) public account_Token_RewardPerTokenPaid;
-    /// @notice Strategy => token => accrued whole raw reward units.
-    mapping(address strategy => mapping(address token => uint256 reward)) public account_Token_Rewards;
+    /// @notice The sole USDG reward schedule and cumulative reward-per-signal index.
+    Reward public rewardData;
+    /// @notice Cumulative USDG reward-per-signal already incorporated for each Strategy.
+    mapping(address strategy => uint256 paid) public strategyRewardPerTokenPaid;
+    /// @notice Accrued whole raw USDG units owed to each Strategy.
+    mapping(address strategy => uint256 reward) public strategyRewards;
 
     /// @notice Total active SignalGBX weight eligible for Resonance rewards.
     uint256 public totalSignalWeight;
@@ -88,25 +81,6 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @notice Governance-selected share of newly classified Strategy payments assigned to paired Bribes.
     uint256 public bribeBps = DEFAULT_BRIBE_BPS;
 
-    error BribeBpsAboveMaximum(uint256 requested);
-    error DuplicateStrategy(address strategy);
-    error FinalLiveStrategy(address strategy);
-    error ForbiddenPaymentToken(address token);
-    error ForbiddenRewardToken(address token);
-    error InexactRevenuePayout(address receiver, uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-    error InexactRevenueTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-    error InsufficientSignal(address strategy, uint256 available, uint256 requested);
-    error InvalidResonanceRouter(address resonanceRouter);
-    error ResonanceRouterAlreadySet(address resonanceRouter);
-    error RewardSmallerThanLeft(uint256 reward, uint256 left);
-    error SameStrategy(address strategy);
-    error StrategyAlreadyDead(address strategy);
-    error StrategyNotFound(address strategy);
-    error UnauthorizedRevenueSource(address caller);
-    error UnauthorizedSignalSource(address caller);
-    error ZeroAddress();
-    error ZeroAmount();
-
     event BribeBpsSet(uint256 previousBps, uint256 newBps);
     event BribeRewardAdded(address indexed strategy, address indexed bribe, address indexed rewardToken);
     event RevenueDistributed(address indexed caller, address indexed strategy, uint256 amount);
@@ -118,6 +92,37 @@ contract Resonance is ReentrancyGuard, Ownable {
         address indexed strategy, address indexed bribe, address indexed bribeRouter, address paymentToken
     );
     event StrategyKilled(address indexed strategy);
+
+    error BribeBpsAboveMaximum(uint256 requested);
+    error DuplicateStrategy(address strategy);
+    error FinalLiveStrategy(address strategy);
+    error ForbiddenPaymentToken(address token);
+    error ForbiddenRewardToken(address token);
+    error InsufficientSignal(address strategy, uint256 available, uint256 requested);
+    error InvalidResonanceRouter(address resonanceRouter);
+    error ResonanceRouterAlreadySet(address resonanceRouter);
+    error RewardSmallerThanLeft(uint256 reward, uint256 left);
+    error StrategyAlreadyDead(address strategy);
+    error StrategyNotFound(address strategy);
+    error UnauthorizedRevenueSource(address caller);
+    error UnauthorizedSignalSource(address caller);
+    error ZeroAddress();
+    error ZeroAmount();
+
+    modifier updateReward(address strategy) {
+        _updateReward(strategy);
+        _;
+    }
+
+    modifier onlyResonanceRouter() {
+        if (msg.sender != resonanceRouter) revert UnauthorizedRevenueSource(msg.sender);
+        _;
+    }
+
+    modifier onlySignalGBX() {
+        if (msg.sender != address(signalGBX)) revert UnauthorizedSignalSource(msg.sender);
+        _;
+    }
 
     /// @notice Creates the rewarder with immutable token, Fund, and factory dependencies.
     constructor(
@@ -140,24 +145,6 @@ contract Resonance is ReentrancyGuard, Ownable {
         fund = fund_;
         bribeFactory = bribeFactory_;
         strategyFactory = strategyFactory_;
-
-        token_IsReward[address(usdg_)] = true;
-        rewardTokens.push(address(usdg_));
-    }
-
-    modifier updateReward(address strategy) {
-        _updateReward(strategy);
-        _;
-    }
-
-    modifier onlyResonanceRouter() {
-        if (msg.sender != resonanceRouter) revert UnauthorizedRevenueSource(msg.sender);
-        _;
-    }
-
-    modifier onlySignalGBX() {
-        if (msg.sender != address(signalGBX)) revert UnauthorizedSignalSource(msg.sender);
-        _;
     }
 
     /// @notice Adds an absolute SignalGBX delta for an account through the bound SignalGBX coordinator.
@@ -194,48 +181,21 @@ contract Resonance is ReentrancyGuard, Ownable {
         emit SignalRemoved(account, strategy, amount);
     }
 
-    /// @notice Atomically moves signal for an account from one Strategy to another through SignalGBX.
-    /// @dev A killed Strategy may be the source, but only a live Strategy may receive the moved signal.
-    function moveSignalFor(address account, address fromStrategy, address toStrategy, uint256 amount)
-        external
-        nonReentrant
-        onlySignalGBX
-    {
-        if (account == address(0)) revert ZeroAddress();
-        if (!isStrategy[fromStrategy]) revert StrategyNotFound(fromStrategy);
-        if (!isStrategy[toStrategy]) revert StrategyNotFound(toStrategy);
-        if (!isStrategyAlive[toStrategy]) revert StrategyAlreadyDead(toStrategy);
-        if (fromStrategy == toStrategy) revert SameStrategy(fromStrategy);
-        if (amount == 0) revert ZeroAmount();
-
-        Bribe sourceBribe = Bribe(bribeFor[fromStrategy]);
-        uint256 allocated = sourceBribe.balanceOf(account);
-        if (amount > allocated) revert InsufficientSignal(fromStrategy, allocated, amount);
-
-        _updateReward(fromStrategy);
-        _updateReward(toStrategy);
-
-        if (!isStrategyAlive[fromStrategy]) totalSignalWeight += amount;
-        sourceBribe.withdraw(amount, account);
-        Bribe(bribeFor[toStrategy]).deposit(amount, account);
-
-        emit SignalRemoved(account, fromStrategy, amount);
-        emit SignalAdded(account, toStrategy, amount);
-    }
-
     /// @notice Pulls qualifying USDG from ResonanceRouter and restarts the seven-day reward period.
-    /// @dev During an active period, the new reward must be at least the exact reward left in that period. The restarted
-    ///      schedule contains the new reward plus that remainder. Raw-unit division remainder is emitted during the
-    ///      first seconds of the new period, so every scheduled USDG unit is represented.
+    /// @dev During an active period, the new reward must be at least the scheduled reward left in that period. As in
+    ///      Synthetix StakingRewards, division by `DURATION` floors and any raw-unit remainder stays as contract surplus.
     function notifyRevenue(uint256 reward) external nonReentrant onlyResonanceRouter updateReward(address(0)) {
         if (reward == 0) revert ZeroAmount();
 
-        address rewardToken = address(usdg);
-        uint256 remaining = left(rewardToken);
+        uint256 remaining = left();
         if (reward < remaining) revert RewardSmallerThanLeft(reward, remaining);
 
-        _pullRewardExact(usdg, reward);
-        _restartRewardPeriod(rewardToken, reward, remaining);
+        usdg.safeTransferFrom(msg.sender, address(this), reward);
+
+        Reward storage data = rewardData;
+        data.rewardRate = (reward + remaining) / DURATION;
+        data.lastUpdateTime = block.timestamp;
+        data.periodFinish = block.timestamp + DURATION;
 
         emit RevenueNotified(msg.sender, reward);
     }
@@ -244,12 +204,11 @@ contract Resonance is ReentrancyGuard, Ownable {
     function distribute(address strategy) public nonReentrant updateReward(strategy) returns (uint256 amount) {
         if (!isStrategy[strategy]) revert StrategyNotFound(strategy);
 
-        address rewardToken = address(usdg);
-        amount = account_Token_Rewards[strategy][rewardToken];
+        amount = strategyRewards[strategy];
         if (amount == 0) return 0;
 
-        account_Token_Rewards[strategy][rewardToken] = 0;
-        _transferRevenueExact(strategy, amount);
+        strategyRewards[strategy] = 0;
+        usdg.safeTransfer(strategy, amount);
 
         emit RevenueDistributed(msg.sender, strategy, amount);
     }
@@ -274,7 +233,7 @@ contract Resonance is ReentrancyGuard, Ownable {
     }
 
     /// @notice Sets the prospective paired-Bribe share for every later Strategy-payment classification.
-    /// @dev Existing Fund and Bribe liabilities, split carry, and active reward streams are never repriced.
+    /// @dev Earlier purchases and active reward streams are never repriced.
     /// @param newBribeBps New global share in basis points, from zero through `MAX_BRIBE_BPS`.
     function setBribeBps(uint256 newBribeBps) external onlyOwner {
         if (newBribeBps > MAX_BRIBE_BPS) revert BribeBpsAboveMaximum(newBribeBps);
@@ -314,8 +273,7 @@ contract Resonance is ReentrancyGuard, Ownable {
         bribeFor[strategyAddress] = bribeAddress;
         bribeRouterFor[strategyAddress] = bribeRouterAddress;
         paymentTokenFor[strategyAddress] = address(paymentToken);
-        account_Token_RewardPerTokenPaid[strategyAddress][address(usdg)] =
-        token_RewardData[address(usdg)].rewardPerTokenStored;
+        strategyRewardPerTokenPaid[strategyAddress] = rewardData.rewardPerTokenStored;
 
         emit StrategyAdded(strategyAddress, bribeAddress, bribeRouterAddress, address(paymentToken));
     }
@@ -347,30 +305,30 @@ contract Resonance is ReentrancyGuard, Ownable {
     }
 
     /// @notice Returns the final timestamp applicable to the active reward period.
-    function lastTimeRewardApplicable(address rewardToken) public view returns (uint256 timestamp) {
-        uint256 finish = token_RewardData[rewardToken].periodFinish;
+    function lastTimeRewardApplicable() public view returns (uint256 timestamp) {
+        uint256 finish = rewardData.periodFinish;
         return block.timestamp < finish ? block.timestamp : finish;
     }
 
     /// @notice Returns cumulative scaled USDG allocated per unit of active SignalGBX.
-    function rewardPerToken(address rewardToken) public view returns (uint256 accumulatedReward) {
-        Reward storage data = token_RewardData[rewardToken];
+    function rewardPerToken() public view returns (uint256 accumulatedReward) {
+        Reward storage data = rewardData;
         accumulatedReward = data.rewardPerTokenStored;
         if (totalSignalWeight == 0) return accumulatedReward;
 
-        uint256 applicable = lastTimeRewardApplicable(rewardToken);
+        uint256 applicable = lastTimeRewardApplicable();
         uint256 lastUpdate = data.lastUpdateTime;
         if (applicable <= lastUpdate) return accumulatedReward;
 
-        uint256 emitted = _emissionBetween(rewardToken, lastUpdate, applicable);
+        uint256 emitted = (applicable - lastUpdate) * data.rewardRate;
         return accumulatedReward + Math.mulDiv(emitted, REWARD_PRECISION, totalSignalWeight);
     }
 
     /// @notice Returns one Strategy's stored plus elapsed USDG reward.
-    function earned(address strategy, address rewardToken) public view returns (uint256 reward) {
-        uint256 delta = rewardPerToken(rewardToken) - account_Token_RewardPerTokenPaid[strategy][rewardToken];
+    function earned(address strategy) public view returns (uint256 reward) {
+        uint256 delta = rewardPerToken() - strategyRewardPerTokenPaid[strategy];
         uint256 activeBalance = isStrategyAlive[strategy] ? strategySignalWeight(strategy) : 0;
-        return account_Token_Rewards[strategy][rewardToken] + Math.mulDiv(activeBalance, delta, REWARD_PRECISION);
+        return strategyRewards[strategy] + Math.mulDiv(activeBalance, delta, REWARD_PRECISION);
     }
 
     /// @notice Returns the SignalGBX one account has assigned to one Strategy.
@@ -395,87 +353,27 @@ contract Resonance is ReentrancyGuard, Ownable {
         return Bribe(bribe).totalSupply();
     }
 
-    /// @notice Returns exact raw reward units left in the active period.
-    function left(address rewardToken) public view returns (uint256 reward) {
-        Reward storage data = token_RewardData[rewardToken];
+    /// @notice Returns whole raw USDG units left at the active period's stored rate.
+    function left() public view returns (uint256 reward) {
+        Reward storage data = rewardData;
         if (block.timestamp >= data.periodFinish) return 0;
-        return _emissionBetween(rewardToken, block.timestamp, data.periodFinish);
+        return (data.periodFinish - block.timestamp) * data.rewardRate;
     }
 
     /// @notice Returns the complete amount represented by the current seven-day schedule.
-    function getRewardForDuration(address rewardToken) external view returns (uint256 reward) {
-        Reward storage data = token_RewardData[rewardToken];
-        if (data.periodFinish == 0) return 0;
-
-        uint256 startedAt = data.periodFinish - DURATION;
-        uint256 remainder = data.remainderFinish - startedAt;
-        return data.rewardRate * DURATION + remainder;
-    }
-
-    /// @notice Returns the permanently single-element reward-token registry.
-    function getRewardTokens() external view returns (address[] memory tokens) {
-        return rewardTokens;
+    function getRewardForDuration() external view returns (uint256 reward) {
+        return rewardData.rewardRate * DURATION;
     }
 
     function _updateReward(address strategy) private {
-        address rewardToken = address(usdg);
-        Reward storage data = token_RewardData[rewardToken];
+        Reward storage data = rewardData;
 
-        data.rewardPerTokenStored = rewardPerToken(rewardToken);
-        data.lastUpdateTime = lastTimeRewardApplicable(rewardToken);
+        data.rewardPerTokenStored = rewardPerToken();
+        data.lastUpdateTime = lastTimeRewardApplicable();
 
         if (strategy != address(0)) {
-            account_Token_Rewards[strategy][rewardToken] = earned(strategy, rewardToken);
-            account_Token_RewardPerTokenPaid[strategy][rewardToken] = data.rewardPerTokenStored;
-        }
-    }
-
-    function _pullRewardExact(IERC20 token, uint256 reward) private {
-        uint256 senderBefore = token.balanceOf(msg.sender);
-        uint256 receiverBefore = token.balanceOf(address(this));
-        token.safeTransferFrom(msg.sender, address(this), reward);
-        uint256 senderDebit = senderBefore - token.balanceOf(msg.sender);
-        uint256 receiverCredit = token.balanceOf(address(this)) - receiverBefore;
-        if (senderDebit != reward || receiverCredit != reward) {
-            revert InexactRevenueTransfer(reward, senderDebit, receiverCredit);
-        }
-    }
-
-    function _transferRevenueExact(address receiver, uint256 amount) private {
-        uint256 senderBefore = usdg.balanceOf(address(this));
-        uint256 receiverBefore = usdg.balanceOf(receiver);
-        usdg.safeTransfer(receiver, amount);
-        uint256 senderDebit = senderBefore - usdg.balanceOf(address(this));
-        uint256 receiverCredit = usdg.balanceOf(receiver) - receiverBefore;
-        if (senderDebit != amount || receiverCredit != amount) {
-            revert InexactRevenuePayout(receiver, amount, senderDebit, receiverCredit);
-        }
-    }
-
-    function _restartRewardPeriod(address rewardToken, uint256 reward, uint256 remaining) private {
-        uint256 scheduled = reward + remaining;
-        uint256 rate = scheduled / DURATION;
-        uint256 rateRemainder = scheduled % DURATION;
-        uint256 startedAt = block.timestamp;
-
-        Reward storage data = token_RewardData[rewardToken];
-        data.rewardRate = rate;
-        data.lastUpdateTime = startedAt;
-        data.periodFinish = startedAt + DURATION;
-        data.remainderFinish = startedAt + rateRemainder;
-    }
-
-    /// @notice Returns exact raw reward units emitted over `[from, to)`.
-    function _emissionBetween(address rewardToken, uint256 from, uint256 to) private view returns (uint256 amount) {
-        if (to <= from) return 0;
-
-        Reward storage data = token_RewardData[rewardToken];
-        amount = (to - from) * data.rewardRate;
-
-        uint256 remainderFinish = data.remainderFinish;
-        if (from < remainderFinish) {
-            uint256 remainderEnd = to < remainderFinish ? to : remainderFinish;
-            amount += remainderEnd - from;
+            strategyRewards[strategy] = earned(strategy);
+            strategyRewardPerTokenPaid[strategy] = data.rewardPerTokenStored;
         }
     }
 }

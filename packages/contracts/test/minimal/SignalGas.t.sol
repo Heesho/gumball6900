@@ -41,41 +41,79 @@ contract SignalGasTest is ProtocolFixture {
     function test_MaximumRewardTokenGasStaysFarBelowABlock() external {
         uint256 addGas = _measureMaximumAdd();
         uint256 removeGas = _measureMaximumRemove();
-        uint256 scalarClaimGas = _measureMaximumSelectiveClaim(false);
-        uint256 selectiveClaimGas = _measureMaximumSelectiveClaim(true);
+        uint256 scalarClaimGas = _measureMaximumScalarClaims(false);
+        uint256 allScalarClaimsGas = _measureMaximumScalarClaims(true);
         uint256 claimGas = _measureMaximumClaim();
         uint256 buyGas = _measureMaximumBuy();
 
         console.log("addSignal gas at MAX_REWARD_TOKENS", addGas);
         console.log("withdrawSignal gas at MAX_REWARD_TOKENS", removeGas);
         console.log("claimReward gas with MAX_REWARD_TOKENS registered", scalarClaimGas);
-        console.log("selective eight-token claim gas", selectiveClaimGas);
+        console.log("sequential scalar claimReward gas at MAX_REWARD_TOKENS", allScalarClaimsGas);
         console.log("claimRewards gas at MAX_REWARD_TOKENS", claimGas);
         console.log("Strategy.buy gas at MAX_REWARD_TOKENS", buyGas);
 
         assertLt(addGas, 3_000_000, "entry must retain at least 10x headroom under a 30M block");
         assertLt(removeGas, 3_000_000, "removal must retain at least 10x headroom under a 30M block");
         assertLt(scalarClaimGas, 3_000_000, "scalar claims must retain at least 10x headroom under a 30M block");
-        assertLt(selectiveClaimGas, 3_000_000, "selective claims must retain at least 10x headroom under a 30M block");
+        assertLt(
+            allScalarClaimsGas,
+            3_000_000,
+            "sequential scalar claims must retain at least 10x headroom under a 30M block"
+        );
         assertLt(claimGas, 3_000_000, "claiming must retain at least 10x headroom under a 30M block");
         assertLt(buyGas, 3_000_000, "settlement must retain at least 10x headroom under a 30M block");
     }
 
-    function test_FixedLiabilityAndGovernanceGasIsRecorded() external {
+    function test_ComposedMoveAtMaximumRewardTokensOnBothBribesStaysFarBelowABlock() external {
+        _deployProtocol();
+        _signalDefault(ALICE, 100 ether);
+        _signalDefault(BOB, 100 ether);
+        _signalOne(BOB, address(gbxStrategy));
+
+        _addRewardTokens(address(targetStrategy), targetBribe.MAX_REWARD_TOKENS() - 1);
+        _addRewardTokens(address(gbxStrategy), gbxBribe.MAX_REWARD_TOKENS() - 1);
+        assertEq(targetBribe.rewardTokens().length, targetBribe.MAX_REWARD_TOKENS());
+        assertEq(gbxBribe.rewardTokens().length, gbxBribe.MAX_REWARD_TOKENS());
+
+        _startEveryRewardStream(targetBribe);
+        _startEveryRewardStream(gbxBribe);
+        vm.warp(block.timestamp + 1 days);
+
+        uint256 receiptSupplyBefore = signalGBX.totalSupply();
+        uint256 aliceVotesBefore = signalGBX.getVotes(ALICE);
+        vm.startPrank(ALICE);
+        uint256 gasBefore = gasleft();
+        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 100 ether);
+        uint256 moveGas = gasBefore - gasleft();
+        vm.stopPrank();
+
+        console.log("composed move gas with MAX_REWARD_TOKENS on both Bribes", moveGas);
+        assertLt(moveGas, 3_000_000, "composed move must retain at least 10x headroom under a 30M block");
+        assertEq(targetBribe.balanceOf(ALICE), 0);
+        assertEq(gbxBribe.balanceOf(ALICE), 100 ether);
+        assertEq(resonance.strategySignalWeight(address(targetStrategy)), 0);
+        assertEq(resonance.strategySignalWeight(address(gbxStrategy)), 200 ether);
+        assertEq(resonance.totalSignalWeight(), 200 ether);
+        assertEq(signalGBX.totalSupply(), receiptSupplyBefore);
+        assertEq(signalGBX.getVotes(ALICE), aliceVotesBefore);
+    }
+
+    function test_BufferDistributionAndGovernanceGasIsRecorded() external {
         _deployProtocol();
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 2);
 
-        MockERC20 eighth = new MockERC20("Eighth Reward", "EIGHT", 18);
+        MockERC20 sixteenth = new MockERC20("Sixteenth Reward", "SIXTEENTH", 18);
         uint256 gasBefore = gasleft();
-        resonance.addBribeReward(address(targetStrategy), address(eighth));
-        uint256 addEighthGas = gasBefore - gasleft();
+        resonance.addBribeReward(address(targetStrategy), address(sixteenth));
+        uint256 addSixteenthGas = gasBefore - gasleft();
 
-        MockERC20 ninth = new MockERC20("Ninth Reward", "NINTH", 18);
+        MockERC20 seventeenth = new MockERC20("Seventeenth Reward", "SEVENTEENTH", 18);
         gasBefore = gasleft();
-        (bool ninthSucceeded,) =
-            address(resonance).call(abi.encodeCall(resonance.addBribeReward, (address(targetStrategy), address(ninth))));
-        uint256 rejectNinthGas = gasBefore - gasleft();
-        assertFalse(ninthSucceeded);
+        (bool seventeenthSucceeded,) = address(resonance)
+            .call(abi.encodeCall(resonance.addBribeReward, (address(targetStrategy), address(seventeenth))));
+        uint256 rejectSeventeenthGas = gasBefore - gasleft();
+        assertFalse(seventeenthSucceeded);
 
         usdg.mint(address(targetStrategy), 100_000_000);
         uint256 price = targetStrategy.currentPrice();
@@ -87,16 +125,16 @@ contract SignalGasTest is ProtocolFixture {
 
         BribeRouter router = targetRouter;
         gasBefore = gasleft();
-        router.payFundPayment();
-        uint256 fundPayoutGas = gasBefore - gasleft();
+        router.distribute();
+        uint256 bufferDistributionGas = gasBefore - gasleft();
 
         gasBefore = gasleft();
         resonance.killStrategy(address(targetStrategy));
         uint256 killGas = gasBefore - gasleft();
 
-        console.log("addBribeReward token eight gas", addEighthGas);
-        console.log("rejected token nine gas", rejectNinthGas);
-        console.log("Fund-bound reward payout gas", fundPayoutGas);
+        console.log("addBribeReward token sixteen gas", addSixteenthGas);
+        console.log("rejected token seventeen gas", rejectSeventeenthGas);
+        console.log("buffered Bribe distribution gas", bufferDistributionGas);
         console.log("killStrategy gas", killGas);
     }
 
@@ -150,7 +188,7 @@ contract SignalGasTest is ProtocolFixture {
         vm.stopPrank();
     }
 
-    function _measureMaximumSelectiveClaim(bool allTokens) private returns (uint256 gasUsed) {
+    function _measureMaximumScalarClaims(bool allTokens) private returns (uint256 gasUsed) {
         _deployProtocol();
         _addRewardTokens(targetBribe.MAX_REWARD_TOKENS() - 1);
         _signalDefault(ALICE, 100 ether);
@@ -160,7 +198,9 @@ contract SignalGasTest is ProtocolFixture {
         address[] memory tokens = targetBribe.rewardTokens();
         uint256 gasBefore = gasleft();
         if (allTokens) {
-            targetBribe.claimRewards(ALICE, tokens);
+            for (uint256 i; i < tokens.length; ++i) {
+                targetBribe.claimReward(ALICE, tokens[i]);
+            }
         } else {
             targetBribe.claimReward(ALICE, tokens[0]);
         }
@@ -196,19 +236,31 @@ contract SignalGasTest is ProtocolFixture {
     }
 
     function _addRewardTokens(uint256 count) private {
+        _addRewardTokens(address(targetStrategy), count);
+    }
+
+    function _addRewardTokens(address strategy, uint256 count) private {
         for (uint256 i; i < count; ++i) {
             MockERC20 extra = new MockERC20("Extra Reward", "XTRA", 18);
-            resonance.addBribeReward(address(targetStrategy), address(extra));
+            resonance.addBribeReward(strategy, address(extra));
         }
     }
 
     function _startEveryRewardStream() private {
-        address[] memory tokens = targetBribe.rewardTokens();
+        _startEveryRewardStream(targetBribe);
+    }
+
+    function _startEveryRewardStream(Bribe bribe) private {
+        address[] memory tokens = bribe.rewardTokens();
         for (uint256 i; i < tokens.length; ++i) {
             MockERC20 token = MockERC20(tokens[i]);
-            token.mint(address(this), STREAM_AMOUNT);
-            token.approve(address(targetBribe), STREAM_AMOUNT);
-            targetBribe.notifyRewardAmount(address(token), STREAM_AMOUNT);
+            if (address(token) == address(gbx)) {
+                _mintTestGBX(address(this), STREAM_AMOUNT);
+            } else {
+                token.mint(address(this), STREAM_AMOUNT);
+            }
+            token.approve(address(bribe), STREAM_AMOUNT);
+            bribe.notifyRewardAmount(address(token), STREAM_AMOUNT);
         }
     }
 }

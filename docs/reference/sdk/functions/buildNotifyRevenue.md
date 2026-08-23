@@ -8,7 +8,7 @@
 
 > **buildNotifyRevenue**(`resonance`, `reward`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Encodes the Router-only notification that restarts Resonance with `reward + left`.
+Encodes the Router-only notification that restarts Resonance with ordinary Synthetix leftover rollover.
 
 ## Parameters
 

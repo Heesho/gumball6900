@@ -77,20 +77,16 @@ def classify_strategy_payments(
 
     fund = 0
     bribe = 0
-    remainder = 0
     for payment, rate in zip(payments, rates, strict=True):
-        base_bribe, raw_remainder = divmod(payment * rate, BPS)
-        carry, remainder = divmod(remainder + raw_remainder, BPS)
-        bribe_amount = base_bribe + carry
+        bribe_amount = payment * rate // BPS
         fund += payment - bribe_amount
         bribe += bribe_amount
     return {
         "payments": payments,
         "bribeBps": rates,
         "totalPayment": sum(payments),
-        "fundLiability": fund,
-        "bribeLiability": bribe,
-        "splitRemainder": remainder,
+        "fundAmount": fund,
+        "bribeAmount": bribe,
     }
 
 
@@ -163,7 +159,7 @@ def compute() -> dict[str, object]:
     fund_usdg = 50_000_000 * 10**6
     redeem = 1_000_000 * WAD
     return {
-        "schemaVersion": 13,
+        "schemaVersion": 14,
         "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
         "assumptions": {
             "genesisLiquidityAllocationGBXRaw": GENESIS,
@@ -286,14 +282,14 @@ def compute() -> dict[str, object]:
                 }
                 for elapsed in (0, 21_600, 43_200, 64_800, 86_400)
             ],
-            "cumulativeSplitIsFrequencyIndependent": True,
+            "perPurchaseSplitCanDependOnPartitioning": True,
             "tenOneUnitPayments": classify_strategy_payments([1] * 10),
             "oneCombinedPayment": classify_strategy_payments([10]),
             "rateChangeSequence": classify_strategy_payments(
                 [7, 13, 19, 23], [1_000, 0, 500, 2_000]
             ),
             "zeroPercentPayments": classify_strategy_payments([1, 7, 1_000_000], 0),
-            "directRouterDonationSurplus": 7,
+            "directRouterDonation": 7,
         },
         "supply": {
             "identity": "totalSupply = lifetimeMinted - lifetimeBurned",

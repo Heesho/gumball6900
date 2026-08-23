@@ -63,10 +63,9 @@ export const currentPages = [
                 dependencies, legal provenance, and a signed deployment manifest remain unresolved.
               </p>
               <p style="color:${palette.onDeepMuted}">
-                This edition describes the uncommitted development tree implementing ADRs 0031 and 0033-0045. Its full
-                deterministic current-tree matrix passed locally on 22 August 2026, but there is no commit-pinned review
-                candidate. External governance remains unselected. A local green build is engineering evidence, never a
-                safety, audit, or release claim.
+                This edition describes the uncommitted development tree implementing ADRs 0031 and 0033-0047. There is
+                no commit-pinned review candidate. External governance remains unselected. A local green build is
+                engineering evidence, never a safety, audit, or release claim.
               </p>
             </div>
             <div class="col-side">
@@ -287,7 +286,7 @@ export const currentPages = [
             yesItems: [
               'Add a Strategy',
               'Permanently kill a Strategy',
-              'Register a Bribe reward token, up to eight',
+              'Register a Bribe reward token, up to sixteen',
               'Set the global prospective Bribe share, 0%-20%',
             ],
             noHead: 'Absent powers',

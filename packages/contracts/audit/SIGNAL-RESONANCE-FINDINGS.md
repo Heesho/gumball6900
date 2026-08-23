@@ -1,5 +1,12 @@
 # Signal and Resonance findings
 
+> **Pre-ADR-0047 historical finding ledger.** The findings, patches, regression names, validation counts, and summary
+> below describe the earlier exact-carry, queue/pause, deferred-liability, selected-batch, exact-delta, and
+> weighted-split graph. ADR 0047 replaced those mechanics with scalar Synthetix scheduling, per-purchase Strategy
+> splitting, direct Fund payment, and a Bribe-only Router. This ledger is preserved for traceability and is not current
+> implementation or test evidence; current residuals are recorded in `SIGNAL-RESONANCE-RESIDUAL-RISKS.md` and
+> `RESIDUAL-RISKS.md`.
+
 Entries SR-001 through SR-007 reflect the local tree on 2026-08-16. SR-008 and SR-009 were added on 2026-08-19;
 SR-010 and the SR-002 settlement disposition were reconciled for ADRs 0036 and 0037 on 2026-08-21. “Fixed” means locally patched and
 regression-tested, not independently verified or deployed.

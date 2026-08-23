@@ -1,6 +1,7 @@
 # ADR 0027: Fix Bribe carry before signal-supply boundaries
 
-- Status: accepted for development; not approved for deployment or user funds
+- Status: superseded by ADR 0047; retained as historical exact-carry analysis; never approved for deployment or user
+  funds; its eight-token loop references are further superseded by ADR 0048's sixteen-token bound
 - Date: 2026-08-13
 - Builds on: ADR 0020's Bribe exact-reward accounting
 - Historical comparison: ADR 0026's Resonance carry policy, superseded by ADR 0029

@@ -212,20 +212,11 @@ export function buildClaimBribeReward(bribe: Address, account: Address, rewardTo
   );
 }
 
-/** Claims a unique caller-selected set of registered Bribe tokens for a fixed entitled account. */
-export function buildClaimSelectedBribeRewards(
-  bribe: Address,
-  account: Address,
-  rewardTokens: readonly Address[],
-): ContractTransaction {
-  if (rewardTokens.length === 0) throw new RangeError('rewardTokens cannot be empty');
+/** Claims every registered Bribe token for a fixed entitled account. */
+export function buildClaimAllBribeRewards(bribe: Address, account: Address): ContractTransaction {
   return transaction(
     bribe,
-    encodeFunctionData({
-      abi: bribeAbi,
-      functionName: 'claimRewards',
-      args: [getAddress(account), uniqueAddresses(rewardTokens, 'rewardTokens')],
-    }),
+    encodeFunctionData({ abi: bribeAbi, functionName: 'claimRewards', args: [getAddress(account)] }),
   );
 }
 
@@ -242,7 +233,7 @@ export function buildDistributeRevenue(resonance: Address, strategy: Address): C
   );
 }
 
-/** Encodes the Router-only notification that restarts Resonance with `reward + left`. */
+/** Encodes the Router-only notification that restarts Resonance with ordinary Synthetix leftover rollover. */
 export function buildNotifyRevenue(resonance: Address, reward: bigint): ContractTransaction {
   positiveUint256(reward, 'reward');
   return transaction(
@@ -251,22 +242,9 @@ export function buildNotifyRevenue(resonance: Address, reward: bigint): Contract
   );
 }
 
-/** Pays a BribeRouter's complete fixed Fund payment-token liability. */
-export function buildPayRouterFundPayment(bribeRouter: Address): ContractTransaction {
-  return transaction(bribeRouter, encodeFunctionData({ abi: bribeRouterAbi, functionName: 'payFundPayment' }));
-}
-
-/** Notifies a BribeRouter's complete fixed paired-Bribe payment-token liability. */
-export function buildNotifyRouterBribeReward(bribeRouter: Address): ContractTransaction {
-  return transaction(bribeRouter, encodeFunctionData({ abi: bribeRouterAbi, functionName: 'notifyBribeReward' }));
-}
-
-/** Retries one Bribe token's complete fixed Fund rounding liability. */
-export function buildPayBribeFundReward(bribe: Address, rewardToken: Address): ContractTransaction {
-  return transaction(
-    bribe,
-    encodeFunctionData({ abi: bribeAbi, functionName: 'payFundReward', args: [getAddress(rewardToken)] }),
-  );
+/** Attempts to notify a paired Bribe with the Router's complete buffered payment-token balance. */
+export function buildDistributeBribeRewards(bribeRouter: Address): ContractTransaction {
+  return transaction(bribeRouter, encodeFunctionData({ abi: bribeRouterAbi, functionName: 'distribute' }));
 }
 
 /** Parameters required to fill a Strategy at a caller-defined price and time bound. */

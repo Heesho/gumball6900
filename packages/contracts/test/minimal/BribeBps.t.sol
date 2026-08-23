@@ -6,6 +6,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { BribeRouter } from "../../src/core/BribeRouter.sol";
 import { Resonance } from "../../src/core/Resonance.sol";
+import { Strategy } from "../../src/core/Strategy.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 import { MockERC20 } from "./utils/Tokens.sol";
 
@@ -13,7 +14,7 @@ interface IBribeBpsCallbackGovernor {
     function setBribeBpsFromPaymentToken(uint256 newBribeBps) external;
 }
 
-/// @notice Payment token that can ask the temporary governance harness to change policy during one transfer.
+/// @notice Standard ERC-20 test token that can ask the governance harness to change policy during one transfer.
 contract BribeBpsCallbackToken is MockERC20 {
     IBribeBpsCallbackGovernor public callbackGovernor;
     address public callbackReceiver;
@@ -55,7 +56,7 @@ contract BribeBpsCallbackGovernor is IBribeBpsCallbackGovernor {
 }
 
 /// @title Governed global Bribe-share transition tests
-/// @notice Proves prospective classification, exact carry, reward continuity, and signal exits across 0%-20% policy.
+/// @notice Proves prospective, per-purchase floored Strategy splitting across the bounded global policy range.
 contract BribeBpsTransitionTest is ProtocolFixture {
     event BribeBpsSet(uint256 previousBps, uint256 newBps);
 
@@ -91,85 +92,79 @@ contract BribeBpsTransitionTest is ProtocolFixture {
     function test_FourCompletedAuctionsUseTenZeroFiveAndTwentyPercentProspectively() external {
         uint256 firstPayment = _fillTargetAuction(ALICE);
         assertEq(firstPayment, 10 ether);
-        _assertTargetLiabilities(9 ether, 1 ether, firstPayment);
+        _assertTargetBalances(9 ether, 1 ether);
 
         resonance.setBribeBps(0);
         uint256 secondPayment = _fillTargetAuction(BOB);
         assertEq(secondPayment, 15 ether);
-        _assertTargetLiabilities(24 ether, 1 ether, firstPayment + secondPayment);
+        _assertTargetBalances(24 ether, 1 ether);
 
         resonance.setBribeBps(500);
         uint256 thirdPayment = _fillTargetAuction(CAROL);
         assertEq(thirdPayment, 22.5 ether);
-        _assertTargetLiabilities(45.375 ether, 2.125 ether, firstPayment + secondPayment + thirdPayment);
+        _assertTargetBalances(45.375 ether, 2.125 ether);
 
         resonance.setBribeBps(2_000);
         uint256 fourthPayment = _fillTargetAuction(DAVE);
         assertEq(fourthPayment, 33.75 ether);
-        _assertTargetLiabilities(72.375 ether, 8.875 ether, firstPayment + secondPayment + thirdPayment + fourthPayment);
-        assertEq(targetRouter.splitRemainder(), 0);
+        _assertTargetBalances(72.375 ether, 8.875 ether);
 
         resonance.setBribeBps(0);
-        _assertTargetLiabilities(72.375 ether, 8.875 ether, firstPayment + secondPayment + thirdPayment + fourthPayment);
-        assertEq(targetRouter.payFundPayment(), 72.375 ether);
-        assertEq(targetRouter.notifyBribeReward(), 8.875 ether);
+        assertEq(targetRouter.distribute(), 8.875 ether);
         assertEq(target.balanceOf(address(fund)), 72.375 ether);
+        assertEq(target.balanceOf(address(targetRouter)), 0);
         assertEq(target.balanceOf(address(targetBribe)), 8.875 ether);
     }
 
-    function test_WeightedSplitRemainderSurvivesTenZeroFiveAndTwentyPercentTransitions() external {
-        _routeTargetPayment(7);
-        _assertTargetLiabilities(7, 0, 7);
-        assertEq(targetRouter.splitRemainder(), 7_000);
+    function test_EachPurchaseFloorsItsOwnBribeShareWithoutCarry() external {
+        Strategy.Config memory config = Strategy.Config({
+            initialPrice: 1_000_009, epochDuration: 1 days, priceMultiplier: 1.1e18, minimumPrice: 1e6
+        });
+        (address strategyAddress,, address routerAddress) = resonance.addStrategy(IERC20(address(target)), config);
+        Strategy strategy = Strategy(strategyAddress);
 
-        resonance.setBribeBps(0);
-        _routeTargetPayment(3);
-        _assertTargetLiabilities(10, 0, 10);
-        assertEq(targetRouter.splitRemainder(), 7_000, "zero policy preserves existing sub-token carry");
+        uint256 fundBefore = target.balanceOf(address(fund));
+        usdg.mint(strategyAddress, 1);
+        uint256 firstPayment = _buyTarget(ALICE, strategy, target);
+        usdg.mint(strategyAddress, 1);
+        uint256 secondPayment = _buyTarget(BOB, strategy, target);
 
-        resonance.setBribeBps(500);
-        _routeTargetPayment(4);
-        _assertTargetLiabilities(14, 0, 14);
-        assertEq(targetRouter.splitRemainder(), 9_000);
-
-        resonance.setBribeBps(2_000);
-        _routeTargetPayment(1);
-        _assertTargetLiabilities(14, 1, 15);
-        assertEq(targetRouter.splitRemainder(), 1_000);
+        assertEq(firstPayment, 1_000_009);
+        assertEq(secondPayment, 1_100_009);
+        uint256 perPurchaseBribe = firstPayment / 10 + secondPayment / 10;
+        assertEq(perPurchaseBribe, 210_000);
+        assertEq((firstPayment + secondPayment) / 10, perPurchaseBribe + 1, "no fractional carry crosses purchases");
+        assertEq(target.balanceOf(routerAddress), perPurchaseBribe);
+        assertEq(target.balanceOf(address(fund)) - fundBefore, firstPayment + secondPayment - perPurchaseBribe);
     }
 
-    function test_ChangingPolicyCannotRepriceOldLiabilitiesOrInterruptTheirRewardStream() external {
+    function test_ChangingPolicyCannotRepriceAnOldBufferedShareOrInterruptItsStream() external {
         _signalDefault(ALICE, 100 ether);
-        _routeTargetPayment(70 ether);
-        _assertTargetLiabilities(63 ether, 7 ether, 70 ether);
+        uint256 firstPayment = _fillTargetAuction(BOB);
+        assertEq(firstPayment, 10 ether);
+        _assertTargetBalances(9 ether, 1 ether);
 
         resonance.setBribeBps(0);
-        _assertTargetLiabilities(63 ether, 7 ether, 70 ether);
-        assertEq(targetRouter.notifyBribeReward(), 7 ether, "the pre-change Bribe liability stays payable");
-        assertEq(targetBribe.scheduledRewards(address(target)), 7 ether);
-        assertEq(targetBribe.lifetimeRewardNotified(address(target)), 7 ether);
+        uint256 secondPayment = _fillTargetAuction(CAROL);
+        assertEq(secondPayment, 15 ether);
+        _assertTargetBalances(24 ether, 1 ether);
 
-        _routeTargetPayment(70 ether);
-        _assertTargetLiabilities(133 ether, 0, 133 ether);
-        assertEq(targetRouter.notifyBribeReward(), 0, "zero-share settlement is an idempotent no-op");
-        assertEq(targetBribe.scheduledRewards(address(target)), 7 ether);
+        assertEq(targetRouter.distribute(), 1 ether, "the pre-change buffered share stays distributable");
+        assertEq(targetBribe.lifetimeRewardNotified(address(target)), 1 ether);
 
         vm.warp(block.timestamp + 1 days);
-        uint256 releasedAfterOneDay = 7 ether - targetBribe.left(address(target));
+        uint256 releasedAfterOneDay = 1 days * (uint256(1 ether) / targetBribe.REWARD_DURATION());
         assertEq(targetBribe.earned(ALICE, address(target)), releasedAfterOneDay);
+
         resonance.setBribeBps(500);
         resonance.setBribeBps(2_000);
-        assertEq(
-            targetBribe.earned(ALICE, address(target)),
-            releasedAfterOneDay,
-            "policy changes do not checkpoint or reprice"
-        );
+        assertEq(targetBribe.earned(ALICE, address(target)), releasedAfterOneDay, "policy changes do not checkpoint");
 
         vm.warp(block.timestamp + 6 days);
-        assertEq(targetBribe.claimReward(ALICE, address(target)), 7 ether);
-        assertEq(target.balanceOf(ALICE), 7 ether);
-        assertEq(targetRouter.payFundPayment(), 133 ether);
-        assertEq(target.balanceOf(address(fund)), 133 ether);
+        uint256 scheduled = targetBribe.REWARD_DURATION() * (uint256(1 ether) / targetBribe.REWARD_DURATION());
+        assertEq(targetBribe.claimReward(ALICE, address(target)), scheduled);
+        assertEq(target.balanceOf(ALICE), scheduled);
+        assertEq(target.balanceOf(address(fund)), 24 ether);
     }
 
     function test_ZeroShareDoesNotBrickSignalMoveOrWithdrawal() external {
@@ -223,9 +218,10 @@ contract BribeBpsTransitionTest is ProtocolFixture {
         _signalDefault(ALICE, 100 ether);
         resonance.addBribeReward(address(targetStrategy), address(secondAsset));
 
-        _routeTargetPayment(10 ether);
-        assertEq(targetRouter.bribePaymentLiability(), 0);
-        assertEq(targetRouter.notifyBribeReward(), 0);
+        uint256 payment = _fillTargetAuction(BOB);
+        assertEq(target.balanceOf(address(fund)), payment);
+        assertEq(target.balanceOf(address(targetRouter)), 0);
+        assertEq(targetRouter.distribute(), 0);
 
         secondAsset.mint(DAVE, 7 ether);
         vm.startPrank(DAVE);
@@ -233,56 +229,53 @@ contract BribeBpsTransitionTest is ProtocolFixture {
         targetBribe.notifyRewardAmount(address(secondAsset), 7 ether);
         vm.stopPrank();
 
-        assertEq(targetBribe.scheduledRewards(address(secondAsset)), 7 ether);
         vm.warp(block.timestamp + targetBribe.REWARD_DURATION());
-        assertEq(targetBribe.claimReward(ALICE, address(secondAsset)), 7 ether);
-        assertEq(secondAsset.balanceOf(ALICE), 7 ether);
+        uint256 scheduled = targetBribe.REWARD_DURATION() * (uint256(7 ether) / targetBribe.REWARD_DURATION());
+        assertEq(targetBribe.claimReward(ALICE, address(secondAsset)), scheduled);
+        assertEq(secondAsset.balanceOf(ALICE), scheduled);
     }
 
     function test_PaymentTokenCallbackCannotRetroactivelyChangeTheCurrentPaymentsSnapshot() external {
         BribeBpsCallbackToken callbackToken = new BribeBpsCallbackToken();
         (address strategyAddress,, address routerAddress) =
             resonance.addStrategy(IERC20(address(callbackToken)), defaultConfig());
-        BribeRouter callbackRouter = BribeRouter(routerAddress);
+        Strategy callbackStrategy = Strategy(strategyAddress);
 
         BribeBpsCallbackGovernor callbackGovernor = new BribeBpsCallbackGovernor(resonance, address(callbackToken));
         resonance.transferOwnership(address(callbackGovernor));
-        callbackToken.armCallback(callbackGovernor, routerAddress, 2_000);
+        callbackToken.armCallback(callbackGovernor, strategyAddress, 2_000);
 
-        _routeCallbackPayment(callbackToken, strategyAddress, callbackRouter, 10 ether);
+        uint256 firstPayment = _buyCallbackPayment(callbackToken, callbackStrategy, ALICE);
+        assertEq(firstPayment, 10 ether);
         assertEq(resonance.bribeBps(), 2_000, "the callback changes policy for later payments");
-        assertEq(callbackRouter.fundPaymentLiability(), 9 ether);
-        assertEq(callbackRouter.bribePaymentLiability(), 1 ether, "the in-flight payment retains its entry snapshot");
+        assertEq(callbackToken.balanceOf(address(fund)), 9 ether);
+        assertEq(callbackToken.balanceOf(routerAddress), 1 ether, "the in-flight payment retains its entry snapshot");
 
-        _routeCallbackPayment(callbackToken, strategyAddress, callbackRouter, 10 ether);
-        assertEq(callbackRouter.fundPaymentLiability(), 17 ether);
-        assertEq(callbackRouter.bribePaymentLiability(), 3 ether, "the next payment observes the new policy");
+        uint256 secondPayment = _buyCallbackPayment(callbackToken, callbackStrategy, BOB);
+        assertEq(secondPayment, 15 ether);
+        assertEq(callbackToken.balanceOf(address(fund)), 21 ether);
+        assertEq(callbackToken.balanceOf(routerAddress), 4 ether, "the next payment observes the new policy");
     }
 
-    function testFuzz_ArbitraryRateTransitionsMatchTheWeightedNumeratorModel(
-        uint256[4] calldata rawAmounts,
-        uint16[4] calldata rawRates
-    ) external {
-        uint256 expectedBribe;
-        uint256 expectedRemainder;
-        uint256 totalRouted;
+    function testFuzz_OnePurchaseUsesTheCurrentRateAndFloorsItsShare(uint96 rawPrice, uint16 rawRate) external {
+        uint256 price = bound(uint256(rawPrice), 1e6, 1e30);
+        uint256 rate = bound(uint256(rawRate), 0, resonance.MAX_BRIBE_BPS());
+        resonance.setBribeBps(rate);
 
-        for (uint256 i; i < rawAmounts.length; ++i) {
-            uint256 amount = bound(rawAmounts[i], 1, 1e30);
-            uint256 rate = bound(uint256(rawRates[i]), 0, resonance.MAX_BRIBE_BPS());
-            resonance.setBribeBps(rate);
-            _routeTargetPayment(amount);
+        Strategy.Config memory config =
+            Strategy.Config({ initialPrice: price, epochDuration: 1 days, priceMultiplier: 1.1e18, minimumPrice: 1e6 });
+        (address strategyAddress,, address routerAddress) = resonance.addStrategy(IERC20(address(target)), config);
+        Strategy strategy = Strategy(strategyAddress);
 
-            uint256 weightedNumerator = expectedRemainder + amount * rate;
-            expectedBribe += weightedNumerator / resonance.BPS();
-            expectedRemainder = weightedNumerator % resonance.BPS();
-            totalRouted += amount;
+        uint256 fundBefore = target.balanceOf(address(fund));
+        usdg.mint(strategyAddress, 1);
+        uint256 paid = _buyTarget(ALICE, strategy, target);
+        uint256 expectedBribe = (price * rate) / resonance.BPS();
 
-            assertEq(targetRouter.bribePaymentLiability(), expectedBribe);
-            assertEq(targetRouter.fundPaymentLiability(), totalRouted - expectedBribe);
-            assertEq(targetRouter.splitRemainder(), expectedRemainder);
-            assertEq(targetRouter.accountedPaymentBalance(), totalRouted);
-        }
+        assertEq(paid, price);
+        assertEq(target.balanceOf(routerAddress), expectedBribe);
+        assertEq(target.balanceOf(address(fund)) - fundBefore, price - expectedBribe);
+        assertEq(target.balanceOf(strategyAddress), 0);
     }
 
     function _fillTargetAuction(address buyer) private returns (uint256 payment) {
@@ -290,31 +283,23 @@ contract BribeBpsTransitionTest is ProtocolFixture {
         payment = _buyTarget(buyer, targetStrategy, target);
     }
 
-    function _routeTargetPayment(uint256 amount) private {
-        target.mint(address(targetStrategy), amount);
-        vm.startPrank(address(targetStrategy));
-        target.approve(address(targetRouter), amount);
-        targetRouter.routePayment(amount);
+    function _buyCallbackPayment(BribeBpsCallbackToken token, Strategy strategy, address buyer)
+        private
+        returns (uint256 paid)
+    {
+        usdg.mint(address(strategy), 1);
+        uint256 price = strategy.currentPrice();
+        token.mint(buyer, price);
+
+        vm.startPrank(buyer);
+        token.approve(address(strategy), price);
+        paid = strategy.buy(buyer, strategy.epochId(), block.timestamp, price);
         vm.stopPrank();
     }
 
-    function _routeCallbackPayment(
-        BribeBpsCallbackToken callbackToken,
-        address strategyAddress,
-        BribeRouter callbackRouter,
-        uint256 amount
-    ) private {
-        callbackToken.mint(strategyAddress, amount);
-        vm.startPrank(strategyAddress);
-        callbackToken.approve(address(callbackRouter), amount);
-        callbackRouter.routePayment(amount);
-        vm.stopPrank();
-    }
-
-    function _assertTargetLiabilities(uint256 expectedFund, uint256 expectedBribe, uint256 expectedTotal) private view {
-        assertEq(targetRouter.fundPaymentLiability(), expectedFund);
-        assertEq(targetRouter.bribePaymentLiability(), expectedBribe);
-        assertEq(targetRouter.accountedPaymentBalance(), expectedTotal);
-        assertEq(expectedFund + expectedBribe, expectedTotal);
+    function _assertTargetBalances(uint256 expectedFund, uint256 expectedBufferedBribe) private view {
+        assertEq(target.balanceOf(address(fund)), expectedFund);
+        assertEq(target.balanceOf(address(targetRouter)), expectedBufferedBribe);
+        assertEq(target.balanceOf(address(targetStrategy)), 0);
     }
 }

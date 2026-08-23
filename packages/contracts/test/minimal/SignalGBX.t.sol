@@ -28,12 +28,6 @@ contract SignalResonanceHarness {
         require(msg.sender == signalGBX, "SIGNAL_GBX_ONLY");
         accountSignals[account][strategy] -= amount;
     }
-
-    function moveSignalFor(address account, address fromStrategy, address toStrategy, uint256 amount) external {
-        require(msg.sender == signalGBX, "SIGNAL_GBX_ONLY");
-        accountSignals[account][fromStrategy] -= amount;
-        accountSignals[account][toStrategy] += amount;
-    }
 }
 
 contract RevertingSignalResonanceIdentity {
@@ -208,7 +202,7 @@ contract SignalGBXTest is ProtocolFixture {
         signalGBX.transfer(ALICE, 0);
     }
 
-    function test_MoveSignalPreservesCustodySupplyVotesAndAggregateSignal() external {
+    function test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal() external {
         _signalDefault(ALICE, 100 ether);
 
         vm.prank(ALICE);
@@ -223,6 +217,39 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(gbx.balanceOf(address(signalGBX)), 100 ether);
         assertEq(signalGBX.getVotes(ALICE), 100 ether);
         assertEq(resonance.totalSignalWeight(), 100 ether);
+    }
+
+    function test_MoveSignalRejectsZeroSameStrategyAndInsufficientSource() external {
+        _signalDefault(ALICE, 100 ether);
+
+        vm.startPrank(ALICE);
+        vm.expectRevert(SignalGBX.ZeroAmount.selector);
+        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 0);
+        vm.expectRevert(abi.encodeWithSelector(SignalGBX.SameStrategy.selector, address(targetStrategy)));
+        signalGBX.moveSignal(address(targetStrategy), address(targetStrategy), 1);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Resonance.InsufficientSignal.selector, address(targetStrategy), uint256(100 ether), uint256(101 ether)
+            )
+        );
+        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 101 ether);
+        vm.stopPrank();
+    }
+
+    function test_MoveSignalDestinationFailureRollsBackSourceRemoval() external {
+        _signalDefault(ALICE, 100 ether);
+        resonance.killStrategy(address(gbxStrategy));
+
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(gbxStrategy)));
+        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
+
+        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 100 ether);
+        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 0);
+        assertEq(targetBribe.balanceOf(ALICE), 100 ether);
+        assertEq(gbxBribe.balanceOf(ALICE), 0);
+        assertEq(resonance.totalSignalWeight(), 100 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
     }
 
     function test_MoveFromKilledStrategyReentersLiveWeightExactlyOnce() external {
@@ -294,8 +321,9 @@ contract SignalGBXTest is ProtocolFixture {
         target.mint(address(this), maximum);
         target.approve(address(targetBribe), maximum);
         targetBribe.notifyRewardAmount(address(target), maximum);
-        vm.warp(block.timestamp + targetBribe.REWARD_DURATION());
-        assertEq(targetBribe.claimReward(ALICE, address(target)), maximum);
+        uint256 duration = targetBribe.REWARD_DURATION();
+        vm.warp(block.timestamp + duration);
+        assertEq(targetBribe.claimReward(ALICE, address(target)), maximum - (maximum % duration));
         assertEq(targetBribe.lifetimeRewardNotified(address(target)), maximum);
 
         resonance.killStrategy(address(targetStrategy));

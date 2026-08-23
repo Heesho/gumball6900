@@ -17,9 +17,9 @@ describe('core starting-point status page', () => {
     expect(screen.getByText('20% Router deposit · 80% displaced miner')).toBeTruthy();
     expect(screen.getByText('USDG → Resonance · GBX → Fund burn · principal fixed')).toBeTruthy();
     expect(screen.getByText('Internally hardened candidate · not deployed · external audit pending')).toBeTruthy();
-    expect(screen.getByText('left(USDG) · distribute(strategy)')).toBeTruthy();
-    expect(screen.getByText(/fundPaymentLiability → payFundPayment\(\).*bribePaymentLiability/)).toBeTruthy();
-    expect(screen.getByText('claimReward() · claimRewards(account, tokens)')).toBeTruthy();
+    expect(screen.getByText('left() · distribute(strategy)')).toBeTruthy();
+    expect(screen.getByText('Strategy → Fund · Strategy → BribeRouter → distribute()')).toBeTruthy();
+    expect(screen.getByText('claimReward(account, token) · claimRewards(account)')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /connect wallet/i })).toBeNull();
   });
 

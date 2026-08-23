@@ -65,7 +65,7 @@ Every composed reader pins its RPC calls to one block and revalidates that block
 API docs are updated by repository scripts and must not be edited by hand.
 
 `readResonanceView` includes the seven-day duration, `1e36` reward precision, live signal weight, bound Router and USDG,
-raw quotient-plus-front-loaded-remainder schedule, exact amount left, and Resonance's actual USDG balance. Arithmetic
+the scalar Synthetix schedule, current amount left, and Resonance's actual USDG balance. Arithmetic
 floors, zero-active-signal intervals, and direct donations may make the token balance exceed scheduled and claimable
 revenue. Strategy raw balances alone omit released-but-not-yet-transferred stream revenue.
 
@@ -74,8 +74,10 @@ same sGBX amount, and assigns it to one live Strategy; `buildSignalWithPermit` d
 permit. `buildMoveSignal` reallocates existing signal, and `buildWithdrawSignal` atomically removes signal, burns sGBX,
 and returns GBX. Idle SignalGBX is unreachable, and direct SignalGBX transfers are disabled.
 
-`buildRouteRevenue` leaves a Router balance below the active amount left in the Router; a qualifying complete balance
-restarts seven days with `reward + left`. `buildNotifyRevenue` encodes that Router-only call.
+`buildRouteRevenue` leaves a Router balance below `max(DURATION, left())` in the Router; a qualifying complete balance
+restarts seven days with ordinary Synthetix leftover rollover. `buildNotifyRevenue` encodes that Router-only call.
+`buildDistributeBribeRewards` performs the matching full-balance distribution for a paired BribeRouter, and
+`buildClaimAllBribeRewards` complements the scalar-token claim builder.
 
 The SDK intentionally includes no governance proposal builders or readers. SignalGBX exposes ERC20Votes checkpoints,
 but the external governance system that will own Resonance has not been selected. Provider-specific actions and views

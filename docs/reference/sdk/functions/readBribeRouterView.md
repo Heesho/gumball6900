@@ -6,9 +6,9 @@
 
 # Function: readBribeRouterView()
 
-> **readBribeRouterView**(`client`, `bribeRouter`, `options?`): `Promise`\<\{ `accountedPaymentBalance`: `bigint`; `basisPoints`: `bigint`; `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bribeBasisPoints`: `bigint`; `bribePaymentLiability`: `bigint`; `fund`: `` `0x${string}` ``; `fundBasisPoints`: `bigint`; `fundPaymentLiability`: `bigint`; `paymentSurplus`: `bigint`; `paymentToken`: `` `0x${string}` ``; `resonance`: `` `0x${string}` ``; `splitRemainder`: `bigint`; `strategy`: `` `0x${string}` ``; \}\>
+> **readBribeRouterView**(`client`, `bribeRouter`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bufferedReward`: `bigint`; `currentRewardLeft`: `bigint`; `minimumRewardAmount`: `bigint`; `paymentToken`: `` `0x${string}` ``; \}\>
 
-Reads a Strategy router's liabilities, persistent split carry, and current global Bribe share.
+Reads one Strategy's minimal Bribe buffer and current notification thresholds.
 
 ## Parameters
 
@@ -20,4 +20,4 @@ Reads a Strategy router's liabilities, persistent split carry, and current globa
 
 ## Returns
 
-`Promise`\<\{ `accountedPaymentBalance`: `bigint`; `basisPoints`: `bigint`; `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bribeBasisPoints`: `bigint`; `bribePaymentLiability`: `bigint`; `fund`: `` `0x${string}` ``; `fundBasisPoints`: `bigint`; `fundPaymentLiability`: `bigint`; `paymentSurplus`: `bigint`; `paymentToken`: `` `0x${string}` ``; `resonance`: `` `0x${string}` ``; `splitRemainder`: `bigint`; `strategy`: `` `0x${string}` ``; \}\>
+`Promise`\<\{ `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bufferedReward`: `bigint`; `currentRewardLeft`: `bigint`; `minimumRewardAmount`: `bigint`; `paymentToken`: `` `0x${string}` ``; \}\>

@@ -1,6 +1,12 @@
 # Deviations from the historical Bribe design
 
-Status: reviewed local implementation record dated 2026-08-16; settlement reconciled 2026-08-21 for ADR 0036.
+> **Pre-ADR-0047 historical implementation record.** The table and differential conclusions below intentionally
+> preserve the 2026-08-21 exact-scheduling, queued/paused Bribe, weighted-carry, and deferred-liability graph. ADR 0047
+> replaced those mechanics with scalar Synthetix scheduling, per-purchase Strategy splitting, direct Fund payment,
+> and a Bribe-only Router. ADR 0048 further replaces its eight-token and dedicated-move-hook descriptions with a
+> sixteen-token bound and composed movement. This file is not current implementation evidence.
+
+Status: reviewed local implementation snapshot dated 2026-08-16; settlement reconciled 2026-08-21 for ADR 0036.
 
 Resonance remains recognizably Bribe-derived: it retains a duration, reward-rate schedule, cumulative reward-per-token
 index, per-virtual-account paid index and accrued reward, checkpoint-before-weight-change ordering, and permissionless

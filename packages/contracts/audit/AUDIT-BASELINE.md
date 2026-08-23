@@ -1,5 +1,10 @@
 # Adversarial-audit baseline
 
+> **Pre-ADR-0047 historical snapshot.** ADR 0047 later replaced the captured reward and settlement mechanics with
+> scalar Synthetix scheduling, per-purchase Strategy splitting, direct Fund payment, and a Bribe-only Router. Any
+> exact-carry, queue, pause, liability, selected-batch, exact-transfer, test-count, or analyzer conclusion below is
+> intentionally preserved for its pinned checkout and is not current evidence.
+
 > Historical evidence only. ADR 0024 replaced the distribution contract and supply model with Mine; counts,
 > inventory, gas, coverage, and conclusions below do not review the current development graph.
 

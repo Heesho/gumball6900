@@ -105,12 +105,8 @@ contract ProtocolStateMachineCampaign {
     mapping(address strategy => uint256 amount) public expectedFundClassification;
     /// @notice Independent expected cumulative Bribe classification for each Strategy payment Router.
     mapping(address strategy => uint256 amount) public expectedBribeClassification;
-    /// @notice Independent expected weighted-numerator carry for each Strategy payment Router.
-    mapping(address strategy => uint256 remainder) public expectedSplitRemainder;
-    /// @notice Fund liability already observed leaving each Router through permissionless settlement.
-    mapping(address strategy => uint256 amount) public observedFundSettlement;
-    /// @notice Bribe liability already observed leaving each Router through permissionless settlement.
-    mapping(address strategy => uint256 amount) public observedBribeSettlement;
+    /// @notice Independent cumulative sum of completed Strategy payments.
+    mapping(address strategy => uint256 amount) public expectedPaymentTotal;
 
     constructor() {
         usdg = new CampaignToken("Global Dollar", "USDG", 6);
@@ -157,7 +153,8 @@ contract ProtocolStateMachineCampaign {
         strategies.push(selfPriced);
 
         // Exercise the exact fixed cap in every Echidna/Medusa state rather than proving only a one-token graph.
-        for (uint256 i; i < 7; ++i) {
+        uint256 supplementalCount = Bribe(resonance.bribeFor(paymentStrategy)).MAX_REWARD_TOKENS() - 1;
+        for (uint256 i; i < supplementalCount; ++i) {
             CampaignToken supplemental = new CampaignToken("Supplemental Reward", "SUP", 6);
             supplementalRewardTokens.push(supplemental);
             resonance.addBribeReward(paymentStrategy, address(supplemental));
@@ -341,18 +338,27 @@ contract ProtocolStateMachineCampaign {
         }
 
         uint256 appliedBribeBps = resonance.bribeBps();
+        address strategyAddress = address(strategy);
+        address routerAddress = resonance.bribeRouterFor(strategyAddress);
+        uint256 fundBalanceBefore = IERC20(payment).balanceOf(address(fund));
+        uint256 routerBalanceBefore = IERC20(payment).balanceOf(routerAddress);
         actor.run(
             address(strategy),
             abi.encodeCall(Strategy.buy, (address(actor), strategy.epochId(), block.timestamp, price))
         );
 
         if (price != 0) {
-            address strategyAddress = address(strategy);
-            uint256 weightedNumerator = expectedSplitRemainder[strategyAddress] + price * appliedBribeBps;
-            uint256 bribeAmount = weightedNumerator / resonance.BPS();
-            expectedSplitRemainder[strategyAddress] = weightedNumerator % resonance.BPS();
+            uint256 bribeAmount = (price * appliedBribeBps) / resonance.BPS();
+            uint256 fundAmount = price - bribeAmount;
+            if (IERC20(payment).balanceOf(address(fund)) != fundBalanceBefore + fundAmount) {
+                revert("INLINE_FUND_SPLIT");
+            }
+            if (IERC20(payment).balanceOf(routerAddress) != routerBalanceBefore + bribeAmount) {
+                revert("INLINE_BRIBE_SPLIT");
+            }
             expectedBribeClassification[strategyAddress] += bribeAmount;
-            expectedFundClassification[strategyAddress] += price - bribeAmount;
+            expectedFundClassification[strategyAddress] += fundAmount;
+            expectedPaymentTotal[strategyAddress] += price;
         }
     }
 
@@ -364,12 +370,19 @@ contract ProtocolStateMachineCampaign {
     function notifySupplementalReward(uint8 actorSeed, uint8 tokenSeed, uint64 amount) external {
         CampaignActor actor = _actor(actorSeed);
         CampaignToken token = supplementalRewardTokens[uint256(tokenSeed) % supplementalRewardTokens.length];
-        uint256 reward = _clamp(amount, 1, 1_000_000e6);
-        address bribe = resonance.bribeFor(strategies[0]);
+        Bribe bribe = Bribe(resonance.bribeFor(strategies[0]));
+        uint256 minimum = bribe.left(address(token));
+        uint256 duration = bribe.REWARD_DURATION();
+        if (minimum < duration) minimum = duration;
+        uint256 headroom = bribe.MAX_LIFETIME_REWARD_AMOUNT() - bribe.lifetimeRewardNotified(address(token));
+        if (minimum > headroom) revert("BRIBE_CAP_EXHAUSTED");
+        uint256 upper = minimum + 1_000_000e6;
+        if (upper > headroom) upper = headroom;
+        uint256 reward = _clamp(amount, minimum, upper);
 
         token.mint(address(actor), reward);
-        actor.run(address(token), abi.encodeCall(IERC20.approve, (bribe, reward)));
-        actor.run(bribe, abi.encodeCall(Bribe.notifyRewardAmount, (address(token), reward)));
+        actor.run(address(token), abi.encodeCall(IERC20.approve, (address(bribe), reward)));
+        actor.run(address(bribe), abi.encodeCall(Bribe.notifyRewardAmount, (address(token), reward)));
     }
 
     function claimOneReward(uint8 actorSeed, uint8 strategySeed, uint8 tokenSeed) external {
@@ -380,17 +393,17 @@ contract ProtocolStateMachineCampaign {
         bribe.claimReward(address(actor), token);
     }
 
-    function payFixedLiabilities() external {
+    function distributeBribeRewards() external {
         for (uint256 i; i < strategies.length; ++i) {
             address strategy = strategies[i];
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategy));
-            observedFundSettlement[strategy] += router.payFundPayment();
-            observedBribeSettlement[strategy] += router.notifyBribeReward();
-
-            Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
-            address[] memory tokens = bribe.rewardTokens();
-            for (uint256 t; t < tokens.length; ++t) {
-                bribe.payFundReward(tokens[t]);
+            IERC20 payment = Strategy(strategy).paymentToken();
+            uint256 balanceBefore = payment.balanceOf(address(router));
+            uint256 distributed = router.distribute();
+            uint256 balanceAfter = payment.balanceOf(address(router));
+            if (distributed == 0 && balanceAfter != balanceBefore) revert("HELD_BRIBE_CHANGED");
+            if (distributed != 0 && (distributed != balanceBefore || balanceAfter != 0)) {
+                revert("INEXACT_BRIBE_DISTRIBUTION");
             }
         }
     }
@@ -557,30 +570,28 @@ contract ProtocolStateMachineCampaign {
     function echidna_resonanceIsSolventAgainstClaimableRevenue() public view returns (bool holds) {
         uint256 owed;
         for (uint256 i; i < strategies.length; ++i) {
-            owed += resonance.earned(strategies[i], address(usdg));
+            owed += resonance.earned(strategies[i]);
         }
         return owed <= usdg.balanceOf(address(resonance));
     }
 
     /// @notice Scheduled and already-earned USDG remain solvent; accepted rounding may leave surplus.
     function echidna_resonanceIsSolventIncludingScheduled() public view returns (bool holds) {
-        uint256 owed = resonance.left(address(usdg));
+        uint256 owed = resonance.left();
         for (uint256 i; i < strategies.length; ++i) {
-            owed += resonance.earned(strategies[i], address(usdg));
+            owed += resonance.earned(strategies[i]);
         }
         return owed <= usdg.balanceOf(address(resonance));
     }
 
     /// @notice Resonance's one reward period has coherent timestamps and is fully backed.
     function echidna_revenueStreamStateIsCoherent() public view returns (bool holds) {
-        (uint256 finish, uint256 remainderFinish, uint256 rewardRate, uint256 lastUpdate,) =
-            resonance.token_RewardData(address(usdg));
+        (uint256 finish, uint256 rewardRate, uint256 lastUpdate, uint256 storedIndex) = resonance.rewardData();
         if (finish == 0) {
-            return remainderFinish == 0 && rewardRate == 0 && lastUpdate == 0;
+            return rewardRate == 0 && lastUpdate == 0 && storedIndex == 0;
         }
 
-        return remainderFinish <= finish && lastUpdate <= finish
-            && resonance.left(address(usdg)) <= usdg.balanceOf(address(resonance));
+        return lastUpdate <= finish && resonance.left() <= usdg.balanceOf(address(resonance));
     }
 
     /// @notice Dead Strategy weights are excluded from the active denominator while remaining removable.
@@ -596,9 +607,9 @@ contract ProtocolStateMachineCampaign {
 
     /// @notice A Strategy checkpoint never runs ahead of the global revenue index.
     function echidna_checkpointsNeverLeadTheGlobalIndex() public view returns (bool holds) {
-        uint256 current = resonance.rewardPerToken(address(usdg));
+        uint256 current = resonance.rewardPerToken();
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.account_Token_RewardPerTokenPaid(strategies[i], address(usdg)) > current) return false;
+            if (resonance.strategyRewardPerTokenPaid(strategies[i]) > current) return false;
         }
         return true;
     }
@@ -614,63 +625,59 @@ contract ProtocolStateMachineCampaign {
                 for (uint256 j; j < ACTOR_COUNT; ++j) {
                     owed += bribe.earned(address(actors[j]), rewardTokens[t]);
                 }
-                if (owed > IERC20(rewardTokens[t]).balanceOf(address(bribe))) return false;
-                if (bribe.left(rewardTokens[t]) > IERC20(rewardTokens[t]).balanceOf(address(bribe))) return false;
+                uint256 balance = IERC20(rewardTokens[t]).balanceOf(address(bribe));
+                if (owed + bribe.left(rewardTokens[t]) > balance) return false;
             }
         }
         return true;
     }
 
-    /// @notice Every notified reward unit remains in exactly one stream, queue, carry, user, or Fund category.
-    function echidna_bribeAccountingIsExact() public view returns (bool holds) {
+    /// @notice Every Bribe schedule, index, and lifetime admission counter remains bounded and coherent.
+    function echidna_bribeSchedulesAndLifetimeStayBounded() public view returns (bool holds) {
         for (uint256 i; i < strategies.length; ++i) {
             Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
             address[] memory rewardTokens = bribe.rewardTokens();
 
             for (uint256 t; t < rewardTokens.length; ++t) {
                 address token = rewardTokens[t];
-                uint256 precision = bribe.REWARD_PRECISION();
-                uint256 userRemainders;
-                for (uint256 j; j < ACTOR_COUNT; ++j) {
-                    userRemainders += bribe.userRewardRemainder(address(actors[j]), token);
-                }
-
-                uint256 right =
-                    (bribe.scheduledRewards(token)
-                            + bribe.queuedRewards(token)
-                            + bribe.accruedRewardLiability(token)
-                            + bribe.fundRewardLiability(token)) * precision + bribe.pendingRewardScaled(token)
-                        + bribe.indexedRewardScaled(token) + userRemainders + bribe.fundRewardRemainder(token);
-                if (bribe.accountedRewardBalance(token) * precision != right) return false;
                 uint256 lifetimeNotified = bribe.lifetimeRewardNotified(token);
                 if (lifetimeNotified > bribe.MAX_LIFETIME_REWARD_AMOUNT()) return false;
-                if (bribe.accountedRewardBalance(token) > lifetimeNotified) return false;
-                if (bribe.rewardPerToken(token) > lifetimeNotified * precision) return false;
+                if (bribe.rewardPerToken(token) > lifetimeNotified * bribe.REWARD_PRECISION()) return false;
+
+                (uint256 finish, uint256 rate, uint256 lastUpdate, uint256 storedIndex) = bribe.rewardData(token);
+                if (finish == 0) {
+                    if (rate != 0 || lastUpdate != 0 || storedIndex != 0) return false;
+                } else if (lastUpdate > finish || bribe.left(token) > IERC20(token).balanceOf(address(bribe))) {
+                    return false;
+                }
+
+                uint256 currentIndex = bribe.rewardPerToken(token);
+                for (uint256 j; j < ACTOR_COUNT; ++j) {
+                    if (bribe.userRewardPerTokenPaid(address(actors[j]), token) > currentIndex) return false;
+                }
             }
         }
         return true;
     }
 
-    /// @notice Every Router matches an independent weighted-carry model across arbitrary rate and settlement changes.
-    function echidna_bribeRouterAccountingIsExact() public view returns (bool holds) {
+    /// @notice Per-payment floors reconcile between inline Fund classification, Router buffers, and Bribe admissions.
+    function echidna_bribeRouterBalancesReconcile() public view returns (bool holds) {
         for (uint256 i; i < strategies.length; ++i) {
             address strategy = strategies[i];
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategy));
-            if (router.resonance() != address(resonance)) return false;
-            if (router.accountedPaymentBalance() != router.fundPaymentLiability() + router.bribePaymentLiability()) {
-                return false;
-            }
+
+            IERC20 payment = Strategy(strategy).paymentToken();
+            if (address(router.paymentToken()) != address(payment)) return false;
+            Bribe bribe = Bribe(resonance.bribeFor(strategy));
+            if (address(router.bribe()) != address(bribe)) return false;
+
+            uint256 admitted = bribe.lifetimeRewardNotified(address(payment));
+            uint256 buffered = payment.balanceOf(address(router));
+            if (admitted + buffered != expectedBribeClassification[strategy]) return false;
             if (
-                observedFundSettlement[strategy] + router.fundPaymentLiability() != expectedFundClassification[strategy]
-            ) {
-                return false;
-            }
-            if (
-                observedBribeSettlement[strategy] + router.bribePaymentLiability()
-                    != expectedBribeClassification[strategy]
+                expectedFundClassification[strategy] + expectedBribeClassification[strategy]
+                    != expectedPaymentTotal[strategy]
             ) return false;
-            if (router.splitRemainder() != expectedSplitRemainder[strategy]) return false;
-            if (router.splitRemainder() >= router.BPS()) return false;
         }
         return true;
     }
@@ -758,7 +765,7 @@ contract ProtocolStateMachineCampaign {
     /// @notice The revenue index never moves backwards.
     /// @dev `highestRevenueIndex` is refreshed by every action through `_recordRevenueIndex`.
     function echidna_revenueIndexIsMonotonic() public view returns (bool holds) {
-        return resonance.rewardPerToken(address(usdg)) >= highestRevenueIndex;
+        return resonance.rewardPerToken() >= highestRevenueIndex;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -806,7 +813,7 @@ contract ProtocolStateMachineCampaign {
     }
 
     function _recordRevenueIndex() private {
-        uint256 current = resonance.rewardPerToken(address(usdg));
+        uint256 current = resonance.rewardPerToken();
         if (current > highestRevenueIndex) highestRevenueIndex = current;
     }
 

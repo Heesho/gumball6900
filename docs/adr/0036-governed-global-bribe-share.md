@@ -1,12 +1,12 @@
 # ADR 0036: Governed global acquired-asset Bribe share
 
-- Status: implemented in the development tree; independent review and deployment approval remain pending
+- Status: partially superseded by ADR 0047; the bounded global prospective rate remains, while weighted carry and
+  deferred settlement are historical; independent review and deployment approval remain pending
 - Date: 2026-08-21
 - Supersedes: ADR 0032's immutable 90% Fund / 10% paired-Bribe classification and ADR 0034's three-method continuing
   Resonance administration list
 - Preserves: 100% of earned USDG flowing from Resonance to the entitled Strategy, acquired-payment-asset rewards,
-  cumulative split carry, deferred fixed-destination settlement, permissionless retry, Fund-held GBX burning, the
-  Bribe reward-token cap, and independently funded additional Bribe rewards
+  Fund-held GBX burning, the Bribe reward-token cap, and independently funded additional Bribe rewards
 
 ## Context
 

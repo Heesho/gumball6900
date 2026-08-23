@@ -1,6 +1,6 @@
 # Canonical contract starting point
 
-> This is the target development architecture under ADRs 0031 and 0033-0045 in whole or in their recorded
+> This is the target development architecture under ADRs 0031 and 0033-0048 in whole or in their recorded
 > unsuperseded parts, not a claim of current Solidity
 > conformance, deployment, audit, or authorization for user funds. Implementation gaps are listed in
 > [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
@@ -11,8 +11,8 @@
 slot replacement -> Mine -> 20% deposit -> ResonanceRouter --permissionless route()--> Resonance -> seven-day stream -> Strategies
                           -> 80% displaced-miner claim
                                       |       |
-                                      |       +-> acquired payment -> BribeRouter --complement--> Fund
-                                      |                                          \--global 0%-20%--> paired Bribe
+                                      |       +-> acquired payment --complement--> Fund
+                                      |                             \--global 0%-20%--> BribeRouter --> paired Bribe
                                       +-> additional Bribe rewards -> signalers
 
 Uniswap v4 position -> LiquidityPosition -> USDG -> ResonanceRouter -> Resonance
@@ -21,6 +21,9 @@ Uniswap v4 position -> LiquidityPosition -> USDG -> ResonanceRouter -> Resonance
 GBX -> SignalGBX -> signals -> Resonance
                   -> IVotes checkpoints -> external governance (unselected) -> Resonance ownership
 ```
+
+Resonance's revenue stream is permanently USDG-only and uses scalar schedule and per-Strategy reward state. Bribes
+remain independently multi-token within their fixed sixteen-token cap.
 
 The first purchase of an empty mining slot has no displaced miner, so its complete USDG payment is deposited into
 ResonanceRouter. Mine never calls `route()` during a handoff. GBX holders atomically deposit GBX, mint one-for-one non-transferable SignalGBX (`sGBX`), and assign
@@ -35,12 +38,12 @@ and is the sole user-facing signal coordinator; an idle receipt state is not per
 | `Mine`              | Runs exactly sixteen independently replaceable hourly reverse-Dutch slots, checkpoints continuous GBX accrual, splits nonempty-slot replacement payments 80%/20%, and deposits protocol revenue into ResonanceRouter without calling it. |
 | `LiquidityPosition` | Ownerless holder of one precommitted hookless GBX/USDG v4 NFT. Harvesting preserves principal, sends USDG to ResonanceRouter, and burns collected GBX through Fund.                                                                      |
 | `SignalGBX`         | Holds GBX, mints only signal-backed non-transferable ERC20Votes sGBX, and coordinates every signal and withdrawal. It has no approval permit or idle state.                                                                              |
-| `ResonanceRouter`   | Holds USDG below the active amount left, then permissionlessly forwards its complete qualifying balance.                                                                                                                                 |
+| `ResonanceRouter`   | Buffers USDG until its balance can sustain a nonzero stream and cover the active amount left, then forwards it permissionlessly.                                                                                                         |
 | `Resonance`         | Maintains the active signal total and one Bribe-shaped seven-day USDG schedule, and creates the fixed Strategy/Bribe graph.                                                                                                              |
 | `StrategyFactory`   | Bound once to Resonance; only that Resonance may deploy Strategies and their BribeRouters.                                                                                                                                               |
-| `Strategy`          | Sells its complete USDG balance through a bounded linearly declining price. Its acquired-asset payment enters its fixed BribeRouter.                                                                                                     |
+| `Strategy`          | Sells its complete USDG balance, pays the floored Bribe share to its Router, and pays the complement directly to Fund.                                                                                                                   |
 | `BribeFactory`      | Bound once to Resonance; only that Resonance may deploy Bribes.                                                                                                                                                                          |
-| `BribeRouter`       | Pulls exact Strategy payment, applies Resonance's global 0%-20% Bribe rate with weighted carry, and isolates both settlement legs.                                                                                                       |
+| `BribeRouter`       | Minimal acquired-asset buffer that permissionlessly notifies its paired Bribe once simple stream gates are met.                                                                                                                          |
 | `Bribe`             | Streams the automatic acquired-asset share and additional rewards over virtual signal balances, within fixed token-count and lifetime-notification caps.                                                                                 |
 | `Fund`              | Ownerless raw-token treasury, permissionless GBX burn boundary, and caller-selected pro-rata redemption mechanism.                                                                                                                       |
 
@@ -84,8 +87,8 @@ atomically. The NFT never moves.
 
 ## Revenue and acquisition rules
 
-- Resonance uses one active seven-day USDG schedule. Its raw quotient plus front-loaded remainder releases the complete
-  scheduled amount, including a one-raw-unit stream; its global reward-per-signal index uses `1e36` precision.
+- Resonance uses one scalar seven-day Synthetix-style USDG schedule. Ordinary rate division may leave surplus; its
+  global reward-per-signal index uses `1e36` precision.
 - SignalGBX is the only external signal entrypoint. Its signal changes checkpoint elapsed revenue under the prior
   weights before changing them. A Strategy purchase checkpoints and transfers its released allocation before reading
   inventory. No lock, cooldown, or epoch is added.
@@ -94,10 +97,12 @@ atomically. The NFT never moves.
 - `signal`, `signalWithPermit`, `moveSignal`, and `withdrawSignal` are the only public SignalGBX position workflows.
   Minting and initial allocation are one transition; withdrawal is its exact inverse. The permit variant uses GBX's
   ERC-2612 permit; SignalGBX has no approval permit.
+- `moveSignal` atomically composes Resonance's retained `removeSignalFor` and `addSignalFor` hooks. Resonance has no
+  dedicated move hook, and any destination failure rolls the source removal back with the complete transaction.
 - `ResonanceRouter.route()` is permissionless. A manual caller, frontend, volunteer keeper, or cron process may call;
   there is no role, bounty, or protocol liveness guarantee. During an active schedule the Router can hold any balance
-  until called. If the balance is at least `left`, Resonance checkpoints and restarts seven days with `reward + left`;
-  a nonzero smaller balance remains held and there is no absolute minimum.
+  until called. If the balance is at least `max(DURATION, left())`, Resonance checkpoints and restarts seven days with
+  ordinary leftover rollover; a nonzero smaller balance remains held.
 - Released revenue is indexed pro rata across live Strategy weights. Global-index and per-Strategy floors remain
   accepted surplus. Revenue elapsed while active signal weight is zero and USDG donated directly to Resonance are also
   unclaimable or unscheduled surplus, with no Fund classification, synchronization, rescue, or recovery path.
@@ -106,11 +111,10 @@ atomically. The NFT never moves.
   from the active total a second time. After bootstrap the final live Strategy cannot be killed until a replacement is
   added; killed positions remain movable to a live Strategy or withdrawable.
 - SignalGBX supply equals aggregate signal across live and killed paired Bribes; idle sGBX is unreachable.
-- Every Strategy acquired-asset payment uses Resonance's one global `bribeBps` when classified. It defaults to 10%, is
-  governance-settable from 0% through 20%, and has no per-Strategy override; Fund receives the complement. Explicit
-  weighted split carry persists across rate changes, and the two settlement legs remain isolated. A change is
-  prospective and alters no existing liability, reward, claim, or carry.
-- At 0%, new payments create only Fund liability. The paired Bribe remains active for signal accounting, existing and
+- Every Strategy snapshots Resonance's global `bribeBps` before payment-token interaction. It defaults to 10%, is
+  governance-settable from 0% through 20%, and has no per-Strategy override. Strategy sends the floored Bribe share to
+  BribeRouter and the complement directly to Fund. There is no cumulative split carry or deferred Fund settlement.
+- At 0%, new payments go entirely to Fund. The paired Bribe remains active for signal accounting, existing and
   independent rewards, moves, and withdrawals. Raising the rate later resumes automatic rewards without replacing the
   Strategy graph.
 - A GBX Strategy payment is not burned at settlement. Once the dynamically Fund-classified share reaches Fund, anyone
@@ -119,9 +123,9 @@ atomically. The NFT never moves.
   additional independent notifications. For each reward token and Bribe, the monotonic accepted-notification total
   cannot exceed `floor(type(uint256).max / 1e36)` raw units. The limit has no reset, setter, or escape hatch and rejects excess before
   checkpointing or transfer, leaving existing claims and exits live.
-- If the automatic reward leg reaches that cap, the liability remains in BribeRouter and cannot enter the old Bribe;
-  its Fund leg remains independently payable. The owner can add a replacement Strategy and Bribe, then kill the old
-  Strategy without reopening its closed reward pool.
+- Bribes use standard leftover rollover; a notification must be at least `REWARD_DURATION` raw units and at least the
+  current amount left. Streams do not pause at zero supply, notifications do not queue, and rate/index/account floors
+  remain unallocated surplus. If notification fails, the automatic reward share remains buffered in BribeRouter.
 
 ## Fund redemption
 
@@ -144,7 +148,7 @@ continuing custom owner authority, and its protocol administration surface is:
 
 - `Resonance.addStrategy`;
 - `Resonance.killStrategy`;
-- `Resonance.addBribeReward`, subject to the immutable eight-token cap; and
+- `Resonance.addBribeReward`, subject to the immutable sixteen-token cap; and
 - `Resonance.setBribeBps`, globally bounded from 0 through 2,000 basis points.
 
 SignalGBX retains block-number ERC20Votes checkpoints, but the core assigns them no proposal, quorum, delay,

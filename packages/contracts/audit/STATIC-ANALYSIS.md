@@ -1,5 +1,10 @@
 # Static-analysis record
 
+> **Pre-ADR-0047 historical analyzer snapshot.** ADR 0047 removed the exact-carry, queue/pause, deferred-liability,
+> selected-batch, and exact-delta reward/Strategy mechanics described or dispositioned below. The pinned results do
+> not analyze scalar Synthetix scheduling, per-purchase Strategy splitting, direct Fund payment, or the simplified
+> Bribe-only Router and therefore are not current evidence.
+
 Date: 2026-08-16. Raw output is under the ignored `audit/reports` directory. This is internal engineering evidence,
 not an independent audit or release approval.
 

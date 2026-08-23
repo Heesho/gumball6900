@@ -20,11 +20,15 @@ burned for caller-selected Fund assets.
 > [ADR 0041](docs/adr/0041-time-based-mine-halvings.md),
 > [ADR 0042](docs/adr/0042-provisional-accelerated-mine-emissions.md),
 > [ADR 0043](docs/adr/0043-provisional-one-gbx-tail.md), and
-> [ADR 0044](docs/adr/0044-decouple-mine-from-revenue-routing.md), and
-> [ADR 0045](docs/adr/0045-defer-mine-router-token-verification.md), are implemented in the development tree. ADR 0036
-> supersedes ADR 0032's fixed-rate rule while retaining its cumulative liability accounting. Governance execution
-> remains an unselected external integration, so deployment is blocked. This is local engineering evidence only;
-> independent review and every deployment gate remain outstanding.
+> [ADR 0044](docs/adr/0044-decouple-mine-from-revenue-routing.md),
+> [ADR 0045](docs/adr/0045-defer-mine-router-token-verification.md), and
+> [ADR 0046](docs/adr/0046-usdg-only-resonance-accounting.md), and
+> [ADR 0047](docs/adr/0047-synthetix-shaped-rewards-and-strategy-settlement.md), and
+> [ADR 0048](docs/adr/0048-expand-bribe-rewards-and-compose-signal-moves.md), are implemented in the development tree.
+> ADR 0047 restores Synthetix-shaped reward schedules and direct per-purchase Strategy settlement; ADR 0048 raises the
+> fixed Bribe reward-token cap to sixteen and removes Resonance's dedicated move hook in favor of SignalGBX composing
+> removal and addition atomically. Governance execution remains an unselected external integration, so deployment is
+> blocked. This is local engineering evidence only; independent review and every deployment gate remain outstanding.
 
 ## Protocol loop
 
@@ -34,11 +38,13 @@ burned for caller-selected Fund assets.
 2. The slot miner continuously accrues GBX at a rate fixed for that complete tenure.
 3. GBX holders call SignalGBX (`sGBX`), the non-transferable governance token and sole signal coordinator, to deposit
    GBX, mint the same sGBX amount, and assign every minted unit to one live Strategy atomically. They may move an
-   allocation without changing custody or votes, or withdraw it by removing signal, burning sGBX, and receiving GBX.
+   allocation through one atomic source removal and destination addition without changing custody or votes, or
+   withdraw it by removing signal, burning sGBX, and receiving GBX.
 4. A Strategy buyer atomically pulls its released USDG, receives the complete Strategy balance, and pays the asset that
-   Strategy acquires; BribeRouter cumulatively classifies the payment at Resonance's current global Bribe rate. It
-   defaults to 10%, can be set from 0% through 20%, and sends the 80%-to-100% complement to Fund. Paired Bribes use a
-   `1e36` reward index so ordinary six-decimal rewards remain distributable at realistic sGBX supply.
+   Strategy acquires. Strategy snapshots Resonance's current global Bribe rate, floors that purchase's Bribe share,
+   sends the 80%-to-100% complement directly to Fund, and sends the 0%-to-20% Bribe share to its minimal BribeRouter
+   buffer. Paired Bribes use a `1e36` reward index so ordinary six-decimal rewards remain distributable at realistic
+   sGBX supply.
 5. A GBX holder burns tokens to redeem a proportional share of caller-selected Fund assets.
 
 ```text
@@ -47,8 +53,8 @@ replacement USDG -> Mine --20% deposit--> ResonanceRouter --permissionless route
 Mine -> continuous GBX
 GBX -> SignalGBX --mandatory signal--> Resonance allocation weights
 SignalGBX --IVotes checkpoints-------> external governance (unselected) --owns--> Resonance
-Strategy acquired-asset payment -> BribeRouter --80%-100% complement--> Fund
-                                              \--0%-20% current rate--> paired Bribe -> signalers
+Strategy acquired-asset payment -> Strategy --80%-100% complement--> Fund
+                                             \--0%-20% current rate--> BribeRouter --> paired Bribe -> signalers
 GBX burn -> Fund selected assets
 ```
 
@@ -56,9 +62,10 @@ Mine stops after exact delivery to ResonanceRouter; it does not call `route()` d
 later, directly or through optional frontend/cron automation, but there is no keeper role, bounty, or liveness
 guarantee. LiquidityPosition fee harvesting retains its separate atomic route attempt.
 
-ResonanceRouter waits while its USDG balance is below the exact amount left in the active stream. A qualifying balance
-checkpoints elapsed revenue and restarts seven days with the new reward plus that remainder. Resonance uses a `1e36`
-reward index; index and Strategy floors, zero-active-signal intervals, and direct donations are accepted surplus.
+ResonanceRouter waits while its USDG balance is below either one raw unit per stream second or the amount left in the
+active stream. A qualifying balance checkpoints elapsed revenue and restarts seven days with the new reward plus the
+ordinary Synthetix leftover. Resonance uses a `1e36` reward index; rate, index, and Strategy floors,
+zero-active-signal intervals, and direct donations are accepted surplus.
 
 ## Mining and supply
 
@@ -94,12 +101,11 @@ All core contracts are direct and non-upgradeable. Fund and LiquidityPosition ar
 four continuing protocol administration methods:
 
 - add or kill a Strategy;
-- add a Bribe reward token within the fixed cap of eight;
+- add a Bribe reward token within the fixed cap of sixteen;
 - set the single global prospective automatic-Bribe share from 0% through 20%.
 
-Changing that rate never reprices an earlier payment, liability, reward stream, queued reward, claim, or fractional
-carry. At 0%, new Strategy payments classify entirely to Fund; paired Bribes, independently funded rewards, signal
-movement, and withdrawal remain available.
+Changing that rate never reprices an earlier payment, reward stream, or claim. At 0%, new Strategy payments go
+entirely to Fund; paired Bribes, independently funded rewards, signal movement, and withdrawal remain available.
 
 SignalGBX retains block-clock ERC20Votes checkpoints for an external governance system, but this repository does not
 select or implement that system. The exact executor, release, plugins, permissions, voting rules, upgrade model,
@@ -115,11 +121,11 @@ batching an addition before the old Strategy's kill.
 | `GBX`               | Genesis allocation, permanent Mine authority, cumulative mint/burn accounting, ERC-2612 permits.  |
 | `Mine`              | Hourly multislot handoffs, continuous tenure-locked GBX accrual, 80/20 USDG split, positive tail. |
 | `SignalGBX`         | Mandatory signal-backed GBX escrow, ERC20Votes governance, and sole signal coordinator.           |
-| `ResonanceRouter`   | Holds USDG below the active amount left, then permissionlessly forwards a qualifying balance.     |
-| `Resonance`         | Bribe-shaped seven-day USDG rewards, active signal totals, and Strategy/Bribe administration.     |
+| `ResonanceRouter`   | Buffers USDG until it can sustain a nonzero stream and cover the active amount left.              |
+| `Resonance`         | Scalar seven-day USDG rewards, active signal totals, and Strategy/Bribe administration.           |
 | `Strategy`          | Reverse Dutch acquisition auction.                                                                |
-| `BribeRouter`       | Cumulative weighted Fund/Bribe classification at Resonance's bounded global prospective rate.     |
-| `Bribe`             | Automatic and independent rewards, with eight-token and per-token lifetime notification caps.     |
+| `BribeRouter`       | Minimal buffer that permissionlessly notifies a paired Bribe with its acquired-asset share.       |
+| `Bribe`             | Synthetix-shaped automatic and independent rewards with fixed token and lifetime caps.            |
 | `Fund`              | Registry-free backing, selective redemption, and permissionless Fund-held GBX burn.               |
 | `LiquidityPosition` | Permanent fixed-principal Uniswap v4 position and permissionless fee routing.                     |
 
@@ -183,8 +189,11 @@ Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
 [ADR 0041](docs/adr/0041-time-based-mine-halvings.md),
 [ADR 0042](docs/adr/0042-provisional-accelerated-mine-emissions.md), and
 [ADR 0043](docs/adr/0043-provisional-one-gbx-tail.md), and
-[ADR 0044](docs/adr/0044-decouple-mine-from-revenue-routing.md), and
-[ADR 0045](docs/adr/0045-defer-mine-router-token-verification.md).
+[ADR 0044](docs/adr/0044-decouple-mine-from-revenue-routing.md),
+[ADR 0045](docs/adr/0045-defer-mine-router-token-verification.md), and
+[ADR 0046](docs/adr/0046-usdg-only-resonance-accounting.md), and
+[ADR 0047](docs/adr/0047-synthetix-shaped-rewards-and-strategy-settlement.md), and
+[ADR 0048](docs/adr/0048-expand-bribe-rewards-and-compose-signal-moves.md).
 
 ## Provenance
 

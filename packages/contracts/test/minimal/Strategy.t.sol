@@ -4,21 +4,65 @@ pragma solidity 0.8.26;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
-import { BribeRouter } from "../../src/core/BribeRouter.sol";
 import { Strategy } from "../../src/core/Strategy.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
-import { FeeOnTransferToken, MockERC20, StickyAllowanceToken, ZeroApprovalRevertingToken } from "./utils/Tokens.sol";
+import { MockERC20, ZeroApprovalRevertingToken } from "./utils/Tokens.sol";
+
+interface IStrategyBribeBpsSetter {
+    function setBribeBps(uint256 newBribeBps) external;
+}
+
+/// @notice Test token that changes Strategy policy when Resonance transfers self-priced revenue.
+contract SelfPricedCallbackToken is MockERC20 {
+    IStrategyBribeBpsSetter public callbackTarget;
+    address public callbackReceiver;
+    uint256 public callbackBps;
+    bool public callbackArmed;
+
+    constructor() MockERC20("Self-Priced Callback", "SPC", 18) { }
+
+    function armCallback(IStrategyBribeBpsSetter target, address receiver, uint256 newBribeBps) external {
+        callbackTarget = target;
+        callbackReceiver = receiver;
+        callbackBps = newBribeBps;
+        callbackArmed = true;
+    }
+
+    function _update(address from, address to, uint256 amount) internal override {
+        if (callbackArmed && from != address(0) && to == callbackReceiver) {
+            callbackArmed = false;
+            callbackTarget.setBribeBps(callbackBps);
+        }
+        super._update(from, to, amount);
+    }
+}
 
 /// @notice Minimal Resonance stand-in used to reach branches the wired protocol cannot produce.
 contract StubResonance {
     mapping(address strategy => address router) public bribeRouterFor;
+    uint256 public bribeBps = 1_000;
+    IERC20 public distributionToken;
+    uint256 public distributionAmount;
 
-    function distribute(address) external pure returns (uint256 amount) {
-        return 0;
+    function distribute(address strategy) external returns (uint256 amount) {
+        amount = distributionAmount;
+        if (amount == 0) return 0;
+
+        distributionAmount = 0;
+        require(distributionToken.transfer(strategy, amount), "DISTRIBUTION_FAILED");
     }
 
     function setBribeRouter(address strategy, address router) external {
         bribeRouterFor[strategy] = router;
+    }
+
+    function setBribeBps(uint256 newBribeBps) external {
+        bribeBps = newBribeBps;
+    }
+
+    function setDistribution(IERC20 token, uint256 amount) external {
+        distributionToken = token;
+        distributionAmount = amount;
     }
 }
 
@@ -220,30 +264,7 @@ contract StrategyTest is ProtocolFixture {
         targetStrategy.buy(CAROL, 0, block.timestamp, 1 ether);
     }
 
-    function test_BuyRejectsAFeeOnTransferPaymentToken() external {
-        FeeOnTransferToken feeToken = new FeeOnTransferToken(18);
-        (address strategyAddress,,) = resonance.addStrategy(IERC20(address(feeToken)), defaultConfig());
-        Strategy feeStrategy = Strategy(strategyAddress);
-
-        usdg.mint(strategyAddress, 50_000_000);
-        feeToken.mint(CAROL, DEFAULT_INITIAL_PRICE);
-        feeToken.setFeeBps(100);
-
-        vm.startPrank(CAROL);
-        feeToken.approve(strategyAddress, DEFAULT_INITIAL_PRICE);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Strategy.InexactPayment.selector,
-                DEFAULT_INITIAL_PRICE,
-                DEFAULT_INITIAL_PRICE,
-                (DEFAULT_INITIAL_PRICE * 9_900) / 10_000
-            )
-        );
-        feeStrategy.buy(CAROL, 0, block.timestamp, type(uint256).max);
-        vm.stopPrank();
-    }
-
-    function test_BuySupportsAPaymentTokenThatRejectsZeroApprovals() external {
+    function test_BuyDoesNotRequireStrategyToApproveTheRouter() external {
         ZeroApprovalRevertingToken payment = new ZeroApprovalRevertingToken(18);
         (address strategyAddress,, address routerAddress) =
             resonance.addStrategy(IERC20(address(payment)), defaultConfig());
@@ -254,42 +275,24 @@ contract StrategyTest is ProtocolFixture {
 
         assertEq(paid, DEFAULT_INITIAL_PRICE);
         assertEq(payment.allowance(strategyAddress, routerAddress), 0);
-        assertEq(payment.balanceOf(routerAddress), paid);
+        assertEq(payment.balanceOf(address(fund)), 9 ether);
+        assertEq(payment.balanceOf(routerAddress), 1 ether);
         assertEq(usdg.balanceOf(CAROL), 50_000_000);
     }
 
-    function test_BuyClearsAResidualExactAllowanceLeftByANonstandardToken() external {
-        StickyAllowanceToken payment = new StickyAllowanceToken(18);
-        (address strategyAddress,, address routerAddress) =
-            resonance.addStrategy(IERC20(address(payment)), defaultConfig());
-        Strategy strategy = Strategy(strategyAddress);
-        usdg.mint(strategyAddress, 50_000_000);
-
-        uint256 paid = _buyTarget(CAROL, strategy, payment);
-
-        assertEq(paid, DEFAULT_INITIAL_PRICE);
-        assertEq(payment.allowance(strategyAddress, routerAddress), 0, "Strategy must revoke the residual allowance");
-        assertEq(payment.balanceOf(routerAddress), paid);
-        assertEq(usdg.balanceOf(CAROL), 50_000_000);
-    }
-
-    function test_RevenueReceiverEqualToStrategyFailsAtomically() external {
+    function test_RevenueReceiverEqualToStrategyLeavesTheRevenueForTheNextEpoch() external {
         _fundStrategy(targetStrategy, 50_000_000);
         target.mint(CAROL, DEFAULT_INITIAL_PRICE);
 
         vm.startPrank(CAROL);
         target.approve(address(targetStrategy), DEFAULT_INITIAL_PRICE);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Strategy.InexactPayout.selector, address(targetStrategy), 50_000_000, uint256(0), uint256(0)
-            )
-        );
         targetStrategy.buy(address(targetStrategy), 0, block.timestamp, DEFAULT_INITIAL_PRICE);
         vm.stopPrank();
 
-        assertEq(targetStrategy.epochId(), 0);
-        assertEq(targetRouter.fundPaymentLiability(), 0);
-        assertEq(target.balanceOf(CAROL), DEFAULT_INITIAL_PRICE);
+        assertEq(targetStrategy.epochId(), 1);
+        assertEq(target.balanceOf(address(fund)), 9 ether);
+        assertEq(target.balanceOf(address(targetRouter)), 1 ether);
+        assertEq(target.balanceOf(CAROL), 0);
         assertEq(usdg.balanceOf(address(targetStrategy)), 50_000_000);
     }
 
@@ -317,7 +320,7 @@ contract StrategyTest is ProtocolFixture {
         vm.stopPrank();
 
         assertEq(usdg.balanceOf(address(resonance)), 50_000_000);
-        assertEq(resonance.left(address(usdg)), 0, "direct donations do not enter the reward schedule");
+        assertEq(resonance.left(), 0, "direct donations do not enter the reward schedule");
     }
 
     function test_BuyAtomicallyIncludesRevenueReleasedThroughTheCurrentTimestamp() external {
@@ -330,7 +333,7 @@ contract StrategyTest is ProtocolFixture {
         targetStrategy.buy(CAROL, 0, block.timestamp, type(uint256).max);
 
         assertEq(usdg.balanceOf(CAROL), 86_400);
-        assertEq(resonance.left(address(usdg)), 518_400);
+        assertEq(resonance.left(), 518_400);
         assertEq(targetStrategy.epochId(), 1);
     }
 
@@ -338,7 +341,7 @@ contract StrategyTest is ProtocolFixture {
                           ACQUISITION SETTLEMENT
     //////////////////////////////////////////////////////////////*/
 
-    function test_CompletePaymentBecomesFixedNinetyTenLiabilitiesAndAdvancesTheEpoch() external {
+    function test_CompletePaymentSplitsInlineAndAdvancesTheEpoch() external {
         _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(targetStrategy));
         _fundStrategy(targetStrategy, 50_000_000);
@@ -352,9 +355,8 @@ contract StrategyTest is ProtocolFixture {
         vm.stopPrank();
 
         assertEq(paid, DEFAULT_INITIAL_PRICE);
-        assertEq(targetRouter.fundPaymentLiability(), 9 ether);
-        assertEq(targetRouter.bribePaymentLiability(), 1 ether);
-        assertEq(target.balanceOf(address(targetRouter)), DEFAULT_INITIAL_PRICE);
+        assertEq(target.balanceOf(address(fund)), 9 ether);
+        assertEq(target.balanceOf(address(targetRouter)), 1 ether);
         assertEq(target.balanceOf(address(targetBribe)), 0, "auction proceeds never fund Bribe");
         assertEq(target.balanceOf(address(targetStrategy)), 0, "no payment dust is retained");
         assertEq(usdg.balanceOf(CAROL), 50_000_000);
@@ -368,13 +370,12 @@ contract StrategyTest is ProtocolFixture {
 
         _buyTarget(CAROL, targetStrategy, target);
 
-        assertEq(targetRouter.fundPaymentLiability(), 9 ether);
-        assertEq(targetRouter.bribePaymentLiability(), 1 ether);
+        assertEq(target.balanceOf(address(fund)), 9 ether);
+        assertEq(target.balanceOf(address(targetRouter)), 1 ether);
         assertEq(target.balanceOf(address(targetBribe)), 0);
-        assertEq(target.balanceOf(address(targetRouter)), DEFAULT_INITIAL_PRICE);
     }
 
-    function test_ADustPaymentStillBecomesFundLiability() external {
+    function test_ADustPaymentFloorsTheBribeShareAndGoesDirectlyToFund() external {
         // The cheapest legal auction, decayed to its last second, produces a one-wei payment.
         Strategy.Config memory config =
             Strategy.Config({ initialPrice: 1e6, epochDuration: 365 days, priceMultiplier: 1.1e18, minimumPrice: 1e6 });
@@ -393,10 +394,9 @@ contract StrategyTest is ProtocolFixture {
         uint256 paid = _buyTarget(CAROL, dustStrategy, target);
 
         assertEq(paid, 1);
-        assertEq(BribeRouter(routerAddress).fundPaymentLiability(), 1);
-        assertEq(BribeRouter(routerAddress).bribePaymentLiability(), 0);
+        assertEq(target.balanceOf(address(fund)), 1);
         assertEq(target.balanceOf(bribeAddress), 0);
-        assertEq(target.balanceOf(routerAddress), 1);
+        assertEq(target.balanceOf(routerAddress), 0);
     }
 
     function test_AcquisitionPricedInTheRevenueTokenSettlesExactly() external {
@@ -416,9 +416,35 @@ contract StrategyTest is ProtocolFixture {
 
         assertEq(usdg.balanceOf(strategyAddress), 0, "revenue and payment must not co-mingle");
         assertEq(usdg.balanceOf(CAROL), 50_000_000);
-        assertEq(BribeRouter(routerAddress).fundPaymentLiability(), 9 ether);
-        assertEq(BribeRouter(routerAddress).bribePaymentLiability(), 1 ether);
+        assertEq(usdg.balanceOf(address(fund)), 9 ether);
+        assertEq(usdg.balanceOf(routerAddress), 1 ether);
         assertEq(usdg.balanceOf(bribeAddress), 0);
+    }
+
+    function test_SelfPricedRevenueCallbackCannotChangeTheCurrentPaymentSnapshot() external {
+        StubResonance stub = new StubResonance();
+        SelfPricedCallbackToken token = new SelfPricedCallbackToken();
+        Strategy selfPriced =
+            new Strategy(address(stub), IERC20(address(token)), IERC20(address(token)), address(fund), defaultConfig());
+        address bribeBuffer = address(0xB41BE);
+        stub.setBribeRouter(address(selfPriced), bribeBuffer);
+
+        uint256 revenueAmount = 50 ether;
+        token.mint(address(stub), revenueAmount);
+        stub.setDistribution(IERC20(address(token)), revenueAmount);
+        token.armCallback(IStrategyBribeBpsSetter(address(stub)), address(selfPriced), 2_000);
+        token.mint(CAROL, DEFAULT_INITIAL_PRICE);
+
+        vm.startPrank(CAROL);
+        token.approve(address(selfPriced), DEFAULT_INITIAL_PRICE);
+        selfPriced.buy(CAROL, 0, block.timestamp, DEFAULT_INITIAL_PRICE);
+        vm.stopPrank();
+
+        assertEq(stub.bribeBps(), 2_000, "the revenue callback changes policy for later purchases");
+        assertEq(token.balanceOf(address(fund)), 9 ether, "the in-flight purchase retains the entry snapshot");
+        assertEq(token.balanceOf(bribeBuffer), 1 ether);
+        assertEq(token.balanceOf(CAROL), revenueAmount);
+        assertEq(token.balanceOf(address(selfPriced)), 0);
     }
 
     function test_AcquisitionRevertsWhenTheBribeRouterIsUnset() external {
@@ -441,7 +467,7 @@ contract StrategyTest is ProtocolFixture {
                             GBX SETTLEMENT
     //////////////////////////////////////////////////////////////*/
 
-    function test_GBXPaymentWaitsInRouterUntilFundDeliveryAndPermissionlessBurn() external {
+    function test_GBXPaymentReachesFundInlineAndRemainsPermissionlesslyBurnable() external {
         _signalDefault(ALICE, 100 ether);
         _signalOne(ALICE, address(gbxStrategy));
         _fundStrategy(gbxStrategy, 50_000_000);
@@ -457,16 +483,10 @@ contract StrategyTest is ProtocolFixture {
 
         assertEq(gbx.totalSupply(), supplyBefore, "Strategy settlement does not burn GBX");
         assertEq(gbx.lifetimeBurned(), burnedBefore);
-        assertEq(gbxRouter.fundPaymentLiability(), 9 ether);
-        assertEq(gbxRouter.bribePaymentLiability(), 1 ether);
-        assertEq(gbx.balanceOf(address(gbxRouter)), DEFAULT_INITIAL_PRICE);
-        assertEq(gbx.balanceOf(address(fund)), 0);
+        assertEq(gbx.balanceOf(address(gbxRouter)), 1 ether);
+        assertEq(gbx.balanceOf(address(fund)), 9 ether);
         assertEq(gbx.balanceOf(address(gbxBribe)), 0);
         assertEq(usdg.balanceOf(BOB), 50_000_000);
-
-        gbxRouter.payFundPayment();
-        assertEq(gbx.balanceOf(address(fund)), 9 ether);
-        assertEq(gbx.totalSupply(), supplyBefore, "Fund receipt does not burn GBX");
 
         fund.burnGBX(9 ether);
         assertEq(gbx.totalSupply(), supplyBefore - 9 ether);
@@ -580,8 +600,8 @@ contract StrategyTest is ProtocolFixture {
         assertEq(targetStrategy.currentPrice(), expected);
     }
 
-    /// @notice Every payment becomes exactly conserved fixed Fund and Bribe liabilities.
-    function testFuzz_CompletePaymentIsConservedAsNinetyTenLiabilities(uint256 offset) external {
+    /// @notice Every payment is conserved by its inline Fund transfer and floored per-purchase Bribe share.
+    function testFuzz_CompletePaymentIsConservedByTheInlineSplit(uint256 offset) external {
         uint256 elapsed = bound(offset, 0, DEFAULT_EPOCH_DURATION - 1);
 
         _signalDefault(ALICE, 100 ether);
@@ -592,9 +612,8 @@ contract StrategyTest is ProtocolFixture {
         uint256 paid = _buyTarget(CAROL, targetStrategy, target);
 
         uint256 expectedBribe = paid / 10;
-        assertEq(targetRouter.fundPaymentLiability(), paid - expectedBribe);
-        assertEq(targetRouter.bribePaymentLiability(), expectedBribe);
-        assertEq(target.balanceOf(address(targetRouter)), paid);
+        assertEq(target.balanceOf(address(fund)), paid - expectedBribe);
+        assertEq(target.balanceOf(address(targetRouter)), expectedBribe);
         assertEq(target.balanceOf(address(targetBribe)), 0);
         assertEq(target.balanceOf(address(targetStrategy)), 0);
     }
@@ -614,8 +633,8 @@ contract StrategyTest is ProtocolFixture {
         assertLe(subject.initialPrice(), subject.ABSOLUTE_MAXIMUM_PRICE());
     }
 
-    /// @notice A GBX payment leaves supply unchanged until Fund delivery and a separate permissionless burn.
-    function testFuzz_GBXPaymentCanBeBurnedPermissionlesslyAfterFundDelivery(uint256 offset) external {
+    /// @notice A GBX payment leaves supply unchanged until its inline Fund share is burned permissionlessly.
+    function testFuzz_GBXPaymentCanBeBurnedPermissionlesslyAfterInlineFundDelivery(uint256 offset) external {
         uint256 elapsed = bound(offset, 0, DEFAULT_EPOCH_DURATION);
         _fundStrategy(gbxStrategy, 50_000_000);
         vm.warp(DEPLOYED_AT + elapsed);
@@ -633,12 +652,10 @@ contract StrategyTest is ProtocolFixture {
         assertEq(gbx.totalSupply(), supplyBefore);
         uint256 expectedBribe = price / 10;
         uint256 expectedFund = price - expectedBribe;
-        assertEq(gbxRouter.fundPaymentLiability(), expectedFund);
-        assertEq(gbxRouter.bribePaymentLiability(), expectedBribe);
+        assertEq(gbx.balanceOf(address(fund)), expectedFund);
+        assertEq(gbx.balanceOf(address(gbxRouter)), expectedBribe);
 
-        if (price != 0) {
-            gbxRouter.payFundPayment();
-            assertEq(gbx.balanceOf(address(fund)), expectedFund);
+        if (expectedFund != 0) {
             fund.burnGBX(expectedFund);
             assertEq(gbx.totalSupply(), supplyBefore - expectedFund);
         }

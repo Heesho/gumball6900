@@ -1,5 +1,11 @@
 # Production-hardening baseline
 
+> **Pre-ADR-0047 historical snapshot.** ADR 0047 later replaced the captured reward and settlement mechanics with
+> scalar Synthetix scheduling, per-purchase Strategy splitting, direct Fund payment, and a Bribe-only Router. Any
+> exact-carry, queue, pause, liability, selected-batch, exact-transfer, inventory, size, gas, or test conclusion below
+> is intentionally preserved for its pinned checkout and is not current evidence. ADR 0048 further supersedes this
+> snapshot's eight-token cap and dedicated move hook with a sixteen-token cap and composed moves.
+
 > Historical evidence only. ADR 0024 also replaced the distribution contract and supply model with Mine; the
 > inventory, sizes, constants, and results below are not current release evidence.
 

@@ -15,4 +15,3 @@
 | <a id="property-fundamount"></a> `fundAmount`             | `bigint` |
 | <a id="property-fundbasispoints"></a> `fundBasisPoints`   | `bigint` |
 | <a id="property-paymentamount"></a> `paymentAmount`       | `bigint` |
-| <a id="property-splitremainder"></a> `splitRemainder`     | `bigint` |

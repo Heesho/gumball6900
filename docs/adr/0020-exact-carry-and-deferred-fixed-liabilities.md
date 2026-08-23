@@ -1,15 +1,15 @@
 # ADR 0020: Preserve exact carry and defer fixed-destination payouts
 
-- Status: accepted for Bribe and fixed-liability behavior; Resonance carry, direct-donation synchronization, and
-  Resonance Fund-liability provisions superseded by ADR 0029; Strategy-routing provision superseded by ADRs 0021 and
-  0032
+- Status: historical; all remaining Bribe carry, exact-transfer, queue, pause, Fund-liability, selective-batch-claim,
+  and deferred Strategy-settlement provisions are superseded by ADR 0047; its inherited exact eight-token bound is
+  superseded by ADR 0048
 - Date: 2026-08-09
 - Builds on [ADR 0019](0019-incremental-absolute-signals-and-bounded-bribe-rewards.md)
 - Supersedes the A-02, A-03, and A-04 risk descriptions in ADRs 0017 and 0019
 
-The Resonance-specific decisions below are retained as historical context only. [ADR 0029](0029-bribe-based-resonance.md)
-replaces them with Bribe-style reward indexing and explicitly accepted surplus. The Bribe, BribeRouter, selective-claim,
-and fixed Strategy-payment liability decisions remain active.
+All decisions below are retained as historical context only. [ADR 0029](0029-bribe-based-resonance.md) first replaced
+the Resonance-specific carry rules; [ADR 0047](0047-synthetix-shaped-rewards-and-strategy-settlement.md) later replaced
+the remaining exact Bribe and deferred Strategy-settlement machinery with a Synthetix-shaped design.
 
 ## Context
 

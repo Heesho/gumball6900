@@ -1,6 +1,6 @@
 # Release checklist
 
-Current description: **ADR 0024/0029/0031/0033-0045 development candidate;
+Current description: **ADR 0024/0029/0031/0033-0048 development candidate;
 external governance unselected and independent review required**. This is not production-ready or
 deployment-authorized.
 
@@ -13,25 +13,35 @@ deployment-authorized.
 - [x] Mine emits `RevenueDeposited` and performs no synchronous `route()` call; permissionless routing has no role,
       bounty, or liveness guarantee, while LiquidityPosition retains its atomic route attempt.
 - [x] Fund uses constant-time effective supply, including all pending mining, for the redemption denominator.
-- [x] SDK, subgraph, whitepaper, frontend, audit records, and generated references reconciled through ADR 0045.
-- [x] Full current-tree Foundry, Hardhat, SDK, subgraph, simulation, frontend, documentation, and workspace gates
-      rerun after ADR 0044.
-- [ ] Static findings regenerated and manually dispositioned for the Mine graph.
+- [x] Current source, focused tests, audit records, and architecture references reconciled through ADR 0048.
+- [ ] Final post-ADR-0048 Foundry, invariant, integration, Hardhat, SDK, simulation, subgraph, frontend, workspace,
+      ABI, artifact, lint, typecheck, documentation, and mutation matrix rerun. The recorded complete ADR-0047 matrix
+      predates the sixteen-token and composed-move changes.
+- [x] Focused ADR-0048 migration suites pass 104/104, including the sixteen-token bound, composed move, rollback,
+      checkpoint ordering, absent Resonance move selector, and maximum-bound gas regressions.
+- [ ] Repository-wide format gate passes. Eleven unchanged baseline landing/lockfile files still fail Prettier; this
+      remains open even though the changed files and Solidity formatting pass.
+- [ ] Static findings regenerated and manually dispositioned for the complete ADR-0048 graph.
 - [ ] Current-tree coverage thresholds recorded for Mine.
-- [ ] Current-tree mutation campaign rerun after ADR 0044; the recorded 49-mutant result is historical evidence from
-      the pre-ADR-0043 tree.
-- [ ] Current-tree Medusa and pinned Echidna campaigns complete.
+- [x] Focused ADR-0048 mutation campaign killed 47/47 mutants, including the cap regression and composed-move
+      omission, same-Strategy, and restored-hook mutations.
+- [ ] Current-tree Medusa and pinned Echidna campaigns complete, with time-jump bounds reaching the first 69-day
+      boundary and day-414 tail boundary.
 - [ ] Compatible symbolic analysis or explicit independent disposition complete.
-- [x] Bribe A-09 carry is fixed to Fund before signal-supply changes, with entry, exit, and remainder regressions.
+- [x] Resonance and Bribe use Synthetix-style leftover rollover and ordinary floors; there are no carry buckets or Fund
+      reward liabilities, and entry/exit regressions prove rounded pre-change value is not inherited by later weights.
 - [x] SignalGBX coordinates atomic signal workflows, retains ERC20Votes, and omits its unused ERC20Permit surface.
 - [x] In-repository ProtocolGovernor and protocol Timelock removed under ADR 0034 while SignalGBX retains ERC20Votes.
-- [x] Global automatic-Bribe share is prospective, uniform, owner-only, and bounded from 0% through 20%; weighted
-      numerator carry, existing liabilities, and signal liveness are covered by deterministic and integration tests.
-- [x] Bribe reward accounting uses `1e36` precision with a precision-coupled lifetime cap; six-decimal direct and
-      automatic rewards are covered by deterministic, fuzz, stateful, integration, and independent-model tests.
-- [ ] Current-tree Medusa, Echidna, and static-analysis campaigns rerun after ADR 0044; campaign time-jump bounds must
-      reach the first 69-day boundary and the day-414 tail boundary.
-- [ ] Current-tree static findings regenerated and manually dispositioned after the governance-architecture removal.
+- [x] Global automatic-Bribe share is prospective, uniform, owner-only, and bounded from 0% through 20%; each Strategy
+      purchase floors independently, sends the complement directly to Fund, and buffers only its Bribe share.
+- [x] Bribe reward accounting uses `1e36` precision with a precision-coupled lifetime cap, standard seven-day leftover
+      rollover, uninterrupted zero-supply time, and all-token plus scalar-token claims under a standard-token model.
+- [x] Bribe reward registration is append-only and fixed at sixteen tokens. Current gas measurements remain below two
+      million for every focused maximum-bound operation, including 1,890,938 for a composed move across two full
+      Bribes.
+- [x] SignalGBX movement atomically composes `removeSignalFor` then `addSignalFor`; destination failure rolls back the
+      source, both Strategies checkpoint before their own weight mutation, and Resonance exposes no dedicated move
+      hook.
 - [ ] SignalGBX checkpoint/delegation compatibility and voting-power rental risk reviewed against the exact external
       governance release.
 - [ ] External governance permissions, proposal scope, batching, quorum/support, execution, delay, cancellation,
@@ -66,7 +76,7 @@ deployment-authorized.
       root/admin holders, emergency paths, and execution semantics are verified.
 - [ ] SignalGBX voting checkpoints and delegation are integration-tested against the selected governance system.
 - [ ] Ownership-transfer receipts prove the temporary Resonance setup owner retains no authority.
-- [ ] One-time SignalGBX/factory/router bindings are verified; receipts prove the consumed SignalGBX and factory
+- [ ] One-time SignalGBX/factory/ResonanceRouter bindings are verified; receipts prove the consumed SignalGBX and factory
       ownership shells were renounced and the temporary setup owner retains no authority through them.
 - [ ] PoolKey, price, ticks, NFT ID, genesis principal, rounding residual, and permanent custody verified.
 - [ ] Frontend remains read-only until the complete manifest passes.

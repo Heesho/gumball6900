@@ -6,7 +6,6 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import { BribeRouter } from "./BribeRouter.sol";
 import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
 
 /// @title GumBall6900 Reverse Dutch Strategy
@@ -44,13 +43,15 @@ contract Strategy is ReentrancyGuard {
     uint256 public constant ABSOLUTE_MAXIMUM_PRICE = type(uint192).max;
     /// @notice Fixed-point precision for the next-price multiplier.
     uint256 public constant PRICE_SCALE = 1e18;
+    /// @notice Basis-point denominator used for the acquired-payment split.
+    uint256 public constant BPS = 10_000;
     /// @notice Resonance that supplies the paired BribeRouter.
     address public immutable resonance;
     /// @notice USDG sold by this Strategy.
     IERC20 public immutable revenueToken;
     /// @notice Asset required from a buyer.
     IERC20 public immutable paymentToken;
-    /// @notice Treasury that ultimately receives every auction payment.
+    /// @notice Treasury that receives the non-Bribe share of every auction payment.
     address public immutable fund;
     /// @notice Number of seconds over which price declines to zero.
     uint256 public immutable epochDuration;
@@ -88,10 +89,6 @@ contract Strategy is ReentrancyGuard {
     error EpochDurationOutOfRange(uint256 duration);
     /// @notice The caller's expected auction epoch differs from current state.
     error EpochIdMismatch(uint256 expected, uint256 actual);
-    /// @notice Payment collection did not produce exact payer debit and Strategy credit.
-    error InexactPayment(uint256 expected, uint256 payerDebit, uint256 strategyCredit);
-    /// @notice Settlement did not produce exact Strategy debit and receiver credit.
-    error InexactPayout(address receiver, uint256 expected, uint256 strategyDebit, uint256 receiverCredit);
     /// @notice The configured initial auction price is outside immutable safety bounds.
     error InitialPriceOutOfRange(uint256 price);
     /// @notice The current Dutch-auction payment exceeds the caller's slippage ceiling.
@@ -107,7 +104,7 @@ contract Strategy is ReentrancyGuard {
     /// @param resonance_ Resonance that provides the paired BribeRouter.
     /// @param revenueToken_ USDG token sold by this Strategy.
     /// @param paymentToken_ Asset buyers pay to fill this Strategy.
-    /// @param fund_ Treasury that ultimately receives every auction payment.
+    /// @param fund_ Treasury that receives the non-Bribe share of every auction payment.
     /// @param config Immutable auction configuration.
     constructor(address resonance_, IERC20 revenueToken_, IERC20 paymentToken_, address fund_, Config memory config) {
         if (
@@ -153,6 +150,9 @@ contract Strategy is ReentrancyGuard {
         if (block.timestamp > deadline) revert DeadlinePassed(deadline);
         if (expectedEpochId != epochId) revert EpochIdMismatch(expectedEpochId, epochId);
 
+        // Fix the prospective split before either token can invoke a callback, including a self-priced Strategy.
+        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();
+
         // Make the purchase include every USDG unit released to this Strategy through the execution timestamp.
         ICoreResonance(resonance).distribute(address(this));
         uint256 revenueAmount = revenueToken.balanceOf(address(this));
@@ -162,19 +162,11 @@ contract Strategy is ReentrancyGuard {
         if (paymentAmount > maximumPayment) revert MaximumPaymentExceeded(paymentAmount, maximumPayment);
 
         if (paymentAmount != 0) {
-            uint256 payerBalanceBefore = paymentToken.balanceOf(msg.sender);
-            uint256 paymentBalanceBefore = paymentToken.balanceOf(address(this));
             paymentToken.safeTransferFrom(msg.sender, address(this), paymentAmount);
-            uint256 payerDebit = payerBalanceBefore - paymentToken.balanceOf(msg.sender);
-            uint256 strategyCredit = paymentToken.balanceOf(address(this)) - paymentBalanceBefore;
-            if (payerDebit != paymentAmount || strategyCredit != paymentAmount) {
-                revert InexactPayment(paymentAmount, payerDebit, strategyCredit);
-            }
-
-            _settlePayment(paymentAmount);
+            _settlePayment(paymentAmount, appliedBribeBps);
         }
 
-        _transferExact(revenueToken, revenueReceiver, revenueAmount);
+        revenueToken.safeTransfer(revenueReceiver, revenueAmount);
 
         uint256 completedEpoch = epochId;
         initialPrice = _nextInitialPrice(paymentAmount);
@@ -198,32 +190,19 @@ contract Strategy is ReentrancyGuard {
         return initialPrice - Math.mulDiv(initialPrice, elapsed, epochDuration);
     }
 
-    /// @notice Converts the complete payment into immutable liabilities at Resonance's current global Bribe share.
-    /// @dev Deferred delivery isolates temporary failure at either destination. Cumulative classification preserves
-    ///      the exact rate-weighted split across payment partitions; additional Bribe notifications remain possible.
+    /// @notice Splits one payment between Fund and the paired BribeRouter at the captured global Bribe share.
     /// @param paymentAmount Total payment collected from the buyer.
-    function _settlePayment(uint256 paymentAmount) private {
+    /// @param appliedBribeBps Prospective global Bribe share captured before payment-token interaction.
+    function _settlePayment(uint256 paymentAmount, uint256 appliedBribeBps) private {
+        uint256 bribeAmount = Math.mulDiv(paymentAmount, appliedBribeBps, BPS);
+        uint256 fundAmount = paymentAmount - bribeAmount;
+
+        if (fundAmount != 0) paymentToken.safeTransfer(fund, fundAmount);
+        if (bribeAmount == 0) return;
+
         address router = ICoreResonance(resonance).bribeRouterFor(address(this));
         if (router == address(0)) revert ZeroAddress();
-
-        paymentToken.forceApprove(router, paymentAmount);
-        BribeRouter(router).routePayment(paymentAmount);
-        if (paymentToken.allowance(address(this), router) != 0) paymentToken.forceApprove(router, 0);
-    }
-
-    /// @notice Transfers a supported token only when Strategy debit and receiver credit both equal `amount`.
-    /// @param token Supported revenue or payment token.
-    /// @param receiver Fixed buyer-selected revenue receiver or immutable Fund.
-    /// @param amount Exact amount to transfer.
-    function _transferExact(IERC20 token, address receiver, uint256 amount) private {
-        uint256 senderBefore = token.balanceOf(address(this));
-        uint256 receiverBefore = token.balanceOf(receiver);
-        token.safeTransfer(receiver, amount);
-        uint256 senderDebit = senderBefore - token.balanceOf(address(this));
-        uint256 receiverCredit = token.balanceOf(receiver) - receiverBefore;
-        if (senderDebit != amount || receiverCredit != amount) {
-            revert InexactPayout(receiver, amount, senderDebit, receiverCredit);
-        }
+        paymentToken.safeTransfer(router, bribeAmount);
     }
 
     /// @notice Computes the next auction's bounded starting price.

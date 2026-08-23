@@ -7,29 +7,32 @@ against the current mining simulation fixture before HTML or PDF output is writt
 pnpm docs:whitepaper
 ```
 
-The current edition describes the immutable multislot Mine introduced by ADR 0024 and refined through ADRs 0033,
-0038-0044: 20M genesis GBX, permanent Mine authority, exactly sixteen slots, hourly price decay, 80/20 nonempty
+The current edition describes the immutable multislot Mine introduced by ADR 0024 and refined through ADRs 0033 and
+0038-0045: 20M genesis GBX, permanent Mine authority, exactly sixteen slots, hourly price decay, 80/20 nonempty
 handoffs, tenure-locked slot rates, a provisional 64 GBX/second to 1 GBX/second schedule with 69-day periods, a
 positive infinite tail, and Fund's constant-time effective-supply denominator. It also reflects ADR 0030's
 non-transferable sGBX voting checkpoints and ADR 0034's external-governance ownership boundary, ADR 0031's mandatory
-signal-backed receipt, ADR 0032's cumulative settlement foundation, ADR 0036's bounded global Bribe rate, and ADR
-0037's high-precision Bribe reward index.
+signal-backed receipt, ADR 0036's bounded global Bribe rate, ADR 0037's high-precision Bribe reward index, ADR 0046's
+scalar USDG-only Resonance state, ADR 0047's Synthetix-shaped rewards and direct Strategy settlement, and ADR 0048's
+sixteen-token Bribe bound and composed signal moves.
 
 ADR 0044 makes exact ResonanceRouter deposit Mine's terminal revenue action. Mine emits `RevenueDeposited` but never
 calls `route()`; later permissionless routing has no role, bounty, or liveness guarantee. LiquidityPosition's atomic
 route attempt is unchanged, and optional frontend or cron composition remains periphery.
 
-ADR 0036 supersedes only ADR 0032's fixed-rate rule. The typeset edition now describes one Resonance-owned global
-prospective automatic-Bribe share: 10% by default, bounded from 0% through 20%, with Fund receiving the complement.
-The same cumulative carry persists across rate changes, and 0% leaves signaling and independently funded rewards live.
+ADR 0047 preserves ADR 0036's one Resonance-owned global prospective automatic-Bribe share: 10% by default and bounded
+from 0% through 20%. Each Strategy floors each purchase's Bribe share independently, sends the complement directly to
+Fund, and transfers the Bribe share to its small permissionless Router. There is no cumulative split carry or deferred
+Fund liability; 0% leaves signaling and independently funded rewards live.
 
 ADR 0037 raises each paired Bribe's reward index to `1e36` without reading token decimals and couples the lifetime
 notification cap to that scale. This prevents economically material six-decimal rewards from remaining below index
 resolution at realistic sGBX supply while retaining the cumulative-overflow proof.
 
-The ADR 0031, ADR 0036, and ADR 0037 implementations have landed: mandatory signal-backed sGBX with no idle receipts,
-the bounded global acquired-asset Bribe share with weighted cumulative carry, and high-precision Bribe accounting.
-The typeset edition therefore describes
+The ADR 0031 and ADRs 0036-0048 implementations have landed: mandatory signal-backed sGBX with no idle receipts, the
+bounded global acquired-asset Bribe share, scalar Resonance accounting, ordinary leftover rollover and floor surplus,
+all-token plus scalar Bribe claims, direct Fund settlement, BribeRouter-only buffering, a fixed sixteen-token Bribe
+limit, and atomic moves composed from Resonance's retained remove/add hooks. The typeset edition therefore describes
 implemented behaviour rather than target architecture. That is not a conformance proof: the current edition reflects
 an uncommitted development tree rather than a pinned review candidate, and a local green build remains engineering
 evidence, never a safety, audit, or release claim.

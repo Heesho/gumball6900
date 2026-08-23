@@ -134,7 +134,7 @@ contract StartingPointTest is Test {
         assertEq(secondPrice, 1e6);
         assertEq(usdg.balanceOf(address(resonance)), 0);
         assertEq(usdg.balanceOf(address(resonanceRouter)), 1_200_000);
-        assertEq(resonance.left(address(usdg)), 0);
+        assertEq(resonance.left(), 0);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
         assertEq(usdg.balanceOf(address(fund)), 0);
         assertEq(gbx.balanceOf(ALICE), 100 ether + 7_200 ether);
@@ -156,7 +156,7 @@ contract StartingPointTest is Test {
         assertEq(mine.pendingEmission(), 28_800 ether);
     }
 
-    function test_AcquisitionClassifiesTheCompletePaymentNinetyTen() external {
+    function test_AcquisitionSplitsTheCompletePaymentInlineNinetyTen() external {
         _signalFixture();
         usdg.mint(address(targetStrategy), 50_000_000);
 
@@ -168,8 +168,8 @@ contract StartingPointTest is Test {
 
         Bribe bribe = Bribe(resonance.bribeFor(address(targetStrategy)));
         BribeRouter router = BribeRouter(resonance.bribeRouterFor(address(targetStrategy)));
-        assertEq(router.fundPaymentLiability(), 9 ether);
-        assertEq(router.bribePaymentLiability(), 1 ether);
+        assertEq(target.balanceOf(address(fund)), 9 ether);
+        assertEq(target.balanceOf(address(router)), 1 ether);
         assertEq(target.balanceOf(address(bribe)), 0);
         assertEq(usdg.balanceOf(CAROL), 50_000_000);
         assertEq(targetStrategy.epochId(), 1);
@@ -186,23 +186,22 @@ contract StartingPointTest is Test {
         vm.stopPrank();
 
         BribeRouter router = BribeRouter(resonance.bribeRouterFor(address(targetStrategy)));
-        assertEq(router.fundPaymentLiability(), 9 ether);
-        assertEq(router.bribePaymentLiability(), 1 ether);
+        assertEq(target.balanceOf(address(fund)), 9 ether);
+        assertEq(target.balanceOf(address(router)), 1 ether);
         assertEq(target.balanceOf(resonance.bribeFor(address(targetStrategy))), 0);
-        assertEq(target.balanceOf(resonance.bribeRouterFor(address(targetStrategy))), STRATEGY_PRICE);
     }
 
     function test_RevenueWithoutSignalsBecomesUnallocatedResonanceSurplus() external {
         _routeRevenue(100_000_000);
         vm.warp(block.timestamp + resonance.DURATION());
 
-        assertEq(resonance.left(address(usdg)), 0);
-        assertEq(resonance.earned(address(targetStrategy), address(usdg)), 0);
+        assertEq(resonance.left(), 0);
+        assertEq(resonance.earned(address(targetStrategy)), 0);
         assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
         assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
     }
 
-    function test_GBXPaymentRequiresSeparateFundDeliveryAndBurn() external {
+    function test_GBXPaymentReachesFundInlineBeforePermissionlessBurn() external {
         _signalFixture();
         usdg.mint(address(gbxStrategy), 50_000_000);
 
@@ -214,14 +213,11 @@ contract StartingPointTest is Test {
 
         assertEq(gbx.totalSupply(), supplyBefore);
         assertEq(gbx.balanceOf(resonance.bribeFor(address(gbxStrategy))), 0);
-        assertEq(gbx.balanceOf(address(fund)), 0);
+        assertEq(gbx.balanceOf(address(fund)), 9 ether);
         assertEq(usdg.balanceOf(BOB), 50_000_000);
 
         BribeRouter router = BribeRouter(resonance.bribeRouterFor(address(gbxStrategy)));
-        assertEq(router.fundPaymentLiability(), 9 ether);
-        assertEq(router.bribePaymentLiability(), 1 ether);
-        router.payFundPayment();
-        assertEq(gbx.balanceOf(address(fund)), 9 ether);
+        assertEq(gbx.balanceOf(address(router)), 1 ether);
         assertEq(gbx.totalSupply(), supplyBefore);
 
         fund.burnGBX(9 ether);

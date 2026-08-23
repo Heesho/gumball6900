@@ -62,27 +62,34 @@ authorized for user funds. A green local build is engineering evidence, never a 
   underlying-GBX-permit `signalWithPermit`, `moveSignal`, and `withdrawSignal`. A signal made while the holder has no
   current delegate self-delegates. `withdrawSignal` performs the exact inverse of `signal`: it removes the paired
   Strategy and Bribe balance, burns the same sGBX amount, and returns the same GBX amount atomically. `moveSignal`
-  checkpoints both Strategies under their prior weights but changes neither GBX custody, sGBX supply, nor governance
-  voting units. SignalGBX has no ERC-2612 approval permit, staking withdrawal lock, signal cooldown, epoch restriction,
-  or once-per-period allocation rule. Standalone `stake`/`unstake`, allocation from an idle receipt, removal into an
-  idle receipt, and the redundant `stakeAndSignal`, `stakeAndSignalWithPermit`, and `removeSignalAndUnstake` workflows
-  are not permitted.
+  atomically calls `Resonance.removeSignalFor` for the source and then `Resonance.addSignalFor` for the destination;
+  if the addition fails, the complete move including the removal reverts. The two hooks checkpoint both Strategies
+  under their prior weights, while the completed move changes neither GBX custody, sGBX supply, nor governance voting
+  units. Do not add a dedicated `Resonance.moveSignalFor` hook. SignalGBX has no ERC-2612 approval permit, staking
+  withdrawal lock, signal cooldown, epoch restriction, or once-per-period allocation rule. Standalone
+  `stake`/`unstake`, allocation from an idle receipt, removal into an idle receipt, and the redundant `stakeAndSignal`,
+  `stakeAndSignalWithPermit`, and `removeSignalAndUnstake` workflows are not permitted.
 - `Resonance` holds received USDG in one global seven-day Bribe-style stream and allocates each elapsed interval among
   live Strategies according to the SignalGBX weights active during that interval. Every signal change checkpoints
   elapsed revenue before changing weights, and every Strategy purchase checkpoints and pulls that Strategy's released
-  USDG. During an active period, ResonanceRouter retains its balance while it is smaller than the exact scheduled USDG
-  left. Once the Router balance is at least that amount, it forwards its complete balance; Resonance checkpoints the
-  elapsed interval, combines the notification with the amount left, and restarts the combined schedule for seven days.
-  The raw USDG schedule uses quotient-plus-front-loaded-remainder release, while the global reward-per-signal index uses
-  `1e36` precision. Global-index and per-Strategy floors are accepted surplus rather than explicit carry. Revenue that
-  elapses while active signal supply is zero, and direct USDG donations, also remain unscheduled or unclaimable surplus
-  in Resonance. Strategy and Bribe deployment follows the Liquid Signal shape: Resonance uses `StrategyFactory` and
-  `BribeFactory`, and each Strategy has a corresponding `BribeRouter` and `Bribe`.
+  USDG. Resonance uses the Synthetix schedule: a notification during an active period combines the new amount with
+  `remainingSeconds * rewardRate`, applies ordinary integer division over seven days, and restarts the period. There is
+  no front-loaded rate remainder. ResonanceRouter buffers until its complete balance is at least `DURATION` raw USDG
+  units and, during an active period, at least the scheduled amount left, then forwards the complete balance.
+  The global reward-per-signal index uses `1e36` precision. Rate, global-index, and per-Strategy floors are accepted
+  surplus rather than explicit carry. Revenue that elapses while active signal supply is zero, and direct USDG
+  donations, also remain unscheduled or unclaimable surplus in Resonance. Strategy and Bribe deployment follows the
+  Liquid Signal shape: Resonance uses `StrategyFactory` and `BribeFactory`, and each Strategy has a corresponding
+  Bribe-only buffer `BribeRouter` and `Bribe`.
+- Resonance is permanently USDG-only. Keep its reward schedule and per-Strategy accrual scalar: do not add a Resonance
+  reward-token registry, token-keyed Resonance reward mappings, token parameters on its reward views, or another
+  Resonance reward asset. This specialization does not apply to paired Bribes, which remain bounded multi-token
+  rewarders.
 - Signal state has one canonical owner at each level: `SignalGBX.balanceOf(account)` is the account's aggregate signal,
   each Strategy's paired Bribe stores account-by-Strategy balances and its complete signal supply, and Resonance stores
   only the active live-Strategy total. Do not maintain a separate `SignalGBX.allocatedBalance` value that must duplicate
-  `balanceOf`. Resonance's `addSignalFor`, `removeSignalFor`, and `moveSignalFor` hooks are callable only by SignalGBX;
-  do not restore direct user signaling on Resonance or duplicate these ledgers.
+  `balanceOf`. Resonance's `addSignalFor` and `removeSignalFor` hooks are callable only by SignalGBX; do not restore a
+  dedicated move hook, direct user signaling on Resonance, or duplicate these ledgers.
 - Killing a Strategy is irreversible. The kill checkpoints and preserves its accrued Resonance claim, excludes its
   complete weight from active reward supply, rejects later signal additions, and lets existing signalers remove their
   allocations without subtracting the excluded weight again. The killed Strategy earns no later Resonance revenue.
@@ -90,37 +97,37 @@ authorized for user funds. A green local build is engineering evidence, never a 
   `killStrategy` must not remove the final live Strategy. Governance replaces the final Strategy by atomically batching
   an addition before the old Strategy's kill. Do not add a fake abstain Strategy. Killed-Strategy positions must remain
   movable to a live Strategy and withdrawable.
-- Each Bribe may register at most eight append-only reward tokens. The cap is fixed in code and is not governable.
+- Each Bribe may register at most sixteen append-only reward tokens. The cap is fixed in code and is not governable.
 - Each Bribe uses a `1e36` reward-per-signal index so low-decimal rewards remain useful over 18-decimal signal weight.
   For each reward token in each Bribe, cumulative accepted notifications must never exceed
   `floor(type(uint256).max / 1e36)` raw units. Track this lifetime amount monotonically; it has no reset, setter, or
   escape hatch. Reject an over-cap notification before checkpointing or token transfer so cap exhaustion cannot block
   claims, signal movement, or withdrawal. Direct token donations do not consume notification capacity.
-- Before a Bribe signal-supply change, classify unindexable old-supply reward carry to its fixed Fund remainder. When
-  an account fully exits, classify its sub-token user remainder to Fund rather than reallocating it to other signalers.
-- Every Strategy is the same bounded reverse Dutch acquisition mechanism. Its complete acquired-asset payment enters
-  the paired `BribeRouter`. Resonance stores one global prospective automatic-Bribe rate: `BPS = 10_000`,
+- Bribes use the Synthetix schedule and ordinary floor semantics. A permissionless notification must be at least
+  `DURATION` raw token units and at least the stream's current `left` amount; it combines with
+  `remainingSeconds * rewardRate` and restarts the seven-day period. Streams do not pause at zero signal supply and
+  notifications do not queue. Rate, index, and account floors remain unallocated token surplus; do not add carry
+  buckets, Fund rounding liabilities, exact-remainder scheduling, or surplus telemetry. Keep an all-token claim and one
+  scalar-token claim for broken-token isolation; caller-selected batch claims belong in periphery.
+- Core reward and payment accounting assumes standard, non-rebasing ERC-20 transfers. Use `SafeERC20`, but do not add
+  sender/receiver balance-delta enforcement or claim support for fee-on-transfer, rebasing, or mutable-blocklist tokens.
+- Every Strategy is the same bounded reverse Dutch acquisition mechanism. Resonance stores one global prospective
+  automatic-Bribe rate: `BPS = 10_000`,
   `DEFAULT_BRIBE_BPS = 1_000`, and `MAX_BRIBE_BPS = 2_000`. The Resonance owner may set `bribeBps` from 0 through
-  2,000 inclusive; the Fund rate is always the complement and no per-Strategy override is permitted. Each payment uses
-  the rate current when `BribeRouter.routePayment` classifies it. Existing Fund or Bribe liabilities, active streams,
-  queued rewards, accrued claims, and prior classifications never change when the rate changes.
-- BribeRouter must preserve exact weighted cumulative carry across rate changes. For payments `a_i` classified at
-  rates `r_i`, cumulative Bribe classification is `floor(sum(a_i * r_i) / BPS)`, cumulative Fund classification is
-  `sum(a_i) - cumulative Bribe classification`, and `splitRemainder = sum(a_i * r_i) mod BPS`. Never reset, rescale,
-  discard, or reclassify the remainder on a rate change. At 0%, new payments add no Bribe numerator, create no new
-  Bribe liability, and classify entirely to Fund; prior fractional carry remains unchanged until a later nonzero-rate
-  payment can realize it. The acquired payment asset, not USDG, is the automatic Bribe reward.
-- `BribeRouter.routePayment` only pulls and classifies the exact payment. Permissionless `payFundPayment` and
-  `notifyBribeReward` isolate the two fixed settlement legs so failure of either preserves its liability without
-  blocking or consuming the other. A zero Bribe liability is a no-op and must not call `Bribe.notifyRewardAmount` with
-  zero. Direct donations to BribeRouter are unaccounted surplus. A lifetime-cap failure preserves the automatic reward
-  liability in BribeRouter while the Fund leg remains independently payable; the exhausted Bribe cannot accept that
-  token again. Additional independently funded Bribe rewards remain permitted within the fixed token and lifetime
-  caps. A 0% automatic rate must not disable Strategies or Bribes and must not affect signal, move, withdrawal, killed-
-  Strategy exit, existing reward settlement, or independently funded reward paths.
-- A Strategy priced in GBX does not burn during settlement. After the dynamically Fund-classified liability is paid
-  into `Fund`, anyone may burn that GBX through `Fund.burnGBX`; any nonzero Bribe-classified liability funds the paired
-  GBX reward stream. Users should settle and burn pending Fund GBX before calculating a redemption.
+  2,000 inclusive; the Fund rate is always the complement and no per-Strategy override is permitted. Before payment-
+  token interaction, Strategy snapshots the current rate and computes `bribeAmount = floor(payment * bribeBps / BPS)`.
+  It pulls the complete payment, transfers the complement directly to Fund, and transfers any nonzero Bribe amount to
+  its paired BribeRouter. There is no cumulative split carry or deferred Fund liability. The acquired payment asset,
+  not USDG, is the automatic Bribe reward.
+- BribeRouter is only a Bribe buffer. Its permissionless `distribute` operation notifies its complete payment-token
+  balance once that balance satisfies the Bribe's minimum-notification and current-left thresholds. Bribe failure leaves
+  the buffered tokens retryable without reverting the completed Strategy purchase. Compatible direct donations join
+  the next notification. Additional independently funded Bribe rewards remain permitted within the fixed token and
+  lifetime caps. A 0% automatic rate must not disable Strategies, Bribes, signaling, exit, existing rewards, or
+  independently funded rewards.
+- A Strategy priced in GBX does not burn during settlement. Its Fund share reaches `Fund` atomically with the purchase
+  and may then be burned permissionlessly through `Fund.burnGBX`; any nonzero Bribe share funds the paired GBX reward
+  buffer. Users should burn Fund-held GBX before calculating a redemption.
 - Before every redemption denominator snapshot, Fund must read Mine's constant-time effective supply so accrued
   unminted GBX is included without a checkpoint or any slot iteration.
 

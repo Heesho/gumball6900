@@ -112,7 +112,7 @@ const protocolLoop = `
   ${edge('M 530 74 L 536 52', 'Fund 80–100%', 500, 52, true)}
   ${edge('M 530 94 L 536 128', 'Bribe 0–20%', 500, 122, true)}
   ${edge('M 584 152 L 584 208', 'burn to redeem', 584, 184)}
-  <text x="320" y="300" text-anchor="middle" ${S.tag}>NO ORACLE · NO MANAGER · EACH FILL FOLLOWS CURRENT SIGNAL AND BRIBEBPS STATE</text>
+  <text x="320" y="300" text-anchor="middle" ${S.tag}>NO ORACLE · NO MANAGER · EACH PURCHASE FLOORS ITS CURRENT BRIBEBPS SPLIT INDEPENDENTLY</text>
 </svg>`;
 
 /**
@@ -139,8 +139,8 @@ const contractGraph = `
   ${node(264, 232, 140, 40, ['Resonance', '7-day stream, 1e36'])}
   ${band(8, 304, 400, 66, 'Per-Strategy graph, one set each')}
   ${node(24, 326, 104, 40, ['Strategy', 'falling-price sale'])}
-  ${node(188, 326, 96, 40, ['BribeRouter', '0–20% Bribe'])}
-  ${node(312, 326, 92, 40, ['Bribe', '≤ 8 tokens'])}
+  ${node(188, 326, 96, 40, ['BribeRouter', 'qualifying buffer'])}
+  ${node(312, 326, 92, 40, ['Bribe', '≤ 16 tokens'])}
   ${band(8, 398, 400, 68, 'Custody')}
   ${node(200, 418, 140, 40, ['Fund', 'ownerless treasury'])}
   <text x="24" y="432" ${S.label}>Redemption and GBX burning</text>
@@ -155,10 +155,9 @@ const contractGraph = `
   ${edge('M 276 272 L 276 296 L 76 296 L 76 274', '', 0, 0)}
   ${edge('M 76 272 L 76 326', '', 0, 0)}
   ${edge('M 196 272 L 196 326', '', 0, 0)}
-  ${edge('M 128 346 L 188 346', 'routePayment', 158, 338)}
-  ${edge('M 284 346 L 312 346', '0–20%', 298, 338)}
-  ${edge('M 236 366 L 250 418', '80–100%', 220, 394, true)}
-  ${edge('M 358 366 L 310 418', 'remainders', 356, 394)}
+  ${edge('M 128 346 L 188 346', '0–20% buffer', 158, 338)}
+  ${edge('M 284 346 L 312 346', 'distribute()', 298, 338)}
+  ${edge('M 76 366 L 76 386 L 230 386 L 230 418', '80–100% direct', 150, 380, true)}
   ${edge('M 440 252 L 408 252', 'owns', 424, 244, true)}
   <rect x="440" y="232" width="192" height="96" rx="5" fill="none" stroke="${palette.pink}" stroke-width="1.1" stroke-dasharray="4 3" />
   <text x="452" y="252" ${S.tagPink}>RESONANCE OWNER</text>
@@ -178,11 +177,11 @@ const FIGURES = [
   {
     id: 'contract-graph',
     /** Hash of the `flowchart TB` contract graph in the whitepaper. */
-    hashes: ['617aab6694856011'],
+    hashes: ['7358699decd3c38c'],
     match: (src) => src.includes('StrategyFactory'),
     svg: contractGraph,
     caption:
-      'The deployed contract graph. Twelve contract types, one continuing custom-owner authority edge, three setup-only Ownable shells that production must explicitly renounce, and an external Resonance owner deliberately drawn outside the system because ADR 0034 removed governance implementation from this repository.',
+      'The deployed contract graph. Strategy sends Fund’s per-purchase complement directly and only the Bribe share to its qualifying buffer. Twelve contract types, one continuing custom-owner authority edge, three setup-only Ownable shells that production must explicitly renounce, and an external Resonance owner deliberately drawn outside the system because ADR 0034 removed governance implementation from this repository.',
   },
   {
     id: 'protocol-loop',
@@ -191,7 +190,7 @@ const FIGURES = [
     match: (src) => src.includes('slot auctions') && !src.includes('StrategyFactory'),
     svg: protocolLoop,
     caption:
-      'The economic loop. Mine deposits revenue into ResonanceRouter for a later permissionless route, while LiquidityPosition attempts routing atomically; Resonance then streams forwarded USDG under live signal weights. Each acquired payment uses the current 0%-to-20% Bribe share (10% by default), with Fund receiving the 80%-to-100% complement.',
+      'The economic loop. Mine deposits revenue into ResonanceRouter for a later permissionless route, while LiquidityPosition attempts routing atomically; Resonance then streams forwarded USDG under live signal weights. Strategy floors each purchase’s current 0%-to-20% Bribe share independently, sends Fund’s complement directly, and buffers only the Bribe share.',
   },
 ];
 

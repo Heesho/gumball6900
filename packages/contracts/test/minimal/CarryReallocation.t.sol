@@ -1,114 +1,92 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
+import { Test } from "forge-std/Test.sol";
 
-/// @title CarryReallocationTest
-/// @notice Covers Resonance's accepted rounding surplus and Bribe's exact carry classification.
-contract CarryReallocationTest is ProtocolFixture {
+import { Bribe } from "../../src/core/Bribe.sol";
+import { MockERC20 } from "./utils/Tokens.sol";
+
+/// @title BribeFlooringTest
+/// @notice Documents ordinary Synthetix-style flooring: rounded units remain surplus and never follow later weights.
+contract BribeFlooringTest is Test {
+    address private constant ALICE = address(0xA11CE);
+    address private constant BOB = address(0xB0B);
+    address private constant CAROL = address(0xCA401);
+
+    uint256 private constant WEEK = 7 days;
+
+    Bribe private bribe;
+    MockERC20 private reward;
+
     function setUp() external {
-        _deployProtocol();
+        vm.warp(365 days);
+        bribe = new Bribe(address(this));
+        reward = new MockERC20("Reward", "RWD", 18);
+        bribe.addRewardToken(address(reward));
     }
 
-    /// @notice Revenue rounded away under old weights remains surplus and cannot be captured by a later Strategy.
-    function test_NewStrategySignalCannotReceivePreEntryRoundedSurplus() external {
-        _signalDefault(ALICE, 1e36);
-        _signalDefault(CAROL, 1e36);
-        _signalOne(ALICE, address(targetStrategy));
-        _signalOne(CAROL, address(targetStrategy));
+    function test_LaterSignalerCannotReceivePreEntryRoundedReward() external {
+        bribe.deposit(50e36, ALICE);
+        bribe.deposit(50e36, CAROL);
+        uint256 startedAt = block.timestamp;
+        _notify(WEEK);
 
-        // The total weight is deliberately larger than one raw USDG expressed at index precision.
-        _routeRevenue(1);
-        _finishRevenueStream();
-        assertEq(resonance.rewardPerToken(address(usdg)), 0);
+        vm.warp(startedAt + 99);
+        bribe.deposit(100e36, BOB);
+        assertEq(bribe.rewardPerToken(address(reward)), 0);
+        assertEq(bribe.earned(BOB, address(reward)), 0);
 
-        _signalDefault(BOB, 2e36);
-        _signalOne(BOB, address(gbxStrategy));
+        vm.warp(startedAt + WEEK);
+        uint256 bobPaid = bribe.claimReward(BOB, address(reward));
+        uint256 alicePaid = bribe.claimReward(ALICE, address(reward));
+        uint256 carolPaid = bribe.claimReward(CAROL, address(reward));
 
-        _routeRevenue(4);
-        _finishRevenueStream();
-
-        resonance.distribute(address(targetStrategy));
-        resonance.distribute(address(gbxStrategy));
-
-        assertEq(usdg.balanceOf(address(targetStrategy)), 2);
-        assertEq(usdg.balanceOf(address(gbxStrategy)), 2);
-        assertEq(usdg.balanceOf(address(resonance)), 1, "the rounded unit remains unallocated surplus");
+        assertLe(bobPaid, (WEEK - 99) / 2, "BOB receives only a share of post-entry emission");
+        assertLe(alicePaid + bobPaid + carolPaid, WEEK - 99);
+        assertGe(reward.balanceOf(address(bribe)), 99, "pre-entry rounded emission remains surplus");
     }
 
-    /// @notice Carry below even the high-precision index is Fund-bound before a later signaler enters.
-    function test_NewSignalerCannotReceivePreEntryRewardCarry() external {
-        _signalDefault(ALICE, 50e36);
-        _signalDefault(CAROL, 50e36);
-        _signalOne(ALICE, address(targetStrategy));
-        _signalOne(CAROL, address(targetStrategy));
+    function test_RemainingSignalerCannotReceivePreExitRoundedReward() external {
+        bribe.deposit(50e36, ALICE);
+        bribe.deposit(50e36, CAROL);
+        uint256 startedAt = block.timestamp;
+        _notify(WEEK);
 
-        // The exact 300-unit stream emits one base unit per second for its first 300 seconds.
-        target.mint(DAVE, 300);
-        vm.startPrank(DAVE);
-        target.approve(address(targetBribe), 300);
-        targetBribe.notifyRewardAmount(address(target), 300);
-        vm.stopPrank();
+        vm.warp(startedAt + 99);
+        bribe.withdraw(50e36, ALICE);
+        assertEq(bribe.rewardPerToken(address(reward)), 0);
+        assertEq(bribe.earned(ALICE, address(reward)), 0);
 
-        // Astronomical signal weight deliberately puts ninety-nine raw units below even 1e36 index resolution.
-        vm.warp(DEPLOYED_AT + 99);
-        _signalDefault(BOB, 100e36);
-        _signalOne(BOB, address(targetStrategy));
-        assertEq(targetBribe.rewardPerToken(address(target)), 0);
-        assertEq(targetBribe.fundRewardLiability(address(target)), 99);
+        vm.warp(startedAt + WEEK);
+        uint256 alicePaid = bribe.claimReward(ALICE, address(reward));
+        uint256 carolPaid = bribe.claimReward(CAROL, address(reward));
 
-        // Only the next 201 units use the denominator that includes BOB.
-        vm.warp(DEPLOYED_AT + 300);
-        targetBribe.claimReward(BOB, address(target));
-
-        assertEq(target.balanceOf(BOB), 100);
-        assertEq(targetBribe.fundRewardLiability(address(target)), 99);
+        assertEq(alicePaid, 0);
+        assertLe(carolPaid, WEEK - 99, "CAROL cannot inherit the pre-exit rounded emission");
+        assertGe(reward.balanceOf(address(bribe)), 99);
     }
 
-    /// @notice Carry below even the high-precision index cannot move to signalers who remain after an exit.
-    function test_RemainingSignalerCannotReceivePreExitRewardCarry() external {
-        _signalDefault(ALICE, 50e36);
-        _signalDefault(CAROL, 50e36);
-        _signalOne(ALICE, address(targetStrategy));
-        _signalOne(CAROL, address(targetStrategy));
+    function test_FullExitSubTokenFloorIsNotReallocated() external {
+        bribe.deposit(3, ALICE);
+        bribe.deposit(7, CAROL);
+        uint256 startedAt = block.timestamp;
+        _notify(WEEK);
 
-        target.mint(DAVE, 300);
-        vm.startPrank(DAVE);
-        target.approve(address(targetBribe), 300);
-        targetBribe.notifyRewardAmount(address(target), 300);
-        vm.stopPrank();
+        vm.warp(startedAt + 1);
+        bribe.withdraw(3, ALICE);
+        assertEq(bribe.earned(ALICE, address(reward)), 0);
 
-        vm.warp(DEPLOYED_AT + 99);
-        vm.prank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 50e36);
-        assertEq(targetBribe.fundRewardLiability(address(target)), 99);
+        vm.warp(startedAt + WEEK);
+        assertEq(bribe.claimReward(ALICE, address(reward)), 0);
+        uint256 carolPaid = bribe.claimReward(CAROL, address(reward));
 
-        vm.warp(DEPLOYED_AT + 300);
-        targetBribe.claimReward(CAROL, address(target));
-
-        assertEq(target.balanceOf(CAROL), 201);
-        assertEq(targetBribe.fundRewardLiability(address(target)), 99);
+        assertLt(carolPaid, WEEK);
+        assertEq(carolPaid + reward.balanceOf(address(bribe)), WEEK);
     }
 
-    /// @notice A fully exiting account's sub-token reward remainder becomes a fixed Fund remainder.
-    function test_FullExitCannotReallocateUserRewardRemainder() external {
-        _signalDefault(ALICE, 3);
-        _signalDefault(CAROL, 7);
-        _signalOne(ALICE, address(targetStrategy));
-        _signalOne(CAROL, address(targetStrategy));
-
-        target.mint(DAVE, 1);
-        vm.startPrank(DAVE);
-        target.approve(address(targetBribe), 1);
-        targetBribe.notifyRewardAmount(address(target), 1);
-        vm.stopPrank();
-
-        vm.warp(DEPLOYED_AT + 1);
-        vm.prank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 3);
-
-        assertEq(targetBribe.userRewardRemainder(ALICE, address(target)), 0);
-        assertEq(targetBribe.fundRewardRemainder(address(target)), 3e35);
-        assertEq(targetBribe.earned(CAROL, address(target)), 0);
+    function _notify(uint256 amount) private {
+        reward.mint(address(this), amount);
+        reward.approve(address(bribe), amount);
+        bribe.notifyRewardAmount(address(reward), amount);
     }
 }

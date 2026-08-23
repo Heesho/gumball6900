@@ -11,12 +11,7 @@ import {
 import { Burned, Minted } from '../generated/GBX/GBX';
 import { FeesHarvested } from '../generated/LiquidityPosition/LiquidityPosition';
 import { Claimed, EmissionSettled, Mined, MinerPaymentAccrued, RevenueDeposited } from '../generated/Mine/Mine';
-import { RewardCarryFunded } from '../generated/templates/BribeTemplate/Bribe';
-import {
-  BribePaymentAccrued,
-  BribeRewardNotified,
-  PaymentRouted,
-} from '../generated/templates/BribeRouterTemplate/BribeRouter';
+import { RewardsDistributed } from '../generated/templates/BribeRouterTemplate/BribeRouter';
 import {
   BribeBpsSet,
   RevenueDistributed,
@@ -26,12 +21,7 @@ import {
   StrategyAdded,
   StrategyKilled,
 } from '../generated/Resonance/Resonance';
-import { handleRewardCarryFunded } from '../src/bribe';
-import {
-  handleRouterBribePaymentAccrued,
-  handleRouterBribeRewardNotified,
-  handleRouterPaymentRouted,
-} from '../src/bribe-router';
+import { handleRouterRewardsDistributed } from '../src/bribe-router';
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
 import { handleFeesHarvested } from '../src/liquidity-position';
@@ -78,10 +68,7 @@ export {
   handleMinted,
   handleRevenueDistributed,
   handleRevenueNotified,
-  handleRewardCarryFunded,
-  handleRouterBribePaymentAccrued,
-  handleRouterBribeRewardNotified,
-  handleRouterPaymentRouted,
+  handleRouterRewardsDistributed,
   handleSignaled,
   handleSignalWithdrawn,
   handleStrategyAdded,
@@ -280,7 +267,7 @@ describe('core protocol mappings', () => {
     );
   });
 
-  test('tracks cumulative BribeRouter liabilities and isolated reward notification', () => {
+  test('tracks permissionless distribution from the minimal BribeRouter buffer', () => {
     const added = changetype<StrategyAdded>(newMockEvent());
     configureEvent(added, CONTRACT, 1);
     added.parameters = new Array<ethereum.EventParam>();
@@ -294,44 +281,18 @@ describe('core protocol mappings', () => {
     context.setString('strategyId', '4663-' + STRATEGY.toHexString());
     dataSourceMock.setReturnValues(USER_TWO.toHexString(), 'robinhood', context);
 
-    const routed = changetype<PaymentRouted>(newMockEvent());
-    configureEvent(routed, USER_TWO, 2);
-    routed.parameters = new Array<ethereum.EventParam>();
-    routed.parameters.push(addressParam('strategy', STRATEGY));
-    routed.parameters.push(uintParam('amount', 10));
-    routed.parameters.push(uintParam('bribeBps', 1_000));
-    handleRouterPaymentRouted(routed);
-
-    const accrued = changetype<BribePaymentAccrued>(newMockEvent());
-    configureEvent(accrued, USER_TWO, 3);
-    accrued.parameters = new Array<ethereum.EventParam>();
-    accrued.parameters.push(addressParam('bribe', REWARDS));
-    accrued.parameters.push(addressParam('paymentToken', ASSET));
-    accrued.parameters.push(uintParam('amount', 1));
-    accrued.parameters.push(uintParam('totalLiability', 1));
-    accrued.parameters.push(uintParam('remainder', 0));
-    handleRouterBribePaymentAccrued(accrued);
-
-    const notified = changetype<BribeRewardNotified>(newMockEvent());
-    configureEvent(notified, USER_TWO, 4);
-    notified.parameters = new Array<ethereum.EventParam>();
-    notified.parameters.push(addressParam('caller', USER));
-    notified.parameters.push(addressParam('bribe', REWARDS));
-    notified.parameters.push(addressParam('paymentToken', ASSET));
-    notified.parameters.push(uintParam('amount', 1));
-    handleRouterBribeRewardNotified(notified);
+    const distributed = changetype<RewardsDistributed>(newMockEvent());
+    configureEvent(distributed, USER_TWO, 2);
+    distributed.parameters = new Array<ethereum.EventParam>();
+    distributed.parameters.push(addressParam('bribe', REWARDS));
+    distributed.parameters.push(addressParam('rewardToken', ASSET));
+    distributed.parameters.push(uintParam('amount', 1));
+    handleRouterRewardsDistributed(distributed);
 
     const strategyId = '4663-' + STRATEGY.toHexString();
-    assert.fieldEquals('Strategy', strategyId, 'routerPaymentRoutedRaw', '10');
-    assert.fieldEquals('Strategy', strategyId, 'latestRouterPaymentBribeBps', '1000');
-    assert.fieldEquals('Strategy', strategyId, 'routerBribePaymentAccruedRaw', '1');
-    assert.fieldEquals('Strategy', strategyId, 'routerBribePaymentNotifiedRaw', '1');
-    assert.fieldEquals('Strategy', strategyId, 'pendingRouterBribePaymentRaw', '0');
-    assert.fieldEquals('Strategy', strategyId, 'routerSplitRemainderRaw', '0');
-    assert.fieldEquals('ProtocolEvent', eventId(accrued), 'eventType', 'BRIBE_ROUTER_BRIBE_PAYMENT_ACCRUED');
-    assert.fieldEquals('ProtocolEvent', eventId(notified), 'eventType', 'BRIBE_ROUTER_BRIBE_REWARD_NOTIFIED');
-    assert.fieldEquals('ProtocolEvent', eventId(routed), 'eventType', 'BRIBE_ROUTER_PAYMENT_ROUTED');
-    assert.fieldEquals('ProtocolEvent', eventId(routed), 'values', '[10, 1000]');
+    assert.fieldEquals('Strategy', strategyId, 'routerRewardsDistributedRaw', '1');
+    assert.fieldEquals('ProtocolEvent', eventId(distributed), 'eventType', 'BRIBE_ROUTER_REWARDS_DISTRIBUTED');
+    assert.fieldEquals('ProtocolEvent', eventId(distributed), 'values', '[1]');
   });
 
   test('tracks the default and owner-selected prospective Bribe rate', () => {
@@ -408,19 +369,5 @@ describe('core protocol mappings', () => {
     assert.fieldEquals('ProtocolEvent', eventId(secondReset), 'eventType', 'RESONANCE_REVENUE_NOTIFIED');
     assert.fieldEquals('ProtocolEvent', eventId(secondReset), 'values', '[75]');
     assert.fieldEquals('ProtocolEvent', eventId(distributed), 'eventType', 'RESONANCE_REVENUE_DISTRIBUTED');
-  });
-
-  test('records Bribe sub-token carry classified to Fund', () => {
-    const carryFunded = changetype<RewardCarryFunded>(newMockEvent());
-    configureEvent(carryFunded, CONTRACT, 1);
-    carryFunded.parameters = new Array<ethereum.EventParam>();
-    carryFunded.parameters.push(addressParam('rewardToken', REWARDS));
-    carryFunded.parameters.push(uintParam('amountScaled', 13));
-    carryFunded.parameters.push(uintParam('remainderScaled', 7));
-    handleRewardCarryFunded(carryFunded);
-
-    assert.fieldEquals('ProtocolEvent', eventId(carryFunded), 'eventType', 'BRIBE_REWARD_CARRY_FUNDED');
-    assert.fieldEquals('ProtocolEvent', eventId(carryFunded), 'addresses', `[${REWARDS.toHexString()}]`);
-    assert.fieldEquals('ProtocolEvent', eventId(carryFunded), 'values', '[13, 7]');
   });
 });

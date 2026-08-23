@@ -251,14 +251,14 @@ state (display interpolates with `k`; the decrement happens once at the end); re
 
 `packages/contracts/src/core/Resonance.sol`:
 
-- Seven-day stream: `DURATION = 7 days` (Resonance.sol:28). `notifyRevenue` restarts the period:
-  new reward must be `>= left()` (the exact reward remaining in an active period,
-  Resonance.sol:230–241, 398–402); `_restartRewardPeriod` schedules `reward + remainder` at
-  `rate = scheduled / DURATION`, `periodFinish = now + DURATION`, with the integer-division
-  remainder emitted at 1 extra unit/s during the first seconds (Resonance.sol:455–466, 469–479).
-  So the contract CAN restart mid-period (topping up), which the flow sim simplifies to
-  restart-only-after-expiry.
-- Signaler share: `DEFAULT_BRIBE_BPS = 1_000` (10%, Resonance.sol:34); governance ceiling
-  `MAX_BRIBE_BPS = 2_000` — "Hard governance ceiling preserving at least 80% of cumulative
-  classified payments for Fund" (Resonance.sol:35–36); `setBribeBps` reverts above the max
-  (Resonance.sol:279–285) and never reprices existing liabilities (Resonance.sol:276–277).
+- Seven-day stream: `DURATION = 7 days`. `notifyRevenue` can restart the period mid-stream when
+  the new reward is `>= left()`, where `left()` is the whole-unit reward remaining at the active
+  rate. It schedules `reward + left()` at `rate = scheduled / DURATION` and sets
+  `periodFinish = now + DURATION`. Ordinary integer division floors the rate; the remainder stays
+  as unallocated Resonance surplus rather than being front-loaded. The flow sim simplifies this
+  to restart-only-after-expiry.
+- Signaler share: `DEFAULT_BRIBE_BPS = 1_000` (10%) and `MAX_BRIBE_BPS = 2_000`. The ceiling
+  preserves at least 80% of each later Strategy payment for Fund. `setBribeBps` reverts above the
+  max and never reprices an earlier purchase or active reward stream. Strategy snapshots the rate
+  before token interaction, pays the per-purchase complement directly to Fund, and sends only the
+  floored Bribe share to BribeRouter.

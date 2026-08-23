@@ -195,7 +195,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         address[] memory allStrategies = strategyRegistry.all();
         uint256 owed;
         for (uint256 i; i < allStrategies.length; ++i) {
-            owed += resonance.earned(allStrategies[i], address(usdg));
+            owed += resonance.earned(allStrategies[i]);
         }
         assertLe(owed, usdg.balanceOf(address(resonance)));
     }
@@ -203,27 +203,24 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @notice Scheduled and already-earned USDG never exceed Resonance's balance; rounding may leave surplus.
     function invariant_ResonanceScheduledAndEarnedRevenueIsSolvent() external view {
         address[] memory allStrategies = strategyRegistry.all();
-        uint256 owed = resonance.left(address(usdg));
+        uint256 owed = resonance.left();
         for (uint256 i; i < allStrategies.length; ++i) {
-            owed += resonance.earned(allStrategies[i], address(usdg));
+            owed += resonance.earned(allStrategies[i]);
         }
         assertLe(owed, usdg.balanceOf(address(resonance)));
     }
 
-    /// @notice The single reward period has coherent bounded timestamps and a fully backed remainder.
+    /// @notice The scalar reward period has coherent bounded timestamps and remains fully backed.
     function invariant_RevenueStreamStateIsCoherent() external view {
-        (uint256 periodFinish, uint256 remainderFinish, uint256 rewardRate, uint256 lastUpdateTime,) =
-            resonance.token_RewardData(address(usdg));
+        (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime,) = resonance.rewardData();
         if (periodFinish == 0) {
-            assertEq(remainderFinish, 0);
             assertEq(rewardRate, 0);
             assertEq(lastUpdateTime, 0);
             return;
         }
 
-        assertLe(remainderFinish, periodFinish);
         assertLe(lastUpdateTime, periodFinish);
-        assertLe(resonance.left(address(usdg)), usdg.balanceOf(address(resonance)));
+        assertLe(resonance.left(), usdg.balanceOf(address(resonance)));
     }
 
     /// @notice A killed Strategy's recorded signal is excluded from the active reward denominator.
@@ -240,7 +237,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice The revenue index only ever moves forward.
     function invariant_RevenueIndexIsMonotonic() external view {
-        assertGe(resonance.rewardPerToken(address(usdg)), handler.ghostHighestRevenueIndex());
+        assertGe(resonance.rewardPerToken(), handler.ghostHighestRevenueIndex());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -277,8 +274,8 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         }
     }
 
-    /// @notice Every notified reward unit remains exactly scheduled, queued, indexed, claimable, Fund-bound, or carried.
-    function invariant_BribeAccountingIdentitiesAreExact() external view {
+    /// @notice Every Bribe stream stays within its lifetime bound and advances a coherent four-field schedule.
+    function invariant_BribeScheduleStateIsCoherent() external view {
         address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             Bribe bribe = Bribe(resonance.bribeFor(allStrategies[i]));
@@ -287,39 +284,28 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             for (uint256 t; t < rewardTokens.length; ++t) {
                 address token = rewardTokens[t];
                 uint256 precision = bribe.REWARD_PRECISION();
-                uint256 classifiedScaled =
-                    (bribe.scheduledRewards(token)
-                            + bribe.queuedRewards(token)
-                            + bribe.accruedRewardLiability(token)
-                            + bribe.fundRewardLiability(token)) * precision + bribe.pendingRewardScaled(token)
-                        + bribe.indexedRewardScaled(token) + bribe.fundRewardRemainder(token);
-
-                uint256 summedRewards;
-                for (uint256 j; j < handler.actorCount(); ++j) {
-                    address actor = handler.actors(j);
-                    classifiedScaled += bribe.userRewardRemainder(actor, token);
-                    summedRewards += bribe.rewards(actor, token);
-                }
-
-                assertEq(summedRewards, bribe.accruedRewardLiability(token));
-                assertEq(classifiedScaled, bribe.accountedRewardBalance(token) * precision);
-                assertLe(bribe.accountedRewardBalance(token), IERC20(token).balanceOf(address(bribe)));
                 uint256 lifetimeNotified = bribe.lifetimeRewardNotified(token);
                 assertLe(lifetimeNotified, bribe.MAX_LIFETIME_REWARD_AMOUNT());
-                assertLe(bribe.accountedRewardBalance(token), lifetimeNotified);
                 assertLe(bribe.rewardPerToken(token), lifetimeNotified * precision);
+
+                (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime,) = bribe.rewardData(token);
+                if (periodFinish == 0) {
+                    assertEq(rewardRate, 0);
+                    assertEq(lastUpdateTime, 0);
+                } else {
+                    assertLe(lastUpdateTime, periodFinish);
+                }
             }
         }
     }
 
-    /// @notice Each Strategy payment router exposes only its two immutable settlement liabilities.
-    function invariant_BribeRouterAccountingIdentitiesAreExact() external view {
+    /// @notice Each Strategy payment router remains the immutable route to that Strategy's paired Bribe.
+    function invariant_BribeRouterGraphIsCoherent() external view {
         address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(allStrategies[i]));
-            assertEq(router.accountedPaymentBalance(), router.fundPaymentLiability() + router.bribePaymentLiability());
-            assertLe(router.accountedPaymentBalance(), router.paymentToken().balanceOf(address(router)));
-            assertLt(router.splitRemainder(), router.BPS());
+            assertEq(address(router.paymentToken()), resonance.paymentTokenFor(allStrategies[i]));
+            assertEq(address(router.bribe()), resonance.bribeFor(allStrategies[i]));
         }
     }
 
@@ -385,7 +371,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @dev Invariants are also evaluated once before the first call, so this cannot assert nonzero counts.
     ///      `test_EveryHandlerActionIsReachable` carries that assertion instead.
     function invariant_CallSummary() external view {
-        string[20] memory actions = _actionNames();
+        string[18] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             console.log(actions[i], handler.ghostCalls(bytes32(bytes(actions[i]))));
         }
@@ -411,9 +397,9 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.signal(0, addedIndex, 100 ether);
         assertEq(resonance.accountSignals(actor, addedStrategy), 100 ether);
 
-        handler.notifyTinyReward(addedIndex, 1);
+        handler.notifyTinyReward(addedIndex, 0);
         Bribe addedBribe = Bribe(resonance.bribeFor(addedStrategy));
-        assertEq(addedBribe.accountedRewardBalance(address(target)), 1);
+        assertEq(addedBribe.lifetimeRewardNotified(address(target)), addedBribe.REWARD_DURATION());
 
         handler.killStrategy(addedIndex);
         assertFalse(resonance.isStrategyAlive(addedStrategy));
@@ -449,9 +435,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
         workflowHandler.claimRewards(0, 0);
         workflowHandler.claimSelectiveReward(0, 0, 0);
-        handler.payFixedLiabilities();
-        handler.payFundLiabilities();
-        handler.notifyBribeLiabilities();
+        handler.distributeBribeRewards();
 
         // Fund needs a GBX balance of its own before the burn path is reachable.
         vm.prank(handler.actors(0));
@@ -464,7 +448,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.killStrategy(0);
         handler.withdrawDefault(0, type(uint256).max);
 
-        string[20] memory actions = _actionNames();
+        string[18] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             assertGt(
                 handler.ghostCalls(bytes32(bytes(actions[i]))),
@@ -482,7 +466,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         }
     }
 
-    function _actionNames() private pure returns (string[20] memory actions) {
+    function _actionNames() private pure returns (string[18] memory actions) {
         return [
             "signalDefault",
             "withdrawDefault",
@@ -497,9 +481,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             "distributeAll",
             "buy",
             "notifyTinyReward",
-            "payFixedLiabilities",
-            "payFundLiabilities",
-            "notifyBribeLiabilities",
+            "distributeBribeRewards",
             "claimMiningPayment",
             "redeem",
             "burnFundGBX",

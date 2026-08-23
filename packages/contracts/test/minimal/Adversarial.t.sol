@@ -6,7 +6,6 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 import { Bribe } from "../../src/core/Bribe.sol";
 import { BribeFactory } from "../../src/core/BribeFactory.sol";
-import { BribeRouter } from "../../src/core/BribeRouter.sol";
 import { Fund } from "../../src/core/Fund.sol";
 import { Resonance } from "../../src/core/Resonance.sol";
 import { ResonanceRouter } from "../../src/core/ResonanceRouter.sol";
@@ -115,7 +114,8 @@ contract AdversarialTest is ProtocolFixture {
 
         assertEq(gbx.balanceOf(WHALE), 900 ether);
         assertEq(resonance.totalSignalWeight(), 100 ether);
-        assertEq(usdg.balanceOf(address(targetStrategy)), 100_000_000);
+        uint256 scheduled = resonance.DURATION() * (uint256(100_000_000) / resonance.DURATION());
+        assertEq(usdg.balanceOf(address(targetStrategy)), scheduled);
         assertEq(usdg.balanceOf(address(gbxStrategy)), 0);
     }
 
@@ -167,7 +167,8 @@ contract AdversarialTest is ProtocolFixture {
         hostileResonance.killStrategy(hostileStrategy);
         assertEq(hostileResonance.strategySignalWeight(hostileStrategy), 75 ether);
         assertEq(hostileResonance.totalSignalWeight(), 0);
-        assertEq(hostileResonance.earned(hostileStrategy, address(freezableUSDG)), 99_999_999);
+        uint256 scheduled = hostileResonance.DURATION() * (uint256(100_000_000) / hostileResonance.DURATION());
+        assertEq(hostileResonance.earned(hostileStrategy), scheduled);
 
         // Fresh zero-signal revenue is scheduled but never assigned to the dead Strategy.
         freezableUSDG.mint(address(hostileRouter), 100_000_000);
@@ -183,40 +184,13 @@ contract AdversarialTest is ProtocolFixture {
         assertEq(gbx.balanceOf(ALICE), 75 ether, "all GBX remains live");
 
         hostileResonance.distribute(hostileStrategy);
-        assertEq(freezableUSDG.balanceOf(hostileStrategy), 99_999_999);
+        assertEq(freezableUSDG.balanceOf(hostileStrategy), scheduled);
         assertEq(freezableUSDG.balanceOf(address(fund)), 0);
         assertEq(
             freezableUSDG.balanceOf(address(hostileResonance)),
-            100_000_001,
-            "one rounded unit plus the zero-signal stream remain surplus"
+            200_000_000 - scheduled,
+            "the first schedule floor plus the zero-signal stream remain surplus"
         );
-    }
-
-    function test_AFrozenFundCannotBlockANoSignalAcquisitionSettlement() external {
-        RevertingToken payment = new RevertingToken(18);
-        (address strategyAddress,, address routerAddress) =
-            resonance.addStrategy(IERC20(address(payment)), defaultConfig());
-        Strategy strategy = Strategy(strategyAddress);
-        BribeRouter router = BribeRouter(routerAddress);
-
-        usdg.mint(strategyAddress, 50_000_000);
-        payment.mint(CAROL, DEFAULT_INITIAL_PRICE);
-        payment.setBlocked(address(fund), true);
-
-        vm.startPrank(CAROL);
-        payment.approve(strategyAddress, DEFAULT_INITIAL_PRICE);
-        strategy.buy(CAROL, 0, block.timestamp, DEFAULT_INITIAL_PRICE);
-        vm.stopPrank();
-
-        assertEq(usdg.balanceOf(CAROL), 50_000_000);
-        assertEq(router.fundPaymentLiability(), 9 ether);
-        assertEq(router.bribePaymentLiability(), 1 ether);
-        assertEq(payment.balanceOf(routerAddress), DEFAULT_INITIAL_PRICE);
-
-        vm.expectRevert("BLOCKED");
-        router.payFundPayment();
-        assertEq(router.fundPaymentLiability(), 9 ether);
-        assertEq(router.notifyBribeReward(), 1 ether, "the independent Bribe leg remains live");
     }
 
     /// @notice Retiring a Strategy never strands the reward stream its signalers already earned.
@@ -357,7 +331,7 @@ contract AdversarialTest is ProtocolFixture {
         assertTrue(hostile.lastCallSucceeded(), "a cross-contract call is not blocked, only harmless");
         assertEq(usdg.balanceOf(ATTACKER), 50_000_000, "the buyer receives only the pre-purchase snapshot");
         assertEq(usdg.balanceOf(hostileStrategy), 0, "same-block scheduled revenue has not released");
-        assertEq(resonance.left(address(usdg)), 100_000_000);
+        assertEq(resonance.left(), resonance.DURATION() * (uint256(100_000_000) / resonance.DURATION()));
     }
 
     /// @notice Re-entering the same Strategy during settlement is rejected by its own guard.
@@ -443,15 +417,16 @@ contract AdversarialTest is ProtocolFixture {
 
         usdg.mint(address(resonance), 500_000_000);
 
-        assertEq(resonance.rewardPerToken(address(usdg)), 0, "a raw transfer cannot move the index");
-        assertEq(resonance.earned(address(targetStrategy), address(usdg)), 0);
+        assertEq(resonance.rewardPerToken(), 0, "a raw transfer cannot move the index");
+        assertEq(resonance.earned(address(targetStrategy)), 0);
 
         // Legitimate routed revenue still flows correctly around the surplus.
         _routeRevenue(100_000_000);
         _finishRevenueStream();
         resonance.distribute(address(targetStrategy));
-        assertEq(usdg.balanceOf(address(targetStrategy)), 100_000_000);
-        assertEq(usdg.balanceOf(address(resonance)), 500_000_000);
+        uint256 scheduled = resonance.DURATION() * (uint256(100_000_000) / resonance.DURATION());
+        assertEq(usdg.balanceOf(address(targetStrategy)), scheduled);
+        assertEq(usdg.balanceOf(address(resonance)), 600_000_000 - scheduled);
     }
 
     /// @notice Reward tokens sent straight to a Bribe are never scheduled into a stream.
@@ -480,10 +455,10 @@ contract AdversarialTest is ProtocolFixture {
         }
         assertEq(targetBribe.rewardTokens().length, targetBribe.MAX_REWARD_TOKENS());
 
-        MockERC20 ninth = new MockERC20("Ninth Reward", "NINTH", 18);
+        MockERC20 seventeenth = new MockERC20("Seventeenth Reward", "SEVENTEENTH", 18);
         vm.expectRevert(abi.encodeWithSelector(Bribe.RewardTokenLimitReached.selector, targetBribe.MAX_REWARD_TOKENS()));
-        resonance.addBribeReward(address(targetStrategy), address(ninth));
-        assertFalse(targetBribe.isRewardToken(address(ninth)));
+        resonance.addBribeReward(address(targetStrategy), address(seventeenth));
+        assertFalse(targetBribe.isRewardToken(address(seventeenth)));
     }
 
     function _deployWith(MockERC20 revenueToken)

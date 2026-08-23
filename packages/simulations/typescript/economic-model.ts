@@ -72,25 +72,20 @@ function classifyStrategyPayments(
     throw new RangeError('Strategy Bribe rate outside protocol bounds');
   }
 
-  let fundLiability = 0n;
-  let bribeLiability = 0n;
-  let splitRemainder = 0n;
+  let fundAmount = 0n;
+  let bribeAmount = 0n;
   for (const [index, payment] of payments.entries()) {
     const rate = rates[index]!;
-    const baseBribe = mulDiv(payment, rate, BPS);
-    const accumulatedRemainder = splitRemainder + ((payment * rate) % BPS);
-    const bribeAmount = baseBribe + accumulatedRemainder / BPS;
-    splitRemainder = accumulatedRemainder % BPS;
-    fundLiability += payment - bribeAmount;
-    bribeLiability += bribeAmount;
+    const paymentBribeAmount = mulDiv(payment, rate, BPS);
+    fundAmount += payment - paymentBribeAmount;
+    bribeAmount += paymentBribeAmount;
   }
   return {
     payments,
     bribeBps: rates,
     totalPayment: payments.reduce((sum, payment) => sum + payment, 0n),
-    fundLiability,
-    bribeLiability,
-    splitRemainder,
+    fundAmount,
+    bribeAmount,
   };
 }
 
@@ -154,7 +149,7 @@ function rawSuite() {
   const redeemGBX = 1_000_000n * WAD;
 
   return {
-    schemaVersion: 13,
+    schemaVersion: 14,
     purpose: 'Deterministic protocol mechanics; not forecasts, valuations, or investment projections.',
     assumptions: {
       genesisLiquidityAllocationGBXRaw: GENESIS_LP_GBX,
@@ -268,12 +263,12 @@ function rawSuite() {
         elapsedSeconds,
         paymentAmount: elapsedSeconds >= 86_400n ? 0n : 100n * WAD - mulDiv(100n * WAD, elapsedSeconds, 86_400n),
       })),
-      cumulativeSplitIsFrequencyIndependent: true,
+      perPurchaseSplitCanDependOnPartitioning: true,
       tenOneUnitPayments: classifyStrategyPayments(Array<bigint>(10).fill(1n)),
       oneCombinedPayment: classifyStrategyPayments([10n]),
       rateChangeSequence: classifyStrategyPayments([7n, 13n, 19n, 23n], [1_000n, 0n, 500n, 2_000n]),
       zeroPercentPayments: classifyStrategyPayments([1n, 7n, 1_000_000n], 0n),
-      directRouterDonationSurplus: 7n,
+      directRouterDonation: 7n,
     },
     supply: {
       identity: 'totalSupply = lifetimeMinted - lifetimeBurned',

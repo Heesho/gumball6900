@@ -3,8 +3,9 @@
 - Status: accepted for the Resonance reward stream; direct signal entrypoints and signal-state ownership were
   superseded by ADR 0030 and then ADR 0031; permission to kill the final live Strategy is superseded by ADR 0031; the
   preserved 100%-Fund settlement is superseded by ADR 0032; the intended Timelock owner is superseded by
-  [ADR 0034](0034-external-governance-ownership.md); Mine no longer calls the Router synchronously under ADR 0044;
-  not audited or deployed; not approved for user funds
+  [ADR 0034](0034-external-governance-ownership.md); Mine no longer calls the Router synchronously under ADR 0044; the
+  retained multi-token Resonance storage and view ABI are superseded by ADR 0046; exact raw scheduling and expanded
+  Bribe machinery are superseded by ADR 0047; not audited or deployed; not approved for user funds
 - Date: 2026-08-15
 - Supersedes: ADR 0026 and the Resonance carry, direct-donation synchronization, and Resonance Fund-liability provisions
   of ADR 0020

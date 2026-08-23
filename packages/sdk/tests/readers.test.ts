@@ -136,7 +136,7 @@ describe('Resonance reads', () => {
       MAX_BRIBE_BPS: 2_000n,
       REWARD_PRECISION: 10n ** 36n,
       resonanceRouter: address(2),
-      token_RewardData: [2_600n, 2_100n, 7n, 2_000n, 5n],
+      rewardData: [2_600n, 7n, 2_000n, 5n],
       totalSignalWeight: 100n,
       usdg: address(3),
     };
@@ -157,7 +157,6 @@ describe('Resonance reads', () => {
       left: 600n,
       maximumBribeBasisPoints: 2_000n,
       periodFinish: 2_600n,
-      remainderFinish: 2_100n,
       resonanceRouter: address(2),
       rewardPerTokenStored: 5n,
       rewardPrecision: 10n ** 36n,
@@ -172,20 +171,13 @@ describe('Resonance reads', () => {
 });
 
 describe('BribeRouter reads', () => {
-  it('validates liabilities and returns the current global settlement rate', async () => {
+  it('returns the minimal buffer and Bribe notification thresholds', async () => {
     const values: Readonly<Record<string, unknown>> = {
-      accountedPaymentBalance: 100n,
-      BPS: 10_000n,
+      balanceOf: 100n,
       bribe: address(2),
-      bribeBps: 500n,
-      bribePaymentLiability: 10n,
-      fund: address(3),
-      fundPaymentLiability: 90n,
-      paymentSurplus: 7n,
+      left: 80n,
       paymentToken: address(4),
-      resonance: address(6),
-      splitRemainder: 0n,
-      strategy: address(5),
+      REWARD_DURATION: 604_800n,
     };
     const readContract = vi.fn(
       async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
@@ -194,20 +186,12 @@ describe('BribeRouter reads', () => {
     const client = { getBlock, readContract } as unknown as PublicClient;
 
     await expect(readBribeRouterView(client, address(1))).resolves.toEqual({
-      accountedPaymentBalance: 100n,
-      basisPoints: 10_000n,
       blockNumber: BLOCK_NUMBER,
       bribe: address(2),
-      bribeBasisPoints: 500n,
-      bribePaymentLiability: 10n,
-      fund: address(3),
-      fundBasisPoints: 9_500n,
-      fundPaymentLiability: 90n,
-      paymentSurplus: 7n,
+      bufferedReward: 100n,
+      currentRewardLeft: 80n,
+      minimumRewardAmount: 604_800n,
       paymentToken: address(4),
-      resonance: address(6),
-      splitRemainder: 0n,
-      strategy: address(5),
     });
   });
 });

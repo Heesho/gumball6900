@@ -283,7 +283,7 @@ function scanStylesheet(css) {
  * payment in basis points: 80% to the miner being displaced, 20% into the buying flow. A
  * flat "no bps in core" rule would now fail on an honest contract, and deleting the rule
  * would give up the check everywhere else. Mine's split is pinned to exactly two constants.
- * Resonance's bounded policy and BribeRouter's weighted classification are pinned independently.
+ * Resonance's bounded policy and Strategy's direct two-way classification are pinned independently.
  * Neither split reaches the team; the moment one does, the arithmetic below stops matching.
  */
 function assertNoProtocolFee() {
@@ -311,7 +311,7 @@ function assertNoProtocolFee() {
   // Basis-point arithmetic, which is how a split would have to be expressed.
   const splitPatterns = [/\/\s*10_?000\b/, /\bbps\b/i];
   // The files whose reviewed basis-point policy is expected, and therefore pinned rather than banned.
-  const SPLIT_FILES = new Set(['Mine.sol', 'Resonance.sol', 'BribeRouter.sol']);
+  const SPLIT_FILES = new Set(['Mine.sol', 'Resonance.sol', 'Strategy.sol']);
 
   const hits = [];
   for (const { name, text } of sources) {
@@ -373,27 +373,25 @@ function assertNoProtocolFee() {
     if (unexpected.length > 0) hits.push(`Resonance.sol: unexpected share ${unexpected.join(', ')}`);
   }
 
-  // ADR 0036 classification: snapshot the global rate and preserve one weighted cumulative carry.
-  const router = sources.find((entry) => entry.name === 'BribeRouter.sol');
-  if (!router) hits.push('BribeRouter.sol is missing');
+  // ADR 0047 classification: Strategy snapshots the global rate and pays both fixed destinations directly.
+  const strategy = sources.find((entry) => entry.name === 'Strategy.sol');
+  if (!strategy) hits.push('Strategy.sol is missing');
   else {
     const pins = [
       ['BPS = 10_000', /uint256 public constant BPS = 10_000;/],
       ['global rate snapshot', /uint256 appliedBribeBps = ICoreResonance\(resonance\)\.bribeBps\(\);/],
-      ['dynamic Bribe numerator', /Math\.mulDiv\(amount, appliedBribeBps, BPS\)/],
-      ['weighted remainder', /mulmod\(amount, appliedBribeBps, BPS\)/],
-      ['exhaustive Fund complement', /uint256 fundAmount = amount - bribeAmount;/],
-      ['Fund liability classification', /fundPaymentLiability \+= fundAmount;/],
-      ['Bribe liability classification', /bribePaymentLiability \+= bribeAmount;/],
-      ['frequency-independent remainder', /splitRemainder = accumulatedRemainder % BPS;/],
+      ['dynamic Bribe amount', /Math\.mulDiv\(paymentAmount, appliedBribeBps, BPS\)/],
+      ['exhaustive Fund complement', /uint256 fundAmount = paymentAmount - bribeAmount;/],
+      ['direct Fund payment', /paymentToken\.safeTransfer\(fund, fundAmount\);/],
+      ['Bribe buffer payment', /paymentToken\.safeTransfer\(router, bribeAmount\);/],
     ];
     for (const [label, pattern] of pins) {
-      if (!pattern.test(router.text)) hits.push(`BribeRouter.sol: ${label} no longer holds`);
+      if (!pattern.test(strategy.text)) hits.push(`Strategy.sol: ${label} no longer holds`);
     }
-    const bpsConstants = [...router.text.matchAll(/constant\s+(\w*BPS\w*)\s*=/g)].map((match) => match[1]);
+    const bpsConstants = [...strategy.text.matchAll(/constant\s+(\w*BPS\w*)\s*=/g)].map((match) => match[1]);
     const expected = new Set(['BPS']);
     const unexpected = bpsConstants.filter((name) => !expected.has(name));
-    if (unexpected.length > 0) hits.push(`BribeRouter.sol: unexpected share ${unexpected.join(', ')}`);
+    if (unexpected.length > 0) hits.push(`Strategy.sol: unexpected share ${unexpected.join(', ')}`);
   }
 
   if (hits.length > 0) {

@@ -3,19 +3,17 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildApproval,
+  buildClaimAllBribeRewards,
   buildClaimBribeReward,
   buildClaimMiningPayment,
-  buildClaimSelectedBribeRewards,
   buildDelegateSignalVotes,
+  buildDistributeBribeRewards,
   buildDistributeRevenue,
   buildFundBurn,
   buildHarvestLiquidityFees,
   buildMine,
   buildMoveSignal,
-  buildNotifyRouterBribeReward,
   buildNotifyRevenue,
-  buildPayBribeFundReward,
-  buildPayRouterFundPayment,
   buildRedemption,
   buildRouteRevenue,
   buildSignal,
@@ -165,24 +163,17 @@ describe('minimal typed transaction builders', () => {
     ).toBe('harvestFees');
   });
 
-  it('encodes selective Bribe claims and retryable fixed-liability settlement', () => {
+  it('encodes scalar and all-token Bribe claims plus buffered reward distribution', () => {
     expect(decodeFunctionData({ abi: bribeAbi, data: buildClaimBribeReward(A, B, C).data })).toMatchObject({
       args: [B, C],
       functionName: 'claimReward',
     });
-    expect(decodeFunctionData({ abi: bribeAbi, data: buildClaimSelectedBribeRewards(A, B, [C]).data })).toMatchObject({
-      args: [B, [C]],
+    expect(decodeFunctionData({ abi: bribeAbi, data: buildClaimAllBribeRewards(A, B).data })).toMatchObject({
+      args: [B],
       functionName: 'claimRewards',
     });
-    expect(decodeFunctionData({ abi: bribeRouterAbi, data: buildPayRouterFundPayment(A).data }).functionName).toBe(
-      'payFundPayment',
+    expect(decodeFunctionData({ abi: bribeRouterAbi, data: buildDistributeBribeRewards(A).data }).functionName).toBe(
+      'distribute',
     );
-    expect(decodeFunctionData({ abi: bribeRouterAbi, data: buildNotifyRouterBribeReward(A).data }).functionName).toBe(
-      'notifyBribeReward',
-    );
-    expect(decodeFunctionData({ abi: bribeAbi, data: buildPayBribeFundReward(A, C).data })).toMatchObject({
-      args: [C],
-      functionName: 'payFundReward',
-    });
   });
 });

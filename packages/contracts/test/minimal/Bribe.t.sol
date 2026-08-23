@@ -4,11 +4,10 @@ pragma solidity 0.8.26;
 import { Test } from "forge-std/Test.sol";
 
 import { Bribe } from "../../src/core/Bribe.sol";
-import { FeeOnTransferToken, MockERC20, RevertingToken } from "./utils/Tokens.sol";
+import { MockERC20 } from "./utils/Tokens.sol";
 
 /// @title BribeTest
-/// @notice Drives the reward stream directly, with the test contract acting as Resonance.
-/// @dev Deposits and withdrawals are virtual, so this suite isolates streaming maths from signal accounting.
+/// @notice Covers the bounded Synthetix-style reward stream over Resonance-controlled virtual balances.
 contract BribeTest is Test {
     address private constant ALICE = address(0xA11CE);
     address private constant BOB = address(0xB0B);
@@ -23,13 +22,6 @@ contract BribeTest is Test {
 
     event RewardAdded(address indexed rewardToken);
     event RewardNotified(address indexed rewardToken, uint256 amount);
-    event RewardPaid(address indexed account, address indexed rewardToken, uint256 amount);
-    event SignalWeightDeposited(address indexed account, uint256 amount);
-    event SignalWeightWithdrawn(address indexed account, uint256 amount);
-
-    function fund() external view returns (address fundAddress) {
-        return address(this);
-    }
 
     function setUp() external {
         vm.warp(365 days);
@@ -39,10 +31,6 @@ contract BribeTest is Test {
         bribe.addRewardToken(address(reward));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                         ACCESS AND VALIDATION
-    //////////////////////////////////////////////////////////////*/
-
     function test_ConstructorRejectsZeroAndEOAResonance() external {
         vm.expectRevert(Bribe.ZeroAddress.selector);
         new Bribe(address(0));
@@ -51,7 +39,7 @@ contract BribeTest is Test {
         new Bribe(ALICE);
     }
 
-    function test_VirtualBalanceMutationIsResonanceOnly() external {
+    function test_VirtualBalanceAndRegistryMutationsAreResonanceOnly() external {
         vm.startPrank(OUTSIDER);
         vm.expectRevert(abi.encodeWithSelector(Bribe.NotResonance.selector, OUTSIDER));
         bribe.deposit(1 ether, ALICE);
@@ -64,28 +52,21 @@ contract BribeTest is Test {
         vm.stopPrank();
     }
 
-    function test_DepositAndWithdrawRejectDegenerateArguments() external {
+    function test_VirtualBalanceMutationsRejectDegenerateArguments() external {
         vm.expectRevert(Bribe.ZeroAmount.selector);
         bribe.deposit(0, ALICE);
 
         vm.expectRevert(Bribe.ZeroAddress.selector);
-        bribe.deposit(1 ether, address(0));
+        bribe.deposit(1, address(0));
 
         vm.expectRevert(Bribe.ZeroAmount.selector);
         bribe.withdraw(0, ALICE);
 
         vm.expectRevert(Bribe.ZeroAddress.selector);
-        bribe.withdraw(1 ether, address(0));
+        bribe.withdraw(1, address(0));
     }
 
-    function test_WithdrawingMoreThanTheVirtualBalanceUnderflows() external {
-        bribe.deposit(1 ether, ALICE);
-
-        vm.expectRevert();
-        bribe.withdraw(1 ether + 1, ALICE);
-    }
-
-    function test_AddRewardTokenRejectsZeroEOAAndDuplicates() external {
+    function test_RewardTokensAreAppendOnlyAndListedInInsertionOrder() external {
         vm.expectRevert(Bribe.ZeroAddress.selector);
         bribe.addRewardToken(address(0));
 
@@ -94,9 +75,7 @@ contract BribeTest is Test {
 
         vm.expectRevert(abi.encodeWithSelector(Bribe.RewardAlreadyAdded.selector, address(reward)));
         bribe.addRewardToken(address(reward));
-    }
 
-    function test_RewardTokensAreListedInInsertionOrder() external {
         vm.expectEmit(true, false, false, false);
         emit RewardAdded(address(secondReward));
         bribe.addRewardToken(address(secondReward));
@@ -105,401 +84,175 @@ contract BribeTest is Test {
         assertEq(tokens.length, 2);
         assertEq(tokens[0], address(reward));
         assertEq(tokens[1], address(secondReward));
-        assertTrue(bribe.isRewardToken(address(reward)));
-        assertTrue(bribe.isRewardToken(address(secondReward)));
-        assertFalse(bribe.isRewardToken(CAROL));
     }
 
-    function test_RewardTokenCountIsPermanentlyCappedAtEight() external {
-        for (uint256 i = 1; i < bribe.MAX_REWARD_TOKENS(); ++i) {
+    function test_RewardTokenCountIsPermanentlyCappedAtSixteen() external {
+        uint256 maximum = bribe.MAX_REWARD_TOKENS();
+        assertEq(maximum, 16);
+
+        for (uint256 i = 1; i < maximum; ++i) {
             MockERC20 extra = new MockERC20("Extra Reward", "XTRA", 18);
             bribe.addRewardToken(address(extra));
         }
-        assertEq(bribe.rewardTokens().length, 8);
+        assertEq(bribe.rewardTokens().length, maximum);
 
-        MockERC20 ninth = new MockERC20("Ninth Reward", "NINTH", 18);
-        vm.expectRevert(abi.encodeWithSelector(Bribe.RewardTokenLimitReached.selector, uint256(8)));
-        bribe.addRewardToken(address(ninth));
+        MockERC20 seventeenth = new MockERC20("Seventeenth Reward", "SEVENTEENTH", 18);
+        vm.expectRevert(abi.encodeWithSelector(Bribe.RewardTokenLimitReached.selector, maximum));
+        bribe.addRewardToken(address(seventeenth));
     }
 
-    /*//////////////////////////////////////////////////////////////
-                            NOTIFY VALIDATION
-    //////////////////////////////////////////////////////////////*/
-
-    function test_NotifyRejectsAnUnregisteredToken() external {
+    function test_NotifyRejectsUnregisteredAndBelowDurationAmounts() external {
         vm.expectRevert(abi.encodeWithSelector(Bribe.NotRewardToken.selector, address(secondReward)));
-        bribe.notifyRewardAmount(address(secondReward), 10 ether);
+        bribe.notifyRewardAmount(address(secondReward), WEEK);
+
+        vm.expectRevert(abi.encodeWithSelector(Bribe.RewardBelowDuration.selector, WEEK - 1));
+        bribe.notifyRewardAmount(address(reward), WEEK - 1);
     }
 
-    function test_NotifyAcceptsAndExactlySchedulesAnAmountBelowTheDuration() external {
-        bribe.deposit(1 ether, ALICE);
-        _notify(WEEK - 1);
+    function test_SevenDayRateFloorsAndLeavesTheOrdinaryRemainderAsSurplus() external {
+        bribe.deposit(1, ALICE);
+        uint256 amount = 10 * WEEK + 123;
 
-        vm.warp(block.timestamp + WEEK);
-        bribe.claimReward(ALICE, address(reward));
-        assertEq(reward.balanceOf(ALICE), WEEK - 1);
-    }
-
-    function test_NotifyQueuesRatherThanShrinkingALiveStream() external {
-        bribe.deposit(1 ether, ALICE);
-        _notify(70 ether);
-        vm.warp(block.timestamp + 1 days);
-
-        uint256 remaining = bribe.left(address(reward));
-        _notify(1);
-
-        assertEq(bribe.left(address(reward)), remaining);
-        assertEq(bribe.queuedRewards(address(reward)), 1);
-    }
-
-    function test_ZeroSupplyNotificationConsumesLifetimeCapacityImmediately() external {
-        _notify(70 ether);
-
-        assertEq(bribe.lifetimeRewardNotified(address(reward)), 70 ether);
-        assertEq(bribe.accountedRewardBalance(address(reward)), 70 ether);
-        assertEq(bribe.queuedRewards(address(reward)), 70 ether);
-        assertEq(bribe.scheduledRewards(address(reward)), 0);
-    }
-
-    function test_NotifyRejectsAFeeOnTransferRewardToken() external {
-        FeeOnTransferToken feeToken = new FeeOnTransferToken(18);
-        bribe.addRewardToken(address(feeToken));
-        feeToken.mint(address(this), 70 ether);
-        feeToken.approve(address(bribe), 70 ether);
-        feeToken.setFeeBps(100);
-
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Bribe.InexactRewardTransfer.selector, 70 ether, 70 ether, (70 ether * 9_900) / 10_000
-            )
-        );
-        bribe.notifyRewardAmount(address(feeToken), 70 ether);
-
-        assertEq(bribe.lifetimeRewardNotified(address(feeToken)), 0);
-        assertEq(bribe.accountedRewardBalance(address(feeToken)), 0);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            STREAM MECHANICS
-    //////////////////////////////////////////////////////////////*/
-
-    function test_NotifyStartsASevenDayStreamAtTheFlooredRate() external {
-        bribe.deposit(100 ether, ALICE);
-        reward.mint(address(this), 70 ether);
-        reward.approve(address(bribe), 70 ether);
-
+        reward.mint(address(this), amount);
+        reward.approve(address(bribe), amount);
         vm.expectEmit(true, false, false, true);
-        emit RewardNotified(address(reward), 70 ether);
-        bribe.notifyRewardAmount(address(reward), 70 ether);
+        emit RewardNotified(address(reward), amount);
+        bribe.notifyRewardAmount(address(reward), amount);
 
-        (uint256 periodFinish,, uint256 rewardRate, uint256 lastUpdateTime,,) = bribe.rewardData(address(reward));
-        assertEq(rewardRate, 70 ether / WEEK);
-        assertEq(periodFinish, block.timestamp + WEEK);
-        assertEq(lastUpdateTime, block.timestamp);
-        assertEq(bribe.left(address(reward)), 70 ether);
-    }
+        (uint256 finish, uint256 rate, uint256 updatedAt,) = bribe.rewardData(address(reward));
+        assertEq(finish, block.timestamp + WEEK);
+        assertEq(rate, 10);
+        assertEq(updatedAt, block.timestamp);
+        assertEq(bribe.left(address(reward)), 10 * WEEK);
+        assertEq(bribe.lifetimeRewardNotified(address(reward)), amount);
 
-    function test_LeftAndApplicableTimeCollapseAfterThePeriodEnds() external {
-        bribe.deposit(100 ether, ALICE);
-        _notify(70 ether);
-        uint256 finish = block.timestamp + WEEK;
-
-        vm.warp(finish - 1);
-        assertEq(bribe.lastTimeRewardApplicable(address(reward)), finish - 1);
-        assertGt(bribe.left(address(reward)), 0);
-
-        vm.warp(finish + 1 days);
-        assertEq(bribe.lastTimeRewardApplicable(address(reward)), finish);
+        vm.warp(finish);
+        assertEq(bribe.claimReward(ALICE, address(reward)), 10 * WEEK);
+        assertEq(reward.balanceOf(address(bribe)), 123);
         assertEq(bribe.left(address(reward)), 0);
     }
 
-    function test_ATopUpWaitsBehindTheUndisturbedActiveStream() external {
-        bribe.deposit(100 ether, ALICE);
-        _notify(70 ether);
-        uint256 firstRate = 70 ether / WEEK;
+    function test_ActiveTopUpBelowTheAmountLeftRevertsWithoutChangingTheStream() external {
+        bribe.deposit(1, ALICE);
+        _notify(10 * WEEK);
+        vm.warp(block.timestamp + 1 days);
 
-        vm.warp(block.timestamp + 3 days);
         uint256 remaining = bribe.left(address(reward));
-        assertGe(remaining, firstRate * 4 days);
+        uint256 requested = remaining - 1;
+        (uint256 finishBefore, uint256 rateBefore, uint256 updateBefore, uint256 indexBefore) =
+            bribe.rewardData(address(reward));
 
-        _notify(140 ether);
-        (,, uint256 rewardRate,,,) = bribe.rewardData(address(reward));
-        assertEq(rewardRate, firstRate);
-        assertEq(bribe.left(address(reward)), remaining);
-        assertEq(bribe.queuedRewards(address(reward)), 140 ether);
+        reward.mint(address(this), requested);
+        reward.approve(address(bribe), requested);
+        uint256 callerBalanceBefore = reward.balanceOf(address(this));
+        uint256 bribeBalanceBefore = reward.balanceOf(address(bribe));
+
+        vm.expectRevert(abi.encodeWithSelector(Bribe.RewardBelowRemaining.selector, requested, remaining));
+        bribe.notifyRewardAmount(address(reward), requested);
+
+        (uint256 finishAfter, uint256 rateAfter, uint256 updateAfter, uint256 indexAfter) =
+            bribe.rewardData(address(reward));
+        assertEq(finishAfter, finishBefore);
+        assertEq(rateAfter, rateBefore);
+        assertEq(updateAfter, updateBefore);
+        assertEq(indexAfter, indexBefore);
+        assertEq(reward.balanceOf(address(this)), callerBalanceBefore);
+        assertEq(reward.balanceOf(address(bribe)), bribeBalanceBefore);
+        assertEq(bribe.lifetimeRewardNotified(address(reward)), 10 * WEEK);
     }
 
-    function test_AccrualIsProportionalToVirtualWeight() external {
-        bribe.deposit(75 ether, ALICE);
-        bribe.deposit(25 ether, BOB);
-        _notify(70 ether);
+    function test_ActiveTopUpEqualToTheAmountLeftIsAccepted() external {
+        bribe.deposit(1, ALICE);
+        _notify(10 * WEEK);
+        vm.warp(block.timestamp + 1 days);
 
-        vm.warp(block.timestamp + WEEK);
+        uint256 remaining = bribe.left(address(reward));
+        _notify(remaining);
 
-        uint256 aliceEarned = bribe.earned(ALICE, address(reward));
-        uint256 bobEarned = bribe.earned(BOB, address(reward));
-
-        assertApproxEqRel(aliceEarned, (70 ether * 3) / 4, 1e12);
-        assertApproxEqRel(bobEarned, 70 ether / 4, 1e12);
-        assertLe(aliceEarned + bobEarned, 70 ether, "the stream can never over-distribute");
+        (uint256 finish, uint256 rate, uint256 updatedAt,) = bribe.rewardData(address(reward));
+        assertEq(rate, (remaining + remaining) / WEEK);
+        assertEq(finish, block.timestamp + WEEK);
+        assertEq(updatedAt, block.timestamp);
+        assertEq(bribe.lifetimeRewardNotified(address(reward)), 10 * WEEK + remaining);
     }
 
-    function test_ALateArrivalEarnsNothingForTheElapsedPortion() external {
-        bribe.deposit(100 ether, ALICE);
-        _notify(70 ether);
+    function test_ActiveTopUpUsesStandardLeftoverRolloverAndRestartsSevenDays() external {
+        bribe.deposit(1, ALICE);
+        _notify(10 * WEEK);
+        vm.warp(block.timestamp + 2 days);
+
+        uint256 remaining = bribe.left(address(reward));
+        uint256 topUp = remaining + 3 * WEEK;
+        _notify(topUp);
+
+        (uint256 finish, uint256 rate, uint256 updatedAt,) = bribe.rewardData(address(reward));
+        assertEq(rate, (topUp + remaining) / WEEK);
+        assertEq(finish, block.timestamp + WEEK);
+        assertEq(updatedAt, block.timestamp);
+        assertEq(bribe.left(address(reward)), rate * WEEK);
+    }
+
+    function test_ElapsedRewardsAtZeroSupplyRemainUnclaimableSurplus() external {
+        uint256 rate = 10;
+        _notify(rate * WEEK);
 
         vm.warp(block.timestamp + 3 days);
-        bribe.deposit(100 ether, BOB);
-
-        assertEq(bribe.earned(BOB, address(reward)), 0);
-        assertApproxEqRel(bribe.earned(ALICE, address(reward)), (70 ether * 3) / 7, 1e12);
+        bribe.deposit(1, ALICE);
+        assertEq(bribe.earned(ALICE, address(reward)), 0);
 
         vm.warp(block.timestamp + 4 days);
-        assertApproxEqRel(bribe.earned(BOB, address(reward)), (70 ether * 2) / 7, 1e12);
+        assertEq(bribe.claimReward(ALICE, address(reward)), rate * 4 days);
+        assertEq(reward.balanceOf(address(bribe)), rate * 3 days);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                CLAIMING
-    //////////////////////////////////////////////////////////////*/
-
-    function test_ClaimRejectsTheZeroAccount() external {
-        vm.expectRevert(Bribe.ZeroAddress.selector);
-        bribe.claimRewards(address(0));
-    }
-
-    function test_ClaimAlwaysPaysTheAccountEvenWhenATtriggeredByAThirdParty() external {
+    function test_VirtualBalanceChangesCheckpointPriorWeights() external {
+        uint256 rate = 7;
         bribe.deposit(100 ether, ALICE);
-        _notify(70 ether);
-        vm.warp(block.timestamp + WEEK);
+        _notify(rate * WEEK);
 
-        uint256 expected = bribe.earned(ALICE, address(reward));
-        vm.prank(OUTSIDER);
-        vm.expectEmit(true, true, false, true);
-        emit RewardPaid(ALICE, address(reward), expected);
-        bribe.claimRewards(ALICE);
+        vm.warp(block.timestamp + 2 days);
+        bribe.deposit(100 ether, BOB);
+        assertEq(bribe.earned(ALICE, address(reward)), rate * 2 days);
+        assertEq(bribe.earned(BOB, address(reward)), 0);
 
-        assertEq(reward.balanceOf(ALICE), expected);
-        assertEq(reward.balanceOf(OUTSIDER), 0);
-        assertEq(bribe.earned(ALICE, address(reward)), 0);
+        vm.warp(block.timestamp + 1 days);
+        bribe.withdraw(50 ether, ALICE);
+        assertEq(bribe.earned(ALICE, address(reward)), rate * 2 days + (rate * 1 days) / 2);
+        assertEq(bribe.earned(BOB, address(reward)), (rate * 1 days) / 2);
+        assertEq(bribe.balanceOf(ALICE), 50 ether);
+        assertEq(bribe.totalSupply(), 150 ether);
     }
 
-    function test_ClaimingTwiceInARowPaysNothingTheSecondTime() external {
-        bribe.deposit(100 ether, ALICE);
-        _notify(70 ether);
-        vm.warp(block.timestamp + WEEK);
-
-        bribe.claimRewards(ALICE);
-        uint256 balanceAfterFirst = reward.balanceOf(ALICE);
-        bribe.claimRewards(ALICE);
-
-        assertEq(reward.balanceOf(ALICE), balanceAfterFirst);
-    }
-
-    function test_ClaimingWithNoAccrualIsAHarmlessNoOp() external {
-        bribe.claimRewards(CAROL);
-        assertEq(reward.balanceOf(CAROL), 0);
-    }
-
-    function test_MultipleRewardTokensAccrueIndependently() external {
+    function test_AllTokenClaimPaysEachRegisteredRewardToTheEntitledAccount() external {
         bribe.addRewardToken(address(secondReward));
-        bribe.deposit(100 ether, ALICE);
+        bribe.deposit(1, ALICE);
+        _notify(3 * WEEK);
 
-        _notify(70 ether);
-
-        // An exact multiple of the duration avoids rate flooring, isolating the multi-token behavior.
-        uint256 secondAmount = WEEK * 10;
+        uint256 secondAmount = 5 * WEEK;
         secondReward.mint(address(this), secondAmount);
         secondReward.approve(address(bribe), secondAmount);
         bribe.notifyRewardAmount(address(secondReward), secondAmount);
 
         vm.warp(block.timestamp + WEEK);
-        bribe.claimRewards(ALICE);
-
-        assertApproxEqRel(reward.balanceOf(ALICE), 70 ether, 1e12);
-        assertEq(secondReward.balanceOf(ALICE), secondAmount);
-    }
-
-    function test_SelectiveClaimOmitsABrokenRewardToken() external {
-        RevertingToken broken = new RevertingToken(18);
-        bribe.addRewardToken(address(broken));
-        bribe.deposit(100 ether, ALICE);
-
-        _notify(70 ether);
-        broken.mint(address(this), 35 ether);
-        broken.approve(address(bribe), 35 ether);
-        bribe.notifyRewardAmount(address(broken), 35 ether);
-        vm.warp(block.timestamp + WEEK);
-
-        broken.setBlocked(ALICE, true);
         vm.prank(OUTSIDER);
-        assertEq(bribe.claimReward(ALICE, address(reward)), 70 ether);
-        assertEq(reward.balanceOf(ALICE), 70 ether);
+        bribe.claimRewards(ALICE);
 
-        uint256 brokenLiability = bribe.earned(ALICE, address(broken));
-        vm.expectRevert("BLOCKED");
-        bribe.claimReward(ALICE, address(broken));
-        assertEq(bribe.earned(ALICE, address(broken)), brokenLiability);
+        assertEq(reward.balanceOf(ALICE), 3 * WEEK);
+        assertEq(secondReward.balanceOf(ALICE), secondAmount);
+        assertEq(reward.balanceOf(OUTSIDER), 0);
+        assertEq(secondReward.balanceOf(OUTSIDER), 0);
     }
 
-    function test_SelectiveClaimRejectsDuplicatesAndUnregisteredTokensBeforeInteraction() external {
-        address[] memory duplicate = new address[](2);
-        duplicate[0] = address(reward);
-        duplicate[1] = address(reward);
-        vm.expectRevert(abi.encodeWithSelector(Bribe.DuplicateRewardToken.selector, address(reward)));
-        bribe.claimRewards(ALICE, duplicate);
+    function test_ClaimValidationAndEmptyClaimAreHarmless() external {
+        vm.expectRevert(Bribe.ZeroAddress.selector);
+        bribe.claimRewards(address(0));
 
-        address[] memory unregistered = new address[](1);
-        unregistered[0] = address(secondReward);
         vm.expectRevert(abi.encodeWithSelector(Bribe.NotRewardToken.selector, address(secondReward)));
-        bribe.claimRewards(ALICE, unregistered);
+        bribe.claimReward(ALICE, address(secondReward));
+
+        assertEq(bribe.claimReward(CAROL, address(reward)), 0);
     }
 
-    function test_LowDecimalRewardTokensDistributeTheExactRateRemainder() external {
-        bribe.addRewardToken(address(secondReward));
-        bribe.deposit(100 ether, ALICE);
-
-        uint256 amount = 7_000_000; // 7.00 USDG at six decimals
-        secondReward.mint(address(this), amount);
-        secondReward.approve(address(bribe), amount);
-        bribe.notifyRewardAmount(address(secondReward), amount);
-
-        vm.warp(block.timestamp + WEEK);
-        bribe.claimRewards(ALICE);
-
-        assertEq(secondReward.balanceOf(ALICE), amount);
-        assertEq(secondReward.balanceOf(address(bribe)), 0);
-    }
-
-    function test_TheWorstCaseFormerRateFlooringRemainderIsFullyDistributed() external {
-        bribe.addRewardToken(address(secondReward));
-        bribe.deposit(100 ether, ALICE);
-
-        uint256 amount = 2 * WEEK - 1; // rate floors from 1.999... down to 1
-        secondReward.mint(address(this), amount);
-        secondReward.approve(address(bribe), amount);
-        bribe.notifyRewardAmount(address(secondReward), amount);
-
-        vm.warp(block.timestamp + WEEK);
-        bribe.claimRewards(ALICE);
-
-        assertEq(secondReward.balanceOf(ALICE), amount);
-        assertEq(secondReward.balanceOf(address(bribe)), 0);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                       STRANDED VALUE (DOCUMENTED)
-    //////////////////////////////////////////////////////////////*/
-
-    function test_ZeroSignalWeightPausesAndExtendsTheStreamWithoutRetroactiveAccrual() external {
-        bribe.deposit(100 ether, ALICE);
-        _notify(70 ether);
-        uint256 rate = 70 ether / WEEK;
-
-        vm.warp(block.timestamp + 1 days);
-        bribe.withdraw(100 ether, ALICE);
-        assertEq(bribe.totalSupply(), 0);
-
-        // Three days pass with nobody signaling for this Strategy.
-        vm.warp(block.timestamp + 3 days);
-        bribe.deposit(100 ether, BOB);
-
-        vm.warp(block.timestamp + 6 days);
-        bribe.claimRewards(ALICE);
-        bribe.claimRewards(BOB);
-
-        uint256 paidOut = reward.balanceOf(ALICE) + reward.balanceOf(BOB);
-        uint256 stranded = reward.balanceOf(address(bribe));
-
-        assertApproxEqAbs(reward.balanceOf(ALICE), rate * 1 days, 1e6);
-        assertApproxEqAbs(reward.balanceOf(BOB), rate * 6 days, 1e6);
-        assertEq(stranded, 0, "the paused interval cannot strand rewards");
-        assertEq(paidOut + stranded, 70 ether);
-    }
-
-    function test_TheFormerFlooredRewardRateRemainderIsFullyClaimable() external {
-        bribe.deposit(100 ether, ALICE);
-        uint256 amount = WEEK + WEEK - 1; // rate floors to 1, remainder is WEEK - 1
-        _notify(amount);
-
-        vm.warp(block.timestamp + WEEK);
-        bribe.claimRewards(ALICE);
-
-        assertEq(reward.balanceOf(ALICE), amount);
-        assertEq(reward.balanceOf(address(bribe)), 0);
-    }
-
-    function test_AnOutsiderCannotExtendOrSlowTheLiveStream() external {
-        bribe.deposit(100 ether, ALICE);
-        _notify(70 ether);
-
-        vm.warp(block.timestamp + 6 days);
-        uint256 remainingBefore = bribe.left(address(reward));
-
-        reward.mint(OUTSIDER, 700 ether);
-        vm.startPrank(OUTSIDER);
-        reward.approve(address(bribe), 700 ether);
-        bribe.notifyRewardAmount(address(reward), 700 ether);
-        vm.stopPrank();
-
-        assertEq(bribe.left(address(reward)), remainingBefore);
-        assertEq(bribe.queuedRewards(address(reward)), 700 ether);
-
-        vm.warp(block.timestamp + 8 days);
-        bribe.claimRewards(ALICE);
-        assertApproxEqRel(reward.balanceOf(ALICE), 770 ether, 1e12, "the extension only adds value");
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                  FUZZ
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice The Bribe always holds enough of the reward token to cover every account's accrual.
-    function testFuzz_BribeIsAlwaysSolventAgainstAccruedRewards(
-        uint256 aliceWeight,
-        uint256 bobWeight,
-        uint256 amount,
-        uint256 elapsed
-    ) external {
-        uint256 first = bound(aliceWeight, 1, 1e24);
-        uint256 second = bound(bobWeight, 1, 1e24);
-        uint256 notified = bound(amount, WEEK, 1e30);
-        uint256 wait = bound(elapsed, 0, 3 * WEEK);
-
-        bribe.deposit(first, ALICE);
-        bribe.deposit(second, BOB);
-        _notify(notified);
-
-        vm.warp(block.timestamp + wait);
-
-        uint256 owed = bribe.earned(ALICE, address(reward)) + bribe.earned(BOB, address(reward));
-        assertLe(owed, reward.balanceOf(address(bribe)), "accrual must never exceed the held balance");
-        assertLe(owed, notified);
-    }
-
-    /// @notice Claimed totals across all participants never exceed what was streamed in.
-    function testFuzz_TotalPaidNeverExceedsTotalNotified(uint256 amount, uint256 splitBps, uint256 elapsed) external {
-        uint256 notified = bound(amount, WEEK, 1e30);
-        uint256 share = bound(splitBps, 1, 9_999);
-        uint256 wait = bound(elapsed, 0, 4 * WEEK);
-
-        uint256 total = 1e21;
-        bribe.deposit((total * share) / 10_000, ALICE);
-        bribe.deposit(total - (total * share) / 10_000, BOB);
-        _notify(notified);
-
-        vm.warp(block.timestamp + wait);
-        bribe.claimRewards(ALICE);
-        bribe.claimRewards(BOB);
-
-        assertLe(reward.balanceOf(ALICE) + reward.balanceOf(BOB), notified);
-        assertEq(
-            reward.balanceOf(ALICE) + reward.balanceOf(BOB) + reward.balanceOf(address(bribe)),
-            notified,
-            "every notified wei is either paid or still held"
-        );
-    }
-
-    /// @notice Virtual balances track deposits and withdrawals exactly.
     function testFuzz_VirtualSupplyMatchesTheSumOfBalances(uint256 first, uint256 second, uint256 exit) external {
         uint256 aliceWeight = bound(first, 1, 1e30);
         uint256 bobWeight = bound(second, 1, 1e30);
@@ -512,6 +265,19 @@ contract BribeTest is Test {
         assertEq(bribe.balanceOf(ALICE), aliceWeight - exitAmount);
         assertEq(bribe.balanceOf(BOB), bobWeight);
         assertEq(bribe.totalSupply(), bribe.balanceOf(ALICE) + bribe.balanceOf(BOB));
+    }
+
+    function testFuzz_ClaimsNeverExceedTokenCustody(uint256 amount, uint256 elapsed) external {
+        uint256 notified = bound(amount, WEEK, 1e30);
+        uint256 wait = bound(elapsed, 0, 2 * WEEK);
+        bribe.deposit(3 ether, ALICE);
+        bribe.deposit(2 ether, BOB);
+        _notify(notified);
+
+        vm.warp(block.timestamp + wait);
+        uint256 owed = bribe.earned(ALICE, address(reward)) + bribe.earned(BOB, address(reward));
+        assertLe(owed, reward.balanceOf(address(bribe)));
+        assertLe(owed, notified);
     }
 
     function _notify(uint256 amount) private {

@@ -270,7 +270,7 @@ contract MineTest is ProtocolFixture {
         assertEq(usdg.balanceOf(address(mine)), 0);
         assertEq(usdg.balanceOf(address(resonanceRouter)), paid);
         assertEq(usdg.balanceOf(address(resonance)), 0);
-        assertEq(resonance.left(address(usdg)), 0);
+        assertEq(resonance.left(), 0);
 
         Mine.Slot memory slot = mine.getSlot(0);
         assertEq(slot.miner, ALICE);

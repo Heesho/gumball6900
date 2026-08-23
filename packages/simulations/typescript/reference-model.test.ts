@@ -59,25 +59,22 @@ describe('Mine reference model', () => {
     });
   });
 
-  it('matches cumulative default-rate acquired-asset classification across payment partitions', () => {
+  it('matches per-purchase default-rate acquired-asset classification', () => {
     const quote = loadTypeScriptResults().auctionQuotes[0];
     expect(quote).toMatchObject({
       fundAmount: '37800000000000000000',
       bribeAmount: '4200000000000000000',
-      splitRemainder: '0',
-      partitionFundAmount: '37800000000000000000',
-      partitionBribeAmount: '4200000000000000000',
-      partitionRemainder: '0',
+      partitionFundAmount: '37800000000000000002',
+      partitionBribeAmount: '4199999999999999998',
     });
   });
 
-  it('matches weighted classification across governance rate changes', () => {
+  it('matches independently floored classification across governance rate changes', () => {
     const quote = loadTypeScriptResults().auctionQuotes[1];
     expect(quote).toMatchObject({
       partitionBribeBasisPoints: ['1000', '0', '500', '2000'],
-      partitionFundAmount: '56',
-      partitionBribeAmount: '6',
-      partitionRemainder: '2500',
+      partitionFundAmount: '58',
+      partitionBribeAmount: '4',
     });
   });
 

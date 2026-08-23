@@ -3,7 +3,7 @@
 This file defines the accounting identities used by the hardening tests. For Resonance and Bribe rewards, `P = 1e36`.
 Quantities named `Scaled` already include their subsystem's precision unit.
 
-> ADRs 0031, 0034, 0036, and 0037 make the SignalGBX, BribeRouter, Bribe lifetime bound, and external-governance
+> ADRs 0031, 0034, 0035, 0037, 0047, and 0048 make the SignalGBX, Bribe, Strategy settlement, and external-governance
 > boundary below authoritative. Governance execution remains unselected and contributes no production invariant until
 > separately reviewed.
 
@@ -57,10 +57,11 @@ nor voting units. Excess escrow GBX is unsolicited surplus and creates no receip
 A killed Strategy's recorded `strategySignalWeight` and paired Bribe supply remain, but its balance is excluded from
 active `totalSignalWeight` and remains movable out or withdrawable.
 
-SignalGBX is the only caller accepted by Resonance's `addSignalFor`, `removeSignalFor`, and `moveSignalFor`. SignalGBX
-balance owns the aggregate signal; the paired Bribe owns account-by-Strategy and per-Strategy balances; Resonance owns
-only the active live-Strategy total. A separate `allocatedBalance`, standalone stake/unstake state, or intermediate idle
-receipt is forbidden.
+SignalGBX is the only caller accepted by Resonance's `addSignalFor` and `removeSignalFor`. Its public `moveSignal`
+atomically calls removal for the source and addition for the destination; Resonance has no dedicated move hook, and a
+failed addition rolls back the removal. SignalGBX balance owns the aggregate signal; the paired Bribe owns
+account-by-Strategy and per-Strategy balances; Resonance owns only the active live-Strategy total. A separate
+`allocatedBalance`, standalone stake/unstake state, or intermediate idle receipt is forbidden.
 
 Before the first Strategy is registered, `liveStrategyCount = 0` and new signal is impossible. After registration:
 
@@ -108,8 +109,8 @@ Resonance intentionally uses a solvency inequality rather than exact carried acc
 Strategy at one block:
 
 ```text
-scheduledRevenue = left(USDG)
-previewedStrategyLiability = sum(earned(strategy, USDG))
+scheduledRevenue = left()
+previewedStrategyLiability = sum(earned(strategy))
 USDG.balanceOf(Resonance)
   = scheduledRevenue + previewedStrategyLiability + surplus
 surplus >= 0
@@ -117,7 +118,7 @@ surplus >= 0
 
 `surplus` includes global-index and per-Strategy floors, emission elapsed while active signal supply was zero, and USDG
 sent directly without a Router notification. It is neither a Strategy nor Fund liability and there is no synchronization,
-recovery, or later-allocation path. Exact Strategy payouts reduce both the token balance and the matching whole reward.
+recovery, or later-allocation path. Strategy payouts reduce both the token balance and the matching whole reward.
 
 For every active stream:
 
@@ -126,13 +127,13 @@ periodFinish - mostRecentQualifyingNotification = 7 days
 baseRateRaw = floor(scheduledRaw / 7 days)
 rateRemainderRaw = scheduledRaw mod 7 days
 releasedRaw(first x active seconds)
-  = x * baseRateRaw + min(x, rateRemainderRaw)
-releasedRaw(7 days) = scheduledRaw
+  = x * baseRateRaw
+releasedRaw(7 days) = scheduledRaw - rateRemainderRaw
 ```
 
-During an active schedule, a Router balance below `left(USDG)` stays in ResonanceRouter and `route` returns zero. A
-complete Router balance at least equal to `left(USDG)` is pulled exactly. Resonance checkpoints elapsed emission and
-restarts a seven-day schedule whose amount is `routerBalance + leftBeforeNotification`; there is no successor queue.
+ResonanceRouter forwards only when its complete balance is at least `max(DURATION, left())`; otherwise `route` returns
+zero. Resonance checkpoints elapsed emission and restarts a seven-day schedule at
+`floor((routerBalance + leftBeforeNotification) / DURATION)`. The division remainder remains surplus.
 
 For positive active signal supply, elapsed raw emission advances the global reward-per-signal index by
 `floor(emittedRaw * P / totalSignalWeight)`. Strategy checkpointing accrues
@@ -156,52 +157,43 @@ For Bribe precision `P = 1e36`, every token in every Bribe satisfies:
 previewedRewardPerToken[token] <= lifetimeRewardNotified[token] * P <= type(uint256).max
 ```
 
-Every accepted notification adds its raw amount to `lifetimeRewardNotified`; claims, Fund classification, and later
+Every accepted notification adds its raw amount to `lifetimeRewardNotified`; claims and later
 balance changes never decrease it. Direct donations do not count because Bribe never indexes them. An over-cap amount
 reverts before reward checkpointing or token transfer, so the rejection cannot mutate a stream or gate a signal exit.
 
 ```text
-accountedRewardBalance[token] * P
-  = scheduledRewards[token] * P
-  + queuedRewards[token] * P
-  + pendingRewardScaled[token]
-  + indexedRewardScaled[token]
-  + sum_account userRewardRemainder[account][token]
-  + accruedRewardLiability[token] * P
-  + fundRewardLiability[token] * P
-  + fundRewardRemainder[token]
+scheduledReward[token] = left(token)
+previewedAccountRewards[token] = sum_account earned(account, token)
+ERC20(token).balanceOf(Bribe)
+  = scheduledReward[token] + previewedAccountRewards[token] + surplus[token]
+surplus[token] >= 0
 ```
 
-Zero supply pauses stream boundaries. A live top-up queues instead of resetting the stream. Before virtual supply
-changes, unindexable old-supply carry moves to the fixed Fund classification; a fully exiting account's sub-token
-remainder does likewise. Claims clear only selected token liabilities.
+Notifications must satisfy `amount >= REWARD_DURATION` and `amount >= left(token)`. A valid notification checkpoints
+the current index, pulls the standard token, and sets
+`rewardRate = floor((amount + leftBeforeNotification) / REWARD_DURATION)`. Stream time continues at zero supply.
+Rate, global-index, and account floors remain surplus; there are no queue, pause, carry, or Fund-reward buckets.
 
-## BribeRouter conservation
+All-token claims are atomic across the registered set. Scalar claims touch only one token and therefore preserve
+claim liveness when another registered token fails.
+
+## Strategy settlement and BribeRouter buffering
 
 ```text
 BPS = 10,000
-0 <= appliedBribeBps_i <= 2,000
-weightedBribeNumerator = sum_i(strategyPayment_i * appliedBribeBps_i)
-
-cumulativeBribeClassification
-  = floor(weightedBribeNumerator / BPS)
-cumulativeFundClassification
-  = sum_i(strategyPayment_i) - cumulativeBribeClassification
-splitRemainder
-  = weightedBribeNumerator mod BPS
-
-accountedPaymentBalance
-  = fundPaymentLiability + bribeRewardLiability
+0 <= appliedBribeBps <= 2,000
+bribeAmount = floor(strategyPayment * appliedBribeBps / BPS)
+fundAmount = strategyPayment - bribeAmount
+strategyPayment = fundAmount + bribeAmount
 ```
 
-Equivalent partitions classified at the same applied rate produce identical cumulative classifications. A rate change
-does not mutate `splitRemainder` or either outstanding liability. A zero-rate payment adds no weighted numerator,
-creates no Bribe liability, and leaves prior remainder unchanged. `payFundPayment` consumes only the fixed Fund
-liability; `notifyBribeReward` consumes only the fixed Bribe liability and schedules the acquired payment asset in the
-paired Bribe. A zero liability returns without making a zero reward notification. Failure preserves the affected
-liability and cannot change or consume the other. Direct donations remain unaccounted surplus and alter neither
-liabilities nor split remainder. If the paired Bribe's lifetime cap for the payment token is exhausted, the automatic
-Bribe liability remains in BribeRouter and its Fund liability remains independently payable.
+Strategy snapshots `appliedBribeBps` before payment-token interaction, pulls the payment, transfers `fundAmount`
+directly to Fund, and transfers nonzero `bribeAmount` to BribeRouter. There is no split carry or deferred Fund
+liability; different payment partitions may differ by sub-token flooring. A failed Fund transfer reverts the purchase.
+
+BribeRouter's complete compatible-token balance is the next candidate notification, including direct donations. Its
+`distribute` operation returns zero until that balance is at least both `REWARD_DURATION` and the Bribe's `left` amount.
+A failed notification reverts without moving the balance; a successful notification leaves the Router empty.
 
 Signal and exit liveness is independent of `bribeBps`: `signal`, `signalWithPermit`, `moveSignal`, and
 `withdrawSignal` do not require a new automatic liability or settlement of an acquired payment token. This remains

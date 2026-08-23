@@ -1,10 +1,10 @@
 ---
 title: GUM BALL 6900 at a Glance
 version: 2.0.0
-date: 2026-08-22
+date: 2026-08-23
 source_commit: uncommitted-working-tree
-base_commit: e3ebdd7987653969b31dbf0e8d20b68a838dfa5d
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0045; not approved for user funds.
+base_commit: d80b92da5e60c0daa54dbae29653898dde514053
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0048; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
 internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
 independent_audit_status: No independent external audit has been performed.
@@ -45,7 +45,7 @@ quantity. sGBX cannot be transferred; the only way to get it is to signal, and t
 
 Revenue flows to Strategies in proportion to the signal they carry, moment by moment. There is no lock-up, cooldown, or
 voting epoch, and every signal change first settles revenue accrued under the old weights — so changing your mind never
-retroactively redirects money.
+retroactively redirects money. A move is one atomic source removal plus destination addition; failure rolls both back.
 
 ## Revenue, acquisition, and redemption
 
@@ -66,8 +66,9 @@ oracle is consulted — the auction is the price discovery.
 
 Every acquired payment is classified at one bounded global rate. The automatic Bribe share **defaults to 10% and may
 be set prospectively from 0% through 20%**; Fund receives the 100%-minus-Bribe complement, so its share defaults to
-90% and always remains between 80% and 100%. The weighted split is cumulatively exact across rate changes — paying in
-a thousand dust increments cannot erase the Bribe entitlement. Neither destination can be redirected.
+90% and always remains between 80% and 100%. Strategy performs the split per purchase, pays Fund directly, and sends
+the Bribe share to its paired Router. Integer floors are accepted instead of a cumulative carry ledger. Neither
+destination can be redirected.
 
 The **Fund** is an ownerless treasury with no administrator and no asset registry. To redeem, burn GBX, name the
 assets you want, and receive for each:
@@ -84,7 +85,7 @@ choice that stops one broken token from freezing everyone else's redemption.
 
 Two stacked incentives: the bounded automatic share of everything their Strategy acquires — 10% by default, adjustable
 prospectively from 0% through 20% — and **Bribes**, which anyone may permissionlessly stream into a Strategy's pool to
-pull signal toward it, up to eight reward tokens per Strategy including the asset that Strategy buys.
+pull signal toward it, up to sixteen reward tokens per Strategy including the asset that Strategy buys.
 
 ## The loop
 
@@ -113,8 +114,8 @@ flowchart LR
 | `SignalGBX`         | Non-transferable signal token; sole coordinator. No idle state.                       |
 | `Resonance`         | Holds revenue in a seven-day stream and allocates it by signal weight.                |
 | `Strategy`          | Descending-price auction trading accumulated USDG for a target asset.                 |
-| `BribeRouter`       | Applies the global 0–20% Bribe share and 80–100% Fund complement with weighted carry. |
-| `Bribe`             | Streams up to eight reward tokens to a Strategy's signalers.                          |
+| `BribeRouter`       | Buffers one Strategy's Bribe share for permissionless distribution.                   |
+| `Bribe`             | Synthetix-shaped streams for up to sixteen tokens over virtual signal balances.       |
 | `Fund`              | Ownerless treasury; redemption and GBX burning are its only exits.                    |
 | `LiquidityPosition` | Permanently holds the GBX/USDG v4 position; fees harvestable by anyone.               |
 

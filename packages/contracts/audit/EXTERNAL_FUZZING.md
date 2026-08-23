@@ -1,5 +1,12 @@
 # External state-machine fuzzing
 
+> **Pre-ADR-0047 historical campaign.** The recorded native runs, property counts, and present-tense harness
+> descriptions below cover the earlier exact-carry and deferred-liability graph. ADR 0047 replaced that graph with
+> scalar Synthetix scheduling, per-purchase Strategy splitting, direct Fund payment, and a Bribe-only Router. These
+> results are not current evidence; the changed harness requires a fresh pinned campaign. ADR 0048 further raises
+> the reward-token cap to sixteen and replaces the dedicated Resonance move hook with atomic remove-then-add
+> composition, so every eight-token and move-hook statement below is historical too.
+
 `harness/ProtocolStateMachineCampaign.sol` deploys and wires the current core graph without Forge cheatcodes. Three
 distinct actor contracts drive atomic signaling, moves, and withdrawal, bounded global Bribe-share changes, mining,
 routing, Strategy purchases, claims, redemption, Strategy killing, and one bounded post-bootstrap Strategy addition.

@@ -129,16 +129,14 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
     if (partitionBribeBasisPoints.length !== paymentPartitions.length) {
       throw new RangeError('every payment partition needs one Bribe rate');
     }
-    const settlement = settleStrategyPayment(big(entry, 'actualTargetReceived'), 0n, bribeBasisPoints);
+    const settlement = settleStrategyPayment(big(entry, 'actualTargetReceived'), bribeBasisPoints);
     let partitionFundAmount = 0n;
     let partitionBribeAmount = 0n;
-    let partitionRemainder = 0n;
     for (const [index, raw] of paymentPartitions.entries()) {
       const part = BigInt(text(raw, 'paymentPartitions'));
-      const classified = settleStrategyPayment(part, partitionRemainder, partitionBribeBasisPoints[index]!);
+      const classified = settleStrategyPayment(part, partitionBribeBasisPoints[index]!);
       partitionFundAmount += classified.fundAmount;
       partitionBribeAmount += classified.bribeAmount;
-      partitionRemainder = classified.splitRemainder;
     }
     return {
       id: id(entry.id, 'id'),
@@ -147,10 +145,8 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
       bribeBasisPoints: decimal(bribeBasisPoints),
       fundAmount: decimal(settlement.fundAmount),
       bribeAmount: decimal(settlement.bribeAmount),
-      splitRemainder: decimal(settlement.splitRemainder),
       partitionFundAmount: decimal(partitionFundAmount),
       partitionBribeAmount: decimal(partitionBribeAmount),
-      partitionRemainder: decimal(partitionRemainder),
       partitionBribeBasisPoints: partitionBribeBasisPoints.map(decimal),
     };
   });

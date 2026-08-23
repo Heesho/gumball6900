@@ -40,6 +40,9 @@ export const contractConstants = {
     maxRewardTokens: 8,
     rewardPrecision: 10n ** 36n,
   },
+  strategy: {
+    source: 'packages/contracts/src/core/Strategy.sol',
+  },
   resonance: {
     source: 'packages/contracts/src/core/Resonance.sol',
     bps: 10_000,
@@ -51,19 +54,14 @@ export const contractConstants = {
   },
   bribeRouter: {
     source: 'packages/contracts/src/core/BribeRouter.sol',
-    bps: 10_000,
-    // Retained as default-rate aliases for the historical long-form chart renderer.
-    fundBps: 9_000,
-    bribeBps: 1_000,
-    usesGlobalProspectiveRate: true,
-    cumulativeSplit: true,
+    buffersBribeShareOnly: true,
   },
 };
 
 export const status = {
   editionVersion: 'v0.8',
-  editionDate: '22 August 2026',
-  contractsCommit: 'uncommitted working tree based on e3ebdd7987653969b31dbf0e8d20b68a838dfa5d',
+  editionDate: '23 August 2026',
+  contractsCommit: 'uncommitted working tree based on d80b92da5e60c0daa54dbae29653898dde514053',
   contractsCommitShort: 'uncommitted',
   auditCandidateCommit: 'none for the current architecture',
   auditCandidateCommitShort: 'none',
@@ -71,7 +69,7 @@ export const status = {
   externalAudit: 'Independent external audit not completed',
   licensing: 'donut-miner, give.fun, Liquid Signal, and transitive lineage remain unresolved release blockers',
   architectureImplementation:
-    'ADRs 0031 and 0033-0045 implemented in the development tree; the provisional Mine emission schedule and external governance owner remain under review',
+    'ADRs 0031 and 0033-0047 implemented in the development tree; the provisional Mine emission schedule and external governance owner remain under review',
 };
 
 export function verifyProtocolFacts() {
@@ -80,6 +78,7 @@ export function verifyProtocolFacts() {
   const expected = contractConstants.mine;
   const mineSource = readFileSync(resolve(repoRoot, contractConstants.mine.source), 'utf8');
   const resonanceSource = readFileSync(resolve(repoRoot, contractConstants.resonance.source), 'utf8');
+  const strategySource = readFileSync(resolve(repoRoot, contractConstants.strategy.source), 'utf8');
   const routerSource = readFileSync(resolve(repoRoot, contractConstants.bribeRouter.source), 'utf8');
   const bribeSource = readFileSync(resolve(repoRoot, contractConstants.bribe.source), 'utf8');
   const checks = [
@@ -167,14 +166,21 @@ export function verifyProtocolFacts() {
   for (const [name, pattern] of removedMinePins) {
     if (pattern.test(mineSource)) failures.push([name, true, false]);
   }
+  const strategyPins = [
+    ['Strategy bps', /uint256 public constant BPS = 10_000;/],
+    ['Strategy rate snapshot', /uint256 appliedBribeBps = ICoreResonance\(resonance\)\.bribeBps\(\);/],
+    ['Strategy Bribe amount', /Math\.mulDiv\(paymentAmount, appliedBribeBps, BPS\)/],
+    ['Strategy exhaustive Fund complement', /uint256 fundAmount = paymentAmount - bribeAmount;/],
+    ['Strategy direct Fund payment', /paymentToken\.safeTransfer\(fund, fundAmount\);/],
+    ['Strategy Bribe buffer payment', /paymentToken\.safeTransfer\(router, bribeAmount\);/],
+  ];
+  for (const [name, pattern] of strategyPins) {
+    if (!pattern.test(strategySource)) failures.push([name, false, true]);
+  }
   const routerPins = [
-    ['router bps', /uint256 public constant BPS = 10_000;/],
-    ['router rate snapshot', /uint256 appliedBribeBps = ICoreResonance\(resonance\)\.bribeBps\(\);/],
-    ['router dynamic Bribe amount', /Math\.mulDiv\(amount, appliedBribeBps, BPS\)/],
-    ['router weighted carry', /mulmod\(amount, appliedBribeBps, BPS\)/],
-    ['router Fund liability', /fundPaymentLiability \+= fundAmount;/],
-    ['router Bribe liability', /bribePaymentLiability \+= bribeAmount;/],
-    ['router cumulative remainder', /splitRemainder = accumulatedRemainder % BPS;/],
+    ['Router complete-balance notification', /bribe\.notifyRewardAmount\(address\(paymentToken\), distributed\);/],
+    ['Router minimum duration gate', /distributed < bribe\.REWARD_DURATION\(\)/],
+    ['Router active-left gate', /distributed < bribe\.left\(address\(paymentToken\)\)/],
   ];
   for (const [name, pattern] of routerPins) {
     if (!pattern.test(routerSource)) failures.push([name, false, true]);
@@ -200,6 +206,7 @@ export function verifyProtocolFacts() {
       resonancePins.length +
       minePins.length +
       removedMinePins.length +
+      strategyPins.length +
       routerPins.length +
       bribePins.length,
     genesisLiquidityTokens: contractConstants.gbx.genesisLiquidityTokens,

@@ -1,6 +1,6 @@
 # Economics
 
-> Target-development economics: ADRs 0031, 0036, and 0037 are authoritative development decisions.
+> Target-development economics: ADRs 0031, 0037, and 0047 are authoritative development decisions.
 > These mechanics remain unaudited and are not authorized for user funds.
 
 ## Supply
@@ -71,53 +71,52 @@ not from Mine deployment.
 ## Revenue, acquisitions, and redemption
 
 Mining handoffs deposit their protocol USDG share into ResonanceRouter without calling it. A later permissionless
-`route()` call moves a qualifying Router balance into Resonance's global seven-day stream; there is no caller bounty or
-liveness guarantee, so deposit and stream entry may be separated indefinitely. Liquidity fee harvesting keeps its
-atomic route attempt. Each elapsed interval follows the SignalGBX
+`route()` call moves the complete balance once it is at least both seven days of raw units and the active scheduled
+reward left; the duration threshold prevents a zero whole-unit rate. There is no caller bounty or liveness guarantee,
+so deposit and stream entry may be separated indefinitely. Liquidity fee harvesting keeps its atomic route attempt.
+Each elapsed interval follows the SignalGBX
 weights active during that interval; moving a signal checkpoints the old interval first and affects only later flow.
 A holder mints sGBX only by atomically assigning the same amount to a live Strategy. SignalGBX coordinates every
 change; its account balance is the aggregate signal, paired Bribes store per-Strategy positions and supply, and
 Resonance stores only the active total across live Strategies. Moving signal changes no custody or votes; withdrawal
 removes the position, burns sGBX, and returns GBX atomically.
 A Strategy purchase atomically pulls all revenue released to it through that timestamp, then sells its complete USDG
-balance through a reverse Dutch auction. Its acquired-asset payment is classified at Resonance's global `bribeBps`
-current when the payment is routed. The rate defaults to 10%, governance may set it from 0% through 20%, and Fund
-receives the complement. There is no per-Strategy rate. The two resulting fixed liabilities settle independently, so a
-failure at one destination does not block or consume the other. Additional independently funded Bribe rewards remain
-possible.
-
-For payments `a_i` classified at applied rates `r_i`:
+balance through a reverse Dutch auction. Before interacting with the payment token, Strategy snapshots Resonance's
+global `bribeBps`. The rate defaults to 10%, governance may set it from 0% through 20%, and there is no per-Strategy
+override. For each payment `a` at its captured rate `r`, Strategy computes:
 
 ```text
-weighted Bribe numerator = sum(a_i * r_i)
-paired Bribe classification = floor(weighted Bribe numerator / 10,000)
-Fund classification = sum(a_i) - paired Bribe classification
-split remainder = weighted Bribe numerator mod 10,000
+paired Bribe share = floor(a * r / 10,000)
+Fund share = a - paired Bribe share
 ```
 
-The remainder persists unchanged across governance transitions, so classification is exact over a history such as
-10% to 0% to 5% or 20%. A 0% payment adds no weighted Bribe numerator, creates no new Bribe liability, and classifies
-entirely to Fund; prior fractional carry is preserved but cannot cross a raw-token boundary until a later nonzero-rate
-payment. Changing the rate reclassifies no prior payment or existing liability, stream, or claim. Because every applied
-rate is at most 20%, Fund receives at least 80% across the cumulative history, although carry can make an individual
-small payment's visible raw-unit split differ from its nominal percentage.
+Strategy pulls the payment, transfers the Fund share directly to immutable Fund, and sends any nonzero Bribe share to
+the paired BribeRouter. Each purchase floors independently; there is no weighted history or fractional carry between
+purchases. A 0% purchase transfers the complete payment to Fund and adds nothing to the Router. Changing the rate
+reclassifies no earlier Fund transfer, buffered Bribe share, active stream, or claim. Because every applied rate is at
+most 20%, Fund receives at least 80% of each payment.
 
-The payment asset, not USDG, funds the automatic paired-Bribe stream. If the payment asset is GBX, the dynamically
-Fund-classified share may be burned permissionlessly after settlement while any nonzero paired-Bribe share rewards
-signalers. A 0% automatic share does not disable the paired Bribe: signal, move, withdrawal, existing reward settlement,
-and independently funded rewards continue normally.
+The payment asset, not USDG, funds the automatic paired-Bribe stream. BribeRouter buffers only that share and exposes
+permissionless `distribute()`. It notifies the paired Bribe with its complete balance only when the balance is at least
+one raw unit per stream second and at least the active reward left; this prevents a zero-rate schedule and preserves
+standard leftover rollover. Compatible direct donations join the next notification, and a failed notification leaves
+the tokens buffered without reversing the completed purchase. If the payment asset is GBX, the Fund share may be
+burned permissionlessly after the purchase while the buffered share rewards signalers. A 0% automatic share does not
+disable the paired Bribe: signal, move, withdrawal, existing rewards, and independently funded rewards continue
+normally.
 
 Streaming is lazy accounting: no keeper transaction is required each second. A later signal change, distribution,
 purchase, or qualifying notification materializes the elapsed amount. A separate caller is required to attempt Router
 forwarding, however. During an active schedule ResonanceRouter holds its balance until `route()` is called. A
-qualifying complete balance checkpoints the stream and restarts
-seven days with `reward + left`; this can raise or lower the rate and move the finish.
+qualifying complete balance checkpoints the stream, combines the new amount with the ordinary Synthetix leftover
+(`remainingSeconds * rewardRate`), and restarts seven days; this can raise or lower the rate and move the finish.
 
-The raw quotient plus front-loaded remainder releases every scheduled six-decimal USDG unit, including a one-raw-unit
-schedule. The global reward-per-signal index uses `1e36` precision, but global-index and per-Strategy floors are accepted
-surplus rather than explicit carry. Stream time continues at zero active signal weight, making that interval's USDG
-unclaimable, and direct Resonance donations are unscheduled surplus. Neither category is assigned to Fund or later
-signalers. Bribe separately retains its explicit carry and Fund classification before its virtual supply changes.
+Resonance and each per-token Bribe stream use whole-unit `rewardRate`, so division floors remain as unallocated token
+surplus rather than explicit carry. Their reward-per-signal indices use `1e36` precision, but index and account division
+can floor as well. Stream time continues at zero active signal weight, making that interval's rewards unclaimable, and
+direct Resonance or Bribe donations are unscheduled. Compatible donations to ResonanceRouter or BribeRouter instead
+join that Router's next valid complete-balance notification. None of the unallocated surplus is assigned to Fund or
+later signalers.
 
 Before redemption, Fund reads Mine's constant-time effective supply, including all accrued unminted mining. For each
 selected token it then pays:

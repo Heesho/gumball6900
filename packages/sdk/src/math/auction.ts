@@ -18,7 +18,6 @@ export interface StrategyPaymentSettlement {
   fundBasisPoints: bigint;
   fundAmount: bigint;
   bribeAmount: bigint;
-  splitRemainder: bigint;
 }
 
 export interface AuctionConfig {
@@ -66,35 +65,23 @@ export function nextAuctionInitPrice(
   return clampBigInt(mulDiv(quotedPaymentAmount, priceMultiplier, WAD), minInitPrice, ABS_MAX_AUCTION_INIT_PRICE);
 }
 
-/**
- * Models BribeRouter's cumulative acquired-asset classification at the supplied global rate.
- * The denominator never changes, so carrying `priorSplitRemainder` across rate changes exactly
- * classifies floor(sum(payment[i] * bribeBps[i]) / BPS_DENOMINATOR).
- */
+/** Models Strategy's per-purchase acquired-asset classification at the supplied global rate. */
 export function settleStrategyPayment(
   paymentAmount: bigint,
-  priorSplitRemainder = 0n,
   bribeBasisPoints = DEFAULT_STRATEGY_BRIBE_BPS,
 ): StrategyPaymentSettlement {
   assertNonNegative(paymentAmount, 'paymentAmount');
-  assertNonNegative(priorSplitRemainder, 'priorSplitRemainder');
   assertNonNegative(bribeBasisPoints, 'bribeBasisPoints');
-  if (priorSplitRemainder >= BPS_DENOMINATOR) {
-    throw new RangeError('priorSplitRemainder must be smaller than BPS_DENOMINATOR');
-  }
   if (bribeBasisPoints > MAX_STRATEGY_BRIBE_BPS) {
     throw new RangeError('bribeBasisPoints exceeds MAX_STRATEGY_BRIBE_BPS');
   }
 
-  const baseBribeAmount = mulDiv(paymentAmount, bribeBasisPoints, BPS_DENOMINATOR);
-  const accumulatedRemainder = priorSplitRemainder + ((paymentAmount * bribeBasisPoints) % BPS_DENOMINATOR);
-  const bribeAmount = baseBribeAmount + accumulatedRemainder / BPS_DENOMINATOR;
+  const bribeAmount = mulDiv(paymentAmount, bribeBasisPoints, BPS_DENOMINATOR);
   return {
     paymentAmount,
     bribeBasisPoints,
     fundBasisPoints: BPS_DENOMINATOR - bribeBasisPoints,
     fundAmount: paymentAmount - bribeAmount,
     bribeAmount,
-    splitRemainder: accumulatedRemainder % BPS_DENOMINATOR,
   };
 }

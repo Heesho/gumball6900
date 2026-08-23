@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -82,9 +82,15 @@ const mutants = [
   {
     id: 'SGBX-06-move-mints',
     file: 'src/core/SignalGBX.sol',
-    from: '        ICoreResonance(configuredResonance).moveSignalFor(msg.sender, fromStrategy, toStrategy, amount);',
-    to: '        ICoreResonance(configuredResonance).moveSignalFor(msg.sender, fromStrategy, toStrategy, amount);\n        _mint(msg.sender, amount);',
-    test: ['test/minimal/SignalGBX.t.sol', 'test_MoveSignalPreservesCustodySupplyVotesAndAggregateSignal'],
+    from: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
+        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);`,
+    to: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
+        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);
+        _mint(msg.sender, amount);`,
+    test: [
+      'test/minimal/SignalGBX.t.sol',
+      'test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal',
+    ],
   },
   {
     id: 'SGBX-07-burn-before-signal-removal',
@@ -94,6 +100,37 @@ const mutants = [
     to: `        _burnAndWithdraw(msg.sender, amount);
         ICoreResonance(configuredResonance).removeSignalFor(msg.sender, strategy, amount);`,
     test: ['test/minimal/SignalGBX.t.sol', 'test_WithdrawSignalRejectsZeroAndMoreThanTheSelectedPosition'],
+  },
+  {
+    id: 'SGBX-08-omit-move-removal',
+    file: 'src/core/SignalGBX.sol',
+    from: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
+        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);`,
+    to: `        // MUTANT: source removal omitted
+        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);`,
+    test: [
+      'test/minimal/SignalGBX.t.sol',
+      'test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal',
+    ],
+  },
+  {
+    id: 'SGBX-09-omit-move-addition',
+    file: 'src/core/SignalGBX.sol',
+    from: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
+        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);`,
+    to: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
+        // MUTANT: destination addition omitted`,
+    test: [
+      'test/minimal/SignalGBX.t.sol',
+      'test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal',
+    ],
+  },
+  {
+    id: 'SGBX-10-allow-same-strategy-move',
+    file: 'src/core/SignalGBX.sol',
+    from: '        if (fromStrategy == toStrategy) revert SameStrategy(fromStrategy);',
+    to: '        if (false && fromStrategy == toStrategy) revert SameStrategy(fromStrategy);',
+    test: ['test/minimal/SignalGBX.t.sol', 'test_MoveSignalRejectsZeroSameStrategyAndInsufficientSource'],
   },
   {
     id: 'RES-01-omit-bribe-deposit',
@@ -115,7 +152,7 @@ const mutants = [
     from: 'external nonReentrant onlySignalGBX {',
     to: 'external nonReentrant {',
     occurrence: 0,
-    test: ['test/minimal/Resonance.t.sol', 'test_OnlySignalGBXCanMutateAnotherAccountsSignal'],
+    test: ['test/minimal/Resonance.t.sol', 'test_OnlySignalGBXCanAddOrRemoveAnotherAccountsSignal'],
   },
   {
     id: 'RES-04-public-remove-hook',
@@ -123,42 +160,30 @@ const mutants = [
     from: 'external nonReentrant onlySignalGBX {',
     to: 'external nonReentrant {',
     occurrence: 1,
-    test: ['test/minimal/Resonance.t.sol', 'test_OnlySignalGBXCanMutateAnotherAccountsSignal'],
+    test: ['test/minimal/Resonance.t.sol', 'test_OnlySignalGBXCanAddOrRemoveAnotherAccountsSignal'],
   },
   {
-    id: 'RES-05-public-move-hook',
+    id: 'RES-05-restore-move-hook',
     file: 'src/core/Resonance.sol',
-    from: '        onlySignalGBX\n    {',
-    to: '    {',
-    test: ['test/minimal/Resonance.t.sol', 'test_OnlySignalGBXCanMutateAnotherAccountsSignal'],
-  },
-  {
-    id: 'RES-06-move-without-source-checkpoint',
-    file: 'src/core/Resonance.sol',
-    from: '        _updateReward(fromStrategy);',
-    to: '        // MUTANT: source checkpoint omitted',
-    test: ['test/minimal/Resonance.t.sol', 'test_MoveCheckpointsBothStrategiesBeforeChangingTheirWeights'],
-  },
-  {
-    id: 'RES-07-move-without-destination-checkpoint',
-    file: 'src/core/Resonance.sol',
-    from: '        _updateReward(toStrategy);',
-    to: '        // MUTANT: destination checkpoint omitted',
-    test: ['test/minimal/Resonance.t.sol', 'test_MoveCheckpointsBothStrategiesBeforeChangingTheirWeights'],
+    from: '    /// @notice Pulls qualifying USDG from ResonanceRouter and restarts the seven-day reward period.',
+    to: `    function moveSignalFor(address, address, address, uint256) external { }
+
+    /// @notice Pulls qualifying USDG from ResonanceRouter and restarts the seven-day reward period.`,
+    test: ['test/minimal/ArchitectureReconciliation.t.sol', 'test_RemovedResonanceMoveHookIsAbsentFromRuntime'],
   },
   {
     id: 'RES-08-add-after-weight-checkpoint',
     file: 'src/core/Resonance.sol',
     from: '        _updateReward(strategy);\n\n        totalSignalWeight += amount;',
     to: '        // MUTANT: pre-add checkpoint omitted\n\n        totalSignalWeight += amount;',
-    test: ['test/minimal/Resonance.t.sol', 'test_NewStrategyWeightReceivesOnlyPostEntryRevenue'],
+    test: ['test/integration/CampaignHarness.t.sol', 'test_RevenueIsCheckpointedBeforeMidStreamSignalEntry'],
   },
   {
     id: 'RES-09-remove-without-checkpoint',
     file: 'src/core/Resonance.sol',
     from: '        _updateReward(strategy);\n\n        if (isStrategyAlive[strategy]) totalSignalWeight -= amount;',
     to: '        // MUTANT: pre-remove checkpoint omitted\n\n        if (isStrategyAlive[strategy]) totalSignalWeight -= amount;',
-    test: ['test/minimal/Resonance.t.sol', 'test_InexactDistributionRevertsWithoutConsumingLiabilityAndCanRetry'],
+    test: ['test/integration/CampaignHarness.t.sol', 'test_RevenueIsCheckpointedBeforeMidStreamSignalExit'],
   },
   {
     id: 'RES-10-reduce-index-precision',
@@ -166,13 +191,6 @@ const mutants = [
     from: '    uint256 public constant REWARD_PRECISION = 1e36;',
     to: '    uint256 public constant REWARD_PRECISION = 1e18;',
     test: ['test/minimal/Resonance.t.sol', 'test_InitialStateAndImmutableIdentities'],
-  },
-  {
-    id: 'RES-11-drop-stream-remainder',
-    file: 'src/core/Resonance.sol',
-    from: '        uint256 rateRemainder = scheduled % DURATION;',
-    to: '        uint256 rateRemainder = 0;',
-    test: ['test/minimal/Resonance.t.sol', 'test_RawRemainderIsFrontLoadedAndTheCompleteAmountIsScheduled'],
   },
   {
     id: 'RES-12-change-duration',
@@ -184,22 +202,22 @@ const mutants = [
   {
     id: 'RES-13-omit-leftover-on-reset',
     file: 'src/core/Resonance.sol',
-    from: '        uint256 scheduled = reward + remaining;',
-    to: '        uint256 scheduled = reward;',
+    from: '        data.rewardRate = (reward + remaining) / DURATION;',
+    to: '        data.rewardRate = reward / DURATION;',
     test: ['test/minimal/Resonance.t.sol', 'test_QualifyingTopUpCheckpointsAndRestartsWithRewardPlusLeft'],
   },
   {
     id: 'RES-14-do-not-clear-distribution',
     file: 'src/core/Resonance.sol',
-    from: '        account_Token_Rewards[strategy][rewardToken] = 0;',
+    from: '        strategyRewards[strategy] = 0;',
     to: '        // MUTANT: Strategy reward not cleared',
     test: ['test/minimal/Resonance.t.sol', 'test_DistributingTwicePaysNothingTheSecondTime'],
   },
   {
     id: 'RES-15-pay-distribution-caller',
     file: 'src/core/Resonance.sol',
-    from: '        _transferRevenueExact(strategy, amount);',
-    to: '        _transferRevenueExact(msg.sender, amount);',
+    from: '        usdg.safeTransfer(strategy, amount);',
+    to: '        usdg.safeTransfer(msg.sender, amount);',
     test: ['test/minimal/Resonance.t.sol', 'test_DistributionIsPermissionlessButAlwaysPaysTheStrategy'],
   },
   {
@@ -224,11 +242,12 @@ const mutants = [
     test: ['test/minimal/SignalGBX.t.sol', 'test_WithdrawFromKilledStrategyDoesNotDecrementActiveWeightTwice'],
   },
   {
-    id: 'RES-19-allow-dead-move-destination',
+    id: 'RES-19-allow-dead-signal-destination',
     file: 'src/core/Resonance.sol',
-    from: '        if (!isStrategyAlive[toStrategy]) revert StrategyAlreadyDead(toStrategy);',
-    to: '        if (false && !isStrategyAlive[toStrategy]) revert StrategyAlreadyDead(toStrategy);',
-    test: ['test/minimal/Resonance.t.sol', 'test_CoordinatorMutationValidationRejectsEveryInvalidShape'],
+    from: '        if (!isStrategyAlive[strategy]) revert StrategyAlreadyDead(strategy);',
+    to: '        if (false && !isStrategyAlive[strategy]) revert StrategyAlreadyDead(strategy);',
+    occurrence: 0,
+    test: ['test/minimal/SignalGBX.t.sol', 'test_MoveSignalDestinationFailureRollsBackSourceRemoval'],
   },
   {
     id: 'RES-20-remove-killed-weight-twice',
@@ -236,23 +255,6 @@ const mutants = [
     from: '        if (isStrategyAlive[strategy]) totalSignalWeight -= amount;',
     to: '        totalSignalWeight -= amount;',
     test: ['test/minimal/SignalGBX.t.sol', 'test_WithdrawFromKilledStrategyDoesNotDecrementActiveWeightTwice'],
-  },
-  {
-    id: 'RES-21-move-checkpoint-after-balance-mutation',
-    file: 'src/core/Resonance.sol',
-    from: `        _updateReward(fromStrategy);
-        _updateReward(toStrategy);
-
-        if (!isStrategyAlive[fromStrategy]) totalSignalWeight += amount;
-        sourceBribe.withdraw(amount, account);
-        Bribe(bribeFor[toStrategy]).deposit(amount, account);`,
-    to: `        if (!isStrategyAlive[fromStrategy]) totalSignalWeight += amount;
-        sourceBribe.withdraw(amount, account);
-        Bribe(bribeFor[toStrategy]).deposit(amount, account);
-
-        _updateReward(fromStrategy);
-        _updateReward(toStrategy);`,
-    test: ['test/minimal/Resonance.t.sol', 'test_MoveCheckpointsBothStrategiesBeforeChangingTheirWeights'],
   },
   {
     id: 'ROUTER-01-route-only-after-strictly-greater',
@@ -298,102 +300,60 @@ const mutants = [
   },
   {
     id: 'SETTLE-01-ignore-governed-share',
-    file: 'src/core/BribeRouter.sol',
+    file: 'src/core/Strategy.sol',
     from: '        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();',
     to: '        uint256 appliedBribeBps = 1_000;',
     test: ['test/minimal/BribeBps.t.sol', 'test_FourCompletedAuctionsUseTenZeroFiveAndTwentyPercentProspectively'],
   },
   {
     id: 'SETTLE-02-snapshot-share-after-token-callback',
-    file: 'src/core/BribeRouter.sol',
-    from: `        // Snapshot policy before the first payment-token interaction so token callbacks cannot alter this fill's split.
+    file: 'src/core/Strategy.sol',
+    from: `        // Fix the prospective split before either token can invoke a callback, including a self-priced Strategy.
         uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();
-        if (appliedBribeBps > BPS) revert BribeBpsAboveBasis(appliedBribeBps);
 
-        uint256 senderBefore = paymentToken.balanceOf(msg.sender);
-        uint256 receiverBefore = paymentToken.balanceOf(address(this));
-        paymentToken.safeTransferFrom(msg.sender, address(this), amount);`,
-    to: `        uint256 senderBefore = paymentToken.balanceOf(msg.sender);
-        uint256 receiverBefore = paymentToken.balanceOf(address(this));
-        paymentToken.safeTransferFrom(msg.sender, address(this), amount);
+        // Make the purchase include every USDG unit released to this Strategy through the execution timestamp.
+        ICoreResonance(resonance).distribute(address(this));`,
+    to: `        // Make the purchase include every USDG unit released to this Strategy through the execution timestamp.
+        ICoreResonance(resonance).distribute(address(this));
 
-        // MUTANT: callback-capable payment token can change policy before the snapshot.
-        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();
-        if (appliedBribeBps > BPS) revert BribeBpsAboveBasis(appliedBribeBps);`,
-    test: [
-      'test/minimal/BribeBps.t.sol',
-      'test_PaymentTokenCallbackCannotRetroactivelyChangeTheCurrentPaymentsSnapshot',
-    ],
+        // MUTANT: a self-priced revenue callback can change policy before the snapshot.
+        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();`,
+    test: ['test/minimal/Strategy.t.sol', 'test_SelfPricedRevenueCallbackCannotChangeTheCurrentPaymentSnapshot'],
   },
   {
-    id: 'SETTLE-03-misbind-policy-source',
-    file: 'src/core/StrategyFactory.sol',
-    from: '        bribeRouter = new BribeRouter(configuredResonance, address(strategy), bribe, paymentToken, fund);',
-    to: '        bribeRouter = new BribeRouter(address(this), address(strategy), bribe, paymentToken, fund);',
-    test: ['test/minimal/BribeBps.t.sol', 'test_FourCompletedAuctionsUseTenZeroFiveAndTwentyPercentProspectively'],
+    id: 'SETTLE-03-omit-inline-fund-transfer',
+    file: 'src/core/Strategy.sol',
+    from: '        if (fundAmount != 0) paymentToken.safeTransfer(fund, fundAmount);',
+    to: '        // MUTANT: inline Fund transfer omitted',
+    test: ['test/minimal/Strategy.t.sol', 'test_CompletePaymentSplitsInlineAndAdvancesTheEpoch'],
   },
   {
     id: 'SETTLE-04-swap-fund-classification',
-    file: 'src/core/BribeRouter.sol',
-    from: '        uint256 fundAmount = amount - bribeAmount;',
+    file: 'src/core/Strategy.sol',
+    from: '        uint256 fundAmount = paymentAmount - bribeAmount;',
     to: '        uint256 fundAmount = bribeAmount;',
-    test: ['test/minimal/Routing.t.sol', 'test_CompletePaymentIsClassifiedNinetyTenEvenWithLiveSignalWeight'],
-  },
-  {
-    id: 'SETTLE-05-omit-weighted-split-remainder',
-    file: 'src/core/BribeRouter.sol',
-    from: '        uint256 accumulatedRemainder = splitRemainder + mulmod(amount, appliedBribeBps, BPS);',
-    to: '        uint256 accumulatedRemainder = splitRemainder;',
-    test: ['test/minimal/BribeBps.t.sol', 'test_WeightedSplitRemainderSurvivesTenZeroFiveAndTwentyPercentTransitions'],
-  },
-  {
-    id: 'SETTLE-06-do-not-clear-fund-liability',
-    file: 'src/core/BribeRouter.sol',
-    from: '        fundPaymentLiability = 0;',
-    to: '        // MUTANT: Fund liability not cleared',
-    test: ['test/minimal/Routing.t.sol', 'test_PayingFundIsPermissionlessAndClearsTheLiability'],
-  },
-  {
-    id: 'SETTLE-07-do-not-clear-bribe-liability',
-    file: 'src/core/BribeRouter.sol',
-    from: '        bribePaymentLiability = 0;',
-    to: '        // MUTANT: Bribe liability not cleared',
-    test: ['test/minimal/Routing.t.sol', 'test_NotifyingBribeIsPermissionlessExactAndClearsOnlyItsLeg'],
+    test: ['test/minimal/Strategy.t.sol', 'test_CompletePaymentSplitsInlineAndAdvancesTheEpoch'],
   },
   {
     id: 'BRIBE-01-change-duration',
     file: 'src/core/Bribe.sol',
     from: '    uint256 public constant REWARD_DURATION = 7 days;',
     to: '    uint256 public constant REWARD_DURATION = 6 days;',
-    test: ['test/minimal/Bribe.t.sol', 'test_NotifyStartsASevenDayStreamAtTheFlooredRate'],
-  },
-  {
-    id: 'BRIBE-02-omit-entry-carry-classification',
-    file: 'src/core/Bribe.sol',
-    from: '        bool wasZero = totalSupply == 0;\n        _checkpointAll(account);\n        _fundAllPendingRewards();',
-    to: '        bool wasZero = totalSupply == 0;\n        _checkpointAll(account);\n        // MUTANT: old-supply carry not classified before entry',
-    test: ['test/minimal/CarryReallocation.t.sol', 'test_NewSignalerCannotReceivePreEntryRewardCarry'],
-  },
-  {
-    id: 'BRIBE-03-omit-exit-carry-classification',
-    file: 'src/core/Bribe.sol',
-    from: '        _checkpointAll(account);\n        _fundAllPendingRewards();\n\n        totalSupply -= amount;',
-    to: '        _checkpointAll(account);\n        // MUTANT: old-supply carry not classified before exit\n\n        totalSupply -= amount;',
-    test: ['test/minimal/CarryReallocation.t.sol', 'test_RemainingSignalerCannotReceivePreExitRewardCarry'],
+    test: ['test/minimal/Bribe.t.sol', 'test_SevenDayRateFloorsAndLeavesTheOrdinaryRemainderAsSurplus'],
   },
   {
     id: 'BRIBE-04-do-not-clear-claim',
     file: 'src/core/Bribe.sol',
     from: '        rewards[account][rewardToken] = 0;',
     to: '        // MUTANT: account reward not cleared',
-    test: ['test/minimal/Bribe.t.sol', 'test_ClaimingTwiceInARowPaysNothingTheSecondTime'],
+    test: ['test/minimal/BribeFlow.t.sol', 'test_ReentrantRewardPayoutCannotDoubleClaim'],
   },
   {
     id: 'BRIBE-05-pay-claim-caller',
     file: 'src/core/Bribe.sol',
-    from: '        _transferRewardExact(rewardToken, account, amount);',
-    to: '        _transferRewardExact(rewardToken, msg.sender, amount);',
-    test: ['test/minimal/Bribe.t.sol', 'test_ClaimAlwaysPaysTheAccountEvenWhenATtriggeredByAThirdParty'],
+    from: '        IERC20(rewardToken).safeTransfer(account, amount);',
+    to: '        IERC20(rewardToken).safeTransfer(msg.sender, amount);',
+    test: ['test/minimal/Bribe.t.sol', 'test_AllTokenClaimPaysEachRegisteredRewardToTheEntitledAccount'],
   },
   {
     id: 'BRIBE-06-reduce-index-precision',
@@ -401,6 +361,34 @@ const mutants = [
     from: '    uint256 public constant REWARD_PRECISION = 1e36;',
     to: '    uint256 public constant REWARD_PRECISION = 1e18;',
     test: ['test/minimal/SixDecimalBribe.t.sol', 'test_PrecisionAndLifetimeCapRemainCoupled'],
+  },
+  {
+    id: 'BRIBE-07-disable-lifetime-cap',
+    file: 'src/core/Bribe.sol',
+    from: '        if (amount > maximum - notified) {',
+    to: '        if (false && amount > maximum - notified) {',
+    test: ['test/minimal/BribeFlow.t.sol', 'test_LifetimeCapIsCheckedBeforeCheckpointOrTokenTransfer'],
+  },
+  {
+    id: 'BRIBE-08-require-strictly-more-than-left',
+    file: 'src/core/Bribe.sol',
+    from: '        if (amount < remaining) revert RewardBelowRemaining(amount, remaining);',
+    to: '        if (amount <= remaining) revert RewardBelowRemaining(amount, remaining);',
+    test: ['test/minimal/Bribe.t.sol', 'test_ActiveTopUpEqualToTheAmountLeftIsAccepted'],
+  },
+  {
+    id: 'BRIBE-09-disable-duration-floor',
+    file: 'src/core/Bribe.sol',
+    from: '        if (amount < REWARD_DURATION) revert RewardBelowDuration(amount);',
+    to: '        if (false && amount < REWARD_DURATION) revert RewardBelowDuration(amount);',
+    test: ['test/minimal/Bribe.t.sol', 'test_NotifyRejectsUnregisteredAndBelowDurationAmounts'],
+  },
+  {
+    id: 'BRIBE-10-reduce-reward-token-cap',
+    file: 'src/core/Bribe.sol',
+    from: '    uint256 public constant MAX_REWARD_TOKENS = 16;',
+    to: '    uint256 public constant MAX_REWARD_TOKENS = 8;',
+    test: ['test/minimal/Bribe.t.sol', 'test_RewardTokenCountIsPermanentlyCappedAtSixteen'],
   },
 ];
 
@@ -434,31 +422,42 @@ const safePrefix = resolve(packagesDirectory, '.signal-resonance-mutation.');
 if (!workDirectory.startsWith(safePrefix)) throw new Error(`unsafe mutation directory: ${workDirectory}`);
 
 try {
-  for (const path of ['src', 'test', 'lib'])
+  for (const path of ['src', 'test', 'lib', 'audit/harness'])
     cpSync(resolve(contractsDirectory, path), resolve(workDirectory, path), { recursive: true });
   for (const path of ['foundry.toml', 'remappings.txt'])
     cpSync(resolve(contractsDirectory, path), resolve(workDirectory, path));
+  symlinkSync(resolve(contractsDirectory, 'node_modules'), resolve(workDirectory, 'node_modules'), 'dir');
 
   const results = [];
   for (const mutant of selected) {
+    const [testPath, testName] = mutant.test;
+    const testSource = readFileSync(resolve(workDirectory, testPath), 'utf8');
+    if (!testSource.includes(`function ${testName}(`)) {
+      throw new Error(`mutation target test ${testName} was not found in ${testPath}`);
+    }
+
     const filePath = resolve(workDirectory, mutant.file);
     const original = readFileSync(filePath, 'utf8');
     const mutated = replaceOccurrence(original, mutant.from, mutant.to, mutant.occurrence ?? 0);
     writeFileSync(filePath, mutated);
 
-    const [testPath, testName] = mutant.test;
-    const run = spawnSync('forge', ['test', '--match-path', testPath, '--match-test', testName, '-q'], {
+    const run = spawnSync('forge', ['test', '--match-test', testName, '--suppress-successful-traces'], {
       cwd: workDirectory,
       encoding: 'utf8',
-      env: { ...process.env, FOUNDRY_FUZZ_RUNS: '1000' },
+      env: { ...process.env, FOUNDRY_FUZZ_RUNS: '1000', FOUNDRY_TEST: testPath },
       maxBuffer: 10 * 1024 * 1024,
     });
     writeFileSync(filePath, original);
 
     const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
+    if (
+      /No tests (?:match|to run)|failed to resolve file|Source ".*" not found|File not found|No such file/.test(output)
+    ) {
+      throw new Error(`mutation harness failed for ${mutant.id}:\n${tail(output)}`);
+    }
     const killed = run.status !== 0;
     const classification = killed
-      ? output.includes('Compiler run failed')
+      ? /Compiler run failed|Compilation failed/.test(output)
         ? 'compile-killed'
         : 'test-killed'
       : 'test-gap';

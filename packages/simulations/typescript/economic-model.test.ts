@@ -84,7 +84,7 @@ describe('multislot Mine economic suite', () => {
   it('pins synchronized supply separately from turnover-dependent actual issuance', () => {
     const root = row(loadTypeScriptEconomicSuite());
     const synchronized = row(row(root.mining).synchronizedSupply);
-    expect(root.schemaVersion).toBe('13');
+    expect(root.schemaVersion).toBe('14');
     expect(synchronized.referenceCase).toBe('synchronized-full-refresh-no-burn');
     expect(synchronized.modelAssumption).toBe(
       'Synchronized full-refresh, no-burn reference: all sixteen slots are occupied from deployment, all sixteen refresh to the prospective rate at every boundary, and all accrued emission is settled. Actual tenure-locked issuance depends on slot occupancy and turnover; this is neither a supply cap nor a forecast.',
@@ -149,31 +149,29 @@ describe('multislot Mine economic suite', () => {
     expect(filled.aggregateBpsOfGlobalRate).toBe('10000');
   });
 
-  it('classifies tiny Strategy payments with the same default cumulative 90/10 result as one payment', () => {
+  it('accepts per-purchase flooring instead of carrying tiny Strategy-payment fractions', () => {
     const auction = row(row(loadTypeScriptEconomicSuite()).strategyAuction);
     const tiny = row(auction.tenOneUnitPayments);
     const combined = row(auction.oneCombinedPayment);
-    expect(tiny.fundLiability).toBe('9');
-    expect(tiny.bribeLiability).toBe('1');
-    expect(tiny.splitRemainder).toBe('0');
-    expect(tiny.fundLiability).toBe(combined.fundLiability);
-    expect(tiny.bribeLiability).toBe(combined.bribeLiability);
-    expect(auction.directRouterDonationSurplus).toBe('7');
+    expect(tiny.fundAmount).toBe('10');
+    expect(tiny.bribeAmount).toBe('0');
+    expect(combined.fundAmount).toBe('9');
+    expect(combined.bribeAmount).toBe('1');
+    expect(auction.perPurchaseSplitCanDependOnPartitioning).toBe(true);
+    expect(auction.directRouterDonation).toBe('7');
   });
 
-  it('preserves exact weighted carry through 10%, 0%, 5%, and 20%', () => {
+  it('applies 10%, 0%, 5%, and 20% independently without split carry', () => {
     const auction = row(row(loadTypeScriptEconomicSuite()).strategyAuction);
     const changed = row(auction.rateChangeSequence);
     expect(changed.bribeBps).toEqual(['1000', '0', '500', '2000']);
     expect(changed.totalPayment).toBe('62');
-    expect(changed.fundLiability).toBe('56');
-    expect(changed.bribeLiability).toBe('6');
-    expect(changed.splitRemainder).toBe('2500');
+    expect(changed.fundAmount).toBe('58');
+    expect(changed.bribeAmount).toBe('4');
 
     const zero = row(auction.zeroPercentPayments);
-    expect(zero.fundLiability).toBe(zero.totalPayment);
-    expect(zero.bribeLiability).toBe('0');
-    expect(zero.splitRemainder).toBe('0');
+    expect(zero.fundAmount).toBe(zero.totalPayment);
+    expect(zero.bribeAmount).toBe('0');
   });
 
   it('applies a lower rate only at a later slot handoff and preserves a positive tail', () => {

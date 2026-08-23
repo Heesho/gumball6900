@@ -162,7 +162,7 @@ const acquisitionSplit = () => {
       txt(x0, 87, 'treasury backing for every GBX holder', { size: 9.5, fill: muted }),
       txt(x0 + fundW, 74, 'Signalers', { size: 11, weight: 600, fill: pink }),
       txt(x0 + fundW, 87, 'reward for signaling this Strategy', { size: 9.5, fill: muted }),
-      txt(x0, 112, 'Bribe share: 0–20% prospectively; Fund receives 100–80%. No caller-chosen destination.', {
+      txt(x0, 112, 'Each purchase floors its Bribe share; Strategy sends the complement directly to Fund.', {
         size: 9.5,
         fill: muted,
       }),
@@ -171,48 +171,46 @@ const acquisitionSplit = () => {
   );
 };
 
-/* ------------------------------------------------- 4. cumulative exactness ---- */
+/* ---------------------------------------------- 4. partition-dependent floors ---- */
 
 const cumulativeSplit = () => {
-  const x0 = 30;
-  const step = 34;
-  const baseY = 96;
-
-  const cells = [];
-  for (let i = 1; i <= 10; i++) {
-    const x = x0 + (i - 1) * step;
-    const isLast = i === 10;
-    cells.push(rect(x, baseY - 22, 26, 22, isLast ? pink : palette.paperTint, { rx: 2 }));
-    cells.push(
-      txt(x + 13, baseY - 7, isLast ? '1' : '0', {
-        anchor: 'middle',
-        size: 11,
-        weight: 600,
-        fill: isLast ? '#fff' : faint,
-      }),
-    );
-    cells.push(txt(x + 13, baseY + 14, `${i}`, { anchor: 'middle', size: 8.5, fill: faint }));
-    // carry bar
-    const carry = (i % 10) / 10 || 1;
-    cells.push(rect(x, baseY + 24, 26, 18 * (isLast ? 0 : carry), blue, { rx: 1, opacity: 0.55 }));
-  }
+  const x0 = 8;
+  const leftX = 8;
+  const rightX = 252;
+  const barY = 68;
+  const barW = 210;
+  const cells = Array.from({ length: 10 }, (_, i) => {
+    const x = rightX + i * 21;
+    return [
+      rect(x, barY, 18, 28, ink, { rx: 1 }),
+      txt(x + 9, barY + 18, '1', { anchor: 'middle', size: 9, fill: '#fff' }),
+    ];
+  }).flat();
 
   return svg(
-    186,
+    184,
     [
-      txt(8, 16, 'TEN SEPARATE ONE-UNIT PAYMENTS', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
-      txt(8, 32, 'Naive flooring would give the Bribe zero every time, forever.', { size: 9.5, fill: muted }),
-      txt(8, 44, 'The carried remainder makes the tenth payment settle the debt exactly.', { size: 9.5, fill: muted }),
-      txt(8, baseY - 7, 'to Bribe', { size: 9, fill: faint }),
-      txt(8, baseY + 40, 'carry', { size: 9, fill: faint }),
+      txt(x0, 16, 'PARTITION-DEPENDENT PER-PURCHASE FLOORS', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
+      txt(x0, 32, 'The same ten raw units can classify differently at the same 10% rate.', { size: 9.5, fill: muted }),
+
+      txt(leftX, 54, 'ONE 10-UNIT PURCHASE', { size: 8.5, fill: faint, weight: 600 }),
+      rect(leftX, barY, barW * 0.9, 28, ink),
+      rect(leftX + barW * 0.9, barY, barW * 0.1, 28, pink),
+      txt(leftX + 94, barY + 18, 'Fund 9', { anchor: 'middle', size: 10, fill: '#fff', weight: 600 }),
+      txt(leftX + barW * 0.95, barY + 18, '1', { anchor: 'middle', size: 9, fill: '#fff', weight: 600 }),
+
+      txt(rightX, 54, 'TEN 1-UNIT PURCHASES', { size: 8.5, fill: faint, weight: 600 }),
       ...cells,
-      line(x0, baseY + 2, x0 + step * 10 - 8, baseY + 2, { stroke: rule, width: 0.8 }),
-      txt(8, 166, 'Cumulative result: Fund 9, Bribe 1, remainder 0 — identical to one lump payment of ten.', {
+      txt(rightX + barW / 2, 112, 'Fund 10 · Bribe 0', { anchor: 'middle', size: 9.5, fill: ink, weight: 600 }),
+
+      line(x0, 128, W - 8, 128, { stroke: rule, width: 0.8 }),
+      txt(x0, 148, 'No cross-purchase remainder is stored. The smaller state machine is deliberate;', {
         size: 9.5,
         fill: ink,
       }),
+      txt(x0, 162, 'the partition-dependent rounding difference is accepted.', { size: 9.5, fill: muted }),
     ].join(''),
-    'Cumulative split exactness',
+    'Partition-dependent payment classification',
   );
 };
 
@@ -222,38 +220,46 @@ const streamSchedule = () => {
   const ox = 44;
   const oy = 108;
   const w = 300;
-  const hiY = oy - 62;
-  const loY = oy - 34;
-  const breakX = ox + w * 0.42;
+  const rateY = oy - 44;
 
   return svg(
-    174,
+    184,
     [
-      txt(8, 16, 'ONE SEVEN-DAY SCHEDULE', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
-      txt(8, 32, 'The division remainder is not discarded — it is paid out one extra unit', { size: 9.5, fill: muted }),
-      txt(8, 44, 'per second at the start, so every scheduled unit is emitted.', { size: 9.5, fill: muted }),
+      txt(8, 16, 'ONE SYNTHETIX-SHAPED SEVEN-DAY SCHEDULE', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
+      txt(8, 32, 'rewardRate = floor( (new amount + ordinary leftover) ÷ 604,800 )', {
+        size: 9.5,
+        fill: muted,
+        family: MONO,
+      }),
 
       line(ox, oy, ox + w + 8, oy, { stroke: rule, width: 1.2 }),
       line(ox, oy, ox, oy - 74, { stroke: rule, width: 1.2 }),
 
-      rect(ox, hiY, breakX - ox, oy - hiY, pink, { rx: 0, opacity: 0.9 }),
-      rect(breakX, loY, ox + w - breakX, oy - loY, pink, { rx: 0, opacity: 0.45 }),
-
-      txt(ox + (breakX - ox) / 2, hiY - 8, 'rate + 1', { anchor: 'middle', size: 10, weight: 600, fill: pink }),
-      txt(breakX + (ox + w - breakX) / 2, loY - 8, 'rate', { anchor: 'middle', size: 10, weight: 600, fill: muted }),
-
-      line(breakX, oy, breakX, hiY - 4, { stroke: ink, width: 1, dash: '3 3' }),
-      txt(breakX, oy + 14, 'remainderFinish', { anchor: 'middle', size: 9, fill: ink, family: MONO }),
+      rect(ox, rateY, w, oy - rateY, pink, { rx: 0, opacity: 0.72 }),
+      txt(ox + w / 2, rateY - 8, 'one flat whole-unit rate', {
+        anchor: 'middle',
+        size: 10,
+        weight: 600,
+        fill: pink,
+      }),
       txt(ox, oy + 14, 't₀', { anchor: 'middle', size: 9.5, fill: faint }),
       txt(ox + w, oy + 14, 't₀ + 7 days', { anchor: 'middle', size: 9, fill: faint }),
-      txt(ox - 32, oy - 40, 'USDG/s', { size: 9.5, fill: muted, anchor: 'middle' }),
+      txt(ox - 30, rateY + 24, 'units/s', { size: 9.5, fill: muted, anchor: 'middle' }),
 
-      txt(8, 158, 'A one-raw-unit schedule still emits: the rate is zero and the single unit lands in second one.', {
+      txt(8, 142, 'S mod 604,800 is not front-loaded or carried; it remains unallocated contract surplus.', {
         size: 9.5,
         fill: muted,
       }),
+      txt(8, 158, 'A qualifying active top-up rolls in left = remaining seconds × old rate, then restarts at now.', {
+        size: 9.5,
+        fill: muted,
+      }),
+      txt(8, 174, 'Routers wait for balance ≥ 604,800 raw units and ≥ left before notifying.', {
+        size: 9.5,
+        fill: ink,
+      }),
     ].join(''),
-    'Reward stream with front-loaded remainder',
+    'Synthetix-shaped reward stream',
   );
 };
 
@@ -634,7 +640,7 @@ const authorityMap = () => {
     ['LiquidityPosition', 'the v4 position'],
     ['GBX', 'minter locked once'],
     ['Strategy', 'auction parameters fixed'],
-    ['BribeRouter', 'Bribe 0–20% · Fund 80–100%'],
+    ['BribeRouter', 'Bribe-only qualifying buffer'],
   ];
   const rowH = 21;
   const x0 = 8;
@@ -869,17 +875,17 @@ const CHARTS = {
   'acquisition-split': {
     svg: acquisitionSplit,
     caption:
-      'The default is 90% Fund / 10% Bribe. Resonance may set the prospective Bribe share from 0% through 20%; Fund always receives the 80%-to-100% complement.',
+      'The default is 90% Fund / 10% Bribe. Strategy floors each purchase’s Bribe share independently, sends Fund’s complement directly, and buffers only the Bribe share.',
   },
   'cumulative-split': {
     svg: cumulativeSplit,
     caption:
-      'Why the split carries its remainder: without it, an adversary paying in dust would starve the reward share permanently.',
+      'Payment classification is intentionally partition-dependent: one ten-unit purchase yields one Bribe unit, while ten one-unit purchases yield none.',
   },
   'stream-schedule': {
     svg: streamSchedule,
     caption:
-      'Revenue is released over seven days at a base rate plus a front-loaded remainder, so the schedule emits its exact total.',
+      'Resonance and Bribe use one flat whole-unit rate with ordinary leftover rollover; the division remainder stays as unallocated surplus.',
   },
   'halving-curve': {
     svg: halvingCurve,

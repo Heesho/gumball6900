@@ -1,5 +1,11 @@
 # Internal adversarial audit
 
+> **Pre-ADR-0047 historical snapshot.** ADR 0047 later replaced the captured reward and settlement mechanics with
+> scalar Synthetix scheduling, per-purchase Strategy splitting, direct Fund payment, and a Bribe-only Router. ADR 0048
+> later raised the Bribe token cap from eight to sixteen and removed the dedicated Resonance move hook. Any exact-carry,
+> queue, pause, liability, selected-batch, exact-transfer, eight-token, move-hook, finding disposition, or test
+> conclusion below is intentionally preserved for its pinned checkout and is not current evidence.
+
 > Historical evidence only. ADR 0024 replaced the distribution contract and supply model with Mine, ADR 0026
 > replaced Resonance routing, streaming, and carry behavior, and ADR 0027 later resolved the A-09 Bribe boundary
 > disposition below. ADR 0034 later removed the intended ProtocolGovernor/Timelock ownership architecture; every
@@ -73,11 +79,13 @@ checks now fail closed on graph drift rather than evaluating deleted contracts.
 
 ## Review limitations
 
-The current tree has no completed independent audit, current-tree mutation score, valid pinned Echidna result, sound
-Mythril result, or formal proof. Medusa 1.5.1 completed 101,840 calls successfully, but it is only one independent
-fuzzer and does not clear the pinned nightly gate. The target-chain checks are read-only evidence at one pinned block,
-not deployment verification. See the dedicated campaign, static, formal, mutation, Uniswap, fork, residual-risk, and
-release-checklist files in this directory.
+The current tree has no completed independent audit, valid pinned Echidna result, sound Mythril result, or formal
+proof. The later ADR-0047 focused mutation campaign killed 46/46 mutants, and the current focused ADR-0048 campaign
+killed 47/47; neither makes this historical snapshot current or clears the remaining independent-review and
+external-fuzzer gates. Medusa 1.5.1 completed 101,840
+calls successfully, but it is only one independent fuzzer and does not clear the pinned nightly gate. The target-chain
+checks are read-only evidence at one pinned block, not deployment verification. See the dedicated campaign, static,
+formal, mutation, Uniswap, fork, residual-risk, and release-checklist files in this directory.
 
 For the post-ADR-0034 tree, the exact external governance provider and release, code and upgrade model, permission and
 admin graph, SignalGBX compatibility, voting and execution semantics, delay and cancellation behavior, and Resonance

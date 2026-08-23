@@ -6,4 +6,4 @@
 
 # Variable: bribeRewardViewSchema
 
-> `const` **bribeRewardViewSchema**: `ZodObject`\<\{ `account`: `ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>; `accountedRewardBalances`: `ZodArray`\<`ZodBigInt`\>; `accountSignalWeight`: `ZodBigInt`; `blockNumber`: `ZodBigInt`; `earned`: `ZodArray`\<`ZodBigInt`\>; `fundRewardLiabilities`: `ZodArray`\<`ZodBigInt`\>; `queuedRewards`: `ZodArray`\<`ZodBigInt`\>; `rewardSurpluses`: `ZodArray`\<`ZodBigInt`\>; `rewardTokens`: `ZodArray`\<`ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>\>; `scheduledRewards`: `ZodArray`\<`ZodBigInt`\>; `totalSignalWeight`: `ZodBigInt`; \}, `$strip`\>
+> `const` **bribeRewardViewSchema**: `ZodObject`\<\{ `account`: `ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>; `accountSignalWeight`: `ZodBigInt`; `blockNumber`: `ZodBigInt`; `earned`: `ZodArray`\<`ZodBigInt`\>; `rewardsLeft`: `ZodArray`\<`ZodBigInt`\>; `rewardTokens`: `ZodArray`\<`ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>\>; `totalSignalWeight`: `ZodBigInt`; \}, `$strip`\>

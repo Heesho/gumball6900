@@ -1,5 +1,10 @@
 # Signal and Resonance mutation campaign
 
+> **Pre-ADR-0047 historical campaign.** The 49-mutant set and results below target the former exact-carry,
+> queue/pause, deferred-liability, and weighted-split graph. ADR 0047 replaced those mechanics with scalar Synthetix
+> scheduling, per-purchase Strategy splitting, direct Fund payment, and a Bribe-only Router. The recorded score is not
+> current evidence, and the changed runner requires a fresh reviewed campaign.
+
 Initial run date: 2026-08-16. Current-tree rerun: 2026-08-21. Runner:
 `node audit/run-signal-resonance-mutations.mjs`. Raw report:
 `audit/reports/signal-resonance-mutation-latest.json` (ignored engineering evidence).

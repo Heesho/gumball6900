@@ -4,19 +4,19 @@
 > technical whitepaper. It is engineering evidence only: it is not an audit, a deployment authorization, a legal
 > conclusion, or a claim that the protocol is safe for user funds.
 
-- **Current source state:** uncommitted development tree based on `e3ebdd7987653969b31dbf0e8d20b68a838dfa5d`
+- **Current source state:** uncommitted development tree based on `d80b92da5e60c0daa54dbae29653898dde514053`
 - **Historical fact baseline:** `dc67d7c4d634097fa6e285fa33ce964d591d2bd2`
 - **Working tree at current revision:** dirty; no reviewed candidate commit is pinned
-- **Registry revision date:** 2026-08-22
+- **Registry revision date:** 2026-08-23
 
 > **Revision note.** Earlier drafts of this registry and its three public documents were written against commits
 > `281e601` and then `95ed60e`. Two later changes superseded them. ADR 0033 fixed the Mine at sixteen permanent slots
 > with constant-time pending emission, removing capacity governance and the all-slot checkpoint. ADR 0034 deleted
 > `ProtocolGovernor` and the protocol `TimelockController` entirely, leaving `Resonance` owned by an external
 > governance system that has not been selected; ADR 0035 added the Bribe lifetime reward cap. Those historical
-> revisions were re-derived against `dc67d7c`. ADRs 0036-0045 and the current Mine work were subsequently checked
-> against an uncommitted development tree based on `40d919e`. HEAD later advanced to `e3ebdd7` for deck and landing-page
-> work without changing the protocol source; the current uncommitted tree is therefore based on `e3ebdd7`. Facts
+> revisions were re-derived against `dc67d7c`. ADRs 0036-0048 and the current Mine work were subsequently checked
+> against an uncommitted development tree based on `40d919e`. HEAD later advanced through `e3ebdd7` and `d80b92d` for
+> deck and landing-page work without changing the protocol source; the current uncommitted tree is based on `d80b92d`. Facts
 > carrying older commit stamps identify the tree where that unchanged claim was originally verified; facts changed by
 > the current work carry an explicit uncommitted or historical commit stamp. **Section E was rewritten in full: every
 > ProtocolGovernor, Timelock, proposal-lifecycle, quorum, and cancellation fact from earlier editions describes
@@ -34,6 +34,15 @@
 > **Mine-dependency revision.** ADR 0045 removes Mine's constructor-time `Router.usdg()` read. A pinned
 > post-deployment check must prove Mine's USDG and Router identities before GBX's permanent minter handoff or market
 > exposure; a mismatched candidate is abandoned and redeployed.
+
+> **Resonance-accounting revision.** ADR 0046 specializes Resonance's permanently USDG-only stream to scalar reward
+> state and tokenless reward views. ADR 0047 then restores ordinary Synthetix leftover rollover in Resonance and
+> Bribe, removes Bribe queue/pause/carry/Fund-liability accounting and selected-batch claims, moves the payment split
+> back into Strategy, and reduces BribeRouter to a Bribe-only buffer. Bribes remain bounded multi-token rewarders.
+
+> **Bribe-cap and move-composition revision.** ADR 0048 raises the fixed append-only Bribe reward-token limit from
+> eight to sixteen. It also removes `Resonance.moveSignalFor`; `SignalGBX.moveSignal` now atomically composes
+> `removeSignalFor` followed by `addSignalFor`, with complete rollback if the destination addition fails.
 
 - **Solidity source tree:** `packages/contracts/src`
 - **Compiler:** Solidity `0.8.26`, Cancun target (EIP-1153 transient storage is required)
@@ -67,17 +76,15 @@ the accepted part is authoritative and the superseded part must not be presented
 | ADR 0017 | Remove successor migration; ownerless Fund and LP            | Fully accepted. No successor, migration, or owner on Fund/LiquidityPosition.                                                                                                                                                                                                                              |
 | ADR 0022 | Fixed-principal LP fee routing                               | Fully accepted. Harvest routes USDG, burns GBX, never touches principal.                                                                                                                                                                                                                                  |
 | ADR 0024 | Immutable multislot Mine with tenure-locked rates            | Supply model and tenure rate lock. Its cumulative-mining halving model is superseded by ADR 0041; its GBX-ERC20Votes statement by ADR 0030; its capacity, checkpoint, redemption-denominator, and Mine-administration decisions by ADR 0033; its synchronous downstream route by ADR 0044.                |
-| ADR 0027 | Fix Bribe carry before signal-supply boundaries              | Fully accepted. Bribe carry classification to Fund.                                                                                                                                                                                                                                                       |
-| ADR 0028 | Closed Bribe pools after Strategy death                      | Fully accepted, including the accepted permanent-abandonment consequence.                                                                                                                                                                                                                                 |
-| ADR 0029 | Bribe-based Resonance reward stream                          | Resonance streaming, `1e36` index, accepted surplus. Signal entrypoints and state ownership superseded by ADR 0030 then 0031; kill-final-Strategy by 0031; 100%-Fund by 0032; intended Timelock owner by 0034; Mine's synchronous route attempt by ADR 0044.                                              |
-| ADR 0030 | SignalGBX coordination and selector-bounded token governance | Non-transferable ERC20Votes sGBX only. Its ProtocolGovernor, Timelock, selector-filter, and cancellation decisions are superseded by ADR 0034; its idle-sGBX and `allocatedBalance` decisions by ADR 0031.                                                                                                |
+| ADR 0028 | Closed Bribe pools after Strategy death                      | Strategy-death and incumbent-exit consequences remain. Its queue/pause-created terminal-lock analysis is superseded by ADR 0047's continuously advancing stream.                                                                                                                                          |
+| ADR 0029 | Bribe-based Resonance reward stream                          | Global Resonance streaming, `1e36` index, and accepted surplus remain. Signal entrypoints/state ownership, final-Strategy kill, ownership, Mine routing, and exact raw scheduling are superseded by later ADRs, most recently ADR 0047.                                                                   |
+| ADR 0030 | SignalGBX coordination and selector-bounded token governance | Non-transferable ERC20Votes sGBX only. Its ProtocolGovernor, Timelock, selector-filter, and cancellation decisions are superseded by ADR 0034; its idle-sGBX and `allocatedBalance` decisions by ADR 0031; its dedicated Resonance move hook by ADR 0048.                                                 |
 | ADR 0031 | Mandatory signal-backed SignalGBX                            | No idle sGBX; atomic signal/withdraw; `balanceOf` is the aggregate; final live Strategy cannot be killed. Its retention of the Governor and Timelock is superseded by ADR 0034.                                                                                                                           |
-| ADR 0032 | Fixed 90/10 acquired-asset settlement                        | 90% Fund / 10% paired Bribe, cumulatively exact and frequency-independent.                                                                                                                                                                                                                                |
 | ADR 0033 | Fixed Mine slots and constant-time pending emission          | Sixteen permanent slots, no capacity governance, no owner, no all-slot checkpoint; constant-time pending emission and the `effectiveTotalSupply` redemption denominator. Its cumulative-mining rate-selection rule is superseded by ADR 0041.                                                             |
 | ADR 0034 | External governance ownership                                | **New.** No core Governor, Timelock, executor, or adapter. `Resonance` is the only contract with continuing custom owner authority; its external owner is unselected, the three setup-only Ownable shells must be renounced, and deployment is blocked until a later ADR pins the governance integration. |
 | ADR 0035 | Bribe lifetime reward cap                                    | Monotonic per-token `lifetimeRewardNotified` counter; its original `1e18` precision and numeric cap are superseded by ADR 0037.                                                                                                                                                                           |
-| ADR 0036 | Bounded dynamic acquisition split                            | Prospective global automatic-Bribe share from 0% through 20%, with exact weighted carry and Fund complement.                                                                                                                                                                                              |
-| ADR 0037 | High-precision Bribe reward index                            | `1e36` Bribe index and precision-coupled lifetime notification cap.                                                                                                                                                                                                                                       |
+| ADR 0036 | Bounded dynamic acquisition split                            | Prospective global automatic-Bribe share from 0% through 20%. Its exact weighted carry and deferred-liability settlement are superseded by ADR 0047's per-purchase Strategy split.                                                                                                                        |
+| ADR 0037 | High-precision Bribe reward index                            | `1e36` Bribe index and precision-coupled lifetime notification cap remain. Its exact carry and Fund-liability machinery is superseded by ADR 0047; its eight-token bound by ADR 0048.                                                                                                                     |
 | ADR 0038 | Fixed Mine economics                                         | Fixed replacement multiplier and starting-price floor. Its initial rate is superseded by ADR 0042, its tail rate by ADR 0043, and its `HALVING_AMOUNT` by ADR 0041.                                                                                                                                       |
 | ADR 0039 | Event-only Mine messages                                     | Optional handoff message capped at 280 raw bytes and emitted only in `Mined`.                                                                                                                                                                                                                             |
 | ADR 0040 | Deployment-time Mine authority verification                  | Removal of the per-handoff authority check; deployment evidence must prove the permanent GBX minter binding.                                                                                                                                                                                              |
@@ -86,17 +93,20 @@ the accepted part is authoritative and the superseded part must not be presented
 | ADR 0043 | Provisional one-GBX Mine tail                                | Current provisional 1 GBX/second tail; it begins at the sixth 69-day boundary. Independent economic review remains open.                                                                                                                                                                                  |
 | ADR 0044 | Decouple Mine handoffs from revenue routing                  | Mine exact-deposits the protocol share into ResonanceRouter and emits `RevenueDeposited` without calling `route()`. Permissionless routing has no role, bounty, or liveness guarantee; LiquidityPosition remains atomic.                                                                                  |
 | ADR 0045 | Defer Mine-to-Router token verification to deployment        | Mine stores supplied dependencies without calling the Router; pinned post-deployment evidence must prove the Mine/Router USDG pairing before permanent binding or exposure.                                                                                                                               |
+| ADR 0046 | Specialize Resonance to USDG-only accounting                 | Scalar USDG-only state and tokenless reward views remain. Its preservation of exact raw scheduling is superseded by ADR 0047.                                                                                                                                                                             |
+| ADR 0047 | Restore Synthetix-shaped rewards and Strategy settlement     | Ordinary leftover rollover and floor surplus; continuously advancing Bribe streams; all-token plus scalar claims; direct per-purchase Strategy split; BribeRouter-only buffering; standard-token SafeERC20 model. Its preservation of the eight-token bound is superseded by ADR 0048.                    |
+| ADR 0048 | Expand Bribe rewards and compose signal moves                | Fixed sixteen-token append-only Bribe registry; no dedicated Resonance move hook; SignalGBX moves atomically compose source removal and live-destination addition.                                                                                                                                        |
 
 ### Historical context only — partially superseded
 
-| ADR      | Superseded provisions that must not be presented as current                                                                                                   |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ADR 0013 | Acquisition-split and buyback provisions (by ADR 0021, then 0032); external proposer/canceller model (by ADR 0030, then removed entirely by ADR 0034).        |
-| ADR 0014 | GBX mint authority and distribution (by ADR 0024); fee routing (by ADR 0018, then ADR 0022).                                                                  |
-| ADR 0015 | Whole-account action/event examples (by ADR 0019); public coordination surface (by ADR 0030).                                                                 |
-| ADR 0016 | Terminology and implementation details; "management fee" wording means the bounded acquisition auction.                                                       |
-| ADR 0019 | Resonance batch/enumeration APIs (by 0029); direct Resonance signal entrypoints and aggregate state (by 0030); idle-allocation and standalone exit (by 0031). |
-| ADR 0020 | Resonance carry, donation synchronization, Resonance Fund-liability (by 0029); Strategy routing (by 0021, then **0032**).                                     |
+| ADR      | Superseded provisions that must not be presented as current                                                                                                                                                   |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ADR 0013 | Acquisition-split and buyback provisions (by ADR 0021, then 0032); external proposer/canceller model (by ADR 0030, then removed entirely by ADR 0034).                                                        |
+| ADR 0014 | GBX mint authority and distribution (by ADR 0024); fee routing (by ADR 0018, then ADR 0022).                                                                                                                  |
+| ADR 0015 | Whole-account action/event examples (by ADR 0019); public coordination surface (by ADR 0030).                                                                                                                 |
+| ADR 0016 | Terminology and implementation details; "management fee" wording means the bounded acquisition auction; its eight-token Bribe cap is superseded by ADR 0048.                                                  |
+| ADR 0019 | Resonance batch/enumeration APIs (by 0029); direct Resonance signal entrypoints and aggregate state (by 0030); idle-allocation and standalone exit (by 0031); eight-token Bribe cap (by 0048).                |
+| ADR 0020 | Resonance carry/donation/Fund-liability (by 0029); Strategy routing (by 0021, then 0032/0047); Bribe exact-carry, queue, pause, Fund-liability, selected-batch-claim, and exact-transfer decisions (by 0047). |
 
 ### Fully superseded — excluded from all public documents
 
@@ -107,6 +117,8 @@ the accepted part is authoritative and the superseded part must not be presented
 | ADR 0023 | Fixed GBX supply and pre-funded Fundraiser reserve | ADR 0024      |
 | ADR 0025 | Global seven-day Resonance revenue stream          | ADR 0026      |
 | ADR 0026 | Exact active-plus-successor Resonance stream       | ADR 0029      |
+| ADR 0027 | Fix Bribe carry before signal-supply boundaries    | ADR 0047      |
+| ADR 0032 | Fixed 90/10 acquired-asset settlement              | ADR 0036/0047 |
 
 > **ADR 0021 became fully superseded between drafts.** Its 100%-Fund settlement rule was the basis for several claims
 > in an earlier version of these documents and must no longer be presented as current behavior anywhere.
@@ -121,14 +133,15 @@ the accepted part is authoritative and the superseded part must not be presented
 `packages/contracts/audit/AUDIT-BASELINE.md` and `packages/contracts/audit/TEST-CAMPAIGN.md` both carry explicit
 "Historical evidence only" banners and review commit `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84` (2026-08-09), before
 the ADR 0024 Mine redesign and the ADR 0029/0030/0031/0032 changes. Their counts (including "340 passed") **must not**
-be reported as current. `packages/contracts/audit/FINDINGS.md` is the current disposition register, reconciled on
-2026-08-22 through ADR 0045; campaign-specific findings are in
-`packages/contracts/audit/SIGNAL-RESONANCE-FINDINGS.md`.
+be reported as current. `packages/contracts/audit/FINDINGS.md` is the latest disposition register, reconciled on
+2026-08-23 through ADR 0048. `packages/contracts/audit/SIGNAL-RESONANCE-FINDINGS.md` is explicitly a pre-ADR-0047
+historical campaign ledger.
 
-**Static analysis, external fuzzing, and mutation results are also historical.** The pinned static-analysis and native
-external-fuzzer campaigns predate substantial current architecture changes. A later narrow 49-mutant
-Signal/Resonance campaign covers ADRs 0036/0037 but predates ADR 0043. None may be presented as complete current-tree
-evidence.
+**Pinned static analysis, native external fuzzing, and the earlier mutation results are historical.** The pinned
+static-analysis and native external-fuzzer campaigns predate substantial current architecture changes. A narrow
+49-mutant Signal/Resonance campaign covers ADRs 0036/0037 but predates ADR 0043, and the separate 46/46 campaign
+covers ADR 0047 but predates ADR 0048. The current focused ADR-0048 campaign killed 47/47 targeted mutants. None of
+these results is an independent audit or complete production-safety review.
 
 There is also a stale compiler artifact for a removed contract, `Fundraiser.sol`, under
 `packages/contracts/artifacts/hardhat/src/core/`. No `Fundraiser.sol` exists in `packages/contracts/src`. The
@@ -284,7 +297,7 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Tests:** `test_ReplacementAfterThirtyMinutesSettlesOnlyThatSlotAndSplitsEightyTwenty`,
   `test_FirstMinerDepositsCompletePaymentAndReceivesOneSixteenthGlobalTps`,
   `test_ZeroPriceSelfReplacementRealizesAccrualAndRestartsAtOneDollar`,
-  `testFuzz_MineRevenueAndHandoffClaimsReachFinalDestinationsWithoutDust`
+  `testFuzz_MineRevenueAndHandoffClaimsReachFinalDestinationsWithScheduleSurplus`
 - **Status:** `implemented`
 - **Commit:** uncommitted ADR 0044 development candidate (2026-08-22)
 - **Caveats:** `revenueAmount = paid - floor(paid * 0.8)`, so the deposited share is `ceil(paid * 0.2)`. The protocol,
@@ -301,7 +314,7 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Source:** `packages/contracts/src/core/Mine.sol:280-296`
 - **Functions/state:** `claim`, `claimable`, `totalClaimable`
 - **ADR:** ADR 0024
-- **Tests:** `test_ClaimIsPermissionlessButAlwaysPaysTheDisplacedMiner`, `test_ClaimingTwiceInARowPaysNothingTheSecondTime`,
+- **Tests:** `test_ClaimIsPermissionlessButAlwaysPaysTheDisplacedMiner`, `test_ClaimRejectsZeroAndAccountsWithoutLiability`,
   `test_ClaimRejectsAnInexactRecipientCreditAndRestoresLiability`,
   `invariant_MineIsSolventAgainstReplacementClaims`
 - **Status:** `implemented`
@@ -437,7 +450,7 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **ADR:** ADR 0044
 - **Tests:** `test_FirstMinerDepositsCompletePaymentAndReceivesOneSixteenthGlobalTps`,
   `test_BlockedRevenueIngressDoesNotBlockMineAndRemainsPermissionlesslyRetryable`,
-  `testFuzz_MineRevenueAndHandoffClaimsReachFinalDestinationsWithoutDust`
+  `testFuzz_MineRevenueAndHandoffClaimsReachFinalDestinationsWithScheduleSurplus`
 - **Status:** `implemented`
 - **Commit:** uncommitted ADR 0044 development candidate (2026-08-22)
 - **Caveats:** Permissionless does not mean automatic. Router revenue may wait indefinitely even after qualifying if no
@@ -485,7 +498,7 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **ADR:** ADR 0030 (voting-token decisions), ADR 0031
 - **Tests:** `test_LaterSignalPreservesExplicitDelegateAndSelfDelegatesAgainAfterZeroDelegation`,
   `test_DelegateBySigWorksButReceiptHasNoPermitEntrypoint`,
-  `test_MoveSignalPreservesCustodySupplyVotesAndAggregateSignal`
+  `test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal`
 - **Status:** `implemented`
 - **Commit:** `95ed60e`
 - **Caveats:** Self-delegation happens only when the account currently has _no_ delegate. An account that explicitly
@@ -573,13 +586,14 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 ### FACT-SIG-01 — SignalGBX is the only external signal coordinator
 
 - **Plain-English claim:** All signaling flows through one contract. There is no second user-facing entry point.
-- **Technical formulation:** `Resonance.addSignalFor`, `removeSignalFor`, and `moveSignalFor` carry the
-  `onlySignalGBX` modifier, which reverts `UnauthorizedSignalSource` unless `msg.sender == address(signalGBX)`.
-- **Source:** `packages/contracts/src/core/Resonance.sol:147-150`, `:153`, `:169`, `:188-192`
-- **Functions/state:** `onlySignalGBX`, `addSignalFor`, `removeSignalFor`, `moveSignalFor`
-- **ADR:** ADR 0030 (supersedes ADR 0019's direct Resonance entry points)
+- **Technical formulation:** `Resonance.addSignalFor` and `removeSignalFor` carry the `onlySignalGBX` modifier, which
+  reverts `UnauthorizedSignalSource` unless `msg.sender == address(signalGBX)`. Resonance exposes no move-only hook;
+  `SignalGBX.moveSignal` composes the retained hooks.
+- **Source:** `packages/contracts/src/core/Resonance.sol`; `packages/contracts/src/core/SignalGBX.sol`
+- **Functions/state:** `onlySignalGBX`, `addSignalFor`, `removeSignalFor`, `moveSignal`
+- **ADR:** ADR 0030 (supersedes ADR 0019's direct Resonance entry points), ADR 0048
 - **Tests:** `test_OnlySignalGBXCanMutateAnotherAccountsSignal`, `test_AnAttackerCannotRemoveAnotherAccountsSignal`,
-  `test_HostileSignalInputsCannotCreateOrDestroyWeight`
+  `test_HostileSignalInputsCannotCreateOrDestroyWeight`, `test_RemovedResonanceMoveHookIsAbsentFromRuntime`
 - **Status:** `implemented`
 - **Commit:** `281e601`
 
@@ -593,10 +607,12 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   amount. No batch or array entry point exists, and no percentage-weight system exists.
 - **Source:** `packages/contracts/src/core/SignalGBX.sol:75-132`
 - **Functions/state:** `signal`, `signalWithPermit`, `moveSignal`, `withdrawSignal`
-- **ADR:** ADR 0019, **ADR 0031**
+- **ADR:** ADR 0019, **ADR 0031**, ADR 0048
 - **Tests:** `test_SignalAtomicallyCustodiesMintsVotesAndMirrorsThePairedBribe`,
   `test_WithdrawSignalAtomicallyRemovesBurnsUndelegatesAndReturnsUnderlying`,
-  `test_MoveSignalPreservesCustodySupplyVotesAndAggregateSignal`,
+  `test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal`,
+  `test_MoveSignalRejectsZeroSameStrategyAndInsufficientSource`,
+  `test_MoveSignalDestinationFailureRollsBackSourceRemoval`,
   `test_SignalRejectsZeroAndMissingAllowance`, `test_WithdrawSignalRejectsZeroAndMoreThanTheSelectedPosition`
 - **Status:** `implemented`
 - **Commit:** `95ed60e`
@@ -636,17 +652,19 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 
 - **Plain-English claim:** Changing your signal never retroactively redirects revenue that accrued under the old
   weights.
-- **Technical formulation:** `addSignalFor` and `removeSignalFor` call `_updateReward(strategy)` before mutating
-  `totalSignalWeight` or the Bribe balance. `moveSignalFor` calls `_updateReward(fromStrategy)` and
-  `_updateReward(toStrategy)` before both legs. `_updateReward` advances `rewardPerTokenStored` and `lastUpdateTime`,
-  then settles `account_Token_Rewards[strategy]`.
-- **Source:** `packages/contracts/src/core/Resonance.sol:159`, `:178`, `:204-205`, `:394-405`
+- **Technical formulation:** `addSignalFor` and `removeSignalFor` call `_updateReward(strategy)` before their respective
+  `totalSignalWeight` and Bribe mutations. `SignalGBX.moveSignal` calls source removal and then destination addition in
+  one transaction. The source is checkpointed before removal; the destination is checkpointed before addition. No
+  time elapses between calls, so both old positions receive the stored pre-move index and the moved amount earns only
+  later flow. `_updateReward` advances `rewardPerTokenStored` and `lastUpdateTime`, then settles
+  `strategyRewards[strategy]`.
+- **Source:** `packages/contracts/src/core/Resonance.sol`; `packages/contracts/src/core/SignalGBX.sol`
 - **Functions/state:** `_updateReward`, `rewardPerToken`, `earned`
-- **ADR:** ADR 0029
+- **ADR:** ADR 0029, ADR 0046, ADR 0048
 - **Tests:** `test_FlashSignalWeightCannotRedirectANewNotification`,
   `test_StrategyAddedAfterAccrualCannotClaimHistoricRevenue` (named in FINDINGS.md as the A-11 regression),
-  `test_NewStrategyWeightReceivesOnlyPostEntryRevenue`, `test_ALateArrivalEarnsNothingForTheElapsedPortion`,
-  `test_StrategyAddedAfterAccrualCannotClaimHistoricRevenue`
+  `test_NewStrategyWeightReceivesOnlyPostEntryRevenue`,
+  `test_ComposedMoveCheckpointsBothStrategiesBeforeChangingTheirWeights`
 - **Status:** `implemented`
 - **Commit:** `281e601`
 - **Caveats:** This prevents _same-transaction_ capture only. A signal held over real elapsed time legitimately earns
@@ -656,12 +674,12 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 
 - **Plain-English claim:** A Strategy created today cannot claim revenue that accrued before it existed.
 - **Technical formulation:** `addStrategy` sets
-  `account_Token_RewardPerTokenPaid[strategy][usdg] = token_RewardData[usdg].rewardPerTokenStored`.
-- **Source:** `packages/contracts/src/core/Resonance.sol:293-294`
-- **Functions/state:** `addStrategy`, `account_Token_RewardPerTokenPaid`
-- **ADR:** ADR 0029
+  `strategyRewardPerTokenPaid[strategy] = rewardData.rewardPerTokenStored`.
+- **Source:** `packages/contracts/src/core/Resonance.sol:278-307`
+- **Functions/state:** `addStrategy`, `strategyRewardPerTokenPaid`, `rewardData`
+- **ADR:** ADR 0029, ADR 0046
 - **Tests:** `test_StrategyAddedAfterAccrualCannotClaimHistoricRevenue`,
-  `test_NewStrategySignalCannotReceivePreEntryRoundedSurplus`
+  `test_NewStrategyWeightReceivesOnlyPostEntryRevenue`
 - **Status:** `implemented`
 - **Commit:** `281e601`
 
@@ -723,18 +741,17 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   liquidity position, or redirect a payment. It can change only the prospective automatic Bribe share, within 0–20%.
 - **Technical formulation:** Mining parameters are fixed and `Mine` has no owner. `Resonance.setBribeBps` is bounded
   by `MAX_BRIBE_BPS = 2_000` and applies only when a later payment is classified; Fund receives the complement and no
-  prior liability is repriced. `GBX.setMinter` is single-use with `minterLocked`. `Fund` exposes only `redeem` and
-  `burnGBX`. `LiquidityPosition` has no withdrawal path for the NFT. `Strategy` auction parameters are immutable and
-  bounded at construction.
-- **Source:** `Mine.sol`, `Resonance.sol`, `BribeRouter.sol`, `GBX.sol`, `Fund.sol`, `LiquidityPosition.sol`,
-  `Strategy.sol`
-- **ADR:** ADR 0033, ADR 0036, ADR 0017, ADR 0022
+  prior purchase, Fund balance, buffered Bribe share, or active reward stream is repriced. `GBX.setMinter` is
+  single-use with `minterLocked`. `Fund` exposes only `redeem` and `burnGBX`. `LiquidityPosition` has no withdrawal
+  path for the NFT. `Strategy` auction parameters are immutable and bounded at construction.
+- **Source:** `Mine.sol`, `Resonance.sol`, `GBX.sol`, `Fund.sol`, `LiquidityPosition.sol`, `Strategy.sol`
+- **ADR:** ADR 0033, ADR 0036, ADR 0047, ADR 0017, ADR 0022
 - **Tests:** `test_RedemptionIsTheOnlyWayAssetsCanEverLeaveFund`,
   `test_TheCanonicalNFTCanNeverLeaveOnceAdmitted`, `test_FundHasNoAdministrativeSurfaceLeft`,
-  `test_DefaultBoundsAndOwnerAuthorization`, `test_ChangingPolicyCannotRepriceOldLiabilitiesOrInterruptTheirRewardStream`,
+  `test_DefaultBoundsAndOwnerAuthorization`, `test_ChangingPolicyCannotRepriceAnOldBufferedShareOrInterruptItsStream`,
   `testFuzz_HarvestIsExactAndPrincipalIsFixed`
 - **Status:** `implemented`
-- **Commit:** `dc67d7c`
+- **Commit:** `uncommitted`
 
 ### FACT-GOV-04 — The final live Strategy cannot be killed
 
@@ -844,78 +861,83 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 
 - **Plain-English claim:** Protocol revenue does not arrive all at once. It is released steadily over seven days and
   split among Strategies according to how they were signaled during each moment.
-- **Technical formulation:** `DURATION = 7 days = 604800` seconds. One `Reward` record is kept per token, and only
-  USDG is ever registered (`token_IsReward[usdg] = true` in the constructor; `rewardTokens` holds one element).
-  Allocation follows a Synthetix-shaped `rewardPerToken` index over `totalSignalWeight`.
-- **Source:** `packages/contracts/src/core/Resonance.sol:29`, `:44-58`, `:133-134`
-- **Functions/state:** `DURATION`, `token_RewardData`, `rewardTokens`, `totalSignalWeight`
-- **ADR:** ADR 0029
-- **Tests:** `test_NotifyStartsASevenDayStreamAtTheFlooredRate`, `test_RevenueSplitsByCurrentStrategyWeight`,
-  `test_RewardViewsExposeOnlyTheSingleCurrentSchedule`, `invariant_RevenueStreamStateIsCoherent`
+- **Technical formulation:** `DURATION = 7 days = 604800` seconds. Resonance stores one scalar `rewardData` record
+  containing only `periodFinish`, `rewardRate`, `lastUpdateTime`, and `rewardPerTokenStored` for its immutable USDG
+  token; it has no reward-token registry or token-keyed schedule. Allocation follows a Synthetix-shaped
+  `rewardPerToken` index over `totalSignalWeight`.
+- **Source:** `packages/contracts/src/core/Resonance.sol:28-64`, `:337-408`
+- **Functions/state:** `DURATION`, `rewardData`, `totalSignalWeight`
+- **ADR:** ADR 0029, ADR 0046, ADR 0047
+- **Tests:** `test_NotificationStartsOneScalarScheduleAndKeepsTheRateFloorAsSurplus`,
+  `test_RevenueSplitsByCurrentStrategyWeight`,
+  `test_RewardViewsExposeTheSingleUSDGSchedule`, `invariant_RevenueStreamStateIsCoherent`,
+  `test_RemovedMultiTokenResonanceSelectorsAreAbsentFromRuntime`
 - **Status:** `implemented`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 
-### FACT-RES-02 — The raw USDG schedule is quotient plus front-loaded remainder
+### FACT-RES-02 — The USDG stream uses the ordinary Synthetix whole-unit rate
 
-- **Plain-English claim:** Every single raw unit of scheduled USDG is released — the remainder from the division is
-  paid out one unit per second at the start of the period, not discarded.
-- **Technical formulation:** On restart with `S = reward + remaining`:
-  `rewardRate = floor(S / DURATION)`, `rateRemainder = S mod DURATION`, `periodFinish = t0 + DURATION`,
-  `remainderFinish = t0 + rateRemainder`. Emission over `[from, to)` is
-  `(to - from) * rewardRate + max(0, min(to, remainderFinish) - from)` when `from < remainderFinish`.
-  Total emitted over the full period is exactly `rewardRate * DURATION + rateRemainder = S`.
-- **Source:** `packages/contracts/src/core/Resonance.sol:429-454`
-- **Functions/state:** `_restartRewardPeriod`, `_emissionBetween`, `left`, `getRewardForDuration`
-- **ADR:** ADR 0029
-- **Tests:** `test_RawRemainderIsFrontLoadedAndTheCompleteAmountIsScheduled`,
-  `test_OneRawUnitEmitsDuringTheFirstActiveSecond`,
-  `test_NotifyAcceptsAndExactlySchedulesAnAmountBelowTheDuration`,
-  `test_TheFormerFlooredRewardRateRemainderIsFullyClaimable`
+- **Plain-English claim:** Resonance releases a constant raw-unit rate for seven days. Division dust is deliberately
+  left unallocated instead of tracked in another schedule field.
+- **Technical formulation:** On restart with `S = reward + remaining`, `rewardRate = floor(S / DURATION)`,
+  `periodFinish = t0 + DURATION`, and elapsed emission is `(to - from) * rewardRate`. The difference
+  `S - rewardRate * DURATION` remains USDG surplus.
+- **Source:** `packages/contracts/src/core/Resonance.sol`
+- **Functions/state:** `rewardData`, `rewardPerToken`, `left`, `getRewardForDuration`
+- **ADR:** ADR 0047 (supersedes ADR 0029's exact raw schedule)
+- **Tests:** `test_NotificationStartsOneScalarScheduleAndKeepsTheRateFloorAsSurplus`,
+  `test_OrdinaryRateFloorLeavesTheRawRemainderAsSurplus`,
+  `test_OrdinaryRateFloorMatchesHistoricalAndLeavesSurplus`
 - **Status:** `implemented`
-- **Commit:** `281e601`
-- **Worked example:** `S = 1_000_000` raw USDG (1.00 USDG at 6 decimals). `rewardRate = floor(1000000/604800) = 1`.
-  `rateRemainder = 1000000 - 604800 = 395200`. So for the first 395,200 seconds emission is 2 raw units/second and
-  thereafter 1 raw unit/second. Total `= 604800*1 + 395200 = 1_000_000`. Exact.
+- **Commit:** `uncommitted`
+- **Worked example:** For `S = 1_000_000` raw USDG, `rewardRate = floor(1_000_000 / 604_800) = 1` raw unit per
+  second. The stream schedules `604_800` raw units and leaves `395_200` raw units unallocated.
 
-### FACT-RES-03 — A qualifying notification restarts seven days with new reward plus the exact remainder
+### FACT-RES-03 — A qualifying notification uses standard leftover rollover
 
 - **Plain-English claim:** New revenue does not just extend the old schedule. It is combined with whatever was left
   and restarted as a fresh seven-day stream.
-- **Technical formulation:** `notifyRevenue(reward)` requires `reward >= left(usdg)` (else `RewardSmallerThanLeft`),
-  pulls exactly `reward`, and calls `_restartRewardPeriod(usdg, reward, remaining)` with `S = reward + remaining`.
-  `updateReward(address(0))` runs first, so elapsed emission is checkpointed into the index before the restart.
-- **Source:** `packages/contracts/src/core/Resonance.sol:219-230`
-- **Functions/state:** `notifyRevenue`, `left`, `_restartRewardPeriod`
-- **ADR:** ADR 0029 (supersedes ADR 0025 and ADR 0026 reset behavior)
+- **Technical formulation:** `notifyRevenue(reward)` requires `reward >= left()` (else `RewardSmallerThanLeft`),
+  checkpoints elapsed emission, pulls `reward` with `SafeERC20`, sets
+  `rewardRate = floor((reward + remaining) / DURATION)`, and resets the finish to seven days from now.
+- **Source:** `packages/contracts/src/core/Resonance.sol`
+- **Functions/state:** `notifyRevenue`, `left`, `rewardData`
+- **ADR:** ADR 0047
 - **Tests:** `test_QualifyingTopUpCheckpointsAndRestartsWithRewardPlusLeft`,
-  `test_TopUpBelowLeftRevertsAtomicallyAtResonance`, `test_ATopUpWaitsBehindTheUndisturbedActiveStream`,
-  `test_AnOutsiderCannotExtendOrSlowTheLiveStream`, `test_NotifyRevenueIsRouterOnlyAndRejectsZero`
+  `test_RouterBuffersUntilItsBalanceReachesTheActiveAmountLeft`,
+  `test_DivisibleStreamsMatchHistoricalRateIndexEarnedRestartAndClaimAccounting`,
+  `test_NotifyRevenueIsRouterOnlyAndRejectsZero`
 - **Status:** `implemented`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 - **Caveats:** A restart can raise **or lower** the instantaneous rate and always moves the finish to `now + 7 days`.
-  Because `reward >= left`, forcing an early reset requires economically matching the remainder. Timing influence is
-  intentional and accepted.
+  Because `reward >= left`, forcing an early reset requires economically matching the scheduled remainder. This
+  permissionless match-cost gate is a small deliberate deviation from an owner-only Synthetix distributor; it makes
+  slowing costly but does not guarantee that every accepted restart preserves or raises the instantaneous rate.
 
-### FACT-RES-04 — ResonanceRouter withholds a nonzero balance below the active remainder
+### FACT-RES-04 — ResonanceRouter buffers below the greater of one duration and the active amount left
 
 - **Plain-English claim:** Revenue waits in a router until someone calls; a sub-threshold attempt leaves it there, while
   a qualifying attempt forwards the complete balance.
 - **Technical formulation:** `route()` reverts `NoRevenue` on a zero balance. Otherwise it reads
-  `minimum = Resonance.left(usdg)`; if `pending < minimum` it emits `RevenueHeld` and returns `0` without
-  transferring. Otherwise it forwards its **complete** balance, and reverts `RevenueRetained` if any USDG remains.
-- **Source:** `packages/contracts/src/core/ResonanceRouter.sol:56-76`
-- **Functions/state:** `route`, `pendingRevenue`, `RevenueHeld`, `RevenueRetained`
-- **ADR:** ADR 0029; Mine call-site behavior superseded by ADR 0044
-- **Tests:** `test_SubThresholdRevenueWaitsUntilTheRouterBalanceQualifies`,
-  `test_RouteIsPermissionlessAndForwardsTheCompleteBalance`, `test_RouteRevertsIfResonanceLeavesRevenueBehind`,
-  `test_RouteRejectsAnEmptyRouter`, `invariant_RevenueRouterRetentionIsFullyVisible`
+  `minimum = max(Resonance.DURATION(), Resonance.left())`; if `pending < minimum` it emits `RevenueHeld` and returns
+  `0` without transferring. Otherwise it approves Resonance for, and notifies, the **complete** pending balance.
+  Under ADR 0047's standard-token assumption it does not compare post-call token balances or clear a residual
+  allowance.
+- **Source:** `packages/contracts/src/core/ResonanceRouter.sol`
+- **Functions/state:** `route`, `pendingRevenue`, `RevenueHeld`
+- **ADR:** ADR 0029 and ADR 0047; Mine call-site behavior superseded by ADR 0044
+- **Tests:** `test_RouterBuffersUntilAtLeastOneRawUnitPerSecondCanBeScheduled`,
+  `test_RouterBuffersUntilItsBalanceReachesTheActiveAmountLeft`,
+  `test_SubThresholdRevenueWaitsUntilTheRouterBalanceQualifies`,
+  `test_RouteIsPermissionlessAndForwardsTheCompleteBalance`, `test_RouteRejectsAnEmptyRouter`,
+  `invariant_RevenueRouterRetentionIsFullyVisible`
 - **Status:** `implemented`
-- **Commit:** `281e601`
-- **Caveats:** There is no absolute minimum. Because `left` decays to zero at `periodFinish`, any held balance
-  eventually qualifies, but qualification does not call the contract. With no role, bounty, or guaranteed caller,
+- **Commit:** `uncommitted`
+- **Caveats:** `DURATION` raw units is the absolute minimum, so a smaller balance never qualifies without another
+  deposit. A qualifying balance still requires an external caller; with no role, bounty, or guaranteed caller,
   revenue may wait indefinitely. Mine is isolated because it never calls `route`; LiquidityPosition still calls it
-  atomically. Interfaces must distinguish "deposited in Router" from "forwarded into the active stream". Direct
-  donations to the Router are unaccounted surplus (`test_DirectRouterDonationsRemainUnaccountedSurplus`).
+  atomically. Interfaces must distinguish "deposited in Router" from "forwarded into the active stream". A direct
+  Router donation joins the next complete-balance notification rather than creating a separately accounted claim.
 
 ### FACT-RES-05 — The reward-per-signal index uses 1e36 precision because USDG has 6 decimals and sGBX has 18
 
@@ -924,13 +946,14 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Technical formulation:** `REWARD_PRECISION = 1e36`.
   `rewardPerToken += floor(emitted * 1e36 / totalSignalWeight)`, and
   `earned = rewards + floor(activeBalance * (rewardPerToken - paid) / 1e36)`.
-- **Source:** `packages/contracts/src/core/Resonance.sol:31`, `:330-348`
+- **Source:** `packages/contracts/src/core/Resonance.sol:38`, `:343-361`
 - **Functions/state:** `REWARD_PRECISION`, `rewardPerToken`, `earned`
-- **ADR:** ADR 0029
-- **Tests:** `test_ScalarSignalsSplitAcrossStrategiesAndExitCompletely`, `test_AccrualIsProportionalToVirtualWeight`,
+- **ADR:** ADR 0029, ADR 0047
+- **Tests:** `test_OneE36IndexPreservesOneRawRewardAcrossEighteenDecimalSignal`,
+  `test_RevenueSplitsByCurrentStrategyWeight`, `test_MoveCheckpointsBothStrategiesBeforeChangingTheirWeights`,
   `invariant_RevenueIndexIsMonotonic`
 - **Status:** `implemented`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 - **Caveats:** **The six-decimal property is a deployment fact, not a code constant.** No contract calls
   `usdg.decimals()` or asserts it equals 6. The `1e36` choice is calibrated for a 6-decimal reward against an
   18-decimal weight; the test fixture instantiates USDG as `MockERC20("Global Dollar", "USDG", 6)`
@@ -950,36 +973,35 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
      weight advances `lastUpdateTime` without ever crediting any Strategy.
      Direct USDG transfers to Resonance are never scheduled because scheduling occurs only inside `notifyRevenue`.
      The solvency relation is an inequality:
-     `USDG.balanceOf(Resonance) = left(USDG) + sum_strategies earned(strategy, USDG) + surplus`, `surplus >= 0`.
-- **Source:** `packages/contracts/src/core/Resonance.sol:330-348`, `:394-405`; `docs/SECURITY-INVARIANTS.md`
+     `USDG.balanceOf(Resonance) = left() + sum_strategies earned(strategy) + surplus`, `surplus >= 0`.
+- **Source:** `packages/contracts/src/core/Resonance.sol:337-408`; `docs/SECURITY-INVARIANTS.md`
 - **Functions/state:** `rewardPerToken`, `earned`, `_updateReward`
-- **ADR:** ADR 0029 (finding **A-02**, **A-09** Resonance half)
+- **ADR:** ADR 0029 and ADR 0047 (finding **A-02**, **A-09** Resonance half)
 - **Tests:** `test_ZeroSignalElapsedRevenueBecomesSurplusAndCannotBeCapturedLater`,
   `test_RevenueWithoutSignalsBecomesUnallocatedResonanceSurplus`,
   `test_USDGDonatedDirectlyToResonanceRemainsUnscheduledSurplus`, `test_DirectDonationIsNotScheduled`,
-  `test_NewStrategySignalCannotReceivePreEntryRoundedSurplus`,
   `invariant_ResonanceIsSolventAgainstClaimableRevenue`, `invariant_ResonanceScheduledAndEarnedRevenueIsSolvent`,
   `testFuzz_AccruedAndScheduledRevenueNeverExceedsTheHeldBalance`,
-  `testFuzz_DistributionNeverOverpaysAndFractionalDustRemainsHeld`, `testFuzz_TotalPaidNeverExceedsTotalNotified`
+  `testFuzz_DistributionNeverOverpaysAndFractionalDustRemainsHeld`
 - **Status:** `accepted-limitation`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 - **Caveats:** **No exact conservation identity and no lifetime dust bound is claimed for Resonance.** There is no
-  synchronization, sweep, rescue, or later-allocation path. This is the deliberate difference from Bribe, which does
-  carry exact remainders (FACT-BRIBE-05).
+  synchronization, sweep, rescue, or later-allocation path. Bribe now accepts the same ordinary rate/index/account
+  floors rather than carrying them exactly (FACT-BRIBE-05).
 
 ### FACT-RES-07 — Distribution is permissionless and always pays the entitled Strategy
 
 - **Plain-English claim:** Anyone can push a Strategy's accrued revenue to it; the money can only go to that Strategy.
 - **Technical formulation:** `distribute(strategy)` is public with `nonReentrant updateReward(strategy)`. It zeroes
-  `account_Token_Rewards[strategy][usdg]` and transfers to `strategy`, verifying exact debit and credit.
-- **Source:** `packages/contracts/src/core/Resonance.sol:233-244`, `:418-427`
-- **Functions/state:** `distribute`, `_transferRevenueExact`
-- **ADR:** ADR 0029
+  `strategyRewards[strategy]` and calls `usdg.safeTransfer(strategy, amount)`. It does not snapshot sender or receiver
+  balances; registered USDG is assumed to follow standard ERC-20 transfer semantics.
+- **Source:** `packages/contracts/src/core/Resonance.sol`
+- **Functions/state:** `distribute`, `strategyRewards`
+- **ADR:** ADR 0029, ADR 0046, ADR 0047
 - **Tests:** `test_DistributionIsPermissionlessButAlwaysPaysTheStrategy`, `test_DistributingTwicePaysNothingTheSecondTime`,
-  `test_InexactDistributionRevertsWithoutConsumingLiabilityAndCanRetry`,
   `test_BlockedStrategyDoesNotBrickUnrelatedDistributionOrItsOwnLaterRetry`
 - **Status:** `implemented`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 
 ---
 
@@ -1011,18 +1033,20 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Technical formulation:** `buy(revenueReceiver, expectedEpochId, deadline, maximumPayment)` first calls
   `Resonance.distribute(address(this))`, reads `revenueAmount = revenueToken.balanceOf(this)` (reverts `EmptyRevenue`
   at zero), computes `paymentAmount = currentPrice()`, collects that many `paymentToken` units, settles them, and
-  transfers the **entire** USDG balance to `revenueReceiver`.
-- **Source:** `packages/contracts/src/core/Strategy.sol:147-185`
+  transfers the snapshotted **entire** USDG balance to `revenueReceiver` with `SafeERC20`. The path assumes standard
+  token semantics and does not compare the buyer, Strategy, Fund, Router, or receiver balance deltas.
+- **Source:** `packages/contracts/src/core/Strategy.sol:144-176`
 - **Functions/state:** `buy`, `availableRevenue`, `currentPrice`, `epochId`, `epochStartedAt`, `initialPrice`
-- **ADR:** ADR 0021, ADR 0029
+- **ADR:** ADR 0021, ADR 0029, ADR 0047
 - **Tests:** `test_BuyAtomicallyIncludesRevenueReleasedThroughTheCurrentTimestamp`,
-  `test_AcquisitionClassifiesTheCompletePaymentNinetyTen`, `test_BuyRejectsAnEmptyStrategy`, `test_BuyRejectsAStaleEpochId`,
+  `test_CompletePaymentSplitsInlineAndAdvancesTheEpoch`, `test_BuyRejectsAnEmptyStrategy`, `test_BuyRejectsAStaleEpochId`,
   `test_BuyRejectsAPassedDeadline`, `test_BuyRejectsAPaymentAboveTheBuyersLimit`, `test_BuyRejectsAZeroRevenueReceiver`
 - **Status:** `implemented`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 - **Caveats:** `revenueReceiver` is buyer-chosen. Setting it to Resonance creates unscheduled surplus
-  (`test_RevenueReceiverEqualToResonanceCreatesUnscheduledSurplus`); setting it to the Strategy itself fails
-  atomically (`test_RevenueReceiverEqualToStrategyFailsAtomically`).
+  (`test_RevenueReceiverEqualToResonanceCreatesUnscheduledSurplus`); setting it to the Strategy transfers to self,
+  advances the epoch, and leaves the revenue available for the next epoch
+  (`test_RevenueReceiverEqualToStrategyLeavesTheRevenueForTheNextEpoch`).
 
 ### FACT-STR-03 — Strategy price decays linearly to zero over an immutable epoch duration
 
@@ -1066,7 +1090,7 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 - **Technical formulation:** `killStrategy` is `onlyOwner nonReentrant updateReward(strategy)`. It reverts
   `FinalLiveStrategy` when `liveStrategyCount == 1`, then sets `isStrategyAlive[strategy] = false`, decrements
   `liveStrategyCount`, and subtracts `strategySignalWeight(strategy)` from `totalSignalWeight`. The `updateReward`
-  runs first, so accrued whole reward units are preserved in `account_Token_Rewards`. `earned` returns
+  runs first, so accrued whole reward units are preserved in `strategyRewards`. `earned` returns
   `activeBalance = 0` for a dead Strategy, so no further accrual occurs. `addSignalFor` reverts `StrategyAlreadyDead`;
   `removeSignalFor` skips the `totalSignalWeight` decrement for a dead Strategy so the weight is not removed twice.
 - **Source:** `packages/contracts/src/core/Resonance.sol:66-67`, `:290-292`, `:303-313`
@@ -1083,27 +1107,26 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   replaces the final Strategy by calling `addStrategy(replacement)` before `killStrategy(previous)`; whether those two
   calls can be atomically batched is a property of the external governance system, not of the core.
   This does **not** eliminate the zero-active-weight condition of FACT-RES-06 — every signaler withdrawing still
-  drives `totalSignalWeight` to zero. `moveSignalFor` from a dead Strategy adds the amount **back** into
-  `totalSignalWeight` because it re-enters the live denominator.
+  drives `totalSignalWeight` to zero. A composed move from a dead Strategy first removes without decrementing the
+  already excluded weight, then adds the amount **back** into `totalSignalWeight` at the live destination.
 
 ### FACT-STR-06 — A killed Strategy's Bribe becomes a closed reward pool, and a final exit can permanently abandon rewards
 
 - **Plain-English claim:** After a Strategy is retired, its reward pool stays open for whoever is still signaling it,
   but nobody new can join. If the last signaler leaves while rewards remain, those rewards are stranded forever.
 - **Technical formulation:** `Bribe` has no kill state. `deposit` is unreachable for a dead Strategy because
-  `Resonance.addSignalFor` rejects it. When `totalSupply` reaches zero, `withdraw` calls `_pauseStream` for every
-  reward token; a paused stream can be resumed only by `deposit`, which can never occur again. Queued rewards
-  likewise require a `deposit` to start.
-- **Source:** `packages/contracts/src/core/Bribe.sol:314-342`, `:574-603`
-- **Functions/state:** `withdraw`, `_pauseStream`, `_resumeAllStreams`, `queuedRewards`, `scheduledRewards`
-- **ADR:** ADR 0028 (finding **BR-1**)
-- **Tests:** `test_KnownRisk_DeadStrategyBribeCanPauseAndQueueRewardsForever`,
-  `test_KillingAStrategyDoesNotConfiscateStreamingRewards`
+  `Resonance.addSignalFor` rejects it, but incumbent accounts may still claim and withdraw. Reward time follows the
+  Synthetix clock even when `totalSupply == 0`; after the final exit, later elapsed rewards advance no index and can
+  never be assigned because no new deposit can occur.
+- **Source:** `packages/contracts/src/core/Bribe.sol`; `packages/contracts/src/core/Resonance.sol`
+- **Functions/state:** `withdraw`, `rewardPerToken`, `isStrategyAlive`
+- **ADR:** ADR 0028 as modified by ADR 0047
+- **Tests:** `test_KillingAStrategyDoesNotConfiscateStreamingRewards`, killed-Strategy exit coverage in `SignalGBX.t.sol`
 - **Status:** `accepted-limitation`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 - **Caveats:** The abandoned amount is **not bounded to dust**. It may include a complete unvested stream plus any
-  later notification made at zero supply. There is deliberately no retirement, refund, rescue, sweep, or
-  Fund-reclassification path. Interfaces must warn the final signaler before they exit.
+  later notification made at zero supply. There is deliberately no pause, queue, retirement, refund, rescue, sweep,
+  or Fund-reclassification path. Interfaces must warn the final signaler before they exit.
 
 ---
 
@@ -1116,112 +1139,96 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   80% of everything acquired always reaches the treasury.
 - **Technical formulation:** `Resonance` holds the single global rate: `DEFAULT_BRIBE_BPS = 1_000`,
   `MAX_BRIBE_BPS = 2_000`, `bribeBps = DEFAULT_BRIBE_BPS`, mutated only by `onlyOwner setBribeBps(newBribeBps)` which
-  reverts `BribeBpsAboveMaximum` above the ceiling. `BribeRouter` declares only `BPS = 10_000` and no share of its
-  own. `routePayment` snapshots the rate **before any payment-token interaction**, so a token callback cannot alter
-  the split of the fill it belongs to:
+  reverts `BribeBpsAboveMaximum` above the ceiling. `Strategy.buy` snapshots the rate **before any payment-token
+  interaction**, so a token callback cannot alter the split of the fill it belongs to:
 
   ```text
-  appliedBribeBps      = Resonance.bribeBps()      (revert BribeBpsAboveBasis if > BPS)
-  pull exact `amount` from the immutable strategy
-  bribeAmount          = ⌊amount · appliedBribeBps / 10000⌋
-  accumulatedRemainder = splitRemainder + (amount · appliedBribeBps mod 10000)
-  bribeAmount         += ⌊accumulatedRemainder / 10000⌋
-  splitRemainder       = accumulatedRemainder mod 10000
-  fundAmount           = amount − bribeAmount
+  appliedBribeBps = Resonance.bribeBps()
+  pull payment from buyer
+  bribeAmount     = ⌊paymentAmount · appliedBribeBps / 10000⌋
+  fundAmount      = paymentAmount − bribeAmount
+  transfer fundAmount directly to Fund
+  transfer nonzero bribeAmount to paired BribeRouter
   ```
 
-  A rate change is prospective only: it cannot alter a recorded liability, a notified or claimable reward, or a prior
-  Fund balance. There is no per-Strategy override, no BribeRouter-local setter, no team fee, and no caller-selected
+  A rate change is prospective only: it cannot alter an earlier purchase, notified or claimable reward, or prior Fund
+  balance. There is no per-Strategy override, no BribeRouter-local setter, no team fee, and no caller-selected
   destination.
 
 - **Source:** `packages/contracts/src/core/Resonance.sol` (`DEFAULT_BRIBE_BPS`, `MAX_BRIBE_BPS`, `setBribeBps`);
-  `packages/contracts/src/core/BribeRouter.sol` (`routePayment`)
-- **Functions/state:** `bribeBps`, `setBribeBps`, `routePayment`, `fundPaymentLiability`, `bribePaymentLiability`,
-  `splitRemainder`, `accountedPaymentBalance`
-- **ADR:** ADR 0036 (**supersedes ADR 0032's fixed 90/10**; ADR 0032 superseded ADR 0021's 100%-Fund rule)
+  `packages/contracts/src/core/Strategy.sol` (`buy`, `_settlePayment`)
+- **Functions/state:** `bribeBps`, `setBribeBps`, `buy`, `_settlePayment`
+- **ADR:** ADR 0036's bounded rate as simplified by ADR 0047
 - **Caveats:** Rate-setting transaction order is economically observable — a purchase settled before a change uses the
   old rate, one after it uses the new rate. The external system's delay and execution rules remain an open gate.
-- **Tests:** `test_CompletePaymentIsClassifiedNinetyTenEvenWithLiveSignalWeight`,
-  `test_TenOneUnitPaymentsClassifyExactlyNineToFundAndOneToBribe`, `test_TenOneUnitPaymentsDoNotStarveTheBribe`,
-  `testFuzz_ClassificationIsFrequencyIndependent`, `test_RoutePaymentIsStrategyOnly`,
-  `invariant_BribeRouterAccountingIdentitiesAreExact`
+- **Tests:** `test_CompletePaymentSplitsInlineAndAdvancesTheEpoch`,
+  `testFuzz_CompletePaymentIsConservedByTheInlineSplit`, `test_DefaultBoundsAndOwnerAuthorization`,
+  `test_FourCompletedAuctionsUseTenZeroFiveAndTwentyPercentProspectively`,
+  `test_PaymentTokenCallbackCannotRetroactivelyChangeTheCurrentPaymentsSnapshot`
 - **Status:** `implemented`
-- **Commit:** `95ed60e`
-- **Accounting identity:**
-  `accountedPaymentBalance == fundPaymentLiability + bribePaymentLiability` at all times. Direct donations are
-  `paymentToken.balanceOf(router) − accountedPaymentBalance`, exposed as `paymentSurplus()`, and change neither
-  liability nor the remainder.
+- **Commit:** `uncommitted`
 - **Caveats:** This **replaces** the previous 100%-to-Fund rule. Any document, ABI consumer, or interface still
   asserting "no auction proceeds fund Bribes" describes superseded behavior. Note the split applies to the **acquired
   payment asset**, not to USDG: Resonance still transfers 100% of a Strategy's earned USDG to that Strategy
   (FACT-RES-07).
 
-### FACT-SETL-01b — Classification is weighted, cumulatively exact, and frequency-independent across rate changes
+### FACT-SETL-01b — Each purchase floors independently; no split carry crosses purchases
 
-- **Plain-English claim:** For any history of payments and snapshotted rates, the Router preserves the exact weighted
-  cumulative entitlement. Nobody can erase it by splitting payments or changing the prospective rate.
-- **Technical formulation:** `splitRemainder` carries the sub-unit Bribe entitlement in basis-point numerator units
-  and is always `< BPS`. For payments `a_i` classified at their then-current rates `r_i`:
+- **Plain-English claim:** Each purchase is intentionally classified on its own. Splitting a payment can change the
+  raw-unit result, avoiding a persistent carry ledger at the cost of partition-dependent dust.
+- **Technical formulation:** For each payment `a_i` at its snapshotted rate `r_i`:
 
   ```text
-  cumulative Bribe classification = ⌊(Σ a_i · r_i) / BPS⌋
-  cumulative Fund classification  = Σ a_i − cumulative Bribe classification
-  splitRemainder                  = (Σ a_i · r_i) mod BPS
+  bribe_i = ⌊a_i · r_i / BPS⌋
+  fund_i  = a_i − bribe_i
   ```
 
-  The implementation uses `Math.mulDiv` plus `mulmod` to avoid overflowing the intermediate product.
+  The implementation uses `Math.mulDiv`; it stores no remainder between calls.
 
-- **Source:** `packages/contracts/src/core/BribeRouter.sol`; `docs/adr/0036-governed-global-bribe-share.md`
-- **Functions/state:** `splitRemainder`
-- **ADR:** ADR 0036 (supersedes ADR 0032's fixed-rate policy while preserving cumulative carry)
-- **Tests:** `testFuzz_ClassificationIsFrequencyIndependent`,
-  `test_TenOneUnitPaymentsClassifyExactlyNineToFundAndOneToBribe`, `test_TenOneUnitPaymentsDoNotStarveTheBribe`,
-  `test_WeightedSplitRemainderSurvivesTenZeroFiveAndTwentyPercentTransitions`,
-  `testFuzz_ArbitraryRateTransitionsMatchTheWeightedNumeratorModel`
+- **Source:** `packages/contracts/src/core/Strategy.sol`; `docs/adr/0047-synthetix-shaped-rewards-and-strategy-settlement.md`
+- **Functions/state:** `_settlePayment`
+- **ADR:** ADR 0047 (supersedes ADR 0036's cumulative carry)
+- **Tests:** `test_EachPurchaseFloorsItsOwnBribeShareWithoutCarry`,
+  `test_ADustPaymentFloorsTheBribeShareAndGoesDirectlyToFund`,
+  `testFuzz_OnePurchaseUsesTheCurrentRateAndFloorsItsShare`
 - **Status:** `implemented`
-- **Commit:** `95ed60e`
-- **Worked example (internal finding SR-002's minimal trace):** ten separate one-raw-unit payments. Naive per-payment
-  flooring would give the Bribe `⌊1·1000/10000⌋ = 0` every time — permanent starvation. With the carry, the tenth
-  payment's `accumulatedRemainder` reaches `10000`, so cumulative state is exactly **Fund 9, Bribe 1, remainder 0**.
-- **Caveats:** `splitRemainder` is a fractional entitlement in numerator units, never a withdrawable token balance and
-  never a caller-controlled destination.
+- **Commit:** `uncommitted`
+- **Worked example:** At 10%, ten separate one-raw-unit payments produce **Fund 10, Bribe 0**; one ten-unit payment
+  produces **Fund 9, Bribe 1**. This difference is accepted explicitly.
 
-### FACT-SETL-02 — Both settlement legs are deferred, permissionless, and isolated from each other
+### FACT-SETL-02 — Fund settlement is direct; Bribe notification remains buffered
 
-- **Plain-English claim:** The two shares are recorded as owed and delivered by separate calls anyone can make. A
-  problem with the treasury cannot block the reward leg, and vice versa; neither can block the auction itself.
-- **Technical formulation:** `payFundPayment()` zeroes `fundPaymentLiability`, reduces `accountedPaymentBalance`, and
-  transfers to `fund` with exact-delta checks. `notifyBribeReward()` zeroes `bribePaymentLiability`, reduces
-  `accountedPaymentBalance`, approves the paired `Bribe`, calls `notifyRewardAmount`, clears any residual allowance,
-  and verifies exact debit/credit. Both are `nonReentrant` and clear state **before** the external interaction, so a
-  failure atomically restores only that leg's liability and leaves the other untouched.
-- **Source:** `packages/contracts/src/core/BribeRouter.sol:144-179`
-- **Functions/state:** `payFundPayment`, `notifyBribeReward`
-- **ADR:** ADR 0032, ADR 0020
-- **Tests:** `test_PayingFundIsPermissionlessAndClearsTheLiability`,
-  `test_NotifyingBribeIsPermissionlessExactAndClearsOnlyItsLeg`,
-  `test_AFailureOnEitherSettlementLegDoesNotBlockOrCorruptTheOther`,
-  `test_BribeNotificationRejectsReentrancyAndStillVerifiesExactDeltas`,
-  `test_BribeNotificationClearsAStickyResidualAllowance`
+- **Plain-English claim:** A successful purchase has already paid Fund. Its Bribe share may wait safely in a small
+  Router until anyone can distribute a qualifying balance.
+- **Technical formulation:** Strategy transfers `fundAmount` directly to Fund and `bribeAmount` to BribeRouter.
+  `BribeRouter.distribute()` reads its complete balance and returns zero below `max(REWARD_DURATION, left(token))`;
+  otherwise it approves the paired Bribe, notifies the complete balance, and emits `RewardsDistributed`. A failed
+  Fund transfer reverts the purchase; a failed later Bribe notification leaves the Router balance in place. The
+  Router does not keep Fund/Bribe liabilities, split carry, a caller role, or a post-notification allowance cleanup.
+- **Source:** `packages/contracts/src/core/Strategy.sol`; `packages/contracts/src/core/BribeRouter.sol`
+- **Functions/state:** `_settlePayment`, `distribute`
+- **ADR:** ADR 0047
+- **Tests:** `test_CompletePaymentSplitsInlineAndAdvancesTheEpoch`,
+  `test_DistributeAccumulatesUntilTheBalanceCanSustainANonzeroRate`,
+  `test_DistributeWaitsUntilTheCompleteBalanceMeetsTheActiveStreamLeft`,
+  `test_DistributeCanRetryAfterTheBribeTokenPullFails`,
+  `test_RemovedRouterLiabilityAndCarrySelectorsAreAbsentFromRuntime`
 - **Status:** `implemented`
-- **Commit:** `95ed60e`
-- **Caveats:** A permanently broken or blocklisting payment token can leave either liability unpaid indefinitely.
-  Destinations cannot be changed and there is no recovery path. The Bribe leg additionally depends on the payment
-  token still being a registered reward token on the paired Bribe — which it always is, because `addStrategy`
-  registers it at creation (FACT-STR-01).
+- **Commit:** `uncommitted`
+- **Caveats:** A permanently broken or blocklisting payment token can make purchases or Bribe distribution unusable.
+  Destinations cannot be changed and there is no recovery path.
 
 ### FACT-SETL-03 — A GBX-priced Strategy does not burn during settlement; burning is a separate permissionless step
 
 - **Plain-English claim:** If a Strategy buys GBX, that GBX first lands in the Fund. Anyone can then burn it, but it
   is not burned automatically.
-- **Technical formulation:** `Strategy` and `BribeRouter` treat GBX like any other payment token. `Fund.burnGBX(amount)`
-  is public and calls `gbx.burn(amount)` on the Fund's own balance.
+- **Technical formulation:** `Strategy` sends the Fund complement directly to Fund and the Bribe share to BribeRouter.
+  `Fund.burnGBX(amount)` is public and calls `gbx.burn(amount)` on the Fund's own balance.
 - **Source:** `packages/contracts/src/core/Fund.sol:64-70`
 - **Functions/state:** `burnGBX`, `pendingGBX`
-- **ADR:** ADR 0021
-- **Tests:** `testFuzz_GBXPaymentCanBeBurnedPermissionlesslyAfterFundDelivery`,
-  `test_GBXPaymentRequiresSeparateFundDeliveryAndBurn`,
-  `test_GBXPaymentWaitsInRouterUntilFundDeliveryAndPermissionlessBurn`,
+- **ADR:** ADR 0021 as superseded in settlement shape by ADR 0047
+- **Tests:** `testFuzz_GBXPaymentCanBeBurnedPermissionlesslyAfterInlineFundDelivery`,
+  `test_GBXPaymentReachesFundInlineAndRemainsPermissionlesslyBurnable`,
   `test_BurnGBXIsPermissionlessAndBurnsFundsOwnBalance`, `test_BurnGBXCannotExceedTheFundBalance`,
   `test_TheGBXPaymentPathIsReachableFromTheCampaign`, `invariant_GBXPaymentsNeverRemainInStrategy`
 - **Status:** `implemented`
@@ -1233,26 +1240,27 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 
 ## I. Bribes and BribeRouters
 
-### FACT-BRIBE-01 — Each Bribe registers at most eight append-only reward tokens
+### FACT-BRIBE-01 — Each Bribe registers at most sixteen append-only reward tokens
 
-- **Plain-English claim:** A Strategy's reward pool supports up to eight different reward tokens. Tokens can be added
+- **Plain-English claim:** A Strategy's reward pool supports up to sixteen different reward tokens. Tokens can be added
   but never removed, and the limit is hard-coded.
-- **Technical formulation:** `MAX_REWARD_TOKENS = 8`. `addRewardToken` is `onlyResonance`, rejects zero/code-less
-  addresses, rejects duplicates (`RewardAlreadyAdded`), and reverts `RewardTokenLimitReached` at eight. The Strategy's
+- **Technical formulation:** `MAX_REWARD_TOKENS = 16`. `addRewardToken` is `onlyResonance`, rejects zero/code-less
+  addresses, rejects duplicates (`RewardAlreadyAdded`), and reverts `RewardTokenLimitReached` at sixteen. The Strategy's
   payment token occupies the first slot automatically (FACT-STR-01). Governance adds the rest through
   `Resonance.addBribeReward`, which additionally rejects `signalGBX`.
-- **Source:** `packages/contracts/src/core/Bribe.sol:43`, `:346-355`; `packages/contracts/src/core/Resonance.sol:312-321`
+- **Source:** `packages/contracts/src/core/Bribe.sol`; `packages/contracts/src/core/Resonance.sol`
 - **Functions/state:** `MAX_REWARD_TOKENS`, `addRewardToken`, `isRewardToken`, `rewardTokens`
-- **ADR:** ADR 0019
-- **Tests:** `test_RewardTokenCountIsPermanentlyCappedAtEight`, `test_TheOwnerCannotExceedTheRewardTokenCap`,
-  `test_AddRewardTokenRejectsZeroEOAAndDuplicates`, `test_RewardTokensAreListedInInsertionOrder`,
+- **ADR:** ADR 0019 as modified by ADR 0048
+- **Tests:** `test_RewardTokenCountIsPermanentlyCappedAtSixteen`, `test_TheOwnerCannotExceedTheRewardTokenCap`,
+  `test_RewardTokensAreAppendOnlyAndListedInInsertionOrder`,
   `test_AddBribeRewardIsOwnerOnlyAndDelegatesToThePairedBribe`,
   `test_NonTransferableSignalGBXCannotBeAStrategyPaymentToken`
 - **Status:** `implemented`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 - **Caveats:** The cap is what keeps every mandatory signal-entry, signal-exit, and settlement loop bounded (finding
-  **A-08**). Gas is measured by `test_MaximumRewardTokenGasStaysFarBelowABlock` and
-  `test_RewardTokenGasSlopeIsRecordedAndBounded`.
+  **A-08**). The higher bound accepts more worst-case gas for fifteen independent incentives after the automatic
+  payment token. Measured maxima include signal addition 491,494, withdrawal 1,129,059, all-token claim 1,471,439,
+  and a composed move with sixteen active streams on both Bribes 1,890,938 gas.
 
 ### FACT-BRIBE-02 — Bribes have two funding sources: the bounded automatic acquisition share and open external funding
 
@@ -1260,117 +1268,119 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
   classified — 10% by default and adjustable prospectively from 0% through 20% — and separately by anyone who chooses
   to add rewards on top.
 - **Technical formulation:** `notifyRewardAmount(rewardToken, amount)` is public. It requires a registered token,
-  pulls exactly `amount` with exact-delta checks, and increments `accountedRewardBalance`. Two distinct callers use it:
-  1. **Automatic** — `BribeRouter.notifyBribeReward()` delivers the accumulated `bribePaymentLiability` in the
-     Strategy's payment token, which `addStrategy` registered as reward token 1 of 8 at creation (FACT-SETL-01).
+  a qualifying amount, and remaining lifetime-notification capacity, then pulls with `SafeERC20`. Two routes use it:
+  1. **Automatic** — `BribeRouter.distribute()` notifies its complete buffered balance in the Strategy payment token,
+     which `addStrategy` registered as reward token 1 of 16 at creation (FACT-SETL-01).
   2. **External** — any account may fund any registered reward token to attract signal toward that Strategy.
-- **Source:** `packages/contracts/src/core/Bribe.sol:260-288`; `packages/contracts/src/core/BribeRouter.sol:158-179`
-- **Functions/state:** `notifyRewardAmount`, `accountedRewardBalance`, `BribeRouter.notifyBribeReward`
-- **ADR:** ADR 0036 (bounded automatic share; supersedes ADR 0032's fixed 10%), ADR 0019 (external funding and the cap)
-- **Tests:** `test_NotifyingBribeIsPermissionlessExactAndClearsOnlyItsLeg`, `test_NotifyRejectsAnUnregisteredToken`,
-  `test_NotifyRejectsAFeeOnTransferRewardToken`, `test_MultipleRewardTokensAccrueIndependently`,
+- **Source:** `packages/contracts/src/core/Bribe.sol`; `packages/contracts/src/core/BribeRouter.sol`
+- **Functions/state:** `notifyRewardAmount`, `lifetimeRewardNotified`, `BribeRouter.distribute`
+- **ADR:** ADR 0019, ADR 0036, ADR 0037, ADR 0047
+- **Tests:** `test_NotifyRejectsUnregisteredAndBelowDurationAmounts`,
+  `test_ZeroAutomaticShareStillAllowsIndependentlyFundedBribeRewards`,
+  `test_DistributeIncludesTheCompleteDirectlyDonatedBalance`,
   `test_RewardsDonatedDirectlyToABribeAreNeverScheduled`
 - **Status:** `implemented`
-- **Commit:** `95ed60e`
+- **Commit:** `uncommitted`
 - **Caveats:** ADR 0032 superseded ADR 0021's rule that auction proceeds never fund Bribes by introducing a fixed 10%
-  share; ADR 0036 then replaced that fixed policy with the current 0–20% prospective range and 10% default. Whatever
-  share is classified arrives through the same queueing and pausing machinery as any other notification
-  (FACT-BRIBE-03, FACT-BRIBE-04), so it does not disturb a live stream.
+  share; ADR 0036 then replaced that fixed policy with the current 0–20% prospective range and 10% default. A direct
+  donation to Bribe is not scheduled, while a compatible payment-token donation to BribeRouter joins its next
+  complete-balance notification. Every accepted notification consumes the same monotonic lifetime capacity.
 
-### FACT-BRIBE-03 — A live Bribe stream is never reset by a top-up; extra funding queues behind it
+### FACT-BRIBE-03 — A qualifying top-up uses ordinary Synthetix leftover rollover
 
-- **Plain-English claim:** You cannot slow down or restart someone else's reward stream by adding a tiny amount.
-  New money waits until the current stream finishes.
-- **Technical formulation:** In `notifyRewardAmount`, if `totalSupply == 0 || data.periodFinish != 0`, the amount is
-  added to `queuedRewards[rewardToken]` and the function returns. Otherwise `_startStream` begins immediately.
-  `_checkpointToken` starts the queue when the active stream finishes, advancing through at most the current stream
-  and one queued successor per call.
-- **Source:** `packages/contracts/src/core/Bribe.sol:280-287`, `:455-487`
-- **Functions/state:** `queuedRewards`, `_startStream`, `_checkpointToken`
-- **ADR:** ADR 0019, ADR 0027
-- **Tests:** `test_NotifyQueuesRatherThanShrinkingALiveStream`, `test_ATopUpWaitsBehindTheUndisturbedActiveStream`,
-  `test_AnOutsiderCannotExtendOrSlowTheLiveStream`
+- **Plain-English claim:** A large enough top-up combines with what remains and restarts one fresh seven-day stream.
+  Smaller notifications cannot reset or slow the active schedule.
+- **Technical formulation:** Each token has one four-field `RewardData` record: `periodFinish`, `rewardRate`,
+  `lastUpdateTime`, and `rewardPerTokenStored`. For one token, `remaining = left(token)`. A notification must satisfy
+  `amount >= REWARD_DURATION` and `amount >= remaining`. After checkpointing the old stream and pulling `amount`,
+  Bribe writes `rewardRate = floor((amount + remaining) / REWARD_DURATION)`, `lastUpdateTime = now`, and
+  `periodFinish = now + REWARD_DURATION`. There is no queued successor or front-loaded remainder field.
+- **Source:** `packages/contracts/src/core/Bribe.sol`
+- **Functions/state:** `notifyRewardAmount`, `left`, `rewardData`
+- **ADR:** ADR 0047
+- **Tests:** `test_ActiveTopUpBelowTheAmountLeftRevertsWithoutChangingTheStream`,
+  `test_ActiveTopUpEqualToTheAmountLeftIsAccepted`,
+  `test_ActiveTopUpUsesStandardLeftoverRolloverAndRestartsSevenDays`
 - **Status:** `implemented`
-- **Commit:** `281e601`
-- **Caveats:** This differs deliberately from Resonance, which _does_ restart on a qualifying notification
-  (FACT-RES-03). The two mechanisms are not the same and must not be described interchangeably.
+- **Commit:** `uncommitted`
+- **Caveats:** A qualifying restart may change the instantaneous rate and always resets the finish to seven days from
+  the notification. Automatic Strategy-payment rewards wait in BribeRouter until its balance meets both gates;
+  independently funded callers may notify Bribe directly under the same gates.
 
-### FACT-BRIBE-04 — Zero signal supply pauses a Bribe stream rather than consuming its time
+### FACT-BRIBE-04 — Bribe reward time continues while signal supply is zero
 
-- **Plain-English claim:** If everyone stops signaling a Strategy, its reward stream freezes instead of burning
-  through its schedule with nobody to pay.
-- **Technical formulation:** `withdraw` calls `_pauseStream` for every reward token when `totalSupply` reaches zero,
-  recording `pauseStarted = block.timestamp`. `deposit` calls `_resumeAllStreams` when supply leaves zero, adding
-  `pausedDuration` to `periodFinish`, `remainderFinish`, and `lastUpdateTime`. `_checkpointToken` and
-  `_previewEmission` return early while paused.
-- **Source:** `packages/contracts/src/core/Bribe.sol:304-306`, `:333-339`, `:574-603`
-- **Functions/state:** `pauseStarted`, `_pauseStream`, `_resumeAllStreams`
-- **ADR:** ADR 0027
-- **Tests:** `test_ZeroSignalWeightPausesAndExtendsTheStreamWithoutRetroactiveAccrual`,
-  `testFuzz_RepeatedZeroSupplyPausesPreserveEveryEarlyRemainderUnit`
+- **Plain-English claim:** If nobody is signaling a Strategy, the seven-day clock keeps running. Rewards released
+  during that interval remain unclaimable surplus rather than waiting for a later signaler.
+- **Technical formulation:** `lastTimeRewardApplicable` continues toward `periodFinish`. When `totalSupply == 0`,
+  `rewardPerToken` returns the stored index; the next checkpoint advances `lastUpdateTime` without allocating the
+  elapsed reward. Bribe has no pause timestamp, queue, or resume operation.
+- **Source:** `packages/contracts/src/core/Bribe.sol`
+- **Functions/state:** `lastTimeRewardApplicable`, `rewardPerToken`, `_updateReward`
+- **ADR:** ADR 0047
+- **Tests:** `test_ElapsedRewardsAtZeroSupplyRemainUnclaimableSurplus`,
+  `test_LaterSignalerCannotReceivePreEntryRoundedReward`, `test_KilledStrategySignalCanExitAndCannotEarnAfterExit`
 - **Status:** `implemented`
-- **Commit:** `281e601`
-- **Caveats:** Pause/resume requires a future `deposit`. After a Strategy is killed, no deposit is possible, so a
-  paused stream is permanently frozen (FACT-STR-06).
+- **Commit:** `uncommitted`
+- **Caveats:** After a Strategy is killed, no new signal can enter. If its final signal exits, all later stream time is
+  therefore permanently unclaimable (FACT-STR-06).
 
-### FACT-BRIBE-05 — Bribe carries exact sub-unit remainders and classifies unindexable carry to Fund
+### FACT-BRIBE-05 — Rate, index, and account floors remain unallocated Bribe surplus
 
-- **Plain-English claim:** Bribe rewards keep track of fractions of a token so nothing is lost to rounding. Fractions
-  that cannot fairly be assigned to anyone go to the Fund, not to other signalers.
-- **Technical formulation:** `REWARD_PRECISION = 1e36`. Emission accumulates in `pendingRewardScaled` at
-  `emitted * 1e36`. `_indexPendingReward` moves only the exactly divisible part into `rewardPerTokenStored`:
-  `delta = pendingRewardScaled / supply`; `indexedScaled = delta * supply`; the remainder stays in
-  `pendingRewardScaled`. Before **every** supply change, `_fundAllPendingRewards` moves the whole
-  `pendingRewardScaled` into `fundRewardRemainder` via `_accrueFundScaled`, which converts full `1e36` units into
-  `fundRewardLiability`. When an account's balance reaches zero, its `userRewardRemainder` also moves to Fund.
-- **Source:** `packages/contracts/src/core/Bribe.sol:41`, `:299`, `:319`, `:325-331`, `:492-515`, `:552-562`, `:607-629`
-- **Functions/state:** `pendingRewardScaled`, `indexedRewardScaled`, `userRewardRemainder`, `fundRewardRemainder`,
-  `fundRewardLiability`, `_movePendingToFund`, `_accrueFundScaled`
-- **ADR:** ADR 0027 (finding **A-09** Bribe half), ADR 0037
-- **Tests:** `test_NewSignalerCannotReceivePreEntryRewardCarry`, `test_RemainingSignalerCannotReceivePreExitRewardCarry`,
-  `test_FullExitCannotReallocateUserRewardRemainder`, `test_FlashSignalWeightCannotStealAccruedBribeRewards`,
-  `test_LowDecimalRewardTokensDistributeTheExactRateRemainder`,
-  `test_TheWorstCaseFormerRateFlooringRemainderIsFullyDistributed`,
-  `invariant_BribeAccountingIdentitiesAreExact`, `invariant_BribesAreSolventAgainstAccruedRewards`,
-  `testFuzz_BribeIsAlwaysSolventAgainstAccruedRewards`
+- **Plain-English claim:** High precision keeps low-decimal rewards useful, but the contract deliberately does not
+  carry every fractional unit or send it to Fund.
+- **Technical formulation:** `REWARD_PRECISION = 1e36`.
+  `rewardPerToken += floor(elapsed * rewardRate * 1e36 / totalSupply)` and
+  `earned += floor(balance * indexDelta / 1e36)`. The notification-rate remainder, global-index remainder, and
+  account remainder stay as unallocated token custody. `deposit` and `withdraw` checkpoint the old balance and supply
+  before mutation, so a later signaler cannot receive pre-entry elapsed rewards and remaining signalers do not receive
+  a departing account's sub-token floor. No carry or Fund reward-liability mappings exist.
+- **Source:** `packages/contracts/src/core/Bribe.sol`
+- **Functions/state:** `REWARD_PRECISION`, `rewardPerToken`, `earned`, `_updateReward`
+- **ADR:** ADR 0037 as simplified by ADR 0047
+- **Tests:** `test_SevenDayRateFloorsAndLeavesTheOrdinaryRemainderAsSurplus`,
+  `test_LaterSignalerCannotReceivePreEntryRoundedReward`,
+  `test_RemainingSignalerCannotReceivePreExitRoundedReward`, `test_FullExitSubTokenFloorIsNotReallocated`,
+  `testFuzz_HighPrecisionFloorsWithoutCreatingRewards`, `invariant_BribeScheduleStateIsCoherent`,
+  `invariant_BribesAreSolventAgainstAccruedRewards`
 - **Status:** `implemented`
-- **Commit:** `40d919e`
-- **Caveats:** There is a sole-signaler special case: when `balanceOf(account) == totalSupply`, the account absorbs
-  `pendingRewardScaled` directly (`_checkpointAccount`), and `earned` mirrors this by adding `globalScaled % supply`.
+- **Commit:** `uncommitted`
+- **Caveats:** There is no exact conservation identity, Fund classification, sweep, or later-allocation path for this
+  surplus. The lifetime-notification cap remains
+  `floor(type(uint256).max / REWARD_PRECISION)` and is checked before checkpointing or transfer.
 
-### FACT-BRIBE-06 — Claims are selective, so a broken reward token cannot block the others
+### FACT-BRIBE-06 — Bribe exposes an all-token claim and one independent scalar-token claim
 
-- **Plain-English claim:** You can claim one reward token at a time, or a chosen list, so a token that is frozen or
-  broken does not stop you collecting the rest.
-- **Technical formulation:** Three entry points: `claimRewards(account)` (all registered tokens),
-  `claimReward(account, token)` (one), and `claimRewards(account, address[] calldata)` (selected, with duplicate and
-  registration validation performed **before** any token interaction). All pay `account`, never `msg.sender`.
-- **Source:** `packages/contracts/src/core/Bribe.sol:210-254`, `:635-645`
+- **Plain-English claim:** The convenience call claims every registered reward. If one token is broken, callers can
+  instead claim another token by itself.
+- **Technical formulation:** `claimRewards(account)` checkpoints and attempts every registered token atomically.
+  `claimReward(account, token)` checkpoints and pays only one registered token. Both always pay `account`, never
+  `msg.sender`. There is no caller-selected batch overload in core.
+- **Source:** `packages/contracts/src/core/Bribe.sol`
 - **Functions/state:** `claimRewards`, `claimReward`, `_claim`
-- **ADR:** ADR 0019, ADR 0020
-- **Tests:** `test_SelectiveClaimOmitsABrokenRewardToken`,
-  `test_SelectiveClaimRejectsDuplicatesAndUnregisteredTokensBeforeInteraction`,
-  `test_AllTokenClaimFailureIsAtomicAndScalarClaimsRemainIndependent`,
-  `test_ClaimAlwaysPaysTheAccountEvenWhenATtriggeredByAThirdParty`, `test_ReentrantRewardPayoutCannotDoubleClaim`
+- **ADR:** ADR 0019 as simplified by ADR 0047
+- **Tests:** `test_AllTokenClaimPaysEachRegisteredRewardToTheEntitledAccount`,
+  `test_AllTokenFailureIsAtomicAndScalarClaimsIsolateABrokenToken`,
+  `test_ClaimValidationAndEmptyClaimAreHarmless`, `test_ReentrantRewardPayoutCannotDoubleClaim`
 - **Status:** `implemented`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 
 ### FACT-BRIBE-07 — Signal removal and unstaking never transfer a reward, payment, or revenue token
 
 - **Plain-English claim:** You can always get your stake back. Leaving a Strategy is pure accounting — it never
   depends on a token transfer that could fail.
-- **Technical formulation:** `Bribe.withdraw` performs only accounting: checkpoints, carry classification, balance
-  decrements, and stream pauses. It contains no `transfer`, `transferFrom`, or `safeTransfer` call.
-  `SignalGBX.removeSignal` and `unstake` touch only GBX.
-- **Source:** `packages/contracts/src/core/Bribe.sol:314-342`
+- **Technical formulation:** `Bribe.withdraw` checkpoints every registered reward under the old balance and supply,
+  then decrements virtual `totalSupply` and `balanceOf`. It contains no token transfer. `SignalGBX.withdrawSignal`
+  then burns the receipt and returns only the account's escrowed GBX. Reward claims remain separate.
+- **Source:** `packages/contracts/src/core/Bribe.sol`; `packages/contracts/src/core/SignalGBX.sol`
 - **Functions/state:** `withdraw`
-- **ADR:** ADR 0020 (finding **A-04**)
+- **ADR:** ADR 0020 (finding **A-04**) as simplified by ADR 0047
 - **Tests:** `invariant_EveryActorCanFullyWithdrawSignals`,
-  `test_AHostileRevenueTokenCannotReenterRemoveSignal`, `test_AHostileRewardTokenCannotReenterSignalChanges`,
-  `test_AdversarialRemovalOrdersCannotCorruptSignalBalances`,
+  `test_AHostileRewardTokenCannotReenterSignalChanges`,
+  `test_ZeroSharePreservesMoveAndWithdrawalFromAKilledStrategy`,
+  `test_KilledStrategySignalCanExitAndCannotEarnAfterExit`,
   `test_AFrozenFundCannotBlockKilledStrategyExitOrItsPreservedClaim`
 - **Status:** `implemented`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 
 ---
 
@@ -1628,40 +1638,46 @@ Fundraiser design was superseded by ADR 0024 and must not appear in any public d
 
 ## M. Supported assets and external dependencies
 
-### FACT-TOK-01 — Only standard, non-rebasing ERC-20s are supported; exact-delta checks fail closed
+### FACT-TOK-01 — Only standard, non-rebasing ERC-20 behavior is supported
 
 - **Plain-English claim:** The protocol works with ordinary tokens. Tokens that take a cut on transfer, rebase, or
-  behave unusually will cause transactions to revert rather than silently lose value.
-- **Technical formulation:** Every value-moving path in `Mine`, `SignalGBX`, `Resonance`, `Strategy`, `BribeRouter`,
-  `Bribe`, `Fund`, and `LiquidityPosition` snapshots sender and receiver balances around the transfer and reverts
-  (`InexactTransfer` / `InexactPayment` / `InexactPayout` / `InexactRewardTransfer` / `InexactRevenueTransfer` /
-  `InexactUnderlyingTransfer`) unless both deltas equal the requested amount.
-- **Source:** `Mine.sol:249-269`, `:288-293`; `SignalGBX.sol:207-242`; `Resonance.sol:407-427`;
-  `Strategy.sol:164-227`; `BribeRouter.sol:95-146`; `Bribe.sol:266-274`, `:651-661`; `Fund.sol:137-147`;
-  `LiquidityPosition.sol:326-335`
-- **ADR:** ADR 0020
-- **Tests:** `test_SignalRejectsFeeOnTransferUnderlyingAndRollsBack`, `test_WithdrawRejectsFeeOnTransferAndRestoresEveryLedger`,
-  `test_BuyRejectsAFeeOnTransferPaymentToken`, `test_NotifyRejectsAFeeOnTransferRewardToken`,
-  `test_NotificationRejectsFeeOnTransferRevenue`, `test_RoutePaymentRejectsAFeeOnTransferToken`,
-  `test_RedeemRejectsAFeeOnTransferAsset`, `test_MineRejectsAnInexactIncomingPayment`,
-  `test_MineRejectsAnInexactRouterCredit`, `test_MissingReturnRewardTokenCompletesTheWholeFlow`,
-  `test_RedeemSupportsTokensThatReturnNoBoolean`, `test_FeeEnabledAfterNotificationRollsBackTheClaimAndCanRetry`
+  behave unusually are outside the supported model; simplified reward and Strategy paths do not add accounting to
+  normalize them.
+- **Technical formulation:** ADR 0047 makes a deliberate distinction:
+  - `Strategy`, `Resonance`, and `Bribe` use `SafeERC20` and trust a successful call to move the requested amount.
+    They do not snapshot pre/post balances. `BribeRouter` and `ResonanceRouter` likewise rely on the downstream pull.
+  - Custody-critical paths in `Mine` and `SignalGBX`, selected-asset redemption in `Fund`, and canonical fee routing
+    in `LiquidityPosition` retain explicit debit/credit checks for their own invariants.
+    A fee-on-transfer or rebasing token may therefore revert, underfund a schedule, consume unrelated surplus, or make
+    a market unusable depending on the path. Registration is not an adapter or safety certification.
+- **Source:** `packages/contracts/src/core/Strategy.sol`; `Resonance.sol`; `ResonanceRouter.sol`; `Bribe.sol`;
+  `BribeRouter.sol`; `Mine.sol`; `SignalGBX.sol`; `Fund.sol`; `LiquidityPosition.sol`
+- **ADR:** ADR 0020 as superseded for reward and Strategy settlement paths by ADR 0047
+- **Tests:** `test_SignalRejectsFeeOnTransferUnderlyingAndRollsBack`,
+  `test_WithdrawRejectsFeeOnTransferAndRestoresEveryLedger`, `test_RedeemRejectsAFeeOnTransferAsset`,
+  `test_MineRejectsAnInexactIncomingPayment`, `test_MineRejectsAnInexactRouterCredit`,
+  `test_MissingReturnRewardTokenCompletesIngressAndPayout`, `test_RedeemSupportsTokensThatReturnNoBoolean`
 - **Status:** `implemented`
-- **Commit:** `281e601`
-- **Caveats:** This is fail-closed **evidence**, not support. It does not make an adversarial, upgradeable, pausable,
-  or blocklisting token safe. `docs/SUPPORTED-TOKEN-MODEL.md` is the normative statement.
+- **Commit:** `uncommitted`
+- **Caveats:** `SafeERC20` checks call success and conventional optional return values; it does not prove the requested
+  balance deltas occurred. Governance must register only suitable payment and reward tokens.
 
-### FACT-TOK-02 — Tokens that revert on zero approval are supported; exact allowances skip redundant cleanup
+### FACT-TOK-02 — Router approvals are immediate and exact-sized, but residual allowances are not normalized
 
-- **Plain-English claim:** Some tokens (notably BNB-style) reject a zero approval. The protocol handles them.
-- **Technical formulation:** `Strategy._settlePayment` and `ResonanceRouter.route` both call
-  `if (allowance(...) != 0) forceApprove(spender, 0)` rather than approving zero unconditionally.
-- **Source:** `Strategy.sol:211`; `ResonanceRouter.sol:70`
-- **ADR:** finding **E-04**
-- **Tests:** `test_BuySupportsAPaymentTokenThatRejectsZeroApprovals`,
-  `test_RouteSupportsARevenueTokenThatRejectsZeroApprovals`, `test_BuyClearsAResidualExactAllowanceLeftByANonstandardToken`
+- **Plain-English claim:** Routers approve only the amount they are about to notify. Ordinary tokens consume that
+  allowance in the same call; the core does not maintain cleanup logic for nonstandard allowance behavior.
+- **Technical formulation:** `BribeRouter.distribute` and `ResonanceRouter.route` call
+  `forceApprove(downstream, completeBalance)` immediately before notification. They do not clear or inspect the
+  allowance afterward. `Strategy` no longer approves BribeRouter at all; it transfers the Bribe share directly.
+  A token that accepts the nonzero approval and consumes the requested allowance works even if it rejects a separate
+  zero approval. A sticky or partial-pull token may leave residual allowance and is outside the supported model.
+- **Source:** `packages/contracts/src/core/BribeRouter.sol`; `ResonanceRouter.sol`; `Strategy.sol`
+- **ADR:** ADR 0047 (supersedes finding **E-04**'s cleanup-specific implementation)
+- **Tests:** `test_BuyDoesNotRequireStrategyToApproveTheRouter`,
+  `test_DistributeAccumulatesUntilTheBalanceCanSustainANonzeroRate`,
+  `test_RouteIsPermissionlessAndForwardsTheCompleteBalance`
 - **Status:** `implemented`
-- **Commit:** `281e601`
+- **Commit:** `uncommitted`
 
 ### FACT-EXT-01 — External dependencies
 
@@ -1745,7 +1761,7 @@ See FACT-LP-02. Accrued Uniswap fees can remain unharvested indefinitely if nobo
 
 Mining accrual (FACT-MINE-01) and Resonance streaming (FACT-RES-01) are both lazy. `GBX.totalSupply()` understates
 economic supply; a Strategy's raw USDG balance understates its executable auction inventory. Interfaces must preview
-`Mine.effectiveTotalSupply()` and `Resonance.earned(strategy, usdg)` rather than reading raw balances.
+`Mine.effectiveTotalSupply()` and `Resonance.earned(strategy)` rather than reading raw balances.
 
 ### FACT-LIM-11 — Permissionless Mine revenue routing has no liveness guarantee
 
@@ -1769,30 +1785,32 @@ Optional frontend or cron automation belongs in periphery and cannot be treated 
 ### FACT-STATUS-02 — No independent external audit has been performed
 
 - **Claim:** There is no independent third-party audit of any version of this protocol.
-- **Source:** `packages/contracts/audit/FINDINGS.md` ("Independent audit, mutation testing, pinned Echidna, legal
-  clearance, and a signed deployment manifest remain open."); `docs/THREAT_MODEL.md` ("Current internal hardening does
-  not replace independent security review.")
+- **Source:** `packages/contracts/audit/FINDINGS.md` ("The candidate ... has not received an independent audit");
+  `docs/THREAT_MODEL.md` ("Current internal hardening does not replace independent security review.")
 - **Status:** verified at `281e601`
 
-### FACT-STATUS-03 — Internal engineering evidence in the current uncommitted tree
+### FACT-STATUS-03 — Current ADR 0048 internal engineering evidence
 
 - **Claim:** Extensive local test campaigns exist. They are engineering evidence, not proof and not an audit.
-- **Verified locally on 2026-08-22:**
-  - The current uncommitted ADR 0044 working tree passed **356/356 default-profile Foundry tests** across 25 suites and
-    **19/19 integration tests** across 2 suites, with zero failures or skips. Hardhat passed **4/4**, SDK **50/50**,
-    TypeScript simulations **39/39**, Python environment-policy checks **5/5**, Python simulations **25/25**, subgraph
-    specification checks **4/4**, Matchstick **10/10**, web unit tests **3/3**, and Playwright **6/6**. Subgraph and
-    workspace builds, ABI checks, documentation checks, formatting, lint, and typecheck also passed.
-  - The current matrix includes both 10,000-run Mine fuzz cases, 27 stateful invariant entries at 1,000 runs of depth
-    500 plus two deterministic reachability regressions (29/29 for the suite) with zero handler reverts, the ADR 0044
-    Mine/Router failure-isolation regression, and exact gas, harness, fixture, and chart checks.
-- **Explicitly historical and not current Mine evidence:** pinned static analysis, native Medusa and Echidna,
-  symbolic-analysis dispositions, and mutation results all predate ADR 0044's Mine changes.
-- **Still absent:** independent external audit, compatible current-tree symbolic analysis, re-run static analysis,
-  external fuzzing and mutation testing, a second external-fuzzer seed, independent review of the provisional Mine
-  economics, external-governance integration review, monitored testnet rehearsal, release review, and a signed
-  deployment manifest.
-- **Status:** current local engineering evidence for an uncommitted working tree; no reviewed candidate commit is pinned
+- **Current focused ADR 0048 evidence, verified locally on 2026-08-23:** the migration suites pass **104/104** and the
+  focused mutation campaign kills **47/47** targeted mutants. The maximum-bound regressions measure a composed move
+  with sixteen active streams on both Bribes at 1,890,938 gas against a 3,000,000 ceiling, all-token claim at
+  1,471,439, sixteen sequential scalar claims at 1,488,760, withdrawal at 1,129,059, and signal addition at 491,494.
+- **Historical pre-ADR-0048 matrix:** the immediately preceding ADR-0047 tree passed **312/312 Foundry tests across 23
+  suites**, all **29 invariant entries** at 1,000 runs of depth 500 with zero handler reverts, integration **21/21**,
+  Hardhat **4/4**, SDK **47/47**, TypeScript simulations **36/36**, Python environment checks **5/5**, Python
+  simulations **22/22**, Matchstick **9/9**, web unit **3/3**, Playwright **6/6**, and focused mutation **46/46**.
+  Its build, typecheck, lint, documentation, ABI, subgraph-build, generated-artifact, changed-file Prettier, and
+  `forge fmt --check` gates passed. Those results predate the sixteen-token and composed-move changes and are not a
+  complete current-tree matrix.
+- **Still absent:** a complete post-ADR-0048 deterministic and workspace rerun, independent external audit,
+  compatible current-tree symbolic analysis, re-run static analysis and external fuzzing, a second external-fuzzer
+  seed, independent review of the provisional Mine economics, external-governance integration review, monitored
+  testnet rehearsal, release review, a signed deployment manifest, and a clean repository-wide format gate. The
+  repository-wide format gate was already open because **11 unchanged baseline landing/lockfile files** failed
+  Prettier.
+- **Status:** current focused ADR-0048 tests and mutation evidence are green; the broad post-change matrix remains
+  pending and no reviewed candidate commit is pinned
 
 ### FACT-STATUS-04 — Open release gates
 
@@ -1804,12 +1822,14 @@ Optional frontend or cron automation belongs in periphery and cannot be treated 
 | G-01    | High     | sGBX checkpoints survive withdrawal; the selected external system's snapshot-to-vote spacing requires independent review of the capture model.  |
 | E-02    | High     | Reduced but not eliminated; codehash, parameter, and manifest review remains external.                                                          |
 
-Additionally open per the current `FINDINGS.md`: independent audit, current-tree regeneration of the static-analysis,
-external-fuzzing, and mutation gates, a second external-fuzzer seed, legal clearance, reviewed production parameters,
-exact external-governance integration review, monitored testnet rehearsal, and a signed deployment manifest.
+Additionally open per the current ADR-0048 `FINDINGS.md`: independent audit, current-tree regeneration of the
+static-analysis and external-fuzzing gates, a second external-fuzzer seed, legal clearance, reviewed production
+parameters, exact external-governance integration review, monitored testnet rehearsal, a signed deployment manifest,
+the complete post-ADR-0048 repository matrix, and the repository-wide format gate. ADR 0048 changes the implementation
+but does not close those release gates.
 
 - **Source:** `packages/contracts/audit/FINDINGS.md`, `packages/contracts/audit/SIGNAL-RESONANCE-FINDINGS.md`
-- **Status:** current uncommitted working-tree review
+- **Status:** open gates carried forward in the ADR-0048-reconciled audit register
 
 ### FACT-STATUS-05 — Legal and provenance clearance is an unresolved release blocker
 
@@ -1843,23 +1863,23 @@ Commands were run against the working tree at commit `281e601ecb3f3989da826a8a7d
 
 ### Current development-tree constant cross-check
 
-| Constant                                                | Source                 | Value                        |
-| ------------------------------------------------------- | ---------------------- | ---------------------------- |
-| `GBX.GENESIS_LIQUIDITY_ALLOCATION`                      | `core/GBX.sol`         | `20_000_000 ether`           |
-| `Mine.BPS` / `Mine.PREVIOUS_MINER_BPS`                  | `core/Mine.sol`        | `10_000` / `8_000`           |
-| `Mine.PRICE_DECAY_PERIOD`                               | `core/Mine.sol`        | `1 hours`                    |
-| `Mine.SLOT_COUNT` / `PRICE_MULTIPLIER`                  | `core/Mine.sol`        | `16` / `2`                   |
-| `Mine.MINIMUM_INITIAL_PRICE` / `MAX_INITIAL_PRICE`      | `core/Mine.sol`        | `1e6` / `uint192.max`        |
-| `Mine.INITIAL_TPS` / `TAIL_TPS`                         | `core/Mine.sol`        | `64 ether` / `1 ether`       |
-| `Mine.HALVING_PERIOD`                                   | `core/Mine.sol`        | `69 days`                    |
-| `Resonance.DURATION` / `REWARD_PRECISION`               | `core/Resonance.sol`   | `7 days` / `1e36`            |
-| `Bribe.REWARD_DURATION` / `REWARD_PRECISION`            | `core/Bribe.sol`       | `7 days` / `1e36`            |
-| `Bribe.MAX_REWARD_TOKENS`                               | `core/Bribe.sol`       | `8`                          |
-| `Strategy.MIN_/MAX_EPOCH_DURATION`                      | `core/Strategy.sol`    | `1 hours` / `365 days`       |
-| `Strategy.ABSOLUTE_MINIMUM_PRICE` / `PRICE_SCALE`       | `core/Strategy.sol`    | `1e6` / `1e18`               |
-| `Bribe.MAX_LIFETIME_REWARD_AMOUNT`                      | `core/Bribe.sol`       | `⌊(2²⁵⁶−1)/1e36⌋`            |
-| `Resonance.BPS` / `DEFAULT_BRIBE_BPS` / `MAX_BRIBE_BPS` | `core/Resonance.sol`   | `10_000` / `1_000` / `2_000` |
-| `BribeRouter.BPS`                                       | `core/BribeRouter.sol` | `10_000`                     |
+| Constant                                                | Source               | Value                        |
+| ------------------------------------------------------- | -------------------- | ---------------------------- |
+| `GBX.GENESIS_LIQUIDITY_ALLOCATION`                      | `core/GBX.sol`       | `20_000_000 ether`           |
+| `Mine.BPS` / `Mine.PREVIOUS_MINER_BPS`                  | `core/Mine.sol`      | `10_000` / `8_000`           |
+| `Mine.PRICE_DECAY_PERIOD`                               | `core/Mine.sol`      | `1 hours`                    |
+| `Mine.SLOT_COUNT` / `PRICE_MULTIPLIER`                  | `core/Mine.sol`      | `16` / `2`                   |
+| `Mine.MINIMUM_INITIAL_PRICE` / `MAX_INITIAL_PRICE`      | `core/Mine.sol`      | `1e6` / `uint192.max`        |
+| `Mine.INITIAL_TPS` / `TAIL_TPS`                         | `core/Mine.sol`      | `64 ether` / `1 ether`       |
+| `Mine.HALVING_PERIOD`                                   | `core/Mine.sol`      | `69 days`                    |
+| `Resonance.DURATION` / `REWARD_PRECISION`               | `core/Resonance.sol` | `7 days` / `1e36`            |
+| `Bribe.REWARD_DURATION` / `REWARD_PRECISION`            | `core/Bribe.sol`     | `7 days` / `1e36`            |
+| `Bribe.MAX_REWARD_TOKENS`                               | `core/Bribe.sol`     | `16`                         |
+| `Strategy.MIN_/MAX_EPOCH_DURATION`                      | `core/Strategy.sol`  | `1 hours` / `365 days`       |
+| `Strategy.ABSOLUTE_MINIMUM_PRICE` / `PRICE_SCALE`       | `core/Strategy.sol`  | `1e6` / `1e18`               |
+| `Bribe.MAX_LIFETIME_REWARD_AMOUNT`                      | `core/Bribe.sol`     | `⌊(2²⁵⁶−1)/1e36⌋`            |
+| `Resonance.BPS` / `DEFAULT_BRIBE_BPS` / `MAX_BRIBE_BPS` | `core/Resonance.sol` | `10_000` / `1_000` / `2_000` |
+| `Strategy.BPS`                                          | `core/Strategy.sol`  | `10_000`                     |
 
 This registry is descriptive engineering evidence. It neither authorizes deployment nor substitutes for independent
 review of the Solidity, tests, generated interfaces, models, and consumer applications it describes.
@@ -1902,10 +1922,14 @@ this documentation task.
 `packages/contracts/audit/TEST-CAMPAIGN.md` reports 340 default Foundry tests at commit `54e3f2c3` (2026-08-09).
 `packages/contracts/audit/FINDINGS.md` reported 322 at 2026-08-15; the pre-ADR-0034 campaign recorded 335 default and
 17 integration. All predate the current source state.
-**Resolution used in public documents:** the current ADR 0044 uncommitted tree independently passed 356 default and 19
-integration tests. The ADR 0042 tree happened to record the same totals, but remains distinct historical evidence.
-Public documents cite the ADR 0044 rerun as current local engineering evidence without inventing a review commit;
-older counts are omitted or explicitly labelled with their own source state and date.
+**Resolution used in public documents:** the ADR 0044 uncommitted tree independently passed 356 default and 19
+integration tests, and the distinct ADR 0042 tree happened to record the same totals. Both are historical evidence.
+The immediately preceding ADR-0047 development tree separately passed 312/312 Foundry tests across 23 suites, 29
+invariant entries at 1,000 runs of depth 500 with zero handler reverts, and 21/21 integration tests. Those results
+predate ADR 0048. The current focused ADR-0048 migration suites pass 104/104 and its targeted mutation campaign kills
+47/47 mutants; the complete post-change repository matrix remains pending. All results remain unpinned local
+engineering evidence, and the repository-wide format gate remains open because 11 unchanged baseline landing/lockfile
+files fail Prettier.
 
 ### D-5 — Ownership closure is procedural, not enforced
 

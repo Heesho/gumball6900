@@ -77,18 +77,7 @@ type Strategy @entity(immutable: false) {
   distributedRevenueRaw: BigInt!
   notifiedRewardRaw: BigInt!
   paidRewardRaw: BigInt!
-  routerPaymentRoutedRaw: BigInt!
-  latestRouterPaymentBribeBps: BigInt!
-  routerFundPaymentAccruedRaw: BigInt!
-  routerFundPaymentPaidRaw: BigInt!
-  pendingRouterFundPaymentRaw: BigInt!
-  routerBribePaymentAccruedRaw: BigInt!
-  routerBribePaymentNotifiedRaw: BigInt!
-  pendingRouterBribePaymentRaw: BigInt!
-  routerSplitRemainderRaw: BigInt!
-  bribeFundRewardAccruedRaw: BigInt!
-  bribeFundRewardPaidRaw: BigInt!
-  pendingBribeFundRewardRaw: BigInt!
+  routerRewardsDistributedRaw: BigInt!
   createdBlockNumber: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!

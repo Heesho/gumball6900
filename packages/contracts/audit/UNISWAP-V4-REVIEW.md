@@ -1,5 +1,9 @@
 # Uniswap v4 integration review
 
+> The LiquidityPosition custody and fixed-principal conclusions remain current. The recorded 17/17 integration result
+> predates ADR 0047's downstream Resonance/Router scheduling changes and is historical for that boundary until the
+> complete final-tree integration profile is rerun and recorded.
+
 ## Pinned source packages
 
 | Component         | Package                       | Upstream commit                            | Integrity / reviewed interface SHA-256                                                       |

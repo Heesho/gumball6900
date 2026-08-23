@@ -27,7 +27,7 @@ import { ResonanceRouter } from "../../src/core/ResonanceRouter.sol";
 import { IFund } from "../../src/core/interfaces/IFund.sol";
 import { MockERC20 } from "../minimal/utils/Tokens.sol";
 
-/// @notice Exact USDG receiver used behind the genuine ResonanceRouter in the v4 integration suite.
+/// @notice USDG receiver used behind the genuine ResonanceRouter in the v4 integration suite.
 contract FeeRevenueReceiverMock {
     using SafeERC20 for IERC20;
 
@@ -43,8 +43,12 @@ contract FeeRevenueReceiverMock {
         frozen = frozen_;
     }
 
-    function left(address) external pure returns (uint256) {
+    function left() external pure returns (uint256) {
         return 0;
+    }
+
+    function DURATION() external pure returns (uint256) {
+        return 7 days;
     }
 
     function notifyRevenue(uint256 amount) external {

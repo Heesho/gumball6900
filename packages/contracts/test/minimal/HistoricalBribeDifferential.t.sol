@@ -91,27 +91,24 @@ contract HistoricalBribeDifferentialTest is ProtocolFixture {
         _routeRevenue(firstReward);
         historical.notifyRewardAmount(firstReward);
 
-        (uint256 finish, uint256 remainderFinish, uint256 rate,,) = _rewardData();
+        (uint256 finish, uint256 rate,,) = _rewardData();
         assertEq(resonance.strategySignalWeight(address(targetStrategy)), historical.balanceOf(address(targetStrategy)));
         assertEq(resonance.totalSignalWeight(), historical.totalSupply());
         assertEq(rate, historical.rewardRate());
         assertEq(finish, historical.periodFinish());
-        assertEq(remainderFinish, startedAt, "a divisible stream has no front-loaded remainder interval");
 
         vm.warp(startedAt + 2 days);
         _assertEquivalentIndexAndEarned();
 
-        uint256 amountLeft = resonance.left(address(usdg));
+        uint256 amountLeft = resonance.left();
         assertEq(amountLeft, (historical.periodFinish() - block.timestamp) * historical.rewardRate());
-        uint256 restartRemainder = (amountLeft * 2) % resonance.DURATION();
-        uint256 topUp = amountLeft + (restartRemainder == 0 ? 0 : resonance.DURATION() - restartRemainder);
+        uint256 topUp = amountLeft;
         _notifyAsRouter(topUp);
         historical.notifyRewardAmount(topUp);
 
-        (finish, remainderFinish, rate,,) = _rewardData();
+        (finish, rate,,) = _rewardData();
         assertEq(rate, historical.rewardRate());
         assertEq(finish, historical.periodFinish());
-        assertEq(remainderFinish, block.timestamp);
 
         vm.warp(block.timestamp + 7 days);
         _assertEquivalentIndexAndEarned();
@@ -120,7 +117,7 @@ contract HistoricalBribeDifferentialTest is ProtocolFixture {
         uint256 actualClaim = resonance.distribute(address(targetStrategy));
         assertEq(actualClaim, expectedClaim);
         assertEq(usdg.balanceOf(address(targetStrategy)), expectedClaim);
-        assertEq(resonance.earned(address(targetStrategy), address(usdg)), 0);
+        assertEq(resonance.earned(address(targetStrategy)), 0);
         assertEq(historical.earned(address(targetStrategy)), 0);
     }
 
@@ -143,15 +140,15 @@ contract HistoricalBribeDifferentialTest is ProtocolFixture {
         assertEq(resonance.strategySignalWeight(address(targetStrategy)), historical.balanceOf(address(targetStrategy)));
         assertEq(resonance.strategySignalWeight(address(gbxStrategy)), historical.balanceOf(address(gbxStrategy)));
         assertEq(resonance.totalSignalWeight(), historical.totalSupply());
-        assertEq(resonance.earned(address(targetStrategy), address(usdg)), historical.earned(address(targetStrategy)));
-        assertEq(resonance.earned(address(gbxStrategy), address(usdg)), historical.earned(address(gbxStrategy)));
+        assertEq(resonance.earned(address(targetStrategy)), historical.earned(address(targetStrategy)));
+        assertEq(resonance.earned(address(gbxStrategy)), historical.earned(address(gbxStrategy)));
 
         vm.warp(block.timestamp + 6 days);
         assertEq(resonance.distribute(address(targetStrategy)), historical.claim(address(targetStrategy)));
         assertEq(resonance.distribute(address(gbxStrategy)), historical.claim(address(gbxStrategy)));
     }
 
-    function test_FrontLoadedRawRemainderIsAnExplicitHistoricalDivergence() external {
+    function test_OrdinaryRateFloorMatchesHistoricalAndLeavesSurplus() external {
         uint256 startedAt = block.timestamp;
         _signalDefault(ALICE, 1 ether);
         historical.setBalance(address(targetStrategy), 1 ether);
@@ -160,41 +157,35 @@ contract HistoricalBribeDifferentialTest is ProtocolFixture {
         historical.notifyRewardAmount(604_801);
 
         assertEq(historical.rewardRate(), 1, "historical quotient-only scheduling strands one raw unit");
-        (, uint256 remainderFinish, uint256 rate,,) = _rewardData();
+        (, uint256 rate,,) = _rewardData();
         assertEq(rate, 1);
-        assertEq(remainderFinish, startedAt + 1, "Resonance emits the raw remainder in the first second");
 
         vm.warp(startedAt + 1);
-        assertEq(resonance.earned(address(targetStrategy), address(usdg)), 2);
+        assertEq(resonance.earned(address(targetStrategy)), 1);
         assertEq(historical.earned(address(targetStrategy)), 1);
+        _assertEquivalentIndexAndEarned();
 
         vm.warp(startedAt + 7 days);
-        assertEq(resonance.distribute(address(targetStrategy)), 604_801);
+        assertEq(resonance.distribute(address(targetStrategy)), 604_800);
         assertEq(historical.claim(address(targetStrategy)), 604_800);
-        assertEq(usdg.balanceOf(address(resonance)), 0);
+        assertEq(usdg.balanceOf(address(resonance)), 1);
     }
 
     function _assertEquivalentIndexAndEarned() private view {
         assertEq(
-            resonance.rewardPerToken(address(usdg)) / 1e18,
+            resonance.rewardPerToken() / 1e18,
             historical.rewardPerToken(),
             "the 1e36 Resonance index must normalize to the historical 1e18 index"
         );
-        assertEq(resonance.earned(address(targetStrategy), address(usdg)), historical.earned(address(targetStrategy)));
+        assertEq(resonance.earned(address(targetStrategy)), historical.earned(address(targetStrategy)));
     }
 
     function _rewardData()
         private
         view
-        returns (
-            uint256 periodFinish,
-            uint256 remainderFinish,
-            uint256 rewardRate,
-            uint256 lastUpdateTime,
-            uint256 rewardPerTokenStored
-        )
+        returns (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerTokenStored)
     {
-        return resonance.token_RewardData(address(usdg));
+        return resonance.rewardData();
     }
 
     function _notifyAsRouter(uint256 amount) private {

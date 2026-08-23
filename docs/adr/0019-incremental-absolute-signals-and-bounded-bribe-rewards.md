@@ -2,7 +2,8 @@
 
 - Status: accepted for scalar signal deltas and bounded Bribe rewards; Resonance batch and account-enumeration
   convenience APIs are superseded by ADR 0029, direct Resonance signal entrypoints and aggregate state were superseded
-  by ADR 0030, and idle-allocation and standalone-exit provisions are superseded by ADR 0031
+  by ADR 0030, idle-allocation and standalone-exit provisions are superseded by ADR 0031, and the exact eight-token
+  bound is superseded by ADR 0048
 - Date: 2026-08-09
 - Supersedes the signaling provisions of
   [ADR 0013](0013-upstream-shaped-core-starting-point.md)
@@ -14,7 +15,8 @@
 `accountSignalWeight` reservation, and the fixed Bribe reward-token cap. It removed the Resonance-only
 `addSignalMany`, `removeSignalMany`, and `accountStrategies` convenience surfaces. Their descriptions below are
 retained as historical context. ADR 0030 later moved the scalar entrypoints and aggregate reservation to SignalGBX;
-the Bribe decisions remain active.
+the fixed-bound principle remains active, while [ADR 0048](0048-expand-bribe-rewards-and-compose-signal-moves.md)
+replaces the historical limit of eight with sixteen.
 
 ## Context
 

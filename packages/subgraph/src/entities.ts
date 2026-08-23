@@ -97,18 +97,7 @@ export function getStrategy(address: Address, event: ethereum.Event): Strategy {
     strategy.distributedRevenueRaw = ZERO;
     strategy.notifiedRewardRaw = ZERO;
     strategy.paidRewardRaw = ZERO;
-    strategy.routerPaymentRoutedRaw = ZERO;
-    strategy.latestRouterPaymentBribeBps = ZERO;
-    strategy.routerFundPaymentAccruedRaw = ZERO;
-    strategy.routerFundPaymentPaidRaw = ZERO;
-    strategy.pendingRouterFundPaymentRaw = ZERO;
-    strategy.routerBribePaymentAccruedRaw = ZERO;
-    strategy.routerBribePaymentNotifiedRaw = ZERO;
-    strategy.pendingRouterBribePaymentRaw = ZERO;
-    strategy.routerSplitRemainderRaw = ZERO;
-    strategy.bribeFundRewardAccruedRaw = ZERO;
-    strategy.bribeFundRewardPaidRaw = ZERO;
-    strategy.pendingBribeFundRewardRaw = ZERO;
+    strategy.routerRewardsDistributedRaw = ZERO;
     strategy.createdBlockNumber = event.block.number;
   }
   strategy.lastBlockNumber = event.block.number;

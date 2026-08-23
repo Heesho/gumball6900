@@ -70,7 +70,7 @@ def test_synchronized_supply_is_explicit_and_exact() -> None:
     period = 69 * 24 * 3_600
     suite = compute()
     synchronized = suite["mining"]["synchronizedSupply"]
-    assert suite["schemaVersion"] == 13
+    assert suite["schemaVersion"] == 14
     assert synchronized["referenceCase"] == "synchronized-full-refresh-no-burn"
     assert synchronized["modelAssumption"] == (
         "Synchronized full-refresh, no-burn reference: all sixteen slots are occupied from deployment, "
@@ -124,23 +124,24 @@ def test_sixteen_equal_slot_rates_reconstruct_global_tps() -> None:
     assert filled["aggregateBpsOfGlobalRate"] == 10_000
 
 
-def test_strategy_payment_split_is_frequency_independent() -> None:
+def test_strategy_payment_split_accepts_per_purchase_flooring() -> None:
     tiny = classify_strategy_payments([1] * 10)
     combined = classify_strategy_payments([10])
-    assert tiny["fundLiability"] == combined["fundLiability"] == 9
-    assert tiny["bribeLiability"] == combined["bribeLiability"] == 1
-    assert tiny["splitRemainder"] == combined["splitRemainder"] == 0
+    assert tiny["fundAmount"] == 10
+    assert tiny["bribeAmount"] == 0
+    assert combined["fundAmount"] == 9
+    assert combined["bribeAmount"] == 1
+    assert compute()["strategyAuction"]["perPurchaseSplitCanDependOnPartitioning"] is True
 
 
-def test_strategy_payment_split_tracks_rate_changes_with_one_weighted_carry() -> None:
+def test_strategy_payment_split_applies_each_rate_without_carry() -> None:
     classified = classify_strategy_payments([7, 13, 19, 23], [1_000, 0, 500, 2_000])
-    assert classified["fundLiability"] == 56
-    assert classified["bribeLiability"] == 6
-    assert classified["splitRemainder"] == 2_500
+    assert classified["fundAmount"] == 58
+    assert classified["bribeAmount"] == 4
 
     zero = classify_strategy_payments([1, 7, 1_000_000], 0)
-    assert zero["fundLiability"] == zero["totalPayment"] == 1_000_008
-    assert zero["bribeLiability"] == zero["splitRemainder"] == 0
+    assert zero["fundAmount"] == zero["totalPayment"] == 1_000_008
+    assert zero["bribeAmount"] == 0
 
     with pytest.raises(ValueError, match="outside protocol bounds"):
         classify_strategy_payments([1], 2_001)

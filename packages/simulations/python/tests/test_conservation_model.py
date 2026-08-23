@@ -1,214 +1,107 @@
 import pytest
 
 from python.conservation_model import (
-    RevenueConservationModel,
-    RewardConservationModel,
-    StrategyPaymentConservationModel,
-    exact_stream_emission,
+    RevenueDistributionModel,
+    RewardDistributionModel,
+    StrategyPaymentModel,
+    synthetix_stream_emission,
 )
 
 
-def test_strategy_payment_classification_conserves_and_isolates_donations() -> None:
-    model = StrategyPaymentConservationModel()
-    for _ in range(10_000):
-        model.route(1)
-    model.donate(7)
-    assert model.fund_liability == 9_000
-    assert model.bribe_liability == 1_000
-    assert model.split_remainder == 0
-    assert model.accounted_balance == model.fund_liability + model.bribe_liability
-    assert model.surplus() == 7
-    assert model.notify_bribe() == 1_000
-    assert model.pay_fund() == 9_000
-    assert model.balance == 7
-    assert model.accounted_balance == 0
+def test_strategy_split_pays_fund_inline_and_accepts_per_purchase_flooring() -> None:
+    partitioned = StrategyPaymentModel()
+    for _ in range(10):
+        partitioned.buy(1)
+    assert partitioned.fund_received == 10
+    assert partitioned.router_balance == 0
+
+    combined = StrategyPaymentModel()
+    assert combined.buy(10) == (9, 1)
 
 
-def test_strategy_payment_rate_changes_preserve_exact_weighted_carry() -> None:
-    model = StrategyPaymentConservationModel()
-    payments = [7, 13, 19, 23]
-    rates = [1_000, 0, 500, 2_000]
+def test_strategy_router_buffers_rewards_and_includes_donations() -> None:
+    model = StrategyPaymentModel()
+    model.buy(10_000_000)
+    model.donate_to_router(7)
+    assert model.fund_received == 9_000_000
+    assert model.distribute(1_000_008, 0) == 0
+    assert model.distribute(604_800, 0) == 1_000_007
 
-    for payment, rate in zip(payments, rates, strict=True):
+
+def test_strategy_rate_changes_are_prospective_and_bounded() -> None:
+    model = StrategyPaymentModel()
+    for payment, rate in zip([7, 13, 19, 23], [1_000, 0, 500, 2_000], strict=True):
         model.set_bribe_bps(rate)
-        model.route(payment)
-
-    weighted_numerator = sum(payment * rate for payment, rate in zip(payments, rates, strict=True))
-    assert model.bribe_liability == weighted_numerator // 10_000 == 6
-    assert model.split_remainder == weighted_numerator % 10_000 == 2_500
-    assert model.fund_liability == sum(payments) - model.bribe_liability == 56
-    assert model.accounted_balance == 62
-
-
-def test_zero_rate_adds_no_bribe_liability_and_rate_bounds_are_enforced() -> None:
-    model = StrategyPaymentConservationModel()
-    model.route(20)
-    assert model.bribe_liability == 2
-
-    model.set_bribe_bps(0)
-    model.route(1_000_000)
-    assert model.bribe_liability == 2
-    assert model.notify_bribe() == 2
-    assert model.pay_fund() == 1_000_018
-
-    model.set_bribe_bps(2_000)
+        model.buy(payment)
+    assert model.router_balance == 4
+    assert model.fund_received == 58
     with pytest.raises(ValueError, match="outside protocol bounds"):
         model.set_bribe_bps(2_001)
-    with pytest.raises(ValueError, match="outside protocol bounds"):
-        model.set_bribe_bps(-1)
 
 
-def test_qualifying_live_top_up_checkpoints_and_restarts_with_reward_plus_left() -> None:
-    model = RevenueConservationModel(1)
+def test_resonance_rolls_ordinary_leftover() -> None:
+    model = RevenueDistributionModel(1)
     model.set_weight(0, 1)
     model.notify(1_209_600)
-    first_finish = model.stream_finish
-
     model.advance(86_400)
     assert model.left() == 1_036_800
     model.notify(1_036_800)
-
     assert model.earned(0) == 172_800
-    assert model.left() == 2_073_600
-    assert model.stream_finish == 86_400 + 604_800
-    assert model.stream_finish > first_finish
-    assert model.surplus() == 0
+    assert model.left() == 1_814_400
 
 
-def test_subthreshold_notification_rejects_and_router_holds_until_qualifying() -> None:
-    model = RevenueConservationModel(1)
-    model.set_weight(0, 1)
-    assert model.route(1_209_600) == 1_209_600
-    first_finish = model.stream_finish
-
-    model.advance(86_400)
-    minimum = model.left()
-    with pytest.raises(ValueError, match="reward smaller than left"):
-        model.notify(minimum - 1)
-    assert model.stream_finish == first_finish
-
-    assert model.route(700_000) == 0
-    assert model.router_balance == 700_000
-    assert model.stream_finish == first_finish
-
-    assert model.route(minimum - 700_000) == minimum
-    assert model.router_balance == 0
-    assert model.left() == 2 * minimum
+def test_router_threshold_and_rate_division_surplus() -> None:
+    model = RevenueDistributionModel(1)
+    assert model.route(604_799) == 0
+    assert model.route(2) == 604_801
+    assert model.stream_rate == 1
+    assert model.surplus() == 1
+    assert synthetix_stream_emission(604_801, 604_800, 604_800) == 604_800
 
 
-def test_one_raw_unit_is_front_loaded_into_the_first_second() -> None:
-    model = RevenueConservationModel(1)
-    model.set_weight(0, 1)
-    model.notify(1)
-
-    assert model.left() == 1
-    model.advance(1)
-    assert model.left() == 0
-    assert model.claim(0) == 1
-    assert model.balance == 0
-
-    assert exact_stream_emission(1, 604_800, 0) == 0
-    assert exact_stream_emission(1, 604_800, 1) == 1
-
-
-def test_zero_supply_emission_and_direct_donations_are_surplus() -> None:
-    model = RevenueConservationModel(1)
-    model.notify(7)
+def test_zero_supply_and_donations_are_surplus() -> None:
+    model = RevenueDistributionModel(1)
+    model.notify(1_209_600)
     model.advance(3)
     model.checkpoint_revenue()
-    assert model.left() == 4
-    assert model.surplus() == 3
-
+    assert model.surplus() == 6
     model.set_weight(0, 1)
     model.advance(1)
-    assert model.earned(0) == 1
-    assert model.surplus() == 3
-
+    assert model.earned(0) == 2
     model.donate(5)
-    assert model.donations == 5
-    assert model.surplus() == 8
+    assert model.surplus() == 11
 
 
-def test_strategy_flooring_remains_surplus_instead_of_carrying_fractions() -> None:
-    model = RevenueConservationModel(2)
-    model.set_weight(0, 1)
-    model.set_weight(1, 1)
-    model.notify(2)
-
-    model.advance(1)
-    model.checkpoint(0)
-    model.checkpoint(1)
-    assert model.claimable == [0, 0]
-    assert model.surplus() == 1
-
-    model.advance(1)
-    model.checkpoint(0)
-    model.checkpoint(1)
-    assert model.claimable == [0, 0]
-    assert model.surplus() == 2
-
-
-def test_kill_uses_old_denominator_preserves_stored_reward_and_excludes_future_earnings() -> None:
-    model = RevenueConservationModel(1)
+def test_kill_checkpoints_old_weight_and_excludes_later_rewards() -> None:
+    model = RevenueDistributionModel(1)
     model.set_weight(0, 5)
     model.notify(604_800)
     model.advance(10)
-
     model.kill(0)
     assert model.claimable[0] == 10
-    assert model.total_weight == 0
-    assert model.weights[0] == 5
-
     model.advance(10)
-    model.checkpoint_revenue()
     assert model.earned(0) == 10
-    assert model.surplus() == 10
     assert model.claim(0) == 10
-
     model.set_weight(0, 0)
-    assert model.total_weight == 0
     with pytest.raises(ValueError, match="strategy is dead"):
         model.set_weight(0, 1)
 
 
-def test_repeated_tiny_bribe_rewards_are_carried_until_attributable() -> None:
-    model = RewardConservationModel([3, 7], precision=10)
-    for index in range(100):
-        model.emit(1)
-        model.checkpoint(index % 2)
-        assert model.classified_scaled() == model.accounted * model.precision
-    model.checkpoint(0)
-    model.checkpoint(1)
-    assert sum(model.liabilities) == 100
-    assert model.classified_scaled() == 1_000
-
-
-def test_bribe_distributes_one_six_decimal_token_over_five_million_signal() -> None:
+def test_bribe_precision_distributes_six_decimal_rewards() -> None:
     wad = 10**18
-    model = RewardConservationModel([3_000_000 * wad, 2_000_000 * wad, 0])
+    model = RewardDistributionModel([3_000_000 * wad, 2_000_000 * wad])
     model.emit(1_000_000)
-    model.checkpoint(0)
-    model.checkpoint(1)
-
-    assert model.liabilities == [600_000, 400_000, 0]
-    assert model.pending_scaled == 0
-
-    model.set_weight(2, wad)
-    assert model.fund_liability == 0
-    assert model.fund_remainder_scaled == 0
-    assert model.classified_scaled() == model.accounted * model.precision
+    assert model.earned(0) == 600_000
+    assert model.earned(1) == 400_000
+    assert model.surplus() == 0
 
 
-def test_bribe_reward_carry_moves_to_fund_before_a_new_signaler_enters() -> None:
-    model = RewardConservationModel([50, 50, 0], precision=10)
-    model.emit(9)
-    assert model.pending_scaled == 90
-
-    model.set_weight(2, 100)
-    assert model.pending_scaled == 0
-    assert model.fund_liability == 9
-
-    model.emit(20)
-    model.checkpoint(2)
-    assert model.liabilities[2] == 10
-    assert model.classified_scaled() == model.accounted * model.precision
+def test_bribe_floors_remain_surplus_without_carry() -> None:
+    model = RewardDistributionModel([3, 7], precision=10)
+    model.emit(1)
+    assert model.earned(0) == model.earned(1) == 0
+    assert model.surplus() == 1
+    model.set_weight(0, 0)
+    model.emit(10)
+    assert model.earned(1) == 10
+    assert model.surplus() == 1

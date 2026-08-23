@@ -1,19 +1,19 @@
 ---
 title: 'GUM BALL 6900: Technical Whitepaper'
 version: 2.0.0
-date: 2026-08-22
+date: 2026-08-23
 source_commit: uncommitted-working-tree
-base_commit: e3ebdd7987653969b31dbf0e8d20b68a838dfa5d
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0045; not approved for user funds.
+base_commit: d80b92da5e60c0daa54dbae29653898dde514053
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0048; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: Local working-tree engineering checks are recorded in FINDINGS.md. The full deterministic, static-analysis, mutation, and external-fuzzing evidence predates ADR 0045 unless explicitly stated otherwise. Release gates remain open.
+internal_review_status: Current focused ADR-0048 tests pass 104/104 and mutation testing kills 47/47 targeted mutants; the complete post-change matrix is pending. Static-analysis and external-fuzzing evidence predates ADR 0048. The repository-wide format gate and release gates remain open.
 independent_audit_status: No independent external audit has been performed.
 ---
 
 # GUM BALL 6900: Technical Whitepaper
 
 > **Safety status.** The protocol is **not deployed, not independently audited, and not approved for user funds.**
-> This edition describes an uncommitted development tree based on `e3ebdd7`; it is not a commit-pinned review artifact.
+> This edition describes an uncommitted development tree based on `d80b92d`; it is not a commit-pinned review artifact.
 > Local green checks are engineering evidence, never a safety, audit, or release claim.
 
 > **Governance is unselected.** The core contains no `ProtocolGovernor`, `TimelockController`, generic executor, or
@@ -38,19 +38,20 @@ descending-price auctions denominated in an external stablecoin, **USDG**. Eight
 compensates the displaced occupant; the remainder, together with fees from a permanently locked Uniswap v4 GBX/USDG
 position, constitutes protocol revenue.
 
-Revenue is placed into a single rolling seven-day emission schedule held by **Resonance** and allocated continuously
+Revenue is placed into a single rolling seven-day Synthetix-shaped emission schedule held by **Resonance** and allocated continuously
 across **Strategies** in proportion to the non-transferable staked weight (**SignalGBX**, ticker sGBX) allocated to
 each Strategy during each elapsed interval. A Strategy is a bounded descending-price auction that exchanges its
-accumulated USDG for a fixed target asset. Every auction payment is classified by a bounded, cumulatively exact rule:
-the signaler share is a single global parameter defaulting to 10% and capped at 20% (ADR 0036), and the remainder
-becomes an irrevocable liability to **Fund**, an ownerless treasury with no asset registry and no administrative
-surface. At least 80% of every acquisition therefore reaches Fund regardless of who holds the owner address.
+accumulated USDG for a fixed target asset. For each purchase, Strategy snapshots a bounded global signaler rate,
+floors that purchase's Bribe share, transfers the complement directly to **Fund**, and sends only the Bribe share to
+a small notification buffer. The rate defaults to 10% and is capped at 20%; at least 80% of each individual purchase
+therefore reaches Fund. There is deliberately no cumulative split carry: partitioning value across purchases can
+change aggregate classification by sub-token rounding units (ADR 0047).
 
 GBX holders redeem by burning GBX and nominating an arbitrary set of unique non-GBX token addresses, receiving for
 each the floored pro-rata share of Fund's balance against a single effective pre-burn supply snapshot that includes
 all accrued unminted mining. Signaler compensation has two sources: the bounded automatic acquisition share (10% by
 default and prospectively adjustable from 0% through 20%), and **Bribes**, permissionlessly funded reward streams
-attached to each Strategy, capped at eight reward tokens.
+attached to each Strategy, capped at sixteen reward tokens.
 
 Protocol administration is reduced to four continuing owner-gated calls on a single contract:
 `Resonance.addStrategy`, `Resonance.killStrategy`, `Resonance.addBribeReward`, and bounded prospective
@@ -84,13 +85,13 @@ does not require trust.
 
 GUM BALL 6900 makes five substitutions:
 
-| Concession removed       | Replacement mechanism                                                                              |
-| ------------------------ | -------------------------------------------------------------------------------------------------- |
-| Discretionary allocation | Continuous, revocable, per-Strategy stake allocation ("signal") that directs revenue by weight     |
-| Upgradeability           | Immutable, non-proxied deployment with reciprocal one-time bindings                                |
-| Pausability              | Unpausable redemption; failure isolation by caller-selected asset baskets and deferred liabilities |
-| Oracle pricing           | Bounded descending-price auctions in which the clearing fill _is_ price discovery                  |
-| Registry curation        | Registry-free raw-token treasury; the redeemer nominates the assets they wish to receive           |
+| Concession removed       | Replacement mechanism                                                                                    |
+| ------------------------ | -------------------------------------------------------------------------------------------------------- |
+| Discretionary allocation | Continuous, revocable, per-Strategy stake allocation ("signal") that directs revenue by weight           |
+| Upgradeability           | Immutable, non-proxied deployment with reciprocal one-time bindings                                      |
+| Pausability              | Unpausable redemption; caller-selected redemption baskets and scalar reward claims isolate broken assets |
+| Oracle pricing           | Bounded descending-price auctions in which the clearing fill _is_ price discovery                        |
+| Registry curation        | Registry-free raw-token treasury; the redeemer nominates the assets they wish to receive                 |
 
 The design accepts specific, enumerated costs for these substitutions — permanent dust accumulation, unrecoverable
 deployment errors, unbounded reward abandonment in retired Strategies, and the absence of any emergency response.
@@ -105,10 +106,11 @@ These are stated in §38 and §39 rather than minimized.
 - **G3 — Oracle independence.** No protocol accounting may depend on an external price, NAV, or valuation.
 - **G4 — Exit liveness.** Redemption and stake withdrawal must never depend on the cooperation, solvency, or
   correctness of any third-party token other than the one being withdrawn.
-- **G5 — Failure isolation.** A malformed, frozen, or malicious token must be able to block only its own payout, never
-  another party's.
-- **G6 — Exact value movement.** Every value transfer must verify exact sender debit and receiver credit, failing
-  closed on inexact movement rather than silently absorbing loss.
+- **G5 — Failure isolation.** Where the core offers an isolated operation, a malformed or frozen token should block
+  only that operation: scalar Bribe claims isolate reward tokens, and caller-selected Fund baskets isolate assets.
+- **G6 — Standard-token boundary.** Strategy payment tokens and Bribe reward tokens are assumed to be standard,
+  non-rebasing ERC-20s. `SafeERC20` handles return-value compatibility; the streamlined reward and settlement paths
+  do not duplicate balance snapshots around every transfer.
 - **G7 — Bounded work.** Every mandatory loop — reward tokens, mining slots, redemption baskets — must be bounded by a
   code constant or by caller-supplied input the caller pays for.
 - **G8 — No retroactive redirection.** A weight change must never redirect value that accrued under prior weights.
@@ -126,12 +128,12 @@ These are stated in §38 and §39 rather than minimized.
 - **N3 — Not a yield product.** No return, distribution, or performance is promised or engineered.
 - **N4 — Not a general DAO.** The core implements no voting, proposal, or execution machinery at all. Protocol
   administration is four continuing owner-gated calls on one contract (§15.1).
-- **N5 — Not fee-on-transfer or rebase compatible.** Exact-delta checks make such tokens revert; this is fail-closed
-  evidence, not support.
+- **N5 — Not fee-on-transfer or rebase compatible.** Those mechanics are outside the supported-token model and may
+  revert, underfund, or otherwise make the affected market unusable; registration is a governance responsibility.
 - **N6 — No emergency response.** There is deliberately no guardian, veto, circuit breaker, or recovery path.
 - **N7 — No keeper infrastructure.** No function pays a caller bounty. All maintenance is voluntary and permissionless.
-- **N8 — No dust conservation guarantee in Resonance.** Bribe conserves sub-unit carry exactly; Resonance deliberately
-  does not, and no lifetime bound on its residue is claimed.
+- **N8 — No reward-dust conservation guarantee.** Resonance and Bribe both accept rate-, index-, and account-level
+  floors as unallocated surplus. No lifetime bound on that residue is claimed.
 
 ## 5. Terminology
 
@@ -145,13 +147,12 @@ These are stated in §38 and §39 rather than minimized.
 | **Strategy**               | A bounded descending-price auction exchanging accumulated USDG for one fixed payment token.                                           |
 | **Live / killed Strategy** | A Strategy accepting new signal and future revenue / one permanently excluded from both.                                              |
 | **Bribe**                  | Per-Strategy multi-token reward stream, permissionlessly funded, paid to that Strategy's signalers.                                   |
-| **BribeRouter**            | Per-Strategy contract classifying an auction payment into fixed Fund and paired-Bribe liabilities at Resonance's bounded global rate. |
+| **BribeRouter**            | Per-Strategy Bribe-only buffer that permissionlessly notifies its complete qualifying payment-token balance.                          |
 | **Fund**                   | Ownerless raw-token treasury. Redemption and GBX burning are its only value exits.                                                    |
 | **Slot**                   | One mining position accruing GBX at a tenure-locked rate; occupancy sold by hourly auction.                                           |
 | **Epoch**                  | One auction round, identified by a monotonically increasing `epochId` used for fill-race protection.                                  |
 | **Reverse Dutch auction**  | The repository's term for the descending-price mechanism in `Mine` and `Strategy`. See §43 discrepancy D-1.                           |
-| **Reward period / stream** | A fixed seven-day emission schedule with a base rate plus a front-loaded remainder.                                                   |
-| **Carry**                  | Sub-unit reward precision retained across checkpoints rather than discarded.                                                          |
+| **Reward period / stream** | A seven-day whole-unit-per-second schedule; valid active top-ups roll the ordinary scheduled leftover into a restarted period.        |
 | **Surplus**                | Value held by a contract that is not a liability to anyone and has no recovery path.                                                  |
 | **Checkpoint**             | Advancing lazily-accrued state to the current timestamp before mutating weights or balances.                                          |
 | **Resonance owner**        | The single address holding the four continuing administration capabilities; intended to become an external governance executor (§15). |
@@ -194,18 +195,21 @@ into Resonance; no caller role, bounty, or liveness guarantee exists.
 Independently, `LiquidityPosition` permanently holds one Uniswap v4 GBX/USDG position whose fees anyone may harvest:
 harvested USDG routes to `ResonanceRouter`, harvested GBX is transferred to `Fund` and burned in the same transaction.
 
-**Stage 2 — Revenue scheduling.** `ResonanceRouter` withholds any nonzero balance smaller than the exact USDG
-remaining in Resonance's active schedule. Once its balance qualifies and someone calls `route()`, it forwards its entire balance; `Resonance`
-checkpoints elapsed emission, combines the notification with the remainder, and restarts a seven-day schedule.
+**Stage 2 — Revenue scheduling.** `ResonanceRouter` withholds any nonzero balance smaller than either seven days in
+raw units or the whole USDG scheduled as `left()` in Resonance's active period. Once its balance satisfies both gates
+and someone calls `route()`, it forwards the entire balance. Resonance checkpoints elapsed emission, combines the
+notification with the ordinary Synthetix leftover, floors the new per-second rate, and restarts a seven-day schedule.
 
 **Stage 3 — Signal-weighted allocation.** `SignalGBX` is the sole external signal coordinator. Its restricted hooks on
 `Resonance` checkpoint elapsed emission before mutating weights. Resonance maintains a Synthetix-shaped cumulative
 index at `1e36` precision over `totalSignalWeight`, the sum of recorded weights across _live_ Strategies only.
 
-**Stage 4 — Acquisition.** `Strategy.buy` first pulls the Strategy's released USDG from Resonance, then transfers its
-entire USDG balance to a buyer-nominated receiver in exchange for the current descending price in the Strategy's fixed
-payment token. That payment is routed through `BribeRouter` and classified at Resonance's current global 0%-to-20%
-Bribe rate and its 100%-to-80% Fund complement, each settled by its own separate permissionless call.
+**Stage 4 — Acquisition.** `Strategy.buy` first pulls the Strategy's released USDG from Resonance, then exchanges its
+entire USDG balance for the current descending price in the Strategy's fixed payment token. Before touching that token,
+Strategy snapshots Resonance's global 0%-to-20% Bribe rate. It floors the Bribe share for this purchase, transfers the
+100%-to-80% complement directly to immutable Fund, and transfers only a nonzero Bribe share to `BribeRouter`.
+Permissionless `BribeRouter.distribute()` later notifies the paired Bribe once the complete buffer satisfies the
+Bribe's duration and active-leftover gates.
 
 **Stage 5 — Redemption.** `Fund.redeem` reads Mine's constant-time effective supply without checkpointing or iterating
 the slots, snapshots its balance of each nominated token, pulls and burns the redeemer's GBX, and transfers each
@@ -235,7 +239,7 @@ flowchart TB
   subgraph Perstrat["Per-Strategy graph"]
     STR[Strategy<br/>descending-price auction]
     BR[BribeRouter]
-    BRIBE[Bribe<br/>≤8 reward tokens, 1e36]
+    BRIBE[Bribe<br/>≤16 reward tokens, 1e36]
   end
   subgraph Custody["Custody and administration"]
     FUND[Fund<br/>ownerless treasury]
@@ -248,7 +252,7 @@ flowchart TB
   LP -->|USDG| RR
   LP -->|GBX burn| FUND
   RR -->|notifyRevenue| RES
-  SGBX -->|addSignalFor / removeSignalFor / moveSignalFor| RES
+  SGBX -->|addSignalFor / removeSignalFor| RES
   SGBX -.->|IVotes checkpoints, unread by the core| OWNER
   RES -->|createStrategy| SF
   RES -->|createBribe| BF
@@ -257,10 +261,9 @@ flowchart TB
   BF -->|deploys| BRIBE
   RES -->|distribute| STR
   RES -->|deposit / withdraw virtual weight| BRIBE
-  STR -->|routePayment| BR
-  BR -->|notifyBribeReward, 0%-20%| BRIBE
-  BR -->|payFundPayment, 80%-100%| FUND
-  BRIBE -->|payFundReward, remainders| FUND
+  STR -->|Bribe share buffer, 0%-20%| BR
+  STR -->|direct Fund share, 80%-100%| FUND
+  BR -->|distribute complete qualifying balance| BRIBE
   OWNER -->|owns: addStrategy / killStrategy / addBribeReward / setBribeBps| RES
   FUND -->|redeem| GBX
 ```
@@ -311,7 +314,7 @@ consumed, but that owner has no remaining function to call. `Resonance.setResona
 | -------------------------- | ----------- | ------------------------------------------------------------------- | ----------- |
 | `Resonance.addStrategy`    | `Resonance` | Deploys a Strategy, BribeRouter, and Bribe; registers payment token | No          |
 | `Resonance.killStrategy`   | `Resonance` | Permanently excludes a Strategy from new signal and future revenue  | **No**      |
-| `Resonance.addBribeReward` | `Resonance` | Appends a reward token to a Strategy's Bribe, within the cap of 8   | **No**      |
+| `Resonance.addBribeReward` | `Resonance` | Appends a reward token to a Strategy's Bribe, within the cap of 16  | **No**      |
 | `Resonance.setBribeBps`    | `Resonance` | Sets the global signaler share of acquisitions, bounded `[0, 2000]` | Yes         |
 
 The first three are irreversible. `addStrategy` is reversible only in the sense that the created Strategy can later be
@@ -351,19 +354,20 @@ They become properties of whichever external system is later given ownership of 
 | Signal                   | holder → `SignalGBX` custody, sGBX minted 1:1, committed to a Strategy | Escrowed, redeemable by withdrawSignal    |
 | Direct donation to sGBX  | remains in `SignalGBX`                                                 | **Stranded surplus, no receipt**          |
 | Harvested LP fees in GBX | `LiquidityPosition` → `Fund` → burned atomically                       | Destroyed                                 |
-| GBX-denominated auction  | buyer → `Strategy` → `BribeRouter` → `Fund`, burnable by anyone        | Destroyed when burned                     |
+| GBX-denominated auction  | buyer → `Strategy` → `Fund`, burnable by anyone                        | Destroyed when burned                     |
 | Redemption               | redeemer → `Fund` → burned                                             | Destroyed                                 |
 
 ### 10.3 Acquired assets and Bribe reward tokens
 
-| Origin                                            | Path                                                            | Terminal state                         |
-| ------------------------------------------------- | --------------------------------------------------------------- | -------------------------------------- |
-| Auction payment (Fund complement, 80–100%)        | buyer → `Strategy` → `BribeRouter` → `Fund`                     | Fund backing until redeemed            |
-| Auction payment (Bribe share, 0–20%; 10% default) | buyer → `Strategy` → `BribeRouter` → paired `Bribe`             | Streamed to that Strategy's signalers  |
-| Bribe funding                                     | funder → `Bribe` → signalers                                    | Signaler balances                      |
-| Bribe carry classification                        | `Bribe` sub-unit remainders → `Fund`                            | Fund backing                           |
-| Unsolicited transfer                              | anyone → `Fund`                                                 | Fund backing, unreviewed               |
-| Abandoned Bribe rewards                           | remains in `Bribe` after final signaler exit on a dead Strategy | **Permanently unclaimable, unbounded** |
+| Origin                                            | Path                                                        | Terminal state                              |
+| ------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------- |
+| Auction payment (Fund complement, 80–100%)        | buyer → `Strategy` → `Fund`, atomically with the purchase   | Fund backing until redeemed                 |
+| Auction payment (Bribe share, 0–20%; 10% default) | buyer → `Strategy` → `BribeRouter` → paired `Bribe`         | Buffered, then streamed to signalers        |
+| Compatible direct Router donation                 | donor → `BribeRouter` → paired `Bribe` on a qualifying call | Joins the next complete-buffer notification |
+| Independent Bribe funding                         | funder → `Bribe` → signalers                                | Streamed reward; floors remain surplus      |
+| Direct donation to Bribe                          | donor → `Bribe`                                             | **Unscheduled surplus**                     |
+| Unsolicited transfer to Fund                      | anyone → `Fund`                                             | Fund backing, unreviewed                    |
+| Zero-supply Bribe emission                        | remains in `Bribe`                                          | **Unallocated surplus, unrecoverable**      |
 
 **Structural invariant of the flow graph:** the only paths _out_ of `Fund` are `redeem` and `burnGBX`. There is no
 path from `Fund` to any administrator, and no caller-selectable destination for any share of an auction payment.
@@ -726,12 +730,12 @@ means an external system must not assume that recorded voting weight implies a c
 The complete user-facing surface is **four** functions on `SignalGBX`. Each takes scalar absolute amounts; there is no
 batch, array, percentage, or whole-account reset surface.
 
-| Function                                | Composition                                                                      |
-| --------------------------------------- | -------------------------------------------------------------------------------- |
-| `signal(strategy, amount)`              | `_depositAndMint` → `Resonance.addSignalFor` → `Bribe.deposit`                   |
-| `signalWithPermit(strategy, amount, …)` | `try permit` → `_depositAndMint` → `Resonance.addSignalFor` → `Bribe.deposit`    |
-| `moveSignal(from, to, amount)`          | `Resonance.moveSignalFor` only — no GBX moves, no mint or burn, supply unchanged |
-| `withdrawSignal(strategy, amount)`      | `Resonance.removeSignalFor` → `Bribe.withdraw` → `_burnAndWithdraw`              |
+| Function                                | Composition                                                                         |
+| --------------------------------------- | ----------------------------------------------------------------------------------- |
+| `signal(strategy, amount)`              | `_depositAndMint` → `Resonance.addSignalFor` → `Bribe.deposit`                      |
+| `signalWithPermit(strategy, amount, …)` | `try permit` → `_depositAndMint` → `Resonance.addSignalFor` → `Bribe.deposit`       |
+| `moveSignal(from, to, amount)`          | `Resonance.removeSignalFor` → `Resonance.addSignalFor`; no GBX moves, mint, or burn |
+| `withdrawSignal(strategy, amount)`      | `Resonance.removeSignalFor` → `Bribe.withdraw` → `_burnAndWithdraw`                 |
 
 Every failed sub-operation reverts the complete transition.
 
@@ -747,9 +751,9 @@ create an unbacked receipt or a partial signal.
 
 ### 14.2 Sole-coordinator restriction
 
-`Resonance.addSignalFor`, `removeSignalFor`, and `moveSignalFor` carry `onlySignalGBX`, reverting
-`UnauthorizedSignalSource` for any other caller. There is deliberately no second user-facing coordinator, and no
-direct-signaling path on Resonance.
+`Resonance.addSignalFor` and `removeSignalFor` carry `onlySignalGBX`, reverting `UnauthorizedSignalSource` for any
+other caller. `SignalGBX.moveSignal` composes those two hooks in one transaction; Resonance exposes no dedicated move
+hook. There is deliberately no second user-facing coordinator and no direct-signaling path on Resonance.
 
 ### 14.3 Canonical state ownership
 
@@ -769,18 +773,19 @@ because it would always have been identical to `balanceOf` (§13.3).
 
 This ordering is the protocol's defense against same-transaction revenue capture (finding **A-11**).
 
-| Operation         | Checkpoint performed before any weight mutation                   |
-| ----------------- | ----------------------------------------------------------------- |
-| `addSignalFor`    | `_updateReward(strategy)`                                         |
-| `removeSignalFor` | `_updateReward(strategy)`                                         |
-| `moveSignalFor`   | `_updateReward(fromStrategy)` **and** `_updateReward(toStrategy)` |
-| `killStrategy`    | `updateReward(strategy)` modifier                                 |
-| `notifyRevenue`   | `updateReward(address(0))` modifier — global index only           |
-| `distribute`      | `updateReward(strategy)` modifier                                 |
-| `Strategy.buy`    | `Resonance.distribute(address(this))` before reading inventory    |
+| Operation                      | Checkpoint performed before its weight mutation                |
+| ------------------------------ | -------------------------------------------------------------- |
+| `addSignalFor`                 | `_updateReward(strategy)`                                      |
+| `removeSignalFor`              | `_updateReward(strategy)`                                      |
+| composed `moveSignal` removal  | source `_updateReward(strategy)` before source removal         |
+| composed `moveSignal` addition | destination `_updateReward(strategy)` before destination add   |
+| `killStrategy`                 | `updateReward(strategy)` modifier                              |
+| `notifyRevenue`                | `updateReward(address(0))` modifier — global index only        |
+| `distribute`                   | `updateReward(strategy)` modifier                              |
+| `Strategy.buy`                 | `Resonance.distribute(address(this))` before reading inventory |
 
-Additionally, `Bribe.deposit` and `Bribe.withdraw` each call `_checkpointAll(account)` and `_fundAllPendingRewards()`
-before mutating `totalSupply` or `balanceOf`.
+Additionally, `Bribe.deposit` and `Bribe.withdraw` each call `_updateAllRewards(account)` before mutating
+`totalSupply` or `balanceOf`. There is no boundary carry or Fund-classification pass.
 
 **Consequence.** In a single transaction, no stream time elapses between operations, so `rewardPerToken` cannot
 advance. A flash-signal therefore accrues exactly zero newly-notified revenue and zero newly-notified Bribe rewards.
@@ -818,16 +823,16 @@ rather than a continuing authority. The four continuing capabilities are therefo
 
 **Enforced constraints on those calls.** These are Solidity checks, not procedural expectations:
 
-| Constraint                                              | Mechanism                                                        |
-| ------------------------------------------------------- | ---------------------------------------------------------------- |
-| The final live Strategy cannot be killed                | `if (liveStrategyCount == 1) revert FinalLiveStrategy(strategy)` |
-| The signaler share can never exceed 20%                 | `if (newBribeBps > MAX_BRIBE_BPS) revert BribeBpsAboveMaximum()` |
-| A rate change cannot reclassify a settled amount        | Snapshotted per payment, before any payment-token interaction    |
-| A Strategy cannot be killed twice                       | `isStrategyAlive` check, `StrategyAlreadyDead`                   |
-| sGBX cannot be a payment token or Bribe reward token    | `ForbiddenPaymentToken`, `ForbiddenRewardToken`                  |
-| Payment and reward tokens must be deployed code         | `code.length == 0` rejection                                     |
-| Bribe reward tokens are append-only and capped at eight | `Bribe.MAX_REWARD_TOKENS`, `RewardAlreadyAdded`                  |
-| Strategy auction parameters are bounded at construction | `Strategy` constructor range checks (§21.1)                      |
+| Constraint                                                | Mechanism                                                        |
+| --------------------------------------------------------- | ---------------------------------------------------------------- |
+| The final live Strategy cannot be killed                  | `if (liveStrategyCount == 1) revert FinalLiveStrategy(strategy)` |
+| The signaler share can never exceed 20%                   | `if (newBribeBps > MAX_BRIBE_BPS) revert BribeBpsAboveMaximum()` |
+| A rate change cannot reclassify a settled amount          | Snapshotted per payment, before any payment-token interaction    |
+| A Strategy cannot be killed twice                         | `isStrategyAlive` check, `StrategyAlreadyDead`                   |
+| sGBX cannot be a payment token or Bribe reward token      | `ForbiddenPaymentToken`, `ForbiddenRewardToken`                  |
+| Payment and reward tokens must be deployed code           | `code.length == 0` rejection                                     |
+| Bribe reward tokens are append-only and capped at sixteen | `Bribe.MAX_REWARD_TOKENS`, `RewardAlreadyAdded`                  |
+| Strategy auction parameters are bounded at construction   | `Strategy` constructor range checks (§21.1)                      |
 
 ### 15.2 Authority the core does not implement
 
@@ -890,7 +895,7 @@ provider is part of the reviewed protocol graph, and this document must not be r
 - Analysis of snapshot borrowing, quorum liveness, permission graphs, upgrade authority, and execution behavior does
   not apply to this repository and must be repeated against the selected system's exact release.
 - A compromised or careless `Resonance` owner can add Strategies, kill any Strategy except the last live one, register
-  reward tokens up to the eight-token cap, transfer ownership, or renounce it. `renounceOwnership` would permanently
+  reward tokens up to the sixteen-token cap, transfer ownership, or renounce it. `renounceOwnership` would permanently
   freeze the Strategy set at its current membership.
 - Owner authority does not reach mining parameters, mint authority, Fund assets, liquidity custody, auction mechanics,
   or the sixteen-slot count. Those are immutable or held by ownerless contracts (§9). The one economic parameter it
@@ -908,16 +913,16 @@ the "stake" is signal weight.
 
 ```solidity
 struct Reward {
-    uint256 periodFinish;        // exclusive end of the active seven-day schedule
-    uint256 remainderFinish;     // exclusive end of the one-extra-unit-per-second window
-    uint256 rewardRate;          // base raw units per second
-    uint256 lastUpdateTime;      // last timestamp folded into rewardPerTokenStored
-    uint256 rewardPerTokenStored;// cumulative index, 1e36 scaled
+    uint256 periodFinish;         // exclusive end of the active seven-day schedule
+    uint256 rewardRate;           // whole raw units emitted per second
+    uint256 lastUpdateTime;       // last timestamp folded into rewardPerTokenStored
+    uint256 rewardPerTokenStored; // cumulative index, 1e36 scaled
 }
 ```
 
-The token-keyed ledger shape is retained from the Bribe lineage, but `Resonance` permanently registers exactly one
-reward token: USDG, pushed in the constructor. `rewardTokens` has length 1 forever; there is no function to append.
+Resonance specializes the Bribe lineage to one immutable reward token: USDG. It stores one scalar `rewardData`
+schedule plus `strategyRewardPerTokenPaid[strategy]` and `strategyRewards[strategy]`; there is no Resonance reward-token
+registry, token-keyed schedule, or second-token extension point. Bribe remains independently multi-token.
 
 Constants: `DURATION = 7 days = 604_800`, `REWARD_PRECISION = 10^36`.
 
@@ -927,7 +932,8 @@ Constants: `DURATION = 7 days = 604_800`, `REWARD_PRECISION = 10^36`.
 
 - incremented by `amount` in `addSignalFor`;
 - decremented by `amount` in `removeSignalFor` **only if the Strategy is alive**;
-- incremented by `amount` in `moveSignalFor` **only if the source Strategy is dead** (re-entering the live denominator);
+- changed by the composed remove-then-add move: live-to-live movement is net zero, while movement from a killed source
+  to a live destination adds `amount` back exactly once; and
 - decremented by the Strategy's entire recorded weight in `killStrategy`.
 
 This asymmetry is precisely what prevents a killed Strategy's weight from being subtracted twice.
@@ -974,8 +980,8 @@ even `E = 2^96` leaves the product below `2^216`. No overflow is reachable.
 **Formula F-10 (Strategy entitlement).**
 
 ```text
-earned(s) = account_Token_Rewards[s]
-          + mulDiv( activeBalance(s), rewardPerToken() − paid[s], 10^36 )
+earned(s) = strategyRewards[s]
+          + mulDiv( activeBalance(s), rewardPerToken() − strategyRewardPerTokenPaid[s], 10^36 )
 
 where activeBalance(s) = isStrategyAlive[s] ? strategySignalWeight(s) : 0
 ```
@@ -985,56 +991,52 @@ _Note._ A killed Strategy has `activeBalance = 0`, so `earned` returns exactly i
 
 ### 17.3 The raw emission schedule
 
-**Formula F-11 (schedule restart).** On a qualifying notification of `reward` at time `t₀` with remaining `left`:
+**Formula F-11 (Synthetix-shaped schedule restart).** On a qualifying notification of `reward` at time `t₀`, let the
+old schedule's whole-unit leftover be `left = max(periodFinish − t₀, 0) · oldRewardRate`:
 
 ```text
 S              = reward + left
-rewardRate     = ⌊ S / 604800 ⌋
-rateRemainder  = S mod 604800
+rewardRate     = ⌊S / 604800⌋
 periodFinish   = t₀ + 604800
-remainderFinish= t₀ + rateRemainder
 lastUpdateTime = t₀
 ```
 
-**Formula F-12 (emission between two timestamps).** For `from < to`:
+**Formula F-12 (emission between two timestamps).** For applicable timestamps `from < to ≤ periodFinish`:
 
 ```text
 emissionBetween(from, to) = (to − from) · rewardRate
-                          + ( from < remainderFinish
-                              ? min(to, remainderFinish) − from
-                              : 0 )
 ```
 
-**Lemma (schedule exactness).** Emission over the full period equals `S` exactly:
+The schedule represents only whole per-second units:
 
 ```text
-emissionBetween(t₀, t₀ + 604800) = 604800 · rewardRate + (remainderFinish − t₀)
-                                 = 604800 · ⌊S/604800⌋ + (S mod 604800)
-                                 = S    ∎
+scheduled        = 604800 · ⌊S/604800⌋
+rateFloorSurplus = S − scheduled = S mod 604800
 ```
 
-So **no raw USDG unit is lost to the rate division.** The remainder is emitted at one extra raw unit per second across
-the first `rateRemainder` seconds. This holds even for `S = 1`: `rewardRate = 0`, `rateRemainder = 1`, and the single
-raw unit is emitted during the first second. Verified by `test_OneRawUnitEmitsDuringTheFirstActiveSecond` and
-`test_RawRemainderIsFrontLoadedAndTheCompleteAmountIsScheduled`.
+The remainder is neither front-loaded nor carried. It stays in Resonance as unallocated USDG surplus. The sole Router
+requires at least `DURATION` raw units before notification, so a newly started schedule has `rewardRate ≥ 1`; the
+Resonance contract itself remains a scalar Synthetix engine rather than maintaining a second remainder boundary.
 
 **Formula F-13 (remaining).**
 
 ```text
-left() = 0                                          if now ≥ periodFinish
-       = emissionBetween(now, periodFinish)         otherwise
+left() = 0                                             if now ≥ periodFinish
+       = (periodFinish − now) · rewardRate             otherwise
 
-getRewardForDuration() = rewardRate · 604800 + (remainderFinish − (periodFinish − 604800))
+getRewardForDuration() = rewardRate · 604800
 ```
 
 <!-- figure: stream-schedule -->
 
 **Worked example A (clean division).** `S = 604_800_000_000` raw USDG (604,800.000000 USDG).
-`rewardRate = 1_000_000`, `rateRemainder = 0`. Emission is exactly 1 USDG per second for seven days.
+`rewardRate = 1_000_000`. Emission is exactly 1 USDG per second for seven days, with zero rate-floor surplus.
 
 **Worked example B (with remainder).** `S = 1_000_000` raw (1.00 USDG). `rewardRate = ⌊1_000_000/604_800⌋ = 1`;
-`rateRemainder = 1_000_000 − 604_800 = 395_200`. For the first 395,200 seconds emission is 2 raw units per second;
-thereafter 1 raw unit per second. Total `= 604_800·1 + 395_200 = 1_000_000`. Exact.
+the schedule emits `604_800` raw units over seven days. The remaining `395_200` raw units stay in Resonance as
+unallocated rate-floor surplus. Verified by `test_NotificationStartsOneScalarScheduleAndKeepsTheRateFloorAsSurplus`,
+`test_OrdinaryRateFloorLeavesTheRawRemainderAsSurplus`, and
+`test_RouterBuffersUntilAtLeastOneRawUnitPerSecondCanBeScheduled`.
 
 ### 17.4 Allocation worked example
 
@@ -1058,20 +1060,21 @@ remains in Resonance permanently as surplus.
 
 ### 17.5 Accepted surplus — what Resonance deliberately does _not_ conserve
 
-Resonance has **three** sources of permanently unclassified USDG, and carries none of them:
+Resonance has **four** arithmetic or time sources of permanently unallocated USDG, and carries none of them:
 
-1. **Global-index floor.** `E · 10^36 mod W` per checkpoint (§17.2, F-9).
-2. **Per-Strategy floor.** `activeBalance · Δ mod 10^36` per Strategy per checkpoint (§17.2, F-10).
-3. **Zero-active-weight emission.** `rewardPerToken()` returns early when `W = 0`, but `_updateReward` still advances
+1. **Schedule-rate floor.** `(reward + left) mod DURATION` on each schedule restart (§17.3, F-11).
+2. **Global-index floor.** `E · 10^36 mod W` per checkpoint (§17.2, F-9).
+3. **Per-Strategy floor.** `activeBalance · Δ mod 10^36` per Strategy per checkpoint (§17.2, F-10).
+4. **Zero-active-weight emission.** `rewardPerToken()` returns early when `W = 0`, but `_updateReward` still advances
    `lastUpdateTime` to `lastTimeRewardApplicable()`. Stream time therefore elapses with **no** Strategy credited, and
    that interval's emission is permanently unclaimable.
 
-Plus a fourth category that is never scheduled at all: **direct USDG transfers to Resonance**, since scheduling occurs
+Plus a fifth category that is never scheduled at all: **direct USDG transfers to Resonance**, since scheduling occurs
 only inside `notifyRevenue`.
 
-**This is a deliberate divergence from Bribe**, which conserves sub-unit carry exactly (§23.4). ADR 0029 accepted the
-divergence (finding **A-02**) on the grounds that `1e36` precision makes individual floors economically negligible and
-that exact carry would require the additional state and boundary machinery Bribe carries.
+ADR 0047 applies the same simple rule to Resonance and Bribe: whole-unit floors remain surplus instead of introducing
+remainder schedules, carry buckets, Fund classification, or boundary-specific state. `1e36` makes index floors small
+for intended magnitudes, but does not make them zero.
 
 > **No exact conservation identity and no lifetime dust bound is claimed for Resonance.** There is no synchronization,
 > sweep, rescue, or later-allocation path. Checkpoint frequency and protocol lifetime determine the accumulation, and
@@ -1088,16 +1091,16 @@ The strongest provable statement is an inequality (§30, Identity I-7).
 ```text
 pending = USDG.balanceOf(router)
 if pending = 0:            revert NoRevenue
-minimum = Resonance.left(USDG)
+minimum = max(Resonance.DURATION(), Resonance.left())
 if pending < minimum:      emit RevenueHeld(caller, pending, minimum); return 0
-forward the ENTIRE pending balance; require balanceOf(router) = 0 afterwards
+approve and notify the ENTIRE pending balance
 ```
 
-There is **no absolute minimum**. Because `left()` decays monotonically to zero at `periodFinish`, any retained
-balance eventually qualifies without further deposits. Qualification does not execute a transaction: someone must
-still call `route()`, and no role or bounty guarantees that call. A sub-threshold route attempt returns without
-reverting; Mine does not attempt routing at all, while LiquidityPosition still attempts it atomically. The threshold
-also prevents cheap stream-reset griefing.
+The absolute `DURATION`-raw-unit floor ensures the restarted whole-unit rate is nonzero. `left()` decays monotonically,
+but a balance below `DURATION` never qualifies without further deposits. Qualification does not execute a transaction:
+someone must still call `route()`, and no role or bounty guarantees that call. A sub-threshold attempt returns without
+reverting; Mine does not attempt routing at all, while LiquidityPosition still attempts it atomically. The `left`
+gate also prevents cheap stream-reset griefing.
 
 ### 18.2 Resonance acceptance rule
 
@@ -1105,11 +1108,15 @@ also prevents cheap stream-reset griefing.
 
 ```text
 if reward = 0:              revert ZeroAmount
-remaining = left(USDG)
+remaining = left()
 if reward < remaining:      revert RewardSmallerThanLeft
-pull exactly `reward` from the router (exact-delta checked)
-restart schedule with S = reward + remaining      (F-11)
+pull `reward` from the router with SafeERC20
+rewardRate = ⌊(reward + remaining) / DURATION⌋
+restart the seven-day schedule at now              (F-11)
 ```
+
+Only the bound Router can call this function, and the Router separately enforces `reward ≥ DURATION`. Neither side
+duplicates sender and receiver balance snapshots; USDG is assumed to have standard non-rebasing ERC-20 semantics.
 
 ### 18.3 Economic consequence of the restart rule
 
@@ -1120,24 +1127,25 @@ lower** the instantaneous rate:
 - If `reward ≈ left` and substantial time has elapsed, the rate can fall, because the same remaining value is
   re-spread over a fresh seven days.
 
-An actor wishing to force an early reset must supply at least `left`, so the manipulation is economically
-self-financing rather than free. The residual timing influence is intentional and accepted (§34.3).
+An actor wishing to force an early reset through the Router must supply enough for its complete balance to reach both
+`DURATION` and `left`, so the manipulation is economically self-financing rather than free. The residual timing
+influence is intentional and accepted (§34.3).
 
 Verified by `test_QualifyingTopUpCheckpointsAndRestartsWithRewardPlusLeft`,
-`test_TopUpBelowLeftRevertsAtomicallyAtResonance`, `test_SubThresholdRevenueWaitsUntilTheRouterBalanceQualifies`,
-and `test_AnOutsiderCannotExtendOrSlowTheLiveStream`.
+`test_RouterBuffersUntilItsBalanceReachesTheActiveAmountLeft`, and
+`test_SubThresholdRevenueWaitsUntilTheRouterBalanceQualifies`.
 
-### 18.4 Contrast with Bribe
+### 18.4 Relationship to Bribe
 
-The two streaming mechanisms behave **oppositely** on a top-up and must never be described interchangeably:
+ADR 0047 intentionally makes the two reward engines share the same upstream-shaped core:
 
-| Behavior on funding during an active stream | `Resonance`                           | `Bribe`                               |
-| ------------------------------------------- | ------------------------------------- | ------------------------------------- |
-| Minimum accepted amount                     | `≥ left`                              | any nonzero amount                    |
-| Effect on the active schedule               | checkpoints and **restarts** at `now` | **queues** behind it, undisturbed     |
-| Effect on `periodFinish`                    | moves to `now + 7 days`               | unchanged                             |
-| Sub-unit carry                              | discarded as surplus                  | conserved exactly, classified to Fund |
-| Zero-supply behavior                        | time elapses, emission unclaimable    | stream **pauses**, time preserved     |
+| Behavior on funding during an active stream | `Resonance`                                         | `Bribe`                                  |
+| ------------------------------------------- | --------------------------------------------------- | ---------------------------------------- |
+| Minimum new amount                          | Router enforces `≥ DURATION` and `≥ left`           | notification enforces both directly      |
+| Effect on active schedule                   | checkpoint, add ordinary leftover, restart at `now` | same                                     |
+| Schedule-rate remainder                     | unallocated token surplus                           | unallocated token surplus                |
+| Zero-supply behavior                        | time elapses; interval is unallocated               | same                                     |
+| Asset and cardinality                       | one immutable USDG schedule                         | up to sixteen registered token schedules |
 
 ## 19. Signal checkpoint ordering
 
@@ -1152,7 +1160,7 @@ emission recognized at step `k`.
 
 **Property P-2 (no retroactive redirection).** Symmetrically, weight _removed_ at step `j` retains its full
 entitlement to all emission checkpointed before step `j`, because `_updateReward(strategy)` settles
-`account_Token_Rewards[strategy]` into storage before the weight changes.
+`strategyRewards[strategy]` into storage before the weight changes.
 
 **Corollary.** The pair (P-1, P-2) means signal weight earns exactly the emission that elapses while it is allocated —
 no more, no less, up to the floors of §17.5.
@@ -1181,12 +1189,12 @@ This is the direct remediation of finding **A-11**.
 `Resonance.addStrategy(paymentToken, config)` is `onlyOwner nonReentrant` and performs, in order:
 
 1. Reject `paymentToken` that is zero or code-less; reject `paymentToken == signalGBX` (`ForbiddenPaymentToken`).
-2. `bribeFactory.createBribe()` → new `Bribe` bound to this Resonance, reading `fund` from it.
-3. `bribe.addRewardToken(paymentToken)` — the payment token occupies reward slot 1 of 8 automatically.
+2. `bribeFactory.createBribe()` → new `Bribe` bound to this Resonance; Bribe has no Fund dependency.
+3. `bribe.addRewardToken(paymentToken)` — the payment token occupies reward slot 1 of 16 automatically.
 4. `strategyFactory.createStrategy(usdg, paymentToken, fund, bribe, config)` → deploys `Strategy` **and**
    `BribeRouter` together.
 5. Record `isStrategy`, `isStrategyAlive`, `bribeFor`, `bribeRouterFor`, `paymentTokenFor`.
-6. Set `account_Token_RewardPerTokenPaid[strategy][usdg] = rewardPerTokenStored`.
+6. Set `strategyRewardPerTokenPaid[strategy] = rewardData.rewardPerTokenStored`.
 
 Step 6 is what prevents a newly registered Strategy from claiming historical revenue: it starts at the current index,
 so its first `earned` computation sees `Δ = 0`. Verified by `test_StrategyAddedAfterAccrualCannotClaimHistoricRevenue`.
@@ -1211,7 +1219,7 @@ totalSignalWeight ← totalSignalWeight − strategySignalWeight(strategy)
 ```
 
 The `updateReward` modifier runs first, so the Strategy's accrued whole USDG units are settled into
-`account_Token_Rewards` and remain permanently claimable via `distribute`. Thereafter `earned` uses
+`strategyRewards` and remain permanently claimable via `distribute`. Thereafter `earned` uses
 `activeBalance = 0`, so no further accrual occurs.
 
 Death is **irreversible**. There is no revive function. Since ADR 0031, the **final** live Strategy cannot be killed
@@ -1220,34 +1228,32 @@ at all: `liveStrategyCount == 1` reverts `FinalLiveStrategy`, so at least one va
 
 ### 20.3 Post-death signal semantics
 
-| Operation on a killed Strategy `s` | Permitted? | Effect on `totalSignalWeight`                         |
-| ---------------------------------- | ---------- | ----------------------------------------------------- |
-| `addSignalFor(a, s, x)`            | No         | reverts `StrategyAlreadyDead`                         |
-| `removeSignalFor(a, s, x)`         | **Yes**    | **unchanged** — weight was already excluded at kill   |
-| `moveSignalFor(a, s, → live, x)`   | **Yes**    | **increased by `x`** — re-enters the live denominator |
-| `moveSignalFor(a, live, → s, x)`   | No         | reverts `StrategyAlreadyDead`                         |
+| Operation on a killed Strategy `s`                      | Permitted? | Effect on `totalSignalWeight`                         |
+| ------------------------------------------------------- | ---------- | ----------------------------------------------------- |
+| `addSignalFor(a, s, x)`                                 | No         | reverts `StrategyAlreadyDead`                         |
+| `removeSignalFor(a, s, x)`                              | **Yes**    | **unchanged** — weight was already excluded at kill   |
+| `moveSignal(a, s, live, x)` composed as remove then add | **Yes**    | **increased by `x`** — re-enters the live denominator |
+| `moveSignal(a, live, s, x)`                             | No         | destination addition reverts and removal rolls back   |
 
 The asymmetry is essential: subtracting on `removeSignalFor` would double-subtract weight already removed by
-`killStrategy`. Verified by `test_DeadStrategySignalCanExitWithoutSubtractingActiveSupplyTwice` and
-`test_MoveFromKilledStrategyReentersLiveWeightExactlyOnce`.
+`killStrategy`. Atomic transaction rollback prevents a failed destination from persisting the source removal.
+Verified by `test_DeadStrategySignalCanExitWithoutSubtractingActiveSupplyTwice`,
+`test_MoveFromKilledStrategyReentersLiveWeightExactlyOnce`, and
+`test_MoveSignalDestinationFailureRollsBackSourceRemoval`.
 
-### 20.4 The closed-pool consequence (finding BR-1)
+### 20.4 The closed-pool consequence after ADR 0047
 
 `Bribe` has no kill state and no awareness that its Strategy died. It becomes a **closed pool**:
 
 - `deposit` is unreachable, because the only caller is `Resonance.addSignalFor`, which rejects dead Strategies.
-- Incumbent signalers may remain indefinitely, earn and claim independently funded rewards, and exit incrementally.
-- When `totalSupply` reaches zero, `withdraw` pauses every stream. A paused stream resumes only via `deposit` — which
-  can never occur again.
-- Queued rewards likewise require a `deposit` to start.
-- `notifyRewardAmount` remains callable, so tokens can still be added to a pool with zero possible claimants.
+- Incumbent signalers may remain, earn elapsed rewards, claim, and exit incrementally.
+- Reward time never pauses. If supply becomes zero, any remaining scheduled emission elapses without an account being
+  credited and stays as unallocated Bribe surplus.
+- `notifyRewardAmount` remains callable when its duration and leftover gates are met, even if no signaler can return.
 
-**The abandoned amount is not bounded to dust.** It may include a complete unvested stream plus any later
-notification. There is deliberately no retirement state, refund, rescue, sweep, or Fund reclassification. Accepted by
-ADR 0028; evidenced by `test_KnownRisk_DeadStrategyBribeCanPauseAndQueueRewardsForever`.
-
-Interfaces **must** identify dead Strategies, warn the final signaler that exiting abandons remaining rewards, and
-must not imply that a notification to a dead zero-supply Bribe is recoverable.
+The old BR-1 queue-and-pause terminal state was superseded by ADR 0047; there is no queue or paused state now. The
+economic warning remains: a notification to a dead, zero-supply Bribe can become entirely unclaimable, with no refund,
+rescue, sweep, or Fund reclassification. Interfaces must identify dead Strategies and must not imply recovery.
 
 ## 21. Reverse Dutch acquisition auctions
 
@@ -1297,9 +1303,12 @@ buy(revenueReceiver, expectedEpochId, deadline, maximumPayment):
   paymentAmount ← currentPrice()
   require paymentAmount ≤ maximumPayment            else MaximumPaymentExceeded
   if paymentAmount ≠ 0:
-      pull exactly paymentAmount (exact-delta checked)
-      _settlePayment(paymentAmount)
-  transfer exactly revenueAmount to revenueReceiver (exact-delta checked)
+      appliedBribeBps ← Resonance.bribeBps()         -- before payment-token interaction
+      pull paymentAmount with SafeERC20
+      bribeAmount ← ⌊paymentAmount·appliedBribeBps/BPS⌋
+      transfer paymentAmount − bribeAmount directly to Fund
+      if bribeAmount ≠ 0: transfer it to BribeRouter
+  transfer revenueAmount to revenueReceiver with SafeERC20
   initialPrice ← nextInitialPrice(paymentAmount)
   epochStartedAt ← now
   epochId ← epochId + 1
@@ -1321,312 +1330,222 @@ A zero-price fill yields `p_min`. Recovery is geometric at `m_s` per fill. Verif
 
 `revenueReceiver` is buyer-chosen and unvalidated beyond non-zero. Consequences, all tested:
 
-| Receiver              | Outcome                                                                                      |
-| --------------------- | -------------------------------------------------------------------------------------------- |
-| Ordinary address      | Normal                                                                                       |
-| `Fund`                | Settles exactly; USDG becomes Fund backing (`test_RevenueReceiverEqualToFundSettlesExactly`) |
-| `Resonance`           | Creates **unscheduled surplus** — the USDG is not re-notified                                |
-| The `Strategy` itself | Fails atomically (exact-delta check cannot be satisfied)                                     |
+| Receiver              | Outcome                                                                                   |
+| --------------------- | ----------------------------------------------------------------------------------------- |
+| Ordinary address      | Normal                                                                                    |
+| `Fund`                | USDG becomes Fund backing                                                                 |
+| `Resonance`           | Creates **unscheduled surplus** — the USDG is not re-notified                             |
+| The `Strategy` itself | A standard ERC-20 self-transfer succeeds; the USDG remains inventory for a later purchase |
 
 ## 22. Auction-payment settlement
 
-### 22.1 Settlement path
+### 22.1 Inline settlement path
 
-`Strategy._settlePayment(amount)`:
+ADR 0047 returns classification to `Strategy`, following the upstream Liquid Signal boundary:
 
 ```text
-router ← Resonance.bribeRouterFor(this)
-require router ≠ 0
-paymentToken.forceApprove(router, amount)
-BribeRouter(router).routePayment(amount)
-if paymentToken.allowance(this, router) ≠ 0: paymentToken.forceApprove(router, 0)
+appliedBribeBps ← Resonance.bribeBps()             -- before payment-token interaction
+paymentToken.safeTransferFrom(buyer, Strategy, p)
+bribeAmount ← mulDiv(p, appliedBribeBps, 10000)
+fundAmount  ← p − bribeAmount
+if fundAmount  ≠ 0: paymentToken.safeTransfer(Fund, fundAmount)
+if bribeAmount ≠ 0: paymentToken.safeTransfer(BribeRouter, bribeAmount)
 ```
 
-The conditional zero-approval (finding **E-04**) supports tokens that revert on redundant zero approvals.
+The Strategy holds immutable Fund and payment-token addresses. It sends no part of the acquired payment to
+Resonance, a fee recipient, or a caller-selected destination. A failed Fund or Router transfer reverts the complete
+purchase; there is no deferred Fund settlement or liability ledger.
 
-### 22.2 The bounded classification (ADR 0036)
+### 22.2 Bounded prospective classification
 
-`BribeRouter` holds no setter and no share of its own. It reads one global rate from `Resonance` and derives Fund's
-share as the remainder:
+`Resonance` holds the only rate:
 
 ```solidity
-uint256 public constant BPS = 10_000;              // BribeRouter
-
-uint256 public constant DEFAULT_BRIBE_BPS = 1_000; // Resonance: 10% at deployment
-uint256 public constant MAX_BRIBE_BPS     = 2_000; // Resonance: 20% ceiling
-uint256 public bribeBps = DEFAULT_BRIBE_BPS;       // Resonance: onlyOwner setBribeBps
+uint256 public constant BPS = 10_000;
+uint256 public constant DEFAULT_BRIBE_BPS = 1_000;
+uint256 public constant MAX_BRIBE_BPS = 2_000;
+uint256 public bribeBps = DEFAULT_BRIBE_BPS;
 ```
 
-**The rate is snapshotted before any token interaction**, so a hostile payment-token callback cannot alter the split of
-the fill it is part of:
+The Strategy snapshots `bribeBps` before `safeTransferFrom`, so even a callback-capable payment token cannot change the
+classification of the purchase whose transfer triggered the callback. The owner can change only later purchases.
+Because every admissible rate is at most 2,000, Fund receives at least 80% of **each** purchase under integer
+arithmetic. `Math.mulDiv` supplies a full-width product for the floored Bribe calculation.
 
-```solidity
-uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();
-if (appliedBribeBps > BPS) revert BribeBpsAboveBasis(appliedBribeBps);
-```
-
-Because `MAX_BRIBE_BPS = 2_000`, Fund's cumulative share over the complete weighted payment history is **at least 80%**
-for any sequence of rates the owner can select. A rate change reaches neither a recorded liability, a notified reward,
-nor a prior Fund balance.
-
-`routePayment(amount)` is callable **only** by its immutable `strategy`:
-
-```text
-appliedBribeBps      ← Resonance.bribeBps()          (snapshotted before any token call)
-require appliedBribeBps ≤ BPS
-pull exactly `amount` from strategy (exact-delta checked)
-
-bribeAmount          ← ⌊amount · appliedBribeBps / BPS⌋
-accumulatedRemainder ← splitRemainder + mulmod(amount, appliedBribeBps, BPS)
-bribeAmount          ← bribeAmount + ⌊accumulatedRemainder / BPS⌋
-splitRemainder       ← accumulatedRemainder mod BPS
-fundAmount           ← amount − bribeAmount
-
-accountedPaymentBalance += amount
-fundPaymentLiability    += fundAmount
-bribePaymentLiability   += bribeAmount
-```
-
-This **supersedes ADR 0021's 100%-to-Fund rule.** The split applies to the **acquired payment asset**; USDG is
-unaffected, since Resonance still transfers 100% of a Strategy's earned USDG to that Strategy (§16).
-
-_Overflow._ `Math.mulDiv` computes the quotient at 512-bit intermediate width and `mulmod` computes the modulus
-without overflowing, so no intermediate product can wrap.
-
-### 22.3 Cumulative exactness
-
-**Formula F-21 (frequency-independent classification).** `splitRemainder` carries the sub-unit Bribe entitlement in
-basis-point numerator units and is always `< BPS`. For payments `a_i` classified at their snapshotted rates `r_i`,
-**regardless of how the total was partitioned into calls**:
-
-```text
-cumulative Bribe classification = ⌊(Σ aᵢ·rᵢ) / BPS⌋
-cumulative Fund classification  = (Σ aᵢ) − ⌊(Σ aᵢ·rᵢ) / BPS⌋
-splitRemainder                  = (Σ aᵢ·rᵢ) mod BPS
-```
-
-At a constant rate this reduces to the single-rate form. Since every `rᵢ ≤ MAX_BRIBE_BPS`, the cumulative Fund share is
-bounded below by 80% of the weighted total for any admissible rate history.
+This split applies to the **acquired payment asset**. It does not split USDG: Resonance still pays 100% of a Strategy's
+earned USDG to that Strategy.
 
 <!-- figure: acquisition-split -->
 
-**Why the carry is load-bearing.** Naive per-payment flooring would give the Bribe `⌊1 · 1000 / 10000⌋ = 0` on every
-one-raw-unit payment at the default rate, so an adversary filling in dust could starve the reward share permanently. This was internal
-finding **SR-002** (High).
+### 22.3 Per-purchase floors and partition dependence
+
+**Formula F-21 (per-purchase classification).** For each payment `a_i` at its captured rate `r_i`:
+
+```text
+Bribe_i = ⌊a_i · r_i / BPS⌋
+Fund_i  = a_i − Bribe_i
+
+cumulative Bribe = Σ_i ⌊a_i · r_i / BPS⌋
+cumulative Fund  = Σ_i a_i − cumulative Bribe
+```
+
+There is no `splitRemainder`, so in general
+`Σ_i ⌊a_i·r_i/BPS⌋ ≠ ⌊Σ_i(a_i·r_i)/BPS⌋`. Partitioning can change cumulative classification by sub-token units.
 
 <!-- figure: cumulative-split -->
 
-**Worked example (SR-002's minimal trace).** Ten separate one-raw-unit payments:
+**Minimal example at 10%.** One payment of ten raw units yields Fund 9 / Bribe 1. Ten separate one-unit purchases each
+floor the Bribe share to zero, yielding Fund 10 / Bribe 0. ADR 0047 accepts this result in exchange for removing
+cross-purchase carry state. The invariant is per-purchase conservation and the 80% Fund floor, not frequency
+independence.
 
-| Call | `amount` | `accumulatedRemainder` before ÷ | `bribeAmount` | `fundAmount` | `splitRemainder` after |
-| ---- | -------- | ------------------------------- | ------------- | ------------ | ---------------------- |
-| 1    | 1        | 1,000                           | 0             | 1            | 1,000                  |
-| 2    | 1        | 2,000                           | 0             | 1            | 2,000                  |
-| …    | …        | …                               | …             | …            | …                      |
-| 9    | 1        | 9,000                           | 0             | 1            | 9,000                  |
-| 10   | 1        | 10,000                          | **1**         | **0**        | **0**                  |
+### 22.4 Minimal BribeRouter buffer
 
-Cumulative state is exactly **Fund 9, Bribe 1, remainder 0** — matching `⌊10 · 1000 / 10000⌋ = 1`. Verified by
-`test_TenOneUnitPaymentsClassifyExactlyNineToFundAndOneToBribe`, `test_TenOneUnitPaymentsDoNotStarveTheBribe`, and
-`testFuzz_ClassificationIsFrequencyIndependent`.
-
-`splitRemainder` is a fractional entitlement in numerator units — never a withdrawable token balance, never a
-caller-controlled destination.
-
-### 22.4 Isolated deferred settlement legs
-
-Both legs are permissionless, and each clears its own state **before** its external interaction so a failure
-atomically restores only that leg:
+`BribeRouter` has only immutable `paymentToken` and `bribe` references. Strategy sends only the Bribe share there;
+the Router does not know Fund, read the global rate, classify payments, or record liabilities. Its only action is
+permissionless `distribute()`:
 
 ```text
-payFundPayment():
-    amount ← fundPaymentLiability ; if 0 return
-    fundPaymentLiability ← 0 ; accountedPaymentBalance −= amount
-    transfer exactly `amount` to fund (exact-delta checked)
-
-notifyBribeReward():
-    amount ← bribePaymentLiability ; if 0 return
-    bribePaymentLiability ← 0 ; accountedPaymentBalance −= amount
-    forceApprove(bribe, amount) ; bribe.notifyRewardAmount(paymentToken, amount)
-    clear residual allowance if nonzero ; verify exact debit and credit
+amount ← paymentToken.balanceOf(router)
+if amount = 0: return 0
+if amount < Bribe.REWARD_DURATION(): return 0
+if amount < Bribe.left(paymentToken): return 0
+approve Bribe for amount
+Bribe.notifyRewardAmount(paymentToken, amount)
+emit RewardsDistributed(bribe, paymentToken, amount)
 ```
 
-**A failure or incompatibility on one leg cannot destroy, consume, or block permissionless retry of the other.**
-Deferral is what prevents a frozen or hostile Fund, Bribe, or payment token from blocking an auction fill.
+The complete balance is used. Compatible direct donations are therefore indistinguishable from Strategy-provided
+shares and join the next notification. A below-threshold call is a no-op. If Bribe notification reverts, the
+transaction reverts and the buffer remains. A temporary token failure can be retried if it clears; lifetime-cap
+exhaustion is permanent and strands the buffer. In either case, the earlier Strategy purchase is unaffected because
+notification is a separate transaction.
 
-The Bribe leg always has a valid registered reward token, because `addStrategy` registers the Strategy's payment
-token as reward slot 1 of 8 at creation (§20.1).
+The Strategy payment token is registered as reward slot 1 of 16 when the Strategy graph is created (§20.1).
 
-Verified by `test_PayingFundIsPermissionlessAndClearsTheLiability`,
-`test_NotifyingBribeIsPermissionlessExactAndClearsOnlyItsLeg`,
-`test_AFailureOnEitherSettlementLegDoesNotBlockOrCorruptTheOther`,
-`test_BribeNotificationRejectsReentrancyAndStillVerifiesExactDeltas`, and
-`test_BribeNotificationClearsAStickyResidualAllowance`.
+### 22.5 Settlement identities and non-identities
 
-### 22.5 Settlement identities
-
-**Identity I-5 (BribeRouter exactness).** At every block:
+For a successful purchase using a supported standard token:
 
 ```text
-accountedPaymentBalance = fundPaymentLiability + bribePaymentLiability
-paymentToken.balanceOf(router) ≥ accountedPaymentBalance
-paymentSurplus() = paymentToken.balanceOf(router) − accountedPaymentBalance     (direct donations)
-splitRemainder < BPS
+p = fundAmount + bribeAmount
+fundAmount = p − ⌊p·r/BPS⌋
+bribeAmount = ⌊p·r/BPS⌋
+r ≤ 2000  ⇒  fundAmount ≥ p − ⌊p/5⌋
 ```
 
-_Proof sketch._ All three counters start at zero. `routePayment` adds `amount` to the first and
-`fundAmount + bribeAmount = amount` across the other two. Each settlement function subtracts the identical amount from
-`accountedPaymentBalance` and its own liability. ∎
-
-**Identity I-6 (payment conservation).** For any completed fill at nonzero price `p`:
-
-```text
-p = increment to fundPaymentLiability + increment to bribePaymentLiability
-```
-
-with **zero** routed to Resonance, to a fee recipient, or to any caller-selected destination. Direct donations change
-neither liability nor `splitRemainder`.
-
-Verified by `test_CompletePaymentIsClassifiedNinetyTenEvenWithLiveSignalWeight`,
-`testFuzz_ClassificationIsFrequencyIndependent`, `test_RoutePaymentIsStrategyOnly`, and
-`invariant_BribeRouterAccountingIdentitiesAreExact`.
+These are arithmetic identities evaluated before transfer. The Router's complete token balance is its buffer; there
+is no distinction between accounted payment and donation, no Fund or Bribe liability, and no `paymentSurplus` view.
+No cross-purchase conservation identity is asserted (§22.3), and unsupported token mechanics can violate the assumed
+movement semantics (§36).
 
 ### 22.6 GBX-denominated Strategies
 
-A Strategy whose payment token is GBX is handled identically — no special case exists. The Fund complement active for
-that payment (80–100%; 90% by default) travels `buyer → Strategy → BribeRouter → Fund` and is **supply-neutral
-until explicitly burned**; `Fund.burnGBX(amount)` is permissionless and burns from Fund's own balance. The snapshotted
-Bribe share (0–20%; 10% by default) is streamed to that Strategy's signalers as a GBX reward and is **not** burned.
+A Strategy whose payment token is GBX has no special settlement branch. Its Fund complement travels
+`buyer → Strategy → Fund` and remains supply-neutral until anyone calls permissionless `Fund.burnGBX`. Its nonzero
+Bribe share travels `buyer → Strategy → BribeRouter`, then is streamed as GBX to that Strategy's signalers once the
+buffer qualifies.
 
-**Operational consequence.** Fund-held GBX is included in `gbx.totalSupply()`, which is the redemption denominator
-(§25.2). Unburned Fund GBX therefore inflates the denominator and reduces every redeemer's payout. A redeemer should
-settle and burn pending Fund GBX before quoting or executing a redemption.
+**Operational consequence.** Fund-held GBX remains in `gbx.totalSupply()`, the redemption denominator (§25.2), until
+burned. A redeemer should burn accumulated Fund GBX before quoting or executing a redemption.
 
 ## 23. Bribe reward accounting
 
-`Bribe` is the protocol's exact-carry accounting subsystem, and is materially more intricate than Resonance because
-it conserves what Resonance discards.
+`Bribe` is a bounded multi-token adaptation of the Synthetix `MultiRewards` cumulative-index engine. ADR 0047 removes
+the protocol-specific queue, pause, carry, Fund-liability, and exact-transfer layers; the remaining differences from
+scalar Resonance are the token registry, per-token state, lifetime cap, and claim loop.
 
-Constants: `REWARD_DURATION = 7 days`, `REWARD_PRECISION = 10^36`, `MAX_REWARD_TOKENS = 8`.
+Constants: `REWARD_DURATION = 7 days`, `REWARD_PRECISION = 10^36`, `MAX_REWARD_TOKENS = 16`.
 
 ### 23.1 State inventory
 
-| Mapping                     | Meaning                                                          |
-| --------------------------- | ---------------------------------------------------------------- |
-| `scheduledRewards[t]`       | Whole units remaining in the active stream                       |
-| `queuedRewards[t]`          | Whole units waiting for the stream to finish or supply to appear |
-| `pendingRewardScaled[t]`    | Emitted precision not yet large enough for an index increment    |
-| `indexedRewardScaled[t]`    | Precision indexed globally but not yet folded into accounts      |
-| `rewards[a][t]`             | Whole-unit user liability, payable only to `a`                   |
-| `userRewardRemainder[a][t]` | Sub-unit user carry retained across checkpoints                  |
-| `accruedRewardLiability[t]` | Σ over accounts of `rewards[a][t]`                               |
-| `fundRewardLiability[t]`    | Whole-unit liability irrevocably owed to Fund                    |
-| `fundRewardRemainder[t]`    | Sub-unit Fund carry awaiting a whole unit                        |
-| `accountedRewardBalance[t]` | Notified minus paid out (user + Fund)                            |
-| `lifetimeRewardNotified[t]` | Monotonic cumulative raw units ever admitted for `t` (ADR 0035)  |
+| State                               | Meaning                                                                 |
+| ----------------------------------- | ----------------------------------------------------------------------- |
+| `totalSupply`, `balanceOf[a]`       | Resonance-controlled virtual signal supply and account balances         |
+| `_rewardTokens`, `isRewardToken[t]` | Append-only registry, capped at sixteen                                 |
+| `rewardData[t]`                     | `periodFinish`, `rewardRate`, `lastUpdateTime`, stored `rewardPerToken` |
+| `userRewardPerTokenPaid[a][t]`      | Index already incorporated for one account and token                    |
+| `rewards[a][t]`                     | Accrued whole-token amount payable only to `a`                          |
+| `lifetimeRewardNotified[t]`         | Monotonic cumulative raw units admitted for `t`                         |
 
 ### 23.2 Stream mathematics
 
-Structurally identical to F-11/F-12 at `REWARD_DURATION`, with one addition: a `pauseStarted` field.
+For registered token `t`, let `T = min(now, periodFinish[t])`, `P = 10^36`, and `W = totalSupply`.
+
+**Formula F-16 (cumulative reward per signal).**
 
 ```text
-_startStream(t, amount, startedAt):
-    rewardRate      ← ⌊amount / 604800⌋
-    remainder       ← amount mod 604800
-    periodFinish    ← startedAt + 604800
-    remainderFinish ← startedAt + remainder
-    lastUpdateTime  ← startedAt
-    pauseStarted    ← 0
-    scheduledRewards[t] ← amount
+rewardPerToken(t) = stored[t]                                         if W = 0
+                  = stored[t] + ⌊(T − lastUpdateTime[t])
+                                         · rewardRate[t] · P / W⌋     otherwise
 ```
 
-**Formula F-16 (accrual).**
+**Formula F-17 (account entitlement).**
 
 ```text
-_accrueUntil(t, ts):
-    emitted ← emissionBetween(lastUpdateTime, ts)
-    lastUpdateTime ← ts
-    scheduledRewards[t]     −= emitted
-    pendingRewardScaled[t]  += emitted · 10^36
+earned(a,t) = rewards[a][t]
+            + ⌊balanceOf[a] · (rewardPerToken(t) − paid[a][t]) / P⌋
 ```
 
-**Formula F-17 (indexing).**
+`_updateReward(a,t)` stores the current index and applicable timestamp, then stores `earned(a,t)` and the new paid
+index when `a ≠ 0`. `_updateAllRewards(a)` repeats that fixed work for every registered token before a signal-balance
+change or all-token claim.
+
+### 23.3 Notification and leftover rollover
+
+`notifyRewardAmount(t, amount)` is permissionless for a registered token and executes in this order:
+
+**Formula F-18 (Bribe restart).**
 
 ```text
-_indexPendingReward(t):
-    if supply = 0: return
-    δ ← ⌊ pendingRewardScaled[t] / supply ⌋
-    if δ = 0: return
-    indexed ← δ · supply
-    pendingRewardScaled[t] −= indexed
-    indexedRewardScaled[t] += indexed
-    rewardPerTokenStored   += δ
+require amount ≥ REWARD_DURATION
+require lifetimeRewardNotified[t] + amount ≤ MAX_LIFETIME_REWARD_AMOUNT
+remaining ← left(t)
+require amount ≥ remaining
+checkpoint token t globally
+safeTransferFrom(caller, Bribe, amount)
+rewardRate[t]     ← ⌊(amount + remaining) / REWARD_DURATION⌋
+lastUpdateTime[t] ← now
+periodFinish[t]   ← now + REWARD_DURATION
+lifetimeRewardNotified[t] += amount
 ```
 
-The residue `pendingRewardScaled mod supply` is **retained**, not discarded — this is the essential difference from
-Resonance.
+This is ordinary Synthetix leftover rollover: a valid top-up combines the new amount with whole units scheduled at the
+old rate and restarts from `now`. Equality with `left` is accepted. The duration floor guarantees a nonzero new rate;
+the leftover gate makes repeatedly restarting a live stream proportionately expensive.
 
-**Formula F-18 (account checkpoint).**
+There is **no queue**. A valid notification always starts or restarts immediately.
 
-```text
-newlyIndexed ← balanceOf(a) · (rewardPerTokenStored − paid[a])
-indexedRewardScaled[t] −= newlyIndexed
-soleCarry ← (balanceOf(a) ≠ 0 ∧ balanceOf(a) = totalSupply) ? pendingRewardScaled[t] : 0
-             (and pendingRewardScaled[t] ← 0 in that case)
-accrued ← userRewardRemainder[a][t] + newlyIndexed + soleCarry
-whole   ← ⌊accrued / 10^36⌋
-userRewardRemainder[a][t] ← accrued mod 10^36
-rewards[a][t] += whole ; accruedRewardLiability[t] += whole
-```
+### 23.4 Zero supply and accepted surplus
 
-The sole-signaler branch exists because when one account holds the entire supply, the global residue is
-unambiguously theirs. `earned()` mirrors it by adding `globalScaled mod supply` in the same condition.
+Reward time does **not pause** when `totalSupply = 0`. `rewardPerToken` holds the index constant, while a checkpoint
+advances `lastUpdateTime` to the applicable timestamp. Emission from that zero-supply interval is never allocated to a
+later entrant.
 
-### 23.3 Queueing and pausing
+For each token, the following remain unallocated Bribe balance rather than being carried or sent to Fund:
 
-**Queueing.** `notifyRewardAmount` starts a stream immediately **only if** `totalSupply ≠ 0` **and**
-`periodFinish = 0`. Otherwise the amount joins `queuedRewards`. A live stream is therefore never reset, shrunk, or
-extended by a top-up — this defeats repeated-tiny-top-up griefing.
+1. `(amount + remaining) mod REWARD_DURATION` at schedule creation;
+2. the global-index floor in F-16;
+3. the account floor in F-17;
+4. emission while signal supply is zero; and
+5. direct transfers that did not enter through `notifyRewardAmount`.
 
-`_checkpointToken` advances through at most the current stream and **one** queued successor per call, bounding work.
-
-**Pausing.** When `totalSupply` reaches zero in `withdraw`, `_pauseStream` records `pauseStarted = now` for every
-token. When supply leaves zero in `deposit`, `_resumeAllStreams` adds `pausedDuration = now − pauseStarted` to
-`periodFinish`, `remainderFinish`, and `lastUpdateTime`, preserving the schedule's remaining shape exactly. While
-paused, `_checkpointToken` and `_previewEmission` return early and `lastTimeRewardApplicable` returns `pauseStarted`.
-
-Verified by `test_ZeroSignalWeightPausesAndExtendsTheStreamWithoutRetroactiveAccrual` and
-`testFuzz_RepeatedZeroSupplyPausesPreserveEveryEarlyRemainderUnit`.
-
-### 23.4 Carry classification to Fund
-
-Before **every** supply change, `deposit` and `withdraw` call `_fundAllPendingRewards()`, which for each token moves
-the entire `pendingRewardScaled` into Fund classification:
-
-```text
-_accrueFundScaled(t, scaled):
-    s ← fundRewardRemainder[t] + scaled
-    whole ← ⌊s / 10^36⌋
-    fundRewardRemainder[t] ← s mod 10^36
-    fundRewardLiability[t] += whole
-```
-
-Additionally, when an account's balance reaches zero in `withdraw`, its `userRewardRemainder` for every token is
-moved to Fund and deleted.
-
-**Rationale (finding A-09, ADR 0027).** Carry accumulated under one denominator cannot be fairly indexed under a
-different one. Leaving it in `pendingRewardScaled` would let a **later entrant** receive value emitted before their
-entry, or let **remaining signalers** absorb an exited account's precision. Routing it to Fund makes it protocol
-backing instead — value that no individual can capture.
-
-Verified by `test_NewSignalerCannotReceivePreEntryRewardCarry`,
-`test_RemainingSignalerCannotReceivePreExitRewardCarry`, and `test_FullExitCannotReallocateUserRewardRemainder`.
+There are no global, account, or Fund carry buckets; no Fund reward liability; and no exact conservation identity.
+Checkpoint and account-partition frequency can affect the accumulated surplus. ADR 0047 explicitly accepts this in
+exchange for retaining the small upstream-shaped state machine.
 
 ### 23.5 Bounded reward registry
 
-`MAX_REWARD_TOKENS = 8`, append-only, `onlyResonance`. The cap is what makes every mandatory loop — `_checkpointAll`,
-`_fundAllPendingRewards`, the exit carry loop, the pause loop, the resume loop — constant-bounded (finding **A-08**).
-Gas is measured by `test_MaximumRewardTokenGasStaysFarBelowABlock` and `test_RewardTokenGasSlopeIsRecordedAndBounded`.
+`MAX_REWARD_TOKENS = 16`, append-only, `onlyResonance`. The cap is what makes every mandatory loop —
+`_updateAllRewards`, signal-balance checkpoints, and the all-token claim — constant-bounded (finding **A-08**).
+The higher bound accepts approximately doubled worst-case loop work in exchange for fifteen independent incentive
+slots after the automatic payment token. Current maximum-bound measurements are: signal addition 491,494 gas;
+withdrawal 1,129,059; scalar claim 93,018; sixteen sequential scalar claims 1,488,760; all-token claim 1,471,439;
+Strategy purchase 139,502; composed move with sixteen active streams on both Bribes 1,890,938; adding token sixteen
+50,810; and rejecting token seventeen 5,349. They are covered by
+`test_MaximumRewardTokenGasStaysFarBelowABlock`, `test_RewardTokenGasSlopeIsRecordedAndBounded`, and
+`test_ComposedMoveAtMaximumRewardTokensOnBothBribesStaysFarBelowABlock` and remain local engineering evidence, not a
+chain-specific release guarantee.
 
 ### 23.6 Lifetime notification cap (ADRs 0035 and 0037)
 
@@ -1647,15 +1566,13 @@ A notification is rejected with `RewardLifetimeCapExceeded(token, notified, requ
 amount > MAX_LIFETIME_REWARD_AMOUNT − lifetimeRewardNotified[t]
 ```
 
-The check runs **before** any checkpoint or token interaction, so a rejection leaves the caller's balance, every
-schedule, and every liability untouched.
+The check runs **before** the active-leftover test, checkpoint, or token interaction, so a rejection leaves the
+caller's balance and every schedule untouched.
 
-**Why the counter is monotonic.** Claims, Fund classification, Fund payment, stream completion, Strategy death, and a
-return to zero signal supply all reduce `accountedRewardBalance[t]`, but none of them reduces the cumulative
-reward-per-signal index. The pre-existing balance-scale guard (`RewardScaleOverflow`) therefore reopened capacity that
-the index had already consumed. A token with an extremely large raw-unit supply could fill the index near `uint256`
-maximum, reclaim its reward, and notify again; the next checkpoint would overflow. Because every signal deposit, move,
-and withdrawal checkpoints all registered tokens, that overflow would strand escrowed GBX. This was finding **BR-2**.
+**Why the counter is monotonic.** Claims, stream completion, Strategy death, and zero-supply intervals do not reduce
+the cumulative reward-per-signal index already written to storage. Reopening capacity after payout would therefore
+allow repeated notifications to exhaust that index. Because every signal deposit, move, and withdrawal checkpoints
+all registered tokens, such an overflow could strand escrowed GBX. This was finding **BR-2**.
 
 **Safety argument.** One admitted raw unit contributes at most `P` scaled units to the global index, and the smallest
 possible virtual supply is one raw signal unit, which assigns the whole scaled amount. With lifetime notifications
@@ -1671,22 +1588,23 @@ largest history-independent limit that is safe under arbitrary supply changes.
 **Consequences.** The cap is approximately `1.158 × 10⁴¹` raw units, or `1.158 × 10²³` whole units for an 18-decimal
 token, and constrains no conventional asset; it can bind an unusually high-decimal token. Reaching it
 blocks only new notifications for that one token in that one Bribe — existing rewards, claims, signal moves, and
-withdrawals continue (§32, L-9). If an automatic Strategy-payment reward is rejected, its `BribeRouter` preserves the
-unpaid Bribe liability and the independently settleable Fund liability, so no value is consumed or redirected
-(§22.4). Direct token donations never enter the index and never consume the cap. The balance-scale guard remains as
-defense in depth, and no unchecked wrapping, epoch reset, retirement withdrawal, or rescue path is introduced.
+withdrawals continue (§32, L-9). If an automatic Strategy-payment notification is rejected, the complete balance
+remains buffered in `BribeRouter`; the Fund share was already transferred during the purchase (§22.4). Direct Bribe
+donations never enter the index and never consume the cap. No epoch reset, retirement withdrawal, or rescue path is
+introduced.
 
 ### 23.7 Claim isolation
 
-Three claim entry points: all-tokens, single-token, and caller-selected list (with duplicate and registration
-validation performed **before** any token interaction). All pay the entitled `account`, never `msg.sender`. Selective
-claiming is what lets a signaler omit a broken reward token without losing access to the others.
+Two claim shapes remain: `claimRewards(account)` checkpoints and attempts every registered token, while
+`claimReward(account, token)` checkpoints and pays exactly one registered token. Both pay the entitled `account`,
+never `msg.sender`. The scalar claim is what lets a signaler route around a broken reward token; caller-selected batch
+claims are periphery rather than core.
 
 ### 23.8 Exit liveness
 
-`Bribe.withdraw` performs **only** accounting: checkpoints, carry classification, balance decrements, and stream
-pauses. It contains no `transfer`, `transferFrom`, or `safeTransfer`. Therefore signal withdrawal can never
-fail because a reward, payment, or revenue token is frozen — design goal G4. Verified by
+`Bribe.withdraw` performs **only** reward checkpoints and virtual-balance decrements. It contains no `transfer`,
+`transferFrom`, or `safeTransfer`. Therefore signal withdrawal does not interact with a reward token and cannot fail
+because that token is frozen — design goal G4. Verified by
 `invariant_EveryActorCanFullyWithdrawSignals`.
 
 ## 24. Fund custody
@@ -1956,7 +1874,7 @@ protocol with a live admin key. There is no contract-level timeout, escrow, or f
 | `BribeFactory.setResonance`    | `onlyOwner`, unset                     | `R.bribeFactory() = this`                                  | No        |
 | `Resonance.setResonanceRouter` | `onlyOwner`, unset                     | `Router.resonance() = this` **and** `Router.usdg() = usdg` | No        |
 | `LiquidityPosition` ctor       | —                                      | `Router.usdg() = usdg`, `Fund.gbx() = gbx`                 | n/a       |
-| `Bribe` constructor            | —                                      | reads `fund` from the bound `Resonance`                    | n/a       |
+| `Bribe` constructor            | nonzero contract address               | immutable Resonance caller identity; no Fund dependency    | n/a       |
 
 Every listed one-time binding read is guarded and reverts on failure or on a mismatched identity. ADR 0045 deliberately
 moves verification of Mine's exact Router and both contracts' canonical USDG identity out of Mine construction and into
@@ -2048,33 +1966,35 @@ atomically batched is a property of the external governance system, not of the c
 
 ### 29.4 Strategy auction epoch
 
-| From    | Transition                 | To        | Effects                                                      |
-| ------- | -------------------------- | --------- | ------------------------------------------------------------ |
-| Epoch n | `buy` at price `p > 0`     | Epoch n+1 | distribute → pull `p` → settle → pay out USDG → reprice      |
-| Epoch n | `buy` at price `p = 0`     | Epoch n+1 | distribute → **no payment** → pay out USDG → `p_min` restart |
-| Epoch n | `buy` with zero USDG       | Epoch n   | **reverts** `EmptyRevenue`                                   |
-| Epoch n | `buy` with stale `epochId` | Epoch n   | **reverts** `EpochIdMismatch`                                |
+| From    | Transition                 | To        | Effects                                                                   |
+| ------- | -------------------------- | --------- | ------------------------------------------------------------------------- |
+| Epoch n | `buy` at price `p > 0`     | Epoch n+1 | distribute → snapshot rate → pull `p` → direct split → pay USDG → reprice |
+| Epoch n | `buy` at price `p = 0`     | Epoch n+1 | distribute → **no payment** → pay out USDG → `p_min` restart              |
+| Epoch n | `buy` with zero USDG       | Epoch n   | **reverts** `EmptyRevenue`                                                |
+| Epoch n | `buy` with stale `epochId` | Epoch n   | **reverts** `EpochIdMismatch`                                             |
 
 ### 29.5 Bribe reward stream (per token)
 
-| From     | Transition                            | To           | Effects                                          |
-| -------- | ------------------------------------- | ------------ | ------------------------------------------------ |
-| Inactive | `notify` with `totalSupply > 0`       | Active       | `_startStream` at `now`                          |
-| Inactive | `notify` with `totalSupply = 0`       | Inactive     | amount → `queuedRewards`                         |
-| Active   | `notify` (any supply)                 | Active       | amount → `queuedRewards`; **stream undisturbed** |
-| Active   | `totalSupply → 0` via `withdraw`      | Paused       | `pauseStarted ← now`; pending carry → Fund       |
-| Paused   | `totalSupply > 0` via `deposit`       | Active       | all boundaries shifted by `pausedDuration`       |
-| Active   | `now ≥ periodFinish`, queue empty     | Inactive     | `_clearFinishedStream`; index preserved          |
-| Active   | `now ≥ periodFinish`, queue nonempty  | Active       | successor started at old `periodFinish`          |
-| Paused   | Strategy dead, no signaler can return | **Terminal** | **rewards permanently unclaimable** (BR-1)       |
+| From     | Transition                             | To       | Effects                                                           |
+| -------- | -------------------------------------- | -------- | ----------------------------------------------------------------- |
+| Inactive | valid `notify(amount)`                 | Active   | floor rate; start seven days at `now`                             |
+| Active   | `notify(amount ≥ DURATION and ≥ left)` | Active   | checkpoint; combine ordinary leftover; restart seven days         |
+| Active   | notification below either gate         | Active   | **reverts** without changing schedule or pulling tokens           |
+| Active   | `totalSupply → 0`                      | Active   | schedule time continues; later checkpoint leaves interval surplus |
+| Active   | `now ≥ periodFinish`                   | Inactive | index preserved; unscheduled balance remains surplus              |
 
-### 29.6 Fund liability (BribeRouter and Bribe)
+There is no queued or paused state. A dead Strategy with no remaining signal supply is economically terminal for
+future allocation, but the Bribe does not encode a separate terminal state.
 
-| From        | Transition                   | To          | Notes                                      |
-| ----------- | ---------------------------- | ----------- | ------------------------------------------ |
-| Zero        | auction fill / carry accrual | Outstanding | Liability recorded; destination immutable  |
-| Outstanding | `payFundPayment` succeeds    | Zero        | Exact transfer verified                    |
-| Outstanding | `payFundPayment` reverts     | Outstanding | Atomically restored; permanently retryable |
+### 29.6 BribeRouter buffer
+
+| From            | Transition                        | To               | Notes                                                                        |
+| --------------- | --------------------------------- | ---------------- | ---------------------------------------------------------------------------- |
+| Empty           | Strategy share or direct donation | Below/qualifying | Token balance itself is the only state                                       |
+| Empty           | `distribute()`                    | Empty            | Returns zero                                                                 |
+| Below threshold | `distribute()`                    | Below threshold  | Returns zero; needs more balance, or lower `left` when that gate alone binds |
+| Qualifying      | `distribute()` succeeds           | Empty            | Complete balance enters Bribe stream                                         |
+| Qualifying      | Bribe notification reverts        | Qualifying       | Entire call reverts; complete buffer remains                                 |
 
 ### 29.7 `Resonance` ownership
 
@@ -2104,8 +2024,9 @@ modulo donations._ (§13.2)
 **I-4 — Mandatory signal-backing.** `∀a: sGBX.balanceOf(a) = Σ_s Bribe(s).balanceOf(a)`, and
 `sGBX.totalSupply() = Σ_s Bribe(s).totalSupply()`, across live and killed Strategies. _Exact._ (§13.3)
 
-**I-5 — BribeRouter exactness.** `accountedPaymentBalance = fundPaymentLiability + bribePaymentLiability`, and
-`splitRemainder < BPS`. _Exact._ (§22.5)
+**I-5 — Per-purchase Strategy split.** For every successful supported-token purchase at price `p` and captured rate
+`r`, `p = (p − ⌊p·r/BPS⌋) + ⌊p·r/BPS⌋`, with the first term transferred directly to Fund and the second transferred
+to BribeRouter. _Exact arithmetic; movement relies on the standard-token assumption._ (§22.5)
 
 **I-6 — Signal ledger consistency.**
 
@@ -2123,7 +2044,7 @@ while contributing zero to the active total. Verified by `invariant_AccountWeigh
 **I-7 — Resonance solvency (inequality only).**
 
 ```text
-USDG.balanceOf(Resonance) = left(USDG) + Σ_s earned(s, USDG) + surplus,   surplus ≥ 0
+USDG.balanceOf(Resonance) = left() + Σ_s earned(s) + surplus,   surplus ≥ 0
 ```
 
 where `surplus` comprises global-index floors, per-Strategy floors, zero-active-weight emission, and direct
@@ -2134,22 +2055,15 @@ donations.
 > `invariant_ResonanceScheduledAndEarnedRevenueIsSolvent`, and
 > `testFuzz_AccruedAndScheduledRevenueNeverExceedsTheHeldBalance`.
 
-**I-8 — Bribe conservation (exact).** For each registered token `t`, every accounted unit is represented in exactly
-one place:
+**I-8 — Bribe solvency (inequality only).** Under supported standard-token behavior, for each registered token `t`:
 
 ```text
-accountedRewardBalance[t] = scheduledRewards[t]
-                          + queuedRewards[t]
-                          + accruedRewardLiability[t]
-                          + fundRewardLiability[t]
-                          + ⌊(pendingRewardScaled[t] + indexedRewardScaled[t]
-                              + Σ_a userRewardRemainder[a][t] + fundRewardRemainder[t]) / 10^36⌋
+IERC20(t).balanceOf(Bribe) ≥ left(t) + Σ_a earned(a,t)
 ```
 
-and `IERC20(t).balanceOf(Bribe) ≥ accountedRewardBalance[t]`, the difference being direct donations exposed by
-`rewardSurplus(t)`. _Exact._ Verified by `invariant_BribeAccountingIdentitiesAreExact`,
-`invariant_BribesAreSolventAgainstAccruedRewards`, `invariant_ScheduledRewardsNeverExceedHeldBalance`, and
-`testFuzz_BribeIsAlwaysSolventAgainstAccruedRewards`.
+The nonnegative difference includes schedule-rate, global-index, account, and zero-supply floors plus direct
+donations. No exact conservation identity or `rewardSurplus` accounting view exists after ADR 0047. Verified by the
+current scalar claim and custody fuzz properties.
 
 **I-9 — Fund redemption conservation.** For each selected token `i`:
 
@@ -2171,11 +2085,11 @@ _Exact, with the inequality strict whenever the floor discards a residue._ Verif
 **I-10 — Effective supply.** `Mine.effectiveTotalSupply() = GBX.totalSupply() + Mine.pendingEmission()` before any
 checkpoint. _Exact._ Verified by `invariant_EffectiveSupplyIncludesEveryPendingEmission`.
 
-**I-11 — USDG conservation across the routing path.** Every raw unit leaving `Mine` as deposited revenue arrives at
-`ResonanceRouter`, and every unit forwarded from the Router arrives at Resonance, with exact-delta checks on both
-independent legs and `RevenueRetained` reverting any forwarding shortfall. Verified by `invariant_USDGIsConserved`,
-`testFuzz_RoutingConservesEveryUnit`, `testFuzz_RoutingIsExactlyConservative`, and
-`invariant_RevenueRouterRetentionIsFullyVisible`.
+**I-11 — USDG routing under the supported-token model.** Mine still verifies the protocol share deposited into
+`ResonanceRouter`. On a qualifying `route()`, the Router approves its complete observed balance and Resonance pulls the
+requested amount with `SafeERC20`. For standard non-rebasing USDG, the complete requested amount arrives; ADR 0047
+removes duplicate balance-delta checks at the Router/Resonance boundary. Verified by
+`testFuzz_RoutingConservesTheCompleteBalance`.
 
 ### 30.1 Identities deliberately _not_ asserted
 
@@ -2183,6 +2097,7 @@ independent legs and `RevenueRetained` reverting any forwarding shortfall. Verif
 | ----------------------------------------------------------- | --------------------------------------------------------------------------------------- |
 | Resonance USDG is exactly conserved                         | Three floor/discard sources; see I-7 and §17.5                                          |
 | Resonance dust is bounded over the protocol lifetime        | Depends on unbounded checkpoint frequency and lifetime                                  |
+| Bribe rewards are exactly conserved                         | Schedule, index, account, and zero-supply floors are accepted surplus (§23.4)           |
 | Every Bribe reward is eventually claimable                  | False after BR-1 abandonment (§20.4)                                                    |
 | Fund backing per GBX is non-decreasing under all operations | Only proven for redemption; unsolicited transfers and burns move it in either direction |
 | Aggregate GBX issuance ≤ current global rate                | False while pre-halving tenure rates remain locked (M-01, §12.6)                        |
@@ -2199,12 +2114,12 @@ independent legs and `RevenueRetained` reverting any forwarding shortfall. Verif
 | S-5  | Only SignalGBX may mutate signal state on Resonance                              | `test_OnlySignalGBXCanMutateAnotherAccountsSignal`                                                                                                                                                                          |
 | S-6  | Only Resonance may mutate Bribe virtual balances or append reward tokens         | `test_VirtualBalanceMutationIsResonanceOnly`                                                                                                                                                                                |
 | S-7  | Only the bound Resonance may deploy through either factory                       | `test_FactoriesAreResonanceOnly`                                                                                                                                                                                            |
-| S-8  | Only the immutable Strategy may call `BribeRouter.routePayment`                  | `test_RoutePaymentIsStrategyOnly`                                                                                                                                                                                           |
+| S-8  | Strategy snapshots the global Bribe rate before payment-token interaction        | `test_PaymentTokenCallbackCannotRetroactivelyChangeTheCurrentPaymentsSnapshot`                                                                                                                                              |
 | S-9  | Only the bound Router may call `Resonance.notifyRevenue`                         | `test_NotifyRevenueIsRouterOnlyAndRejectsZero`                                                                                                                                                                              |
 | S-10 | A same-transaction signal cannot capture newly notified revenue or Bribe rewards | `test_FlashSignalWeightCannotRedirectANewNotification`, `test_FlashSignalWeightCannotStealAccruedBribeRewards`                                                                                                              |
-| S-11 | Bribe carry cannot cross a signal-supply boundary to a later entrant             | `test_NewSignalerCannotReceivePreEntryRewardCarry`                                                                                                                                                                          |
-| S-12 | An exiting account's remainder cannot be reallocated to remaining signalers      | `test_FullExitCannotReallocateUserRewardRemainder`                                                                                                                                                                          |
-| S-13 | Every value transfer verifies exact sender debit and receiver credit             | the full fee-on-transfer rejection family (§36)                                                                                                                                                                             |
+| S-11 | A Bribe top-up below duration or active `left` cannot mutate the live stream     | `test_NotifyRejectsUnregisteredAndBelowDurationAmounts`, `test_ActiveTopUpBelowTheAmountLeftRevertsWithoutChangingTheStream`                                                                                                |
+| S-12 | Bribe emission elapsed at zero supply cannot be captured by a later signaler     | `test_ElapsedRewardsAtZeroSupplyRemainUnclaimableSurplus`                                                                                                                                                                   |
+| S-13 | Each supported-token purchase sends its floored Fund complement inline           | `test_ADustPaymentFloorsTheBribeShareAndGoesDirectlyToFund`, `testFuzz_OnePurchaseUsesTheCurrentRateAndFloorsItsShare`                                                                                                      |
 | S-14 | Redemption rejects GBX, zero, and duplicates in any position                     | `test_RedeemRejectsDuplicatesInAnyPosition`                                                                                                                                                                                 |
 | S-15 | A redemption basket cannot double-consume one shared backing ledger              | `test_RedeemRejectsDifferentAddressesThatDebitOneSharedLedger`                                                                                                                                                              |
 | S-16 | Redemption is atomic: any failure reverts the burn and all transfers             | `test_ASelectedFailingTransferRollsBackTheEntireRedemption`                                                                                                                                                                 |
@@ -2216,56 +2131,60 @@ independent legs and `RevenueRetained` reverting any forwarding shortfall. Verif
 | S-22 | Cumulative reward notifications per token cannot exhaust the reward index        | `test_LifetimeRewardCapAcceptsTheExactLimitAndRejectsTheFirstExcessUnit`, `test_LifetimeRewardCapStillBlocksAfterTheMaximumWasClaimed`                                                                                      |
 | S-23 | Fund has no administrative surface                                               | `test_FundHasNoAdministrativeSurfaceLeft`                                                                                                                                                                                   |
 | S-24 | Redemption and GBX burning are the only ways assets leave Fund                   | `test_RedemptionIsTheOnlyWayAssetsCanEverLeaveFund`                                                                                                                                                                         |
-| S-25 | Reward-token registry is capped at 8 and append-only                             | `test_RewardTokenCountIsPermanentlyCappedAtEight`                                                                                                                                                                           |
+| S-25 | Reward-token registry is capped at 16 and append-only                            | `test_RewardTokenCountIsPermanentlyCappedAtSixteen`                                                                                                                                                                         |
+| S-26 | Signal moves compose remove then add atomically with no Resonance move selector  | `test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal`, `test_MoveSignalDestinationFailureRollsBackSourceRemoval`, `test_RemovedResonanceMoveHookIsAbsentFromRuntime`                     |
 
 ## 32. Liveness properties
 
-| ID   | Property                                                                     | Depends on                                                           |
-| ---- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------- |
-| L-1  | An account can always withdraw signal it holds                               | GBX transferability only                                             |
-| L-2  | An account can always remove signal, including from a dead Strategy          | **Nothing** — pure accounting (§23.7)                                |
-| L-3  | Redemption cannot be paused, gated, or blocked by any party                  | The redeemer's own token selection                                   |
-| L-4  | A redeemer can route around a broken asset by omitting it                    | Caller-selected basket                                               |
-| L-5  | A signaler can claim one reward token while another is frozen                | Selective claim                                                      |
-| L-6  | A Fund liability blocked by a hostile token remains observable and retryable | Token eventually functioning                                         |
-| L-7  | Auction fills are never blocked by a frozen Fund                             | Deferred settlement (§22.2)                                          |
-| L-8  | A paid Mine handoff completes without calling downstream Resonance           | Exact deposit into ResonanceRouter (§12.4)                           |
-| L-9  | Signal exit stays available after a Bribe reaches its lifetime reward cap    | `test_KilledStrategyExitRemainsLiveAfterRewardLifetimeCapIsConsumed` |
-| L-10 | Every mandatory loop is bounded                                              | `MAX_REWARD_TOKENS = 8`; Fund does not loop Mine slots               |
+| ID   | Property                                                                   | Depends on                                                            |
+| ---- | -------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| L-1  | An account can always withdraw signal it holds                             | GBX transferability only                                              |
+| L-2  | An account can remove signal, including from a dead Strategy               | Reward checkpoints perform no token transfer (§23.8)                  |
+| L-3  | Redemption cannot be paused, gated, or blocked by any party                | The redeemer's own token selection                                    |
+| L-4  | A redeemer can route around a broken asset by omitting it                  | Caller-selected basket                                                |
+| L-5  | A signaler can claim one reward token while another is frozen              | Scalar `claimReward(account, token)`                                  |
+| L-6  | A failed automatic Bribe notification preserves its complete buffer        | Atomic `BribeRouter.distribute()`; successful retry may be impossible |
+| L-7  | Bribe notification failure cannot revert an already completed Strategy buy | Notification is deferred behind the minimal buffer (§22.4)            |
+| L-8  | A paid Mine handoff completes without calling downstream Resonance         | Exact deposit into ResonanceRouter (§12.4)                            |
+| L-9  | Signal exit stays available after a Bribe reaches its lifetime reward cap  | `test_KilledStrategyExitRemainsLiveAfterRewardLifetimeCapIsConsumed`  |
+| L-10 | Every mandatory loop is bounded                                            | `MAX_REWARD_TOKENS = 16`; Fund does not loop Mine slots               |
 
 ### 32.1 Liveness properties that do **not** hold
 
-| Non-property                                            | Reason                                                        |
-| ------------------------------------------------------- | ------------------------------------------------------------- |
-| Rewards in a dead Strategy's Bribe are always claimable | BR-1 terminal state (§20.4)                                   |
-| Resonance surplus is always recoverable                 | No recovery path exists (§17.5)                               |
-| Router revenue eventually enters the stream             | `route()` needs a transaction and has no guaranteed caller    |
-| Uniswap fees are always harvested                       | No caller bounty; harvesting is voluntary                     |
-| Mining accrual is always current                        | Lazy; requires a voluntary checkpoint                         |
-| Administration is always available                      | Depends entirely on the unselected external owner (§15, G-03) |
-| An administration call can be observed before it lands  | The core provides no delay, queue, or pending state (§29.7)   |
+| Non-property                                            | Reason                                                                     |
+| ------------------------------------------------------- | -------------------------------------------------------------------------- |
+| Rewards in a dead Strategy's Bribe are always claimable | Zero-supply reward time and later notifications can become surplus (§20.4) |
+| Resonance surplus is always recoverable                 | No recovery path exists (§17.5)                                            |
+| Bribe surplus is always recoverable                     | No carry, Fund classification, or recovery path exists (§23.4)             |
+| A Strategy buy survives Fund transfer failure           | Fund receipt is inline and the complete purchase reverts (§22.1)           |
+| Router revenue eventually enters the stream             | `route()` needs a transaction and has no guaranteed caller                 |
+| Uniswap fees are always harvested                       | No caller bounty; harvesting is voluntary                                  |
+| Mining accrual is always current                        | Lazy; requires a voluntary checkpoint                                      |
+| Administration is always available                      | Depends entirely on the unselected external owner (§15, G-03)              |
+| An administration call can be observed before it lands  | The core provides no delay, queue, or pending state (§29.7)                |
 
 ## 33. Precision and rounding analysis
 
 ### 33.1 Rounding inventory
 
-| #   | Site                          | Formula                               | Direction                | Residue destination                   | Bounded?      |
-| --- | ----------------------------- | ------------------------------------- | ------------------------ | ------------------------------------- | ------------- |
-| 1   | Mine price decay              | `⌊P·e/D⌋` subtracted                  | Favors protocol          | none (price is quoted)                | ≤1 unit       |
-| 2   | Mine payment split            | `⌊p·0.8⌋`                             | Favors protocol          | routed as revenue                     | ≤1 unit       |
-| 3   | Mine next price               | `⌊p·m/10^18⌋`                         | Favors payer             | none                                  | ≤1 unit       |
-| 4   | New tenure rate               | `⌊globalTps/16⌋`                      | Reduces issuance         | **unissued forever**                  | <16/s         |
-| 5   | Halving rate                  | `u_0 >> k`                            | Reduces issuance         | unissued                              | ≤1/s          |
-| 6   | Resonance schedule rate       | `⌊S/604800⌋` + front-loaded remainder | **exact**                | none — fully emitted                  | **0**         |
-| 7   | Resonance global index        | `⌊E·10^36/W⌋`                         | Reduces payout           | **Resonance surplus**                 | **No**        |
-| 8   | Resonance per-Strategy        | `⌊w·Δ/10^36⌋`                         | Reduces payout           | **Resonance surplus**                 | **No**        |
-| 9   | Bribe schedule rate           | `⌊A/604800⌋` + front-loaded remainder | **exact**                | none                                  | **0**         |
-| 10  | Bribe global index            | `⌊pendingScaled/supply⌋`              | Deferred                 | **retained in `pendingRewardScaled`** | **0**         |
-| 11  | Bribe account settlement      | `⌊accrued/10^36⌋`                     | Deferred                 | **retained in `userRewardRemainder`** | **0**         |
-| 12  | Bribe boundary classification | `⌊scaled/10^36⌋`                      | Deferred                 | **`fundRewardRemainder` → Fund**      | **0**         |
-| 13  | Fund redemption payout        | `⌊bal·g/S⌋`                           | Favors remaining holders | stays in Fund                         | ≤1 unit/token |
+| #   | Site                     | Formula              | Direction                | Residue destination         | Bound per operation |
+| --- | ------------------------ | -------------------- | ------------------------ | --------------------------- | ------------------- |
+| 1   | Mine price decay         | `⌊P·e/D⌋` subtracted | Favors protocol          | none (price is quoted)      | ≤1 unit             |
+| 2   | Mine payment split       | `⌊p·0.8⌋`            | Favors protocol          | routed as revenue           | ≤1 unit             |
+| 3   | Mine next price          | `⌊p·m/10^18⌋`        | Favors payer             | none                        | ≤1 unit             |
+| 4   | New tenure rate          | `⌊globalTps/16⌋`     | Reduces issuance         | **unissued forever**        | <16/s               |
+| 5   | Halving rate             | `u_0 >> k`           | Reduces issuance         | unissued                    | ≤1/s                |
+| 6   | Resonance schedule rate  | `⌊S/604800⌋`         | Reduces scheduled amount | **Resonance surplus**       | <604,800 raw        |
+| 7   | Resonance global index   | `⌊E·10^36/W⌋`        | Reduces payout           | **Resonance surplus**       | denominator-based   |
+| 8   | Resonance per-Strategy   | `⌊w·Δ/10^36⌋`        | Reduces payout           | **Resonance surplus**       | <1 raw/checkpoint   |
+| 9   | Strategy Bribe split     | `⌊p·r/BPS⌋`          | Favors Fund              | included in Fund complement | <1 raw/purchase     |
+| 10  | Bribe schedule rate      | `⌊S/604800⌋`         | Reduces scheduled amount | **Bribe surplus**           | <604,800 raw        |
+| 11  | Bribe global index       | `⌊E·10^36/W⌋`        | Reduces payout           | **Bribe surplus**           | denominator-based   |
+| 12  | Bribe account settlement | `⌊w·Δ/10^36⌋`        | Reduces payout           | **Bribe surplus**           | <1 raw/checkpoint   |
+| 13  | Fund redemption payout   | `⌊bal·g/S⌋`          | Favors remaining holders | stays in Fund               | ≤1 unit/token       |
 
-**Rows 6, 9–13 are exact or fully carried.** Rows 7 and 8 are the protocol's only unbounded value leakage.
+Rows 6–8 and 10–12 accumulate unallocated reward surplus with no lifetime bound. Row 9 is intentionally
+partition-dependent: splitting one economic amount across purchases can direct additional sub-token units to Fund.
 
 ### 33.2 Why 1e36 and not 1e18
 
@@ -2279,8 +2198,8 @@ approximately `1/(E · P / W)` where `P` is the precision constant. Taking a rep
 | `10^36`       | `⌊10^20⌋ = 10^20` | ~10⁻²⁰                           |
 
 At `1e18`, per-checkpoint truncation can be economically material. At `1e36` it is negligible per checkpoint. Resonance
-and Bribe both use `1e36`: Bribe reward-token decimals are unconstrained, and exact carry alone cannot make a
-low-resolution global index immediately claimable before a signal-supply boundary.
+and Bribe both use `1e36`: Bribe reward-token decimals are unconstrained, and a higher-resolution index materially
+reduces — but does not eliminate — accepted floor surplus.
 
 ### 33.3 The decimal-asymmetry hazard
 
@@ -2289,28 +2208,24 @@ low-resolution global index immediately claimable before a signal-supply boundar
 > simulation fixtures assume 6 decimals. Binding a USDG with different decimals would leave the contracts functional
 > but invalidate the calibration and all economic modelling. This is discrepancy D-2 (§43).
 
-A related asymmetry applies to Bribe reward tokens, whose decimals are unconstrained. The `1e36` Bribe index ensures one
-raw reward unit advances the global index at any realistic signal supply. A raw unit may still be indivisible among
-multiple accounts; those sub-raw fractions remain account-specific and become Fund precision only when an account
-fully exits, so they cannot be captured by a later signaler.
+A related asymmetry applies to Bribe reward tokens, whose decimals are unconstrained. The `1e36` Bribe index lets low-
+decimal rewards remain useful across eighteen-decimal signal balances. A raw unit may still be indivisible among
+accounts; the implementation does not retain account-specific fractions, and the resulting balance is surplus.
 
 ### 33.4 Overflow analysis
 
-| Expression                    | Widest intermediate | Safe because                                           |
-| ----------------------------- | ------------------- | ------------------------------------------------------ |
-| `mulDiv(E, 10^36, W)`         | 512-bit product     | `Math.mulDiv` full-width intermediate                  |
-| `mulDiv(w, Δ, 10^36)`         | 512-bit product     | same                                                   |
-| `mulDiv(bal, g, S)`           | 512-bit product     | same                                                   |
-| `(to − from) · rewardRate`    | `uint256`           | `rewardRate = ⌊S/604800⌋`; `S` bounded by held balance |
-| `emitted · 10^36` (Bribe)     | `uint256`           | guarded by the lifetime notification cap               |
-| `elapsed · slot.tps`          | `uint256`           | `tps ≤ 10^24`; overflow needs ~10^52 s                 |
-| `balanceOf(a) · (rpt − paid)` | `uint256`           | bounded by conserved accounted balance                 |
+| Expression                  | Widest intermediate | Safe because                                           |
+| --------------------------- | ------------------- | ------------------------------------------------------ |
+| `mulDiv(E, 10^36, W)`       | 512-bit product     | `Math.mulDiv` full-width intermediate                  |
+| `mulDiv(w, Δ, 10^36)`       | 512-bit product     | same                                                   |
+| `mulDiv(bal, g, S)`         | 512-bit product     | same                                                   |
+| `(to − from) · rewardRate`  | `uint256`           | `rewardRate = ⌊S/604800⌋`; `S` bounded by held balance |
+| `mulDiv(emitted, 10^36, W)` | 512-bit product     | `Math.mulDiv`; lifetime cap bounds cumulative index    |
+| `elapsed · slot.tps`        | `uint256`           | `tps ≤ 10^24`; overflow needs ~10^52 s                 |
+| `mulDiv(balance, Δ, 10^36)` | 512-bit product     | `Math.mulDiv`; stored index bounded by lifetime cap    |
 
-`Bribe._requireScalableBalance` rejects any `accountedRewardBalance` exceeding `type(uint256).max / 10^36` with
-`RewardScaleOverflow`. Since ADR 0035 this is defense in depth rather than the primary bound: the monotonic lifetime
-cap of §23.6 is checked first and is the guard with direct test coverage
-(`test_LifetimeRewardCapAcceptsTheExactLimitAndRejectsTheFirstExcessUnit`). No current test drives
-`RewardScaleOverflow` in isolation.
+The monotonic lifetime cap of §23.6 is checked before notification state or token movement and bounds cumulative
+index growth (`test_LifetimeRewardCapAcceptsTheExactLimitAndRejectsTheFirstExcessUnit`).
 
 Solidity 0.8.26 provides checked arithmetic throughout; there are no `unchecked` blocks in the value-bearing paths.
 
@@ -2337,8 +2252,9 @@ can depress subsequent starting prices; the `minimumPrice` floor bounds this, an
 
 ### 34.3 Stream restart timing
 
-`notifyRevenue` requires `reward ≥ left`, so an actor wishing to force a restart must supply at least the remaining
-schedule. The influence that remains is genuine and accepted:
+The sole Router requires its complete balance to be at least both `DURATION` raw units and `left`, so an actor wishing
+to force a Resonance restart must supply the missing amount up to that threshold. Bribe enforces the same two gates
+directly. The influence that remains is genuine and accepted:
 
 - An actor who _wants_ faster emission can top up to restart at a higher rate.
 - An actor who _wants_ slower emission can top up with `reward ≈ left` late in a period, re-spreading the remainder
@@ -2367,8 +2283,9 @@ A redeemer's payout depends on `gbx.totalSupply()` at execution. Adversarial int
 ### 34.6 Checkpoint griefing
 
 Because accrual is lazy and every mandatory loop is bounded, there is no unbounded-work griefing vector. The costs a
-griefer can impose are the fixed 8-token Bribe loop on a signaler entering or exiting. Fund redemption reads Mine's
-effective supply in constant time and performs no mining-slot loop.
+griefer can impose are the fixed 16-token Bribe loop on a signaler entering or exiting. At that maximum, measured gas
+is 491,494 for signal addition, 1,129,059 for withdrawal, and 1,890,938 for a composed move across two Bribes with 16
+active streams each. Fund redemption reads Mine's effective supply in constant time and performs no mining-slot loop.
 
 ## 35. Economic analysis
 
@@ -2443,54 +2360,50 @@ a target.
 
 ### 36.1 Support definition
 
-A token is supported only if:
+A Strategy payment token or Bribe reward token is supported only if:
 
-1. a requested transfer debits the sender by **exactly** the requested amount;
-2. it credits the receiver by **exactly** the requested amount;
-3. `balanceOf`, `approve`, `transfer`, `transferFrom` follow conventional semantics;
-4. balances do not change asynchronously (no rebasing);
+1. each successful transfer moves the requested amount under conventional ERC-20 semantics;
+2. `balanceOf`, `approve`, `transfer`, and `transferFrom` behave conventionally;
+3. balances do not change asynchronously (no rebasing);
+4. the token does not later enable a fee, blocklist, pause, or incompatible upgrade; and
 5. callbacks cannot bypass reentrancy guards or authorization.
 
 ### 36.2 Enforcement
 
-Every value-moving path snapshots both balances and reverts on inexact movement:
+ADR 0047 deliberately removes duplicate pre/post balance snapshots from the upstream-shaped flow:
 
-| Contract            | Error                                            |
-| ------------------- | ------------------------------------------------ |
-| `Mine`              | `InexactTransfer`                                |
-| `SignalGBX`         | `InexactUnderlyingTransfer`                      |
-| `Resonance`         | `InexactRevenueTransfer`, `InexactRevenuePayout` |
-| `Strategy`          | `InexactPayment`, `InexactPayout`                |
-| `BribeRouter`       | `InexactTransfer`                                |
-| `Bribe`             | `InexactRewardTransfer`, `InexactRewardPayout`   |
-| `Fund`              | `InexactTransfer`                                |
-| `LiquidityPosition` | `InexactTransfer`                                |
+| Boundary                                                        | Mechanism                                                             |
+| --------------------------------------------------------------- | --------------------------------------------------------------------- |
+| ResonanceRouter → Resonance and Resonance → Strategy            | `SafeERC20` under the standard, non-rebasing USDG assumption          |
+| Buyer → Strategy → Fund/BribeRouter                             | `SafeERC20`; per-purchase arithmetic uses the requested price         |
+| Bribe funder/Router → Bribe and Bribe → account                 | `SafeERC20`; schedule and claim state use the requested amount        |
+| Mine, SignalGBX, Fund, and LiquidityPosition custody boundaries | Their existing exact-delta checks remain; ADR 0047 did not alter them |
 
-**This is fail-closed evidence, not support.** It guarantees the protocol does not silently absorb loss from a
-fee-on-transfer or rebasing token; it does not make such a token usable, and it does not make an adversarial,
-upgradeable, pausable, or blocklisting token safe.
+The simplified rows do **not** detect every inexact movement. Unsupported mechanics may revert, underfund a schedule,
+consume a pre-existing donated balance, or short-change a receiver. This is an explicit trust assumption and review
+obligation, not compatibility.
 
 ### 36.3 Explicit exclusions and accommodations
 
-| Category                          | Handling                                                                           |
-| --------------------------------- | ---------------------------------------------------------------------------------- |
-| Fee-on-transfer                   | Rejected by exact-delta checks in every path                                       |
-| Rebasing                          | Rejected in effect; asynchronous balance changes break the delta checks            |
-| ERC-777-style callbacks           | Reentrancy-guarded; reentrancy regressions exist for hostile payment/reward tokens |
-| Missing-return-value tokens       | **Supported** via `SafeERC20`                                                      |
-| Tokens reverting on zero approval | **Supported** — conditional zero-approval cleanup (finding E-04)                   |
-| `SignalGBX` as payment or reward  | **Forbidden** at registration (finding E-03)                                       |
-| Blocklisting tokens               | Can block their own payout only; liability persists and is retryable               |
+| Category                         | Handling                                                                                                |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| Fee-on-transfer                  | **Unsupported**; simplified paths may revert, underfund, or misaccount                                  |
+| Rebasing                         | **Unsupported**; asynchronous balances are outside every stated identity                                |
+| ERC-777-style callbacks          | Authorization and value-bearing entry points are reentrancy-guarded where they carry mutable accounting |
+| Missing-return-value tokens      | Accommodated through `SafeERC20` when the token otherwise has standard movement semantics               |
+| Approval-reset quirks            | `forceApprove` is used at Router notification boundaries                                                |
+| `SignalGBX` as payment or reward | **Forbidden** at registration (finding E-03)                                                            |
+| Blocklisting or pausable tokens  | **Unsupported**; may block a purchase, notification, claim, or selected redemption                      |
 
 ### 36.4 Failure isolation summary
 
-| Failure                       | Blast radius                                                          |
-| ----------------------------- | --------------------------------------------------------------------- |
-| Broken Strategy payment token | That Strategy's Fund liability; not signal exit, not other Strategies |
-| Broken Bribe reward token     | That token's claim only; other tokens claimable selectively           |
-| Broken Fund asset             | Only redemptions that _select_ it                                     |
-| Broken USDG                   | **Systemic** — all revenue, all auctions, all mining payments         |
-| Broken GBX                    | **Systemic** — impossible by construction; GBX is protocol-controlled |
+| Failure                       | Blast radius                                                                                |
+| ----------------------------- | ------------------------------------------------------------------------------------------- |
+| Broken Strategy payment token | That Strategy's purchases and automatic Bribe buffer; Fund transfer failure reverts the buy |
+| Broken Bribe reward token     | Scalar claims isolate other tokens; the convenience all-token claim may still revert        |
+| Broken Fund asset             | Only redemptions that _select_ it                                                           |
+| Broken USDG                   | **Systemic** — all revenue, all auctions, all mining payments                               |
+| Broken GBX                    | **Systemic** — protocol-controlled, but a core implementation defect is unrecoverable       |
 
 USDG is the single external token whose failure is systemic and unrecoverable.
 
@@ -2518,19 +2431,20 @@ dated _candidate_ files. No canonical USDG or Uniswap v4 address is resolved and
 ### 38.1 Smart-contract bugs
 
 **Exposure.** The full protocol; nothing is upgradeable.
-**Mitigation.** Small surface (3,532 lines of Solidity across 19 source files), immutability, exact-delta checks,
-reentrancy guards, extensive fuzz and stateful-invariant coverage (§40).
+**Mitigation.** Small upstream-shaped reward and settlement surface, immutability, `SafeERC20`, reentrancy guards,
+and focused ADR-0048 regressions and mutation coverage recorded in §40. The broader deterministic, fuzz, invariant,
+and workspace matrix currently recorded there predates ADR 0048 and must be rerun.
 **Residual.** **No independent audit has been performed.** A discovered bug cannot be patched, paused, or worked
 around. This is the single largest unmitigated risk in the system.
 
 ### 38.2 The `Resonance` owner (findings G-01, G-03, open)
 
 **The core's threat model for administration is exactly one address.** Whoever holds `Resonance.owner()` can add
-Strategies, kill any Strategy except the final live one, register Bribe reward tokens up to the eight-token cap,
+Strategies, kill any Strategy except the final live one, register Bribe reward tokens up to the sixteen-token cap,
 transfer ownership onward, or renounce it. They **cannot** drain Fund, mint GBX, alter mining economics, reprice
 incumbents, or move the liquidity position — those surfaces are ownerless or immutable (§9.3). They can move the
-signaler share within `[0, MAX_BRIBE_BPS]`, which is an economic lever rather than a custody one: it never reaches an
-already-classified liability and never lowers Fund's cumulative share below 80%. Killing a Strategy is irreversible, making it the highest-impact capture target; renouncing
+signaler share within `[0, MAX_BRIBE_BPS]`, which is an economic lever rather than a custody one: it never reaches a
+completed purchase and never lowers Fund's per-purchase share below 80%. Killing a Strategy is irreversible, making it the highest-impact capture target; renouncing
 ownership is equally irreversible and permanently freezes Strategy membership.
 
 Because ADR 0034 removed the in-repository Governor and Timelock, the core supplies **no** mitigation of its own: no
@@ -2585,15 +2499,16 @@ is manipulation-proof; both are bounded by requiring the manipulator to commit c
 
 ### 38.8 Rounding extraction
 
-**Analysis.** Rows 7 and 8 of §33.1 discard value rather than assigning it, so there is no party who _receives_ the
-rounding residue and therefore no direct extraction target. An attacker could in principle maximize _waste_ by forcing
-maximally-frequent checkpoints at maximally-adverse weights, but this destroys value rather than capturing it and
-costs the attacker gas. Bribe residues are carried exactly and classified to Fund, so they cannot be extracted by a
-later entrant (S-11, S-12).
+**Analysis.** Resonance and Bribe rate/index/account floors leave value in the reward contract rather than assigning
+it, so there is no direct recipient to extract. An actor can increase waste through frequent checkpoints at adverse
+weights, but does not receive that residue. Strategy's per-purchase split floor is different: it assigns the fractional
+Bribe remainder to Fund through the complement, so payment partitioning can reduce automatic Bribe rewards by sub-token
+units. ADR 0047 accepts that observable result rather than retaining cross-purchase state.
 
-**Verified negative results:** `test_NewSignalerCannotReceivePreEntryRewardCarry`,
-`test_NewStrategySignalCannotReceivePreEntryRoundedSurplus`,
-`test_ZeroSignalElapsedRevenueBecomesSurplusAndCannotBeCapturedLater`.
+**Verified negative and boundary results:** `test_NewStrategySignalCannotReceivePreEntryRoundedSurplus`,
+`test_ZeroSignalElapsedRevenueBecomesSurplusAndCannotBeCapturedLater`,
+`test_ElapsedRewardsAtZeroSupplyRemainUnclaimableSurplus`, and
+`test_EachPurchaseFloorsItsOwnBribeShareWithoutCarry`.
 
 ### 38.9 Malicious and nonstandard tokens
 
@@ -2601,10 +2516,10 @@ Covered in §36. Blast radius is per-token except for USDG.
 
 ### 38.10 Fee-on-transfer and rebasing assets
 
-Rejected by exact-delta checks in every ingress and egress path. A token that _becomes_ fee-on-transfer after
-registration (an upgradeable token enabling a fee) causes its own payouts to revert; the liability persists and
-becomes claimable again if the fee is disabled
-(`test_FeeEnabledAfterNotificationRollsBackTheClaimAndCanRetry`).
+Unsupported. The ADR 0047 paths intentionally do not prove exact balance deltas, so a fee or rebase can do more than
+revert: it can underfund a stream, consume unrelated balance, or short-change a receiver while state advances. The
+affected market may become unusable, and there is no adapter or recovery authority. Governance must review token code
+and upgrade controls before registration; that review cannot prevent a later proxy upgrade.
 
 ### 38.11 Proxy upgrades in external tokens
 
@@ -2686,14 +2601,19 @@ Finding **G-01**. sGBX checkpoints survive withdrawal, so any external system re
 its snapshot and voting window deliberately. Not exploitable in the core, which reads no checkpoints.
 **Open integration gate.**
 
-### 39.5 Unbounded Resonance surplus
+### 39.5 Unbounded reward-contract surplus
 
-Findings **A-02**/**A-09**. Rounding floors, zero-weight intervals, and donations accumulate permanently with no
-recovery path and no lifetime bound. **Accepted by ADR 0029.**
+Schedule-rate, global-index, and account floors, zero-weight intervals, and direct donations accumulate in Resonance
+or Bribe with no recovery path and no lifetime bound. **Accepted by ADR 0047.**
+
+Separately, exhaustion of a Bribe token's monotonic lifetime cap permanently prevents its paired Router from
+distributing any later automatic share; the complete Router balance remains stranded because the cap never reopens.
 
 ### 39.6 Unbounded reward abandonment in dead Strategies
 
-Finding **BR-1**. A final signaler's exit can strand a complete unvested stream. **Accepted by ADR 0028.**
+A final signaler's exit does not pause the stream. Remaining and later notified rewards can elapse at zero supply and
+become permanently unallocated. ADR 0028's queue-specific BR-1 model is superseded; the residual risk is **accepted by
+ADR 0047**.
 
 ### 39.7 Miner rollover and zero-price replacement
 
@@ -2734,19 +2654,47 @@ but can mislead observers about the treasury's composition and quality.
 A single external stablecoin is the substrate for all revenue, all auctions, and all mining payments. Its failure is
 systemic and unrecoverable.
 
-### 39.15 Legal and provenance
+### 39.15 Unsupported or mutable token behavior
+
+Governance can register a token that charges fees, rebases, blocklists, pauses, or later upgrades into those semantics.
+ADR 0047's simplified paths do not verify exact deltas, so the impact may be underfunding or misaccounting rather than
+a clean revert. There is no removal, adapter, or recovery path. **Accepted design constraint; deployment review gate.**
+
+### 39.16 Legal and provenance
 
 §38.17. **Open release blocker.**
 
 ## 40. Testing and verification evidence
 
-> **The complete-matrix results in §40.1 were produced locally on 22 August 2026 against the current uncommitted ADR
-> 0044 working tree, based on commit `e3ebdd7987653969b31dbf0e8d20b68a838dfa5d`.** Because no commit or tree object
-> pins the complete diff, these results are not commit-reproducible or release evidence. Static analysis, mutation
-> testing, and external fuzzing were **not** re-run after ADR 0044 and remain historical.
-> **None of this constitutes formal proof or an independent audit.**
+> **Current ADR-0048 evidence is focused, not a complete repository matrix.** The migration suites pass 104/104 and
+> the targeted mutation campaign kills 47/47 mutants. The complete deterministic and workspace results immediately
+> preceding ADR 0048 are retained below as historical ADR-0047 evidence and must be rerun. The repository-wide format
+> gate remains open because 11 unchanged baseline landing/lockfile files fail Prettier, although the documentation
+> files changed for ADR 0048 pass Prettier. **None of this constitutes formal proof, an independent audit, deployment
+> approval, or release readiness.**
 
-### 40.1 Current deterministic workspace matrix
+### 40.1 Current ADR 0048 evidence status
+
+The current source adds focused regressions for the sixteen-token Bribe bound and composed SignalGBX moves. The
+migration suites pass **104/104**. The named regressions cover permanent rejection of token seventeen, atomic
+remove-then-add movement, zero/same-Strategy/insufficient-source rejection, complete rollback when the destination
+addition fails, checkpoint ordering for both Strategies, maximum-bound move gas, and absence of the removed
+Resonance move selector. The focused mutation campaign kills **47/47** targeted mutants.
+
+Maximum-bound gas measurements are: signal addition 491,494; withdrawal 1,129,059; scalar claim 93,018; sixteen
+sequential scalar claims 1,488,760; all-token claim 1,471,439; Strategy purchase 139,502; composed move with sixteen
+active streams on both Bribes 1,890,938 against a 3,000,000 ceiling; token-sixteen registration 50,810; and rejected
+token-seventeen registration 5,349.
+
+The immediately preceding ADR-0047 tree passed Foundry **312/312 across 23 suites**, all **29 invariant entries** at
+1,000 runs of depth 500 with zero handler reverts, integration **21/21**, Hardhat **4/4**, SDK **47/47**, TypeScript
+simulations **36/36**, Python environment **5/5**, Python simulations **22/22**, Matchstick **9/9**, web unit **3/3**,
+Playwright **6/6**, mutation **46/46**, and the listed workspace gates. Those figures predate ADR 0048 and do not
+constitute a complete current-tree result. The repository-wide format gate remains open because 11 unchanged baseline
+landing/lockfile files fail Prettier. All results are unpinned local engineering evidence, not independent or release
+evidence.
+
+### 40.2 Historical ADR 0044 deterministic workspace matrix
 
 **Command:** `forge test --summary`
 
@@ -2773,7 +2721,7 @@ systemic and unrecoverable.
 | `HistoricalBribeDifferentialTest`          | 3      | `StrategyTest`                            | 40     |
 | `USDGFlowTest`                             | 5      |                                           |        |
 
-This is the current ADR 0044 working-tree result. `ProtocolGovernorTest` and its 11 tests were removed with the Governor
+This was the ADR 0044 working-tree result before ADR 0047. `ProtocolGovernorTest` and its 11 tests were removed with the Governor
 itself (ADR 0034). The suites cover the bounded automatic-Bribe rate, six-decimal reward precision, constant-time Mine
 accounting, deployment-time halving boundaries, the provisional one-GBX tail, and the ADR 0044 Mine/Router
 failure-isolation boundary.
@@ -2789,16 +2737,16 @@ failure-isolation boundary.
 
 `CampaignHarnessTest` 8, `LiquidityFeeHarvestTest` 11.
 
-**Companion current-tree evidence.** Hardhat passed 4/4, SDK 50/50, TypeScript simulations 39/39, Python
+**Historical companion evidence.** Hardhat passed 4/4, SDK 50/50, TypeScript simulations 39/39, Python
 environment-policy checks 5/5 and simulations 25/25, subgraph specification checks 4/4 plus Matchstick 10/10 and
 build, web unit tests 3/3, Playwright 6/6, and the documentation, ABI, formatting, lint, typecheck, and workspace-build
 gates. The Forge matrix includes both 10,000-run Mine fuzz cases, 27 stateful invariant entries at 1,000 runs of depth
 500 plus two deterministic reachability regressions (29/29 for the suite) with zero handler reverts, and exact gas,
 harness, fixture, and chart checks.
 
-### 40.2 Campaign configuration
+### 40.3 Historical campaign configuration
 
-From `packages/contracts/foundry.toml` in the current working tree:
+The ADR 0044 run used this `foundry.toml` configuration:
 
 | Profile       | Fuzz runs | Invariant runs | Invariant depth | `fail_on_revert` |
 | ------------- | --------- | -------------- | --------------- | ---------------- |
@@ -2812,10 +2760,10 @@ Compiler: Solidity 0.8.26, Cancun, optimizer enabled at 10,000 runs, no metadata
 
 > The `nightly` profile was **not** executed for this document and is not reported as passing.
 
-### 40.3 Evidence by method
+### 40.4 Historical evidence by method
 
-Unless explicitly identified as historical, the deterministic methods and counts below describe the current
-uncommitted ADR 0044 working tree.
+Every deterministic method and count in this subsection describes the superseded ADR 0044 working tree, not the
+later ADR 0047 or current ADR 0048 design.
 
 **Unit and negative testing.** 356 default-profile tests spanning constructor validation, authorization, degenerate
 arguments, revert paths, and behavioral regressions for every accepted finding.
@@ -2873,16 +2821,17 @@ establishes that a direct GBX donation creates no voting weight.
 
 **Static analysis, external fuzzing, and mutation testing — pinned to earlier trees.** These campaigns were last
 executed before the final ADR 0044 Mine/Router boundary; some also predate ADR 0034's Governor removal and ADR 0035's Bribe
-lifetime cap. They are reported in §40.4 rather than here and **must not be cited as current-tree evidence**.
-Re-running them against the current working tree is an open task.
+lifetime cap. They are reported in §40.5 and **must not be cited as current-tree evidence**. Current static-analysis
+and external-fuzzer reruns remain open; the distinct current focused mutation result is the 47/47 ADR-0048 campaign
+in §40.1.
 
-**Current companion workspace gates.** Hardhat bytecode parity; SDK tests (50/50) and ABI checks; subgraph specification
+**Historical companion workspace gates.** Hardhat bytecode parity; SDK tests (50/50) and ABI checks; subgraph specification
 tests (4/4), Matchstick tests (10/10), and build; TypeScript simulations (39/39), Python environment-policy checks
 (5/5), Python simulations (25/25), and fixture checks; web unit tests (3/3) and Playwright end-to-end tests (6/6);
 contract and SDK documentation generation; formatting; linting; type checking; and the workspace build all passed on
-the current ADR 0044 working tree.
+the then-current ADR 0044 working tree.
 
-### 40.4 Historical evidence — explicitly not current
+### 40.5 Earlier historical evidence — explicitly not current
 
 `packages/contracts/audit/AUDIT-BASELINE.md` and `packages/contracts/audit/TEST-CAMPAIGN.md` both carry
 "Historical evidence only" banners. They review commit **`54e3f2c3ce1de25aea4da2f21fab27804a3bfa84`** (2026-08-09),
@@ -2890,8 +2839,8 @@ which **predates** the ADR 0024 Mine redesign and the ADR 0029/0030/0031/0032 ch
 including **340 default Foundry tests** — describe a superseded contract graph and must not be read as current.
 
 For contrast, the immediately preceding ADR 0042 uncommitted tree also passed **356** default and **19** integration
-tests. Those counts are retained as dated local engineering history. The current ADR 0044 working tree independently
-produced the same totals; numerical equality does not make the two runs interchangeable (§40.1). See discrepancy D-4
+tests. Those counts are retained as dated local engineering history. The later ADR 0044 working tree independently
+produced the same totals; numerical equality does not make the two runs interchangeable. See discrepancy D-4
 for the history of this figure.
 
 **Static analysis, external fuzzing, and mutation results are also historical.** The pinned pre-ADR-0034/0035 campaign
@@ -2903,14 +2852,17 @@ mutants on 21 August 2026 against the ADR 0036/0037 tree. It predates ADR 0044 a
 Mythril 0.24.8 was incompatible with constructor-resolved immutable/Cancun runtimes and was never a proof. None of
 these campaigns covers the complete working tree described by this edition.
 
-### 40.5 Verification methods absent
+### 40.6 Current verification status and absent methods
 
 | Method                                         | Status in the current development tree                                                                  |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | Independent external audit                     | **Not performed**                                                                                       |
-| Static analysis after ADR 0044                 | **Not re-run** (§40.4)                                                                                  |
-| External fuzzing after ADR 0044                | **Not re-run** (§40.4)                                                                                  |
-| Mutation testing after ADR 0044                | **Not re-run** (§40.4)                                                                                  |
+| Focused migration tests after ADR 0048         | **104/104 passed** (§40.1)                                                                              |
+| Complete deterministic/workspace matrix        | **Not rerun after ADR 0048**; ADR-0047 counts in §40.1 are historical                                   |
+| Static analysis after ADR 0048                 | **Not re-run** (§40.5)                                                                                  |
+| External fuzzing after ADR 0048                | **Not re-run** (§40.5)                                                                                  |
+| Focused mutation testing after ADR 0048        | **47/47 mutants killed** (§40.1)                                                                        |
+| Repository-wide format gate                    | **Open:** 11 unchanged baseline landing/lockfile files fail Prettier                                    |
 | Symbolic execution                             | Not performed (Mythril incompatible with this runtime)                                                  |
 | Formal verification                            | Not performed                                                                                           |
 | Second external-fuzzer seed                    | Not performed                                                                                           |
@@ -2937,9 +2889,9 @@ authorization," and no script in the repository is authorized to broadcast it.
 
 ### 41.2 Review
 
-Internal engineering review only. Dispositions are recorded in `packages/contracts/audit/FINDINGS.md`
-(2026-08-16, with governance and Bribe-cap dispositions reconciled 2026-08-19 for ADRs 0034 and 0035), with
-campaign-specific findings in `packages/contracts/audit/SIGNAL-RESONANCE-FINDINGS.md`.
+Internal engineering review only. Current dispositions are recorded in `packages/contracts/audit/FINDINGS.md`
+(reconciled 2026-08-23 through ADR 0048); `packages/contracts/audit/SIGNAL-RESONANCE-FINDINGS.md` is a pre-ADR-0047
+historical campaign ledger.
 
 ### 41.3 Open release gates
 
@@ -2953,10 +2905,11 @@ campaign-specific findings in `packages/contracts/audit/SIGNAL-RESONANCE-FINDING
 
 ### 41.4 Accepted findings (not gates)
 
-**A-02**, **A-09** (Resonance half) — accepted by ADR 0029. **BR-1** — accepted by ADR 0028. **M-01**, **M-02** —
-accepted by ADR 0024. **G-02** — accepted by ADR 0030. **A-08** — liveness resolved; bounded cost retained.
-**SR-001** (idle sGBX and duplicate signal ledgers) and **SR-002** (superseded 100%-Fund classification) — both High,
-both fixed locally by ADR 0031 and ADR 0032 respectively and covered by named regressions.
+**A-02** (reward-floor surplus) remains accepted under ADR 0047. ADR 0027's **A-09** carry-classification treatment and
+ADR 0028's queue-created **BR-1** terminal state are superseded; §20.4 records the remaining zero-supply abandonment
+risk. **M-01**, **M-02** remain accepted by ADR 0024. **G-02** was superseded by governance removal. **A-08** retains
+its bounded sixteen-token loop under ADR 0048. **SR-001** was fixed by ADR 0031. **SR-002**'s 100%-Fund rule was fixed by ADR 0032, but
+its later frequency-independent split machinery is intentionally removed by ADR 0047 (§22.3).
 
 ### 41.5 Legal and provenance
 
@@ -2983,22 +2936,22 @@ _permissionless_ (of the named user-facing operations), and _non-transferable_ (
 | Contract            | Path (under `packages/contracts/src`) | Lines | Inherits                                            | Key constants                                                                                                                                          |
 | ------------------- | ------------------------------------- | ----- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `GBX`               | `core/GBX.sol`                        | 95    | `ERC20`, `ERC20Permit`                              | `GENESIS_LIQUIDITY_ALLOCATION = 20_000_000 ether`                                                                                                      |
-| `Mine`              | `core/Mine.sol`                       | —     | `ReentrancyGuard`                                   | `PRICE_MULTIPLIER 2`, `MINIMUM_INITIAL_PRICE 1e6`, `INITIAL_TPS 64 ether`, `HALVING_PERIOD 69 days` (provisional), `TAIL_TPS 1 ether`, `SLOT_COUNT 16` |
+| `Mine`              | `core/Mine.sol`                       | 304   | `ReentrancyGuard`                                   | `PRICE_MULTIPLIER 2`, `MINIMUM_INITIAL_PRICE 1e6`, `INITIAL_TPS 64 ether`, `HALVING_PERIOD 69 days` (provisional), `TAIL_TPS 1 ether`, `SLOT_COUNT 16` |
 | `SignalGBX`         | `core/SignalGBX.sol`                  | 195   | `ERC20`, `ERC20Votes`, `ReentrancyGuard`, `Ownable` | —                                                                                                                                                      |
-| `Resonance`         | `core/Resonance.sol`                  | 481   | `ReentrancyGuard`, `Ownable`                        | `DURATION 7 days`, `REWARD_PRECISION 1e36`, `MAX_BRIBE_BPS 2_000`                                                                                      |
-| `ResonanceRouter`   | `core/ResonanceRouter.sol`            | 83    | `IResonanceRouter`, `ReentrancyGuard`               | —                                                                                                                                                      |
-| `Strategy`          | `core/Strategy.sol`                   | 238   | `ReentrancyGuard`                                   | `MIN_EPOCH_DURATION 1 hours`, `MAX_EPOCH_DURATION 365 days`, `PRICE_SCALE 1e18`, `ABSOLUTE_MINIMUM_PRICE 1e6`                                          |
-| `StrategyFactory`   | `core/StrategyFactory.sol`            | 82    | `Ownable`                                           | —                                                                                                                                                      |
-| `Bribe`             | `core/Bribe.sol`                      | 747   | `ReentrancyGuard`                                   | `REWARD_DURATION 7 days`, `REWARD_PRECISION 1e36`, `MAX_REWARD_TOKENS 8`, `MAX_LIFETIME_REWARD_AMOUNT ⌊(2²⁵⁶−1)/1e36⌋`                                 |
+| `Resonance`         | `core/Resonance.sol`                  | 409   | `ReentrancyGuard`, `Ownable`                        | `DURATION 7 days`, `REWARD_PRECISION 1e36`, `MAX_BRIBE_BPS 2_000`                                                                                      |
+| `ResonanceRouter`   | `core/ResonanceRouter.sol`            | 79    | `IResonanceRouter`, `ReentrancyGuard`               | —                                                                                                                                                      |
+| `Strategy`          | `core/Strategy.sol`                   | 216   | `ReentrancyGuard`                                   | `BPS 10_000`, `MIN_EPOCH_DURATION 1 hours`, `MAX_EPOCH_DURATION 365 days`, `PRICE_SCALE 1e18`, `ABSOLUTE_MINIMUM_PRICE 1e6`                            |
+| `StrategyFactory`   | `core/StrategyFactory.sol`            | 83    | `Ownable`                                           | —                                                                                                                                                      |
+| `Bribe`             | `core/Bribe.sol`                      | 269   | `ReentrancyGuard`                                   | `REWARD_DURATION 7 days`, `REWARD_PRECISION 1e36`, `MAX_REWARD_TOKENS 16`, `MAX_LIFETIME_REWARD_AMOUNT ⌊(2²⁵⁶−1)/1e36⌋`                                |
 | `BribeFactory`      | `core/BribeFactory.sol`               | 65    | `Ownable`                                           | —                                                                                                                                                      |
-| `BribeRouter`       | `core/BribeRouter.sol`                | 214   | `ReentrancyGuard`                                   | `BPS 10_000`; snapshots the bounded global `Resonance.bribeBps`                                                                                        |
+| `BribeRouter`       | `core/BribeRouter.sol`                | 56    | —                                                   | Immutable payment token and paired Bribe; thresholded complete-balance `distribute()`                                                                  |
 | `Fund`              | `core/Fund.sol`                       | 193   | `ReentrancyGuard`                                   | `REDEMPTION_NAMESPACE`                                                                                                                                 |
 | `LiquidityPosition` | `core/LiquidityPosition.sol`          | 342   | `IERC721Receiver`, `ReentrancyGuard`                | —                                                                                                                                                      |
 
-**Interfaces:** `ICoreResonance` (58), `IResonanceIdentity` (25), `IBribe` (21), `IFund` (16), `IMine` (15),
+**Interfaces:** `ICoreResonance` (61), `IResonanceIdentity` (25), `IBribe` (22), `IFund` (16), `IMine` (15),
 `IResonanceRouter` (12). `ISignalGBXAllocation` was **deleted** by ADR 0031.
 
-**Total protocol Solidity: 3,257 lines across 18 files** — 12 core contracts and 6 interfaces. There is no
+**Total protocol Solidity: 2,457 lines across 18 files** — 12 core contracts and 6 interfaces. There is no
 `governance/` source tree: ADR 0034 deleted `ProtocolGovernor.sol` (246 lines) along with its tests, ABIs, SDK
 lifecycle helpers, and subgraph data sources.
 
@@ -3006,24 +2959,23 @@ lifecycle helpers, and subgraph data sources.
 
 `Mine.mine`, `Mine.claim`; `ResonanceRouter.route`; `Resonance.distribute`;
 `SignalGBX.signal`/`signalWithPermit`/`moveSignal`/`withdrawSignal`; `Strategy.buy`;
-`Bribe.notifyRewardAmount`/`claimReward`/`claimRewards`/`payFundReward`;
-`BribeRouter.payFundPayment`/`notifyBribeReward`; `Fund.burnGBX`/`redeem`; `LiquidityPosition.harvestFees`;
+`Bribe.notifyRewardAmount`/`claimReward`/`claimRewards`; `BribeRouter.distribute`;
+`Fund.burnGBX`/`redeem`; `LiquidityPosition.harvestFees`;
 `GBX.burn`. `SignalGBX.delegate`/`delegateBySig` are permissionless but read by nothing in the core (§15.3).
 
 ### 42.2 Restricted entry points
 
-| Function                                                              | Caller                   |
-| --------------------------------------------------------------------- | ------------------------ |
-| `GBX.mint`                                                            | `Mine` (locked)          |
-| `GBX.setMinter`                                                       | current `minter`, once   |
-| `Resonance.addSignalFor`/`removeSignalFor`/`moveSignalFor`            | `SignalGBX`              |
-| `Resonance.notifyRevenue`                                             | `ResonanceRouter`        |
-| `Resonance.addStrategy`/`killStrategy`/`addBribeReward`/`setBribeBps` | owner (**unselected**)   |
-| `Resonance.setResonanceRouter`                                        | owner, once              |
-| `Bribe.deposit`/`withdraw`/`addRewardToken`                           | `Resonance`              |
-| `BribeRouter.routePayment`                                            | its immutable `Strategy` |
-| `StrategyFactory.createStrategy`, `BribeFactory.createBribe`          | bound `Resonance`        |
-| `SignalGBX.setResonance`, factories' `setResonance`                   | owner, once              |
+| Function                                                              | Caller                 |
+| --------------------------------------------------------------------- | ---------------------- |
+| `GBX.mint`                                                            | `Mine` (locked)        |
+| `GBX.setMinter`                                                       | current `minter`, once |
+| `Resonance.addSignalFor`/`removeSignalFor`                            | `SignalGBX`            |
+| `Resonance.notifyRevenue`                                             | `ResonanceRouter`      |
+| `Resonance.addStrategy`/`killStrategy`/`addBribeReward`/`setBribeBps` | owner (**unselected**) |
+| `Resonance.setResonanceRouter`                                        | owner, once            |
+| `Bribe.deposit`/`withdraw`/`addRewardToken`                           | `Resonance`            |
+| `StrategyFactory.createStrategy`, `BribeFactory.createBribe`          | bound `Resonance`      |
+| `SignalGBX.setResonance`, factories' `setResonance`                   | owner, once            |
 
 ## 43. References and provenance
 
@@ -3041,30 +2993,35 @@ lifecycle helpers, and subgraph data sources.
 
 ADR 0017 (ownerless Fund and LiquidityPosition, no successor) ·
 ADR 0022 (fixed-principal LP fee routing) · ADR 0024 (immutable multislot Mine; its GBX-ERC20Votes statement
-superseded by ADR 0030 and synchronous downstream route by ADR 0044) · ADR 0027 (Bribe carry boundaries) · ADR 0028 (closed Bribe pools after Strategy death) ·
+superseded by ADR 0030 and synchronous downstream route by ADR 0044) ·
 ADR 0029 (Bribe-based Resonance; signal entrypoints superseded by 0030 then 0031, kill-final-Strategy by 0031,
 100%-Fund by 0032, intended Timelock owner by 0034, Mine call-site behavior by 0044) · ADR 0030 (non-transferable ERC20Votes sGBX; its
 `ProtocolGovernor`, Timelock, selector-filter, and cancellation decisions superseded by ADR 0034, and its idle-sGBX
-and `allocatedBalance` decisions by ADR 0031) · **ADR 0031 (mandatory signal-backed SignalGBX)** ·
-**ADR 0032 (fixed 90/10 acquired-asset settlement)** · **ADR 0033 (fixed sixteen Mine slots and constant-time
+and `allocatedBalance` decisions by ADR 0031, and its dedicated Resonance move hook by ADR 0048) · **ADR 0031
+(mandatory signal-backed SignalGBX)** ·
+**ADR 0032 (acquired-asset Fund/Bribe split; deferred settlement superseded by ADR 0047)** · **ADR 0033 (fixed sixteen Mine slots and constant-time
 pending emission)** · **ADR 0034 (external governance ownership)** · **ADR 0035 (Bribe lifetime reward cap)** ·
-**ADR 0036 (governed global Bribe share)** · **ADR 0037 (high-precision Bribe index)** · **ADR 0038 (fixed Mine
+**ADR 0036 (governed global Bribe share; exact split carry superseded by ADR 0047)** · **ADR 0037 (high-precision Bribe index)** · **ADR 0038 (fixed Mine
 economics)** · **ADR 0039 (event-only Mine messages)** · **ADR 0040 (deployment-time Mine authority
 verification)** · **ADR 0041 (time-based Mine halvings)** · **ADR 0042 (provisional accelerated Mine emissions)** ·
 **ADR 0043 (provisional one-GBX tail)** · **ADR 0044 (Mine deposits without synchronous revenue routing)** ·
-**ADR 0045 (post-deployment Mine/Router token verification)**.
+**ADR 0045 (post-deployment Mine/Router token verification)** · **ADR 0046 (USDG-only scalar Resonance; exact
+schedule mechanics superseded by ADR 0047)** · **ADR 0047 (Synthetix-shaped reward streams and direct Strategy
+settlement; preserved eight-token cap superseded by ADR 0048)** · **ADR 0048 (fixed sixteen-token Bribe bound and
+composed SignalGBX moves)**.
 
 ### 43.3 Superseded ADRs excluded from this document
 
 **Fully superseded:** ADR 0018 (auto-compounding LP → ADR 0022) · **ADR 0021 (uniform 100%-Fund Strategy settlement →
 ADR 0032)** · ADR 0023 (fixed supply and Fundraiser reserve → ADR 0024) · ADR 0025 (global revenue stream →
-ADR 0026) · ADR 0026 (exact successor stream → ADR 0029).
+ADR 0026) · ADR 0026 (exact successor stream → ADR 0029, then ADR 0047) · ADR 0027 (Bribe carry boundaries → ADR 0047) · ADR 0028's queue-and-pause terminal design (→ ADR 0047).
 
 **Partially superseded, historical context only:** ADR 0013 (acquisition splits, buyback, proposer model) ·
 ADR 0014 (mint authority, distribution, fee routing) · ADR 0015 (whole-account actions, public coordination surface) ·
-ADR 0016 (terminology; "management fee" means the bounded acquisition auction) · ADR 0019 (Resonance batch APIs, direct signal
-entrypoints, idle allocation and standalone exit) · ADR 0020 (Resonance carry, donation synchronization, Strategy
-routing — the last superseded by ADR 0021 and then ADR 0032).
+ADR 0016 (terminology; "management fee" means the bounded acquisition auction; exact reward-token cap → ADR 0048) ·
+ADR 0019 (Resonance batch APIs, direct signal entrypoints, idle allocation, standalone exit, and exact eight-token
+cap) · ADR 0020 (reward carry, donation synchronization, and Strategy routing — superseded across ADRs 0021, 0027,
+0032, and finally 0047).
 
 ### 43.4 Upstream lineage
 
@@ -3093,9 +3050,13 @@ Regenerating Hardhat artifacts would clear it; generated artifacts were out of s
 **D-4 — Test-count drift.** `TEST-CAMPAIGN.md` reports 340 at commit `54e3f2c3` (2026-08-09);
 `FINDINGS.md` reported 322 at `281e601` while the actual figure there was 339; the pre-ADR-0034 campaign recorded 335
 default and 17 integration; and the later `dc67d7c` tree recorded 329 default and 18 integration. The immediately
-preceding ADR 0042 tree recorded 356 default and 19 integration; the current ADR 0044 working tree independently passed
-the same 356 default and 19 integration totals. _Resolution:_ only figures verified against the exact described tree
-are reported as current; historical figures carry their own state and date. See §40.1 and §40.4.
+preceding ADR 0042 tree recorded 356 default and 19 integration; the later ADR 0044 working tree independently passed
+the same totals. _Resolution:_ all of those counts are historical. The later ADR-0047 tree separately passed 312/312
+Foundry tests across 23 suites, all 29 invariant entries at 1,000 runs of depth 500 with zero handler reverts, and
+21/21 integration tests; those figures also predate ADR 0048. Current focused ADR-0048 evidence is 104/104 migration
+tests and 47/47 killed targeted mutants; the complete post-change matrix remains pending. These are unpinned
+development results, and the repository-wide format gate remains open because 11 unchanged baseline landing/lockfile
+files fail Prettier.
 
 **D-5 — Ownership closure is procedural.** `docs/ACCESS_CONTROL.md`, `docs/INVARIANTS.md`, and
 `docs/TRUST_ASSUMPTIONS.md` state ownership and administrator conditions as invariants. **No Solidity enforces
@@ -3121,6 +3082,13 @@ owner-gated surface that actually exists and state explicitly which guarantees n
 enforcement. Findings **G-02** and the local-parameter form of **G-03** are superseded by removal, not proven safe.
 Any copy of these documents describing a Governor or Timelock as current is stale.
 
+**D-9 — Reward and Strategy complexity was removed after the previous edition.** The ADR 0046 edition described
+front-loaded exact raw-unit schedules, Bribe queues and zero-supply pauses, precision carry classified to Fund,
+caller-selected batch claims, exact balance-delta enforcement, and BribeRouter custody of complete Strategy payments
+through dual liabilities. ADR 0047 intentionally superseded those mechanisms in favor of scalar Synthetix state,
+ordinary leftover rollover, accepted floor surplus, per-purchase direct Fund settlement, and a Bribe-only buffer.
+_Resolution:_ §§16–23 and §§29–40 are re-derived from ADR 0047; older copies remain historical only.
+
 **D-6 — "Index protocol" framing.** `README.md` calls the protocol an "onchain index protocol," while
 `AGENTS.md:72` uses the narrower and more precise formulation: "Official protocol/index membership is represented by
 Strategies registered in Resonance, not by a Fund asset list." _Resolution:_ this document adopts the `AGENTS.md`
@@ -3138,5 +3106,5 @@ protocol supplies no index methodology: no weights, rebalancing, drift correctio
 
 ---
 
-_Uncommitted development tree based on `e3ebdd7987653969b31dbf0e8d20b68a838dfa5d`; no reviewed candidate commit is
+_Uncommitted development tree based on `d80b92da5e60c0daa54dbae29653898dde514053`; no reviewed candidate commit is
 pinned. Not deployed. Not independently audited. Not approved for user funds._

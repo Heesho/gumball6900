@@ -7,6 +7,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Bribe } from "./Bribe.sol";
 import { BribeRouter } from "./BribeRouter.sol";
 import { Strategy } from "./Strategy.sol";
+import { IBribe } from "./interfaces/IBribe.sol";
 import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 
 /// @title GumBall6900 Resonance-Bound Strategy Factory
@@ -59,7 +60,7 @@ contract StrategyFactory is Ownable {
     /// @notice Deploys a Strategy and the BribeRouter paired with it.
     /// @param revenueToken USDG token sold by the Strategy.
     /// @param paymentToken Asset buyers pay to fill the Strategy.
-    /// @param fund Treasury that ultimately receives the complete payment.
+    /// @param fund Treasury that receives the non-Bribe share of each payment.
     /// @param bribe Independently fundable Bribe paired with the Strategy.
     /// @param config Immutable auction configuration.
     /// @return strategy Newly deployed Strategy.
@@ -75,7 +76,7 @@ contract StrategyFactory is Ownable {
         if (msg.sender != configuredResonance) revert NotResonance(msg.sender);
 
         strategy = new Strategy(configuredResonance, revenueToken, paymentToken, fund, config);
-        bribeRouter = new BribeRouter(configuredResonance, address(strategy), bribe, paymentToken, fund);
+        bribeRouter = new BribeRouter(IBribe(address(bribe)), paymentToken);
 
         emit StrategyCreated(address(strategy), address(bribeRouter), address(paymentToken));
     }

@@ -1,10 +1,12 @@
 # ADR 0037: High-precision Bribe reward index
 
-- Status: implemented in the development tree; independent review and deployment approval remain pending
+- Status: partially superseded by ADRs 0047 and 0048; `1e36`, the lifetime cap, scalar claims, and a fixed token bound
+  remain, while explicit carry, exact raw scheduling, and the exact eight-token value are historical; independent
+  review and deployment approval remain pending
 - Date: 2026-08-21
 - Supersedes: ADR 0035's `1e18` Bribe precision and corresponding numeric lifetime-notification cap
-- Preserves: ADR 0027's old-denominator carry policy, ADR 0028's closed-pool behavior, ADR 0035's monotonic lifetime
-  bound, exact raw stream remainders, selective claims, and the fixed eight-token limit
+- Preserves: ADR 0035's monotonic lifetime bound and scalar claims; ADR 0048 later replaces the historical fixed
+  eight-token limit with sixteen
 
 ## Context
 
