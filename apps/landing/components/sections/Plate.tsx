@@ -4,7 +4,7 @@ import { useLayoutEffect } from 'react';
 import { fontFamily, registerSim } from '../../lib/harness';
 import { ease } from '../../lib/ease';
 import { ASSETS as ASSET_HUES, GBX, USDG, fillNeutral, readInk } from '../../lib/legend';
-import { PROCESS_REST, hairline, vessel } from '../../lib/isa';
+import { PROCESS_REST, hairline } from '../../lib/isa';
 import {
   centrePath,
   convergeFlow,
@@ -21,10 +21,10 @@ import {
   NAMES,
   SIM_ARRIVAL_TIME,
   SLOTS,
+  SLOT_HOURLY,
   createMineState,
   gbx as fmtGbx,
   globalTps,
-  money,
   pad2,
   priceOf,
   stepMine,
@@ -33,6 +33,7 @@ import {
   type MineState,
 } from '../../lib/models/mine';
 import {
+  NODES,
   STREAM,
   WEEKLY,
   createResonanceState,
@@ -40,7 +41,7 @@ import {
   totalStake,
   type ResonanceState,
 } from '../../lib/models/resonance';
-import { BRIBE, aucStep, createAucState, fair, seedHistory, type AucState } from '../../lib/models/auction';
+import { BRIBE, aucStep, createAucState, seedHistory, type AucState } from '../../lib/models/auction';
 import { SUPPLY0, createRedState, redStep, takenAt, type RedState } from '../../lib/models/redeem';
 import './plate.css';
 
@@ -137,6 +138,29 @@ const TS_MINE = 15;
 const TS_RZ = 900;
 const TS_AUC = 450;
 
+/* The width of the emission board's opening window, in PROTOCOL seconds — so
+   it is stated in the units the axis is drawn in and survives a change to the
+   clock above. Ten protocol minutes is about forty real seconds at TS_MINE,
+   and the board schedules a take every five to ten real seconds, so the head
+   reaches the right-hand edge having drawn roughly half a dozen risers: a
+   flight of stairs, not a picket fence and not two lonely steps. */
+const EMIS_SPAN = 600;
+
+/**
+ * Protocol seconds, as a span a reader can hold — the x extent of the emission
+ * board. Coarse on purpose: the axis is stating a SCALE, not a timestamp, and
+ * `1h 20m` is a scale where `01:20:14` is a clock nobody asked for.
+ */
+function elapsed(sec: number): string {
+  const s = Math.max(0, Math.round(sec));
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d > 0) return h > 0 ? `${d}d ${h}h` : `${d}d`;
+  if (h > 0) return m > 0 ? `${h}h ${m}m` : `${h}h`;
+  return `${Math.max(1, m)}m`;
+}
+
 /* route() has no schedule in the contract at all — no role, no bounty, no
    liveness. The plate draws a wait, and the wait is deliberately long and
    irregular so a reader watches the Router HOLD across several mine takes
@@ -157,7 +181,7 @@ const ROUTE_OPEN = 1.15; // how long the outlet stands open, real seconds
    easing token, on accumulated sim time.
 
    THE NUMBERS DO NOT RIDE THIS. The payment lands, the card's GBX steps to
-   zero, LAST MINER changes and GBX SUPPLY steps, all at the instant of the
+   zero, LAST MINER changes and GBX MINTED steps, all at the instant of the
    take. Only the light and the bands decay. */
 const TAKE_FADE = 3.5; // sim seconds — the whole visual life of a take
 /* the head travels card → destination over the first stretch at full
@@ -170,6 +194,18 @@ const TAKE_ARRIVE = 0.42;
    this the band started dissolving the instant it landed, so the arrival —
    the whole point of the event — was the one moment you could not see. */
 const TAKE_HOLD = 0.72;
+
+/**
+ * THE ENVELOPE, AS ONE FUNCTION. Full strength while the event arrives and
+ * holds, then eased out over what is left — and every light on this plate that
+ * marks a discrete event rides it, so two marks for two halves of the same
+ * event cannot run on two different clocks. `age` is in the same real seconds
+ * `step()` is handed; it returns 1 at 0 and exactly 0 at TAKE_FADE.
+ */
+function takeAlpha(age: number): number {
+  const t = Math.min(1, Math.max(0, age) / TAKE_FADE);
+  return t < TAKE_HOLD ? 1 : 1 - ease((t - TAKE_HOLD) / (1 - TAKE_HOLD));
+}
 
 interface Band {
   y0: number;
@@ -230,6 +266,9 @@ interface Layout {
   routerVw: number;
   /** where the Router's outlet leaves the vessel and runs on down */
   routerOutY: number;
+  buyerW: number;
+  buyerH: number;
+  buyerY: number;
   trunkY0: number;
   trunkY1: number;
   laneLandY: number;
@@ -329,24 +368,111 @@ export function Plate() {
        a lie. Seeded from the model's own history through `narrate`, which is
        how the frozen mine reports a settled tenure. */
     const lastPayout = { who: '', gbx: 0 };
-    /* GBX SUPPLY, ANCHORED TO THE EVENTS THAT MOVE IT. It steps UP by exactly
-       what a take minted, at the instant that take's stream lands, and DOWN by
-       exactly what a burn took, at the instant the burn fires. It never eases
-       and it never drifts: if it moved, a drawn event moved it. */
-    /* Seeded at SUPPLY0, not at zero. Circulating supply is a STOCK that
-       already exists when the reader arrives — starting it at zero made the
-       first burn drive the readout to -10,000,000 GBX. */
-    const supply = { gbx: SUPPLY0, burning: false };
-    /* the staircase the readout draws: one entry per drawn event, windowed to
-       the most recent SUPPLY_WIN of them */
-    const SUPPLY_WIN = 26;
-    /* seeded with the opening level so the staircase is a flat run from the
-       first frame and never an empty box waiting for two events */
-    const supplyHist: number[] = [SUPPLY0];
-    function stepSupply(by: number): void {
-      supply.gbx += by;
-      supplyHist.push(supply.gbx);
-      if (supplyHist.length > SUPPLY_WIN) supplyHist.shift();
+    /* ══ GBX MINTED — the emission curve, from zero ═══════════════════════
+       THE MINE IS THE ONLY MINT AUTHORITY GBX HAS. docs/ECONOMICS.md: twenty
+       million are created at genesis for liquidity and mint authority is then
+       assigned permanently to Mine. And Mine mints at exactly one moment — a
+       replacement settles the outgoing slot and mints it its accrual. So this
+       series starts at ZERO, is flat between takes, and steps UP by exactly
+       what a take minted, at the instant that take fires on the board below.
+       It never eases and it never drifts: if it moved, a take moved it.
+
+       WHY THIS IS NOT CIRCULATING SUPPLY. That is a different quantity and it
+       has its own drawing, the bar at station 06: genesis plus everything ever
+       minted minus everything ever burned, ~100,000,000 while the reader is
+       here. A take mints about 0.006% of it, so against a zero-based axis it
+       is a dead flat line — which is exactly what this board used to be, and
+       it also meant the two readouts were drawing the same number twice. Two
+       quantities, two places, and no readout that has to be both.
+
+       WHY IT CAN NEVER BE BURNED DOWN. Cumulative issuance is monotone: a burn
+       destroys GBX that was minted, it does not un-mint it. Station 06 draws
+       the burn against the stock it actually reduces. This staircase only ever
+       climbs, which is also why zero can stay pinned to the floor. */
+    const emis = {
+      /** the mine clock this board opened on; x is measured from here */
+      t0: 0,
+      /** GBX, cumulative — the model's own tally at t0, plus every riser the
+          plate has DRAWN since */
+      total: 0,
+      /**
+       * The y window, and the eased values the axis is actually drawn against.
+       *
+       * WHY THE AXIS IS WINDOWED AND NOT ZERO-BASED. Cumulative issuance never
+       * comes down, so a floor pinned at zero has exactly one shape available
+       * to it: the curve leaves the corner, climbs, and then — because the
+       * ceiling has to keep growing to hold it — flattens against the top and
+       * spends the rest of the reader's visit compressing. What the board is
+       * for is the SHAPE of issuance: flat between takes, a riser at each one.
+       * A window keeps that shape at full size for ever.
+       *
+       * WHY IT IS EASED. The base is the level the window OPENS at, and that
+       * level steps whenever the left-hand edge crosses a riser — a real,
+       * discrete change in what the box contains, but one that would jerk the
+       * whole curve downward if it were applied on the frame it happened. The
+       * ease turns the step into a glide, and it is the only easing on this
+       * board: no drawn quantity rides it, only the frame around them.
+       */
+      lo: 0,
+      hi: SLOT_HOURLY,
+      loShown: 0,
+      hiShown: SLOT_HOURLY,
+    };
+    /* THE STAIRCASE IS A TIME SERIES, NOT A LIST OF EVENTS. Indexed by event
+       it drew every take the same distance apart, which says the board fires
+       on a metronome; it does not. Sampled on the mine's own clock, a quiet
+       stretch is a long flat run and a flurry is a tight flight of steps, and
+       the line streams right at the rate the protocol actually issues. */
+    const EMIS_CAP = 512;
+    /* the origin is a real sample: the board opens at (0, 0) and the first
+       frame draws the flat run leaving it, never an empty box */
+    const emisHist: { x: number; v: number }[] = [{ x: 0, v: 0 }];
+    function stepMinted(by: number): void {
+      emis.total += by;
+      emisHist.push({ x: mn.t - emis.t0, v: emis.total });
+      /* BOUNDED, AND PRUNED FROM THE LEFT. Everything older than the window's
+         opening edge is off the plate — except the one sample that brackets
+         it, which is what sets the level the window opens at, so it is kept
+         and everything behind it is dropped. */
+      const edge = Math.max(0, mn.t - emis.t0 - EMIS_SPAN);
+      while (emisHist.length > 2 && (emisHist[1]?.x ?? Infinity) <= edge) emisHist.shift();
+      /* the backstop, for a window so quiet that nothing has aged out of it:
+         drop every other INTERIOR sample rather than growing without bound */
+      if (emisHist.length > EMIS_CAP) {
+        for (let i = emisHist.length - 2; i > 0; i -= 2) emisHist.splice(i, 1);
+      }
+    }
+
+    /**
+     * The window the emission board is drawn in, advanced one frame.
+     *
+     * It is EXACTLY EMIS_SPAN wide at every instant. Before the board has that
+     * much history the window still opens at zero and the head travels into
+     * empty axis; afterwards the window slides and the head stays pinned to
+     * the right-hand edge, which is what makes a chart that is always full of
+     * staircase rather than one that is mostly floor.
+     *
+     * `dt <= 0` snaps instead of easing — the seed and the reduced-motion
+     * still both need the frame they are about to draw, not the frame it was
+     * on its way to from a previous reader's visit.
+     */
+    function frameWindow(dt: number): void {
+      const now = Math.max(0, mn.t - emis.t0);
+      const tA = Math.max(EMIS_SPAN, now) - EMIS_SPAN;
+      let base = emisHist[0]?.v ?? 0;
+      for (const p of emisHist) {
+        if (p.x > tA) break;
+        base = p.v;
+      }
+      /* the floor is one take's worth of issuance at minimum, so a window in
+         which the board happened to be silent still draws a readable flat run
+         instead of dividing by nothing */
+      const rise = Math.max(SLOT_HOURLY * 0.25, emis.total - base);
+      emis.lo = base - rise * 0.08;
+      emis.hi = base + rise * 1.12;
+      const k = dt <= 0 ? 1 : Math.min(1, dt * 3.2);
+      emis.loShown += (emis.lo - emis.loShown) * k;
+      emis.hiShown += (emis.hi - emis.hiShown) * k;
     }
     let seeding = true;
     const packets: Packet[] = [];
@@ -383,6 +509,8 @@ export function Plate() {
       bookedIn: 0,
       outTotal: 0,
       lastRouted: 0,
+      /** a decaying memory of what a FULL load looks like — see routerCap */
+      load: 0,
       /** the published ceiling of the vessel's own scale, eased like the fund's */
       cap: 24,
       capShown: 24,
@@ -391,10 +519,65 @@ export function Plate() {
       open: 0,
       sinceRoute: 0,
     };
+    /**
+     * THE CELL'S SCALE IS WHAT A FULL LOAD LOOKS LIKE.
+     *
+     * Nothing prints this ceiling any more, so it has to be one the drawing
+     * itself teaches. route() empties the Router completely every time it is
+     * called, so a full load is simply what it was holding when that happened
+     * — `router.load`, a decaying memory of the recent ones. Scaled to that,
+     * the cell fills from empty to nearly full across every cycle and every
+     * deposit is a step the eye can see.
+     *
+     * The fixed $24 ceiling it replaces was legible only while a figure was
+     * printed beside it: measured over a cycle, an ordinary load filled three
+     * pixels of a fifty-eight pixel cell, so a reader with no numbers left to
+     * read saw an empty box flash at them.
+     *
+     * SO THE CELL IS A RELATIVE READING and the plate does not pretend
+     * otherwise: how full the Router is against a normal load. The ABSOLUTE
+     * amount has its own mark one station down — the outlet band's width is
+     * `widthOf(gStock, lastRouted)`, a real quantity at the plate's published
+     * gauge. One mark for the rhythm, one for the size.
+     *
+     * `held` stays in the max so a cycle larger than usual cannot overflow its
+     * own cell — at a smaller multiplier than `load`, so it reads nearer the
+     * brim rather than rescaling away the fact that it was a big one.
+     */
+    function routerCap(): number {
+      return Math.max(0.75, router.load * 1.15, router.held * 1.05);
+    }
+
     /* Ambient takes deposit too, and they are not narrated — so the Router's
        level would otherwise rise with nothing visibly arriving. Every booking
-       lights this drip at the inlet: nothing appears without a mechanism. */
-    let drip = 0;
+       lights the cell: nothing appears without a mechanism.
+
+       THE LIGHT IS AN AGE, NOT A COUNTDOWN, so it runs on `takeAlpha` — the
+       one envelope every discrete event on this plate is drawn with. It was a
+       half-second linear blink, which put the station where money STOPS on a
+       clock seven times shorter than the payment that landed in it: the card
+       that paid was still lit and the tank it paid was already dark. Two marks
+       for two halves of one event now hold for the same length of time. */
+    let dripAge = TAKE_FADE;
+    /* ══ THE LEVEL MOVES WITH THE LIGHT ═══════════════════════════════════
+       THE DEFECT THIS FIXES. A deposit stepped the level in a single frame and
+       THEN lit the cell for three and a half seconds, so the light was a
+       decoration on something that had already finished happening — the tank
+       flashed at a level that had not moved since. The rise now runs the
+       arrival's own envelope, so the cell is lit exactly while it is filling,
+       and the fall runs route()'s, so it empties exactly while the outlet is
+       carrying it away.
+
+       NO UNIT IS INVENTED. Both ends of every move are the model's own
+       `router.held`; the only thing eased is how long the eye is given to
+       watch it get there. `held` itself still steps at the instant it is
+       booked, and every figure derived from it is still derived from it. */
+    const level = { shown: 0, from: 0, age: 0, dur: TAKE_FADE };
+    function moveLevel(dur: number): void {
+      level.from = level.shown;
+      level.age = 0;
+      level.dur = dur;
+    }
 
     /* THE MINT, at station 06. `mark` is the supply the last burn left behind;
        `since` is everything the model has issued since, banked one frame at a
@@ -412,6 +595,28 @@ export function Plate() {
     /** the live flush, per lane: the lot the auction just took */
     const flush = ASSET_HUES.map(() => ({ age: 2, lot: 0 }));
     const prevFlash = ASSET_HUES.map(() => 0);
+    /* ══ WHEN EACH AUCTION CLEARS ═════════════════════════════════════════
+       Every pot runs its own auction on its own clock: the frozen model holds
+       the instant it next clears in `epochEnd` and moves it on the frame it
+       fires. The plate keeps the other end — where the current epoch STARTED —
+       because an ask has to be drawn falling from somewhere, and that is the
+       one fact the model does not carry. It is read off the model's own
+       transitions, never invented: `epochEnd` changing IS the clearing. */
+    const aucFrom = ASSET_HUES.map(() => 0);
+    const aucEndWas = ASSET_HUES.map(() => 0);
+    /* Called from EVERY place the resonance model is advanced — the live step,
+       the seed's own warm-up and the reduced-motion still — so the four asks
+       open part-way through four different epochs instead of in lockstep at
+       the top of their cells, which is what four blades all reset on the same
+       frame looks like. */
+    function trackEpochs(): void {
+      rz.assets.forEach((a, i) => {
+        if (a.epochEnd !== aucEndWas[i]) {
+          aucEndWas[i] = a.epochEnd;
+          aucFrom[i] = rz.flow.t;
+        }
+      });
+    }
 
     /* --------------------------------------------------------------- sizing */
     const hasRO = typeof ResizeObserver !== 'undefined';
@@ -481,7 +686,11 @@ export function Plate() {
         { k: 'stream', w: 14, min: HEAD_H + (narrow ? 130 : 120) },
         { k: 'auc', w: 20, min: HEAD_H + (narrow ? 275 : 230) },
         { k: 'fund', w: 10, min: HEAD_H + (narrow ? 175 : 165) },
-        { k: 'you', w: 14, min: HEAD_H + (narrow ? 285 : 180) },
+        /* PARKED WITH ITS STATION. While station 06 is not painted its band
+           must not go on reserving height, or the plate ends in a quarter of a
+           screen of nothing. Restoring the station is restoring this weight
+           and the `paintYou(l)` call together. */
+        { k: 'you', w: 0, min: 0 },
       ];
       const room = Math.max(0, h - fixed);
       const wsum = flex.reduce((n, f) => n + f.w, 0);
@@ -539,6 +748,14 @@ export function Plate() {
       /* ---- the stream ---------------------------------------------------- */
       const trunkY0 = stream.y0 + HEAD_H + 22;
       const trunkY1 = trunkY0 + 46;
+      /* THE ROUTER SITS ON THE STREAM. It used to end well above the trunk with
+         an empty route between them, and once both were the same width that
+         gap was just a rectangle of black between two rectangles of blue —
+         the connection stated by an absence. The reservoir's floor IS the
+         trunk's ceiling now, so the two read as one column, and route() has
+         its own mark on the join instead of its own strip of nothing. */
+      const routerVy = router.y0 + HEAD_H + 16;
+      const routerVh = Math.max(58, trunkY0 - routerVy);
 
       /* ---- the auctions -------------------------------------------------- */
       const aucTop = auc.y0 + HEAD_H + 10;
@@ -553,11 +770,24 @@ export function Plate() {
          wide enough for the type it carries. Rows, not offsets. */
       const yBack = auc.y1 - (narrow ? 26 : 22);
       const yOut = yBack - (narrow ? 26 : 30);
+      /* ---- THE BUYER, one box for all four auctions ----------------------
+         A peer of the MINER box at the head of the plate, and for the same
+         reason: a party that is paid and pays back has to be a THING, not a
+         turn in a pipe. Four little squares said "the line bends here"; a box
+         says "somebody is on the other side of this trade". One of them, not
+         four, because there is one market — every auction sells into it, and
+         the plate has no model for who is buying. */
+      const buyerW = narrow ? Math.min(inner * 0.5, 150) : Math.min(inner * 0.22, 240);
+      const buyerH = narrow ? 40 : 46;
       const aucValY = yOut - (narrow ? 30 : 24); // the bucket readings
       const aucH = Math.max(48, aucValY - (narrow ? 22 : 18) - aucTop);
 
       /* ---- the fund and the claim ---------------------------------------- */
       const bayTop = fund.y0 + HEAD_H + 14;
+      /* centred in the run between the buckets' floor and the bays' mouths, so
+         both legs of every trade are the same length and neither reads as the
+         important one */
+      const buyerY = (aucTop + aucH + (bayTop - 6) - buyerH) / 2;
       const bayBot = fund.y1 - (narrow ? 42 : 44);
       /* stock and flow, in that order down the page: the mint arrives from
          above, the supply bar is the stock, the burn leaves below. Both flows
@@ -631,10 +861,18 @@ export function Plate() {
         minerH,
         headerY,
         landY,
-        routerVy: router.y0 + HEAD_H + 16,
-        routerVh: Math.max(58, router.y1 - (router.y0 + HEAD_H + 16) - (narrow ? 62 : 40)),
-        routerVw: narrow ? 80 : 104,
+        routerVy,
+        routerVh,
+        /* THE SAME WIDTH AS THE STREAM BELOW IT, and not by coincidence: the
+           trunk is `gFlow × rate` and the stream's rate is a constant of the
+           model, so the trunk is always exactly `inner × 0.32` wide. The
+           reservoir is set from the same expression, so the two can never
+           drift apart at a breakpoint nobody measured. */
+        routerVw: inner * 0.32,
         routerOutY: router.y1 - (narrow ? 44 : 26),
+        buyerW,
+        buyerH,
+        buyerY,
         trunkY0,
         trunkY1,
         laneLandY,
@@ -708,10 +946,26 @@ export function Plate() {
       routeP: 0,
       /** the slot closest to being taken, off the model's own take condition */
       imminent: -1,
-      /** the GBX supply staircase, and the window its axis is scaled to */
-      supplyStep: null as Path2D | null,
-      supplyLo: 0,
-      supplyHi: 0,
+      /** the emission staircase: the stroked line, and the same shape closed
+          down to the zero line so the stock reads as an accumulation rather
+          than as a signal trace */
+      emisLine: null as Path2D | null,
+      emisArea: null as Path2D | null,
+      /** the leading edge, so the head can be marked where it actually is */
+      emisHeadX: 0,
+      emisHeadY: 0,
+      /** the protocol seconds the x axis spans, and the level it opens at */
+      emisSpan: 0,
+      emisBase: 0,
+      /** where the band is proportioned: the framed run, and the seams in it */
+      comb: {
+        on: false,
+        x0: 0,
+        x1: 0,
+        y0: 0,
+        y1: 0,
+        cuts: [] as { x: number; glow: number }[],
+      },
       /** the fund's four slice widths, px, and their bays' drawn stock, px */
       slice: [0, 0, 0, 0],
       stock: [0, 0, 0, 0],
@@ -719,6 +973,19 @@ export function Plate() {
     };
     let pipeKey = '';
     let pipeCache: Path2D[] = [];
+
+    /**
+     * WHERE A BUCKET'S BUYER STANDS. Out on one side, so the leg that leaves
+     * and the leg that comes back are two visibly different runs rather than
+     * one line drawn over itself. Defined once: the resting route and the live
+     * bands both read it, so a band can never miss the pipe it runs in.
+     */
+    function traderOf(l: Layout, _cx: number, i: number): number {
+      /* four landings across the buyer's face, in the buckets' own order, so
+         the outer lanes' legs never cross the inner lanes' */
+      const step = l.buyerW / 5;
+      return l.cx - l.buyerW / 2 + step * (i + 1);
+    }
 
     /** a straight run in flow space: x is DOWN, c is ACROSS. */
     function run(key: string, gauge: number, x0: number, x1: number, c: number, q: number): Ribbon {
@@ -728,7 +995,27 @@ export function Plate() {
       ]);
     }
 
+    /**
+     * A straight band between two points that are not on the same centreline.
+     *
+     * `ribbon` interpolates its stations with a monotone curve, which is right
+     * for a stream dividing — fluid does not turn corners — and wrong for an
+     * exchange, where it drew a lazy S between a bucket and its buyer that
+     * looked like a decoration rather than a leg. Sampling the straight line
+     * gives the curve collinear stations to pass through, so it has nothing
+     * left to bend, and every mark below the buckets is straight.
+     */
+    function leg(key: string, gauge: number, a: Station, b: Station, steps = 8): Ribbon {
+      const st: Station[] = [];
+      for (let k = 0; k <= steps; k++) {
+        const t = k / steps;
+        st.push({ x: a.x + (b.x - a.x) * t, c: a.c + (b.c - a.c) * t, q: a.q + (b.q - a.q) * t });
+      }
+      return ribbon(key, gauge, st);
+    }
+
     function build(l: Layout): void {
+
       /* the live gauge, and a round unit for its scale bar */
       /* the widest band the mine can ever draw is `room`; it is a third of the
          plate so a payment at the top of the board's own dollar axis still has
@@ -745,53 +1032,91 @@ export function Plate() {
          the card that flashes cannot disagree. */
       F.imminent = sched.slot;
 
-      /* THE SUPPLY STAIRCASE. Flat runs and vertical risers, never a curve: a
-         smoothed line would draw supply drifting upward between takes, which
-         is exactly what minting does not do. Each riser is one drawn event.
-         The axis is windowed to the data — a take mints about 0.006% of the
-         stock, so a zero-based axis would be a dead flat line — and both ends
-         are printed, so the window is stated rather than implied. */
+      /* ══ THE EMISSION STAIRCASE ═══════════════════════════════════════════
+         FLAT RUNS AND VERTICAL RISERS, NEVER A CURVE. A smoothed line would
+         draw GBX appearing steadily between takes, and that is precisely what
+         does not happen: accrual is a promise the slot is carrying, and the
+         MINT is the settlement. Each riser is one take, and its height is
+         exactly the GBX that take minted.
+
+         IT IS A ROLLING WINDOW, NOT A HISTORY. Both axes are windowed to the
+         last EMIS_SPAN of the mine's own clock, so the board looks the same
+         after an hour as it does on the first frame: a flight of stairs, at
+         full size, crossing the box. A chart anchored at the origin can only
+         do that once — it leaves the corner, climbs, and then compresses
+         under a ceiling that has to keep growing to hold it, until it is a
+         line lying along the top of its own box.
+
+         AND IT STREAMS. x is the mine's own clock, so a quiet board draws a
+         long flat run and a flurry draws a tight flight, and the head advances
+         at the rate the protocol actually issues. Older risers leave at the
+         left as new ones arrive at the right. */
       {
         const bw = l.cw;
         const sx = l.gridX + bw + l.cgap;
         const sw = l.gridW - bw - l.cgap;
         const ip = l.narrow ? 4 : 6;
         const x0 = sx + ip;
-        const x1 = sx + sw - ip - (l.narrow ? 38 : 56);
-        const y0 = l.minerY + 22;
-        const y1 = l.minerY + l.minerH - 9;
-        const n = supplyHist.length;
-        F.supplyStep = null;
-        /* NEVER EMPTY. Before two events have landed there is no staircase to
-           draw, but an empty box reads as broken. With one sample we draw the
-           flat run instead — which is the honest shape, because in the window
-           observed so far supply genuinely has not moved. The first take then
-           turns that flat run into the first riser. */
-        if (n >= 1 && x1 > x0 + 10) {
-          let lo = Infinity;
-          let hi = -Infinity;
-          supplyHist.forEach((v) => {
-            lo = Math.min(lo, v);
-            hi = Math.max(hi, v);
+        const x1 = sx + sw - ip;
+        /* the base rule sits above the foot row, which carries what the window
+           opens at and how wide it is; the head clears the title row */
+        const y0 = l.minerY + 24;
+        const y1 = l.minerY + l.minerH - (l.narrow ? 15 : 16);
+        const now = Math.max(0, mn.t - emis.t0);
+        const tA = Math.max(EMIS_SPAN, now) - EMIS_SPAN;
+        const lo = emis.loShown;
+        const hi = Math.max(lo + 1e-6, emis.hiShown);
+        F.emisSpan = EMIS_SPAN;
+        F.emisBase = lo;
+        F.emisLine = null;
+        F.emisArea = null;
+        if (x1 > x0 + 10 && y1 > y0 + 6) {
+          const xOf = (t: number) => x0 + ((x1 - x0) * Math.max(0, t - tA)) / EMIS_SPAN;
+          /* clamped to the box: the window eases and the series does not, so a
+             riser can briefly outrun its own frame. It flattens against the
+             edge for those few frames rather than drawing outside the cell. */
+          const yOf = (v: number) =>
+            Math.max(y0, Math.min(y1, y1 - ((v - lo) / (hi - lo)) * (y1 - y0)));
+          const line = new Path2D();
+          const area = new Path2D();
+          /* THE LINE ENTERS THE BOX AT THE LEVEL THE WINDOW OPENS AT — the
+             last riser to have scrolled off the left, carried in flat. */
+          let level = emisHist[0]?.v ?? 0;
+          let from = 0;
+          emisHist.forEach((p, i) => {
+            if (p.x <= tA) {
+              level = p.v;
+              from = i;
+            }
           });
-          const headroom = (hi - lo) * 0.18 || Math.max(1, hi * 1e-6);
-          lo -= headroom;
-          hi += headroom;
-          F.supplyLo = lo;
-          F.supplyHi = hi;
-          const yOf = (v: number) => y1 - ((v - lo) / Math.max(1e-9, hi - lo)) * (y1 - y0);
-          const xOf = (i: number) => x0 + ((x1 - x0) * i) / (n - 1);
-          const path = new Path2D();
-          path.moveTo(x0, yOf(supplyHist[0] ?? lo));
-          for (let i = 1; i < n; i++) {
-            path.lineTo(xOf(i), yOf(supplyHist[i - 1] ?? lo));
-            path.lineTo(xOf(i), yOf(supplyHist[i] ?? lo));
+          line.moveTo(x0, yOf(level));
+          area.moveTo(x0, y1);
+          area.lineTo(x0, yOf(level));
+          for (let i = from + 1; i < emisHist.length; i++) {
+            const p = emisHist[i];
+            if (p === undefined) continue;
+            const px = xOf(p.x);
+            /* the run out to the riser, then the riser itself */
+            line.lineTo(px, yOf(level));
+            line.lineTo(px, yOf(p.v));
+            area.lineTo(px, yOf(level));
+            area.lineTo(px, yOf(p.v));
+            level = p.v;
           }
-          /* carry the last level out to the right edge, so the newest step is
-             a flat run the next riser lifts off — and so a single sample is a
-             full-width line rather than a dot */
-          path.lineTo(x1, yOf(supplyHist[n - 1] ?? lo));
-          F.supplyStep = path;
+          /* THE HEAD IS NOW, NOT THE LAST EVENT. Carrying the level out to the
+             clock's own position is what makes the wait between takes visible
+             — the flat run grows in front of the reader, and the next riser
+             lifts off the end of it. */
+          const hx = xOf(now);
+          const hy = yOf(emis.total);
+          line.lineTo(hx, hy);
+          area.lineTo(hx, hy);
+          area.lineTo(hx, y1);
+          area.closePath();
+          F.emisLine = line;
+          F.emisArea = area;
+          F.emisHeadX = hx;
+          F.emisHeadY = hy;
         }
       }
 
@@ -827,21 +1152,6 @@ export function Plate() {
             ]),
           ),
         );
-        /* the exchange's own two legs, at rest */
-        l.bays.forEach((bay, i) => {
-          const side = i < 2 ? 1 : -1;
-          const traderC = bay.cx + side * (l.bayW * 0.5 + (l.narrow ? 26 : 46));
-          pipeCache.push(
-            centrePath(
-              ribbon('po' + i, 1, [
-                { x: l.aucTop + l.aucH + 4, c: bay.cx, q: 0 },
-                { x: l.yOut, c: traderC, q: 0 },
-                { x: l.yBack, c: bay.cx, q: 0 },
-                { x: l.bayTop - 6, c: bay.cx, q: 0 },
-              ]),
-            ),
-          );
-        });
         pipeKey = key;
       }
       F.pipes = pipeCache;
@@ -902,7 +1212,7 @@ export function Plate() {
         /* ONE progress, ONE alpha, three consumers */
         const t = Math.min(1, p.age / TAKE_FADE);
         const travel = Math.min(1, t / TAKE_ARRIVE);
-        const alpha = t < TAKE_HOLD ? 1 : 1 - ease((t - TAKE_HOLD) / (1 - TAKE_HOLD));
+        const alpha = takeAlpha(p.age);
         F.runs.push({
           p: travel,
           top,
@@ -921,23 +1231,101 @@ export function Plate() {
          widths always sum to the trunk. */
       const total = totalStake(rz);
       const rate = rz.flow.t < rz.flow.finish ? rz.flow.rate : 0;
+      F.comb.on = false;
       if (rate > 0) {
         const trunk = run('stream', l.gFlow, l.trunkY0, l.trunkY1, l.cx, rate);
         F.streamBands.push({ path: ribbonPath(trunk), ink: USDG });
+        /* ── THE SPLIT STEPS, AND THEN IT TRAVELS ──────────────────────────
+           Signalling and unsignalling are discrete: a weight holds still and
+           then JUMPS, and the blades below jump with it. What is not instant
+           is the arrival. Fluid already past the blades is still carrying the
+           old split, so each channel is genuinely tapered for a beat — the new
+           share where it is cut, last week's where it lands.
+
+           BOTH ENDS ARE THE FROZEN MODEL'S OWN. `disp` is the weight AT the
+           blades; `chain[NODES]` is the far end of the model's own transport
+           chain, which is the weight that has actually reached the vessel. The
+           plate does not interpolate between them — it reads both and hands
+           them to `splitFlow` as `q` and `qTo`.
+
+           The numerator and the denominator are now the same quantity, which
+           they were not: shares were taken as `stake / Σdisp`, a live weight
+           over a lagged total, so during a move they did not sum to one and
+           the residual leg silently absorbed the difference. */
+        const tailTotal = rz.assets.reduce((n, a) => n + (a.chain[NODES] ?? a.disp), 0) || 1;
         /* the residual goes on the last leg, exactly the way the contracts
            allocate it (`toRouter = paid − toMiner`), so the sum is exact in
            floating point rather than nearly exact */
         let acc = 0;
+        let accTo = 0;
         const legs = rz.assets.map((a, i) => {
-          const q = i === rz.assets.length - 1 ? rate - acc : rate * (a.stake / total);
+          const last = i === rz.assets.length - 1;
+          const q = last ? rate - acc : rate * (a.disp / total);
+          const qTo = last ? rate - accTo : rate * ((a.chain[NODES] ?? a.disp) / tailTotal);
           acc += q;
-          return { key: a.sym, q, to: { x: l.laneLandY, c: l.bays[i]?.cx ?? l.cx } };
+          accTo += qTo;
+          return { key: a.sym, q, qTo, to: { x: l.laneLandY, c: l.bays[i]?.cx ?? l.cx } };
         });
         const at: Station = { x: l.trunkY1, c: l.cx, q: rate };
         const fan = splitFlow({ gauge: l.gFlow, at, legs, steps: 18 });
         fan.forEach((r) => F.streamBands.push({ path: ribbonPath(r), ink: USDG }));
+
+        /* ── WHERE THE BAND IS PROPORTIONED ────────────────────────────────
+           TWO MARKS TRIED AND DROPPED. A pink spine with blades hanging off it
+           is the Resonance section's comb, and it does not survive the move:
+           there the stream is tall and horizontal and the comb is a real
+           object across it; here it was a hairline scratched over the widest
+           blue in the drawing. A dark block was worse — a slab lying on the
+           brightest thing on the plate, reading as a hole in it.
+
+           SO THERE IS NO OBJECT. The band divides itself: the last stretch of
+           the trunk carries a seam on each boundary, and the four widths
+           between them ARE the four shares, on the same cumulative sums
+           `splitFlow` lays the legs out from. Nothing is added to the drawing
+           to say where the split is — something is taken away, at exactly the
+           three places it happens, and each seam runs on into the gap its own
+           two channels open as they part.
+
+           THE SEAMS ARE ALWAYS THERE. A boundary that only appears while it is
+           moving is a boundary that is invisible almost all of the time, and
+           the split is a standing fact, not an event. What is an event is a
+           boundary MOVING, and that lights its own seam pink for as long as
+           the model says it is moving. */
+        const bandW = rate * l.gFlow;
+        const cx0 = l.cx - bandW / 2;
+        F.comb.on = true;
+        F.comb.x0 = cx0;
+        F.comb.x1 = cx0 + bandW;
+        /* THE FRAMED RUN IS THE TRUNK ITSELF, top rail to bottom rail. Three
+           horizontal lines were appearing in forty-six pixels of band — the
+           gate, then a frame inside it — and they read as a stack of boxes.
+           There are two: the gate the load passes, and the face the channels
+           leave from. Everything between them is the run the split happens in,
+           which is what the trunk always was. */
+        F.comb.y0 = l.trunkY0;
+        F.comb.y1 = l.trunkY1;
+        F.comb.cuts.length = 0;
+        let cumB = 0;
+        for (let i = 0; i < legs.length - 1; i++) {
+          const a = legs[i];
+          if (a === undefined) continue;
+          cumB += a.q;
+          const av = rz.assets[i];
+          const bv = rz.assets[i + 1];
+          F.comb.cuts.push({
+            x: cx0 + cumB * l.gFlow,
+            /* the model's own `moved × emph`: full for the scripted signal, a
+               fraction of it for a holder drifting on their own clock */
+            glow: Math.max(
+              (av?.moved ?? 0) * (av?.emph ?? 0),
+              (bv?.moved ?? 0) * (bv?.emph ?? 0),
+            ),
+          });
+        }
       } else {
-        /* between weeks — the resting channels are drawn by the station */
+        /* between weeks — the resting channels are drawn by the station, and
+           there is no comb: a comb across an empty channel would be drawing
+           a split of nothing */
       }
 
       /* ════════════════════ S4 · the auction: an exchange ══════════════════
@@ -957,22 +1345,29 @@ export function Plate() {
            other way. Both legs carry the same width because the trade IS the
            price: the asset band is drawn on the gauge of the USDG that bought
            it, which is the only claim the plate has a model for. */
-        const side = i < 2 ? 1 : -1;
-        const traderC = bay.cx + side * (l.bayW * 0.5 + (l.narrow ? 26 : 46));
-        const outR = ribbon('out' + i, l.gLot, [
+        /* the trade lands on the buyer's own face, offset from the spine on
+           the side its bucket sits, so the leg that pays and the leg that
+           delivers are two visibly different runs rather than one drawn twice */
+        const traderC = traderOf(l, bay.cx, i);
+        const outR = leg(
+          'out' + i,
+          l.gLot,
           { x: l.aucTop + l.aucH + 4, c: bay.cx, q: lot },
-          { x: l.yOut, c: traderC, q: lot },
-        ]);
-        const backR = ribbon('back' + i, l.gLot, [
-          { x: l.yOut, c: traderC, q: lot },
-          { x: l.yBack, c: bay.cx, q: lot },
-        ]);
+          { x: l.buyerY, c: traderC, q: lot },
+        );
+        /* IT IS A SALE, AND IT IS TWO LEGS. Blue out of the bucket to the
+           buyer, the asset back from the buyer into the fund — straight, and
+           straight into the BAY, not down to a turn above it and then down
+           again. The third segment was what made this read as a zig-zag: a
+           leg that goes somewhere and then a leg that corrects for it. */
+        const backR = leg(
+          'back' + i,
+          l.gLot,
+          { x: l.buyerY + l.buyerH, c: traderC, q: toFund },
+          { x: l.bayTop - 6, c: bay.cx, q: toFund },
+        );
         F.aucBands.push({ path: ribbonPath(outR), ink: USDG });
         F.aucBands.push({ path: ribbonPath(backR), ink: hue });
-        F.aucBands.push({
-          path: ribbonPath(run('bay' + i, l.gLot, l.yBack, l.bayTop - 6, bay.cx, toFund)),
-          ink: hue,
-        });
       });
 
       /* ═══════════════ S5 · the burn, and the same slice everywhere ════════
@@ -1048,11 +1443,7 @@ export function Plate() {
         mint.rate = mint.rate + (d / Math.max(1e-6, dt) - mint.rate) * Math.min(1, dt * 4);
       } else if (d < 0) {
         mint.burned += -d;
-        supply.gbx = rd.supply;
-      supply.burning = rd.phase === 'burn';
-      supplyHist.length = 0;
-      supplyHist.push(supply.gbx);
-      mint.mark = rd.supply;
+        mint.mark = rd.supply;
         mint.since = 0;
       }
     }
@@ -1101,7 +1492,7 @@ export function Plate() {
         if (displaced !== null && gbx > 0) {
           lastPayout.who = displaced;
           lastPayout.gbx = gbx;
-          stepSupply(gbx);
+          stepMinted(gbx);
         }
         queued.push({
           age: 0,
@@ -1187,7 +1578,10 @@ export function Plate() {
       markBoard();
       stepMine(mn, dt * TS_MINE, mineFx);
       spawnTakes(depositsBefore, mintedBefore);
+      /* the emission board's window, advanced after the takes it holds */
+      frameWindow(dt);
       stepResonance(rz, dt * TS_RZ, {});
+      trackEpochs();
       aucStep(au, dt * TS_AUC, {});
 
       /* ---- THE MINT, watched rather than invented -----------------------
@@ -1200,11 +1594,6 @@ export function Plate() {
          own supply is banked here, and station 06 draws it arriving as a band
          whose width is exactly what it added to the bar. */
       advanceRedeem(dt);
-      /* the burn, as a step: the instant the redemption station fires, the
-         supply readout drops by exactly what it burned, and not before */
-      const burningNow = rd.phase === 'burn';
-      if (burningNow && !supply.burning) stepSupply(-rd.burned);
-      supply.burning = burningNow;
 
       /* ---- the Router: deposits in, route() out, nothing in between ------
          THE SOURCE IS THE MINE, not the plate. `mn.routerDeposits` is the
@@ -1233,21 +1622,29 @@ export function Plate() {
       if (arrived > router.bookedIn + 1e-12) {
         router.held += arrived - router.bookedIn;
         router.bookedIn = arrived;
-        drip = 1;
-      }
-      if (drip > 0) drip = Math.max(0, drip - dt / 0.5);
+        dripAge = 0;
+        moveLevel(TAKE_FADE);
+      } else if (dripAge < TAKE_FADE) dripAge = Math.min(TAKE_FADE, dripAge + dt);
       router.sinceRoute += dt;
       if (router.open > 0) {
         router.open = Math.max(0, router.open - dt);
       } else if (router.sinceRoute >= router.wait && router.held > 0) {
         router.lastRouted = router.held;
+        router.load = router.load > 0 ? router.load + (router.held - router.load) * 0.4 : router.held;
         router.outTotal += router.held;
         router.held = 0;
         router.open = ROUTE_OPEN;
         router.sinceRoute = 0;
         router.wait = ROUTE_MIN + Math.random() * ROUTE_VAR;
+        /* it empties over exactly as long as the outlet is drawn carrying */
+        moveLevel(ROUTE_OPEN);
       }
-      const capWant = Math.max(24, router.held * 1.22);
+      /* the drawn level, travelling to the model's own `held` over the length
+         of whichever event last moved it */
+      level.age += dt;
+      const lp = level.dur <= 0 ? 1 : Math.min(1, level.age / level.dur);
+      level.shown = level.from + (router.held - level.from) * ease(lp);
+      const capWant = routerCap();
       router.cap = capWant > router.cap ? capWant : router.cap + (capWant - router.cap) * Math.min(1, dt * 0.35);
       router.capShown += (router.cap - router.capShown) * Math.min(1, dt * 3.4);
 
@@ -1360,6 +1757,44 @@ export function Plate() {
       } else erase(x0 - 3, y - size + 1, wpx + 6, size + 2);
     }
 
+    /**
+     * Two CSS colours mixed, as a solid.
+     *
+     * THE DEFECT THIS FIXES. A knockout has to be painted in the colour of the
+     * thing it is punched OUT of, and inside a slot card that colour is not
+     * `--raised`: on a take it is `--raised` with the event's own pink wash on
+     * top. The ground was hard-coded to the unlit value, so the one card the
+     * board was lighting carried a dark patch behind its GBX reading — the
+     * only mark on the plate that did not know an event was happening.
+     */
+    function blend(a: string, b: string, t: number): string {
+      const rgb = (c: string): [number, number, number] => {
+        const v = c.trim();
+        if (v.startsWith('#')) {
+          const h = v.slice(1);
+          const f =
+            h.length === 3
+              ? h
+                  .split('')
+                  .map((ch) => ch + ch)
+                  .join('')
+              : h;
+          return [
+            parseInt(f.slice(0, 2), 16) || 0,
+            parseInt(f.slice(2, 4), 16) || 0,
+            parseInt(f.slice(4, 6), 16) || 0,
+          ];
+        }
+        const m = v.match(/-?\d+(\.\d+)?/g);
+        return [Number(m?.[0] ?? 0), Number(m?.[1] ?? 0), Number(m?.[2] ?? 0)];
+      };
+      const [r0, g0, b0] = rgb(a);
+      const [r1, g1, b1] = rgb(b);
+      const k = Math.max(0, Math.min(1, t));
+      const at = (u: number, v: number) => Math.round(u + (v - u) * k);
+      return `rgb(${at(r0, r1)}, ${at(g0, g1)}, ${at(b0, b1)})`;
+    }
+
     /** A label on its own ground. */
     function labelK(
       text: string,
@@ -1395,7 +1830,13 @@ export function Plate() {
       paintStream(l);
       paintAuctions(l);
       paintFund(l);
-      paintYou(l);
+      /* STATION 06 IS OFF THE PLATE FOR NOW. The supply bar, the mint's own
+         figure, the burn and the whole conservation ledger under it were a
+         second drawing sharing a canvas with the first — a table of four
+         percentages, four holdings and four conversions, set under a diagram
+         whose entire argument is that you should not need a table. It is
+         parked rather than deleted: `paintYou` and everything it reads are
+         untouched, and putting the row back is putting this call back. */
       paintFundNotes(l);
     }
 
@@ -1457,19 +1898,23 @@ export function Plate() {
         });
         const price = priceOf(mn, slot);
 
-        /* A TAKE LIGHTS ITS OWN CARD, and that is the whole event: the card
-           comes up in USDG's colour and a stream of USDG leaves it. Every
-           card is otherwise identical — there is no reader's own slot. */
+        /* A TAKE LIGHTS ITS OWN CARD IN PINK, and the USDG it pays leaves in
+           blue. THE TWO ARE NOT THE SAME THING and they were drawn the same
+           colour: the card is the EVENT — a slot changed hands — and the band
+           is the MONEY. Lighting both in USDG's blue made the card read as a
+           quantity of capital sitting in the slot, which is the one thing a
+           slot never holds. Pink is already the cards' own ink, on every
+           clock bar on the board, so the flash and the bar now agree. */
         ctx.fillStyle = ink.raised;
         ctx.fillRect(x, y, w, h);
         if (lit > 0) {
           ctx.save();
           ctx.globalAlpha = 0.22 * lit;
-          ctx.fillStyle = USDG;
+          ctx.fillStyle = ink.pink;
           ctx.fillRect(x, y, w, h);
           ctx.restore();
         }
-        ctx.strokeStyle = lit > 0.15 ? USDG : ink.rule;
+        ctx.strokeStyle = lit > 0.15 ? ink.pink : ink.rule;
         ctx.lineWidth = 1;
         ctx.setLineDash([]);
         ctx.strokeRect(hairline(x, l.dpr), hairline(y, l.dpr), w - 1, h - 1);
@@ -1512,7 +1957,9 @@ export function Plate() {
           ink.text,
           'right',
           500,
-          ink.raised,
+          /* the card's ground AS IT IS THIS FRAME — lit cards included, at the
+             same wash and the same envelope the card itself is drawn with */
+          lit > 0 ? blend(ink.raised, ink.pink, 0.22 * lit) : ink.raised,
         );
       }
 
@@ -1565,147 +2012,232 @@ export function Plate() {
           label(fmtGbx(lastPayout.gbx) + ' GBX', bx + ip, by + (bh + 10) / 2 + 5, l.narrow ? 12 : 14, ink.hi);
         }
 
-        /* AND THE STOCK THAT MINTING FEEDS, in the next column across. Every
-           move it makes has a drawn event beside it: up when a take fires on
-           the board below, down when a burn fires at station 06. */
+        /* AND EVERYTHING THE BOARD HAS MINTED, in the next column across. The
+           MINER box is the last take; this is all of them, and it is the same
+           events drawn twice — once as a figure that replaces itself and once
+           as a line that keeps every one of them. */
         const sx = bx + bw + l.cgap;
         const sw = l.gridW - bw - l.cgap;
         ctx.fillStyle = ink.raised;
         ctx.fillRect(sx, by, sw, bh);
         ctx.strokeStyle = ink.rule;
         ctx.strokeRect(hairline(sx, l.dpr), hairline(by, l.dpr), sw - 1, bh - 1);
-        label('GBX SUPPLY', sx + ip, by + 13, idSize, ink.faint);
-        label(Math.round(supply.gbx).toLocaleString('en-US') + ' GBX', sx + sw - ip, by + 13, idSize, ink.muted, 'right');
-        if (F.supplyStep !== null) {
+        label('GBX MINTED', sx + ip, by + 13, idSize, ink.faint);
+        label(
+          Math.round(emis.total).toLocaleString('en-US') + ' GBX',
+          sx + sw - ip,
+          by + 13,
+          idSize,
+          ink.muted,
+          'right',
+        );
+        if (F.emisArea !== null && F.emisLine !== null) {
+          const zy = by + bh - (l.narrow ? 15 : 16);
+          /* THE BASE RULE IS DRAWN, because a windowed axis has to show where
+             its own floor is. It runs the full width so the level the window
+             opens at is unambiguous even where the curve lies close to it. */
           ctx.save();
+          ctx.strokeStyle = ink.rule;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([]);
+          ctx.beginPath();
+          ctx.moveTo(sx + ip, hairline(zy, l.dpr));
+          ctx.lineTo(sx + sw - ip, hairline(zy, l.dpr));
+          ctx.stroke();
+          /* THE STOCK IS A FILLED AREA, NOT A TRACE. A stroked line reads as a
+             signal — a price, a rate, something that could come back down.
+             What is under this line has been minted and is still there, so it
+             is material lying on the box, and the plate already draws every
+             other quantity that way. */
+          ctx.globalAlpha = 0.13;
+          ctx.fillStyle = GBX_BODY;
+          ctx.fill(F.emisArea);
+          ctx.globalAlpha = 1;
           ctx.strokeStyle = GBX_BODY;
           ctx.lineWidth = 1.5;
           ctx.lineJoin = 'miter';
           ctx.lineCap = 'butt';
-          ctx.setLineDash([]);
-          ctx.stroke(F.supplyStep);
+          ctx.stroke(F.emisLine);
+          /* the head, marked: the flat run the next riser will lift off */
+          ctx.beginPath();
+          ctx.arc(F.emisHeadX, F.emisHeadY, 2, 0, Math.PI * 2);
+          ctx.fillStyle = GBX_BODY;
+          ctx.fill();
           ctx.restore();
-          /* the window, stated: this axis does not start at zero */
-          const ax = sx + sw - ip;
-          label(Math.round(F.supplyHi).toLocaleString('en-US'), ax, by + 26, l.narrow ? 6.5 : 7.5, ink.faint, 'right');
-          label(Math.round(F.supplyLo).toLocaleString('en-US'), ax, by + bh - 7, l.narrow ? 6.5 : 7.5, ink.faint, 'right');
+          /* THE WINDOW, STATED — BOTH WAYS. This axis does not start at zero
+             and it does not span all of time, so it prints the level its floor
+             sits at and the stretch of the mine's clock it holds. Without the
+             pair, a staircase is a shape rather than a reading. */
+          const fy = by + bh - (l.narrow ? 5 : 6);
+          const fSize = l.narrow ? 6.5 : 7.5;
+          label(Math.round(F.emisBase).toLocaleString('en-US'), sx + ip, fy, fSize, ink.faint);
+          label(elapsed(F.emisSpan) + ' window', sx + sw - ip, fy, fSize, ink.faint, 'right');
         }
-      }
-
-      /* the newest take's own figure, on the row it traverses. Only one is
-         printed: four figures stacked on one row would be four labels, not a
-         reading, and the row is the width of one. */
-      const newest = F.runs[F.runs.length - 1];
-      if (newest !== undefined && packets.length > 0) {
-        const p = packets[packets.length - 1];
-        ctx.save();
-        ctx.globalAlpha = newest.fade;
-        const hx = Math.min(newest.c, l.cx) + Math.abs(l.cx - newest.c) / 2;
-        labelK(
-          money(p?.toRouter ?? 0),
-          hx,
-          l.headerY - newest.w / 2 - 6,
-          l.narrow ? 8.5 : 9.5,
-          USDG,
-          'center',
-        );
-        ctx.restore();
       }
 
     }
 
     /* ------------------------------------------------------------- router */
-    function paintRouter(l: Layout): void {
+    /* ══════════════════════════ THE TANK ══════════════════════════════════
+       ONE MARK FOR EVERY PLACE MONEY STOPS. The Router and the four auction
+       pots are the same kind of thing — capital sitting still until something
+       opens an outlet — so on this plate they are the same rectangle: the
+       panel's raised ground, filled from the floor to the level being held,
+       ruled square. Square corners, because a level is read against an edge
+       and a dished bottom bends the bottom fifth of every reading it carries.
 
+       `flash` is ARRIVAL, not stock. A wash of the fill across the whole cell
+       and a lit rule, on the same envelope every other event on this plate
+       decays with. Money landing is an event; money sitting is a level; they
+       are drawn as two different things because they are two different
+       things. */
+    function tank(
+      l: Layout,
+      x: number,
+      y: number,
+      w: number,
+      h: number,
+      level: number,
+      fill: string,
+      flash = 0,
+    ): void {
+      ctx.fillStyle = ink.raised;
+      ctx.fillRect(x, y, w, h);
+      const lv = Math.max(0, Math.min(1, level));
+      if (lv > 0) {
+        ctx.fillStyle = fill;
+        ctx.fillRect(x, y + h * (1 - lv), w, h * lv);
+      }
+      if (flash > 0) {
+        ctx.save();
+        ctx.globalAlpha = 0.2 * flash;
+        ctx.fillStyle = fill;
+        ctx.fillRect(x, y, w, h);
+        ctx.restore();
+      }
+      ctx.strokeStyle = flash > 0.15 ? fill : ink.rule;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.strokeRect(hairline(x, l.dpr), hairline(y, l.dpr), w - 1, h - 1);
+    }
+
+    function paintRouter(l: Layout): void {
+      /* THE ROUTER IS THE WIDTH OF THE STREAM IT FEEDS. It used to be a narrow
+         flask on a plate where every other mark runs wide, so the one station
+         where money STOPS read as the smallest thing on the drawing. Squared
+         off and set to the trunk's own width, the reservoir and the flow it
+         empties into are the same object seen at two moments. */
       const vw = l.routerVw;
       const vh = l.routerVh;
       const vx = l.cx - vw / 2;
       const vy = l.routerVy;
-      vessel(ctx, vx, vy, {
-        ink: ink.muted,
-        w: vw,
-        h: vh,
-        level: Math.max(0, Math.min(1, router.held / Math.max(1e-6, router.capShown))),
-        levelFill: USDG,
-        ground: ink.raised,
-      });
-      ctx.strokeStyle = ink.ruleStrong;
-      ctx.lineWidth = 1;
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      ctx.moveTo(vx - 6, hairline(vy, l.dpr));
-      ctx.lineTo(vx, hairline(vy, l.dpr));
-      ctx.stroke();
-      labelK(money(router.capShown), vx - 9, vy + 4, 9, ink.muted, 'right');
-      labelK('$0', vx - 9, vy + vh + 2, 9, ink.muted, 'right');
-      labelK(money(router.held), l.cx, vy - 8, 10.5, ink.hi, 'center');
+      /* THE CELL LIGHTS WHILE IT FILLS, and the two are one event: `dripAge`
+         is zeroed at the instant a deposit is booked — the board's own,
+         ambient or drawn — and `level.shown` leaves for its new level on the
+         same frame and over the same envelope. So the wash is the arrival
+         itself, and what the reader watches during it is the level actually
+         moving. NO FIGURES: the level is the reading. */
+      tank(
+        l,
+        vx,
+        vy,
+        vw,
+        vh,
+        level.shown / Math.max(1e-6, router.capShown),
+        USDG,
+        takeAlpha(dripAge),
+      );
 
-      /* the inlet drip: every ambient deposit the board makes arrives here, so
-         the level never rises without something visibly arriving */
-      if (drip > 0) {
-        const dy = vy - 16 + (1 - drip) * 14;
-        ctx.fillStyle = USDG;
-        ctx.beginPath();
-        ctx.arc(l.cx, dy, 2.6, 0, Math.PI * 2);
-        ctx.fill();
-      }
-
-      /* THE OUTLET, SHOWN WITH THE FLOW. It is an empty pipe nearly always,
-         and when route() is called the money runs down it and on into the
-         stream below — no symbol, no state badge: the pipe is either carrying
-         something or it is not. */
-      const runTop = vy + vh;
-      const runBot = l.trunkY0;
-      const flushW = Math.max(2, Math.min(vw, widthOf(F.gStock, router.lastRouted)));
-      ctx.strokeStyle = ink.rule;
-      ctx.lineWidth = PROCESS_REST.width;
-      ctx.setLineDash([]);
-      ctx.beginPath();
-      ctx.moveTo(hairline(l.cx, l.dpr), runTop);
-      ctx.lineTo(hairline(l.cx, l.dpr), runBot);
-      ctx.stroke();
-      if (router.open > 0) {
-        const p = Math.min(1, (ROUTE_OPEN - router.open) / (ROUTE_OPEN * 0.55));
-        ctx.save();
-        ctx.beginPath();
-        ctx.rect(l.cx - flushW, runTop, flushW * 2, Math.max(1, (runBot - runTop) * ease(p)));
-        ctx.clip();
-        ctx.fillStyle = USDG;
-        ctx.fillRect(l.cx - flushW / 2, runTop, flushW, runBot - runTop);
-        ctx.restore();
-        /* the figure the outlet is carrying, on the pipe carrying it */
-        labelK(money(router.lastRouted), l.cx + flushW / 2 + 10, l.routerOutY, 9.5, USDG);
-      }
     }
+
+
 
     /* ------------------------------------------------------------- stream */
     function paintStream(l: Layout): void {
       const rate = rz.flow.t < rz.flow.finish ? rz.flow.rate : 0;
-      const total = totalStake(rz);
 
       /* a resting channel is drawn only while it is resting — never beside the
          band that fills it, where it would read as a ghost edge */
       if (rate <= 0) F.pipes.slice(0, 4).forEach((pp) => strokeFlow(pp, ink.rule, PROCESS_REST.width));
       F.streamBands.forEach((band) => fillFlow(band.path, band.ink));
 
-      /* EVERY LANE CARRIES ITS OWN SHARE, on the lane it describes, at both
-         ends and in a permanent order — so a band can be traced from the
-         split to its bay without using hue at all, and without a second
-         weaker statement of the same split cutting across the trunk. */
-      rz.assets.forEach((a, i) => {
-        const bay = l.bays[i];
-        if (!bay) return;
-        const sub = ((a.stake / total) * 100).toFixed(1) + '%';
-        ctx.font = mono(l.narrow ? 8 : 9, 500);
-        const plateW = Math.min(l.w / 4 - 6, Math.max(ctx.measureText(sub).width, 36) + 12);
-        erase(bay.cx - plateW / 2, l.laneLabelY - 13, plateW, 30);
-        ctx.strokeStyle = ink.rule;
-        ctx.lineWidth = 1;
+      /* ── THE DIVIDER, drawn as apparatus ────────────────────────────────
+         A BLOCK, NOT A LINE. It sits on the end of the trunk: the band runs
+         into it and four channels leave its underside, and the four cells it
+         is cut into are the four shares at full size. Dark against the fluid,
+         because on this plate the bright thing is money and machinery is not.
+
+         THE CUTS ARE GAPS. A boundary is drawn by the absence of fluid rather
+         than by a mark laid over it — nothing to mistake for a quantity, and
+         nothing to dissolve when a channel gets narrow. Pink enters a cut only
+         while that boundary is actually moving, which is the rule everywhere
+         else on this plate: if it moved, a drawn event moved it. */
+      if (F.comb.on) {
+        /* ── THE DISTRIBUTION, FRAMED ───────────────────────────────────────
+           TWO RAILS AND THREE SEAMS. The rails run the band's full width and
+           bracket the run the split happens in; the seams divide that run into
+           four cells whose widths ARE the four shares. Together they are one
+           mark — a proportioning face — instead of three stubs floating on a
+           band, which is what seams with no frame around them were.
+
+           CUT, NOT DRAWN. `destination-out` takes the fluid away rather than
+           painting over it, so every line here is the page's own ground
+           showing through at exactly the width it claims. The same erase the
+           plate's labels use, for the same reason: a flat fill would be a
+           visible object lying on the stream, and this is meant to be a
+           division OF the stream. It is why neither the block nor the comb
+           worked — both added something; this takes something away.
+
+           THE RAILS ARE THINNER THAN THE SEAMS. A frame that reads as heavily
+           as the boundaries it frames competes with them; the seams are the
+           reading, the rails are what makes them one object. */
+        const cutW = l.narrow ? 2.5 : 3;
+        const railH = l.narrow ? 1.5 : 2;
+        const y0 = F.comb.y0;
+        const y1 = F.comb.y1;
+        const h = y1 - y0;
+        /* THE TOP RAIL IS route() ITSELF. The Router's floor is the trunk's
+           ceiling now, so the line where the load enters this run is the line
+           where somebody had to call the function — and it is drawn as what it
+           is: a closed face, broken open to the width of the load while it is
+           passing. Shut almost always, because nobody is obliged to open it. */
+        const open =
+          router.open > 0 ? ease(Math.min(1, (ROUTE_OPEN - router.open) / (ROUTE_OPEN * 0.55))) : 0;
+        const gap = Math.max(2, Math.min(F.comb.x1 - F.comb.x0, widthOf(F.gStock, router.lastRouted))) * open;
+        ctx.save();
         ctx.setLineDash([]);
-        ctx.strokeRect(hairline(bay.cx - plateW / 2, l.dpr), hairline(l.laneLabelY - 13, l.dpr), plateW, 30);
-        label(a.sym, bay.cx, l.laneLabelY, l.narrow ? 9 : 10.5, ink.hi, 'center');
-        label(sub, bay.cx, l.laneLabelY + 12, l.narrow ? 8 : 9, ink.muted, 'center');
-      });
+        ctx.strokeStyle = open > 0.15 ? USDG : ink.ruleStrong;
+        ctx.lineWidth = 2;
+        ctx.lineCap = 'butt';
+        ctx.beginPath();
+        ctx.moveTo(F.comb.x0, hairline(y0, l.dpr));
+        ctx.lineTo(l.cx - gap / 2, hairline(y0, l.dpr));
+        ctx.moveTo(l.cx + gap / 2, hairline(y0, l.dpr));
+        ctx.lineTo(F.comb.x1, hairline(y0, l.dpr));
+        ctx.stroke();
+        ctx.restore();
+        /* the bottom rail is the face the four channels leave from */
+        erase(F.comb.x0, y1 - railH / 2, F.comb.x1 - F.comb.x0, railH);
+        F.comb.cuts.forEach((c) => erase(c.x - cutW / 2, y0, cutW, h));
+        /* AND A SEAM THAT IS MOVING SAYS SO. It fills for as long as the model
+           says that weight is in motion, and goes back to being a gap. */
+        ctx.save();
+        ctx.setLineDash([]);
+        F.comb.cuts.forEach((c) => {
+          if (c.glow <= 0) return;
+          ctx.globalAlpha = Math.min(1, c.glow);
+          ctx.fillStyle = ink.pink;
+          ctx.fillRect(c.x - cutW / 2, y0, cutW, h);
+        });
+        ctx.restore();
+      }
+
+      /* NO TAGS ON THE LANES. The share was already drawn — it is the width of
+         the lane — and the identity is now drawn too: each lane runs into a
+         bucket carrying its own asset's ask, and out again into a bay filled
+         in the same hue. A boxed ticker on every lane was a third statement of
+         something the drawing makes twice, and four of them across the widest
+         row on the plate were the busiest thing on it. */
     }
 
     /* ----------------------------------------------------------- auctions */
@@ -1717,96 +2249,102 @@ export function Plate() {
         if (!bay) return;
         const w = l.bayW;
         const x = bay.cx - w / 2;
-        vessel(ctx, x, l.aucTop, {
-          ink: a.flash > 0.2 ? ink.hi : ink.muted,
-          w,
-          h: l.aucH,
-          level: Math.max(0, Math.min(1, a.dispPot / potCap)),
-          levelFill: USDG,
-          ground: ink.raised,
-        });
+        /* THE SAME MARK AS THE ROUTER, one station down. Four pots filling
+           from the stream and emptying into an auction are the Router's own
+           job done four ways, so they are drawn the Router's own way — and the
+           cell lights on `flash`, which the frozen model sets at the instant
+           a lot is taken. */
+        tank(l, x, l.aucTop, w, l.aucH, a.dispPot / potCap, USDG, a.flash);
       });
 
       /* the exchange, drawn as an exchange: the pipes at rest first, then the
          live bands over them */
-      F.pipes.slice(9, 13).forEach((pp, i) => {
+      /* THE EXCHANGE AT REST — three straight runs: out of the bucket to the
+         buyer, back from the buyer, and down into the bay. Drawn here from the
+         layout rather than out of the shared pipe cache, because it is the
+         only route on the plate that is not a ribbon centreline and threading
+         it through a cache indexed by position made it impossible to see which
+         leg was which. A resting route is a hairline: a pipe is not a flow. */
+      l.bays.forEach((bay, i) => {
         const f = flush[i];
-        if (!f || f.age >= 1 || f.lot <= 0) strokeFlow(pp, ink.rule, PROCESS_REST.width);
+        if (f && f.age < 1 && f.lot > 0) return; // the live band replaces it
+        const bx = traderOf(l, bay.cx, i);
+        const po = new Path2D();
+        po.moveTo(bay.cx, l.aucTop + l.aucH + 4);
+        po.lineTo(bx, l.buyerY);
+        po.moveTo(bx, l.buyerY + l.buyerH);
+        po.lineTo(bay.cx, l.bayTop - 6);
+        ctx.strokeStyle = ink.rule;
+        ctx.lineWidth = PROCESS_REST.width;
+        ctx.setLineDash([]);
+        ctx.stroke(po);
       });
+
+      /* ══ THE BUYER ════════════════════════════════════════════════════════
+         A PEER OF THE MINER BOX, and for the same reason: something that is
+         paid and pays back has to be a thing on the drawing. USDG lands on its
+         top face and the asset leaves its bottom one, so the box is literally
+         the place the trade turns around — which is what an auction sale is.
+
+         ONE OF THEM, NOT FOUR. There is one market and every bucket sells into
+         it; four separate marks would have claimed four counterparties the
+         plate has no model for. It lights on whichever sale is running, on the
+         same envelope every other event here decays with. */
+      {
+        const bw = l.buyerW;
+        const bx = l.cx - bw / 2;
+        const by = l.buyerY;
+        const bh = l.buyerH;
+        let lit = 0;
+        flush.forEach((f) => {
+          if (f.lot > 0 && f.age < 1) lit = Math.max(lit, 1 - f.age);
+        });
+        tank(l, bx, by, bw, bh, 0, USDG, lit);
+        label('AUCTION BUYER', bx + (l.narrow ? 6 : 10), by + (bh + 10) / 2, l.narrow ? 7.5 : 9, ink.faint);
+      }
       F.aucBands.forEach((band) => fillFlow(band.path, band.ink));
 
-      /* --- THE FALLING ASK, drawn ON the bucket it belongs to. It is a
-             BLADE on a rail — a descending set-point — not a level, so it can
-             never be misread as stock. Only lane 2 has a modelled ask
-             (docs/MODELS.md §4 is one live QQQ acquisition); the other three
-             run the same mechanism on their own clocks. */
-      const qbay = l.bays[1];
-      if (qbay) {
-        const w = l.bayW;
-        const x = qbay.cx - w / 2;
-        const trading = au.phase === 'trade';
-        const asking = trading ? au.lastPaid : au.ask;
-        const worth = trading ? au.lastLot / 486 : fair(au);
-        const scale = Math.max(au.initialAsk, worth, 0.001) * 1.06;
-        const by = (v: number) => l.aucTop + l.aucH - Math.max(0, Math.min(1, v / scale)) * l.aucH;
-        const ay = by(asking);
-        const wy = by(worth);
-        /* the rail the blade runs down */
-        ctx.strokeStyle = ink.rule;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([2, 3]);
-        ctx.beginPath();
-        ctx.moveTo(hairline(x + w + 9, l.dpr), l.aucTop);
-        ctx.lineTo(hairline(x + w + 9, l.dpr), l.aucTop + l.aucH);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        /* what the lot is worth — the thing the blade is descending toward */
-        ctx.strokeStyle = ink.blueLabel;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([3, 3]);
-        ctx.beginPath();
-        ctx.moveTo(x - 4, hairline(wy, l.dpr));
-        ctx.lineTo(x + w + 16, hairline(wy, l.dpr));
-        ctx.stroke();
-        ctx.setLineDash([]);
-        /* the blade */
-        ctx.fillStyle = hueOf(1);
-        ctx.fillRect(x - 4, ay - 1.5, w + 8, 3);
-        ctx.beginPath();
-        ctx.moveTo(x + w + 9, ay - 5);
-        ctx.lineTo(x + w + 15, ay);
-        ctx.lineTo(x + w + 9, ay + 5);
-        ctx.closePath();
-        ctx.fill();
-        /* THE ASK FALLS ONTO THE WORTH, so at the end of every cycle the two
-           readings are a few pixels apart and printed blind they strike
-           through each other. Within one line-height they are printed as ONE
-           reading, which is also the truer statement: the ask has met it. */
-        const met = !trading && Math.abs(ay - wy) < 13;
-        /* at 390 there is no side column wide enough for a callout, so the
-           readings are set compact in the gutter LEFT of the bucket and the
-           sentence that explains them moves to the station's caption row */
-        const rx2 = l.narrow ? x - 6 : x + w + 22;
-        const ral: CanvasTextAlign = l.narrow ? 'right' : 'left';
-        const rsz = l.narrow ? 8 : 8.5;
-        /* the blade's own value on the blade, the datum's on the datum */
-        labelK(asking.toFixed(2), rx2, ay + 3, rsz, trading ? ink.hi : ink.pinkLabel, ral);
-        if (!trading && !met) labelK(worth.toFixed(2), rx2, wy + 3, rsz, ink.blueLabel, ral);
-      }
+      /* ══ THE FALLING ASK, ONE PER AUCTION ═════════════════════════════════
+         A DUTCH AUCTION IS A PRICE COMING DOWN TO MEET THE MONEY, and that is
+         now the whole of what this station draws: each bucket carries a blade
+         in its OWN asset's hue, falling from the top of the cell toward the
+         blue it is going to be paid in. When the blade crosses the fluid — a
+         hair past it — the auction clears, the bucket drains, the blue goes
+         out to the buyer and the asset comes back to the fund.
 
-      /* ---- EVERY ROW BELOW THE BUCKETS IS ITS OWN, and each is drawn in the
-         order it is read. */
+         THE CROSSING IS NOT A NEW RULE. The frozen model decides when each pot
+         clears, in `epochEnd`; the blade is drawn so that it reaches the fluid
+         at exactly that instant. The geometry is a re-parameterisation of the
+         model's own clock, never a trigger of its own — so what a reader sees
+         cause the drain is what actually caused it.
+
+         IT FALLS LINEARLY, because that is what the price does: Mine's own
+         decay is `initialPrice − initialPrice × t / period`, and an eased
+         blade would draw a price that hesitates. And it is a BLADE, not a
+         level — constant thickness, spanning the cell and a little past it on
+         both sides — so it can never be misread as stock.
+
+         The rail, the dashed fair-value datum and the two figures beside them
+         are gone. Four lanes each carrying a rail and two decimals was a
+         diagram of an instrument panel; the statement was only ever that one
+         line is falling onto another, and the drawing makes it without them. */
       rz.assets.forEach((a, i) => {
         const bay = l.bays[i];
         if (!bay) return;
-        labelK(
-          a.sym + (l.narrow ? ' ' : '  ') + money(a.pot),
-          bay.cx,
-          l.aucValY + (l.narrow ? (i % 2) * 11 : 0),
-          l.narrow ? 7.5 : 10.5,
-          ink.text,
-          'center',
-        );
+        const span = a.epochEnd - (aucFrom[i] ?? 0);
+        if (span <= 0) return;
+        const p = Math.max(0, Math.min(1, (rz.flow.t - (aucFrom[i] ?? 0)) / span));
+        const w = l.bayW;
+        const x = bay.cx - w / 2;
+        /* the top of the blue it is falling toward, and the hair past it that
+           makes the crossing a crossing rather than a touch */
+        const lvl = Math.max(0, Math.min(1, a.dispPot / potCap));
+        const fluidY = l.aucTop + l.aucH * (1 - lvl);
+        const from = l.aucTop + 2;
+        const to = Math.min(l.aucTop + l.aucH - 2, fluidY + (l.narrow ? 3 : 4));
+        const ay = from + (to - from) * p;
+        ctx.fillStyle = hueOf(i);
+        ctx.fillRect(x - 4, ay - 1.5, w + 8, 3);
       });
     }
 
@@ -1881,8 +2419,9 @@ export function Plate() {
         if (!bay) return;
         /* the STOCK reading the key publishes: name and number on ONE line,
            ticked to the vessel that holds it — never a bare numeral under a
-           bare word */
-        labelK(hh.sym, bay.cx, l.bayTop - 7, 10.5, ink.hi, 'center');
+           bare word. The bay's own title above it has gone: it said the same
+           word the reading says, over a bay already filled in that asset's
+           hue, and three statements of one identity is two too many. */
         labelK(
           hh.sym + '  ' + hh.amt.toFixed(hh.amt < 10 ? 4 : 1),
           bay.cx,
@@ -1895,6 +2434,7 @@ export function Plate() {
     }
 
     /* ---------------------------------------------------------------- you */
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars -- parked, see paint()
     function paintYou(l: Layout): void {
       /* THE BANDS FIRST, THE TYPE LAST — for the whole station. The four claim
          ribbons cross this band from the bays above it down to the collector,
@@ -2032,22 +2572,101 @@ export function Plate() {
       mn.nextBeat = Infinity;
       sched.slot = -1;
       replan();
-      packets.length = 0;
-      queued.length = 0;
-      mn.flash.forEach((f, i) => (flashWas[i] = f));
+      /* ══ THE EMISSION BOARD OPENS FULL ════════════════════════════════════
+         A rolling window that opens empty spends its first minute drawing a
+         flat line along its own floor: the reader arrives at a mine that has
+         been running for twenty minutes and at a chart that says nothing has
+         ever happened. So the plate rolls the board forward one whole window
+         before the first frame — through exactly the loop `step()` runs, the
+         model's own ambient takes, each one replanning the next the way a live
+         take does — and records the risers as they fire.
+
+         NOTHING IS INVENTED HERE. This is not a decorative back-fill: every
+         riser is a settlement `stepMine` actually performed, at the price the
+         model set, minting the accrual the outgoing tenure had earned. The
+         staircase on the opening frame is the staircase a reader who had been
+         watching for ten minutes would have seen drawn. */
+      emis.t0 = mn.t;
+      emis.total = mn.totalMined;
+      emisHist.length = 0;
+      emisHist.push({ x: 0, v: emis.total });
+      /* THE WARM-UP'S DEPOSITS ARE HISTORY, NOT A BALANCE. They are booked as
+         already routed before the pre-roll starts.
+
+         THE DEFECT THIS FIXES. `bookedIn` used to be reset to zero against a
+         `routerDeposits` tally the warm-up had already run up, so the first
+         live frame booked twenty minutes of revenue in one step. The Router
+         opened holding about ten cycles' worth, which set its ceiling for the
+         rest of the visit — and every ordinary cycle after it then drew as a
+         sliver about a tenth of the cell high. Nothing was wrong with the
+         arithmetic; the plate was simply scaled to a lump that never recurs. */
       router.held = 0;
-      router.bookedIn = 0;
-      router.outTotal = 0;
+      router.bookedIn = mn.routerDeposits;
+      router.outTotal = mn.routerDeposits;
       router.lastRouted = 0;
+      router.load = 0;
       router.sinceRoute = 0;
       router.wait = ROUTE_MIN;
       router.open = 0;
+      {
+        const PRE = 4; // protocol seconds a pre-roll step advances
+        /* the pre-roll runs on the same two clocks the live loop does: the
+           mine on protocol seconds, the Router on the real seconds those are
+           watched in, so route() fires on its own published cadence */
+        const dtReal = PRE / TS_MINE;
+        let banked = mn.totalMined;
+        for (let t = 0; t < EMIS_SPAN; t += PRE) {
+          stepMine(mn, PRE, mineFx);
+          const d = mn.totalMined - banked;
+          if (d > 0) {
+            banked = mn.totalMined;
+            stepMinted(d);
+            replan();
+          }
+          /* THE ROUTER, PRE-ROLLED TOO. Nothing is in flight here — no take is
+             mid-drawing — so every deposit books on the frame it is made, and
+             route() empties it on the same wait the live loop uses. The reader
+             arrives at a Router part-way through a cycle it has actually been
+             paid into, and at a `lastRouted` that is a real previous load. */
+          if (mn.routerDeposits > router.bookedIn) {
+            router.held += mn.routerDeposits - router.bookedIn;
+            router.bookedIn = mn.routerDeposits;
+          }
+          router.sinceRoute += dtReal;
+          if (router.sinceRoute >= router.wait && router.held > 0) {
+            router.lastRouted = router.held;
+            router.load = router.load > 0 ? router.load + (router.held - router.load) * 0.4 : router.held;
+            router.outTotal += router.held;
+            router.held = 0;
+            router.sinceRoute = 0;
+            router.wait = ROUTE_MIN + Math.random() * ROUTE_VAR;
+          }
+        }
+      }
+      /* the window opens where the pre-roll left it rather than easing into
+         place through the first second the reader is watching */
+      frameWindow(0);
+      packets.length = 0;
+      queued.length = 0;
+      mn.flash.forEach((f, i) => (flashWas[i] = f));
+      /* nothing is mid-travel on a fresh seed: the drawn level IS `held`, and
+         the cell's scale opens on the load the pre-roll last routed */
+      level.shown = router.held;
+      level.from = router.held;
+      level.age = TAKE_FADE;
+      level.dur = TAKE_FADE;
+      dripAge = TAKE_FADE;
+      router.cap = routerCap();
+      router.capShown = router.cap;
       mint.mark = rd.supply;
       mint.since = 0;
       mint.total = 0;
       mint.burned = 0;
       mint.rate = 0;
-      for (let i = 0; i < 40; i++) stepResonance(rz, 240, {});
+      for (let i = 0; i < 40; i++) {
+        stepResonance(rz, 240, {});
+        trackEpochs();
+      }
       seedHistory(au, {});
     }
     seed();
@@ -2083,8 +2702,12 @@ export function Plate() {
           stepMine(mn, 24, mineFx);
           spawnTakes(before, mintedBefore);
           stepResonance(rz, 380, {});
+          trackEpochs();
           aucStep(au, 190, {});
         }
+        /* the still steps the board past its own seed, so the emission window
+           is re-solved against the risers that actually ended up in it */
+        frameWindow(0);
         /* the still catches ONE take part-way along its run: the last one the
            board actually made, at its own drawn widths */
         packets.length = 0;
@@ -2106,6 +2729,10 @@ export function Plate() {
         router.outTotal = landed * 0.62;
         router.bookedIn = landed;
         router.held = landed - router.outTotal;
+        /* the still is one frame: the drawn level has already arrived */
+        level.shown = router.held;
+        level.from = router.held;
+        level.age = level.dur;
         rd.phase = 'burn';
         rd.who = '@you';
         rd.mine = true;
