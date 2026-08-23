@@ -8,24 +8,23 @@
    is given; these three values are the ones measured to hold every station's
    minimum at their breakpoints without a single mark being cut.
 
-   They grew in round 2: the key moved from the head to the FOOT (a reader
-   meets 01 THE MINE first and refers back), the mine's fork gained the
-   reserved rows that let its 80% leg run vertically at its true width, and
-   station 06 gained the mint inflow that explains why GBX supply rises. */
+   They HALVED in round 3: the key, the gauge block, the break and the
+   conservation ledger all came off the plate, and the six stations closed up
+   behind them. */
 #sec-plate .pl-stage {
   position: relative;
   width: 100%;
-  height: 3480px;
+  height: 1434px;
   min-width: 0;
 }
 @media (max-width: 1023px) {
   #sec-plate .pl-stage {
-    height: 3960px;
+    height: 1464px;
   }
 }
 @media (max-width: 719px) {
   #sec-plate .pl-stage {
-    height: 6200px;
+    height: 1564px;
   }
 }
 #sec-plate .pl-stage canvas {
@@ -34,16 +33,6 @@
   height: 100%;
 }
 
-/* The plate's own note voice — the mono eyebrow the other panels use. */
-#sec-plate .pl-cap {
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.19em;
-  text-transform: uppercase;
-  color: var(--text-faint);
-  margin-bottom: var(--s3);
-}
 #sec-plate .pl-how {
   margin-top: calc(-1 * var(--s4));
   margin-bottom: var(--s6);
@@ -52,4 +41,35 @@
   #sec-plate .pl-how {
     margin-left: calc(180px + clamp(20px, 3vw, 48px));
   }
+}
+
+/* ---------------------------------------------------------- no panel ----
+   THE PLATE HAS NO CHROME. Every other sim sits inside a panel — a ground, a
+   border, a lit top edge, a scanline and a 3px brand flag — and this one does
+   not: the drawing sits directly on the page's own black. The inset that
+   existed only to clear that frame goes with it, which is also the last of
+   the compaction. The element itself stays, because the harness registers the
+   sim against it. */
+#sec-plate .sim-panel {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+#sec-plate .sim-panel::before,
+#sec-plate .sim-panel::after {
+  content: none;
+}
+#sec-plate .sim-panel__body {
+  padding: 0;
+}
+#sec-plate .sim-panel__head {
+  padding-left: 0;
+  padding-right: 0;
+}
+#sec-plate .sim-panel__foot {
+  padding-left: 0;
+  padding-right: 0;
+  background: none;
 }
