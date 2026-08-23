@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { CSSProperties } from 'react';
 import Image from 'next/image';
 import { SpecimenDriver } from './SpecimenDriver';
+import { legendAltText } from '../../lib/legend';
 import './specimen.css';
 
 export const metadata: Metadata = {
@@ -1417,6 +1418,137 @@ export default function SpecimenPage() {
               element, which is how you can see that lit states are not piling up. The four are offset by 700ms so they
               never fire in lockstep. These four are live, which is why they are the only framed things in this section.
             </p>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ==================================== 10 · the flow grammar ===== */}
+      <section className="sp-sec" aria-labelledby="sp-gram">
+        <div className="container">
+          <header className="sec-head sec-head--indexed">
+            <div className="sec-head__index">
+              <span className="sec-head__num" aria-hidden="true">
+                10
+              </span>
+              <span className="eyebrow eyebrow--blue">The flow grammar</span>
+            </div>
+            <div className="sec-head__body">
+              <h2 className="h1" id="sp-gram">
+                Width is the quantity, or it is decoration
+              </h2>
+              <p className="lede">
+                One drawing grammar for every figure on the site: six glyphs borrowed from ISA-5.1, two line weights,
+                the ball-colour law, and ribbons whose width at every station is the model&apos;s own number rather than
+                a taper somebody liked.
+              </p>
+            </div>
+          </header>
+
+          <div className="sim-panel sim-panel--blue" id="sp-gramPanel">
+            <div className="sim-panel__head">
+              <span className="sim-panel__title sim-panel__title--blue">The grammar — live</span>
+              <span className="chip chip--warn">Illustrative quantities</span>
+            </div>
+            <div className="sim-panel__body">
+              <p className="sim-cap">
+                The key first, drawn by the same functions the five figures call, so the published legend and the
+                figures can never drift apart. Learn these six glyphs once and every diagram on the site reads.
+              </p>
+              <canvas className="sp-gram__key" id="sp-gramKey" role="img" aria-label={legendAltText()} />
+
+              <p className="sim-cap sp-gram__cap">
+                Then the grammar running. Capital arrives in a vessel and stops there; a valve releases it — and for
+                three seconds both are open at once, so the inlet and the split carry material in the same frame; a
+                splitter divides it in a ratio the control signal sets and prints on each branch; each leg lands in a
+                bay. Later the trade runs the other way: GBX comes down its own line, dies at the burner, and that is
+                what lets every bay release the same share of its holdings — four ribbons stacking into one collector,
+                past the burner, out to the holder. Nothing is a recolour of anything: the neutral band ends, the asset
+                bands leave. Every band&apos;s width is its quantity times one gauge and every bay level is its stock
+                times another; both gauges are drawn bottom left, upright, so either can be laid straight against what
+                it measures. The four counters below run cumulatively for as long as this page is open — the twentieth
+                charge has to balance against the first nineteen.
+              </p>
+              <canvas
+                className="sp-gram__flow"
+                id="sp-gramFlow"
+                role="img"
+                aria-label="A live flow diagram in the page's drawing grammar. Capital arrives from the left as a blue band into a holding vessel and stops there. A valve releases it along a blue trunk to a splitter, which divides it into four blue legs whose widths are the shares a pink dashed control signal sets. Each leg lands in a bay — NVDA, QQQ, WBTC, AAPL — which fills with that asset's own colour. When the vessel is empty the outlet shuts; a burn valve then opens and every bay releases the same share of its holdings as an asset-coloured ribbon, the four stacking into one collector that ends at a terminal sink. Every band's width is its quantity times one published gauge, and the two rows of figures beneath the drawing check, every frame, that the legs still sum to the trunk and that nothing has appeared or vanished."
+              />
+
+              <div className="sp-h sp-gram__lab">The junction, checked every frame — and the check itself, checked</div>
+              <dl className="tallies sp-gram__check">
+                <div className="tally">
+                  <dt>Junction</dt>
+                  <dd id="sp-gj-name">SHUT</dd>
+                </div>
+                <div className="tally">
+                  <dt>Trunk, units/s</dt>
+                  <dd id="sp-gj-trunk">0.000</dd>
+                </div>
+                <div className="tally">
+                  <dt>Sum of legs, units/s</dt>
+                  <dd id="sp-gj-legs">0.000</dd>
+                </div>
+                <div className="tally">
+                  <dt>Δ width at the junction, px</dt>
+                  <dd id="sp-gj-dpx">0.00e+0</dd>
+                </div>
+                <div className="tally">
+                  <dt>Worst seam, px</dt>
+                  <dd id="sp-gj-seam">0.00e+0</dd>
+                </div>
+                <div className="tally">
+                  <dt>Δ width across 33 stations, px</dt>
+                  <dd id="sp-gj-scan">0.00e+0</dd>
+                </div>
+                <div className="tally">
+                  <dt>Control — one leg 0.4% short</dt>
+                  <dd id="sp-gj-ctl">0.00e+0</dd>
+                </div>
+              </dl>
+
+              <div className="sp-h sp-gram__lab">And the balance, which has to hold across every cycle, not inside one</div>
+              <dl className="tallies sp-gram__check">
+                <div className="tally">
+                  <dt>Charged in, every cycle</dt>
+                  <dd id="sp-gb-in">0.000</dd>
+                </div>
+                <div className="tally">
+                  <dt>In the vessel</dt>
+                  <dd id="sp-gb-vessel">0.000</dd>
+                </div>
+                <div className="tally">
+                  <dt>In the bays</dt>
+                  <dd id="sp-gb-bays">0.000</dd>
+                </div>
+                <div className="tally">
+                  <dt>Claimed out, every cycle</dt>
+                  <dd id="sp-gb-out">0.000</dd>
+                </div>
+                <div className="tally">
+                  <dt>Δ balance (and ÷ charged)</dt>
+                  <dd id="sp-gb-delta">0.00e+0</dd>
+                </div>
+                <div className="tally">
+                  <dt>GBX burned — its own ledger</dt>
+                  <dd id="sp-gb-burn">0.000</dd>
+                </div>
+              </dl>
+            </div>
+            <div className="sim-panel__foot">
+              <span className="sim-clock" id="sp-gramPhase">
+                cycle 01 · charge — capital arriving, the outlet still shut
+              </span>
+              <p className="note sim-note">
+                Quantities here are illustrative and in one unit; this figure demonstrates the drawing grammar and makes
+                no protocol claim. Δ is printed in exponential form so an error can never hide behind a rounded zero, and
+                the balance is printed against the cumulative charge as well, because a residual has to be read against
+                the size of the thing it is a residual of. The legs&apos; quantities sum to the trunk&apos;s by
+                construction — the splitter allocates its residual to the last lane, the way the contracts do — so the
+                three checks printed are the drawn ones, in px.
+              </p>
+            </div>
           </div>
 
           <div className="sp-colophon">

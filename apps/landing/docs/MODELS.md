@@ -30,10 +30,19 @@ are illustrative; the constants above are provisional source constants, not cons
 State: `{ t, totalMined, routerDeposits, paidToMiners, slots[16] }`. Per slot:
 `{ owner, initialPrice, startedAt, lastAccruedAt, tps, mined, reserve }`.
 
-Init: the display opens on a reachable post-deployment snapshot with twelve occupied slots and four
-never-taken slots. Every never-taken slot keeps Mine's `$1` deployment auction and deployment-time
-start; it is never reopened after a first fill. Occupied tenures are staggered to prevent lockstep.
-Vacant slots have zero TPS. Occupied era-zero slots have `64 / 16 = 4 GBX/s` each, or `14,400
+Init: the display opens on a reachable steady-state snapshot with **all sixteen slots occupied**.
+Occupied tenures are staggered to prevent lockstep.
+
+The never-taken state is a **deployment-only** condition and is deliberately not drawn. At
+deployment every slot is empty and carries Mine's `$1` deployment auction; once a slot takes its
+first fill it always has an owner, because a take replaces the incumbent in the same transaction —
+`it is never reopened after a first fill`. So a live board never shows a vacant slot, and the
+owner's ruling (23 Aug 2026) is that the diagram opens after that transient rather than inside it.
+
+The empty-slot branch remains in the model and in the contract — an empty-slot first fill deposits
+the complete payment, where an occupied slot credits `floor(paid * 8_000 / 10_000)` to the
+displaced miner and deposits the remainder. It simply never fires in this display. Vacant slots
+have zero TPS. Occupied era-zero slots have `64 / 16 = 4 GBX/s` each, or `14,400
 GBX/hour`, and keep that assigned rate until replacement.
 
 Price: `priceOf = initialPrice * (1 - elapsed/DECAY)`, returning zero once `elapsed >= DECAY`.

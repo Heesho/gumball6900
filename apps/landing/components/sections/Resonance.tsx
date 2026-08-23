@@ -2,45 +2,29 @@
 
 import { useLayoutEffect } from 'react';
 import { registerSim, fontFamily } from '../../lib/harness';
+import {
+  CHIP_END,
+  CHIP_TAIL,
+  NODES,
+  PHASE,
+  STAGE_TEXT,
+  STRATEGIES,
+  STREAM,
+  TIME_SCALE,
+  WEEKLY,
+  applyMove,
+  createResonanceState,
+  largestAsset,
+  stepResonance,
+  SCRIPTED_LOT,
+  totalDisp,
+  totalStake,
+  type ResonanceFx,
+  type RzAsset,
+} from '../../lib/models/resonance';
 import './resonance.css';
 
-/* Illustrative strategies. Stakes in GBX; pct/bar/sub are the exact strings the
-   fragment's initial updateRows() paints from these stakes (rate seeded to the
-   46,000 USDG weekly stream) — rendered in JSX so server HTML has final
-   geometry and the first paint shifts nothing. */
-const STRATEGIES = [
-  { sym: 'NVDA', stake: 12400, pct: '39%', bar: '39.4%', sub: '12,400 GBX · ≈$18,100/wk at this weight' },
-  { sym: 'QQQ', stake: 9200, pct: '29%', bar: '29.2%', sub: '9,200 GBX · ≈$13,400/wk at this weight' },
-  { sym: 'WBTC', stake: 6100, pct: '19%', bar: '19.4%', sub: '6,100 GBX · ≈$8,900/wk at this weight' },
-  { sym: 'AAPL', stake: 3800, pct: '12%', bar: '12.1%', sub: '3,800 GBX · ≈$5,500/wk at this weight' },
-] as const;
-
-type Stage = 'hold' | 'move' | 'settle' | 'drift';
-
-/* The narration in the panel foot. Nobody operates this panel; the foot says
-   which beat of the programme is on screen instead of offering controls. */
-const STAGE_TEXT: Record<Stage, string> = {
-  hold: 'hold · weights steady',
-  move: 'signal moves',
-  settle: 'settle · the split follows',
-  drift: 'holders moving on their own clocks',
-};
-
-interface AssetModel {
-  sym: string;
-  stake: number;
-  pot: number /* USDG waiting at the Strategy */;
-  dispPot: number /* drawn level — lerps, so a flush drains rather than snaps */;
-  disp: number /* displayed stake at the BLADES — lerps toward stake */;
-  chain: Float64Array /* the same weight further and further downstream */;
-  delta: number /* last move, ±GBX */;
-  moved: number /* 1 → 0 decay while a move is fresh */;
-  emph: number /* 1 for the scripted signal move, dimmer for ambient drift */;
-  flash: number /* 1 → 0 decay after the auction takes the lot */;
-  lastLot: number;
-  epochEnd: number /* each auction flushes on its own clock */;
-  nextMove: number /* this signaler's own reservation */;
-  lastMove: number /* … and its own dwell */;
+interface AssetModel extends RzAsset {
   row: HTMLElement;
   pctEl: HTMLElement;
   deltaEl: HTMLElement;
@@ -50,20 +34,6 @@ interface AssetModel {
   lastPct?: string;
   lastDelta?: string;
   lastSub?: string;
-}
-
-interface Particle {
-  p: number;
-  lane: number;
-  off: number /* −.42 … .42 of the channel thickness: the coin's line in the flow */;
-  r: number;
-}
-
-interface Chip {
-  from: number;
-  to: number;
-  p: number;
-  lot: number;
 }
 
 export function Resonance() {
@@ -121,108 +91,37 @@ export function Resonance() {
     const FLUID_SHADE = 'rgba(2, 7, 13, 0.62)'; /* … and the shaded underside */
     const UNIT = 30; /* USDG per coin in a vessel's pile */
 
-    const STREAM = 7 * 86400; /* Resonance.DURATION — seven days, fixed in code */
-    const TIME_SCALE = 900;
-    const WEEKLY = 46000; /* the illustrative weekly stream, in USDG */
-    const LOTS = [1000, 1500, 2000, 3000];
-    const SCRIPTED_LOT = 2000;
-    const MIN_DWELL = 2600; /* sim s a signaler waits before it can move again */
-    /* ------------------------------------------------ the split, in transit
-       A new split does not appear at the vessels the moment the blades move:
-       the fluid has to carry it there. Each channel's thickness at a point is
-       sampled from a chain of NODES first-order lags, so the change leaves the
-       comb and travels downstream — the blades cut the stream now, the vessel
-       end is still carrying last week's split until the front reaches it.
-       TRANSIT is the fluid's own pace: a coin that passes the blades as a lot
-       lands arrives at its vessel just as that end finishes reshaping. */
-    const NODES = 12;
-    const TRANSIT = 2100; /* sim s, blades → vessel */
-    const NODE_TAU = TRANSIT / NODES;
-    /* Emphasis: the scripted signal move is the thing this section is about and
-       carries the plate; an ambient holder moving on its own clock is the same
-       mechanism at a whisper. Every pink mark in the drawing is scaled by it. */
-    const EMPH_DRIFT = 0.34;
-    /* The lot annotation's exit, in p units (p advances 1 per 0.95 real s):
-       a single 180ms ramp on which the plane, its type, the leader, the disc
-       and the arrival ring all reach zero together. Nothing outlives the rest. */
-    const CHIP_TAIL = 0.19;
-    const CHIP_END = 1 + CHIP_TAIL;
+    /* The model lives in lib/models/resonance.ts, moved there verbatim so this
+       section and the plate step the identical code. The state's four assets
+       are the objects this section then wires its ledger rows onto, so every
+       paint below reads the model directly. */
+    const R = createResonanceState();
+    const ASSETS = R.assets as AssetModel[];
+    const flow = R.flow;
+    const cycle = R.cycle;
 
     /* Wire the JSX-rendered weight rows to the model — never rebuild them. */
     const rowEls = el.querySelectorAll<HTMLElement>('.rz-row');
     if (rowEls.length !== STRATEGIES.length) return;
-    const ASSETS: AssetModel[] = [];
     for (let i = 0; i < STRATEGIES.length; i++) {
-      const strat = STRATEGIES[i];
+      const asset = ASSETS[i];
       const row = rowEls[i];
-      if (!strat || !row) return;
+      if (!asset || !row) return;
       const pctEl = row.querySelector<HTMLElement>('.rz-row__pct');
       const deltaEl = row.querySelector<HTMLElement>('.rz-row__delta');
       const barEl = row.querySelector<HTMLElement>('.meter > i');
       const subEl = row.querySelector<HTMLElement>('.rz-row__sub');
       if (!pctEl || !deltaEl || !barEl || !subEl) return;
-      ASSETS.push({
-        sym: strat.sym,
-        stake: strat.stake,
-        pot: 0,
-        dispPot: 0,
-        disp: strat.stake,
-        chain: new Float64Array(NODES + 1).fill(strat.stake),
-        delta: 0,
-        moved: 0,
-        emph: 1,
-        flash: 0,
-        lastLot: 0,
-        /* Staggered so the first four flushes land inside the first cycle in view,
-           then each auction runs on its own random clock from there. */
-        epochEnd: 3000 + i * 2600,
-        nextMove: 4200 + i * 3100,
-        lastMove: -MIN_DWELL,
-        row,
-        pctEl,
-        deltaEl,
-        barEl,
-        subEl,
-      });
+      asset.row = row;
+      asset.pctEl = pctEl;
+      asset.deltaEl = deltaEl;
+      asset.barEl = barEl;
+      asset.subEl = subEl;
     }
 
-    const flow = {
-      t: 0,
-      pending: WEEKLY,
-      rate: 0,
-      finish: 0,
-      parts: [] as Particle[],
-      spawnAcc: 0,
-      chip: null as Chip | null,
-      refill: 0 /* 1 → 0 beat while a weekly refill is fresh, and its size */,
-      refillAmt: 0,
-    };
-
-    /* ------------------------------------------------- the scripted signal beat
-       Nobody operates this. The sim runs a four-phase cycle on its own clock —
-       sim time, so a section that has never been on screen has not burned its
-       cycle: a quiet HOLD so the reader is looking at a still board, the MOVE
-       itself (a 2,000 GBX lot out of the largest other Strategy, riding the comb
-       face while the blades slide), SETTLE — which is the front travelling from
-       the blades to the vessels, the beat the drawing owes its own caption —
-       and only then DRIFT, where the ambient signalers are allowed to move, so
-       a scripted move is never buried under a random one.
-       SETTLE is sized to the transit: the front reaches the far end just before
-       the beat ends. DRIFT is long enough that a drift move fired in its first
-       window has also finished travelling before HOLD — so hold really holds. */
-    const PHASE: Record<Stage, number> = { hold: 1800, move: 1400, settle: 2000, drift: 4400 };
-    /* 9,600 sim s ÷ 900 = 10.7 real seconds a cycle. */
-    const DRIFT_WINDOW = 900; /* sim s at the head of DRIFT in which drift may fire */
-    const cycle = { stage: 'hold' as Stage, left: PHASE.hold, target: 0 };
 
     let disposed = false;
 
-    function totalStake() {
-      return ASSETS.reduce((n, a) => n + a.stake, 0) || 1;
-    }
-    function totalDisp() {
-      return ASSETS.reduce((n, a) => n + a.disp, 0) || 1;
-    }
     function money(x: number) {
       x = Math.max(0, x);
       return '$' + (x >= 100 ? Math.round(x).toLocaleString('en-US') : x.toFixed(2));
@@ -250,208 +149,22 @@ export function Resonance() {
        the thing this section is about. An ambient holder moving on its own
        clock is the same mechanism at a whisper: the blades nudge, the ledger
        records the delta, and no plate ever appears. */
-    function applyMove(from: AssetModel, to: AssetModel, lot: number, scripted: boolean) {
-      from.stake -= lot;
-      to.stake += lot;
-      from.delta = -lot;
-      to.delta = lot;
-      from.moved = 1;
-      to.moved = 1;
-      from.emph = scripted ? 1 : EMPH_DRIFT;
-      to.emph = from.emph;
-      from.lastMove = flow.t;
-      to.lastMove = flow.t;
-      /* the lot itself, in flight along the comb face — the transfer, drawn */
-      if (scripted) flow.chip = { from: ASSETS.indexOf(from), to: ASSETS.indexOf(to), p: 0, lot };
-      flashRow(from, scripted);
-      flashRow(to, scripted);
-    }
-
-    /* The note says the lot leaves the largest Strategy, so the SOURCE is picked
-       first and the destination works around it. Picking the destination first
-       and calling the largest *other* Strategy the source is not the same rule:
-       whenever the rotation lands on the Strategy that is already largest, the
-       lot ends up flowing into it — the opposite of what the note describes. */
-    function largestAsset(): AssetModel | null {
-      let big: AssetModel | null = null;
-      ASSETS.forEach((a) => {
-        if (a.stake - SCRIPTED_LOT > 800 && (!big || a.stake > big.stake)) big = a;
-      });
-      return big;
-    }
-
-    /* A holder moves one 2,000 GBX lot out of the largest Strategy and into
-       another — the deliberate move the reader is meant to catch. The
-       destination still follows the rotation, so all four get demonstrated over
-       successive cycles; it only steps past the source. */
-    function signalFromLargest(): boolean {
-      const big = largestAsset();
-      if (!big) return false;
-      let to: AssetModel | null = null;
-      for (let k = 0; k < ASSETS.length && !to; k++) {
-        const idx = (cycle.target + k) % ASSETS.length;
-        if (ASSETS[idx] !== big) {
-          to = ASSETS[idx]!;
-          cycle.target = (idx + 1) % ASSETS.length;
-        }
-      }
-      if (!to) return false;
-      applyMove(big, to, SCRIPTED_LOT, true);
-      return true;
-    }
-
-    /* Advance the demonstration cycle. Returns true while the ambient
-       signalers are allowed to move stake as well. */
-    function runCycle(dt: number): boolean {
-      cycle.left -= dt;
-      if (cycle.left > 0) return cycle.stage === 'drift';
-      if (cycle.stage === 'hold') {
-        /* One call is the whole attempt: the largest of four Strategies always
-           holds a quarter of a conserved total, so it can always spare the lot
-           and the move is guaranteed to fire, never left to chance. */
-        signalFromLargest();
-        cycle.stage = 'move';
-        cycle.left = PHASE.move;
-      } else if (cycle.stage === 'move') {
-        cycle.stage = 'settle';
-        cycle.left = PHASE.settle;
-      } else if (cycle.stage === 'settle') {
-        cycle.stage = 'drift';
-        cycle.left = PHASE.drift;
-        /* Each ambient signaler gets a fresh reservation on its own clock,
-           inside the window whose consequence still lands before HOLD. The
-           order is reshuffled every cycle, so it is a different holder that
-           gets there first rather than the same one every time. */
-        const order = ASSETS.map((_, i) => i);
-        for (let k = order.length - 1; k > 0; k--) {
-          const j = Math.floor(Math.random() * (k + 1));
-          const tmp = order[k]!;
-          order[k] = order[j]!;
-          order[j] = tmp;
-        }
-        order.forEach((idx, k) => {
-          ASSETS[idx]!.nextMove = flow.t + 80 + k * 165 + Math.random() * 210;
-        });
-      } else {
-        cycle.stage = 'hold';
-        cycle.left = PHASE.hold;
-      }
-      return cycle.stage === 'drift';
-    }
-
+    /* applyMove · largestAsset · signalFromLargest · runCycle live with the
+       model in lib/models/resonance.ts. */
     /* ------------------------------------------------------------------ model */
+
+    /* The step is the frozen model's; this section supplies the two things the
+       model cannot own — the ledger row flash, and the cached canvas width the
+       particle cap is scaled by. */
+    const fx: ResonanceFx = {
+      flashRow: (i, scripted) => {
+        const a = ASSETS[i];
+        if (a) flashRow(a, scripted);
+      },
+      viewW: () => view.w,
+    };
     function step(dt: number) {
-      const realDt = dt / TIME_SCALE;
-      flow.t += dt;
-
-      /* The staged demonstration owns the emphasis; ambient signalers only move
-         while it is in its drift window, so two moves never land together. */
-      const drifting = runCycle(dt);
-
-      /* Signalers move stake in discrete whole lots, not a continuous trickle.
-         Four independent actors: each owns a reservation (nextMove) and a dwell
-         (lastMove), so they never all decide in the same frame. Drift fires
-         only in the head of its beat, because a move started later would still
-         be travelling down the channels when HOLD claims the board is steady. */
-      if (drifting && cycle.left > PHASE.drift - DRIFT_WINDOW) {
-        const busy = ASSETS.some((a) => a.moved > 0.3);
-        if (!busy) {
-          let pick = -1;
-          for (let i = 0; i < ASSETS.length; i++) {
-            const a = ASSETS[i]!;
-            if (flow.t < a.nextMove || flow.t - a.lastMove < MIN_DWELL) continue;
-            if (pick < 0 || a.nextMove < ASSETS[pick]!.nextMove) pick = i;
-          }
-          if (pick >= 0) {
-            const from = ASSETS[pick]!;
-            const lot = LOTS[Math.floor(Math.random() * LOTS.length)]!;
-            const to = ASSETS[(pick + 1 + Math.floor(Math.random() * (ASSETS.length - 1))) % ASSETS.length]!;
-            if (from.stake - lot > 800) applyMove(from, to, lot, false);
-            from.nextMove = flow.t + 5200 + Math.random() * 6400;
-          }
-        }
-      }
-
-      if (flow.chip) {
-        flow.chip.p += realDt / 0.95;
-        if (flow.chip.p >= CHIP_END) flow.chip = null;
-      }
-
-      /* The marks that name a move outlive it by exactly as long as its
-         consequence is still travelling: the delta stands in the ledger until
-         the front has reached the vessels, then goes. */
-      const carry = 1 - Math.exp(-dt / NODE_TAU);
-      ASSETS.forEach((a) => {
-        if (a.moved > 0) {
-          a.moved = Math.max(0, a.moved - dt / 3400);
-          if (a.moved === 0) a.delta = 0;
-        }
-        if (a.flash > 0) a.flash = Math.max(0, a.flash - dt / 1500);
-        /* At the blades the split follows the ledger within ~a second … */
-        a.disp += (a.stake - a.disp) * Math.min(1, realDt * 4);
-        /* … and downstream it is carried, station by station, at the pace of
-           the fluid. Walking the chain backwards is what makes it a transport
-           delay and not a smear: each station takes what its upstream
-           neighbour held a moment ago, never what it holds now. */
-        a.chain[0] = a.disp;
-        for (let n = NODES; n >= 1; n--) a.chain[n]! += (a.chain[n - 1]! - a.chain[n]!) * carry;
-      });
-
-      /* Illustrative revenue already forwarded from the Router restarts this
-         display stream once the last one ends. */
-      if (flow.pending > 0 && flow.t >= flow.finish) {
-        flow.rate = flow.pending / STREAM;
-        flow.finish = flow.t + STREAM;
-        flow.refillAmt = flow.pending; /* the refill beat — drawn at the tank */
-        flow.refill = 1;
-        flow.pending = 0;
-      }
-      /* The model accrues an illustrative forwarded amount for its next week.
-         It does not model or promise the separate permissionless route call. */
-      flow.pending += (WEEKLY * dt) / STREAM;
-      if (flow.refill > 0) flow.refill = Math.max(0, flow.refill - dt / 1500);
-
-      /* Split the released USDG by the weights as they are right now. */
-      const released = flow.t < flow.finish ? flow.rate * dt : 0;
-      const total = totalStake();
-      ASSETS.forEach((a) => {
-        a.pot += released * (a.stake / total);
-        if (flow.t >= a.epochEnd && a.pot > 0) {
-          /* its auction takes the lot */
-          a.lastLot = a.pot;
-          a.pot = 0;
-          a.flash = 1;
-          a.epochEnd = flow.t + 9000 + Math.random() * 9000;
-        }
-        a.dispPot += (a.pot - a.dispPot) * Math.min(1, realDt * 3.4);
-      });
-
-      /* Coins: blue USDG, channel picked at the blades by the live weight — so the
-         split of the FLOW is instant while the shape of the CHANNEL is not. That is
-         the whole of the panel's note: the density changes at the comb the moment a
-         lot lands, and the lanes are still catching up behind it. */
-      const cap = view.w && view.w < 560 ? 74 : 118;
-      if (flow.t < flow.finish && flow.parts.length < cap) {
-        flow.spawnAcc += realDt * (view.w && view.w < 560 ? 19 : 30);
-        while (flow.spawnAcc >= 1) {
-          flow.spawnAcc -= 1;
-          const r = Math.random() * total;
-          let acc = 0;
-          let lane = 0;
-          for (let i = 0; i < ASSETS.length; i++) {
-            acc += ASSETS[i]!.stake;
-            if (r <= acc) {
-              lane = i;
-              break;
-            }
-          }
-          flow.parts.push({ p: 0, lane, off: (Math.random() - 0.5) * 0.84, r: 0.82 + Math.random() * 0.36 });
-        }
-      }
-      for (let j = flow.parts.length - 1; j >= 0; j--) {
-        flow.parts[j]!.p += 0.3 * realDt;
-        if (flow.parts[j]!.p >= 1) flow.parts.splice(j, 1);
-      }
+      stepResonance(R, dt, fx);
     }
 
     /* ----------------------------------------------------------------- canvas */
@@ -570,7 +283,7 @@ export function Resonance() {
        stream) and at the vessel, from the lerped weights. This is station zero:
        the blades' own cross-section, which is what the blades are drawn on. */
     function channels(G: Geom) {
-      const total = totalDisp();
+      const total = totalDisp(R);
       let cum = 0;
       return ASSETS.map((a, i) => {
         const share = a.disp / total;
@@ -1236,7 +949,7 @@ export function Resonance() {
     }
 
     function updateRows() {
-      const total = totalStake();
+      const total = totalStake(R);
       const weekly = flow.rate * STREAM;
       ASSETS.forEach((a) => {
         const share = a.stake / total;
@@ -1345,7 +1058,7 @@ export function Resonance() {
         flow.rate = WEEKLY / STREAM;
         flow.pending = (WEEKLY * 2.4 * 86400) / STREAM;
         flow.refill = 0; /* still frame — no event beats */
-        let total = totalStake();
+        let total = totalStake(R);
         const before = ASSETS.map((a) => a.stake);
         ASSETS.forEach((a, i) => {
           a.pot = flow.rate * (a.stake / total) * (5200 + i * 2600);
@@ -1357,9 +1070,9 @@ export function Resonance() {
         });
         /* Same rule as the live beat, so the still frame a reduced-motion
            reader gets shows the lot leaving the largest Strategy too. */
-        const src = largestAsset() ?? ASSETS[0]!;
+        const src = (largestAsset(R) as AssetModel | null) ?? ASSETS[0]!;
         const dst = ASSETS[(ASSETS.indexOf(src) + 1) % ASSETS.length]!;
-        applyMove(src, dst, SCRIPTED_LOT, true); /* out of the largest, fresh */
+        applyMove(R, fx, src, dst, SCRIPTED_LOT, true); /* out of the largest, fresh */
         src.moved = 0.82;
         dst.moved = 0.82;
         /* the blades have all but arrived; the run downstream has not */
@@ -1378,7 +1091,7 @@ export function Resonance() {
         cycle.stage = 'move';
         cycle.left = PHASE.move;
         flow.parts.length = 0;
-        total = totalStake();
+        total = totalStake(R);
         for (let k = 0; k < 46; k++) {
           const r = ((k * 0.618) % 1) * total;
           let acc = 0;

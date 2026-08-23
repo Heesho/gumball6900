@@ -909,6 +909,82 @@
   font-size: 10.5px;
 }
 
+/* ------------------------------------------------- 10 · the grammar ----- */
+/* Both canvases sit straight on the panel ground with no frame and no second
+   surface: the panel is already the border that says "this is live", and a
+   ground of its own would put the canvas text on a surface whose contrast is
+   not one of the three the system publishes. Heights are fixed per breakpoint
+   and the draw functions solve their column counts from the measured box, so
+   nothing is ever cut and nothing ever shifts. */
+.sp-gram__key,
+.sp-gram__flow {
+  display: block;
+  width: 100%;
+}
+.sp-gram__key {
+  height: 740px;
+  margin-top: var(--s5);
+}
+.sp-gram__cap {
+  margin-top: var(--s6);
+}
+.sp-gram__flow {
+  height: 340px;
+  margin-top: var(--s4);
+}
+.sp-gram__lab {
+  margin-top: var(--s6);
+}
+.sp-gram__check {
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+}
+.sp-gram__check .tally {
+  padding: 11px 13px 13px;
+}
+.sp-gram__check dd {
+  font-size: 15px;
+  letter-spacing: 0;
+}
+@media (max-width: 880px) {
+  .sp-gram__key {
+    height: 1000px;
+  }
+}
+@media (max-width: 620px) {
+  .sp-gram__key {
+    height: 1156px;
+  }
+  .sp-gram__flow {
+    height: 400px;
+  }
+  .sp-gram__check {
+    grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
+  }
+  .sp-gram__check dd {
+    font-size: 13.5px;
+  }
+}
+/* The key solves its own column counts from measured text AND wraps every
+   caption into the column it lands in, so its natural height climbs as the box
+   narrows — and climbs again below ~396px, where the glyph meanings go to two
+   lines. These are measured, not guessed: a legend that is cut by its own
+   container has failed at the one thing it is for. */
+@media (max-width: 440px) {
+  .sp-gram__key {
+    height: 1220px;
+  }
+}
+@media (max-width: 420px) {
+  .sp-gram__key {
+    height: 1345px;
+  }
+}
+@media (max-width: 400px) {
+  .sp-gram__key {
+    height: 1495px;
+  }
+}
+
 .sp-colophon {
   padding-block: var(--s5);
   display: flex;
