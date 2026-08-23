@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect } from 'react';
 import { fontFamily, registerSim, startHarness } from '../../lib/harness';
 import { PROCESS_REST, SIGNAL, node, setStroke, sink, splitter, tag, valve, vessel } from '../../lib/isa';
-import { ASSETS, GBX, USDG, drawLegend, legendFonts, readInk } from '../../lib/legend';
+import { ASSETS, GBX, USDG, drawLegend, fillNeutral, legendFonts, readInk } from '../../lib/legend';
 import { ramp } from '../../lib/ease';
 import {
   centrePath,
@@ -1173,7 +1173,7 @@ function mountGrammar(): (() => void) | null {
          parked mid-fan is crossed by whichever leg is passing. The bus goes to
          the far end instead, where each leg has arrived in its own lane and the
          four readings have 80px of clear air between them. */
-      const busX = g.splitX + corridor * (tight ? 0.92 : GR_SIGNAL_TAP);
+      const busX = g.splitX + corridor * (tight ? 0.82 : GR_SIGNAL_TAP);
       /* on a narrow canvas the readings hang to the LEFT of the bus: to their
          right is the bay wall, and a share printed over a bay is a share
          belonging to nothing */
@@ -1189,7 +1189,7 @@ function mountGrammar(): (() => void) | null {
          reading is not drawn: a number laid over a band it does not name is
          worse than a number a reader has to get from somewhere else. */
       flowCtx.font = mono(9, 600);
-      const labelW = flowCtx.measureText('100%').width + 6;
+      const labelW = flowCtx.measureText('99%').width + 6;
       const xa = right ? busX : busX - labelW;
       const xb = right ? busX + labelW : busX;
       const env = splitLegs.map((r) => {
@@ -1408,8 +1408,10 @@ function mountGrammar(): (() => void) | null {
       ctx.save();
       ctx.translate(g.burnX, 0);
       ctx.rotate(Math.PI / 2);
-      ctx.fillStyle = GBX;
-      ctx.fill(paths.gbx);
+      /* through the kit's own neutral treatment, so every neutral band on the
+         page is painted by one function. This run goes DOWN the page and so
+         has no underside — see GBX_SHADE — and takes the flat fill. */
+      fillNeutral(ctx, paths.gbx);
       ctx.restore();
     }
 

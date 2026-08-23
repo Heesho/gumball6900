@@ -3,7 +3,18 @@
 import { useLayoutEffect } from 'react';
 import { fontFamily, registerSim } from '../../lib/harness';
 import { ease, ramp } from '../../lib/ease';
-import { ASSETS as ASSET_HUES, GBX, USDG, drawLegend, legendAltText, legendFonts, readInk, wrap } from '../../lib/legend';
+import {
+  ASSETS as ASSET_HUES,
+  GBX,
+  GBX_SHADE,
+  USDG,
+  drawLegend,
+  fillNeutral,
+  legendAltText,
+  legendFonts,
+  readInk,
+  wrap,
+} from '../../lib/legend';
 import { PROCESS_REST, SIGNAL, hairline, node, setStroke, sink, splitter, tag, valve, vessel } from '../../lib/isa';
 import {
   centrePath,
@@ -79,45 +90,50 @@ import './plate.css';
    ══════════════════════════════════════════════════════════════════════════ */
 
 /* ---------------------------------------------- the neutral treatment ----
-   THE DEFECT THIS FIXES. GBX-neutral is published in the colour law and then
-   drawn — where it is drawn at all — as a tinted grey or at reduced alpha, so
-   it reads against `--panel` as a scratch rather than as a flow. That is
-   exactly backwards: the burn is how value LEAVES the protocol and is half the
-   argument. So the plate fixes the treatment rather than picking an alpha per
-   mark:
-
-     · a neutral flow is filled with the law's own GBX — literally `#FFFFFF`,
-       the value the published swatch carries — at FULL opacity, always. The
-       key and the band are then the same colour, byte for byte, and there is
-       nothing to drift;
-     · it carries a shaded UNDERSIDE hairline, the same lit-from-above light
-       the blue fluid gets, so it reads as material with a top rather than as
-       a flat cut-out;
-     · nothing neutral is ever painted below alpha 1. A band whose quantity is
-       small is drawn NARROW, never faint: faintness would be a second,
-       unpublished encoding sitting on top of width.
-
-   `#FFFFFF` on `--panel #101017` is 18.94:1, so it clears AA at ribbon scale
-   by an order of magnitude — which is the point: at the widths a Sankey band
-   actually gets, a token colour is structural.
-
-   This belongs in lib/legend.ts beside the rest of the colour law; it lives
-   here only because that module is another builder's this round. */
+   The treatment is now KIT-WIDE (`GBX_SHADE` / `fillNeutral` in lib/legend.ts),
+   so the key and every band it describes are the same bytes. The plate only
+   names the body colour locally, and follows the lead's ruling that a band
+   running DOWN the page takes the flat fill with no shade — inventing a light
+   direction for a vertical run would put two light sources on one drawing. */
 const GBX_BODY = GBX;
-const GBX_SHADE = 'rgba(2, 7, 13, 0.55)';
 
-function fillNeutral(ctx: CanvasRenderingContext2D, band: Path2D, under?: Path2D): void {
-  ctx.save();
-  ctx.globalAlpha = 1;
-  ctx.fillStyle = GBX_BODY;
-  ctx.fill(band);
-  if (under !== undefined) {
-    ctx.strokeStyle = GBX_SHADE;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([]);
-    ctx.stroke(under);
+/* --------------------------------------------- the orthogonal pipe run ----
+   THE DEFECT THIS FIXES, and it is the plate's worst. A tapered ribbon's width
+   is measured ACROSS the flow axis, so a band whose centreline moves sideways
+   faster than it moves forward is drawn correct in cross-section and reads as
+   a sliver on the page. Station 01's 80% dead-end measured 131.8 px across and
+   7.4 px thick, beside a 20% leg four times thinner and twice as visible: the
+   widths were arithmetically right and the drawing said the opposite.
+
+   A discrete payment does not taper — it forks once and each leg carries a
+   constant quantity — so the plate routes it the way a plant drawing routes a
+   pipe: an orthogonal centreline STROKED at `q x gauge`. A stroke's width is
+   perpendicular by definition, so `width === q * gauge` holds everywhere on
+   the run and at every corner, which is the one thing a diagonal ribbon cannot
+   promise. Tapering fans (the stream, the burn) keep the ribbon primitive,
+   where the taper is the point. */
+interface Pt {
+  x: number;
+  y: number;
+}
+
+function pipePath(pts: readonly Pt[], radius: number): Path2D {
+  const path = new Path2D();
+  const n = pts.length;
+  const first = pts[0];
+  if (first === undefined) return path;
+  path.moveTo(first.x, first.y);
+  for (let i = 1; i < n - 1; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    const c = pts[i + 1];
+    if (a === undefined || b === undefined || c === undefined) continue;
+    const r = Math.min(radius, Math.hypot(b.x - a.x, b.y - a.y) / 2, Math.hypot(c.x - b.x, c.y - b.y) / 2);
+    path.arcTo(b.x, b.y, c.x, c.y, Math.max(0, r));
   }
-  ctx.restore();
+  const last = pts[n - 1];
+  if (last !== undefined && n > 1) path.lineTo(last.x, last.y);
+  return path;
 }
 
 /* --------------------------------------------------------------- the clocks
@@ -141,6 +157,106 @@ const ROUTE_OPEN = 1.15; // how long the outlet stands open, real seconds
 const PACKET_RUN = 1.05; // real seconds, cell → splitter → landings
 const PACKET_HOLD = 0.85; // … then it stands, so the figures can be read
 
+/* ══════════════════════ THE PROSE, IN ONE PLACE ═══════════════════════════
+   OWNER, round 2: *"theres way too much text and words over the diagram."*
+
+   Every full sentence the plate paints is declared HERE and painted through
+   ONE path — `prose()` / `proseLine()`, gated on `PROSE_ON_CANVAS`. Nothing
+   else in this file writes a sentence onto the canvas.
+
+   THE POINT OF THE SPLIT. A string is on the drawing only if detaching it
+   would destroy it: an ISA tag, a live reading, a lane's share, a bay's
+   ticker and stock, a station number, a scale bar's unit. Those are readings
+   and they stay. Everything below is PROSE — it explains, it does not
+   measure — and prose can live anywhere the reader will see it. Flipping
+   `PROSE_ON_CANVAS` to false takes all of it off the drawing surface in one
+   line; rendering the same record in the section's DOM puts it back beside
+   the plate, where it wraps instead of truncating and where no ribbon can
+   ever paint over it.
+
+   NO HONESTY CONTENT MAY BE LOST, ONLY RELOCATED. The load-bearing contract
+   facts are marked `‡` and must survive wherever this record is rendered. */
+export const PROSE_ON_CANVAS = true;
+
+export const PLATE_PROSE = {
+  gaugeNote: 'width is quantity — hold a ruler against them',
+  fadeNote:
+    'Nothing on this plate is faded to mean "less": a small quantity is a NARROW band, never a dim one. Each station also prints any gauge of its own — the auctions\u2019 lots and every fund bay.',
+  keyPointer:
+    'THE KEY — six glyphs, three weights, three readings and the ball-colour law — is printed in full at the FOOT of the plate. Every band, bay and lane below is labelled where it runs, so read the plate first and the key when you want it.',
+  keyNote: 'learn it once — it reads every station above',
+
+  /* 01 · the mine */
+  mineNote:
+    'sixteen slots · a falling price, one hour to zero · the bar is the clock, empty at restart and full at the hour',
+  /* ‡ a pull claim is not a payment pushed to anyone */
+  claimNote: 'they must collect it — it never reaches the Router',
+  idleFork: 'nothing is in flight — an empty pipe is the truthful state between takes',
+  gbxBands: 'each band is one row of four clocks — its width is that row\u2019s pending GBX',
+  /* ‡ USDG does not buy GBX; it buys the slot */
+  buysTheSlot:
+    'USDG buys the SLOT. The slot then mints GBX on a clock at globalTps/16 — tenure-locked, and independent of what was paid.',
+  mintedAtReplacement:
+    'At replacement it is minted to the miner and leaves this board — that is the inflow drawn against GBX supply at station 06.',
+
+  /* 02 · the Router */
+  routerNote: 'it HOLDS — a deposit is not a forward',
+  /* ‡ route() has no role, no bounty and no liveness guarantee */
+  routeWaiting: 'permissionless · no role, no bounty, no liveness · it has waited ',
+  routeCalled: 'someone called it — ',
+  /* ‡ the wait is unbounded */
+  heldForEver: 'and it can stay held for ever — nothing schedules the call',
+
+  /* the break */
+  breakWide: [
+    'Mine emits RevenueDeposited and stops there; only ResonanceRouter.RevenueRouted proves a later forward, and nothing schedules one.',
+    'So the gauge changes across this line: everything above is conserved in USDG, everything below is a separate model conserved in USDG per second.',
+    'The plate makes no claim that the money below is the money above.',
+  ],
+  breakNarrow: [
+    'Mine emits RevenueDeposited and stops.',
+    'Only RevenueRouted proves a forward.',
+    'Above: USDG. Below: USDG per second.',
+    'Nothing here claims they are the same money.',
+  ],
+
+  /* 03 · the stream */
+  streamNote: 'split by signal — the lane widths ARE the shares',
+  fiUnits: 'FI · milli-USDG/s down this lane',
+
+  /* 04 · the auctions */
+  potWaiting: 'USDG waiting for its auction',
+  traderHands: 'takes the USDG, hands back ',
+  tradeIsPrice: 'USDG out · the asset back — the trade is the price',
+  askFalls: 'the ask falls until it meets what the lot is worth',
+  /* ‡ the tenth is drawn and labelled, and deliberately not followed */
+  signalerTap:
+    '10% of every fill is the signalers’ — Resonance.DEFAULT_BRIBE_BPS = 1000. Drawn, labelled, and not followed further on this plate. Tapped so far ',
+  /* ‡ only lane 2 has a modelled ask */
+  oneInDetail:
+    'One auction in detail — lane 2. The other three run the same mechanism on their own clocks; the plate does not draw an ask it has no model for.',
+  oneInDetailNarrow:
+    'One auction in detail — lane 2: the pink blade is the ask and it falls until it meets the dashed line, what the lot is worth. The other three run the same mechanism on their own clocks; the plate does not draw an ask it has no model for.',
+
+  /* 05 · the fund */
+  bayGauges:
+    'Each bay is on its own gauge because each holds a different thing. What is comparable across bays is the SHARE a burn takes — the same everywhere.',
+
+  /* 06 · your share */
+  youNote: 'burn GBX — and the same share leaves EVERY bay, in one transaction',
+  burnSink: 'GBX leaves and does not return',
+  burnIdle: ' burn would take at this instant',
+  burnIdleNarrow: ' burn would take now',
+  burnLive: ' of everything in existence',
+  burnLiveNarrow: ' of all GBX',
+  stackOrder: 'stacked NVDA · QQQ · WBTC · AAPL — bay order, left to right',
+  stackOrderNarrow: 'stacked NVDA·QQQ·WBTC·AAPL, left to right',
+
+  /* the instruments */
+  deltaNote:
+    'Δ is printed in exponential form so an error can never hide behind a rounded zero, and it turns pink above 1e-11 of the quantity being checked — relative, because a six-figure GBX total floors an order of magnitude higher than a rate does. The Router row is the one that proves the break is honest: in − out − held. These are instantaneous checks, not counters; the tallies beside each station are the cumulative figures.',
+} as const;
+
 interface Band {
   y0: number;
   y1: number;
@@ -163,7 +279,7 @@ interface Layout {
   gStock: number;
   /** px per USDG/s — the flow gauge: the seven-day stream and its four lanes */
   gFlow: number;
-  /** px per GBX — the supply gauge: the burn */
+  /** px per GBX — the supply gauge: the burn, and the mint that refills it */
   gGbx: number;
   /** px per GBX — the mine's pending-emission collector */
   gMined: number;
@@ -181,6 +297,8 @@ interface Layout {
   fund: Band;
   you: Band;
   instr: Band;
+  /** THE KEY, at the FOOT: a reader meets 01 THE MINE first and refers back */
+  key: Band;
   /* ---- every coordinate build() and paint() BOTH need lives here, once.
      Two functions computing the same y from the same formula is how a band
      and the glyph that gates it drift apart on one breakpoint and nobody
@@ -194,12 +312,17 @@ interface Layout {
   gridBot: number;
   gbxX: number;
   gbxCol: number;
-  forkY: number;
+  /** the mine's GBX collector: where the four row bands die */
+  gbxSinkX: number;
+  gbxSinkY: number;
+  /* ---- the fork, as an orthogonal pipe run. Every leg is vertical where its
+     width has to be read, so a stroke's perpendicular width IS the quantity. */
   splitY: number;
-  landY: number;
-  claimC: number;
-  tallyY: number;
   claimY: number;
+  /** the row the 20% remainder traverses on, clear of the claim's sink */
+  headerY: number;
+  landY: number;
+  tallyY: number;
   routerVy: number;
   routerVh: number;
   routerVw: number;
@@ -212,19 +335,29 @@ interface Layout {
   aucTop: number;
   aucH: number;
   aucValY: number;
-  aucTapY: number;
+  aucDetailY: number;
+  aucGaugeY: number;
   aucNoteY: number;
+  aucTradeY: number;
+  aucTapY: number;
   /** the exchange: blue out to the trader, the asset back */
   yOut: number;
   yBack: number;
   bayTop: number;
   bayBot: number;
+  bayNoteY: number;
   supplyY: number;
+  /** the four claim bands merge onto the spine HERE, then run down together */
+  mergeY: number;
+  /** the mint: the inflow that puts back what the burn took */
+  mintY: number;
   burnY0: number;
   burnY1: number;
   collectY: number;
   /** the plate's spine — where the trunk runs */
   cx: number;
+  /** where the four claim bands collect. Off-spine at 390, see mergeY. */
+  collectC: number;
   /** the four lanes, fixed order, at every station */
   bays: Bay[];
   bayW: number;
@@ -347,6 +480,12 @@ export function Plate() {
        lights this drip at the inlet: nothing appears without a mechanism. */
     let drip = 0;
 
+    /* THE MINT, at station 06. `mark` is the supply the last burn left behind;
+       `since` is everything the model has issued since, banked one frame at a
+       time. `mark + since` and the model's own `supply` are two independent
+       arithmetics, and the plate prints their difference. */
+    const mint = { mark: SUPPLY0, since: 0, total: 0, burned: 0, rate: 0 };
+
 
     /* ------------------------------------------------------------- the fund
        What the auctions have delivered into each bay, in USDG of value spent.
@@ -414,7 +553,7 @@ export function Plate() {
       legendCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
       legendCtx.clearRect(0, 0, w, h);
       legendCtx.textBaseline = 'alphabetic';
-      drawLegend(legendCtx, { x: 0, y: 0, w }, { ink, fonts, dpr });
+      drawLegend(legendCtx, { x: 0, y: 0, w: w - 16 }, { ink, fonts, dpr });
     }
 
     function buildLayout(): Layout {
@@ -424,7 +563,10 @@ export function Plate() {
       const mid = w < 1024;
       const pad = narrow ? 14 : 26;
       const inner = w - pad * 2;
-      const legendH = legendHeight(inner);
+      /* the key is laid out into a box 16px narrower than the tile it is drawn
+         into, so a row that composes wider than its column (the QQQ swatch pair
+         at 390 rendered as `QQC`) has somewhere to go instead of the tile edge */
+      const legendH = legendHeight(inner - 16);
 
       /* HEAD_H is the reserved title row every station gets. Nothing is ever
          drawn into it, which is why no station title can collide with the
@@ -436,22 +578,30 @@ export function Plate() {
          Nothing is ever cut by its own container: if the floors do not fit
          the section's declared height the plate grows past it, which the
          measurement catches, rather than a mark being silently clipped. */
-      const gaugeH = narrow ? 134 : 76;
-      const headH = legendH + gaugeH + (narrow ? 30 : 26);
+      const gaugeH = narrow ? 232 : 96;
+      const headH = gaugeH + (narrow ? 26 : 22);
       const brkH = narrow ? 132 : 106;
-      const instrH = narrow ? 286 : 196;
-      const fixed = headH + brkH + instrH + pad * 2;
+      const instrH = narrow ? 366 : 196;
+      /* THE KEY MOVED TO THE FOOT. A reader should meet `01 THE MINE` first and
+         use the key as reference afterwards; every band, bay and lane on this
+         plate is labelled inline, so it reads without the key in front of it.
+         At the head the legend was 22% of the plate at 1440 and 30% at 390 —
+         two viewport-heights of key before the first mechanism. */
+      const keyH = legendH + (narrow ? 40 : 34);
+      const fixed = headH + brkH + instrH + keyH + pad * 2;
 
       const cgap = narrow ? 5 : 8;
       const chMin = narrow ? 78 : 92;
-      const mineMin = HEAD_H + (narrow ? 100 : 42) + (chMin * 4 + cgap * 3) + 20 + (narrow ? 140 : 126);
+      /* the fork's reserved rows, below the board — see FORK, in build() */
+      const forkH = (narrow ? 40 : 44) + (narrow ? 78 : 116) + (narrow ? 78 : 52) + (narrow ? 30 : 26);
+      const mineMin = HEAD_H + (narrow ? 100 : 42) + (chMin * 4 + cgap * 3) + 20 + forkH;
       const flex: { k: 'mine' | 'router' | 'stream' | 'auc' | 'fund' | 'you'; w: number; min: number }[] = [
-        { k: 'mine', w: 30, min: mineMin },
-        { k: 'router', w: 11, min: HEAD_H + (narrow ? 250 : 176) },
-        { k: 'stream', w: 15, min: HEAD_H + (narrow ? 250 : 232) },
-        { k: 'auc', w: 19, min: HEAD_H + (narrow ? 600 : 356) },
-        { k: 'fund', w: 12, min: HEAD_H + (narrow ? 250 : 200) },
-        { k: 'you', w: 13, min: HEAD_H + (narrow ? 280 : 206) },
+        { k: 'mine', w: 32, min: mineMin },
+        { k: 'router', w: 10, min: HEAD_H + (narrow ? 300 : 176) },
+        { k: 'stream', w: 14, min: HEAD_H + (narrow ? 250 : 232) },
+        { k: 'auc', w: 20, min: HEAD_H + (narrow ? 640 : 392) },
+        { k: 'fund', w: 10, min: HEAD_H + (narrow ? 250 : 200) },
+        { k: 'you', w: 14, min: HEAD_H + (narrow ? 420 : 250) },
       ];
       const room = Math.max(0, h - fixed);
       const wsum = flex.reduce((n, f) => n + f.w, 0);
@@ -486,6 +636,7 @@ export function Plate() {
       const fund = band(hs.fund ?? 234);
       const you = band(hs.you ?? 240);
       const instr = band(instrH);
+      const key = band(keyH);
 
       /* ---- the mine board: sixteen cells, always four across ------------ */
       const gbxCol = narrow ? 0 : Math.max(168, Math.min(250, inner * 0.2));
@@ -497,11 +648,21 @@ export function Plate() {
          Router's station, which is the truth about where each half goes. */
       const tallyY = mine.y0 + HEAD_H + (narrow ? 30 : 22);
       const gridTop = tallyY + (narrow ? 62 : 20);
-      const claimY = mine.y1 - (narrow ? 46 : 40);
-      const splitY = claimY - (narrow ? 46 : 42);
-      const forkY = splitY - (narrow ? 48 : 44);
+      /* ---- THE FORK'S RESERVED ROWS, bottom-up from the station's foot.
+         Each is a row nothing else is allowed into, which is what lets the
+         claim leg run VERTICALLY for its whole length: a stroke's width is
+         perpendicular, so a vertical leg is drawn at exactly its quantity. */
+      const capH = narrow ? 40 : 44; // the take caption, under the board
+      const claimRun = narrow ? 78 : 116; // the 80% leg's descent, and its readings
+      /* at 390 the corridor beside the leg is too narrow to set type in, so the
+         sink's three readings go BELOW the sink instead, in rows the header
+         band is held clear of */
+      const sinkH = narrow ? 78 : 52;
+      const headerY = mine.y1 - (narrow ? 16 : 13);
+      const claimY = headerY - sinkH;
+      const splitY = claimY - claimRun;
+      const gridBot = splitY - capH;
       const landY = router.y0 + HEAD_H + 12;
-      const gridBot = forkY - 20;
       const ch = Math.max(52, (gridBot - gridTop - cgap * 3) / 4);
 
       /* ---- the four lanes, in a fixed and permanent order --------------- */
@@ -522,26 +683,45 @@ export function Plate() {
       const laneLandY = aucTop;
       const laneLabelY = aucTop - 58;
       const fiY = trunkY1 + (laneLandY - trunkY1) * 0.58;
-      /* Every annotation this station owns sits ABOVE the exchange, so no
-         label is ever under a band and no band is ever under a label. Below
-         the notes there is nothing but flow and the 10% taps. */
-      const aucValY = aucTop + Math.max(48, 0) + 0; // resolved below
-      const aucBottom = auc.y1;
-      const aucTapY = aucBottom - 14;
-      const yBack = aucTapY - 26;
-      const yOut = yBack - 26;
-      const aucNoteY = yOut - 30;
-      const aucValYReal = aucNoteY - 80;
-      const aucH = Math.max(48, aucValYReal - 16 - aucTop);
-      void aucValY;
+      /* EVERY ROW BELOW THE BUCKETS IS RESERVED, bottom-up, and each one is
+         wide enough for the type it carries. The old spacing put the trade
+         caption 8px under a two-line note and the two overprinted in EVERY
+         capture, reduced motion included. Rows, not offsets. */
+      const aucTapY = auc.y1 - 14;
+      const yBack = aucTapY - (narrow ? 24 : 28);
+      const yOut = yBack - (narrow ? 26 : 30);
+      const aucTradeY = yOut - 22; // "USDG out · the asset back" — its own row
+      const aucNoteY = aucTradeY - (narrow ? 42 : 34); // the 10% note, two lines
+      const aucGaugeY = aucNoteY - (narrow ? 30 : 24); // the lot scale bar
+      const aucDetailY = aucGaugeY - (narrow ? 48 : 26); // "one auction in detail"
+      const aucValY = aucDetailY - (narrow ? 40 : 34); // the bucket readings
+      const aucH = Math.max(48, aucValY - (narrow ? 22 : 18) - aucTop);
 
       /* ---- the fund and the claim ---------------------------------------- */
       const bayTop = fund.y0 + HEAD_H + 14;
-      const bayBot = fund.y1 - (narrow ? 74 : 48);
-      const supplyY = you.y0 + HEAD_H + 16;
-      const burnY0 = supplyY + 22;
-      const burnY1 = burnY0 + (narrow ? 34 : 30);
-      const collectY = you.y1 - (narrow ? 104 : 48);
+      const bayNoteY = fund.y1 - (narrow ? 34 : 12);
+      const bayBot = bayNoteY - (narrow ? 44 : 46);
+      /* stock and flow, in that order down the page: the mint arrives from
+         above, the supply bar is the stock, the burn leaves below. Both flows
+         are anchored on the bar's HEAD, which is the only place supply moves. */
+      const mintY = you.y0 + HEAD_H + (narrow ? 26 : 20);
+      const supplyY = mintY + (narrow ? 34 : 38);
+      const burnY0 = supplyY + (narrow ? 22 : 20);
+      const burnY1 = burnY0 + (narrow ? 36 : 32);
+      const collectY = you.y1 - (narrow ? 120 : 48);
+      /* THE FOUR CLAIM BANDS MERGE ONTO THE SPINE IMMEDIATELY. Fanning them
+         across the whole width all the way down to the collector put the
+         leftmost one straight through the GBX supply bar; merged at the top of
+         the station they travel as one stack down the middle, which is also
+         what the stack-order caption below the collector describes. */
+      const mergeY = you.y0 + HEAD_H + 4;
+      /* AT 390 THE STATION SPLITS INTO TWO COLUMNS. The four claim bands merge
+         at the top of the station and run down a lane against the right
+         margin; the supply bar, the burn and the receipt all live left of it.
+         Fanned across the width they crossed every row of the receipt, and
+         knocking each label out of them left the bands notched at four
+         places — a reserved LANE is the better half of the same rule. */
+      const collectC = narrow ? w - pad - 46 : pad + inner / 2;
 
       /* ---- THE GAUGES. Published, and drawn as scale bars ---------------- */
       /* gStock is only a seed here — station 01's live gauge is derived from
@@ -552,7 +732,10 @@ export function Plate() {
          DURATION), so its gauge is derived from the width once: the trunk is
          always the same share of the plate and can never be cut by the frame. */
       const gFlow = (inner * 0.32) / (WEEKLY / STREAM);
-      const gGbx = (inner * 0.58) / SUPPLY0; // px per GBX
+      /* the bar IS this gauge, and it is kept off the plate's spine: the four
+         claim ribbons converge at `cx`, so a supply bar whose head landed there
+         would put the burn's own band through the collector */
+      const gGbx = (inner * (narrow ? 0.62 : 0.34)) / SUPPLY0; // px per GBX
       const gMined = (narrow ? 0 : 22) / 20000; // px per GBX of pending emission
       /* A LOT IS TWO ORDERS OF MAGNITUDE BIGGER THAN A MINE PAYMENT — hundreds
          of USDG against tens — and no single gauge draws both: at the mine's
@@ -586,6 +769,7 @@ export function Plate() {
         fund,
         you,
         instr,
+        key,
         cw,
         ch,
         cgap,
@@ -593,18 +777,19 @@ export function Plate() {
         gridW,
         gridTop,
         gridBot,
-        gbxX: pad + gridW + (narrow ? 0 : 14),
+        gbxX: pad + gridW + (narrow ? 0 : 10),
         gbxCol,
-        forkY,
+        gbxSinkX: pad + gridW + (narrow ? 0 : 10) + 46,
+        gbxSinkY: gridTop + 1.5 * (ch + cgap),
         splitY,
-        landY,
         claimY,
-        claimC: pad + 58,
+        headerY,
+        landY,
         tallyY,
         routerVy: router.y0 + HEAD_H + 16,
         routerVh: Math.max(58, router.y1 - (router.y0 + HEAD_H + 16) - (narrow ? 124 : 58)),
         routerVw: narrow ? 80 : 104,
-        routerValveY: router.y1 - (narrow ? 92 : 26),
+        routerValveY: router.y1 - (narrow ? 128 : 26),
         trunkY0,
         trunkY1,
         laneLandY,
@@ -612,18 +797,25 @@ export function Plate() {
         fiY,
         aucTop,
         aucH,
-        aucValY: aucValYReal,
-        aucTapY,
+        aucValY,
+        aucDetailY,
+        aucGaugeY,
         aucNoteY,
+        aucTradeY,
+        aucTapY,
         yOut,
         yBack,
         bayTop,
         bayBot,
+        bayNoteY,
         supplyY,
+        mergeY,
+        mintY,
         burnY0,
         burnY1,
         collectY,
         cx: pad + inner / 2,
+        collectC,
         bays,
         bayW: Math.max(46, Math.min(140, laneW * 0.56)),
       };
@@ -642,16 +834,26 @@ export function Plate() {
     const F = {
       /* one list per station, so a station paints exactly its own flows and
          nothing has to be filtered out of a shared pile at frame time */
-      mineBands: [] as Painted[],
       streamBands: [] as Painted[],
       aucBands: [] as Painted[],
       claimBands: [] as Painted[],
-      gbxNeutral: [] as { band: Path2D; edge: Path2D }[],
-      burnNeutral: null as { band: Path2D; edge: Path2D } | null,
+      gbxNeutral: [] as { band: Path2D }[],
+      burnNeutral: null as { band: Path2D } | null,
       pipes: [] as Path2D[],
       checks: [] as Check[],
       /** how far the live payment packet has run, 0..1 */
       packetP: 0,
+      /* THE FORK, as stroked orthogonal runs. Every number the stroke uses is
+         here, so the checks below read the DRAWN geometry rather than a
+         parallel copy of it. */
+      fork: null as null | {
+        cT: number;
+        wT: number;
+        trunk: Path2D;
+        claim: { path: Path2D; c: number; w: number; q: number } | null;
+        rt: { path: Path2D; c: number; w: number; q: number };
+      },
+      restPipes: [] as Path2D[],
       /* THE MINE'S GAUGE IS LIVE, AND PRINTED LIVE.
          Mine restarts every tenure at paid x2 with a $1 floor, so over a long
          watch the board's prices compound: 30 hours of modelled time takes a
@@ -666,6 +868,8 @@ export function Plate() {
       gStock: 1,
       gStockUnit: 20,
       routeP: 0,
+      /** the mine's pending GBX, summed — the collector trunk's own quantity */
+      gbxTotal: 0,
       /** the fund's four slice widths, px, and their bays' drawn stock, px */
       slice: [0, 0, 0, 0],
       stock: [0, 0, 0, 0],
@@ -673,6 +877,7 @@ export function Plate() {
     };
     let pipeKey = '';
     let pipeCache: Path2D[] = [];
+    let restFork: Path2D[] = [];
 
     /** a straight run in flow space: x is DOWN, c is ACROSS. */
     function run(key: string, gauge: number, x0: number, x1: number, c: number, q: number): Ribbon {
@@ -684,14 +889,16 @@ export function Plate() {
 
     function build(l: Layout): void {
       /* the live gauge, and a round unit for its scale bar */
-      const room = (l.w - l.pad * 2) * 0.42;
+      /* the widest band the mine can ever draw is `room`; it is a third of the
+         plate so a payment at the top of the board's own dollar axis still has
+         a gutter on both sides and the fork's reserved rows still clear it */
+      const room = (l.w - l.pad * 2) * 0.34;
       F.gStock = room / Math.max(1, mn.scaleTop);
       const raw = mn.scaleTop / 3;
       const mag = Math.pow(10, Math.floor(Math.log10(Math.max(1e-6, raw))));
       const unit = raw / mag >= 5 ? 5 * mag : raw / mag >= 2 ? 2 * mag : mag;
       F.gStockUnit = unit;
 
-      F.mineBands.length = 0;
       F.streamBands.length = 0;
       F.aucBands.length = 0;
       F.claimBands.length = 0;
@@ -704,16 +911,32 @@ export function Plate() {
       const key = l.w + ':' + l.h;
       if (pipeKey !== key) {
         pipeCache = [];
-        const zero = splitFlow({
-          gauge: 1,
-          at: { x: l.splitY, c: l.cx, q: 0 },
-          legs: [
-            { key: 'claim', q: 0, to: { x: l.claimY, c: l.claimC } },
-            { key: 'rt', q: 0, to: { x: l.landY, c: l.cx } },
-          ],
-          steps: 14,
-        });
-        zero.forEach((r) => pipeCache.push(centrePath(r)));
+        /* THE FORK AT REST — the same orthogonal route the payment takes, with
+           nothing in it. It is drawn under the board's centre column because
+           that is where a route with no payment on it has to be; the live run
+           follows whichever slot was actually taken. */
+        const restC = l.gridX + l.gridW / 2;
+        restFork = [
+          pipePath(
+            [
+              { x: restC, y: l.gridBot },
+              { x: restC, y: l.splitY },
+              { x: restC - 22, y: l.splitY + 16 },
+              { x: restC - 22, y: l.claimY },
+            ],
+            10,
+          ),
+          pipePath(
+            [
+              { x: restC, y: l.splitY },
+              { x: restC + 22, y: l.splitY + 16 },
+              { x: restC + 22, y: l.headerY },
+              { x: l.cx, y: l.headerY },
+              { x: l.cx, y: l.landY },
+            ],
+            12,
+          ),
+        ];
         const zeroSplit = splitFlow({
           gauge: 1,
           at: { x: l.trunkY1, c: l.cx, q: 0 },
@@ -724,10 +947,18 @@ export function Plate() {
         const zeroClaim = convergeFlow({
           gauge: 1,
           sources: l.bays.map((b, i) => ({ key: 'c' + i, q: 0, from: { x: l.bayBot + 4, c: b.cx } })),
-          at: { x: l.collectY, c: l.cx },
+          at: { x: l.mergeY, c: l.collectC },
           steps: 16,
         });
         zeroClaim.legs.forEach((r) => pipeCache.push(centrePath(r)));
+        pipeCache.push(
+          centrePath(
+            ribbon('claimTail', 1, [
+              { x: l.mergeY, c: l.collectC, q: 0 },
+              { x: l.collectY, c: l.collectC, q: 0 },
+            ]),
+          ),
+        );
         /* the exchange's own two legs, at rest */
         l.bays.forEach((bay, i) => {
           const side = i < 2 ? 1 : -1;
@@ -746,40 +977,92 @@ export function Plate() {
         pipeKey = key;
       }
       F.pipes = pipeCache;
+      F.restPipes = restFork;
 
       /* ══════════════════════════ S1 · the mine payment ════════════════════
          A payment is a discrete allocation, not a stream. It forks once:
          80% is credited to the displaced miner as a PULL CLAIM they must
          collect — a dead end — and the exact remainder is deposited in the
-         Router. It is 100% only on an empty slot's first fill. */
+         Router. It is 100% only on an empty slot's first fill.
+
+         THE ROUTE IS ORTHOGONAL AND THE WIDTH IS A STROKE. The 80% leg runs
+         VERTICALLY for its whole length, so the width a reader measures — the
+         perpendicular one — is exactly `q x gauge`. The old drawing sent it
+         across the plate in 42px of descent: 131.8px in cross-section, 7.4px
+         on the page, beside a 20% leg that read twice as thick. Same numbers,
+         opposite drawing. */
       if (packet !== null) {
         const p = packet;
         F.packetP = Math.min(1, p.age / PACKET_RUN);
         const cell = cellBox(l, p.slot);
         const from = cell.x + l.cw / 2;
-        /* The payment leaves the BOARD, not a cell: the trunk starts at the
-           grid's bottom edge under the taken column, and a signal-weight
-           leader — drawn behind the cells — is what ties it to the slot. A
-           process band crossing fifteen other slots would be a false claim
-           about where the money is. */
-        const trunk = ribbon('pay', F.gStock, [
-          { x: l.gridBot, c: from, q: p.paid },
-          { x: l.forkY, c: from, q: p.paid },
-          { x: l.splitY, c: l.cx, q: p.paid },
-        ]);
-        const legs =
+        const wT = widthOf(F.gStock, p.paid);
+        /* the trunk is drawn where the money is, unless that would put a band
+           through the frame — nothing is ever cut by its own container */
+        const lo = l.pad + wT / 2;
+        const hi = l.w - l.pad - wT / 2;
+        const cT = lo > hi ? l.cx : Math.max(lo, Math.min(hi, from));
+        const wClaim = widthOf(F.gStock, p.toMiner);
+        const wRt = widthOf(F.gStock, p.toRouter);
+        /* the two legs stack across the trunk's WHOLE cross-section: the claim
+           takes the left of it, the remainder the right, and their outer edges
+           are the trunk's own. No seam, no overlap — checked below. */
+        const cClaim = cT - wT / 2 + wClaim / 2;
+        const cRt = cT + wT / 2 - wRt / 2;
+        const trunk = pipePath(
+          [
+            { x: cT, y: l.gridBot },
+            { x: cT, y: l.splitY },
+          ],
+          0,
+        );
+        const claimPath =
           p.toMiner > 0
+            ? pipePath(
+                [
+                  { x: cClaim, y: l.splitY },
+                  { x: cClaim, y: l.claimY },
+                ],
+                0,
+              )
+            : null;
+        /* the remainder steps clear of the claim, so the fork is a fork and not
+           one band that happens to stop being one. The step is orthogonal, so
+           the stroke is still perpendicular the whole way. */
+        const jog =
+          p.toMiner > 0 ? Math.max(0, Math.min(18, l.w - l.pad - (cRt + wRt / 2) - 2)) : 0;
+        const rtPts: Pt[] =
+          jog > 1
             ? [
-                { key: 'claim', q: p.toMiner, to: { x: l.claimY, c: l.claimC } },
-                { key: 'rt', q: p.toRouter, to: { x: l.landY, c: l.cx } },
+                { x: cRt, y: l.splitY },
+                { x: cRt, y: l.splitY + 24 },
+                { x: cRt + jog, y: l.splitY + 24 },
+                { x: cRt + jog, y: l.headerY },
+                { x: l.cx, y: l.headerY },
+                { x: l.cx, y: l.landY },
               ]
-            : [{ key: 'rt', q: p.toRouter, to: { x: l.landY, c: l.cx } }];
-        const at: Station = { x: l.splitY, c: l.cx, q: p.paid };
-        const fan = splitFlow({ gauge: F.gStock, at, legs, steps: 14 });
-        F.mineBands.push({ path: ribbonPath(trunk), ink: USDG });
-        fan.forEach((r) => F.mineBands.push({ path: ribbonPath(r), ink: r.key === 'claim' ? ink.blueLabel : USDG }));
+            : [
+                { x: cRt, y: l.splitY },
+                { x: cRt, y: l.headerY },
+                { x: l.cx, y: l.headerY },
+                { x: l.cx, y: l.landY },
+              ];
+        const rtPath = pipePath(rtPts, Math.min(14, Math.max(3, wRt * 0.55)));
+        F.fork = {
+          cT,
+          wT,
+          trunk,
+          claim: claimPath === null ? null : { path: claimPath, c: cClaim, w: wClaim, q: p.toMiner },
+          rt: { path: rtPath, c: cRt, w: wRt, q: p.toRouter },
+        };
 
-        const rep = junctionReport(at, fan, F.gStock, 'first');
+        /* THE JUNCTION, read off the numbers the strokes actually use. */
+        const at: Station = { x: l.splitY, c: cT, q: p.paid };
+        const legs: Ribbon[] = [];
+        if (claimPath !== null)
+          legs.push(ribbon('claim', F.gStock, [{ x: l.splitY, c: cClaim, q: p.toMiner }]));
+        legs.push(ribbon('rt', F.gStock, [{ x: l.splitY, c: cRt, q: p.toRouter }]));
+        const rep = junctionReport(at, legs, F.gStock, 'first');
         F.checks.push({
           seg: 'S1',
           what: 'mine payment → claim + Router',
@@ -787,16 +1070,43 @@ export function Plate() {
           drawn: rep.legQ,
           err: rep.qErr + rep.maxSeamPx + rep.spanErrPx,
         });
-        const scan = scanConservation({ legs: fan, total: p.paid, from: l.splitY, to: l.landY, samples: 33 });
+        /* THE ROW THAT GUARDS THE FIX. A stroke's width is perpendicular, so a
+           leg drawn on an axis is drawn at exactly its quantity — and a leg
+           drawn on a slant is not, whatever its cross-section says. Every
+           segment of every leg must therefore be axis-aligned: the error is
+           the worst segment's smaller displacement, in px, and it goes
+           non-zero the instant anyone re-routes a leg diagonally again. */
+        const runs: Pt[][] = [
+          [
+            { x: cT, y: l.gridBot },
+            { x: cT, y: l.splitY },
+          ],
+          rtPts,
+        ];
+        if (claimPath !== null)
+          runs.push([
+            { x: cClaim, y: l.splitY },
+            { x: cClaim, y: l.claimY },
+          ]);
+        let offAxis = 0;
+        runs.forEach((pts) => {
+          for (let i = 1; i < pts.length; i++) {
+            const a = pts[i - 1];
+            const b = pts[i];
+            if (a === undefined || b === undefined) continue;
+            offAxis = Math.max(offAxis, Math.min(Math.abs(b.x - a.x), Math.abs(b.y - a.y)));
+          }
+        });
         F.checks.push({
           seg: 'S1',
-          what: 'across the fork, 33 stations',
-          claim: p.paid,
-          drawn: p.paid + (scan.maxAbsErr || 0),
-          err: scan.maxAbsErr,
+          what: 'every leg on an axis — width is perpendicular · px',
+          claim: 0,
+          drawn: offAxis,
+          err: offAxis,
         });
       } else {
         F.packetP = 0;
+        F.fork = null;
         F.checks.push({ seg: 'S1', what: 'no payment in flight', claim: 0, drawn: 0, err: 0 });
       }
 
@@ -994,10 +1304,20 @@ export function Plate() {
             q: (F.slice[i] ?? 0) * ease(Math.min(1, k * 1.25)),
             from: { x: l.bayBot + 4, c: b.cx },
           })),
-          at: { x: l.collectY, c: l.cx },
+          at: { x: l.mergeY, c: l.collectC },
           steps: 16,
         });
-        conv.legs.forEach((r, i) => F.claimBands.push({ path: ribbonPath(r), ink: hueOf(i) }));
+        conv.legs.forEach((r, i) => {
+          F.claimBands.push({ path: ribbonPath(r), ink: hueOf(i) });
+          /* and on down the spine to the collector, each keeping its place in
+             the stack — bay order, left to right, at every station */
+          const end = r.stations[r.stations.length - 1];
+          if (end === undefined) return;
+          F.claimBands.push({
+            path: ribbonPath(run('tail' + i, 1, l.mergeY, l.collectY, end.c, end.q)),
+            ink: hueOf(i),
+          });
+        });
         const rep = junctionReport(conv.at, conv.legs, 1, 'last');
         F.checks.push({
           seg: 'S5',
@@ -1010,41 +1330,99 @@ export function Plate() {
         F.checks.push({ seg: 'S5', what: 'between burns — the bays refill', claim: 0, drawn: 0, err: 0 });
       }
 
-      /* the burn itself: GBX, neutral, and a first-class flow */
+      /* the burn itself: GBX, neutral, and a first-class flow. It leaves the
+         bar's HEAD, which is the only place supply moves — the same head the
+         mint arrives at, so one stock has exactly one inflow and one outflow
+         and a reader can see both against the same edge. */
       F.burnW = burning ? rd.burned * k * l.gGbx : 0;
       if (F.burnW > 0.4) {
         const q = rd.burned * k;
-        const r = run('burn', l.gGbx, l.burnY0, l.burnY1, l.pad + F.burnW / 2 + 2, q);
-        F.burnNeutral = {
-          band: ribbonPath(r),
-          edge: centrePath(
-            ribbon('burnEdge', l.gGbx, [
-              { x: l.burnY1, c: l.pad + 2, q: 0 },
-              { x: l.burnY1, c: l.pad + 2 + F.burnW, q: 0 },
-            ]),
-          ),
-        };
+        const head = l.pad + rd.supply * l.gGbx;
+        const r = run('burn', l.gGbx, l.supplyY + 11, l.burnY1, head - F.burnW / 2, q);
+        F.burnNeutral = { band: ribbonPath(r) };
       }
 
-      /* the mine's pending GBX, drawn as four row collectors into one trunk —
-         neutral, at full strength, because this is how supply is created */
+      /* ═══════════════ S6 · the stock, and the two flows on it ════════════
+         NOTHING APPEARS WITHOUT A DRAWN MECHANISM. The bar's fill is
+         `supply x gGbx`; the mint band's width is `since x gGbx`; the mark is
+         the supply the last burn left. Two independent accumulators — one
+         banked frame by frame, one read straight off the model — have to
+         agree on where the bar's head is, in px. If a burn ever moved the bar
+         without moving the mark, or a frame's issue were dropped on the floor,
+         this row moves off zero and the drawing above it is a lie. */
+      F.checks.push({
+        seg: 'S6',
+        what: 'GBX supply = the mark + the mint band drawn on it · px',
+        claim: rd.supply * l.gGbx,
+        drawn: (mint.mark + mint.since) * l.gGbx,
+        err: Math.abs(rd.supply - mint.mark - mint.since) * l.gGbx,
+      });
+
+      /* THE MINE'S PENDING GBX — four row collectors into one trunk, and the
+         trunk into a terminal. Neutral, at full strength, because this is how
+         supply is created.
+
+         THE DEFECT THIS FIXES. The four bands used to begin ten pixels clear
+         of the board and end blunt in mid-air past a node, so three white
+         ribbons floated in the gutter with no source, no sink and no label of
+         their own. Now each one leaves its row's edge — its LEFT edge is the
+         board's right edge, so it visibly comes out of the four clocks it sums
+         — they stack into one trunk whose width is the total, and the trunk
+         runs into a sink that says where it goes. */
+      F.gbxTotal = 0;
       if (!l.narrow) {
         const rows = [0, 1, 2, 3].map((r) => {
           let q = 0;
           for (let c = 0; c < 4; c++) q += mn.slots[r * 4 + c]?.mined ?? 0;
           return q;
         });
+        rows.forEach((q) => (F.gbxTotal += q));
         const conv = convergeFlow({
           gauge: l.gMined,
           sources: rows.map((q, r) => ({
             key: 'g' + r,
             q,
-            from: { x: cellBox(l, r * 4).y + l.ch / 2, c: l.gbxX },
+            /* the band's own left edge IS the board's right edge */
+            from: { x: cellBox(l, r * 4).y + l.ch / 2, c: l.gridX + l.gridW + widthOf(l.gMined, q) / 2 },
           })),
-          at: { x: l.gridTop + 1.5 * (l.ch + l.cgap), c: l.gbxX + 46 },
+          at: { x: l.gbxSinkY, c: l.gbxSinkX },
           steps: 10,
         });
-        conv.legs.forEach((r) => F.gbxNeutral.push({ band: ribbonPath(r), edge: centrePath(r) }));
+        conv.legs.forEach((r) => F.gbxNeutral.push({ band: ribbonPath(r) }));
+        /* and the trunk that carries the sum to its terminal */
+        const trunk = run('gbxOut', l.gMined, l.gbxSinkY, l.gbxSinkY + 30, l.gbxSinkX, conv.at.q);
+        F.gbxNeutral.push({ band: ribbonPath(trunk) });
+        const rep = junctionReport(conv.at, conv.legs, l.gMined, 'last');
+        F.checks.push({
+          seg: 'S1',
+          what: 'four clock rows → one pending trunk',
+          claim: conv.at.q,
+          drawn: rep.legQ,
+          err: rep.qErr + rep.maxSeamPx + rep.spanErrPx,
+        });
+      }
+    }
+
+    /**
+     * The redemption model, advanced — and every unit it issues, banked.
+     * `redStep` is frozen: idle, the Mine keeps issuing and supply ticks back
+     * toward its start. The plate does not change that; it measures it, so
+     * station 06 can DRAW the inflow that is putting the stock back. Used by
+     * both `step()` and the reduced-motion still, so the still's figures come
+     * from the same arithmetic the live plate's do.
+     */
+    function advanceRedeem(dt: number): void {
+      const before = rd.supply;
+      redStep(rd, dt, {});
+      const d = rd.supply - before;
+      if (d > 0) {
+        mint.since += d;
+        mint.total += d;
+        mint.rate = mint.rate + (d / Math.max(1e-6, dt) - mint.rate) * Math.min(1, dt * 4);
+      } else if (d < 0) {
+        mint.burned += -d;
+        mint.mark = rd.supply;
+        mint.since = 0;
       }
     }
 
@@ -1067,7 +1445,17 @@ export function Plate() {
       issued += rateBefore * dt * TS_MINE;
       stepResonance(rz, dt * TS_RZ, {});
       aucStep(au, dt * TS_AUC, {});
-      redStep(rd, dt, {});
+
+      /* ---- THE MINT, watched rather than invented -----------------------
+         THE DEFECT THIS FIXES. GBX supply climbed 6–8 million in five seconds
+         with the only GBX mechanism at station 06 being the burn, so the stock
+         grew with no drawn inflow — the exact failure the definition of done
+         names. The refill is the frozen model's own (`redStep` idle: the Mine
+         keeps issuing, so supply ticks back toward its start), so the plate
+         does not change it. It measures it: every positive step of the model's
+         own supply is banked here, and station 06 draws it arriving as a band
+         whose width is exactly what it added to the bar. */
+      advanceRedeem(dt);
 
       /* ---- the Router: deposits in, route() out, nothing in between ------
          THE SOURCE IS THE MINE, not the plate. `mn.routerDeposits` is the
@@ -1140,10 +1528,18 @@ export function Plate() {
       ctx.stroke(path);
       ctx.restore();
     }
-    function neutralFlow(band: Path2D, edge: Path2D): void {
+    /**
+     * Every neutral band on this plate runs DOWN the page, and the lead's
+     * ruling is that a band running down takes the flat fill with no shade:
+     * inventing a light direction for a vertical run would put two light
+     * sources on one drawing. The shaded underside `fillNeutral` offers is
+     * used only on the head's horizontal scale bar, where there is an
+     * underside to shade.
+     */
+    function neutralFlow(band: Path2D): void {
       ctx.save();
       ctx.transform(0, 1, 1, 0, 0, 0);
-      fillNeutral(ctx, band, edge);
+      fillNeutral(ctx, band);
       ctx.restore();
     }
 
@@ -1152,6 +1548,130 @@ export function Plate() {
       ctx.fillStyle = colour;
       ctx.textAlign = align;
       ctx.fillText(text, x, y);
+    }
+
+    /* ------------------------------------------------------- the knockout ---
+       THE DEFECT THIS FIXES. A tall plate has flows running through it at every
+       instant, and a caption printed straight onto the panel is legible only
+       until a band arrives under it: at 1440 a burn was striking through nine
+       label rows at once, and because the reduced-motion still deliberately
+       draws an acquisition AND a redemption together, the damage there was
+       permanent. ciechanow's bar is explicit — a callout never occludes what
+       it names — and the converse has to hold too.
+
+       So every annotation on this plate is set on its own ground: a 2px
+       backdrop in `--panel`, painted immediately before the glyphs, so the
+       type reads at its published contrast whatever is flowing underneath and
+       the band visibly passes BEHIND the label rather than through it. */
+    /**
+     * The knockout ERASES rather than paints. The panel behind this canvas is
+     * a two-stop gradient with a blue radial over it, so a flat `--panel`
+     * rectangle would read as a visible box wherever it landed. Compositing
+     * `destination-out` cuts a hole in the frame instead and lets the panel's
+     * own ground show through, which is the same ground the type was
+     * contrast-measured against — so a label reads identically whether a band
+     * happens to be under it or not.
+     */
+    function erase(x: number, y: number, w: number, h: number): void {
+      ctx.save();
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.fillStyle = '#000';
+      ctx.fillRect(x, y, w, h);
+      ctx.restore();
+    }
+
+    function knock(text: string, x: number, y: number, size: number, align: CanvasTextAlign, ground?: string): void {
+      const wpx = ctx.measureText(text).width;
+      const x0 = align === 'right' ? x - wpx : align === 'center' ? x - wpx / 2 : x;
+      /* inside a raised cell the ground is the cell, not the panel: erasing
+         there would punch a hole through the board */
+      /* a ground-backed label stands alone inside a cell, so it can afford the
+         taller plate that clears a price ramp landing on its own row; an
+         erased one sits in a stack, where 11px of lead is the whole budget */
+      if (ground !== undefined) {
+        ctx.fillStyle = ground;
+        ctx.fillRect(x0 - 3, y - size - 3, wpx + 6, size + 7);
+      } else erase(x0 - 3, y - size + 1, wpx + 6, size + 2);
+    }
+
+    /** A label on its own ground. */
+    function labelK(
+      text: string,
+      x: number,
+      y: number,
+      size = 10,
+      colour = ink.muted,
+      align: CanvasTextAlign = 'left',
+      weight = 500,
+      ground?: string,
+    ): void {
+      ctx.font = mono(size, weight);
+      ctx.textAlign = align;
+      knock(text, x, y, size, align, ground);
+      ctx.fillStyle = colour;
+      ctx.fillText(text, x, y);
+    }
+
+    /* ─────────────────────── THE ONE PROSE PATH ─────────────────────────
+       Every sentence on this plate goes through these two functions and comes
+       out of `PLATE_PROSE`. They are no-ops when `PROSE_ON_CANVAS` is false,
+       so the whole (b) set leaves the drawing surface in one line and can be
+       rendered from the same record in the section's DOM instead — where it
+       wraps rather than truncates and where no ribbon can reach it. */
+    type ProseKey = keyof typeof PLATE_PROSE;
+    function proseOf(key: ProseKey, extra = ''): string {
+      const v = PLATE_PROSE[key];
+      return (typeof v === 'string' ? v : v.join(' ')) + extra;
+    }
+    function prose(
+      key: ProseKey,
+      x: number,
+      y: number,
+      maxW: number,
+      size: number,
+      colour: string,
+      align: CanvasTextAlign = 'left',
+      maxLines = 4,
+      extra = '',
+    ): number {
+      if (!PROSE_ON_CANVAS) return 0;
+      return wrapK(proseOf(key, extra), x, y, maxW, size, colour, align, maxLines);
+    }
+    function proseLine(
+      key: ProseKey,
+      x: number,
+      y: number,
+      size: number,
+      colour: string,
+      align: CanvasTextAlign = 'left',
+      weight = 500,
+      extra = '',
+    ): void {
+      if (!PROSE_ON_CANVAS) return;
+      labelK(proseOf(key, extra), x, y, size, colour, align, weight);
+    }
+
+    /** Wrapped copy on its own ground. Returns how many lines it drew. */
+    function wrapK(
+      text: string,
+      x: number,
+      y: number,
+      maxW: number,
+      size: number,
+      colour: string,
+      align: CanvasTextAlign = 'left',
+      maxLines = 4,
+      lead = 11,
+    ): number {
+      ctx.font = mono(size, 400);
+      ctx.textAlign = align;
+      const lines = wrap(ctx, text, Math.max(40, maxW)).slice(0, maxLines);
+      lines.forEach((t, i) => {
+        knock(t, x, y + i * lead, size, align);
+        ctx.fillStyle = colour;
+        ctx.fillText(t, x, y + i * lead);
+      });
+      return lines.length;
     }
     function caps(text: string, x: number, y: number, size = 10.5, colour = ink.hi): number {
       ctx.font = mono(size, 600);
@@ -1202,25 +1722,33 @@ export function Plate() {
       /* a knockout under the tag: a station's name may sit in a gutter that a
          transient band later runs through, and a title half on a band is worse
          than a title that has cleared itself a plate */
-      ctx.fillStyle = ink.panel;
-      ctx.fillRect(gutter - tagW / 2 - 8, y + 2, tagW + 16, 18);
+      erase(gutter - tagW / 2 - 8, y + 2, tagW + 16, 18);
       const nw = caps(n, gutter - tagW / 2, y + 15, 11, ink.hi);
       caps(title, gutter - tagW / 2 + nw + 12, y + 15, 11, ink.hi);
     }
 
-    function stationHead(l: Layout, b: Band, n: string, title: string, note: string): void {
-      rule(l, b.y0, l.pad, l.w - l.pad, ink.ruleStrong);
+    function stationHead(
+      l: Layout,
+      b: Band,
+      n: string,
+      title: string,
+      noteKey: ProseKey,
+      gap?: { c: number; half: number },
+    ): void {
+      const note = proseOf(noteKey);
+      /* a section line steps AROUND a pipe, it never draws through it */
+      if (gap !== undefined && gap.half > 0.5) {
+        rule(l, b.y0, l.pad, Math.max(l.pad, gap.c - gap.half - 3), ink.ruleStrong);
+        rule(l, b.y0, Math.min(l.w - l.pad, gap.c + gap.half + 3), l.w - l.pad, ink.ruleStrong);
+      } else rule(l, b.y0, l.pad, l.w - l.pad, ink.ruleStrong);
       const nw = caps(n, l.pad, b.y0 + 17, 11, ink.hi);
       const tw = caps(title, l.pad + nw + 14, b.y0 + 17, 11, ink.hi);
+      if (!PROSE_ON_CANVAS) return;
       ctx.font = mono(l.narrow ? 9 : 10, 400);
-      ctx.fillStyle = ink.muted;
-      ctx.textAlign = 'left';
       const nx = l.pad + nw + tw + 28;
-      if (ctx.measureText(note).width + nx <= l.w - l.pad) ctx.fillText(note, nx, b.y0 + 17);
-      else
-        wrap(ctx, note, l.w - l.pad * 2)
-          .slice(0, 2)
-          .forEach((t, i) => ctx.fillText(t, l.pad, b.y0 + 30 + i * 11));
+      if (ctx.measureText(note).width + nx <= l.w - l.pad)
+        labelK(note, nx, b.y0 + 17, l.narrow ? 9 : 10, ink.muted, 'left', 400);
+      else wrapK(note, l.pad, b.y0 + 30, l.w - l.pad * 2, l.narrow ? 9 : 10, ink.muted, 'left', 3);
     }
 
     function paint(): void {
@@ -1244,22 +1772,25 @@ export function Plate() {
       paintAuctions(l);
       paintFund(l);
       paintYou(l);
+      paintFundNotes(l);
       paintInstruments(l);
+      paintKey(l);
     }
 
     /* --------------------------------------------------------------- head */
+    /* THE KEY IS AT THE FOOT. What stands at the head is the one thing a
+       reader needs BEFORE the first mechanism: the gauges the widths are
+       drawn at, and a pointer to where the rest of the key lives. */
     function paintHead(l: Layout): void {
       const b = l.head;
-      const used = l.legendH;
-      if (legendCtx !== null) ctx.drawImage(legendTile, l.pad, b.y0, l.w - l.pad * 2, used);
-      const y = b.y0 + used + (l.narrow ? 26 : 22);
-      rule(l, y - 14, l.pad, l.w - l.pad, ink.rule);
+      const y = b.y0 + 15;
       const tw = caps('THE THREE GAUGES', l.pad, y, 11, ink.hi);
       ctx.font = fonts.meta;
       ctx.fillStyle = ink.muted;
       ctx.textAlign = 'left';
-      const note = 'width is quantity — hold a ruler against them';
-      if (l.pad + tw + 16 + ctx.measureText(note).width < l.w - l.pad) ctx.fillText(note, l.pad + tw + 16, y);
+      const note = PROSE_ON_CANVAS ? proseOf('gaugeNote') : '';
+      if (note !== '' && l.pad + tw + 16 + ctx.measureText(note).width < l.w - l.pad)
+        ctx.fillText(note, l.pad + tw + 16, y);
 
       const bars: { w: number; ink: string; text: string; neutral?: boolean }[] = [
         {
@@ -1268,7 +1799,7 @@ export function Plate() {
           text: '= ' + money(F.gStockUnit) + ' of a mine payment — station 01, on the board\u2019s own dollar axis',
         },
         { w: 0.02 * l.gFlow, ink: USDG, text: '= 0.02 USDG/s — the stream and its lanes' },
-        { w: 2e6 * l.gGbx, ink: GBX_BODY, text: '= 2M GBX — supply, and what is burned', neutral: true },
+        { w: 2e6 * l.gGbx, ink: GBX_BODY, text: '= 2M GBX — supply, minted and burned', neutral: true },
       ];
       /* THE THIRD WEIGHT. Most of a tall plate is at rest at any instant, so
          at-rest is the weight a reader sees most. It is published here rather
@@ -1300,22 +1831,30 @@ export function Plate() {
         ctx.fillText(text, tx, yy + 4);
       });
       const ry = y + 22 + (l.narrow ? 3 * 24 : 20);
-      ctx.font = mono(9, 400);
-      ctx.fillStyle = ink.faint;
+      const n = prose('fadeNote', l.pad, ry + 4, l.w - l.pad * 2, 9, ink.faint, 'left', 6);
+      prose('keyPointer', l.pad, ry + 4 + n * 11 + 4, l.w - l.pad * 2, 9, ink.muted, 'left', 6);
+      rule(l, b.y1 - 10, l.pad, l.w - l.pad, ink.rule);
+    }
+
+    /* ---------------------------------------------------------------- key */
+    function paintKey(l: Layout): void {
+      const b = l.key;
+      rule(l, b.y0, l.pad, l.w - l.pad, ink.ruleStrong);
+      const nw = caps('07', l.pad, b.y0 + 17, 11, ink.hi);
+      const tw = caps('THE KEY', l.pad + nw + 14, b.y0 + 17, 11, ink.hi);
+      ctx.font = mono(l.narrow ? 9 : 10, 400);
+      ctx.fillStyle = ink.muted;
       ctx.textAlign = 'left';
-      wrap(
-        ctx,
-        'Nothing on this plate is faded to mean "less": a small quantity is a NARROW band, never a dim one. Each station also prints any gauge of its own — the auctions\u2019 lots and every fund bay.',
-        l.w - l.pad * 2,
-      )
-        .slice(0, l.narrow ? 3 : 1)
-        .forEach((t, i) => ctx.fillText(t, l.pad, ry + 4 + i * 11));
+      const note = PROSE_ON_CANVAS ? proseOf('keyNote') : '';
+      const nx = l.pad + nw + tw + 28;
+      if (note !== '' && ctx.measureText(note).width + nx <= l.w - l.pad) ctx.fillText(note, nx, b.y0 + 17);
+      if (legendCtx !== null) ctx.drawImage(legendTile, l.pad, b.y0 + (l.narrow ? 40 : 34), l.w - l.pad * 2, l.legendH);
     }
 
     /* --------------------------------------------------------------- mine */
     function paintMine(l: Layout): void {
       const b = l.mine;
-      stationHead(l, b, '01', 'THE MINE', 'sixteen slots · a falling price, one hour to zero · the bar is the clock, empty at restart and full at the hour');
+      stationHead(l, b, '01', 'THE MINE', 'mineNote');
 
       /* THE LEADER, drawn FIRST so the opaque cells cover it. A wire that runs
          behind the board shows only in the gaps, which is what a leader is;
@@ -1326,7 +1865,8 @@ export function Plate() {
         setStroke(ctx, SIGNAL, ink.blueLabel);
         ctx.beginPath();
         ctx.moveTo(cell.x + l.cw / 2, cell.y + l.ch);
-        ctx.lineTo(cell.x + l.cw / 2, l.gridBot);
+        ctx.lineTo(cell.x + l.cw / 2, l.gridBot - 4);
+        ctx.lineTo(F.fork !== null ? F.fork.cT : cell.x + l.cw / 2, l.gridBot);
         ctx.stroke();
         ctx.setLineDash([]);
       }
@@ -1403,128 +1943,189 @@ export function Plate() {
         ctx.fillRect(rx0, cy, rx1 - rx0, 3);
         ctx.fillStyle = open ? USDG : ink.muted;
         ctx.fillRect(rx0, cy, (rx1 - rx0) * el, 3);
-        label(
+        /* the clock's reading is knocked out of the CELL, not the panel — the
+           price ramp lands on this row and used to strike straight through it */
+        labelK(
           open ? (l.narrow ? 'never taken' : 'never taken · 0/h') : fmtGbx(slot.mined) + ' GBX',
           x + w - ip,
           y + h - 18,
           l.narrow ? 8 : 9,
           open ? ink.faint : ink.text,
           'right',
+          500,
+          ink.raised,
         );
       }
 
-      /* --- the GBX column: USDG buys the SLOT; the slot mints on a clock -- */
+      /* --- the GBX column: USDG buys the SLOT; the slot mints on a clock --
+         Four bands, one per row of clocks, leaving the board's own edge and
+         stacking into a trunk whose width is the total pending. The trunk runs
+         into a sink, because at replacement the emission leaves this board —
+         and the sink says where it goes. */
       if (!l.narrow) {
-        F.gbxNeutral.forEach((n) => neutralFlow(n.band, n.edge));
-        let pending = 0;
-        mn.slots.forEach((s) => (pending += s.mined));
-        const nx = l.gbxX + 46;
-        const ny = l.gridTop + 1.5 * (l.ch + l.cgap);
-        node(ctx, nx + 11, ny, { ink: ink.muted, size: 16, fill: ink.raised });
+        F.gbxNeutral.forEach((n) => neutralFlow(n.band));
+        const nx = l.gbxSinkX;
+        const ny = l.gbxSinkY;
+        const totW = widthOf(l.gMined, F.gbxTotal);
         /* the mine's emission is on its own published gauge, the way a bay's
            stock is: a scale bar beside the band it measures */
         ctx.fillStyle = GBX_BODY;
         ctx.fillRect(l.gbxX, l.gridTop - 12, 20000 * l.gMined, 7);
-        label('= 20k GBX pending', l.gbxX + 20000 * l.gMined + 7, l.gridTop - 6, 9, ink.faint);
+        labelK('= 20k GBX pending', l.gbxX + 20000 * l.gMined + 7, l.gridTop - 6, 9, ink.faint);
+        /* the terminal: it leaves the board at replacement */
+        /* the arrow reads dark inside the white band; the wall and its hatches
+           read grey on the panel below it */
+        sink(ctx, nx, ny + 30, { ink: ink.muted, size: 17, fill: ink.bg, barH: totW + 10, angle: Math.PI / 2 });
         const tx = l.gbxX + 88;
         const wrapW = l.gbxCol - 92;
-        label('PENDING GBX', tx, ny - 3, 9.5, ink.hi);
-        label(fmtGbx(pending), tx, ny + 12, 11, ink.text);
-        ctx.font = mono(9, 400);
-        ctx.fillStyle = ink.muted;
-        ctx.textAlign = 'left';
-        const lines = wrap(
-          ctx,
-          'USDG buys the SLOT. The slot then mints GBX on a clock at globalTps/16 — tenure-locked, and independent of what was paid. It is minted to the miner at replacement.',
-          wrapW,
-        );
-        const ly = Math.min(ny + 32, l.gridBot - lines.length * 12 - 32);
-        lines.forEach((t, i) => ctx.fillText(t, tx, ly + i * 12));
-        label('minted so far', tx, ly + lines.length * 12 + 12, 9, ink.faint);
-        label(fmtGbx(mn.totalMined) + ' GBX', tx, ly + lines.length * 12 + 26, 11, ink.text);
+        /* the reading, ticked to the trunk it measures */
+        ctx.strokeStyle = ink.ruleStrong;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(nx + totW / 2, hairline(ny + 6, l.dpr));
+        ctx.lineTo(tx - 6, hairline(ny + 6, l.dpr));
+        ctx.stroke();
+        labelK('PENDING  ' + fmtGbx(F.gbxTotal) + ' GBX', tx, ny + 10, 9.5, ink.text);
+        let ly = ny + 26;
+        ly += prose('gbxBands', tx, ly, wrapW, 9, ink.faint, 'left', 5) * 11 + 6;
+        ly += prose('buysTheSlot', tx, ly, wrapW, 9, ink.muted, 'left', 6) * 11 + 6;
+        ly += prose('mintedAtReplacement', tx, ly, wrapW, 9, ink.muted, 'left', 6) * 11 + 8;
+        labelK('minted so far', tx, ly, 9, ink.faint);
+        labelK(fmtGbx(mn.totalMined) + ' GBX', tx, ly + 14, 11, ink.text);
       }
 
-      /* --- the fork ---------------------------------------------------- */
+      /* --- THE FORK ------------------------------------------------------
+         Every leg is stroked at `q x gauge` along an orthogonal centreline, so
+         the width a reader measures with a ruler held square to the pipe IS
+         the quantity, at every point of the run and at every corner. */
       /* A resting route is drawn ONLY while its station is at zero. A hairline
          running alongside a live band reads as a ghost edge on the band, which
          is a mark carrying no quantity sitting on a mark that does. */
-      if (packet === null) F.pipes.slice(0, 2).forEach((pp) => strokeFlow(pp, ink.rule, PROCESS_REST.width));
+      if (packet === null) {
+        ctx.save();
+        ctx.strokeStyle = ink.rule;
+        ctx.lineWidth = PROCESS_REST.width;
+        ctx.setLineDash([]);
+        F.restPipes.forEach((pp) => ctx.stroke(pp));
+        ctx.restore();
+      }
 
-      if (packet !== null) {
+      const fk = F.fork;
+      if (packet !== null && fk !== null) {
         const head = l.gridBot + (l.landY - l.gridBot) * ease(F.packetP);
         ctx.save();
         ctx.beginPath();
         ctx.rect(0, l.gridBot - 1, l.w, Math.max(2, head - l.gridBot + 1));
         ctx.clip();
-        F.mineBands.forEach((band) => fillFlow(band.path, band.ink));
+        ctx.strokeStyle = USDG;
+        ctx.lineCap = 'butt';
+        ctx.lineJoin = 'round';
+        ctx.setLineDash([]);
+        ctx.lineWidth = Math.max(1, fk.wT);
+        ctx.stroke(fk.trunk);
+        if (fk.claim !== null) {
+          ctx.lineWidth = Math.max(1, fk.claim.w);
+          ctx.stroke(fk.claim.path);
+        }
+        ctx.lineWidth = Math.max(1, fk.rt.w);
+        ctx.stroke(fk.rt.path);
         ctx.restore();
       }
 
-      splitter(ctx, l.cx, l.splitY, { ink: ink.muted, size: 17, fill: ink.raised });
+      /* the splitter sits on the pipe it splits — under the slot that paid */
+      splitter(ctx, fk !== null ? fk.cT : l.gridX + l.gridW / 2, l.splitY, {
+        ink: ink.muted,
+        size: 17,
+        fill: ink.raised,
+      });
 
       /* the dead end: a pull claim is not a payment pushed to anyone, and it
-         terminates INSIDE this station — it never crosses into the Router's */
-      sink(ctx, l.claimC, l.claimY, { ink: ink.muted, size: 17, fill: ink.muted, barH: 26, angle: Math.PI / 2 });
-      label('PULL CLAIM · 80%', l.claimC + 18, l.claimY - 2, 10, ink.hi);
-      ctx.font = mono(9, 400);
-      ctx.fillStyle = ink.muted;
-      ctx.textAlign = 'left';
-      wrap(ctx, 'they must collect it — it never reaches the Router', l.w - l.pad - l.claimC - 18)
-        .slice(0, 1)
-        .forEach((t, i) => ctx.fillText(t, l.claimC + 18, l.claimY + 11 + i * 11));
-      label('credited so far  ' + money(mn.paidToMiners), l.claimC + 18, l.claimY + 23, 9, ink.text);
+         terminates INSIDE this station — it never crosses into the Router's.
+         The sink's bar spans the band, so a wide claim visibly runs into a
+         wall instead of tapering into a symbol. */
+      {
+        const claim = fk?.claim ?? null;
+        const cS = claim !== null ? claim.c : l.gridX + l.gridW / 2 - 22;
+        const barW = claim !== null ? claim.w + 12 : 26;
+        sink(ctx, cS, l.claimY, { ink: ink.muted, size: 17, fill: ink.muted, barH: barW, angle: Math.PI / 2 });
+        /* THE READINGS GET A ROW THE BANDS ARE HELD CLEAR OF.
+           On a wide plate they sit above the sink, in the corridor beside the
+           leg — the remainder's header run crosses immediately below. At 390
+           that corridor is too narrow to set type in, so they go below the
+           sink instead, full width, in rows the header band is reserved out
+           of. Either way no band is ever under a caption. */
+        if (l.narrow) {
+          const lx = l.pad;
+          const lw = l.w - l.pad * 2;
+          labelK('PULL CLAIM · 80%' + (claim !== null ? '  ' + money(claim.q) : ''), lx, l.claimY + 16, 9, ink.hi);
+          const nl = prose('claimNote', lx, l.claimY + 29, lw, 9, ink.muted, 'left', 2);
+          labelK('credited so far  ' + money(mn.paidToMiners), lx, l.claimY + 29 + nl * 11, 9, ink.text);
+        } else {
+          const room = l.w - l.pad - (cS + barW / 2 + 14);
+          const left = room < 250;
+          const lx = left ? cS - barW / 2 - 14 : cS + barW / 2 + 14;
+          const al: CanvasTextAlign = left ? 'right' : 'left';
+          const lw = Math.max(90, left ? lx - l.pad : l.w - l.pad - lx);
+          ctx.font = mono(9, 400);
+          const nl = PROSE_ON_CANVAS ? wrap(ctx, proseOf('claimNote'), lw).slice(0, 2).length : 0;
+          const bot = l.claimY - 11;
+          labelK('credited so far  ' + money(mn.paidToMiners), lx, bot, 9, ink.text, al);
+          prose('claimNote', lx, bot - nl * 11, lw, 9, ink.muted, al, 2);
+          labelK(
+            'PULL CLAIM · 80%' + (claim !== null ? '  ' + money(claim.q) : ''),
+            lx,
+            bot - (nl + 1) * 11 - 3,
+            10,
+            ink.hi,
+            al,
+          );
+        }
+      }
 
-      if (packet !== null) {
+      if (packet !== null && fk !== null) {
         const p = packet;
-        const cell = cellBox(l, p.slot);
-        const cxp = cell.x + l.cw / 2;
         const alpha = 1 - ramp(p.age, PACKET_RUN + PACKET_HOLD - 0.3, PACKET_RUN + PACKET_HOLD);
         ctx.save();
         ctx.globalAlpha = alpha;
-        const side = cxp > l.cx ? -1 : 1;
-        const lx = cxp + side * (widthOf(F.gStock, p.paid) / 2 + 10);
-        label(
+        /* the take caption sits in its own reserved row under the board */
+        const side = fk.cT > l.cx ? -1 : 1;
+        const lx = l.narrow ? l.pad : fk.cT + side * (fk.wT / 2 + 10);
+        const al: CanvasTextAlign = l.narrow ? 'left' : side > 0 ? 'left' : 'right';
+        labelK(
           (p.buyer === 'you' ? 'YOU take' : '@' + p.buyer + ' takes') + ' slot ' + pad2(p.slot + 1) + ' for ' + money(p.paid),
           lx,
-          l.gridBot + 14,
-          10,
+          l.gridBot + 15,
+          l.narrow ? 9 : 10,
           ink.hi,
-          side > 0 ? 'left' : 'right',
+          al,
         );
-        label(
+        labelK(
           'it restarts at ' + money(p.restart) + ' — ' + leapNote(p.paid, p.restart),
           lx,
-          l.gridBot + 27,
+          l.gridBot + 29,
           9.5,
           ink.muted,
-          side > 0 ? 'left' : 'right',
+          al,
         );
-        if (p.toMiner > 0) {
-          if (l.narrow) {
-            label('80% · ' + money(p.toMiner) + ' → the claim', l.pad, l.splitY - 24, 9.5, ink.blueLabel, 'left');
-            label('20% · ' + money(p.toRouter) + ' → the Router', l.pad, l.splitY - 12, 9.5, ink.blueLabel, 'left');
-          } else {
-            label('80% · ' + money(p.toMiner) + ' → the claim', (l.cx + l.claimC) / 2, l.splitY - 12, 10, ink.blueLabel, 'center');
-            label('20% · ' + money(p.toRouter) + ' → the Router', l.cx + 14, l.splitY - 12, 10, ink.blueLabel, 'left');
-          }
-        } else {
-          label(
-            l.narrow ? '100% deposited · ' + money(p.toRouter) : 'NO ONE DISPLACED — 100% deposited · ' + money(p.toRouter),
-            l.narrow ? l.pad : l.cx + 14,
-            l.splitY - 12,
-            l.narrow ? 9.5 : 10,
-            ink.blueLabel,
-            'left',
-          );
-        }
+        /* the remainder is labelled ON its own header run, where it crosses */
+        const hx = Math.min(fk.rt.c, l.cx) + Math.abs(l.cx - fk.rt.c) / 2;
+        labelK(
+          p.toMiner > 0
+            ? '20% · ' + money(p.toRouter) + ' → the Router'
+            : 'NO ONE DISPLACED — 100% deposited · ' + money(p.toRouter),
+          hx,
+          l.headerY - fk.rt.w / 2 - 6,
+          l.narrow ? 8.5 : 9.5,
+          USDG,
+          'center',
+        );
         ctx.restore();
+      } else if (l.narrow) {
+        prose('idleFork', l.pad, l.gridBot + 15, l.w - l.pad * 2, 9, ink.faint, 'left', 3);
       } else {
-        ctx.font = mono(9, 400);
-        ctx.fillStyle = ink.faint;
-        ctx.textAlign = 'left';
-        wrap(ctx, 'nothing is in flight — an empty pipe is the truthful state between takes', l.w - l.pad - l.cx - 16)
-          .slice(0, 2)
-          .forEach((t, i) => ctx.fillText(t, l.cx + 14, l.splitY - 12 + i * 11));
+        const px = l.gridX + l.gridW / 2 + 30;
+        prose('idleFork', px, l.splitY - 6, l.w - l.pad - px, 9, ink.faint, 'left', 3);
       }
 
       /* the tallies, on the mechanism they come from */
@@ -1552,7 +2153,10 @@ export function Plate() {
     /* ------------------------------------------------------------- router */
     function paintRouter(l: Layout): void {
       const b = l.router;
-      stationHead(l, b, '02', 'RESONANCE ROUTER', 'it HOLDS — a deposit is not a forward');
+      stationHead(l, b, '02', 'RESONANCE ROUTER', 'routerNote', {
+        c: l.cx,
+        half: packet !== null && F.fork !== null ? F.fork.rt.w / 2 : 0,
+      });
 
       const vw = l.routerVw;
       const vh = l.routerVh;
@@ -1574,9 +2178,9 @@ export function Plate() {
       ctx.moveTo(vx - 6, hairline(vy, l.dpr));
       ctx.lineTo(vx, hairline(vy, l.dpr));
       ctx.stroke();
-      label(money(router.capShown), vx - 9, vy + 4, 9, ink.muted, 'right');
-      label('$0', vx - 9, vy + vh + 2, 9, ink.muted, 'right');
-      label('HELD  ' + money(router.held), l.cx, vy - 8, 10.5, ink.hi, 'center');
+      labelK(money(router.capShown), vx - 9, vy + 4, 9, ink.muted, 'right');
+      labelK('$0', vx - 9, vy + vh + 2, 9, ink.muted, 'right');
+      labelK('HELD  ' + money(router.held), l.cx, vy - 8, 10.5, ink.hi, 'center');
 
       /* the inlet drip: every ambient deposit the board makes arrives here, so
          the level never rises without something visibly arriving */
@@ -1586,21 +2190,6 @@ export function Plate() {
         ctx.beginPath();
         ctx.arc(l.cx, dy, 2.6, 0, Math.PI * 2);
         ctx.fill();
-      }
-
-      /* the mine's remainder finishing its run into this vessel — the fork was
-         drawn in station 01, and the leg that crosses the boundary is drawn
-         here so it is never cut at a station edge */
-      if (packet !== null) {
-        const head = l.gridBot + (l.landY - l.gridBot) * ease(F.packetP);
-        if (head > b.y0) {
-          ctx.save();
-          ctx.beginPath();
-          ctx.rect(0, b.y0, l.w, Math.max(1, head - b.y0));
-          ctx.clip();
-          F.mineBands.forEach((band) => fillFlow(band.path, band.ink));
-          ctx.restore();
-        }
       }
 
       /* the outlet. Solid = open, hollow = shut, and it is shut nearly always. */
@@ -1620,33 +2209,21 @@ export function Plate() {
         ctx.restore();
       }
       const rx = l.cx + 22;
-      label('route()', rx, valveY - 3, 10, open > 0 ? ink.hi : ink.muted);
-      ctx.font = mono(9, 400);
-      ctx.fillStyle = ink.muted;
-      ctx.textAlign = 'left';
-      wrap(
-        ctx,
-        open > 0
-          ? 'someone called it — ' + money(router.lastRouted) + ' forwarded'
-          : 'permissionless · no role, no bounty, no liveness · it has waited ' + router.sinceRoute.toFixed(1) + 's',
-        l.w - l.pad - rx,
-      )
-        .slice(0, 2)
-        .forEach((t, i) => ctx.fillText(t, rx, valveY + 10 + i * 11));
+      labelK('route()', rx, valveY - 3, 10, open > 0 ? ink.hi : ink.muted);
+      if (open > 0) prose('routeCalled', rx, valveY + 10, l.w - l.pad - rx, 9, ink.muted, 'left', 3, money(router.lastRouted) + ' forwarded');
+      else prose('routeWaiting', rx, valveY + 10, l.w - l.pad - rx, 9, ink.muted, 'left', 3, router.sinceRoute.toFixed(1) + 's');
 
       /* the left gutter earns its space: the balance the vessel has to satisfy */
       ctx.font = mono(9, 400);
       ctx.fillStyle = ink.muted;
       ctx.textAlign = 'left';
       const bx = l.narrow ? l.pad : l.cx + vw / 2 + 16;
-      const by = l.narrow ? valveY + 34 : vy + 14;
+      const by = l.narrow ? valveY + 50 : vy + 14;
       const bw2 = l.narrow ? l.w - l.pad * 2 : l.w - l.pad - bx;
-      ctx.fillText('deposited by the mine   ' + money(mn.routerDeposits), bx, by);
-      ctx.fillText('forwarded by route()   ' + money(router.outTotal), bx, by + 14);
-      ctx.fillText('still held   ' + money(router.held), bx, by + 28);
-      wrap(ctx, 'and it can stay held for ever — nothing schedules the call', bw2)
-        .slice(0, 2)
-        .forEach((t, i) => ctx.fillText(t, bx, by + 46 + i * 11));
+      labelK('deposited by the mine   ' + money(mn.routerDeposits), bx, by, 9, ink.muted, 'left', 400);
+      labelK('forwarded by route()   ' + money(router.outTotal), bx, by + 14, 9, ink.muted, 'left', 400);
+      labelK('still held   ' + money(router.held), bx, by + 28, 9, ink.muted, 'left', 400);
+      prose('heldForEver', bx, by + 46, bw2, 9, ink.muted, 'left', 3);
     }
 
     /* -------------------------------------------------------------- break */
@@ -1692,25 +2269,14 @@ export function Plate() {
       ctx.font = mono(9.5, 400);
       ctx.fillStyle = ink.muted;
       ctx.textAlign = 'center';
-      const lines = l.narrow
-        ? [
-            'Mine emits RevenueDeposited and stops.',
-            'Only RevenueRouted proves a forward.',
-            'Above: USDG. Below: USDG per second.',
-            'Nothing here claims they are the same money.',
-          ]
-        : [
-            'Mine emits RevenueDeposited and stops there; only ResonanceRouter.RevenueRouted proves a later forward, and nothing schedules one.',
-            'So the gauge changes across this line: everything above is conserved in USDG, everything below is a separate model conserved in USDG per second.',
-            'The plate makes no claim that the money below is the money above.',
-          ];
+      const lines = PROSE_ON_CANVAS ? (l.narrow ? PLATE_PROSE.breakNarrow : PLATE_PROSE.breakWide) : [];
       lines.forEach((t, i) => ctx.fillText(t, l.cx, y + 20 + i * 13));
     }
 
     /* ------------------------------------------------------------- stream */
     function paintStream(l: Layout): void {
       const b = l.stream;
-      stationHead(l, b, '03', 'THE SEVEN-DAY STREAM', 'split by signal — the lane widths ARE the shares');
+      stationHead(l, b, '03', 'THE SEVEN-DAY STREAM', 'streamNote');
 
       const rate = rz.flow.t < rz.flow.finish ? rz.flow.rate : 0;
       const left = Math.max(0, rz.flow.rate * (rz.flow.finish - rz.flow.t));
@@ -1730,19 +2296,19 @@ export function Plate() {
       });
       if (l.narrow) {
         /* the tank's own readings, kept inside the gutter the trunk leaves */
-        label('RESONANCE', tx, ty + th + 12, 8.5, ink.hi);
-        label(money(left) + ' left', tx, ty + th + 23, 8.5, ink.muted);
-        label(rate.toFixed(4) + ' USDG/s', tx, ty + th + 34, 8.5, ink.muted);
-        label('FI · mUSDG/s', tx, ty + th + 45, 8.5, ink.faint);
+        labelK('RESONANCE', tx, ty + th + 12, 8.5, ink.hi);
+        labelK(money(left) + ' left', tx, ty + th + 23, 8.5, ink.muted);
+        labelK(rate.toFixed(4) + ' USDG/s', tx, ty + th + 34, 8.5, ink.muted);
+        labelK('FI · mUSDG/s', tx, ty + th + 45, 8.5, ink.faint);
       } else {
-        label('RESONANCE', tx + tw + 10, ty + 13, 10, ink.hi);
-        label(money(left) + ' left of this week', tx + tw + 10, ty + 26, 9.5, ink.muted);
-        label('releasing ' + rate.toFixed(4) + ' USDG/s', tx + tw + 10, ty + 39, 9.5, ink.muted);
+        labelK('RESONANCE', tx + tw + 10, ty + 13, 10, ink.hi);
+        labelK(money(left) + ' left of this week', tx + tw + 10, ty + 26, 9.5, ink.muted);
+        labelK('releasing ' + rate.toFixed(4) + ' USDG/s', tx + tw + 10, ty + 39, 9.5, ink.muted);
       }
 
       /* a resting channel is drawn only while it is resting — never beside the
          band that fills it, where it would read as a ghost edge */
-      if (rate <= 0) F.pipes.slice(2, 6).forEach((pp) => strokeFlow(pp, ink.rule, PROCESS_REST.width));
+      if (rate <= 0) F.pipes.slice(0, 4).forEach((pp) => strokeFlow(pp, ink.rule, PROCESS_REST.width));
       F.streamBands.forEach((band) => fillFlow(band.path, band.ink));
 
       /* the control node: signal is a thin dashed line and carries no width */
@@ -1750,7 +2316,7 @@ export function Plate() {
       const nx = l.w - l.pad - 11;
       const total = totalStake(rz);
       node(ctx, nx, nodeY, { ink: ink.pink, size: 15, fill: ink.raised });
-      label(
+      labelK(
         'SIGNAL · ' + Math.round(total).toLocaleString('en-US') + ' GBX pointed',
         nx - 4,
         nodeY - 14,
@@ -1784,7 +2350,7 @@ export function Plate() {
         ctx.beginPath();
         ctx.arc(bay.cx, branchY, 2.6, 0, Math.PI * 2);
         ctx.fill();
-        label(
+        labelK(
           ((a.stake / total) * 100).toFixed(1) + (l.narrow ? '%' : '% set here'),
           bay.cx,
           branchY - 7,
@@ -1823,8 +2389,7 @@ export function Plate() {
         const sub = l.narrow ? (share * 100).toFixed(1) + '%' : (share * 100).toFixed(1) + '% of the stream';
         ctx.font = mono(l.narrow ? 8 : 9, 500);
         const plateW = Math.min(l.w / 4 - 6, Math.max(ctx.measureText(sub).width, 36) + 12);
-        ctx.fillStyle = ink.panel;
-        ctx.fillRect(bay.cx - plateW / 2, l.laneLabelY - 13, plateW, 30);
+        erase(bay.cx - plateW / 2, l.laneLabelY - 13, plateW, 30);
         ctx.strokeStyle = ink.rule;
         ctx.lineWidth = 1;
         ctx.setLineDash([]);
@@ -1832,25 +2397,19 @@ export function Plate() {
         label(a.sym, bay.cx, l.laneLabelY, l.narrow ? 9 : 10.5, ink.hi, 'center');
         label(sub, bay.cx, l.laneLabelY + 12, l.narrow ? 8 : 9, ink.muted, 'center');
       });
-      if (!l.narrow) label('FI · milli-USDG/s down this lane', l.pad, l.trunkY1 + 22, 9, ink.faint);
+      if (!l.narrow) proseLine('fiUnits', l.pad, l.trunkY1 + 22, 9, ink.faint);
     }
 
     /* ----------------------------------------------------------- auctions */
     function paintAuctions(l: Layout): void {
-      const b = l.auc;
       /* the rule steps around the four lanes; the tag sits in the middle
          gutter, where no band ever runs */
       const total0 = totalStake(rz);
       const rateNow = rz.flow.t < rz.flow.finish ? rz.flow.rate : 0;
       const laneHalf = (i: number) => (widthOf(l.gFlow, rateNow * ((rz.assets[i]?.stake ?? 0) / total0)) / 2 || 0) + 9;
       steppedHead(l, l.aucTop - 20, '04', l.narrow ? 'AUCTIONS' : 'FOUR AUCTIONS · EACH ON ITS OWN CLOCK', laneHalf, 0);
-      void b;
 
       const potCap = l.potCap;
-      /* the station's own gauge, drawn as a scale bar so it can be checked */
-      ctx.fillStyle = USDG;
-      ctx.fillRect(l.pad, l.aucNoteY - 22, 100 * l.gLot, 8);
-      label('= 100 USDG of lot — this station\u2019s own gauge', l.pad + 100 * l.gLot + 8, l.aucNoteY - 15, 9, ink.faint);
 
       rz.assets.forEach((a, i) => {
         const bay = l.bays[i];
@@ -1865,17 +2424,11 @@ export function Plate() {
           levelFill: USDG,
           ground: ink.raised,
         });
-        if (l.narrow) {
-          label(a.sym + ' ' + money(a.pot), bay.cx, l.aucValY + 4 + (i % 2) * 11, 7.5, ink.text, 'center');
-        } else {
-          label(a.sym + '  ' + money(a.pot), bay.cx, l.aucValY, 10.5, ink.text, 'center');
-          label('USDG waiting for its auction', bay.cx, l.aucValY + 12, 9, ink.faint, 'center');
-        }
       });
 
       /* the exchange, drawn as an exchange: the pipes at rest first, then the
          live bands over them, then the trader each pair passes through */
-      F.pipes.slice(10, 14).forEach((pp, i) => {
+      F.pipes.slice(9, 13).forEach((pp, i) => {
         const f = flush[i];
         if (!f || f.age >= 1 || f.lot <= 0) strokeFlow(pp, ink.rule, PROCESS_REST.width);
       });
@@ -1889,46 +2442,21 @@ export function Plate() {
         const live = f.age < 1 && f.lot > 0;
         node(ctx, traderC, l.yOut, { ink: live ? ink.hi : ink.ruleStrong, size: 15, fill: ink.raised });
         if (live && !l.narrow) {
-          label('A TRADER', traderC + side * 13, l.yOut - 12, 9, ink.muted, side > 0 ? 'left' : 'right');
-          label(
-            'takes the USDG, hands back ' + a.sym,
-            traderC + side * 13,
-            l.yOut + 22,
-            8.5,
-            ink.faint,
-            side > 0 ? 'left' : 'right',
-          );
+          labelK('A TRADER', traderC + side * 13, l.yOut - 12, 9, ink.muted, side > 0 ? 'left' : 'right');
+          proseLine('traderHands', traderC + side * 13, l.yOut + 22, 8.5, ink.faint, side > 0 ? 'left' : 'right', 500, a.sym);
         }
       });
-      {
-        const t = 'USDG out · the asset back — the trade is the price';
-        ctx.font = mono(9, 500);
-        const w2 = ctx.measureText(t).width;
-        ctx.fillStyle = ink.panel;
-        ctx.fillRect(l.cx - w2 / 2 - 7, l.yOut - 33, w2 + 14, 15);
-        label(t, l.cx, l.yOut - 22, 9, ink.muted, 'center');
-      }
 
       /* --- the tenth. Drawn and labelled, and deliberately not followed --- */
       rz.assets.forEach((a, i) => {
         const bay = l.bays[i];
         if (!bay) return;
-        const x = bay.cx - l.bayW * 0.74;
+        /* the tap is pulled inside the frame if the lane would push it out —
+           at 390 lane 1's reading rendered as `%` with the `10` cut off */
+        const x = Math.max(l.pad + 30, bay.cx - l.bayW * 0.74);
         sink(ctx, x, l.aucTapY, { ink: hueOf(i), size: 13, fill: hueOf(i), barH: 13 });
-        label('10%', x - 10, l.aucTapY + 4, 8.5, ink.muted, 'right');
+        labelK('10%', x - 10, l.aucTapY + 4, 8.5, ink.muted, 'right');
       });
-      ctx.font = mono(9, 400);
-      ctx.fillStyle = ink.muted;
-      ctx.textAlign = 'left';
-      wrap(
-        ctx,
-        '10% of every fill is the signalers’ — Resonance.DEFAULT_BRIBE_BPS = 1000. Drawn, labelled, and not followed further on this plate. Tapped so far ' +
-          money(tapped.reduce((n, v) => n + v, 0)) +
-          '.',
-        l.w - l.pad * 2,
-      )
-        .slice(0, 2)
-        .forEach((t, i) => ctx.fillText(t, l.pad, l.aucNoteY + i * 11));
 
       /* --- THE FALLING ASK, drawn ON the bucket it belongs to. It is a
              BLADE on a rail — a descending set-point — not a level, so it can
@@ -1965,7 +2493,6 @@ export function Plate() {
         ctx.lineTo(x + w + 16, hairline(wy, l.dpr));
         ctx.stroke();
         ctx.setLineDash([]);
-        if (!trading) label('worth ' + worth.toFixed(2), x + w + 22, wy + 3, 8.5, ink.blueLabel);
         /* the blade */
         ctx.fillStyle = hueOf(1);
         ctx.fillRect(x - 4, ay - 1.5, w + 8, 3);
@@ -1975,38 +2502,104 @@ export function Plate() {
         ctx.lineTo(x + w + 9, ay + 5);
         ctx.closePath();
         ctx.fill();
-        label(
-          trading ? 'settled at ' + asking.toFixed(2) + ' QQQ' : 'ask ' + asking.toFixed(2) + ' QQQ',
-          x + w + 22,
+        /* THE ASK FALLS ONTO THE WORTH, so at the end of every cycle the two
+           readings are a few pixels apart and printed blind they strike
+           through each other. Within one line-height they are printed as ONE
+           reading, which is also the truer statement: the ask has met it. */
+        const met = !trading && Math.abs(ay - wy) < 13;
+        /* at 390 there is no side column wide enough for a callout, so the
+           readings are set compact in the gutter LEFT of the bucket and the
+           sentence that explains them moves to the station's caption row */
+        const rx2 = l.narrow ? x - 6 : x + w + 22;
+        const ral: CanvasTextAlign = l.narrow ? 'right' : 'left';
+        const rsz = l.narrow ? 8 : 8.5;
+        labelK(
+          trading
+            ? (l.narrow ? 'settled ' : 'settled at ') + asking.toFixed(2) + (l.narrow ? '' : ' QQQ')
+            : met
+              ? l.narrow
+                ? 'ask=worth ' + worth.toFixed(2)
+                : 'ask ' + asking.toFixed(2) + ' · worth ' + worth.toFixed(2) + ' QQQ'
+              : 'ask ' + asking.toFixed(2) + (l.narrow ? '' : ' QQQ'),
+          rx2,
           ay + 3,
-          8.5,
+          rsz,
           trading ? ink.hi : ink.pinkLabel,
+          ral,
         );
-        ctx.font = mono(8.5, 400);
-        ctx.fillStyle = trading ? ink.hi : ink.muted;
-        ctx.textAlign = 'left';
-        if (!trading)
-          wrap(ctx, 'the ask falls until it meets what the lot is worth', l.narrow ? 92 : 108).forEach((t, k) =>
-            ctx.fillText(t, x + w + 22, ay + 16 + k * 11),
-          );
+        /* THE CALLOUT TAKES WHICHEVER SIDE OF THE BLADE IS FREE.
+           The ask falls TOWARD what the lot is worth, so the two readings
+           converge: printed blind, `meets what the lot is` and `worth 1.58`
+           landed on one baseline in five of eight captures. The callout is
+           given the gap below the blade only when the gap is big enough to
+           hold it, and goes above the blade otherwise — so it always tracks
+           the blade and never sits on the line it is descending toward. */
+        if (!trading) {
+          if (!l.narrow) {
+            ctx.font = mono(8.5, 400);
+            const lines = PROSE_ON_CANVAS ? wrap(ctx, proseOf('askFalls'), 108) : [];
+            const need = lines.length * 11 + 8;
+            const below = wy - ay > need + 14;
+            const top = below ? ay + 16 : Math.max(l.aucTop + 10, ay - 8 - lines.length * 11);
+            prose('askFalls', x + w + 22, top, 108, 8.5, ink.muted, 'left', 3);
+          }
+          if (!met) labelK('worth ' + worth.toFixed(2), rx2, wy + 3, rsz, ink.blueLabel, ral);
+        }
       }
-      ctx.font = mono(9, 400);
-      ctx.fillStyle = ink.faint;
-      ctx.textAlign = 'left';
-      wrap(
-        ctx,
-        'One auction in detail — lane 2. The other three run the same mechanism on their own clocks; the plate does not draw an ask it has no model for.',
+
+      /* ---- EVERY ROW BELOW THE BUCKETS IS ITS OWN, and each is drawn in the
+         order it is read. The trade caption used to be printed eight pixels
+         under a two-line note and struck through it in every capture, reduced
+         motion included. */
+      rz.assets.forEach((a, i) => {
+        const bay = l.bays[i];
+        if (!bay) return;
+        if (l.narrow) {
+          labelK(a.sym + ' ' + money(a.pot), bay.cx, l.aucValY + (i % 2) * 11, 7.5, ink.text, 'center');
+        } else {
+          labelK(a.sym + '  ' + money(a.pot), bay.cx, l.aucValY, 10.5, ink.text, 'center');
+          proseLine('potWaiting', bay.cx, l.aucValY + 12, 9, ink.faint, 'center');
+        }
+      });
+      prose(
+        l.narrow ? 'oneInDetailNarrow' : 'oneInDetail',
+        l.pad,
+        l.aucDetailY,
         l.w - l.pad * 2,
-      )
-        .slice(0, 2)
-        .forEach((t, i) => ctx.fillText(t, l.pad, l.aucNoteY - 48 + i * 11));
+        9,
+        ink.faint,
+        'left',
+        l.narrow ? 5 : 2,
+      );
+      /* the station's own gauge, drawn as a scale bar so it can be checked */
+      erase(l.pad - 2, l.aucGaugeY - 10, 100 * l.gLot + 4, 14);
+      ctx.fillStyle = USDG;
+      ctx.fillRect(l.pad, l.aucGaugeY - 8, 100 * l.gLot, 8);
+      labelK('= 100 USDG of lot — this station\u2019s own gauge', l.pad + 100 * l.gLot + 8, l.aucGaugeY, 9, ink.faint);
+      prose(
+        'signalerTap',
+        l.pad,
+        l.aucNoteY,
+        l.w - l.pad * 2,
+        9,
+        ink.muted,
+        'left',
+        l.narrow ? 4 : 2,
+        money(tapped.reduce((n, v) => n + v, 0)) + '.',
+      );
+      proseLine('tradeIsPrice', l.cx, l.aucTradeY, 9, ink.muted, 'center');
     }
 
     /* --------------------------------------------------------------- fund */
     function paintFund(l: Layout): void {
-      const b = l.fund;
-      steppedHead(l, b.y0, '05', 'THE FUND', () => l.bayW / 2 + 10, 1);
+      steppedHead(l, l.fund.y0, '05', 'THE FUND', () => l.bayW / 2 + 10, 1);
       const bayH = Math.max(30, l.bayBot - l.bayTop);
+
+      /* EVERY BAY BODY FIRST, THEN EVERY ANNOTATION. Painting a bay's own
+         reading and then the NEXT bay's rectangle over it is how `gauge · this
+         bay full = 1200 NVDA` came out as `gauge · full = 120` at 390 — cut by
+         a mark drawn after it, not by its container. One pass for the
+         mechanism, one for the type, in that order, always. */
       rd.holds.forEach((hh, i) => {
         const bay = l.bays[i];
         if (!bay) return;
@@ -2033,18 +2626,45 @@ export function Plate() {
         ctx.lineWidth = 1;
         ctx.setLineDash([]);
         ctx.strokeRect(hairline(x, l.dpr), hairline(l.bayTop, l.dpr), w - 1, bayH - 1);
-        /* the STOCK reading form the key publishes: name and number on ONE
-           line, ticked to the vessel that holds it — never a bare numeral
-           under a bare word */
-        label(hh.sym, bay.cx, l.bayTop - 7, 10.5, ink.hi, 'center');
+        /* the tick that ties the reading below to the vessel holding it */
         ctx.strokeStyle = ink.ruleStrong;
-        ctx.lineWidth = 1;
-        ctx.setLineDash([]);
         ctx.beginPath();
         ctx.moveTo(bay.cx, hairline(l.bayTop + bayH, l.dpr));
         ctx.lineTo(bay.cx, hairline(l.bayTop + bayH + 5, l.dpr));
         ctx.stroke();
-        label(
+        if (i === 0) {
+          /* the bay's own full mark, drawn ACROSS THE BAY IT GAUGES and no
+             further: it used to run from the left margin, where its caption
+             sat under the next bay's rectangle and came out as
+             `gauge · full = 120`. The reading now sits under the vessel with
+             the stock it qualifies. */
+          const byy = l.bayTop + bayH * (1 - 1 / 1.22);
+          ctx.strokeStyle = ink.ruleStrong;
+          ctx.lineWidth = 1;
+          ctx.setLineDash([2, 3]);
+          ctx.beginPath();
+          ctx.moveTo(x - 5, hairline(byy, l.dpr));
+          ctx.lineTo(x + w + 5, hairline(byy, l.dpr));
+          ctx.stroke();
+          ctx.setLineDash([]);
+        }
+      });
+
+    }
+
+    /* THE FUND'S READINGS ARE PAINTED AFTER STATION 06'S BANDS.
+       The four claim ribbons leave the bays' feet and run down through exactly
+       the rows the bays' own readings sit in, so those readings are the last
+       layer on the plate, not the first. */
+    function paintFundNotes(l: Layout): void {
+      rd.holds.forEach((hh, i) => {
+        const bay = l.bays[i];
+        if (!bay) return;
+        /* the STOCK reading the key publishes: name and number on ONE line,
+           ticked to the vessel that holds it — never a bare numeral under a
+           bare word */
+        labelK(hh.sym, bay.cx, l.bayTop - 7, 10.5, ink.hi, 'center');
+        labelK(
           hh.sym + '  ' + hh.amt.toFixed(hh.amt < 10 ? 4 : 1),
           bay.cx,
           l.bayBot + 16,
@@ -2052,98 +2672,165 @@ export function Plate() {
           ink.text,
           'center',
         );
-        if (i === 0) {
-          const byy = l.bayTop + bayH * (1 - 1 / 1.22);
-          ctx.strokeStyle = ink.ruleStrong;
-          ctx.lineWidth = 1;
-          ctx.setLineDash([2, 3]);
-          ctx.beginPath();
-          ctx.moveTo(l.pad, hairline(byy, l.dpr));
-          ctx.lineTo(x + w, hairline(byy, l.dpr));
-          ctx.stroke();
-          ctx.setLineDash([]);
-          label(l.narrow ? 'gauge · full = ' + hh.base + ' ' + hh.sym : 'gauge · this bay full = ' + hh.base + ' ' + hh.sym, l.pad, byy - 5, l.narrow ? 8 : 9, ink.muted);
-        }
+        if (i === 0)
+          labelK(
+            l.narrow ? 'of ' + hh.base + ' full' : 'of ' + hh.base + ' · the dashed line, this bay full',
+            bay.cx,
+            l.bayBot + 28,
+            l.narrow ? 7.5 : 9,
+            ink.faint,
+            'center',
+          );
       });
-      ctx.font = mono(9, 400);
-      ctx.fillStyle = ink.faint;
-      ctx.textAlign = 'left';
-      wrap(
-        ctx,
-        'Each bay is on its own gauge because each holds a different thing. What is comparable across bays is the SHARE a burn takes — the same everywhere.',
-        l.w - l.pad * 2 - 4,
-      )
-        .slice(0, l.narrow ? 3 : 1)
-        .forEach((t, i) => ctx.fillText(t, l.pad, l.bayBot + 32 + i * 11));
+      prose('bayGauges', l.pad, l.bayNoteY, l.w - l.pad * 2 - 4, 9, ink.faint, 'left', l.narrow ? 4 : 2);
     }
 
     /* ---------------------------------------------------------------- you */
     function paintYou(l: Layout): void {
       const b = l.you;
-      stationHead(l, b, '06', 'YOUR SHARE', 'burn GBX — and the same share leaves EVERY bay, in one transaction');
+      /* THE BANDS FIRST, THE TYPE LAST — for the whole station. The four claim
+         ribbons cross this band from the bays above it down to the collector,
+         so anything drawn after them is type, and anything drawn before them
+         is mechanism. The station's own head is type too, and goes on after. */
+      if (rd.phase !== 'burn') F.pipes.slice(4, 9).forEach((pp) => strokeFlow(pp, ink.rule, PROCESS_REST.width));
+      F.claimBands.forEach((band) => fillFlow(band.path, band.ink));
+      node(ctx, l.collectC, l.collectY, { ink: ink.muted, size: 18, fill: ink.raised });
+      stationHead(l, b, '06', 'YOUR SHARE', 'youNote');
 
-      /* the supply bar, and the burn leaving it — neutral, at full strength */
-      const rxTable = l.narrow ? l.pad : Math.max(l.cx - 40, l.pad + 300);
-      const sw = (l.narrow ? l.w - l.pad * 2 : rxTable - l.pad - 20) || 100;
+      /* ---- the stock, ON the published gauge -----------------------------
+         The bar is `SUPPLY0 x gGbx` long and its fill is `supply x gGbx`, so a
+         reader can hold the head's "= 2M GBX" scale bar against it. Both flows
+         are anchored on the bar's HEAD, because that is the only place supply
+         ever moves: the mint arrives there from above, the burn leaves there
+         from below. One stock, one inflow, one outflow. */
+      const barW = SUPPLY0 * l.gGbx;
+      const fillW = rd.supply * l.gGbx;
+      const markW = mint.mark * l.gGbx;
+      const mintW = Math.max(0, mint.since * l.gGbx);
+      const barX = l.pad;
+      const headX = barX + fillW;
       ctx.fillStyle = ink.raised;
-      ctx.fillRect(l.pad, l.supplyY, sw, 9);
+      ctx.fillRect(barX, l.supplyY, barW, 11);
       ctx.fillStyle = ink.ruleStrong;
-      ctx.fillRect(l.pad, l.supplyY, sw * (rd.supply / SUPPLY0), 9);
-      label(Math.round(rd.supply).toLocaleString('en-US') + ' GBX in existence', l.pad, l.supplyY - 6, 9.5, ink.muted);
+      ctx.fillRect(barX, l.supplyY, fillW, 11);
+      /* the strip the mint put back, on the bar it put it back on */
+      if (mintW > 0.5) {
+        ctx.fillStyle = GBX_BODY;
+        ctx.fillRect(barX + markW, l.supplyY, mintW, 11);
+      }
+      ctx.strokeStyle = ink.rule;
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.strokeRect(hairline(barX, l.dpr), hairline(l.supplyY, l.dpr), barW, 11);
+      /* the two readings share the row ABOVE the bar, where neither the mint
+         band arriving at its head nor the burn band leaving it ever runs */
+      /* ---- THE MINT, drawn arriving. Its width IS the length it added ---- */
+      if (mintW > 0.5) {
+        const r = run('mint', l.gGbx, l.mintY, l.supplyY, barX + markW + mintW / 2, mint.since);
+        neutralFlow(ribbonPath(r));
+      }
+      /* ---- THE BURN, leaving the same head ------------------------------- */
+      if (F.burnNeutral !== null) neutralFlow(F.burnNeutral.band);
+      {
+        /* the mark the last burn left, ticked on the bar it left it on */
+        ctx.strokeStyle = ink.ruleStrong;
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        ctx.beginPath();
+        ctx.moveTo(hairline(barX + markW, l.dpr), l.mintY + 8);
+        ctx.lineTo(hairline(barX + markW, l.dpr), l.supplyY + 15);
+        ctx.stroke();
+        /* the reading goes on the left of the band, where the row is empty at
+           every value the mark can take */
+        const lx = barX + markW - 10;
+        labelK(
+          'MINT  +' +
+            Math.round(mint.since).toLocaleString('en-US') +
+            (l.narrow ? ' GBX' : ' GBX since the last burn'),
+          lx,
+          l.mintY + 4,
+          9.5,
+          ink.hi,
+          'right',
+        );
+        labelK(
+          (l.narrow ? 'station 01 · +' : 'the mine\u2019s clocks at station 01 · +') +
+            Math.round(mint.rate).toLocaleString('en-US') +
+            ' GBX/s',
+          lx,
+          l.mintY + 16,
+          9,
+          ink.muted,
+          'right',
+        );
+      }
+      labelK(Math.round(rd.supply).toLocaleString('en-US') + ' GBX in existence', barX, l.supplyY - 7, 9.5, ink.muted);
+      labelK('the whole bar = 100,000,000 GBX', barX, l.supplyY + 24, 9, ink.faint);
 
-      if (F.burnNeutral !== null) neutralFlow(F.burnNeutral.band, F.burnNeutral.edge);
-
-      const burnX = l.pad + Math.max(20, F.burnW) + 11;
-      const burnY = (l.burnY0 + l.burnY1) / 2;
-      valve(ctx, burnX, burnY, { ink: ink.panel, size: 21, weight: 4 });
-      valve(ctx, burnX, burnY, { ink: ink.muted, size: 21, open: rd.phase === 'burn', fill: GBX_BODY });
-      sink(ctx, burnX + 32, burnY, { ink: ink.muted, size: 19, fill: GBX_BODY, barH: 24, angle: 0 });
-      label('BURN', burnX - 11, burnY + 26, 10, ink.hi);
-      label('GBX leaves and does not return', burnX + 52, burnY + 4, 9.5, ink.muted);
+      const burnX = headX - F.burnW / 2;
+      const burnY = l.burnY1;
+      valve(ctx, burnX, burnY + 12, { ink: ink.panel, size: 21, weight: 4 });
+      valve(ctx, burnX, burnY + 12, { ink: ink.muted, size: 21, open: rd.phase === 'burn', fill: GBX_BODY });
+      sink(ctx, burnX, burnY + 40, { ink: ink.muted, size: 19, fill: GBX_BODY, barH: Math.max(24, F.burnW + 10), angle: Math.PI / 2 });
+      labelK('BURN', headX - F.burnW - 16, burnY + 16, 10, ink.hi, 'right');
+      const burnNote =
+        (rd.phase === 'burn' ? Math.round(rd.burned).toLocaleString('en-US') + ' ' : '') + proseOf('burnSink');
+      if (l.narrow) wrapK(burnNote, l.pad, burnY + 64, l.collectC - 46 - l.pad, 9, ink.muted, 'left', 2);
+      else labelK(burnNote, burnX + 18, burnY + 44, 9.5, ink.muted);
 
       /* THE RECEIPT, per bay. The four rows are the pro-rata argument in
          figures beside the same argument in geometry: one share, applied to
          four different holdings, in one transaction. */
-      const rx = rxTable;
-      const rw = l.w - l.pad - rx;
-      const ry = l.narrow ? burnY + 44 : l.supplyY - 4;
+      const rx = l.narrow ? l.pad : Math.max(barX + barW + 26, l.pad + 300);
+      const rw = (l.narrow ? l.collectC - 44 : l.w - l.pad) - rx;
+      const ry = l.narrow ? burnY + 100 : l.supplyY - 6;
       const pct = rd.pct > 0 ? rd.pct : 0.1;
-      caps('THE SAME SHARE, OUT OF EVERY BAY', rx, ry, 9.5, ink.hi);
+      /* KNOCKED OUT PER CELL, NOT AS ONE BLOCK. A block-sized backdrop would
+         take a bite out of the merged claim stack that runs down the spine
+         between this table's columns; four small plates let the stack pass
+         between them, which is what "the band goes behind the label" means. */
+      const title = l.narrow ? 'SAME SHARE, EVERY BAY' : 'THE SAME SHARE, OUT OF EVERY BAY';
+      ctx.font = mono(9.5, 600);
+      erase(rx - 3, ry - 10, ctx.measureText(title).width * 1.19 + 6, 14);
+      caps(title, rx, ry, 9.5, ink.hi);
       rd.holds.forEach((hh, i) => {
         const y = ry + 16 + i * 13;
         const take = (rd.phase === 'burn' ? takenAt(rd, i) : hh.amt * pct) || 0;
-        label(hh.sym, rx, y, 9, hueOf(i));
-        label((pct * 100).toFixed(2) + '%', rx + rw * 0.3, y, 9, ink.muted, 'right');
-        label('of ' + hh.amt.toFixed(hh.amt < 10 ? 4 : 1), rx + rw * 0.62, y, 9, ink.muted, 'right');
-        label('→ ' + take.toFixed(take < 10 ? 4 : 2), rx + rw, y, 9, ink.text, 'right');
+        labelK(hh.sym, rx, y, 9, hueOf(i));
+        labelK((pct * 100).toFixed(2) + '%', rx + rw * (l.narrow ? 0.4 : 0.3), y, 9, ink.muted, 'right');
+        labelK('of ' + hh.amt.toFixed(hh.amt < 10 ? 4 : 1), rx + rw * (l.narrow ? 0.72 : 0.62), y, 9, ink.muted, 'right');
+        labelK('→ ' + take.toFixed(take < 10 ? 4 : 2), rx + rw, y, 9, ink.text, 'right');
       });
-      label(
-        rd.phase === 'burn' ? 'in flight now' : 'what a 10% burn would take at this instant',
+      /* THE CAPTION PRINTS THE LIVE SHARE. It used to assert "a 10% burn" over
+         rows reading 6.25%–7.65% on six of fifteen idle samples: the figure a
+         reader checks it against is right there in the column beside it. */
+      /* AND IT PRINTS AT THE STATION'S OWN CONTRAST. This line disambiguates
+         the table's mode and used to be the dimmest type on the plate — p90
+         3.02:1 where a declared 4.5:1 measures 4.09:1 on the calibration ramp.
+         It is now `--muted` at 9px, the same ink as the rows it qualifies. */
+      labelK(
+        rd.phase === 'burn'
+          ? 'in flight now — ' + (pct * 100).toFixed(2) + '%' + proseOf(l.narrow ? 'burnLiveNarrow' : 'burnLive')
+          : 'what a ' + (pct * 100).toFixed(2) + '%' + proseOf(l.narrow ? 'burnIdleNarrow' : 'burnIdle'),
         rx,
-        ry + 16 + 4 * 13 + 4,
-        8.5,
-        ink.faint,
+        ry + 16 + 4 * 13 + 5,
+        9,
+        ink.muted,
       );
 
-      /* the four claim ribbons, and the collector */
-      if (rd.phase !== 'burn') F.pipes.slice(6, 10).forEach((pp) => strokeFlow(pp, ink.rule, PROCESS_REST.width));
-      F.claimBands.forEach((band) => fillFlow(band.path, band.ink));
-      node(ctx, l.cx, l.collectY + 20, { ink: ink.muted, size: 18, fill: ink.raised });
-      label('YOU', l.cx + 16, l.collectY + 24, 11, ink.hi);
-      /* Where four bands run merged, the stack is named in its own order, so
-         it can be read without telling the four hues apart. */
-      label(
-        l.narrow ? 'stacked NVDA·QQQ·WBTC·AAPL' : 'stacked NVDA · QQQ · WBTC · AAPL, in that order, top to bottom',
-        l.cx - 16,
-        l.collectY + (l.narrow ? 40 : 24),
+      labelK('YOU', l.narrow ? l.collectC - 48 : l.collectC + 16, l.collectY + 4, 11, ink.hi, l.narrow ? 'right' : 'left');
+      /* Where four bands run merged, the stack is named in the order they
+         actually arrive — LEFT TO RIGHT across the collector, which is bay
+         order, so the stack can be read without telling the four hues apart. */
+      proseLine(
+        l.narrow ? 'stackOrderNarrow' : 'stackOrder',
+        l.narrow ? l.w - l.pad : l.collectC,
+        l.collectY + (l.narrow ? 30 : 28),
         l.narrow ? 8 : 9,
-        ink.faint,
-        l.narrow ? 'center' : 'right',
+        ink.muted,
+        l.narrow ? 'right' : 'center',
       );
 
-      ctx.font = mono(9.5, 400);
-      ctx.fillStyle = ink.muted;
-      ctx.textAlign = 'center';
       const line =
         rd.phase === 'burn'
           ? rd.who +
@@ -2162,9 +2849,11 @@ export function Plate() {
               (rd.pct * 100).toFixed(2) +
               '% of every holding, in one transaction'
             : 'burns arrive on their own — every other one is yours, at 10% of everything in existence';
-      wrap(ctx, line, l.w - l.pad * 2)
-        .slice(0, l.narrow ? 3 : 1)
-        .forEach((t, i, arr) => ctx.fillText(t, l.cx, b.y1 - 6 - (arr.length - 1 - i) * 11));
+      /* measured first, then drawn once, so the last line lands on the
+         station's last row instead of running into the checks below it */
+      ctx.font = mono(9.5, 400);
+      const n = wrap(ctx, line, l.w - l.pad * 2).slice(0, l.narrow ? 5 : 2).length;
+      wrapK(line, l.cx, b.y1 - 6 - (n - 1) * 11, l.w - l.pad * 2, 9.5, ink.muted, 'center', n, 11);
     }
 
     /* -------------------------------------------------------- instruments */
@@ -2172,22 +2861,13 @@ export function Plate() {
       const b = l.instr;
       rule(l, b.y0, l.pad, l.w - l.pad, ink.ruleStrong);
       caps(l.narrow ? 'CONSERVATION, PER SEGMENT' : 'CONSERVATION, CHECKED EVERY FRAME — PER SEGMENT, NOT END TO END', l.pad, b.y0 + 17, l.narrow ? 9.5 : 10.5, ink.hi);
-      ctx.font = mono(9, 400);
-      ctx.fillStyle = ink.muted;
-      ctx.textAlign = 'left';
-      wrap(
-        ctx,
-        'Δ is printed in exponential form so an error can never hide behind a rounded zero, and it turns pink above 1e-11 of the quantity being checked — relative, because a six-figure GBX total floors an order of magnitude higher than a rate does. The Router row is the one that proves the break is honest: in − out − held. These are instantaneous checks, not counters; the tallies beside each station are the cumulative figures.',
-        l.w - l.pad * 2,
-      )
-        .slice(0, 3)
-        .forEach((t, i) => ctx.fillText(t, l.pad, b.y0 + 32 + i * 11));
+      prose('deltaNote', l.pad, b.y0 + 32, l.w - l.pad * 2, 9, ink.muted, 'left', l.narrow ? 4 : 3);
       const rows = F.checks;
       const y0 = b.y0 + (l.narrow ? 84 : 68);
-      const rh = Math.min(20, (b.y1 - y0 - 6) / Math.max(1, rows.length));
+      const rh = Math.min(l.narrow ? 30 : 20, (b.y1 - y0 - 6) / Math.max(1, rows.length));
       const c1 = l.pad + 30;
-      const c2 = l.pad + 330;
-      const c3 = l.pad + 470;
+      const c2 = Math.max(l.pad + 330, (l.w - l.pad * 2) * 0.44);
+      const c3 = c2 + 140;
       const c4 = l.w - l.pad;
       rows.forEach((r, i) => {
         const y = y0 + i * rh + 12;
@@ -2195,10 +2875,13 @@ export function Plate() {
         ctx.font = mono(9.5, 400);
         ctx.fillStyle = ink.muted;
         ctx.textAlign = 'left';
-        let what = r.what;
-        const room = (l.narrow ? c4 - 84 : c2 - 12) - c1;
-        while (ctx.measureText(what).width > room && what.length > 8) what = what.slice(0, -2);
-        ctx.fillText(what, c1, y);
+        /* THE LABEL WRAPS, IT DOES NOT TRUNCATE. At 390 this column was cutting
+           five rows mid-phrase — `GBX issued = pending on the`, `Router: mine
+           deposits − route` — and those clauses are the honesty. */
+        const room = (l.narrow ? c4 - 78 : c2 - 12) - c1;
+        wrap(ctx, r.what, room)
+          .slice(0, 2)
+          .forEach((t, k) => ctx.fillText(t, c1, y + k * 10));
         if (!l.narrow) {
           label(r.claim.toPrecision(6), c2, y, 9.5, ink.text);
           label(r.drawn.toPrecision(6), c3, y, 9.5, ink.text);
@@ -2251,6 +2934,11 @@ export function Plate() {
       let seeded = 0;
       mn.slots.forEach((sl) => (seeded += sl.mined));
       issued = seeded + mn.totalMined;
+      mint.mark = rd.supply;
+      mint.since = 0;
+      mint.total = 0;
+      mint.burned = 0;
+      mint.rate = 0;
       for (let i = 0; i < 40; i++) stepResonance(rz, 240, {});
       seedHistory(au, {});
     }
@@ -2282,14 +2970,29 @@ export function Plate() {
            out of every bay. Every number below is stepped, not asserted. */
         seed();
         for (let i = 0; i < 26; i++) {
+          let rateBefore = 0;
+          mn.slots.forEach((sl) => (rateBefore += sl.tps));
           stepMine(mn, 24, mineFx);
+          /* the still integrates GBX exactly the way a frame does, so the
+             `issued = pending + minted` row closes here too rather than being
+             re-asserted for the benefit of the photograph */
+          issued += rateBefore * 24;
           stepResonance(rz, 380, {});
           aucStep(au, 190, {});
         }
+        /* nine seconds of the redemption model: a burn lands, the bays and the
+           supply move, and the mint puts some of it back — so the still shows
+           the inflow with a real figure on it instead of `+0` */
+        for (let i = 0; i < 36; i++) advanceRedeem(0.25);
         if (packet !== null) packet.age = PACKET_RUN * 0.82;
-        router.outTotal = Math.max(0, mn.routerDeposits * 0.62);
-        router.bookedIn = mn.routerDeposits;
-        router.held = mn.routerDeposits - router.outTotal;
+        /* the packet's remainder has not landed yet, so it is IN FLIGHT and is
+           deliberately not booked: in − routed − held − in flight is zero in
+           the still exactly as it is in a frame */
+        const inFlightStill = packet !== null ? packet.toRouter : 0;
+        const landed = Math.max(0, mn.routerDeposits - inFlightStill);
+        router.outTotal = landed * 0.62;
+        router.bookedIn = landed;
+        router.held = landed - router.outTotal;
         rd.phase = 'burn';
         rd.who = '@you';
         rd.mine = true;

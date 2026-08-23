@@ -47,6 +47,42 @@ export const USDG = '#29B6F0';
 /** GBX — supply, and what gets burned. Neutral, always. */
 export const GBX = '#FFFFFF';
 
+/**
+ * The shade under a neutral band.
+ *
+ * Neutral is the one fill on the page bright enough to read as a HOLE in the
+ * panel rather than as material lying on it: every other band is a hue with a
+ * value below the ground's, and white is not. So a neutral band running across
+ * the page carries a shaded edge underneath it, on the side the light does not
+ * reach — the same lit-from-above logic the blue fluid in a vessel uses. It
+ * costs nothing at ribbon scale (measured 18.94:1 on `--panel` either way) and
+ * it is what keeps the burn from looking like an afterthought, which is the
+ * one thing this protocol's most important station cannot afford.
+ *
+ * A band running DOWN the page has no underside, so it takes the flat fill and
+ * no shade: inventing a light direction for a vertical run would put two
+ * different light sources on one drawing.
+ */
+export const GBX_SHADE = 'rgba(2, 7, 13, 0.55)';
+
+/**
+ * Paint a neutral band: the fill, then its shaded underside if the caller has
+ * an edge to give. `edgePath(r, 'bot')` in lib/ribbon.ts builds that edge from
+ * the same stations as the fill, so the two can never part company.
+ */
+export function fillNeutral(ctx: CanvasRenderingContext2D, fill: Path2D, under?: Path2D): void {
+  ctx.fillStyle = GBX;
+  ctx.fill(fill);
+  if (under === undefined) return;
+  ctx.save();
+  ctx.setLineDash([]);
+  ctx.lineWidth = 1.25;
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = GBX_SHADE;
+  ctx.stroke(under);
+  ctx.restore();
+}
+
 export interface AssetHue {
   readonly sym: string;
   readonly hue: string;
@@ -269,32 +305,42 @@ export function drawLegend(
   ctx.textAlign = 'left';
 
   /* ---- row 1: the six glyphs --------------------------------------------- */
+  /* The column count is solved from measured text, and then every caption is
+     WRAPPED to the column it landed in. Solving the count without wrapping is
+     how a key ends up publishing "holds — money stops until an outlet ope" at
+     390: the layout was right and the sentence still ran off the plate. */
+  const GLYPH_COL = 51;
   ctx.font = fonts.meta;
   let cellW = 0;
   for (const g of GLYPHS) cellW = Math.max(cellW, ctx.measureText(g.means).width);
   ctx.font = fonts.name;
   for (const g of GLYPHS) cellW = Math.max(cellW, capsWidth(ctx, g.name, 11));
-  cellW += 52; // the glyph column — wide enough for the VALVE's two states
+  cellW += GLYPH_COL + 1; // the glyph column — wide enough for the VALVE's two states
   const gCols = Math.max(1, Math.min(GLYPHS.length, Math.floor((W + 18) / (cellW + 18))));
   const gRows = Math.ceil(GLYPHS.length / gCols);
   const gStep = gCols === 1 ? W : (W + 18) / gCols;
+  const gCapW = Math.max(60, (gCols === 1 ? W : gStep - 18) - GLYPH_COL);
+  ctx.font = fonts.meta;
+  const gLines = GLYPHS.map((g) => wrap(ctx, g.means, gCapW));
+  const gLineMax = gLines.reduce((m, l) => Math.max(m, l.length), 1);
+  const gCellH = 44 + (gLineMax - 1) * 13;
 
   const glyphRow: Row = {
     title: 'THE SIX GLYPHS',
     note: 'learn once, read every station',
-    h: gRows * 44,
+    h: gRows * gCellH,
     draw: (y) => {
       ctx.textAlign = 'left';
       GLYPHS.forEach((g, i) => {
         const cx = x0 + (i % gCols) * gStep + 19;
-        const cy = y + Math.floor(i / gCols) * 44 + 18;
+        const cy = y + Math.floor(i / gCols) * gCellH + 18;
         drawGlyph(ctx, g.name, cx, cy, o);
         ctx.font = fonts.name;
         ctx.fillStyle = ink.hi;
         capsText(ctx, g.name, cx + 32, cy - 3, 11);
         ctx.font = fonts.meta;
         ctx.fillStyle = ink.muted;
-        ctx.fillText(g.means, cx + 32, cy + 12);
+        (gLines[i] ?? []).forEach((line, k) => ctx.fillText(line, cx + 32, cy + 12 + k * 13));
       });
     },
   };
@@ -329,12 +375,15 @@ export function drawLegend(
   const wCols = Math.max(1, Math.min(weights.length, Math.floor((W + 24) / (wLine + 24))));
   const wWrapped = wCols === 1 && W < wLine;
   const wRows = Math.ceil(weights.length / wCols);
-  const wStep = wWrapped ? 46 : 30;
+  ctx.font = fonts.meta;
+  const wLines = weights.map((r) => (wWrapped ? wrap(ctx, r.means, W) : [r.means]));
+  const wLineMax = wLines.reduce((m, l) => Math.max(m, l.length), 1);
+  const wStep = wWrapped ? 33 + wLineMax * 13 : 30;
   const wColStep = wCols === 1 ? 0 : (W + 24) / wCols;
   const weightRow: Row = {
     title: 'THREE WEIGHTS',
     note: 'a flow is never a signal, and a route is never a flow',
-    h: (wRows - 1) * wStep + (wWrapped ? 42 : 26) + 8,
+    h: (wRows - 1) * wStep + (wWrapped ? 29 + wLineMax * 13 : 26) + 8,
     draw: (y) => {
       ctx.textAlign = 'left';
       weights.forEach((r, i) => {
@@ -356,7 +405,7 @@ export function drawLegend(
         const nameW = capsText(ctx, r.name, cx + SAMPLE + 14, cy + 4, 11);
         ctx.font = fonts.meta;
         ctx.fillStyle = ink.muted;
-        if (wWrapped) ctx.fillText(r.means, cx, cy + 22);
+        if (wWrapped) (wLines[i] ?? []).forEach((line, k) => ctx.fillText(line, cx, cy + 22 + k * 13));
         else ctx.fillText(r.means, cx + SAMPLE + 26 + nameW, cy + 4);
       });
     },
@@ -438,32 +487,38 @@ export function drawLegend(
       },
     },
   ];
+  const READ_COL = 76;
   ctx.font = fonts.meta;
   let rCell = 0;
   for (const r of readings) rCell = Math.max(rCell, ctx.measureText(r.means).width);
   ctx.font = fonts.name;
   for (const r of readings) rCell = Math.max(rCell, capsWidth(ctx, r.name, 11));
-  rCell += 76; // the sample column
+  rCell += READ_COL; // the sample column
   const rCols = Math.max(1, Math.min(readings.length, Math.floor((W + 18) / (rCell + 18))));
   const rRows = Math.ceil(readings.length / rCols);
   const rStep = rCols === 1 ? W : (W + 18) / rCols;
+  const rCapW = Math.max(60, (rCols === 1 ? W : rStep - 18) - READ_COL);
+  ctx.font = fonts.meta;
+  const rLines = readings.map((r) => wrap(ctx, r.means, rCapW));
+  const rLineMax = rLines.reduce((m, l) => Math.max(m, l.length), 1);
+  const rCellH = 48 + (rLineMax - 1) * 13;
   const readingRow: Row = {
     title: 'THREE READINGS',
     note: 'every number sits on the mechanism that produced it',
-    h: rRows * 48,
+    h: rRows * rCellH,
     draw: (y) => {
       ctx.textAlign = 'left';
       readings.forEach((r, i) => {
         const cx = x0 + (i % rCols) * rStep;
-        const cy = y + Math.floor(i / rCols) * 48 + 18;
+        const cy = y + Math.floor(i / rCols) * rCellH + 18;
         r.draw(cx, cy);
         ctx.textAlign = 'left';
         ctx.font = fonts.name;
         ctx.fillStyle = ink.hi;
-        capsText(ctx, r.name, cx + 76, cy - 3, 11);
+        capsText(ctx, r.name, cx + READ_COL, cy - 3, 11);
         ctx.font = fonts.meta;
         ctx.fillStyle = ink.muted;
-        ctx.fillText(r.means, cx + 76, cy + 12);
+        (rLines[i] ?? []).forEach((line, k) => ctx.fillText(line, cx + READ_COL, cy + 12 + k * 13));
       });
     },
   };
@@ -474,25 +529,44 @@ export function drawLegend(
     { form: 'band', hue: GBX, name: 'GBX', means: 'supply, and burns' },
     ...ASSETS.map((a) => ({ form: 'bay' as const, hue: a.hue, name: a.sym, means: 'asset held' })),
   ];
+  const LAW_COL = 44;
   ctx.font = fonts.meta;
   let lawW = 0;
   for (const c of law) lawW = Math.max(lawW, ctx.measureText(c.means).width);
-  lawW += 46;
+  lawW += LAW_COL + 2;
   const lCols = Math.max(1, Math.min(law.length, Math.floor((W + 16) / (lawW + 16))));
   const lRows = Math.ceil(law.length / lCols);
   const lStep = lCols === 1 ? W : (W + 16) / lCols;
+  const lCapW = Math.max(60, (lCols === 1 ? W : lStep - 16) - LAW_COL);
+  ctx.font = fonts.meta;
+  const lLines = law.map((c) => wrap(ctx, c.means, lCapW));
+  const lLineMax = lLines.reduce((m, l) => Math.max(m, l.length), 1);
+  const lCellH = 40 + (lLineMax - 1) * 13;
 
   const lawRow: Row = {
     title: 'THE BALL-COLOUR LAW',
     note: 'three types, learned once',
-    h: lRows * 40,
+    h: lRows * lCellH,
     draw: (y) => {
       ctx.textAlign = 'left';
       law.forEach((c, i) => {
         const cx = x0 + (i % lCols) * lStep;
-        const cy = y + Math.floor(i / lCols) * 40 + 14;
+        const cy = y + Math.floor(i / lCols) * lCellH + 14;
         ctx.fillStyle = c.hue;
-        if (c.form === 'band') ctx.fillRect(cx, cy - 6, 34, 12);
+        if (c.form === 'band') {
+          ctx.fillRect(cx, cy - 6, 34, 12);
+          /* the neutral band carries its shaded underside here too, so the law
+             publishes the treatment rather than only the value */
+          if (c.hue === GBX) {
+            ctx.strokeStyle = GBX_SHADE;
+            ctx.lineWidth = 1.25;
+            ctx.setLineDash([]);
+            ctx.beginPath();
+            ctx.moveTo(cx, cy + 5.4);
+            ctx.lineTo(cx + 34, cy + 5.4);
+            ctx.stroke();
+          }
+        }
         else {
           ctx.fillStyle = ink.raised;
           ctx.fillRect(cx, cy - 11, 34, 22);
@@ -508,7 +582,7 @@ export function drawLegend(
         capsText(ctx, c.name, cx + 44, cy - 2, 11);
         ctx.font = fonts.meta;
         ctx.fillStyle = ink.muted;
-        ctx.fillText(c.means, cx + 44, cy + 13);
+        (lLines[i] ?? []).forEach((line, k) => ctx.fillText(line, cx + LAW_COL, cy + 13 + k * 13));
       });
     },
   };
@@ -654,6 +728,7 @@ export function legendAltText(): string {
     'Three line weights: a process line is heavy and solid and its width is the quantity; ' +
     'a process line at rest is a grey hairline, a route with nothing in it; ' +
     'a signal line is thin and dashed and carries no quantity. ' +
+    'A neutral band carries a shaded edge underneath it, so white reads as material lying on the panel rather than as a hole cut in it. ' +
     'Three forms a live reading takes: a TAG is a rate in a bubble led back to the band it measures; ' +
     'a STOCK reading is a level, named and ticked to the bay or vessel that holds it; ' +
     'a SHARE is a ratio printed on the branch where the control signal sets it. ' +

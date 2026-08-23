@@ -6,21 +6,26 @@
    geometry before hydration and the first paint shifts nothing — the effect
    only ever sets the backing store. The layout solves into whatever height it
    is given; these three values are the ones measured to hold every station's
-   minimum at their breakpoints without a single mark being cut. */
+   minimum at their breakpoints without a single mark being cut.
+
+   They grew in round 2: the key moved from the head to the FOOT (a reader
+   meets 01 THE MINE first and refers back), the mine's fork gained the
+   reserved rows that let its 80% leg run vertically at its true width, and
+   station 06 gained the mint inflow that explains why GBX supply rises. */
 #sec-plate .pl-stage {
   position: relative;
   width: 100%;
-  height: 3320px;
+  height: 3480px;
   min-width: 0;
 }
 @media (max-width: 1023px) {
   #sec-plate .pl-stage {
-    height: 3640px;
+    height: 3960px;
   }
 }
 @media (max-width: 719px) {
   #sec-plate .pl-stage {
-    height: 5300px;
+    height: 6200px;
   }
 }
 #sec-plate .pl-stage canvas {

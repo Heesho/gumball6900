@@ -140,6 +140,23 @@ export function ribbonPath(r: Ribbon, curve: CurveFactory = RIBBON_CURVE): Path2
   return path;
 }
 
+/**
+ * One EDGE of the band, as a path — the line a shaded underside is stroked
+ * along. Same curve, same stations, so the edge and the fill can never part
+ * company by half a pixel.
+ */
+export function edgePath(r: Ribbon, side: 'top' | 'bot', curve: CurveFactory = RIBBON_CURVE): Path2D {
+  const path = new Path2D();
+  const off = (st: Station) => (side === 'top' ? -1 : 1) * ((st.q * r.gauge) / 2);
+  area<Station>()
+    .x((st) => st.x)
+    .y0((st) => st.c + off(st))
+    .y1((st) => st.c + off(st))
+    .curve(curve)
+    .context(path as unknown as CanvasRenderingContext2D)(r.stations as Station[]);
+  return path;
+}
+
 /** The band's centreline alone, for a leader or a hairline spine. */
 export function centrePath(r: Ribbon, curve: CurveFactory = RIBBON_CURVE): Path2D {
   const path = new Path2D();

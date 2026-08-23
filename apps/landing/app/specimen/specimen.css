@@ -964,12 +964,24 @@
     font-size: 13.5px;
   }
 }
-/* The key solves its own column counts from measured text, so its natural
-   height climbs as the box narrows. These are measured, not guessed: a legend
-   that is cut by its own container has failed at the one thing it is for. */
-@media (max-width: 430px) {
+/* The key solves its own column counts from measured text AND wraps every
+   caption into the column it lands in, so its natural height climbs as the box
+   narrows — and climbs again below ~396px, where the glyph meanings go to two
+   lines. These are measured, not guessed: a legend that is cut by its own
+   container has failed at the one thing it is for. */
+@media (max-width: 440px) {
   .sp-gram__key {
-    height: 1364px;
+    height: 1220px;
+  }
+}
+@media (max-width: 420px) {
+  .sp-gram__key {
+    height: 1345px;
+  }
+}
+@media (max-width: 400px) {
+  .sp-gram__key {
+    height: 1495px;
   }
 }
 
