@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 /// @title GumBall6900 Resonance Interface
-/// @author @heesho
+/// @author heesho
 /// @notice Minimal signal, USDG-streaming, and Strategy-configuration surface used by other core contracts.
 /// @dev Amounts are raw token units unless stated otherwise. The production implementation authorizes SignalGBX for
 ///      weight mutations and ResonanceRouter for notification, while distribution and reads are permissionless. USDG

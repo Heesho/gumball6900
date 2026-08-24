@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 /// @title GumBall6900 Mine Interface
-/// @author @heesho
+/// @author heesho
 /// @notice Minimal constant-time supply surface used by Fund and external integrations.
 /// @dev Exposes the reciprocal GBX identity and read-only supply accounting without settling or iterating over slots.
 interface IMine {

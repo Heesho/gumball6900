@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 /// @title GumBall6900 Multi-Token Reward Interface
-/// @author @heesho
+/// @author heesho
 /// @notice Exposes the reward-stream operations required by a Strategy's automatic Bribe funding path.
 /// @dev BribeRouter uses this minimal surface to determine when its complete payment-token balance qualifies for a
 ///      seven-day notification. Implementations are expected to pull standard ERC-20 tokens from the caller, apply

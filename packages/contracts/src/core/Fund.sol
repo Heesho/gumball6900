@@ -10,7 +10,7 @@ import { GBX } from "./GBX.sol";
 import { IMine } from "./interfaces/IMine.sol";
 
 /// @title GumBall6900 Ownerless In-Kind Redemption Fund
-/// @author @heesho
+/// @author heesho
 /// @notice Holds the protocol's raw token backing and lets GBX holders redeem a selected in-kind basket.
 /// @dev Fund intentionally has no asset registry. Callers select the assets they want to redeem, which keeps a
 ///      malformed token from blocking every other asset in the treasury. Fund is ownerless and immutable: it has no
