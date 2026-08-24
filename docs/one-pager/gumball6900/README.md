@@ -48,10 +48,10 @@ structure.
    and left the sheet stating that signalling happens without ever saying what a signaler gets
    for it.
 4. **What your share is worth** - one exact proportion and one market, set at deliberately
-   different sizes. The proportion is `Fund.redeem`: burn 1% of all GBX, get 1% of each asset
+   different sizes. The proportion is `Fund.redeem`: burn an amount equal to 1% of effective GBX supply, get 1% of each asset
    you pick. Below it, smaller and in muted ink, is where new GBX comes from - a slot whose
-   price decays to zero over an hour, 80% of each payment repaying the miner replaced and 20%
-   funding the buying - ending on "nobody is promised a replacement".
+   price decays to zero over an hour. For a nonempty-slot replacement, 80% becomes an outgoing-tenure miner claim and
+   20% funds the buying; an empty slot sends 100% to that flow. It ends on "nobody is promised a replacement".
 
    The size difference is the argument, not a space saving. ADR 0024 deleted `Fundraiser.claim`
    and with it the matching proportion that used to sit here ("put in 5% of a day's dollars,
@@ -61,11 +61,11 @@ structure.
 
    Underneath, "Why you'd want in": five figures, three of them zeros, that answer what a
    reader gets rather than how the protocol is built. The fifth used to be a lifetime supply
-   ceiling; there is no cap any more, so it is now the genesis tranche.
+   ceiling; there is no cap any more, so it is now the zero-token initial supply.
 
 5. **Status** - one line, not a section: the software is not deployed. That is the only status
    fact that changes what a reader should do next, and `AGENTS.md` requires the label to be
-   preserved. The risk register, the open Medium finding, and the reviewed commits are
+   preserved. The risk register, open findings, and historical review commits are
    whitepaper material; the commits stay in the PDF's metadata rather than on the page.
 
 The vertical budget enforces that priority: about 92% of the sheet explains the product and the

@@ -8,7 +8,7 @@
 
 > **buildClaimMiningPayment**(`mine`, `account`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Claims a displaced miner's complete accumulated USDG payment to that same account.
+Claims an outgoing tenure miner's complete accumulated USDG payment to that same account.
 
 ## Parameters
 

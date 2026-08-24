@@ -13,15 +13,15 @@
 - Mine has exactly sixteen immutable, ownerless slots.
 - Every occupied slot accrues `elapsedSeconds * slot.tps`. Its `tps` is fixed from occupation until replacement.
 - Time-based halving boundaries and redemptions never reprice an occupied slot.
-- A new occupation assigns `globalTps(now - startTime) / 16`; floor remainder is unissued.
-- Global rates used for future handoffs halve at immutable intervals measured from Mine deployment and never fall below the
+- Each newly opened tenure receives `globalTps(now - startTime) / 16`; floor remainder is unissued.
+- Global rates used for future tenures halve at immutable intervals measured from Mine deployment and never fall below the
   positive immutable tail.
 - `Mine.aggregateTps() == sum(Mine.slot(i).tps)` across all sixteen slots.
 - `Mine.effectiveTotalSupply() == GBX.totalSupply() + Mine.pendingEmission()`.
 - A replacement settles only its outgoing slot before assigning the incoming tenure.
-- A nonempty-slot USDG payment is exactly `80% displaced-miner claim + 20% Router deposit`. An empty-slot payment is
-  100% deposited into ResonanceRouter. A zero-price handoff transfers nothing. Mine never requires a downstream
-  Router-to-Resonance call to complete the handoff. These nominal transfer identities rely on standard canonical USDG;
+- A nonempty-slot USDG payment is exactly `80% outgoing-tenure-miner claim + 20% Router deposit`. An empty-slot payment is
+  100% deposited into ResonanceRouter. A zero-price replacement transfers nothing. Mine never requires a downstream
+  Router-to-Resonance call to complete the replacement. These nominal transfer identities rely on standard canonical USDG;
   Mine uses `SafeERC20` without inspecting balance deltas.
 - Under the supported USDG model and absent unsolicited donations, Mine USDG balance equals total outstanding pull
   claims; claim execution reduces both by the same nominal amount.
@@ -36,10 +36,11 @@
   and paired-Bribe position; every burn atomically removes the same nominal position and requests the GBX return.
   SignalGBX relies on standard canonical GBX semantics and does not inspect transfer deltas.
 - SignalGBX is the sole external signal coordinator. `SignalGBX.balanceOf(account)` is the canonical account aggregate,
-  each paired Bribe account and total-supply balance is the canonical account-by-Strategy and Strategy aggregate
-  ledger, and Resonance reads those values rather than duplicating them. There is no separate `allocatedBalance`.
+  each paired Bribe's `signalWeightOf(account)` and `totalSignalWeight` are the canonical account-by-Strategy and
+  Strategy aggregate ledgers, and Resonance reads those values rather than duplicating them. There is no separate
+  `allocatedBalance`.
 - For every account, SignalGBX balance equals the sum of its positions across every live and killed paired Bribe.
-- SignalGBX total supply equals the sum of all paired Bribe total supplies across live and killed Strategies.
+- SignalGBX total supply equals the sum of all paired-Bribe `totalSignalWeight` values across live and killed Strategies.
 - Active Resonance `totalSignalWeight` equals the sum of paired-Bribe `totalSignalWeight` values for live Strategies
   only. A killed Strategy keeps its recorded user and Bribe signal weights while its complete weight remains excluded
   from active `totalSignalWeight`.
@@ -50,22 +51,22 @@
 - ResonanceRouter forwards its complete balance only when it is at least
   `max(REWARD_DURATION, remainingRevenue())`; smaller balances
   remain buffered. Resonance restarts seven days with ordinary Synthetix leftover rollover.
-- The Resonance USDG balance is at least its whole scheduled remainder plus every Strategy's previewed whole reward.
+- The Resonance USDG balance is at least its whole scheduled remainder plus every Strategy's previewed whole revenue.
   Rate, index, and Strategy floors, zero-active-signal emission, and direct donations are accepted surplus.
 - Every signal mutation checkpoints elapsed stream revenue before changing weights, and every Strategy purchase
   checkpoints and pulls released revenue before reading inventory.
 - `SignalGBX.moveSignal` atomically composes source `removeSignalFor` then destination `addSignalFor`; the destination
   must be live, a failed addition rolls back the removal, and Resonance exposes no dedicated move hook.
-- Killing a Strategy checkpoints and preserves its accrued whole Resonance reward, excludes its complete live weight,
+- Killing a Strategy checkpoints and preserves its accrued whole Resonance revenue, excludes its complete live weight,
   blocks additions, and lets existing signalers remove without reducing active `totalSignalWeight` again.
 - Bribe streams use ordinary Synthetix rate, index, and account floors; unallocated amounts remain token surplus.
-- Bribe stream time continues at zero signal supply. Notifications are not queued and may restart a live stream only
+- Bribe stream time continues at zero `totalSignalWeight`. Notifications are not queued and may restart a live stream only
   when the new amount is at least both `REWARD_DURATION` and `remainingReward(rewardToken)`.
 - A Bribe has at most sixteen append-only reward tokens.
 - For every Bribe reward token,
   `lifetimeRewardNotified[token] <= floor(type(uint256).max / Bribe.REWARD_PRECISION())`. The counter increases by each
   accepted raw notification, never decreases, and excludes direct donations. A notification that would exceed the cap
-  reverts before checkpointing or transfer. The previewed reward-per-token index cannot exceed
+  reverts before checkpointing or transfer. The previewed reward-per-signal index cannot exceed
   `lifetimeRewardNotified[token] * Bribe.REWARD_PRECISION()`.
 - `withdrawSignal` never depends on transferring a revenue, payment, or reward token other than its canonical GBX
   return. Killed-Strategy positions remain movable out or withdrawable.
@@ -92,14 +93,15 @@
   payment partitioning may change cumulative results by sub-token floor amounts.
 - A rate change is prospective and changes no prior transfer, Bribe stream, or accrued claim. At rate zero, new
   payments go entirely to Fund while signaling, exit, existing rewards, and independent funding remain live.
-- BribeRouter holds only the Bribe share and distributes its complete compatible-token balance permissionlessly once
+- BribeRouter holds only the Bribe share and routes its complete compatible-token balance permissionlessly once
   notification gates are met. Direct donations join that balance. Notification failure leaves the balance buffered.
 - A GBX-priced Strategy is supply-neutral until its inline Fund share is burned; its Bribe share remains a reward and
   is not burned by settlement.
 - Fund redemption uses one effective pre-burn supply snapshot for every selected token and is atomic with the
   GBX burn and every selected transfer.
 - Redemption rejects GBX, the zero address, and duplicates. Fund has no asset registry or administrative withdrawal.
-- One reviewed external USDG/GBX LP ERC-20 is an ordinary bootstrap Strategy payment token and follows the same
+- One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 is an ordinary bootstrap Strategy
+  payment token and follows the same
   Fund/Bribe split as every other Strategy.
 - The core has no liquidity-specific contract, custody, pricing, swap, harvest, or guarantee.
 - Fund is ownerless; external LP tokens held by Fund are ordinary caller-selectable redemption assets.

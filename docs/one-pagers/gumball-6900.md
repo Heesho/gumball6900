@@ -1,16 +1,16 @@
 ---
-title: GUM BALL 6900 at a Glance
+title: GumBall6900 at a Glance
 version: 2.0.0
-date: 2026-08-23
+date: 2026-08-24
 source_commit: uncommitted-working-tree
-base_commit: d80b92da5e60c0daa54dbae29653898dde514053
+base_commit: 5e4dc23849dec01ccce5e49c0e55120a9f7dcac0
 protocol_status: Uncommitted development candidate implementing ADRs through ADR 0050; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
 internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
 independent_audit_status: No independent external audit has been performed.
 ---
 
-# GUM BALL 6900 at a Glance
+# GumBall6900 at a Glance
 
 **A protocol where token holders decide, by committing stake, which assets a shared onchain treasury buys — and where
 anyone holding the token can burn it to withdraw their share of what was bought.**
@@ -21,7 +21,7 @@ Pooled investment vehicles ask you to trust a manager. Onchain versions often ke
 admin key that changes holdings, an upgradeable contract that changes rules, a pause switch that stops withdrawals, an
 oracle that decides what things are worth.
 
-GUM BALL 6900 removes the manager. In this development tree there is no upgrade path, proxy, pause switch, sweep function,
+GumBall6900 removes the manager. In this development tree there is no upgrade path, proxy, pause switch, sweep function,
 arbitrary-call executor, migration route, price oracle, NAV calculation, or rebalancing engine. The treasury has no
 owner at all. What gets bought is decided by stake; what you can withdraw is decided by arithmetic you can verify.
 
@@ -50,7 +50,7 @@ retroactively redirects money. A move is one atomic source removal plus destinat
 
 Protocol revenue arrives in USDG from **mining**: the mine is a permanent grid of **sixteen slots**, each running
 its own hourly descending-price auction. GBX is issued continuously to whoever occupies each slot, and taking a slot
-means paying that slot's current price — 80% goes to the miner you displaced, while Mine deposits 20% into
+means paying that slot's current price — 80% becomes a pull claim for the outgoing tenure miner, while Mine deposits 20% into
 ResonanceRouter; an empty slot deposits 100%. Mine does not call `route()`. Your issuance rate is fixed the moment you
 take a slot and never changes while you hold it. There is no
 team fee.
@@ -61,7 +61,7 @@ without a manual, frontend, volunteer-keeper, or cron caller. Each Strategy
 accumulates USDG and sells all of it in a descending-price auction, asking to be paid in the asset it acquires. No
 oracle is consulted — the auction is the price discovery.
 
-A reviewed external fungible USDG-GBX Uniswap V2 LP token may be one bootstrap Strategy target. It is acquired and
+A reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token may be one bootstrap Strategy target. It is acquired and
 settled exactly like any other asset. The core has no liquidity-creation, custody, pricing, swap, harvest, or guarantee.
 
 Every acquired payment is classified at one bounded global rate. The automatic Bribe share **defaults to 10% and may
@@ -74,7 +74,7 @@ The **Fund** is an ownerless treasury with no administrator and no asset registr
 assets you want, and receive for each:
 
 ```text
-floor(Fund's balance of that asset × GBX burned ÷ total GBX supply before the burn)
+floor(Fund's balance of that asset × GBX burned ÷ effective GBX supply before the burn)
 ```
 
 That supply figure counts GBX already earned by current miners but not yet issued, so redeeming early does not dilute
@@ -92,7 +92,7 @@ pull signal toward it, up to sixteen reward tokens per Strategy including the as
 ```mermaid
 flowchart LR
   M[Mine<br/>16 slot auctions] -->|20% / 100% deposit| RR[ResonanceRouter]
-  M -->|80%| DM[Displaced miner]
+  M -->|80% pull claim| DM[Outgoing tenure miner]
   RR -->|permissionless route of qualifying balance| R[Resonance<br/>7-day USDG stream]
   SG[sGBX signal weights] -.->|directs| R
   R -->|signal-weighted| S[Strategies]
@@ -150,25 +150,25 @@ only — it can never reclassify an amount already settled. No contract has an u
   abandoned — an amount not bounded to dust.
 - **External dependencies.** USDG and every payment and reward token carry their own freeze, upgrade, and solvency
   risk. A registered external LP token also carries the risks of its pair and venue.
-- **Miner rollover risk.** The 80% handoff arrives only if someone later replaces the miner at a nonzero price; after
-  an hour the price is zero.
+- **Miner rollover risk.** The 80% replacement claim exists only if a later replacement clears at a nonzero price;
+  after an hour the price is zero, and self-replacement is permitted.
 - **Economic review remains open.** The Mine's initial rate, provisional 69-day halving period, tail rate, and
   price constants are hard-coded and modelled, but have not received independent review.
 
 ## Status
 
-| Field                        | Status                                                                                                                                                                                                                                                                                                                                                                            |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Protocol status**          | Uncommitted development candidate based on `e3ebdd7`; not a commit-pinned review artifact and not approved for user funds.                                                                                                                                                                                                                                                        |
-| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG address are unresolved candidates; any bootstrap LP token address remains a reviewed deployment input.                                                                                                                                                                         |
-| **Internal review status**   | The full deterministic ADR 0044 workspace matrix passes locally: Foundry 356/356 default and 19/19 integration, Hardhat 4/4, SDK 50/50, both simulation implementations, subgraph, web/E2E, documentation, ABI, formatting, lint, typecheck, and build gates. Static analysis, mutation testing, and external fuzzing remain historical; no independent audit has been performed. |
-| **Open release gates**       | Fixed Mine economics require independent review (M-04); signed deployment manifest and dependency verification outstanding (M-03); external governance system unselected and unreviewed (G-01, G-03).                                                                                                                                                                             |
-| **Independent audit status** | None. No independent external audit, compatible symbolic analysis, or release review has been completed.                                                                                                                                                                                                                                                                          |
-| **Legal status**             | Upstream code provenance and license reconciliation are unresolved release blockers.                                                                                                                                                                                                                                                                                              |
-| **Source state**             | Uncommitted working tree based on `e3ebdd7987653969b31dbf0e8d20b68a838dfa5d`; no reviewed candidate commit is pinned.                                                                                                                                                                                                                                                             |
+| Field                        | Status                                                                                                                                                                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Protocol status**          | Uncommitted development candidate based on `5e4dc23`; not a commit-pinned review artifact and not approved for user funds.                                                                                                           |
+| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG address are unresolved candidates; any bootstrap LP token address remains a reviewed deployment input.                            |
+| **Internal review status**   | Recorded deterministic, mutation, static-analysis, and external-fuzzing results predate parts of the current architecture. A complete commit-pinned post-ADR-0050 review matrix is pending; no independent audit has been performed. |
+| **Open release gates**       | Fixed Mine economics require independent review (M-04); signed deployment manifest and dependency verification outstanding (M-03); external governance system unselected and unreviewed (G-01, G-03).                                |
+| **Independent audit status** | None. No independent external audit, compatible symbolic analysis, or release review has been completed.                                                                                                                             |
+| **Legal status**             | Upstream code provenance and license reconciliation are unresolved release blockers.                                                                                                                                                 |
+| **Source state**             | Uncommitted working tree based on `5e4dc23849dec01ccce5e49c0e55120a9f7dcac0`; no reviewed candidate commit is pinned.                                                                                                                |
 
 ---
 
-_Further reading: [How GUM BALL 6900 Turns Community Conviction Into an Onchain Portfolio](../articles/gumball-6900-explained.md)
+_Further reading: [How GumBall6900 Turns Community Conviction Into an Onchain Portfolio](../articles/gumball-6900-explained.md)
 for a plain-English walkthrough, and the [technical whitepaper](../whitepapers/gumball-6900/whitepaper.md) for exact
 mathematics, invariants, and threat model._

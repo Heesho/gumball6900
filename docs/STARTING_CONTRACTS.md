@@ -8,24 +8,25 @@
 ## Core graph
 
 ```text
-slot replacement -> Mine -> 20% deposit -> ResonanceRouter --permissionless route()--> Resonance -> seven-day stream -> Strategies
-                          -> 80% displaced-miner claim
+nonempty slot replacement -> Mine -> 20% deposit -> ResonanceRouter --permissionless route()--> Resonance -> seven-day stream -> Strategies
+                                   -> 80% outgoing-tenure-miner claim
+empty-slot payment -------------> Mine -> 100% deposit -> ResonanceRouter
                                       |       |
                                       |       +-> acquired payment --complement--> Fund
                                       |                             \--global 0%-20%--> BribeRouter --> paired Bribe
                                       +-> additional Bribe rewards -> signalers
 
-external USDG/GBX LP ERC-20 -> ordinary bootstrap Strategy -> Fund / paired Bribe
+external Uniswap v2-style USDG/GBX LP ERC-20 -> ordinary bootstrap Strategy -> Fund / paired Bribe
 
 GBX -> SignalGBX -> signals -> Resonance
                   -> IVotes checkpoints -> external governance (unselected) -> Resonance ownership
 ```
 
-Resonance's revenue stream is permanently USDG-only and uses scalar schedule and per-Strategy reward state. Bribes
+Resonance's revenue stream is permanently USDG-only and uses a scalar schedule and per-Strategy revenue state. Bribes
 remain independently multi-token within their fixed sixteen-token cap.
 
-The first purchase of an empty mining slot has no displaced miner, so its complete USDG payment is deposited into
-ResonanceRouter. Mine never calls `route()` during a handoff. GBX holders atomically deposit GBX, mint one-for-one non-transferable SignalGBX (`sGBX`), and assign
+The first purchase of an empty mining slot has no outgoing tenure miner, so its complete USDG payment is deposited into
+ResonanceRouter. Mine never calls `route()` during a replacement. GBX holders atomically deposit GBX, mint one-for-one non-transferable SignalGBX (`sGBX`), and assign
 every minted unit to a live Strategy. sGBX retains ERC20Votes checkpoints for a future external governance integration
 and is the sole user-facing signal coordinator; an idle receipt state is not permitted.
 
@@ -58,25 +59,25 @@ GBX total supply = GBX lifetime minted - GBX lifetime burned
 
 Mine starts with exactly sixteen permanent slots and has no owner or capacity control. Each slot may
 be replaced at any time. Its quoted USDG price falls linearly from `initialPrice` to zero over one hour. A nonempty-slot
-replacement makes 80% of the price claimable by the displaced miner and deposits the 20% remainder into
-ResonanceRouter. An empty slot deposits 100% because there is no displaced miner. Mine uses `SafeERC20` and trusts the
+replacement makes 80% of the price claimable by the outgoing tenure miner and deposits the 20% remainder into
+ResonanceRouter. An empty slot deposits 100% because there is no outgoing tenure miner. Mine uses `SafeERC20` and trusts the
 canonical USDG's standard transfer semantics without balance-delta checks. Mine's `RevenueDeposited` event records the
 requested nominal deposit; under that supported-token assumption it reached the Router, but the event does not mean
-Resonance received a notification in the same transaction. Each handoff may attach up
+Resonance received a notification in the same transaction. Each replacement may attach up
 to 280 raw bytes of event-only message metadata; empty messages are allowed and Mine never stores the message.
 
-Each new occupant receives `current global TPS / 16`. That assigned rate is locked for the entire tenure. Time-based
-halving boundaries, Fund redemptions, and other slots' handoffs do not change it. The accepted consequence is higher
+Each newly opened tenure receives `current global TPS / 16`. That assigned rate is locked for the entire tenure.
+Time-based halving boundaries, Fund redemptions, and other slots' replacements do not change it. The accepted consequence is higher
 aggregate issuance after a halving for as long as older slots remain; turnover is not guaranteed. Mine maintains exact
 total pending emission in constant time, and Fund reads effective supply without calling or mutating all slots.
 
-The global rate used for future handoffs begins at 64 GBX per second, halves on a hard-coded 69-day schedule measured
+The global rate used for future tenures begins at 64 GBX per second, halves on a hard-coded 69-day schedule measured
 from Mine deployment, and reaches a 1 GBX-per-second tail at day 414. These values are provisional pending independent
 economic review. There is no protocol-defined economic maximum GBX supply, rate setter, oracle, migration, or team fee.
 
 ## External liquidity Strategy
 
-One reviewed external fungible Uniswap v2-style USDG/GBX LP ERC-20 is registered during bootstrap as an ordinary
+One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 is registered during bootstrap as an ordinary
 Strategy payment token. Its exact address and Strategy configuration remain deployment inputs. Its purchases use the
 same global Fund/Bribe split as every other Strategy, and Fund holds its share as an ordinary redemption asset. The
 core creates, owns, prices, harvests, swaps, or guarantees no liquidity.
@@ -88,8 +89,8 @@ core creates, owns, prices, harvests, swaps, or guarantees no liquidity.
 - SignalGBX is the only external signal entrypoint. Its signal changes checkpoint elapsed revenue under the prior
   weights before changing them. A Strategy purchase checkpoints and transfers its released allocation before reading
   inventory. No lock, cooldown, or epoch is added.
-- `SignalGBX.balanceOf(account)` is each account's aggregate signal, each paired Bribe stores account-by-Strategy
-  balances and per-Strategy supply, and Resonance stores only the active live-Strategy total.
+- `SignalGBX.balanceOf(account)` is each account's aggregate signal, each paired Bribe stores
+  `signalWeightOf(account)` and `totalSignalWeight`, and Resonance stores only the active live-Strategy total.
 - `signal`, `signalWithPermit`, `moveSignal`, and `withdrawSignal` are the only public SignalGBX position workflows.
   Minting and initial allocation are one transition; withdrawal is its exact inverse. The permit variant uses GBX's
   ERC-2612 permit; SignalGBX has no approval permit.
@@ -103,7 +104,7 @@ core creates, owns, prices, harvests, swaps, or guarantees no liquidity.
   accepted surplus. Revenue elapsed while active signal weight is zero and USDG donated directly to Resonance are also
   unclaimable or unscheduled surplus, with no Fund classification, synchronization, rescue, or recovery path.
 - Killing a Strategy is irreversible: the kill checkpoints and preserves its accrued claim, excludes its complete
-  weight from active rewards, rejects additions, and lets existing signalers remove without subtracting that weight
+  weight from active revenue allocation, rejects additions, and lets existing signalers remove without subtracting that weight
   from the active total a second time. After bootstrap the final live Strategy cannot be killed until a replacement is
   added; killed positions remain movable to a live Strategy or withdrawable.
 - SignalGBX supply equals aggregate signal across live and killed paired Bribes; idle sGBX is unreachable.
@@ -120,7 +121,7 @@ core creates, owns, prices, harvests, swaps, or guarantees no liquidity.
   cannot exceed `floor(type(uint256).max / 1e36)` raw units. The limit has no reset, setter, or escape hatch and rejects excess before
   checkpointing or transfer, leaving existing claims and exits live.
 - Bribes use standard leftover rollover; a notification must be at least `REWARD_DURATION` raw units and at least the
-  current amount left. Streams do not pause at zero supply, notifications do not queue, and rate/index/account floors
+  current amount left. Streams do not pause at zero `totalSignalWeight`, notifications do not queue, and rate/index/account floors
   remain unallocated surplus. If notification fails, the automatic reward share remains buffered in BribeRouter.
 
 ## Fund redemption
@@ -129,7 +130,7 @@ Before every redemption, Fund reads Mine's constant-time effective supply. This 
 common pre-burn denominator without iterating or mutating mining slots:
 
 ```text
-payout(token) = floor(Fund balance(token) * GBX burned / GBX total supply before burn)
+payout(token) = floor(Fund balance(token) * GBX burned / (GBX totalSupply() + pending emission) before burn)
 ```
 
 The caller chooses a nonempty array of unique non-GBX tokens. Fund snapshots balances, transfers in and burns GBX,

@@ -1,6 +1,6 @@
 # Security policy
 
-GUM BALL 6900 is pre-release software. No production deployment or released version is currently supported, and this
+GumBall6900 is pre-release software. No production deployment or released version is currently supported, and this
 repository does not offer a bug bounty or promise a response time.
 
 ## Private vulnerability reporting

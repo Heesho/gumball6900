@@ -21,11 +21,12 @@ Public ABI: 22 functions, 5 events, 11 custom errors, 1 constructor, 0 receive e
 constructor(address resonance_);
 ```
 
-Creates a bounded reward stream controlled by one Resonance.
+Creates an empty, bounded reward stream controlled by one Resonance contract.
+Reverts with `ZeroAddress` when `resonance_` is zero or has no deployed code.
 
 **Parameters**
 
-- `resonance_`: Resonance exclusively authorized to maintain virtual balances.
+- `resonance_`: Resonance exclusively authorized to maintain signal weights and register reward tokens.
 
 ### `MAX_LIFETIME_REWARD_AMOUNT()`
 
@@ -33,7 +34,7 @@ Creates a bounded reward stream controlled by one Resonance.
 function MAX_LIFETIME_REWARD_AMOUNT() external view returns (uint256 arg0);
 ```
 
-Maximum cumulative raw units one reward token may notify over this Bribe's lifetime.
+Returns the maximum cumulative raw units accepted for any one reward token over this Bribe's lifetime.
 
 ### `MAX_REWARD_TOKENS()`
 
@@ -41,7 +42,7 @@ Maximum cumulative raw units one reward token may notify over this Bribe's lifet
 function MAX_REWARD_TOKENS() external view returns (uint256 arg0);
 ```
 
-Immutable upper bound on append-only reward tokens and every mandatory reward loop.
+Returns the immutable upper bound on registered reward tokens and mandatory all-token loops.
 
 ### `REWARD_DURATION()`
 
@@ -49,7 +50,7 @@ Immutable upper bound on append-only reward tokens and every mandatory reward lo
 function REWARD_DURATION() external view returns (uint256 arg0);
 ```
 
-Fixed duration assigned to every reward stream.
+Returns the fixed duration of every reward stream, in seconds.
 
 ### `REWARD_PRECISION()`
 
@@ -57,7 +58,7 @@ Fixed duration assigned to every reward stream.
 function REWARD_PRECISION() external view returns (uint256 arg0);
 ```
 
-Fixed-point scale preserving low-decimal rewards over eighteen-decimal virtual signal weights.
+Returns the fixed-point scale used by cumulative reward-per-signal accounting.
 
 ### `accountRewardPerSignalPaid(address,address)`
 
@@ -65,7 +66,7 @@ Fixed-point scale preserving low-decimal rewards over eighteen-decimal virtual s
 function accountRewardPerSignalPaid(address account, address token) external view returns (uint256 paid);
 ```
 
-Cumulative reward index already incorporated for one account and token.
+Returns the scaled cumulative index already incorporated for an account and reward token.
 
 ### `addRewardToken(address)`
 
@@ -73,11 +74,12 @@ Cumulative reward index already incorporated for one account and token.
 function addRewardToken(address rewardToken) external;
 ```
 
-Registers another append-only reward token through Resonance governance.
+Appends a reward token to this Bribe's permanent registry.
+Callable only by Resonance. The token must be a unique, nonzero contract and the resulting registry length cannot exceed `MAX_REWARD_TOKENS`; registration does not fund or start a stream. Emits `RewardTokenAdded`.
 
 **Parameters**
 
-- `rewardToken`: Token to register.
+- `rewardToken`: ERC-20 contract address to register.
 
 ### `addSignalWeight(address,uint256)`
 
@@ -85,12 +87,13 @@ Registers another append-only reward token through Resonance governance.
 function addSignalWeight(address account, uint256 amount) external;
 ```
 
-Adds virtual signal weight for `account` after checkpointing all registered rewards.
+Adds signal weight for `account` after checkpointing every registered reward under the prior weights.
+Callable only by Resonance. The mandatory checkpoint loop is bounded by `MAX_REWARD_TOKENS`. Emits `SignalWeightAdded` after both the account and total weights increase.
 
 **Parameters**
 
-- `account`: Account whose virtual balance increases.
-- `amount`: Weight to add.
+- `account`: Nonzero account whose paired-Strategy signal weight increases.
+- `amount`: Nonzero raw signal units added to both the account weight and total weight.
 
 ### `claimReward(address,address)`
 
@@ -98,17 +101,17 @@ Adds virtual signal weight for `account` after checkpointing all registered rewa
 function claimReward(address account, address rewardToken) external returns (uint256 amount);
 ```
 
-Claims one registered reward token for `account` without touching any other reward token.
-Anyone may trigger the claim, but payment can only reach the entitled account.
+Checkpoints and pays one registered reward token earned by `account` directly to that account.
+Any caller may initiate the claim. Other reward streams are neither checkpointed nor transferred. A failed transfer reverts the checkpoint and entitlement reset, preserving the scalar claim. Emits `RewardPaid` only when a nonzero amount is transferred.
 
 **Parameters**
 
-- `account`: Entitled account.
-- `rewardToken`: Registered token to claim.
+- `account`: Account whose reward is checkpointed and paid; cannot be zero.
+- `rewardToken`: Registered token to checkpoint and pay.
 
 **Returns**
 
-- `amount`: Amount paid.
+- `amount`: Raw token units transferred, or zero when the account has no whole-unit reward.
 
 ### `claimRewards(address)`
 
@@ -116,12 +119,12 @@ Anyone may trigger the claim, but payment can only reach the entitled account.
 function claimRewards(address account) external;
 ```
 
-Claims every registered reward token earned by `account`.
-A broken reward token reverts this convenience path; the scalar claim remains independent.
+Checkpoints and pays every registered reward token earned by `account` directly to that account.
+Any caller may initiate the claim. The function loops over at most `MAX_REWARD_TOKENS`. A failed token transfer reverts the complete all-token claim; `claimReward` provides per-token failure isolation. Emits `RewardPaid` once for each token with a nonzero payment.
 
 **Parameters**
 
-- `account`: Account whose accrued rewards are paid.
+- `account`: Account whose accrued raw-token rewards are checkpointed and paid; cannot be zero.
 
 ### `earned(address,address)`
 
@@ -129,7 +132,17 @@ A broken reward token reverts this convenience path; the scalar claim remains in
 function earned(address account, address rewardToken) external view returns (uint256 amount);
 ```
 
-Returns whole rewards currently claimable by one account for one token.
+Returns one account's checkpointed plus pending reward for one token in whole raw units.
+Pending accrual is computed from the live index and rounds down; this view does not write a checkpoint or validate that `rewardToken` is registered.
+
+**Parameters**
+
+- `account`: Account whose entitlement is queried.
+- `rewardToken`: Reward token whose entitlement is queried.
+
+**Returns**
+
+- `amount`: Raw token units currently payable after checkpointing.
 
 ### `isRewardToken(address)`
 
@@ -137,7 +150,7 @@ Returns whole rewards currently claimable by one account for one token.
 function isRewardToken(address token) external view returns (bool isReward);
 ```
 
-Append-only membership flag for tokens governance registered through Resonance.
+Returns whether a token belongs to the append-only reward-token registry.
 
 ### `lifetimeRewardNotified(address)`
 
@@ -145,7 +158,7 @@ Append-only membership flag for tokens governance registered through Resonance.
 function lifetimeRewardNotified(address token) external view returns (uint256 amount);
 ```
 
-Monotonic cumulative raw units admitted through notifications for each reward token.
+Returns cumulative raw units accepted through notifications for a reward token.
 
 ### `notifyReward(address,uint256)`
 
@@ -153,13 +166,13 @@ Monotonic cumulative raw units admitted through notifications for each reward to
 function notifyReward(address rewardToken, uint256 amount) external;
 ```
 
-Funds and restarts a seven-day reward stream using the standard leftover-rollover model.
-Permissionless funding must be at least one duration in raw units and at least the active reward remaining.
+Pulls fresh funding from the caller and restarts a registered token's seven-day reward stream.
+Funding is permissionless. `amount` must be at least `REWARD_DURATION`, at least `remainingReward`, and within the token's remaining lifetime cap. During an active stream, the new per-second rate is `floor((amount + remainingReward) / REWARD_DURATION)`; otherwise it is `floor(amount / REWARD_DURATION)`. The period restarts from the current timestamp, and division remainder remains unallocated token surplus. Cap and threshold failures occur before checkpointing or token transfer. Emits `RewardNotified` after funding and schedule state are updated.
 
 **Parameters**
 
-- `amount`: Amount pulled from the caller.
-- `rewardToken`: Registered token to fund.
+- `amount`: Fresh raw token units pulled from the caller and counted toward the lifetime cap.
+- `rewardToken`: Registered standard ERC-20 token to pull and stream.
 
 ### `remainingReward(address)`
 
@@ -167,7 +180,16 @@ Permissionless funding must be at least one duration in raw units and at least t
 function remainingReward(address rewardToken) external view returns (uint256 amount);
 ```
 
-Returns whole reward units remaining in the active stream.
+Returns the raw token units still scheduled in a reward token's active stream.
+Computes `(periodFinish - block.timestamp) * rewardRate` while active and zero afterward. The result excludes elapsed rewards, direct donations, and rate-division surplus. Unregistered tokens return zero.
+
+**Parameters**
+
+- `rewardToken`: Reward token whose current stream is queried.
+
+**Returns**
+
+- `amount`: Raw token units remaining at the stored whole-unit-per-second rate.
 
 ### `removeSignalWeight(address,uint256)`
 
@@ -175,12 +197,13 @@ Returns whole reward units remaining in the active stream.
 function removeSignalWeight(address account, uint256 amount) external;
 ```
 
-Removes virtual signal weight for `account` after checkpointing all registered rewards.
+Removes signal weight for `account` after checkpointing every registered reward under the prior weights.
+Callable only by Resonance. Removing more than the account or total weight reverts by checked arithmetic. Emits `SignalWeightRemoved` after both weights decrease.
 
 **Parameters**
 
-- `account`: Account whose virtual balance decreases.
-- `amount`: Weight to remove.
+- `account`: Nonzero account whose paired-Strategy signal weight decreases.
+- `amount`: Nonzero raw signal units removed from both the account weight and total weight.
 
 ### `resonance()`
 
@@ -188,7 +211,7 @@ Removes virtual signal weight for `account` after checkpointing all registered r
 function resonance() external view returns (address arg0);
 ```
 
-Resonance exclusively authorized to maintain virtual balances and register reward assets.
+Returns the immutable Resonance authorized to maintain signal weights and register reward tokens.
 
 ### `rewardData(address)`
 
@@ -196,7 +219,7 @@ Resonance exclusively authorized to maintain virtual balances and register rewar
 function rewardData(address token) external view returns (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerSignalStored);
 ```
 
-Independent stream state for every registered reward token.
+Returns the current stream timestamps, raw-unit rate, and scaled index for a reward token.
 
 ### `rewardPerSignal(address)`
 
@@ -204,7 +227,16 @@ Independent stream state for every registered reward token.
 function rewardPerSignal(address rewardToken) external view returns (uint256 accumulatedReward);
 ```
 
-Returns the cumulative reward per virtual signal unit.
+Returns the live cumulative reward allocated per raw signal unit for one reward token.
+The result is scaled by `REWARD_PRECISION` and each index increment rounds down. Accrual stops at `periodFinish`. If total signal weight is zero, the index remains unchanged and elapsed rewards cannot be captured by accounts that add weight later. This view does not write a checkpoint.
+
+**Parameters**
+
+- `rewardToken`: Reward token whose cumulative index is queried; unregistered tokens return zero.
+
+**Returns**
+
+- `accumulatedReward`: Cumulative reward-per-signal index scaled by `REWARD_PRECISION`.
 
 ### `rewardTokens()`
 
@@ -212,7 +244,11 @@ Returns the cumulative reward per virtual signal unit.
 function rewardTokens() external view returns (address[] tokens);
 ```
 
-Returns all registered reward tokens in immutable insertion order.
+Returns every registered reward-token address in immutable insertion order.
+
+**Returns**
+
+- `tokens`: Copy of the append-only registry, containing at most `MAX_REWARD_TOKENS` entries.
 
 ### `rewards(address,address)`
 
@@ -220,7 +256,7 @@ Returns all registered reward tokens in immutable insertion order.
 function rewards(address account, address token) external view returns (uint256 amount);
 ```
 
-Whole-token accrued user liability, payable only to the entitled account.
+Returns an account's checkpointed, unclaimed reward in raw token units.
 
 ### `signalWeightOf(address)`
 
@@ -228,7 +264,7 @@ Whole-token accrued user liability, payable only to the entitled account.
 function signalWeightOf(address account) external view returns (uint256 weight);
 ```
 
-Virtual signal weight assigned to each account by Resonance.
+Returns an account's raw signal weight assigned to this Bribe's paired Strategy.
 
 ### `totalSignalWeight()`
 
@@ -236,7 +272,7 @@ Virtual signal weight assigned to each account by Resonance.
 function totalSignalWeight() external view returns (uint256 arg0);
 ```
 
-Total virtual signal weight assigned to this Bribe.
+Returns the total raw signal weight assigned to this Bribe's paired Strategy.
 
 ### Events
 
@@ -385,10 +421,11 @@ constructor(address initialOwner);
 ```
 
 Creates an unbound factory whose owner may set Resonance exactly once.
+OpenZeppelin `Ownable` rejects a zero `initialOwner`. Transferring or renouncing ownership before binding changes or can permanently remove the only authority able to complete setup.
 
 **Parameters**
 
-- `initialOwner`: Deployment-time owner responsible for binding Resonance.
+- `initialOwner`: Deployment-time owner responsible for the one-time Resonance binding.
 
 ### `createBribe()`
 
@@ -396,11 +433,12 @@ Creates an unbound factory whose owner may set Resonance exactly once.
 function createBribe() external returns (contract Bribe bribe);
 ```
 
-Deploys a Bribe controlled by the bound Resonance.
+Deploys a new empty Bribe whose immutable authority is the bound Resonance.
+Callable only by `resonance`; an unbound factory therefore rejects every possible caller. Each call deploys a distinct Bribe with an empty signal ledger and reward-token registry, then emits `BribeCreated`.
 
 **Returns**
 
-- `bribe`: Newly deployed Bribe.
+- `bribe`: Newly deployed Bribe controlled by the bound Resonance.
 
 ### `owner()`
 
@@ -424,7 +462,7 @@ Leaves the contract without owner. It will not be possible to call `onlyOwner` f
 function resonance() external view returns (address arg0);
 ```
 
-Resonance exclusively authorized to create Bribes.
+Returns the Resonance exclusively authorized to create Bribes, or zero before one-time binding.
 
 ### `setResonance(address)`
 
@@ -432,11 +470,12 @@ Resonance exclusively authorized to create Bribes.
 function setResonance(address resonance_) external;
 ```
 
-Binds the only Resonance allowed to deploy Bribes after reciprocal factory validation.
+Permanently binds the only Resonance allowed to deploy Bribes.
+Callable only by the current owner and only while `resonance` is zero. The candidate must be a nonzero contract whose `bribeFactory()` identity getter returns this factory; a failed call or mismatch reverts with `InvalidResonance`. Successful binding emits `ResonanceSet` and has no replacement path.
 
 **Parameters**
 
-- `resonance_`: Resonance address to bind permanently.
+- `resonance_`: Resonance contract address to validate and bind.
 
 ### `transferOwnership(address)`
 
@@ -537,11 +576,12 @@ constructor(contract IBribe bribe_, contract IERC20 paymentToken_);
 ```
 
 Creates the fixed route between one payment token and its paired Bribe.
+Reverts with `ZeroAddress` unless both dependencies are nonzero contract addresses. The constructor does not validate that `paymentToken_` is already registered by `bribe_`.
 
 **Parameters**
 
-- `bribe_`: Bribe paired with the Strategy.
-- `paymentToken_`: Strategy payment token.
+- `bribe_`: Bribe paired with the Strategy and authorized to pull routed tokens.
+- `paymentToken_`: Strategy payment token held by this Router before distribution.
 
 ### `bribe()`
 
@@ -549,7 +589,7 @@ Creates the fixed route between one payment token and its paired Bribe.
 function bribe() external view returns (contract IBribe arg0);
 ```
 
-Bribe paired with the Strategy and fixed as the reward destination.
+Returns the immutable Bribe that pulls and streams the buffered payment token.
 
 ### `paymentToken()`
 
@@ -557,7 +597,7 @@ Bribe paired with the Strategy and fixed as the reward destination.
 function paymentToken() external view returns (contract IERC20 arg0);
 ```
 
-Strategy payment token distributed by the paired Bribe.
+Returns the immutable Strategy payment token buffered and distributed as the automatic Bribe reward.
 
 ### `route()`
 
@@ -565,11 +605,12 @@ Strategy payment token distributed by the paired Bribe.
 function route() external returns (uint256 amount);
 ```
 
-Notifies the paired Bribe with the Router's complete balance once it satisfies the top-up gates.
+Routes the complete payment-token balance into the paired Bribe when all notification gates are met.
+Permissionless. Returns zero without changing state when the balance is zero, below `REWARD_DURATION` raw units, or below the Bribe's currently remaining reward. Otherwise, gives the Bribe an exact temporary allowance and calls `notifyReward`, which pulls the complete balance and restarts its stream. A Bribe or token failure reverts the route, preserving the buffered balance. Most transient failures can be retried, but exhaustion of the Bribe's monotonic lifetime cap has no reset and permanently prevents later routing for that token; already completed Strategy purchases remain unaffected. Emits `RewardRouted` on success.
 
 **Returns**
 
-- `amount`: Amount sent to Bribe, or zero when the Router is empty or its balance must keep accumulating.
+- `amount`: Raw payment-token units routed, or zero when the buffer must continue accumulating.
 
 ### Events
 
@@ -614,10 +655,11 @@ constructor(contract GBX gbx_);
 ```
 
 Creates the ownerless, registry-free treasury backing `gbx_`.
+Reverts unless `gbx_` is a nonzero address containing deployed code. Reciprocal Mine validation is deferred until redemption because GBX is expected to be constructed before its one-time Mine handoff.
 
 **Parameters**
 
-- `gbx_`: GBX token backed by this Fund.
+- `gbx_`: Canonical GBX token backed by this Fund.
 
 ### `burnGBX(uint256)`
 
@@ -626,10 +668,11 @@ function burnGBX(uint256 amount) external;
 ```
 
 Burns GBX already held by Fund, including GBX received from a Strategy payment.
+Permissionless and non-reentrant. Burns from Fund's own balance, never from the caller, and reverts if Fund holds less than `amount`. No backing asset is transferred by this maintenance operation. GBX emits its burn events, followed by Fund's `GBXBurned`.
 
 **Parameters**
 
-- `amount`: Amount of GBX to burn.
+- `amount`: Nonzero raw GBX amount to burn from Fund's balance.
 
 ### `gbx()`
 
@@ -637,7 +680,7 @@ Burns GBX already held by Fund, including GBX received from a Strategy payment.
 function gbx() external view returns (contract GBX arg0);
 ```
 
-GBX token burned by redemptions and permissionless maintenance.
+Canonical GBX token burned by redemptions and permissionless maintenance.
 
 ### `redeem(uint256,address,address[])`
 
@@ -646,13 +689,13 @@ function redeem(uint256 gbxAmount, address receiver, address[] tokens) external;
 ```
 
 Burns GBX and returns the caller-selected pro-rata share of Fund assets.
-Every payout uses the same total supply captured before GBX is burned. Tokens omitted by the caller remain in Fund for the remaining GBX supply, and a failure in any selected transfer reverts the entire operation.
+Non-reentrant and atomic. The caller must hold and approve `gbxAmount`. Every payout is `floor(balanceBefore * gbxAmount / effectiveSupplyBeforeBurn)` in the selected token's raw units, using one denominator that includes all accrued unminted Mine emission. Balances are snapshotted before the GBX burn. Each nonzero asset transfer must debit Fund and credit `receiver` by the exact payout, and no selected transfer may consume another selected address's backing. Tokens omitted by the caller remain in Fund and that redeemer permanently forfeits their share. The token array has no length cap beyond transaction gas. Any validation, burn, or transfer failure reverts all work. Emits `Redeemed` after every selected token has passed its final balance check.
 
 **Parameters**
 
-- `gbxAmount`: Amount of GBX to burn.
-- `receiver`: Address that receives the selected assets.
-- `tokens`: Unique, non-GBX token addresses to include in this redemption.
+- `gbxAmount`: Nonzero raw GBX amount transferred from and burned for the caller.
+- `receiver`: Nonzero, non-Fund address receiving every selected asset payout; may differ from the caller.
+- `tokens`: Nonempty array of unique, nonzero, non-GBX token addresses selected by the caller.
 
 ### Events
 
@@ -768,7 +811,12 @@ Public ABI: 20 functions, 6 events, 22 custom errors, 1 constructor, 0 receive e
 constructor(address initialMinter);
 ```
 
-Creates GBX with zero supply and temporary deployment-time mint authority.
+Creates GBX with zero supply and a temporary deployment-time setup authority.
+`initialMinter` may perform the one-time handoff but cannot mint while `minterLocked` is false.
+
+**Parameters**
+
+- `initialMinter`: Nonzero account authorized to bind the canonical Mine exactly once.
 
 ### `DOMAIN_SEPARATOR()`
 
@@ -809,6 +857,11 @@ function burn(uint256 amount) external;
 ```
 
 Permanently burns GBX held by the caller.
+Requires the caller to hold at least `amount`; increases the monotonic lifetime-burned count and does not alter or reopen mint authority. Emits inherited `Transfer` and protocol `Burned` events.
+
+**Parameters**
+
+- `amount`: Nonzero raw GBX amount to burn from the caller.
 
 ### `decimals()`
 
@@ -832,7 +885,7 @@ returns the fields and values that describe the domain separator used by this co
 function lifetimeBurned() external view returns (uint256 arg0);
 ```
 
-Cumulative GBX permanently destroyed.
+Cumulative raw GBX units permanently destroyed by all burns.
 
 ### `lifetimeMinted()`
 
@@ -840,7 +893,7 @@ Cumulative GBX permanently destroyed.
 function lifetimeMinted() external view returns (uint256 arg0);
 ```
 
-Cumulative GBX created by Mine.
+Cumulative raw GBX units created by the permanently selected Mine.
 
 ### `mint(address,uint256)`
 
@@ -849,6 +902,12 @@ function mint(address account, uint256 amount) external;
 ```
 
 Mints GBX through the permanently selected Mine.
+Callable only by the locked `minter`. Increases both total supply and the monotonic lifetime-minted count, then emits inherited `Transfer` and protocol `Minted` events.
+
+**Parameters**
+
+- `account`: Nonzero account receiving the newly issued GBX.
+- `amount`: Nonzero raw GBX amount to mint.
 
 ### `minter()`
 
@@ -856,7 +915,7 @@ Mints GBX through the permanently selected Mine.
 function minter() external view returns (address arg0);
 ```
 
-Current mint authority; permanently becomes the canonical Mine after setup.
+Current setup authority before locking and sole mint caller after the one-time Mine handoff.
 
 ### `minterLocked()`
 
@@ -897,6 +956,11 @@ function setMinter(address newMinter) external;
 ```
 
 Permanently hands mint authority to the canonical Mine after reciprocal GBX identity validation.
+Callable only by the current `minter` while unlocked. `newMinter` must contain deployed code and return this token from `IMine.gbx()`. Success sets `minterLocked` forever and emits `MinterSet`; burns cannot reopen the handoff.
+
+**Parameters**
+
+- `newMinter`: Canonical Mine contract that will become the sole lifetime mint caller.
 
 ### `symbol()`
 
@@ -1173,12 +1237,13 @@ constructor(contract GBX gbx_, contract IERC20 usdg_, address resonanceRouter_);
 ```
 
 Creates the immutable mining market with sixteen empty slots.
+Requires all three dependencies to contain deployed code. Reciprocal GBX mint-authority binding and the Router's USDG identity are deployment-time checks performed outside this constructor.
 
 **Parameters**
 
-- `gbx_`: GBX token whose sole mint authority will be this Mine.
-- `resonanceRouter_`: Router that receives the protocol share of each payment.
-- `usdg_`: USDG token paid by miners.
+- `gbx_`: GBX token this Mine will mint after the one-time authority handoff.
+- `resonanceRouter_`: Router that receives each nominal protocol payment share.
+- `usdg_`: Standard USDG token paid by miners in raw units.
 
 ### `BPS()`
 
@@ -1186,7 +1251,7 @@ Creates the immutable mining market with sixteen empty slots.
 function BPS() external view returns (uint256 arg0);
 ```
 
-Basis-point denominator used for replacement-payment allocation.
+Basis-point denominator used for replacement-payment allocation; 10,000 represents 100%.
 
 ### `HALVING_PERIOD()`
 
@@ -1194,7 +1259,7 @@ Basis-point denominator used for replacement-payment allocation.
 function HALVING_PERIOD() external view returns (uint256 arg0);
 ```
 
-Provisional fixed interval between prospective global-rate halvings.
+Provisional fixed interval in seconds between prospective global-rate halvings.
 
 ### `INITIAL_TPS()`
 
@@ -1202,7 +1267,7 @@ Provisional fixed interval between prospective global-rate halvings.
 function INITIAL_TPS() external view returns (uint256 arg0);
 ```
 
-Initial global GBX tokens-per-second rate.
+Provisional initial prospective global emission rate, in raw GBX units per second.
 
 ### `MAX_INITIAL_PRICE()`
 
@@ -1210,7 +1275,7 @@ Initial global GBX tokens-per-second rate.
 function MAX_INITIAL_PRICE() external view returns (uint256 arg0);
 ```
 
-Highest raw USDG starting price for a new auction.
+Maximum starting price for every newly opened auction, in raw USDG units.
 
 ### `MAX_MESSAGE_BYTES()`
 
@@ -1218,7 +1283,7 @@ Highest raw USDG starting price for a new auction.
 function MAX_MESSAGE_BYTES() external view returns (uint256 arg0);
 ```
 
-Maximum raw byte length of the event-only message attached to a mining handoff.
+Maximum raw byte length of the event-only message attached to a mining replacement.
 
 ### `MIN_INITIAL_PRICE()`
 
@@ -1226,7 +1291,7 @@ Maximum raw byte length of the event-only message attached to a mining handoff.
 function MIN_INITIAL_PRICE() external view returns (uint256 arg0);
 ```
 
-Raw USDG floor for every newly started reverse Dutch auction.
+Minimum starting price for every newly opened auction, in raw USDG units.
 
 ### `PREVIOUS_MINER_BPS()`
 
@@ -1234,7 +1299,7 @@ Raw USDG floor for every newly started reverse Dutch auction.
 function PREVIOUS_MINER_BPS() external view returns (uint256 arg0);
 ```
 
-Share of a paid replacement price credited to the displaced miner, in basis points.
+Share of a paid nonempty-slot replacement credited to the outgoing tenure miner, in basis points.
 
 ### `PRICE_DECAY_PERIOD()`
 
@@ -1242,7 +1307,7 @@ Share of a paid replacement price credited to the displaced miner, in basis poin
 function PRICE_DECAY_PERIOD() external view returns (uint256 arg0);
 ```
 
-Duration over which each replacement price decays linearly to zero.
+Duration in seconds over which each replacement price decays linearly to zero.
 
 ### `PRICE_MULTIPLIER()`
 
@@ -1250,7 +1315,7 @@ Duration over which each replacement price decays linearly to zero.
 function PRICE_MULTIPLIER() external view returns (uint256 arg0);
 ```
 
-Multiplier applied to each paid price to start the next auction.
+Dimensionless multiplier applied to each paid price to start the next auction.
 
 ### `SLOT_COUNT()`
 
@@ -1266,7 +1331,7 @@ Permanent number of independent mining slots.
 function TAIL_TPS() external view returns (uint256 arg0);
 ```
 
-Strictly positive global GBX tokens-per-second tail rate.
+Provisional strictly positive prospective global tail rate, in raw GBX units per second.
 
 ### `aggregateTps()`
 
@@ -1274,7 +1339,7 @@ Strictly positive global GBX tokens-per-second tail rate.
 function aggregateTps() external view returns (uint256 arg0);
 ```
 
-Sum of all occupied slots' tenure-locked tokens-per-second rates.
+Sum of all occupied slots' tenure-locked rates, in raw GBX units per second.
 
 ### `claimMinerPayment(address)`
 
@@ -1282,11 +1347,12 @@ Sum of all occupied slots' tenure-locked tokens-per-second rates.
 function claimMinerPayment(address account) external;
 ```
 
-Claims accumulated USDG replacement payments for an account.
+Pays an account's complete accumulated outgoing-tenure USDG claim.
+Permissionless and non-reentrant: the caller may trigger another account's claim, but payment always goes directly to `account`. State is cleared before the supported standard USDG transfer is requested, and `MinerPaymentClaimed` is emitted after payment.
 
 **Parameters**
 
-- `account`: Displaced miner receiving the payment.
+- `account`: Outgoing tenure miner receiving its complete claim in raw USDG units.
 
 ### `claimableMinerPayment(address)`
 
@@ -1294,7 +1360,7 @@ Claims accumulated USDG replacement payments for an account.
 function claimableMinerPayment(address account) external view returns (uint256 amount);
 ```
 
-Pull-based USDG replacement proceeds owed to each displaced miner.
+Pull-based raw USDG replacement proceeds owed to each outgoing tenure miner.
 
 ### `currentPrice(uint256)`
 
@@ -1303,6 +1369,7 @@ function currentPrice(uint256 slotIndex) external view returns (uint256 paymentA
 ```
 
 Returns one slot's current linearly decaying USDG replacement price.
+The elapsed decay component rounds down, and the returned price is zero at or after one decay period.
 
 **Parameters**
 
@@ -1310,7 +1377,7 @@ Returns one slot's current linearly decaying USDG replacement price.
 
 **Returns**
 
-- `paymentAmount`: Current USDG replacement payment.
+- `paymentAmount`: Current replacement payment in raw USDG units.
 
 ### `effectiveTotalSupply()`
 
@@ -1318,11 +1385,12 @@ Returns one slot's current linearly decaying USDG replacement price.
 function effectiveTotalSupply() external view returns (uint256 amount);
 ```
 
-Returns minted GBX supply plus all accrued unminted mining emission.
+Returns current GBX total supply plus all accrued unminted mining emission.
+This constant-time view does not mint GBX, settle a slot, or change an occupied tenure's rate.
 
 **Returns**
 
-- `amount`: Economically effective GBX supply.
+- `amount`: Economically effective GBX supply in raw units.
 
 ### `gbx()`
 
@@ -1330,7 +1398,7 @@ Returns minted GBX supply plus all accrued unminted mining emission.
 function gbx() external view returns (contract GBX arg0);
 ```
 
-Canonical GBX token whose sole mint authority is this Mine.
+Canonical GBX token this contract mints after the external one-time authority binding.
 
 ### `mine(address,uint256,uint256,uint256,uint256,string)`
 
@@ -1338,21 +1406,21 @@ Canonical GBX token whose sole mint authority is this Mine.
 function mine(address miner, uint256 slotIndex, uint256 expectedEpochId, uint256 deadline, uint256 maximumPayment, string message) external returns (uint256 paymentAmount);
 ```
 
-Replaces one slot's miner at its current linearly decaying USDG price.
-The optional message is emitted in `Mined` and is never stored in contract state.
+Starts a new tenure in one slot at its current linearly decaying USDG price.
+Permissionless and non-reentrant. The caller pays for any nonzero price, while `miner` receives the tenure. The outgoing slot is settled before its rate is replaced. For a nonempty slot, 80% of the payment rounded down becomes a pull claim and the remainder goes to ResonanceRouter; an empty slot sends 100% to the Router. The optional message is emitted in `Mined` and is never stored. Every success emits `Mined`; an occupied tenure may additionally emit `EmissionSettled` and `MinerPaymentAccrued`, and any nonzero protocol share emits `RevenueDeposited`. Execution is allowed at `deadline` exactly.
 
 **Parameters**
 
-- `deadline`: Latest timestamp at which the handoff may execute.
-- `expectedEpochId`: Expected slot epoch, protecting against an earlier handoff.
-- `maximumPayment`: Maximum USDG payment accepted by the caller.
+- `deadline`: Latest Unix timestamp at which the replacement may execute.
+- `expectedEpochId`: Expected slot epoch, protecting against an earlier replacement.
+- `maximumPayment`: Maximum raw USDG payment accepted by the caller.
 - `message`: Optional event-only message of at most `MAX_MESSAGE_BYTES` raw bytes.
 - `miner`: Account receiving the slot and its later GBX emission.
 - `slotIndex`: Zero-based slot to replace.
 
 **Returns**
 
-- `paymentAmount`: Actual USDG payment required at execution time.
+- `paymentAmount`: Actual raw USDG payment required at execution time.
 
 ### `nextGlobalTps()`
 
@@ -1360,11 +1428,12 @@ The optional message is emitted in `Mined` and is never stored in contract state
 function nextGlobalTps() external view returns (uint256 tps);
 ```
 
-Returns the global tokens-per-second rate that the next handoff will divide by sixteen.
+Returns the global rate that the next replacement will divide by sixteen.
+The rate halves at completed `HALVING_PERIOD` boundaries after deployment and never falls below `TAIL_TPS`. A new tenure receives this rate divided by `SLOT_COUNT`, rounded down. Existing occupied slots retain their previously assigned rates.
 
 **Returns**
 
-- `tps`: Prospective global GBX tokens-per-second rate.
+- `tps`: Prospective global emission rate in raw GBX units per second.
 
 ### `pendingEmission()`
 
@@ -1373,10 +1442,11 @@ function pendingEmission() external view returns (uint256 amount);
 ```
 
 Returns total accrued unminted GBX in constant time across all sixteen slots.
+Combines the stored accumulator with elapsed whole-second emission at the current aggregate rate.
 
 **Returns**
 
-- `amount`: Complete accrued unminted GBX amount.
+- `amount`: Complete accrued unminted GBX amount in raw units.
 
 ### `pendingSlotEmission(uint256)`
 
@@ -1392,7 +1462,7 @@ Returns accrued unminted GBX for one slot without changing its state.
 
 **Returns**
 
-- `amount`: Accrued unminted GBX for the slot.
+- `amount`: Accrued unminted GBX for the slot, in raw units; zero while the slot is empty.
 
 ### `pendingUpdatedAt()`
 
@@ -1400,7 +1470,7 @@ Returns accrued unminted GBX for one slot without changing its state.
 function pendingUpdatedAt() external view returns (uint256 arg0);
 ```
 
-Timestamp through which `storedPendingEmission` incorporates `aggregateTps`.
+Unix timestamp through which `storedPendingEmission` incorporates `aggregateTps`.
 
 ### `resonanceRouter()`
 
@@ -1408,7 +1478,7 @@ Timestamp through which `storedPendingEmission` incorporates `aggregateTps`.
 function resonanceRouter() external view returns (address arg0);
 ```
 
-Router receiving the Resonance share of replacement payments.
+Router receiving the nominal Resonance share of replacement payments for later routing.
 
 ### `slot(uint256)`
 
@@ -1416,7 +1486,7 @@ Router receiving the Resonance share of replacement payments.
 function slot(uint256 slotIndex) external view returns (struct Mine.Slot slotState);
 ```
 
-Returns the complete state of one mining slot.
+Returns the complete state of one mining slot without accruing or settling it.
 
 **Parameters**
 
@@ -1432,7 +1502,7 @@ Returns the complete state of one mining slot.
 function startTime() external view returns (uint256 arg0);
 ```
 
-Timestamp anchoring the immutable time-based halving schedule.
+Unix timestamp anchoring the immutable time-based halving schedule.
 
 ### `storedPendingEmission()`
 
@@ -1440,7 +1510,7 @@ Timestamp anchoring the immutable time-based halving schedule.
 function storedPendingEmission() external view returns (uint256 arg0);
 ```
 
-Total unminted slot emission accrued through `pendingUpdatedAt`.
+Total unminted slot emission accrued through `pendingUpdatedAt`, in raw GBX units.
 
 ### `totalClaimableMinerPayments()`
 
@@ -1448,7 +1518,7 @@ Total unminted slot emission accrued through `pendingUpdatedAt`.
 function totalClaimableMinerPayments() external view returns (uint256 arg0);
 ```
 
-Total USDG currently owed to displaced miners.
+Total raw USDG units currently owed to outgoing tenure miners.
 
 ### `totalMined()`
 
@@ -1456,7 +1526,7 @@ Total USDG currently owed to displaced miners.
 function totalMined() external view returns (uint256 arg0);
 ```
 
-Cumulative GBX actually minted when individual slots were replaced.
+Cumulative raw GBX units actually minted when individual slots were replaced.
 
 ### `usdg()`
 
@@ -1464,7 +1534,7 @@ Cumulative GBX actually minted when individual slots were replaced.
 function usdg() external view returns (contract IERC20 arg0);
 ```
 
-USDG token paid to replace mining slots.
+Standard, non-rebasing USDG token paid in raw units to replace mining slots.
 
 ### Events
 
@@ -1596,7 +1666,17 @@ Public ABI: 36 functions, 10 events, 19 custom errors, 1 constructor, 0 receive 
 constructor(contract IERC20 signalGBX_, contract IERC20 usdg_, address fund_, contract BribeFactory bribeFactory_, contract StrategyFactory strategyFactory_, address initialOwner);
 ```
 
-Creates the allocator with immutable token, Fund, and factory dependencies.
+Creates the allocator with immutable token, Fund, factory, and initial governance dependencies.
+Every protocol dependency except `initialOwner` must be nonzero and have deployed code. OpenZeppelin `Ownable` rejects a zero `initialOwner`. Factories and ResonanceRouter are reciprocally bound separately.
+
+**Parameters**
+
+- `bribeFactory_`: Factory that deploys each Strategy's Bribe.
+- `fund_`: Treasury receiving the non-Bribe share of Strategy payments.
+- `initialOwner`: Deployment-time governance address for the bounded administration surface.
+- `signalGBX_`: Non-transferable signal receipt and sole signal coordinator.
+- `strategyFactory_`: Factory that deploys each Strategy and BribeRouter pair.
+- `usdg_`: ERC-20 revenue token; canonical deployments use USDG with six decimals, which is not enforced.
 
 ### `BPS()`
 
@@ -1604,7 +1684,7 @@ Creates the allocator with immutable token, Fund, and factory dependencies.
 function BPS() external view returns (uint256 arg0);
 ```
 
-Basis-point denominator for Strategy-payment classification.
+Basis-point denominator used to split each Strategy payment between Fund and its paired BribeRouter.
 
 ### `DEFAULT_BRIBE_BPS()`
 
@@ -1612,7 +1692,7 @@ Basis-point denominator for Strategy-payment classification.
 function DEFAULT_BRIBE_BPS() external view returns (uint256 arg0);
 ```
 
-Initial share of every new Strategy payment assigned to its paired Bribe.
+Initial prospective Strategy-payment share assigned to the paired BribeRouter, in basis points.
 
 ### `MAX_BRIBE_BPS()`
 
@@ -1620,7 +1700,7 @@ Initial share of every new Strategy payment assigned to its paired Bribe.
 function MAX_BRIBE_BPS() external view returns (uint256 arg0);
 ```
 
-Hard governance ceiling preserving at least 80% of every classified payment for Fund.
+Maximum prospective Strategy-payment share assignable to a paired BribeRouter, in basis points.
 
 ### `REWARD_DURATION()`
 
@@ -1628,7 +1708,7 @@ Hard governance ceiling preserving at least 80% of every classified payment for 
 function REWARD_DURATION() external view returns (uint256 arg0);
 ```
 
-Fixed duration of every USDG revenue period.
+Fixed duration of every USDG revenue stream, in seconds.
 
 ### `REWARD_PRECISION()`
 
@@ -1636,7 +1716,7 @@ Fixed duration of every USDG revenue period.
 function REWARD_PRECISION() external view returns (uint256 arg0);
 ```
 
-Fixed-point precision for allocating six-decimal USDG across eighteen-decimal SignalGBX.
+Fixed-point precision used to allocate raw USDG units across raw SignalGBX units.
 
 ### `addBribeRewardToken(address,address)`
 
@@ -1644,7 +1724,13 @@ Fixed-point precision for allocating six-decimal USDG across eighteen-decimal Si
 function addBribeRewardToken(address strategy, address rewardToken) external;
 ```
 
-Registers an additional independently funded reward token on one Strategy's Bribe.
+Registers an additional independently funded reward token on a registered Strategy's Bribe.
+Callable only by the current owner. The Strategy may be live or killed. The reward token must be a deployed contract and cannot be SignalGBX. The paired Bribe enforces its append-only sixteen-token registry, duplicate-token rejection, and all later notification rules. The Bribe's `RewardTokenAdded` event precedes `BribeRewardTokenAdded`.
+
+**Parameters**
+
+- `rewardToken`: ERC-20 token to add to the paired Bribe's reward registry.
+- `strategy`: Registered Strategy whose paired Bribe receives the token.
 
 ### `addSignalFor(address,address,uint256)`
 
@@ -1652,7 +1738,14 @@ Registers an additional independently funded reward token on one Strategy's Brib
 function addSignalFor(address account, address strategy, uint256 amount) external;
 ```
 
-Adds an absolute SignalGBX delta for an account through the bound SignalGBX coordinator.
+Adds signal weight for an account to a live Strategy.
+Callable only by the immutable SignalGBX coordinator. Elapsed revenue is checkpointed for the Strategy at its prior weight before `totalSignalWeight` and the paired Bribe's canonical virtual balances increase. Reverts for a zero account, zero amount, unregistered Strategy, or killed Strategy. Emits `SignalAdded` after the paired Bribe emits `SignalWeightAdded`.
+
+**Parameters**
+
+- `account`: SignalGBX holder whose paired-Bribe weight increases.
+- `amount`: Raw SignalGBX units to add.
+- `strategy`: Live registered Strategy receiving the weight.
 
 ### `addStrategy(address,(uint256,uint256,uint256,uint256))`
 
@@ -1660,7 +1753,19 @@ Adds an absolute SignalGBX delta for an account through the bound SignalGBX coor
 function addStrategy(contract IERC20 paymentToken, struct Strategy.Config config) external returns (address strategyAddress, address bribeAddress, address bribeRouterAddress);
 ```
 
-Creates a Strategy, its Bribe, and its BribeRouter as one Resonance-controlled graph.
+Creates and registers a Strategy, its canonical Bribe, and its BribeRouter as one atomic graph.
+Callable only by the current owner. `paymentToken` must be a deployed ERC-20-like contract and cannot be SignalGBX. The payment token is registered as the paired Bribe's first reward token. The new Strategy's revenue checkpoint starts at the stored global index; its zero initial signal weight prevents it from claiming historical revenue. Factory or constructor validation failures revert the complete graph creation. Factory and paired-Bribe creation events precede the final `StrategyAdded` event.
+
+**Parameters**
+
+- `config`: Immutable reverse-Dutch-auction configuration for the new Strategy.
+- `paymentToken`: ERC-20 asset buyers must pay to fill the new Strategy and its automatic Bribe reward token.
+
+**Returns**
+
+- `bribeAddress`: Newly deployed Bribe and canonical signal-weight ledger for the Strategy.
+- `bribeRouterAddress`: Newly deployed buffer for the Strategy's automatic Bribe share.
+- `strategyAddress`: Newly deployed and registered Strategy.
 
 ### `bribeBps()`
 
@@ -1668,7 +1773,7 @@ Creates a Strategy, its Bribe, and its BribeRouter as one Resonance-controlled g
 function bribeBps() external view returns (uint256 arg0);
 ```
 
-Governance-selected share of newly classified Strategy payments assigned to paired Bribes.
+Current prospective share of each Strategy payment sent to its BribeRouter, in basis points.
 
 ### `bribeFactory()`
 
@@ -1676,7 +1781,7 @@ Governance-selected share of newly classified Strategy payments assigned to pair
 function bribeFactory() external view returns (contract BribeFactory arg0);
 ```
 
-Resonance-bound factory used to create one Bribe per Strategy.
+Immutable Resonance-bound factory used to deploy one canonical Bribe per Strategy.
 
 ### `bribeFor(address)`
 
@@ -1684,7 +1789,7 @@ Resonance-bound factory used to create one Bribe per Strategy.
 function bribeFor(address strategy) external view returns (address bribe);
 ```
 
-Bribe associated with each Strategy.
+Canonical Bribe virtual-weight and reward contract paired with each registered Strategy.
 
 ### `bribeRouterFor(address)`
 
@@ -1692,7 +1797,7 @@ Bribe associated with each Strategy.
 function bribeRouterFor(address strategy) external view returns (address router);
 ```
 
-BribeRouter associated with each Strategy.
+Bribe-only payment-token buffer paired with each registered Strategy.
 
 ### `distributeRevenue(address)`
 
@@ -1700,7 +1805,16 @@ BribeRouter associated with each Strategy.
 function distributeRevenue(address strategy) external returns (uint256 amount);
 ```
 
-Pays one Strategy's accrued USDG. Anyone may trigger payment to the fixed entitled Strategy.
+Checkpoints and transfers one registered Strategy's accrued USDG to that Strategy.
+Permissionless, including for killed Strategies with preserved accrual. Returns zero and emits no event when nothing is owed. The Strategy-level index conversion rounds down to whole raw USDG units. A failed USDG transfer reverts the checkpoint and claim reset atomically. A successful nonzero transfer emits `RevenueDistributed`.
+
+**Parameters**
+
+- `strategy`: Registered Strategy whose fixed address receives the transfer.
+
+**Returns**
+
+- `amount`: Whole raw USDG units transferred, or zero when no revenue is accrued.
 
 ### `earnedRevenue(address)`
 
@@ -1708,7 +1822,16 @@ Pays one Strategy's accrued USDG. Anyone may trigger payment to the fixed entitl
 function earnedRevenue(address strategy) external view returns (uint256 revenue);
 ```
 
-Returns one Strategy's stored plus elapsed USDG revenue.
+Returns one Strategy's stored plus currently elapsed USDG entitlement.
+Does not mutate checkpoints. Only a live Strategy's canonical paired-Bribe weight participates in elapsed allocation; a killed Strategy returns only the revenue preserved when it was checkpointed. Conversion from the scaled index rounds down to whole raw USDG units.
+
+**Parameters**
+
+- `strategy`: Strategy whose entitlement is queried.
+
+**Returns**
+
+- `revenue`: Whole raw USDG units currently transferable to the Strategy.
 
 ### `fund()`
 
@@ -1716,7 +1839,7 @@ Returns one Strategy's stored plus elapsed USDG revenue.
 function fund() external view returns (address arg0);
 ```
 
-Treasury exposed to the paired Bribe graph and Strategy settlement.
+Immutable treasury that receives the non-Bribe share of every Strategy payment.
 
 ### `isStrategyLive(address)`
 
@@ -1724,7 +1847,7 @@ Treasury exposed to the paired Bribe graph and Strategy settlement.
 function isStrategyLive(address strategy) external view returns (bool live);
 ```
 
-Whether a Strategy can receive new signal and future Resonance revenue.
+Whether a registered Strategy can receive new signal and accrue future Resonance revenue.
 
 ### `isStrategyRegistered(address)`
 
@@ -1732,7 +1855,7 @@ Whether a Strategy can receive new signal and future Resonance revenue.
 function isStrategyRegistered(address strategy) external view returns (bool registered);
 ```
 
-Whether an address is a Resonance-created Strategy.
+Whether an address was created and permanently registered as a Strategy by this Resonance.
 
 ### `killStrategy(address)`
 
@@ -1740,8 +1863,12 @@ Whether an address is a Resonance-created Strategy.
 function killStrategy(address strategy) external;
 ```
 
-Permanently stops a Strategy from receiving new signal or future Resonance revenue.
-Revenue accrued through this checkpoint remains claimable. Existing signal remains recorded and removable.
+Permanently stops a registered Strategy from receiving new signal or future Resonance revenue.
+Callable only by the current owner. Checkpoints the Strategy under its full prior weight, preserves that accrued USDG for later permissionless distribution, marks the Strategy dead, and removes its complete paired-Bribe weight from the active total. Existing signal and Bribe rewards remain recorded and removable. After the first Strategy is registered, the final live Strategy cannot be killed. Emits `StrategyKilled`.
+
+**Parameters**
+
+- `strategy`: Live registered Strategy to kill irreversibly.
 
 ### `liveStrategyCount()`
 
@@ -1749,7 +1876,7 @@ Revenue accrued through this checkpoint remains claimable. Existing signal remai
 function liveStrategyCount() external view returns (uint256 arg0);
 ```
 
-Number of registered Strategies eligible for new signal and future Resonance revenue.
+Number of registered Strategies that remain eligible for new signal and future Resonance revenue.
 
 ### `notifyRevenue(uint256)`
 
@@ -1757,8 +1884,12 @@ Number of registered Strategies eligible for new signal and future Resonance rev
 function notifyRevenue(uint256 amount) external;
 ```
 
-Pulls qualifying USDG from ResonanceRouter and restarts the seven-day revenue period.
-During an active period, the new amount must be at least the scheduled revenue remaining in that period. As in Synthetix StakingRewards, division by `REWARD_DURATION` floors and any raw-unit remainder stays as contract surplus.
+Pulls newly routed USDG and restarts the global seven-day revenue stream.
+Callable only by the permanently bound ResonanceRouter. First checkpoints global accrual through the prior period's applicable timestamp. During an active period, `amount` must be at least `remainingRevenue()`; the new schedule contains both the transferred amount and that previously scheduled remainder. Division by `REWARD_DURATION` rounds the new per-second rate down, leaving any unscheduled raw-unit remainder as contract surplus. The standard Router additionally requires at least `REWARD_DURATION` raw units so this rate is nonzero. USDG balance deltas are not measured; the schedule uses the nominal `amount` under the standard-token assumption. Reverts for zero, insufficient active-period revenue, or a failed USDG transfer. Emits `RevenueNotified` after the new schedule is stored.
+
+**Parameters**
+
+- `amount`: Newly supplied raw USDG units to pull from ResonanceRouter, excluding the prior remainder.
 
 ### `owner()`
 
@@ -1774,7 +1905,12 @@ Returns the address of the current owner.
 function remainingRevenue() external view returns (uint256 amount);
 ```
 
-Returns whole raw USDG units remaining at the active period's stored rate.
+Returns the USDG still scheduled at the active stream's stored whole-unit rate.
+Returns zero at or after `periodFinish`. This excludes already elapsed Strategy entitlements, notification remainders lost to rate flooring, zero-weight emissions, and direct token donations.
+
+**Returns**
+
+- `amount`: Whole raw USDG units scheduled between the current timestamp and `periodFinish`.
 
 ### `removeSignalFor(address,address,uint256)`
 
@@ -1782,8 +1918,14 @@ Returns whole raw USDG units remaining at the active period's stored rate.
 function removeSignalFor(address account, address strategy, uint256 amount) external;
 ```
 
-Removes an absolute SignalGBX delta for an account through the bound SignalGBX coordinator.
-Exits remain available after a Strategy is killed and do not decrement active weight a second time.
+Removes signal weight for an account from a registered Strategy.
+Callable only by the immutable SignalGBX coordinator. Elapsed revenue is checkpointed at the Strategy's prior weight before the paired Bribe's canonical virtual balances decrease. Exits remain available after a Strategy is killed; killed weight was removed from `totalSignalWeight` at kill time and is not subtracted a second time. Reverts for a zero account or amount, an unregistered Strategy, or an amount exceeding the account's weight in the paired Bribe. Emits `SignalRemoved` after the paired Bribe emits `SignalWeightRemoved`.
+
+**Parameters**
+
+- `account`: SignalGBX holder whose paired-Bribe weight decreases.
+- `amount`: Raw SignalGBX units to remove.
+- `strategy`: Registered live or killed Strategy losing the weight.
 
 ### `renounceOwnership()`
 
@@ -1799,7 +1941,7 @@ Leaves the contract without owner. It will not be possible to call `onlyOwner` f
 function resonanceRouter() external view returns (address arg0);
 ```
 
-Sole validated Router authorized to pull USDG into Resonance and notify revenue.
+Sole validated ResonanceRouter authorized to supply USDG and notify Resonance revenue; zero pre-bind.
 
 ### `revenueData()`
 
@@ -1807,7 +1949,7 @@ Sole validated Router authorized to pull USDG into Resonance and notify revenue.
 function revenueData() external view returns (uint256 periodFinish, uint256 revenueRate, uint256 lastUpdateTime, uint256 revenuePerSignalStored);
 ```
 
-The sole USDG revenue schedule and cumulative revenue-per-signal index.
+Current global stream timestamps, whole-unit rate, and checkpointed revenue-per-signal index.
 
 ### `revenuePerSignal()`
 
@@ -1815,7 +1957,12 @@ The sole USDG revenue schedule and cumulative revenue-per-signal index.
 function revenuePerSignal() external view returns (uint256 accumulatedRevenue);
 ```
 
-Returns cumulative scaled USDG allocated per unit of active SignalGBX.
+Returns the current cumulative USDG allocation per raw unit of active SignalGBX weight.
+Includes elapsed time through the earlier of the current timestamp and `periodFinish` without mutating storage. If active weight is zero, the index does not increase and revenue elapsed during that interval is unallocated surplus. The index increment rounds down at `REWARD_PRECISION`.
+
+**Returns**
+
+- `accumulatedRevenue`: Cumulative raw USDG units multiplied by `REWARD_PRECISION` per raw signal unit.
 
 ### `setBribeBps(uint256)`
 
@@ -1823,8 +1970,8 @@ Returns cumulative scaled USDG allocated per unit of active SignalGBX.
 function setBribeBps(uint256 newBribeBps) external;
 ```
 
-Sets the prospective paired-Bribe share for every later Strategy-payment classification.
-Earlier purchases and active reward streams are never repriced.
+Sets the prospective paired-Bribe share for every later Strategy purchase.
+Callable only by the current owner. Values from zero through `MAX_BRIBE_BPS` are accepted. Each Strategy snapshots this value before token interaction, so earlier and in-flight purchases and active Bribe reward streams are not repriced. Emits `BribeBpsSet`, including when `newBribeBps` equals the current value.
 
 **Parameters**
 
@@ -1836,7 +1983,12 @@ Earlier purchases and active reward streams are never repriced.
 function setResonanceRouter(address resonanceRouter_) external;
 ```
 
-Binds the sole ResonanceRouter after reciprocal Resonance and USDG identity validation.
+Permanently binds the sole ResonanceRouter allowed to notify USDG revenue.
+Callable only by the current owner and only before a Router is bound. The candidate must be a deployed contract whose identity getters return this Resonance and the immutable `usdg`; missing or reverting identity getters fail validation. The binding cannot be replaced or cleared. Emits `ResonanceRouterSet`.
+
+**Parameters**
+
+- `resonanceRouter_`: Router candidate to validate and bind.
 
 ### `signalGBX()`
 
@@ -1844,7 +1996,7 @@ Binds the sole ResonanceRouter after reciprocal Resonance and USDG identity vali
 function signalGBX() external view returns (contract IERC20 arg0);
 ```
 
-Non-transferable signal receipt used as allocation and governance power.
+Immutable non-transferable receipt and sole coordinator allowed to change Strategy signal weights.
 
 ### `strategyFactory()`
 
@@ -1852,7 +2004,7 @@ Non-transferable signal receipt used as allocation and governance power.
 function strategyFactory() external view returns (contract StrategyFactory arg0);
 ```
 
-Resonance-bound factory used to create Strategies and their BribeRouters.
+Immutable Resonance-bound factory used to deploy Strategies and their paired BribeRouters.
 
 ### `strategyRevenue(address)`
 
@@ -1860,7 +2012,7 @@ Resonance-bound factory used to create Strategies and their BribeRouters.
 function strategyRevenue(address strategy) external view returns (uint256 revenue);
 ```
 
-Accrued whole raw USDG units owed to each Strategy.
+Stored whole raw USDG units accrued and not yet transferred to each registered Strategy.
 
 ### `strategyRevenuePerSignalPaid(address)`
 
@@ -1868,7 +2020,7 @@ Accrued whole raw USDG units owed to each Strategy.
 function strategyRevenuePerSignalPaid(address strategy) external view returns (uint256 paid);
 ```
 
-Cumulative USDG revenue-per-signal already incorporated for each Strategy.
+Per-Strategy checkpoint of the scaled global revenue-per-signal index already incorporated into accrual.
 
 ### `totalSignalWeight()`
 
@@ -1876,7 +2028,7 @@ Cumulative USDG revenue-per-signal already incorporated for each Strategy.
 function totalSignalWeight() external view returns (uint256 arg0);
 ```
 
-Total active SignalGBX weight eligible for Resonance revenue.
+Total raw SignalGBX weight across live Strategies currently eligible for Resonance revenue.
 
 ### `transferOwnership(address)`
 
@@ -1892,7 +2044,7 @@ Transfers ownership of the contract to a new account (`newOwner`). Can only be c
 function usdg() external view returns (contract IERC20 arg0);
 ```
 
-Six-decimal revenue token streamed to Strategies.
+Immutable USDG revenue token streamed to Strategies and accounted for only in raw token units.
 
 ### Events
 
@@ -2144,12 +2296,13 @@ Public ABI: 3 functions, 2 events, 4 custom errors, 1 constructor, 0 receive ent
 constructor(contract IERC20 usdg_, address resonance_);
 ```
 
-Creates a fixed USDG route into `resonance_`.
+Creates an immutable USDG route into a single Resonance receiver.
+Both dependencies must be nonzero deployed contracts. Reciprocal Resonance and USDG identities are checked later when the Resonance owner calls `Resonance.setResonanceRouter`.
 
 **Parameters**
 
-- `resonance_`: Resonance that receives and indexes routed USDG.
-- `usdg_`: USDG token forwarded by the router.
+- `resonance_`: Resonance contract that receives and schedules routed USDG.
+- `usdg_`: USDG token forwarded by the Router.
 
 ### `resonance()`
 
@@ -2157,7 +2310,7 @@ Creates a fixed USDG route into `resonance_`.
 function resonance() external view returns (address arg0);
 ```
 
-Resonance that receives and indexes routed USDG.
+Immutable Resonance receiver that schedules and indexes routed USDG.
 
 ### `route()`
 
@@ -2165,11 +2318,12 @@ Resonance that receives and indexes routed USDG.
 function route() external returns (uint256 amount);
 ```
 
-Routes the complete nonzero USDG balance once it qualifies for a new reward period.
+Routes the Router's complete USDG balance when it satisfies Resonance's current threshold.
+Permissionless. The threshold is the greater of Resonance's remaining active revenue and the raw-unit duration required to create a nonzero whole-unit-per-second stream. Returns zero without transferring when a nonzero balance is below that threshold and emits `RevenueHeld`; reverts when the balance is zero. On a qualifying attempt, exact approval, Resonance notification, USDG transfer, and `RevenueRouted` emission are atomic; downstream failure leaves the balance retryable in the Router.
 
 **Returns**
 
-- `amount`: Amount delivered, or zero when the nonzero balance remains below the live-period threshold.
+- `amount`: Nominal raw USDG units routed under the standard-token assumption, or zero below the threshold.
 
 ### `usdg()`
 
@@ -2177,7 +2331,7 @@ Routes the complete nonzero USDG balance once it qualifies for a new reward peri
 function usdg() external view returns (contract IERC20 arg0);
 ```
 
-USDG revenue token forwarded by this router.
+Immutable USDG revenue token forwarded by this Router, accounted for in raw token units.
 
 ### Events
 
@@ -2245,12 +2399,13 @@ Public ABI: 31 functions, 9 events, 29 custom errors, 1 constructor, 0 receive e
 constructor(contract IERC20 gbx_, address initialOwner);
 ```
 
-Creates the non-transferable signal token and assigns deployment-time ownership.
+Creates the `SignalGumBall6900` (`sGBX`) receipt and assigns deployment-time setup ownership.
+Uses 18 decimals inherited from ERC-20 and EIP-712 version `1` for ERC20Votes signatures. Reverts with `ZeroAddress` unless `gbx_` is a nonzero contract. OpenZeppelin `Ownable` rejects a zero `initialOwner`; renouncing ownership before binding Resonance permanently prevents signaling setup from completing.
 
 **Parameters**
 
-- `gbx_`: GBX token deposited by signalers.
-- `initialOwner`: Deployment-time owner responsible for binding Resonance.
+- `gbx_`: Standard ERC-20 GBX token deposited and returned one-for-one in raw units.
+- `initialOwner`: Deployment-time owner responsible for the one-time Resonance binding.
 
 ### `CLOCK_MODE()`
 
@@ -2346,7 +2501,7 @@ returns the fields and values that describe the domain separator used by this co
 function gbx() external view returns (contract IERC20 arg0);
 ```
 
-Underlying GBX that backs the SignalGBX supply at least one-for-one.
+Returns the immutable underlying GBX escrowed one raw unit per raw sGBX unit minted.
 
 ### `getPastTotalSupply(uint256)`
 
@@ -2378,13 +2533,14 @@ Returns the current amount of votes that `account` has.
 function moveSignal(address fromStrategy, address toStrategy, uint256 amount) external;
 ```
 
-Atomically moves signal from one Strategy to another without moving GBX or minting SignalGBX.
+Moves an account's signal weight from one Strategy to another without changing GBX custody or sGBX.
+Resonance removes source weight before adding destination weight, checkpointing both Strategies and paired Bribes under their prior weights. The source may be killed, but the destination must be live. A failed destination addition reverts the earlier removal. Supply, balances, delegation, and voting units do not change. No cooldown or epoch restriction applies. This contract emits no event, while Resonance and the two paired Bribes emit their removal and addition events.
 
 **Parameters**
 
-- `amount`: Absolute SignalGBX delta moved.
-- `fromStrategy`: Strategy losing signal; may be killed.
-- `toStrategy`: Live Strategy receiving signal.
+- `amount`: Nonzero raw signal units moved; cannot exceed the caller's source position.
+- `fromStrategy`: Strategy losing signal weight; may already be killed.
+- `toStrategy`: Registered live Strategy receiving signal weight; must differ from `fromStrategy`.
 
 ### `name()`
 
@@ -2432,7 +2588,7 @@ Leaves the contract without owner. It will not be possible to call `onlyOwner` f
 function resonance() external view returns (address arg0);
 ```
 
-Resonance that applies this coordinator's per-Strategy signal changes.
+Returns the permanently bound Resonance that applies signal changes, or zero before setup completes.
 
 ### `setResonance(address)`
 
@@ -2440,11 +2596,12 @@ Resonance that applies this coordinator's per-Strategy signal changes.
 function setResonance(address resonance_) external;
 ```
 
-Binds the Resonance dependency once after reciprocal SignalGBX identity validation.
+Permanently binds the Resonance dependency after reciprocal SignalGBX identity validation.
+Callable only by the current owner and only while `resonance` is zero. The candidate must be a nonzero contract whose `signalGBX()` identity getter returns this receipt; a failed call or mismatch reverts with `InvalidResonance`. Successful binding emits `ResonanceSet` and has no replacement path. It does not automatically transfer or renounce inherited ownership.
 
 **Parameters**
 
-- `resonance_`: Resonance address to bind permanently.
+- `resonance_`: Resonance contract address to validate and bind.
 
 ### `signal(address,uint256)`
 
@@ -2452,12 +2609,13 @@ Binds the Resonance dependency once after reciprocal SignalGBX identity validati
 function signal(address strategy, uint256 amount) external;
 ```
 
-Atomically deposits GBX, mints the same sGBX amount, and assigns it to one live Strategy.
+Deposits GBX, mints equal sGBX, and assigns equal signal weight to one live Strategy atomically.
+Pulls GBX from the caller using its existing allowance. If the caller has no current delegate, the newly minted voting units self-delegate; an existing delegate is preserved. Resonance and the paired Bribe then checkpoint prior weights before adding the signal. Any failed transfer, mint, or Resonance hook reverts the complete transition. The function is unavailable before the one-time Resonance binding. Emits `Signaled` after the complete transition; inherited mint and delegation events and downstream signal events also apply.
 
 **Parameters**
 
-- `amount`: Exact GBX deposited, sGBX minted, and signal assigned.
-- `strategy`: Live Strategy receiving the complete new signal.
+- `amount`: Nonzero raw units of GBX deposited, sGBX minted, and signal weight assigned.
+- `strategy`: Registered live Strategy receiving the complete new signal weight.
 
 ### `signalWithPermit(address,uint256,uint256,uint8,bytes32,bytes32)`
 
@@ -2465,17 +2623,17 @@ Atomically deposits GBX, mints the same sGBX amount, and assigns it to one live 
 function signalWithPermit(address strategy, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
 ```
 
-Attempts an underlying GBX permit, then performs the same atomic transition as `signal`.
-A pre-consumed permit may fail harmlessly because the underlying transfer remains authoritative.
+Attempts an ERC-2612 permit on GBX, then performs the same atomic transition as `signal`.
+The permit authorizes this contract to spend `amount` from the caller. Permit failure is deliberately ignored, allowing a pre-consumed signature or an existing allowance to proceed; `safeTransferFrom` remains the authoritative custody and authorization check. A successful permit is rolled back if any later step reverts. This function does not add permit support to the sGBX receipt itself. Emits `Signaled` after the complete transition; inherited mint and delegation events and downstream signal events also apply.
 
 **Parameters**
 
-- `amount`: Amount of GBX deposited, SignalGBX minted, and signal assigned.
-- `deadline`: Permit expiry timestamp.
-- `r`: Permit signature `r` component.
-- `s`: Permit signature `s` component.
-- `strategy`: Live Strategy receiving signal.
-- `v`: Permit recovery identifier.
+- `amount`: Nonzero raw units of GBX deposited, sGBX minted, and signal weight assigned.
+- `deadline`: Unix timestamp after which the underlying GBX permit is invalid.
+- `r`: ECDSA `r` component for the GBX permit signature.
+- `s`: ECDSA `s` component for the GBX permit signature.
+- `strategy`: Registered live Strategy receiving the complete new signal weight.
+- `v`: ECDSA recovery identifier for the GBX permit signature.
 
 ### `symbol()`
 
@@ -2523,12 +2681,13 @@ Transfers ownership of the contract to a new account (`newOwner`). Can only be c
 function withdrawSignal(address strategy, uint256 amount) external;
 ```
 
-Atomically removes signal, burns the same sGBX amount, and returns the same amount of GBX.
+Removes signal weight, burns equal sGBX, and returns equal GBX to the caller atomically.
+Resonance first checkpoints revenue and the paired Bribe checkpoints rewards under the prior weight. Exits remain available when `strategy` is killed. Burning updates ERC20Votes checkpoints before GBX is transferred; a failed hook, burn, or transfer reverts the transition. Direct GBX donations are not part of the one-for-one entitlement. No cooldown, epoch restriction, or withdrawal lock applies. Emits `SignalWithdrawn` after completion; inherited burn events and downstream removal events also apply.
 
 **Parameters**
 
-- `amount`: Amount of signal removed, SignalGBX burned, and GBX returned.
-- `strategy`: Strategy losing signal; exits remain available after kill.
+- `amount`: Nonzero raw units of signal removed, sGBX burned, and GBX returned.
+- `strategy`: Strategy losing signal weight; may already be killed.
 
 ### Events
 
@@ -2852,15 +3011,16 @@ Public ABI: 20 functions, 1 event, 11 custom errors, 1 constructor, 0 receive en
 constructor(address resonance_, contract IERC20 usdg_, contract IERC20 paymentToken_, address fund_, struct Strategy.Config config);
 ```
 
-Creates one immutable Strategy.
+Creates one Strategy and starts its zero-based first auction epoch immediately.
+All address dependencies must be nonzero deployed contracts. Configuration validation enforces duration, multiplier, minimum-price, and absolute-price bounds; `initialPrice` must be at least `minimumPrice`.
 
 **Parameters**
 
-- `config`: Immutable auction configuration.
-- `fund_`: Treasury that receives the non-Bribe share of every auction payment.
-- `paymentToken_`: Asset buyers pay to fill this Strategy.
-- `resonance_`: Resonance that provides the paired BribeRouter.
-- `usdg_`: USDG token sold by this Strategy.
+- `config`: Immutable auction configuration expressed in seconds, raw payment units, and fixed-point scale.
+- `fund_`: Treasury receiving the non-Bribe share of every auction payment.
+- `paymentToken_`: ERC-20 asset buyers pay to fill this Strategy.
+- `resonance_`: Resonance that releases USDG and provides split and BribeRouter configuration.
+- `usdg_`: USDG revenue token sold by this Strategy.
 
 ### `ABSOLUTE_MAXIMUM_PRICE()`
 
@@ -2868,7 +3028,7 @@ Creates one immutable Strategy.
 function ABSOLUTE_MAXIMUM_PRICE() external view returns (uint256 arg0);
 ```
 
-Absolute upper bound for a starting or minimum price.
+Absolute upper bound for a starting or minimum price, in raw payment-token units.
 
 ### `ABSOLUTE_MINIMUM_PRICE()`
 
@@ -2876,7 +3036,7 @@ Absolute upper bound for a starting or minimum price.
 function ABSOLUTE_MINIMUM_PRICE() external view returns (uint256 arg0);
 ```
 
-Absolute lower bound for a configured minimum price.
+Absolute lower bound for `minimumPrice`, in raw payment-token units regardless of token decimals.
 
 ### `BPS()`
 
@@ -2884,7 +3044,7 @@ Absolute lower bound for a configured minimum price.
 function BPS() external view returns (uint256 arg0);
 ```
 
-Basis-point denominator used for the acquired-payment split.
+Basis-point denominator used to split each acquired payment.
 
 ### `MAX_EPOCH_DURATION()`
 
@@ -2892,7 +3052,7 @@ Basis-point denominator used for the acquired-payment split.
 function MAX_EPOCH_DURATION() external view returns (uint256 arg0);
 ```
 
-Longest permitted price-decay period.
+Longest permitted price-decay period, in seconds.
 
 ### `MAX_PRICE_MULTIPLIER()`
 
@@ -2900,7 +3060,7 @@ Longest permitted price-decay period.
 function MAX_PRICE_MULTIPLIER() external view returns (uint256 arg0);
 ```
 
-Largest multiplier permitted for the next starting price.
+Largest next-starting-price multiplier, scaled by `PRICE_SCALE`.
 
 ### `MIN_EPOCH_DURATION()`
 
@@ -2908,7 +3068,7 @@ Largest multiplier permitted for the next starting price.
 function MIN_EPOCH_DURATION() external view returns (uint256 arg0);
 ```
 
-Shortest permitted price-decay period.
+Shortest permitted price-decay period, in seconds.
 
 ### `MIN_PRICE_MULTIPLIER()`
 
@@ -2916,7 +3076,7 @@ Shortest permitted price-decay period.
 function MIN_PRICE_MULTIPLIER() external view returns (uint256 arg0);
 ```
 
-Smallest multiplier permitted for the next starting price.
+Smallest next-starting-price multiplier, scaled by `PRICE_SCALE`.
 
 ### `PRICE_SCALE()`
 
@@ -2924,7 +3084,7 @@ Smallest multiplier permitted for the next starting price.
 function PRICE_SCALE() external view returns (uint256 arg0);
 ```
 
-Fixed-point precision for the next-price multiplier.
+Fixed-point scale representing a 1.0 next-starting-price multiplier.
 
 ### `buy(address,uint256,uint256,uint256)`
 
@@ -2932,18 +3092,19 @@ Fixed-point precision for the next-price multiplier.
 function buy(address revenueReceiver, uint256 expectedEpochId, uint256 deadline, uint256 maximumPayment) external returns (uint256 paymentAmount);
 ```
 
-Purchases the Strategy's complete USDG balance at the current declining price.
+Purchases all released and directly held Strategy USDG at the current declining price.
+Permissionless. Snapshots Resonance's prospective Bribe share before token interaction, then checkpoints and pulls this Strategy's released USDG. The resulting complete USDG balance is fixed before payment is collected, which also keeps a Strategy priced in USDG from co-mingling payment with purchased revenue. The Bribe share is `floor(paymentAmount * bribeBps / BPS)` and the Fund receives the remainder, so split rounding favors Fund. A zero price after full decay skips payment collection, payment settlement, and BribeRouter interaction. All transfers, auction-state updates, and the event are atomic. Reverts for a zero receiver, expired deadline, stale epoch, empty USDG balance, payment above `maximumPayment`, a missing BribeRouter when the floored Bribe amount is nonzero, or a failed token operation. Emits `Purchased` after the next epoch is initialized.
 
 **Parameters**
 
-- `deadline`: Latest timestamp at which this transaction may execute.
-- `expectedEpochId`: Expected epoch, protecting the buyer from another fill changing the price first.
-- `maximumPayment`: Maximum payment accepted by the buyer.
-- `revenueReceiver`: Address that receives the accumulated USDG.
+- `deadline`: Latest valid Unix timestamp; execution exactly at this timestamp is allowed.
+- `expectedEpochId`: Active epoch expected by the buyer, protecting against a prior fill.
+- `maximumPayment`: Maximum raw payment-token units authorized by the buyer.
+- `revenueReceiver`: Address that receives the complete snapshotted USDG balance; need not equal the buyer.
 
 **Returns**
 
-- `paymentAmount`: Actual payment required at execution time.
+- `paymentAmount`: Actual raw payment-token units required at execution, possibly zero.
 
 ### `currentPrice()`
 
@@ -2951,11 +3112,12 @@ Purchases the Strategy's complete USDG balance at the current declining price.
 function currentPrice() external view returns (uint256 paymentAmount);
 ```
 
-Returns the current linearly declining price.
+Returns the payment required to fill the active auction epoch at the current timestamp.
+Before full decay, subtracts the floored elapsed-price fraction from `initialPrice`, which rounds the exact remaining-fraction price up to a whole raw token unit. Returns zero at and after `epochDuration` seconds.
 
 **Returns**
 
-- `paymentAmount`: Payment required to fill the active auction epoch.
+- `paymentAmount`: Current price in raw payment-token units.
 
 ### `epochDuration()`
 
@@ -2963,7 +3125,7 @@ Returns the current linearly declining price.
 function epochDuration() external view returns (uint256 arg0);
 ```
 
-Number of seconds over which price declines to zero.
+Immutable number of seconds over which each epoch's price declines to zero.
 
 ### `epochId()`
 
@@ -2971,7 +3133,7 @@ Number of seconds over which price declines to zero.
 function epochId() external view returns (uint256 arg0);
 ```
 
-Current auction epoch identifier.
+Zero-based identifier of the active auction epoch, incremented after every successful fill.
 
 ### `epochStartedAt()`
 
@@ -2979,7 +3141,7 @@ Current auction epoch identifier.
 function epochStartedAt() external view returns (uint256 arg0);
 ```
 
-Timestamp at which the active epoch began.
+Unix timestamp at which the active epoch began.
 
 ### `fund()`
 
@@ -2987,7 +3149,7 @@ Timestamp at which the active epoch began.
 function fund() external view returns (address arg0);
 ```
 
-Treasury that receives the non-Bribe share of every auction payment.
+Immutable treasury that receives the payment remainder after the floored Bribe share.
 
 ### `initialPrice()`
 
@@ -2995,7 +3157,7 @@ Treasury that receives the non-Bribe share of every auction payment.
 function initialPrice() external view returns (uint256 arg0);
 ```
 
-Price at the beginning of the active epoch.
+Starting price of the active epoch, in raw payment-token units.
 
 ### `minimumPrice()`
 
@@ -3003,7 +3165,7 @@ Price at the beginning of the active epoch.
 function minimumPrice() external view returns (uint256 arg0);
 ```
 
-Floor applied to the next epoch's starting price.
+Immutable raw-payment-token floor applied only to each next epoch's starting price.
 
 ### `paymentToken()`
 
@@ -3011,7 +3173,7 @@ Floor applied to the next epoch's starting price.
 function paymentToken() external view returns (contract IERC20 arg0);
 ```
 
-Asset required from a buyer.
+Immutable ERC-20 asset required from buyers, accounted for in raw token units.
 
 ### `priceMultiplier()`
 
@@ -3019,7 +3181,7 @@ Asset required from a buyer.
 function priceMultiplier() external view returns (uint256 arg0);
 ```
 
-Fixed-point multiplier applied to a completed epoch's payment.
+Immutable `PRICE_SCALE`-scaled multiplier applied to a completed epoch's clearing payment.
 
 ### `resonance()`
 
@@ -3027,7 +3189,7 @@ Fixed-point multiplier applied to a completed epoch's payment.
 function resonance() external view returns (address arg0);
 ```
 
-Resonance that supplies the paired BribeRouter.
+Immutable Resonance that releases USDG and supplies the current Bribe split and paired BribeRouter.
 
 ### `usdg()`
 
@@ -3035,7 +3197,7 @@ Resonance that supplies the paired BribeRouter.
 function usdg() external view returns (contract IERC20 arg0);
 ```
 
-USDG sold by this Strategy.
+Immutable USDG revenue token sold by this Strategy, accounted for in raw token units.
 
 ### Events
 
@@ -3151,11 +3313,12 @@ Public ABI: 6 functions, 3 events, 6 custom errors, 1 constructor, 0 receive ent
 constructor(address initialOwner);
 ```
 
-Creates an unbound factory whose owner may set Resonance exactly once.
+Creates an unbound factory whose temporary owner may bind Resonance exactly once.
+OpenZeppelin `Ownable` rejects a zero `initialOwner`.
 
 **Parameters**
 
-- `initialOwner`: Deployment-time owner responsible for binding Resonance.
+- `initialOwner`: Deployment-time owner responsible for the one-time Resonance binding.
 
 ### `createStrategy(address,address,address,address,(uint256,uint256,uint256,uint256))`
 
@@ -3163,20 +3326,21 @@ Creates an unbound factory whose owner may set Resonance exactly once.
 function createStrategy(contract IERC20 usdg, contract IERC20 paymentToken, address fund, contract Bribe bribe, struct Strategy.Config config) external returns (contract Strategy strategy, contract BribeRouter bribeRouter);
 ```
 
-Deploys a Strategy and the BribeRouter paired with it.
+Deploys a Strategy and its dedicated BribeRouter for the bound Resonance.
+Callable only by `resonance`; an unbound factory therefore rejects every caller. Deployment is atomic and relies on the Strategy and BribeRouter constructors to validate code-bearing dependencies and auction configuration. The supplied Bribe becomes the Router's immutable destination, and `paymentToken` becomes both the Strategy's purchase asset and the Router's buffered reward asset. Emits `StrategyCreated` after both contracts are deployed.
 
 **Parameters**
 
-- `bribe`: Independently fundable Bribe paired with the Strategy.
-- `config`: Immutable auction configuration.
-- `fund`: Treasury that receives the non-Bribe share of each payment.
-- `paymentToken`: Asset buyers pay to fill the Strategy.
-- `usdg`: USDG token sold by the Strategy.
+- `bribe`: Existing Bribe to pair with the new Strategy and Router.
+- `config`: Immutable reverse-Dutch-auction configuration for the new Strategy.
+- `fund`: Treasury receiving the non-Bribe share of each purchase payment.
+- `paymentToken`: ERC-20 asset buyers pay and the BribeRouter buffers.
+- `usdg`: USDG revenue token sold by the new Strategy.
 
 **Returns**
 
-- `bribeRouter`: Newly deployed BribeRouter paired with `strategy`.
-- `strategy`: Newly deployed Strategy.
+- `bribeRouter`: Newly deployed BribeRouter paired with `strategy` and `bribe`.
+- `strategy`: Newly deployed Strategy contract.
 
 ### `owner()`
 
@@ -3200,7 +3364,7 @@ Leaves the contract without owner. It will not be possible to call `onlyOwner` f
 function resonance() external view returns (address arg0);
 ```
 
-Resonance exclusively authorized to create Strategy graphs.
+Permanently bound Resonance exclusively authorized to create Strategy graphs; zero before setup.
 
 ### `setResonance(address)`
 
@@ -3208,11 +3372,12 @@ Resonance exclusively authorized to create Strategy graphs.
 function setResonance(address resonance_) external;
 ```
 
-Binds the only Resonance allowed to create Strategies after reciprocal factory validation.
+Permanently binds the only Resonance allowed to create Strategy graphs.
+Callable only by the current owner and only while unbound. The candidate must be a deployed contract whose `strategyFactory()` identity getter returns this factory; a missing or reverting getter fails validation. Emits `ResonanceSet` after the binding is stored.
 
 **Parameters**
 
-- `resonance_`: Resonance address to bind permanently.
+- `resonance_`: Resonance candidate to validate and bind.
 
 ### `transferOwnership(address)`
 
@@ -3312,11 +3477,11 @@ Public ABI: 3 functions, 0 events, 0 custom errors, 0 constructors, 0 receive en
 function REWARD_DURATION() external view returns (uint256 duration);
 ```
 
-Returns the fixed duration required for each reward stream.
+Returns the fixed duration assigned to each reward stream.
 
 **Returns**
 
-- `duration`: Reward duration in seconds.
+- `duration`: Reward duration in seconds; the production implementation returns seven days.
 
 ### `notifyReward(address,uint256)`
 
@@ -3324,12 +3489,13 @@ Returns the fixed duration required for each reward stream.
 function notifyReward(address rewardToken, uint256 amount) external;
 ```
 
-Starts or restarts a seven-day reward stream using standard leftover rollover.
+Pulls fresh funding from the caller and starts or restarts a registered token's reward stream.
+During an active stream, the implementation combines `amount` with the scheduled reward remaining and rounds the new whole-unit-per-second rate down over `REWARD_DURATION`. The fresh amount must meet both the duration and remaining-reward thresholds; implementation-specific registry and lifetime-cap checks apply.
 
 **Parameters**
 
-- `amount`: Amount pulled from the caller and added to the stream.
-- `rewardToken`: Token to stream.
+- `amount`: Fresh raw token units pulled from the caller.
+- `rewardToken`: Registered standard ERC-20 token to pull and stream.
 
 ### `remainingReward(address)`
 
@@ -3337,15 +3503,16 @@ Starts or restarts a seven-day reward stream using standard leftover rollover.
 function remainingReward(address rewardToken) external view returns (uint256 amount);
 ```
 
-Returns rewards remaining in a token's active stream.
+Returns raw token units still scheduled in a token's active reward stream.
+The value is zero after the period finishes and excludes already elapsed rewards, direct donations, and any surplus produced when the stream rate was rounded down.
 
 **Parameters**
 
-- `rewardToken`: Token whose active stream is queried.
+- `rewardToken`: Reward token whose active stream is queried.
 
 **Returns**
 
-- `amount`: Undistributed amount remaining in the stream.
+- `amount`: Raw token units remaining at the stored whole-unit-per-second rate.
 
 ## IMine
 
@@ -3361,7 +3528,11 @@ Public ABI: 3 functions, 0 events, 0 custom errors, 0 constructors, 0 receive en
 function effectiveTotalSupply() external view returns (uint256 amount);
 ```
 
-Returns minted GBX supply plus every live slot's accrued unminted GBX.
+Returns current GBX total supply plus every occupied slot's accrued unminted GBX in constant time.
+
+**Returns**
+
+- `amount`: Economically effective supply in raw GBX units.
 
 ### `gbx()`
 
@@ -3371,6 +3542,10 @@ function gbx() external view returns (address token);
 
 Canonical GBX token minted by this contract.
 
+**Returns**
+
+- `token`: Canonical GBX token address.
+
 ### `pendingEmission()`
 
 ```solidity
@@ -3378,6 +3553,10 @@ function pendingEmission() external view returns (uint256 amount);
 ```
 
 Returns accrued GBX that has not yet been minted across all sixteen slots in constant time.
+
+**Returns**
+
+- `amount`: Total accrued unminted emission in raw GBX units.
 
 ## IResonance
 
@@ -3393,11 +3572,11 @@ Public ABI: 8 functions, 0 events, 0 custom errors, 0 constructors, 0 receive en
 function REWARD_DURATION() external view returns (uint256 duration);
 ```
 
-Returns the fixed duration of each Resonance reward period.
+Returns the fixed duration of each Resonance USDG stream.
 
 **Returns**
 
-- `duration`: Reward duration in seconds.
+- `duration`: Stream duration in seconds.
 
 ### `addSignalFor(address,address,uint256)`
 
@@ -3405,13 +3584,14 @@ Returns the fixed duration of each Resonance reward period.
 function addSignalFor(address account, address strategy, uint256 amount) external;
 ```
 
-Adds signal on behalf of an account through the permanently bound SignalGBX coordinator.
+Adds signal weight for an account to a live registered Strategy.
+Callable only by the immutable SignalGBX coordinator. The Strategy is checkpointed at its prior weight before active total weight and paired-Bribe balances increase. Reverts for an unauthorized caller, zero account or amount, unregistered Strategy, or killed Strategy.
 
 **Parameters**
 
-- `account`: Account whose allocation increases.
-- `amount`: Absolute SignalGBX delta added.
-- `strategy`: Live Strategy receiving signal.
+- `account`: SignalGBX holder whose paired-Bribe weight increases.
+- `amount`: Raw SignalGBX units to add.
+- `strategy`: Live registered Strategy receiving the weight.
 
 ### `bribeBps()`
 
@@ -3419,11 +3599,12 @@ Adds signal on behalf of an account through the permanently bound SignalGBX coor
 function bribeBps() external view returns (uint256 basisPoints);
 ```
 
-Returns the governance-selected share of new Strategy payments assigned to paired Bribes.
+Returns the prospective global share of each Strategy payment assigned to its BribeRouter.
+A Strategy snapshots this value before token interaction; it does not reprice prior purchases.
 
 **Returns**
 
-- `basisPoints`: Current share in basis points.
+- `basisPoints`: Current payment share in basis points out of 10,000.
 
 ### `bribeRouterFor(address)`
 
@@ -3431,15 +3612,15 @@ Returns the governance-selected share of new Strategy payments assigned to paire
 function bribeRouterFor(address strategy) external view returns (address router);
 ```
 
-Returns the reward router paired with a Strategy.
+Returns the BribeRouter paired with a registered Strategy.
 
 **Parameters**
 
-- `strategy`: Strategy whose router is queried.
+- `strategy`: Strategy whose automatic-Bribe buffer is queried.
 
 **Returns**
 
-- `router`: BribeRouter paired with `strategy`.
+- `router`: Paired BribeRouter, or the zero address when no graph is registered for `strategy`.
 
 ### `distributeRevenue(address)`
 
@@ -3447,15 +3628,16 @@ Returns the reward router paired with a Strategy.
 function distributeRevenue(address strategy) external returns (uint256 amount);
 ```
 
-Checkpoints and transfers one Strategy's currently released USDG.
+Checkpoints and transfers one registered Strategy's currently accrued USDG to that Strategy.
+Permissionless and valid for live or killed Strategies. Returns zero without transferring when nothing is owed. A failed transfer reverts the checkpoint and claim reset atomically.
 
 **Parameters**
 
-- `strategy`: Strategy whose allocation should be transferred.
+- `strategy`: Registered Strategy whose fixed address receives the USDG.
 
 **Returns**
 
-- `amount`: Amount transferred.
+- `amount`: Whole raw USDG units transferred, or zero when nothing is accrued.
 
 ### `notifyRevenue(uint256)`
 
@@ -3463,11 +3645,12 @@ Checkpoints and transfers one Strategy's currently released USDG.
 function notifyRevenue(uint256 amount) external;
 ```
 
-Pulls and schedules newly routed USDG revenue.
+Pulls newly routed USDG and restarts the global seven-day revenue stream.
+Callable only by the permanently bound ResonanceRouter. During an active stream, the new amount must be at least the USDG still scheduled; the restarted schedule combines both values and rounds its whole-unit-per- second rate down. The schedule uses nominal `amount` under the standard-token assumption. Reverts for an unauthorized caller, zero amount, insufficient active-period amount, or failed USDG transfer.
 
 **Parameters**
 
-- `amount`: Amount of USDG to pull from the caller.
+- `amount`: Nominal raw USDG units to pull from ResonanceRouter.
 
 ### `remainingRevenue()`
 
@@ -3475,11 +3658,12 @@ Pulls and schedules newly routed USDG revenue.
 function remainingRevenue() external view returns (uint256 amount);
 ```
 
-Returns whole raw USDG units remaining at the active period's stored rate.
+Returns USDG still scheduled at the active stream's stored whole-unit-per-second rate.
+Returns zero after the stream finishes and excludes unscheduled surplus, direct donations, and elapsed Strategy entitlements.
 
 **Returns**
 
-- `amount`: USDG units not yet emitted by the active period.
+- `amount`: Whole raw USDG units scheduled from the current timestamp through stream completion.
 
 ### `removeSignalFor(address,address,uint256)`
 
@@ -3487,13 +3671,14 @@ Returns whole raw USDG units remaining at the active period's stored rate.
 function removeSignalFor(address account, address strategy, uint256 amount) external;
 ```
 
-Removes signal on behalf of an account through the permanently bound SignalGBX coordinator.
+Removes signal weight for an account from a registered live or killed Strategy.
+Callable only by the immutable SignalGBX coordinator. The Strategy is checkpointed before its paired-Bribe weight decreases. Killed-Strategy exits do not reduce active total weight a second time. Reverts for an unauthorized caller, zero account or amount, unregistered Strategy, or insufficient account weight.
 
 **Parameters**
 
-- `account`: Account whose allocation decreases.
-- `amount`: Absolute SignalGBX delta removed.
-- `strategy`: Strategy losing signal; exits remain available after kill.
+- `account`: SignalGBX holder whose paired-Bribe weight decreases.
+- `amount`: Raw SignalGBX units to remove.
+- `strategy`: Registered live or killed Strategy losing the weight.
 
 ## IResonanceIdentity
 
@@ -3511,6 +3696,10 @@ function bribeFactory() external view returns (address factory);
 
 Returns the immutable BribeFactory controlled by Resonance.
 
+**Returns**
+
+- `factory`: BribeFactory contract address.
+
 ### `signalGBX()`
 
 ```solidity
@@ -3519,6 +3708,10 @@ function signalGBX() external view returns (address token);
 
 Returns the immutable SignalGBX receipt used by Resonance.
 
+**Returns**
+
+- `token`: SignalGBX contract address and sole signal-weight coordinator.
+
 ### `strategyFactory()`
 
 ```solidity
@@ -3526,6 +3719,10 @@ function strategyFactory() external view returns (address factory);
 ```
 
 Returns the immutable StrategyFactory controlled by Resonance.
+
+**Returns**
+
+- `factory`: StrategyFactory contract address.
 
 ## IResonanceRouter
 
@@ -3541,11 +3738,12 @@ Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive ent
 function route() external returns (uint256 amount);
 ```
 
-Routes the complete nonzero pending USDG balance into Resonance.
+Routes the Router's complete USDG balance when it satisfies Resonance's current threshold.
+Permissionless. The threshold is the greater of Resonance's remaining active revenue and the raw-unit duration required to create a nonzero whole-unit-per-second stream. Returns zero without transferring when a nonzero balance is below that threshold and emits `RevenueHeld`; reverts when the balance is zero. On a qualifying attempt, exact approval, Resonance notification, USDG transfer, and `RevenueRouted` emission are atomic; downstream failure leaves the balance retryable in the Router.
 
 **Returns**
 
-- `amount`: Amount delivered to Resonance.
+- `amount`: Nominal raw USDG units routed under the standard-token assumption, or zero below the threshold.
 
 ## IResonanceRouterIdentity
 
@@ -3563,6 +3761,10 @@ function resonance() external view returns (address receiver);
 
 Returns the immutable Resonance receiver used by the router.
 
+**Returns**
+
+- `receiver`: Resonance contract address.
+
 ### `usdg()`
 
 ```solidity
@@ -3570,3 +3772,7 @@ function usdg() external view returns (address token);
 ```
 
 Returns the immutable USDG token forwarded by the router.
+
+**Returns**
+
+- `token`: USDG token address.

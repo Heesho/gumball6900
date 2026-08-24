@@ -7,17 +7,23 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title GumBall6900 Multi-Token Strategy Reward Stream
-/// @notice Streams up to sixteen independently registered reward assets to holders signaling one Strategy.
-/// @dev Uses the Synthetix MultiRewards cumulative-index and leftover-rollover model over Resonance-controlled virtual
-///      signal balances. Registered reward tokens are assumed to implement standard, non-rebasing ERC-20 semantics.
+/// @author @heesho
+/// @notice Streams as many as sixteen registered reward tokens among the accounts signaling one paired Strategy.
+/// @dev Resonance is the sole writer of virtual signal weights and the append-only token registry. Each token uses an
+///      independent Synthetix-style seven-day stream and a cumulative reward-per-signal index scaled by `1e36`.
+///      Rate, index, and account calculations round down; the resulting tokens remain unallocated contract surplus.
+///      Time still elapses when total signal weight is zero, so rewards emitted during that interval are likewise
+///      unclaimable. Killing the paired Strategy does not stop Bribe streams or remove its recorded weights: existing
+///      positions keep earning until moved or withdrawn, claims and notifications remain permissionless, and Resonance
+///      may still register rewards. Reward transfers assume standard, non-rebasing ERC-20 behavior.
 contract Bribe is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    /// @notice Independent scheduling and cumulative-index state for one registered reward token.
-    /// @param periodFinish Timestamp at which the current seven-day stream ends.
-    /// @param rewardRate Whole raw reward units emitted per second.
-    /// @param lastUpdateTime Last timestamp incorporated into the stored cumulative index.
-    /// @param rewardPerSignalStored Cumulative reward allocated per virtual signal unit.
+    /// @notice Scheduling and cumulative-index state for one registered reward token.
+    /// @param periodFinish Unix timestamp at which the current stream stops accruing.
+    /// @param rewardRate Whole raw token units scheduled per second for the current stream.
+    /// @param lastUpdateTime Unix timestamp through which `rewardPerSignalStored` has been checkpointed.
+    /// @param rewardPerSignalStored Cumulative raw-token reward per signal unit, scaled by `REWARD_PRECISION`.
     struct RewardData {
         uint256 periodFinish;
         uint256 rewardRate;
@@ -25,81 +31,110 @@ contract Bribe is ReentrancyGuard {
         uint256 rewardPerSignalStored;
     }
 
-    /// @notice Fixed duration assigned to every reward stream.
+    /// @notice Returns the fixed duration of every reward stream, in seconds.
     uint256 public constant REWARD_DURATION = 7 days;
-    /// @notice Fixed-point scale preserving low-decimal rewards over eighteen-decimal virtual signal weights.
+    /// @notice Returns the fixed-point scale used by cumulative reward-per-signal accounting.
     uint256 public constant REWARD_PRECISION = 1e36;
-    /// @notice Maximum cumulative raw units one reward token may notify over this Bribe's lifetime.
+    /// @notice Returns the maximum cumulative raw units accepted for any one reward token over this Bribe's lifetime.
+    /// @dev Equal to `floor(type(uint256).max / REWARD_PRECISION)` and checked before stream state or custody changes.
     uint256 public constant MAX_LIFETIME_REWARD_AMOUNT = type(uint256).max / REWARD_PRECISION;
-    /// @notice Immutable upper bound on append-only reward tokens and every mandatory reward loop.
+    /// @notice Returns the immutable upper bound on registered reward tokens and mandatory all-token loops.
     uint256 public constant MAX_REWARD_TOKENS = 16;
 
-    /// @notice Resonance exclusively authorized to maintain virtual balances and register reward assets.
+    /// @notice Returns the immutable Resonance authorized to maintain signal weights and register reward tokens.
     address public immutable resonance;
 
-    /// @notice Total virtual signal weight assigned to this Bribe.
+    /// @notice Returns the total raw signal weight assigned to this Bribe's paired Strategy.
     uint256 public totalSignalWeight;
-    /// @notice Virtual signal weight assigned to each account by Resonance.
+    /// @notice Returns an account's raw signal weight assigned to this Bribe's paired Strategy.
     mapping(address account => uint256 weight) public signalWeightOf;
 
     address[] private _rewardTokens;
-    /// @notice Append-only membership flag for tokens governance registered through Resonance.
+    /// @notice Returns whether a token belongs to the append-only reward-token registry.
     mapping(address token => bool isReward) public isRewardToken;
-    /// @notice Independent stream state for every registered reward token.
+    /// @notice Returns the current stream timestamps, raw-unit rate, and scaled index for a reward token.
+    /// @dev Unregistered tokens return an all-zero `RewardData` value.
     mapping(address token => RewardData data) public rewardData;
-    /// @notice Cumulative reward index already incorporated for one account and token.
+    /// @notice Returns the scaled cumulative index already incorporated for an account and reward token.
     mapping(address account => mapping(address token => uint256 paid)) public accountRewardPerSignalPaid;
-    /// @notice Whole-token accrued user liability, payable only to the entitled account.
+    /// @notice Returns an account's checkpointed, unclaimed reward in raw token units.
+    /// @dev This excludes reward accrued since the account's latest checkpoint; use `earned` for the live amount.
     mapping(address account => mapping(address token => uint256 amount)) public rewards;
-    /// @notice Monotonic cumulative raw units admitted through notifications for each reward token.
+    /// @notice Returns cumulative raw units accepted through notifications for a reward token.
+    /// @dev The value is monotonic, never resets, and excludes donations and rolled-over remaining rewards.
     mapping(address token => uint256 amount) public lifetimeRewardNotified;
 
-    /// @notice Emitted when Resonance appends one supported reward token.
+    /// @notice Emitted when Resonance appends a token to the reward registry.
+    /// @param rewardToken Token that became eligible for funding and streaming.
     event RewardTokenAdded(address indexed rewardToken);
-    /// @notice Emitted when a caller funds and restarts a registered reward stream.
+    /// @notice Emitted when a caller funds and restarts a registered token's seven-day stream.
+    /// @param rewardToken Registered token pulled from the caller.
+    /// @param amount Fresh raw token units pulled, excluding any remaining reward rolled into the new rate.
     event RewardNotified(address indexed rewardToken, uint256 amount);
-    /// @notice Emitted when accrued rewards are paid to their entitled account.
+    /// @notice Emitted when one account's checkpointed reward is paid.
+    /// @param account Account that receives the token transfer regardless of who initiated the claim.
+    /// @param rewardToken Registered token paid to `account`.
+    /// @param amount Raw token units transferred.
     event RewardPaid(address indexed account, address indexed rewardToken, uint256 amount);
-    /// @notice Emitted when Resonance adds virtual signal weight.
+    /// @notice Emitted when Resonance adds signal weight for an account.
+    /// @param account Account whose weight in the paired Strategy increased.
+    /// @param amount Raw signal units added.
     event SignalWeightAdded(address indexed account, uint256 amount);
-    /// @notice Emitted when Resonance removes virtual signal weight.
+    /// @notice Emitted when Resonance removes signal weight for an account.
+    /// @param account Account whose weight in the paired Strategy decreased.
+    /// @param amount Raw signal units removed.
     event SignalWeightRemoved(address indexed account, uint256 amount);
 
-    /// @notice Raised when a token is not in the append-only reward registry.
+    /// @notice Raised when an operation requires a registered reward token but receives an unregistered address.
+    /// @param token Address that is absent from the append-only registry.
     error NotRewardToken(address token);
-    /// @notice Raised when a virtual-balance or registry call does not originate from Resonance.
+    /// @notice Raised when a signal-weight or token-registry mutation does not originate from Resonance.
+    /// @param caller Unauthorized caller.
     error NotResonance(address caller);
-    /// @notice Raised when a notification is too small to sustain a nonzero seven-day reward rate.
+    /// @notice Raised when a notification contains fewer raw units than the stream duration in seconds.
+    /// @param amount Requested fresh notification amount in raw token units.
     error RewardBelowDuration(uint256 amount);
-    /// @notice Raised when a notification is smaller than the reward remaining in the active stream.
+    /// @notice Raised when fresh funding is smaller than the scheduled reward remaining in the active stream.
+    /// @param amount Requested fresh notification amount in raw token units.
+    /// @param remaining Raw token units still scheduled at the current whole-unit rate.
     error RewardBelowRemaining(uint256 amount, uint256 remaining);
-    /// @notice Raised before cumulative notifications can exhaust the reward index's numeric range.
+    /// @notice Raised before a notification would exceed the token's lifetime admission cap.
+    /// @param token Registered reward token whose cap would be exceeded.
+    /// @param notified Cumulative raw units previously accepted for `token`.
+    /// @param requested Fresh raw units requested in this notification.
+    /// @param maximum Maximum cumulative raw units the token may ever notify.
     error RewardLifetimeCapExceeded(address token, uint256 notified, uint256 requested, uint256 maximum);
-    /// @notice Raised before a seventeenth reward token can change state.
+    /// @notice Raised when Resonance attempts to register a token after the registry reaches its immutable limit.
+    /// @param maximum Maximum number of tokens the registry accepts.
     error RewardTokenLimitReached(uint256 maximum);
-    /// @notice Raised when governance attempts to register an existing reward token again.
+    /// @notice Raised when Resonance attempts to append a token that is already registered.
+    /// @param token Already-registered reward token.
     error RewardAlreadyAdded(address token);
-    /// @notice Raised for a zero address dependency, account, or token.
+    /// @notice Raised for a zero account or for a zero or code-less contract dependency or reward token.
     error ZeroAddress();
-    /// @notice Raised for a zero signal mutation.
+    /// @notice Raised when Resonance attempts to add or remove zero signal weight.
     error ZeroAmount();
 
-    /// @dev Restricts virtual-balance and reward-token administration to the immutable Resonance.
+    /// @notice Restricts signal-weight and reward-token registry mutations to the immutable Resonance.
+    /// @dev Reverts with `NotResonance` before executing the function body.
     modifier onlyResonance() {
         if (msg.sender != resonance) revert NotResonance(msg.sender);
         _;
     }
 
-    /// @notice Creates a bounded reward stream controlled by one Resonance.
-    /// @param resonance_ Resonance exclusively authorized to maintain virtual balances.
+    /// @notice Creates an empty, bounded reward stream controlled by one Resonance contract.
+    /// @dev Reverts with `ZeroAddress` when `resonance_` is zero or has no deployed code.
+    /// @param resonance_ Resonance exclusively authorized to maintain signal weights and register reward tokens.
     constructor(address resonance_) {
         if (resonance_ == address(0) || resonance_.code.length == 0) revert ZeroAddress();
         resonance = resonance_;
     }
 
-    /// @notice Claims every registered reward token earned by `account`.
-    /// @dev A broken reward token reverts this convenience path; the scalar claim remains independent.
-    /// @param account Account whose accrued rewards are paid.
+    /// @notice Checkpoints and pays every registered reward token earned by `account` directly to that account.
+    /// @dev Any caller may initiate the claim. The function loops over at most `MAX_REWARD_TOKENS`. A failed token
+    ///      transfer reverts the complete all-token claim; `claimReward` provides per-token failure isolation. Emits
+    ///      `RewardPaid` once for each token with a nonzero payment.
+    /// @param account Account whose accrued raw-token rewards are checkpointed and paid; cannot be zero.
     function claimRewards(address account) external nonReentrant {
         if (account == address(0)) revert ZeroAddress();
         _updateAllRewards(account);
@@ -110,11 +145,13 @@ contract Bribe is ReentrancyGuard {
         }
     }
 
-    /// @notice Claims one registered reward token for `account` without touching any other reward token.
-    /// @dev Anyone may trigger the claim, but payment can only reach the entitled account.
-    /// @param account Entitled account.
-    /// @param rewardToken Registered token to claim.
-    /// @return amount Amount paid.
+    /// @notice Checkpoints and pays one registered reward token earned by `account` directly to that account.
+    /// @dev Any caller may initiate the claim. Other reward streams are neither checkpointed nor transferred. A failed
+    ///      transfer reverts the checkpoint and entitlement reset, preserving the scalar claim. Emits `RewardPaid` only
+    ///      when a nonzero amount is transferred.
+    /// @param account Account whose reward is checkpointed and paid; cannot be zero.
+    /// @param rewardToken Registered token to checkpoint and pay.
+    /// @return amount Raw token units transferred, or zero when the account has no whole-unit reward.
     function claimReward(address account, address rewardToken) external nonReentrant returns (uint256 amount) {
         if (account == address(0)) revert ZeroAddress();
         _requireRewardToken(rewardToken);
@@ -122,10 +159,15 @@ contract Bribe is ReentrancyGuard {
         amount = _claim(account, rewardToken);
     }
 
-    /// @notice Funds and restarts a seven-day reward stream using the standard leftover-rollover model.
-    /// @dev Permissionless funding must be at least one duration in raw units and at least the active reward remaining.
-    /// @param rewardToken Registered token to fund.
-    /// @param amount Amount pulled from the caller.
+    /// @notice Pulls fresh funding from the caller and restarts a registered token's seven-day reward stream.
+    /// @dev Funding is permissionless. `amount` must be at least `REWARD_DURATION`, at least `remainingReward`, and
+    ///      within the token's remaining lifetime cap. During an active stream, the new per-second rate is
+    ///      `floor((amount + remainingReward) / REWARD_DURATION)`; otherwise it is
+    ///      `floor(amount / REWARD_DURATION)`. The period restarts from the current timestamp, and division remainder
+    ///      remains unallocated token surplus. Cap and threshold failures occur before checkpointing or token transfer.
+    ///      Emits `RewardNotified` after funding and schedule state are updated.
+    /// @param rewardToken Registered standard ERC-20 token to pull and stream.
+    /// @param amount Fresh raw token units pulled from the caller and counted toward the lifetime cap.
     function notifyReward(address rewardToken, uint256 amount) external nonReentrant {
         _requireRewardToken(rewardToken);
         if (amount < REWARD_DURATION) revert RewardBelowDuration(amount);
@@ -151,9 +193,11 @@ contract Bribe is ReentrancyGuard {
         emit RewardNotified(rewardToken, amount);
     }
 
-    /// @notice Adds virtual signal weight for `account` after checkpointing all registered rewards.
-    /// @param account Account whose virtual balance increases.
-    /// @param amount Weight to add.
+    /// @notice Adds signal weight for `account` after checkpointing every registered reward under the prior weights.
+    /// @dev Callable only by Resonance. The mandatory checkpoint loop is bounded by `MAX_REWARD_TOKENS`. Emits
+    ///      `SignalWeightAdded` after both the account and total weights increase.
+    /// @param account Nonzero account whose paired-Strategy signal weight increases.
+    /// @param amount Nonzero raw signal units added to both the account weight and total weight.
     function addSignalWeight(address account, uint256 amount) external onlyResonance {
         if (amount == 0) revert ZeroAmount();
         if (account == address(0)) revert ZeroAddress();
@@ -165,9 +209,11 @@ contract Bribe is ReentrancyGuard {
         emit SignalWeightAdded(account, amount);
     }
 
-    /// @notice Removes virtual signal weight for `account` after checkpointing all registered rewards.
-    /// @param account Account whose virtual balance decreases.
-    /// @param amount Weight to remove.
+    /// @notice Removes signal weight for `account` after checkpointing every registered reward under the prior weights.
+    /// @dev Callable only by Resonance. Removing more than the account or total weight reverts by checked arithmetic.
+    ///      Emits `SignalWeightRemoved` after both weights decrease.
+    /// @param account Nonzero account whose paired-Strategy signal weight decreases.
+    /// @param amount Nonzero raw signal units removed from both the account weight and total weight.
     function removeSignalWeight(address account, uint256 amount) external onlyResonance {
         if (amount == 0) revert ZeroAmount();
         if (account == address(0)) revert ZeroAddress();
@@ -179,8 +225,10 @@ contract Bribe is ReentrancyGuard {
         emit SignalWeightRemoved(account, amount);
     }
 
-    /// @notice Registers another append-only reward token through Resonance governance.
-    /// @param rewardToken Token to register.
+    /// @notice Appends a reward token to this Bribe's permanent registry.
+    /// @dev Callable only by Resonance. The token must be a unique, nonzero contract and the resulting registry length
+    ///      cannot exceed `MAX_REWARD_TOKENS`; registration does not fund or start a stream. Emits `RewardTokenAdded`.
+    /// @param rewardToken ERC-20 contract address to register.
     function addRewardToken(address rewardToken) external onlyResonance {
         if (rewardToken == address(0) || rewardToken.code.length == 0) revert ZeroAddress();
         if (isRewardToken[rewardToken]) revert RewardAlreadyAdded(rewardToken);
@@ -192,19 +240,29 @@ contract Bribe is ReentrancyGuard {
         emit RewardTokenAdded(rewardToken);
     }
 
-    /// @notice Returns all registered reward tokens in immutable insertion order.
+    /// @notice Returns every registered reward-token address in immutable insertion order.
+    /// @return tokens Copy of the append-only registry, containing at most `MAX_REWARD_TOKENS` entries.
     function rewardTokens() external view returns (address[] memory tokens) {
         return _rewardTokens;
     }
 
-    /// @notice Returns whole reward units remaining in the active stream.
+    /// @notice Returns the raw token units still scheduled in a reward token's active stream.
+    /// @dev Computes `(periodFinish - block.timestamp) * rewardRate` while active and zero afterward. The result
+    ///      excludes elapsed rewards, direct donations, and rate-division surplus. Unregistered tokens return zero.
+    /// @param rewardToken Reward token whose current stream is queried.
+    /// @return amount Raw token units remaining at the stored whole-unit-per-second rate.
     function remainingReward(address rewardToken) public view returns (uint256 amount) {
         RewardData storage data = rewardData[rewardToken];
         if (block.timestamp >= data.periodFinish) return 0;
         return (data.periodFinish - block.timestamp) * data.rewardRate;
     }
 
-    /// @notice Returns the cumulative reward per virtual signal unit.
+    /// @notice Returns the live cumulative reward allocated per raw signal unit for one reward token.
+    /// @dev The result is scaled by `REWARD_PRECISION` and each index increment rounds down. Accrual stops at
+    ///      `periodFinish`. If total signal weight is zero, the index remains unchanged and elapsed rewards cannot be
+    ///      captured by accounts that add weight later. This view does not write a checkpoint.
+    /// @param rewardToken Reward token whose cumulative index is queried; unregistered tokens return zero.
+    /// @return accumulatedReward Cumulative reward-per-signal index scaled by `REWARD_PRECISION`.
     function rewardPerSignal(address rewardToken) public view returns (uint256 accumulatedReward) {
         RewardData storage data = rewardData[rewardToken];
         uint256 signalWeight = totalSignalWeight;
@@ -214,13 +272,20 @@ contract Bribe is ReentrancyGuard {
         return data.rewardPerSignalStored + Math.mulDiv(elapsed * data.rewardRate, REWARD_PRECISION, signalWeight);
     }
 
-    /// @notice Returns whole rewards currently claimable by one account for one token.
+    /// @notice Returns one account's checkpointed plus pending reward for one token in whole raw units.
+    /// @dev Pending accrual is computed from the live index and rounds down; this view does not write a checkpoint or
+    ///      validate that `rewardToken` is registered.
+    /// @param account Account whose entitlement is queried.
+    /// @param rewardToken Reward token whose entitlement is queried.
+    /// @return amount Raw token units currently payable after checkpointing.
     function earned(address account, address rewardToken) public view returns (uint256 amount) {
         uint256 rewardDelta = rewardPerSignal(rewardToken) - accountRewardPerSignalPaid[account][rewardToken];
         return rewards[account][rewardToken] + Math.mulDiv(signalWeightOf[account], rewardDelta, REWARD_PRECISION);
     }
 
-    /// @notice Advances every registered reward stream and checkpoints `account` when nonzero.
+    /// @dev Persists every registered token's index and time checkpoint, then checkpoints `account` under its current
+    ///      signal weight when `account` is nonzero. The loop is bounded by `MAX_REWARD_TOKENS`.
+    /// @param account Account to checkpoint, or the zero address to update only global stream state.
     function _updateAllRewards(address account) private {
         uint256 count = _rewardTokens.length;
         for (uint256 i; i < count; ++i) {
@@ -228,7 +293,11 @@ contract Bribe is ReentrancyGuard {
         }
     }
 
-    /// @notice Advances one reward stream and checkpoints `account` when nonzero.
+    /// @dev Persists one stream's live cumulative index and applicable timestamp. For a nonzero `account`, converts
+    ///      its index delta at its current signal weight into whole raw-token rewards, rounded down, before recording
+    ///      the new paid index.
+    /// @param account Account to checkpoint, or the zero address to update only global stream state.
+    /// @param rewardToken Reward token whose stream and optional account entitlement are checkpointed.
     function _updateReward(address account, address rewardToken) private {
         RewardData storage data = rewardData[rewardToken];
         uint256 current = rewardPerSignal(rewardToken);
@@ -242,7 +311,10 @@ contract Bribe is ReentrancyGuard {
         }
     }
 
-    /// @notice Consumes and pays one account's whole-token reward after recording effects.
+    /// @dev Clears and transfers one account's checkpointed whole-unit reward using checks-effects-interactions.
+    /// @param account Entitled transfer recipient.
+    /// @param rewardToken Reward token to transfer.
+    /// @return amount Raw token units transferred, or zero when no checkpointed reward exists.
     function _claim(address account, address rewardToken) private returns (uint256 amount) {
         amount = rewards[account][rewardToken];
         if (amount == 0) return 0;
@@ -253,12 +325,15 @@ contract Bribe is ReentrancyGuard {
         emit RewardPaid(account, rewardToken, amount);
     }
 
-    /// @notice Reverts unless `rewardToken` is in the append-only registry.
+    /// @dev Reverts with `NotRewardToken` unless `rewardToken` is in the append-only registry.
+    /// @param rewardToken Token address to validate.
     function _requireRewardToken(address rewardToken) private view {
         if (!isRewardToken[rewardToken]) revert NotRewardToken(rewardToken);
     }
 
-    /// @notice Returns the last timestamp currently eligible to advance one reward stream.
+    /// @dev Caps reward accrual at the stream's `periodFinish` timestamp.
+    /// @param rewardToken Reward token whose stream boundary is queried.
+    /// @return timestamp Earlier of the current Unix timestamp and the token's `periodFinish`.
     function _lastApplicableRewardTime(address rewardToken) private view returns (uint256 timestamp) {
         return Math.min(block.timestamp, rewardData[rewardToken].periodFinish);
     }

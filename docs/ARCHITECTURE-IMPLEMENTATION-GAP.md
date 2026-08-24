@@ -26,7 +26,7 @@ traceability, not an audit result, deployment approval, or authorization for use
 | Reward engine          | `1e18` precision could strand low-decimal rewards; later designs added exact carry, queues, pauses, and Fund liabilities | `1e36` indices and lifetime caps remain, while standard Synthetix leftover rollover accepts rate/index/account floors as surplus    |
 | Bribe loop bound       | The first bounded design admitted eight reward tokens                                                                    | `MAX_REWARD_TOKENS = 16`; the registry remains append-only and every mandatory loop remains fixed                                   |
 | Signal move surface    | Resonance exposed a dedicated `moveSignalFor` hook                                                                       | SignalGBX composes `removeSignalFor` then `addSignalFor` atomically; the duplicate Resonance selector is removed                    |
-| Consumers              | ABI, SDK, subgraph, app, and references exposed superseded shapes                                                        | Core source, tests, and current prose target ADR 0048; generated and downstream consumers remain coordinated release gates          |
+| Consumers              | ABI, SDK, subgraph, app, and references exposed superseded shapes                                                        | Core source, tests, and current prose target ADRs through 0050; generated and downstream consumers remain coordinated release gates |
 
 ## Preserved historical references
 

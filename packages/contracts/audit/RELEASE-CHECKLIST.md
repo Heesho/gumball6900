@@ -7,22 +7,27 @@ deployment-authorized.
 ## Internal engineering
 
 - [x] Fundraiser removed and immutable multislot Mine implemented.
-- [x] Incumbent slot rates remain fixed through time boundaries, redemptions, and other slot handoffs.
+- [x] Occupied-tenure rates remain fixed through time boundaries, redemptions, and other slot replacements.
 - [x] Sixteen slots are fixed at construction and Mine has no administrative surface.
-- [x] Nonempty payments classify 80% to displaced miner and deposit 20% into ResonanceRouter; empty slots deposit 100%.
+- [x] Nonempty payments classify 80% to the outgoing tenure miner and deposit 20% into ResonanceRouter; empty slots
+      deposit 100%.
 - [x] Mine emits `RevenueDeposited` and performs no synchronous `route()` call; permissionless routing has no role,
       bounty, or liveness guarantee.
-- [x] GBX starts with zero supply, Mine is its sole lifetime issuer after the permanent handoff, and the core contains
-      no liquidity-specific contract; an external USDG-GBX LP token uses the ordinary Strategy path.
+- [x] GBX starts with zero supply, Mine is its sole lifetime issuer after the permanent handoff, and the eleven-contract
+      core contains no liquidity-specific contract; a reviewed, externally created fungible Uniswap v2-style USDG/GBX
+      LP ERC-20 uses the ordinary Strategy path.
 - [x] Fund uses constant-time effective supply, including all pending mining, for the redemption denominator.
 - [x] Current source, focused tests, audit records, and architecture references reconciled through ADR 0050.
-- [ ] Final post-ADR-0050 Foundry, invariant, integration, Hardhat, SDK, simulation, subgraph, frontend, workspace,
-      ABI, artifact, lint, typecheck, documentation, and mutation matrix rerun. The recorded complete ADR-0047 matrix
-      predates the sixteen-token and composed-move changes.
+- [x] Current uncommitted post-ADR-0050 contract matrix passes 293/293 default Foundry tests, all 27 invariant entries
+      at 1,000 runs of depth 500 with zero handler reverts, 10/10 integration tests, 4/4 Hardhat tests including parity,
+      and contract lint, ordering, formatting, build, size, generated-documentation, and SDK ABI checks.
+- [ ] Final post-ADR-0050 SDK-test, simulation, subgraph, frontend, wider workspace, artifact, full lint/typecheck, and
+      mutation matrix rerun. The recorded complete ADR-0047 workspace matrix and focused ADR-0048 mutation result
+      predate later changes.
 - [x] Focused ADR-0048 migration suites pass 104/104, including the sixteen-token bound, composed move, rollback,
       checkpoint ordering, absent Resonance move selector, and maximum-bound gas regressions.
-- [ ] Repository-wide format gate passes. Eleven unchanged baseline landing/lockfile files still fail Prettier; this
-      remains open even though the changed files and Solidity formatting pass.
+- [ ] Repository-wide format gate passes. Seven unrelated baseline files — six landing files plus `pnpm-lock.yaml` —
+      still fail Prettier; this remains open even though the changed files and Solidity formatting pass.
 - [ ] Static findings regenerated and manually dispositioned for the complete ADR-0050 graph.
 - [ ] Current-tree coverage thresholds recorded for Mine.
 - [x] Focused ADR-0048 mutation campaign killed 47/47 mutants, including the cap regression and composed-move
@@ -80,7 +85,7 @@ deployment-authorized.
 - [ ] Ownership-transfer receipts prove the temporary Resonance setup owner retains no authority.
 - [ ] One-time SignalGBX/factory/ResonanceRouter bindings are verified; receipts prove the consumed SignalGBX and factory
       ownership shells were renounced and the temporary setup owner retains no authority through them.
-- [ ] Any initial USDG-GBX LP Strategy is verified as an ordinary external token Strategy with the intended pair and
-      deployment provenance; no liquidity-specific core behavior is assumed.
+- [ ] Any initial USDG-GBX LP Strategy is verified as an ordinary externally created fungible Uniswap v2-style token
+      Strategy with the intended pair and deployment provenance; no liquidity-specific core behavior is assumed.
 - [ ] Frontend remains read-only until the complete manifest passes.
 - [ ] No CI or local validation script broadcasts mainnet transactions.

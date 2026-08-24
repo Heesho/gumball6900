@@ -31,15 +31,16 @@ burned for caller-selected Fund assets.
 > fixed Bribe reward-token cap to sixteen and removes Resonance's dedicated move hook in favor of SignalGBX composing
 > removal and addition atomically. ADR 0049 standardizes canonical GBX/USDG paths on `SafeERC20` without balance-delta
 > snapshots while retaining Fund's arbitrary-asset redemption guards. ADR 0050 removes the GBX premint and canonical
-> liquidity contract; one reviewed external USDG/GBX LP ERC-20 is instead an ordinary bootstrap Strategy asset.
+> liquidity contract; one reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 is instead an
+> ordinary bootstrap Strategy asset.
 > Governance execution remains an unselected external integration, so deployment is
 > blocked. This is local engineering evidence only; independent review and every deployment gate remain outstanding.
 
 ## Protocol loop
 
-1. A user replaces an hourly Mine slot. If a miner is displaced, 80% of the USDG payment becomes their claim and Mine
-   deposits the 20% remainder into ResonanceRouter. An empty slot deposits 100%. A later permissionless `route()` call
-   may forward the Router balance into Resonance.
+1. A user replaces an hourly Mine slot. For a nonempty-slot replacement, 80% of the USDG payment becomes a claim for
+   the outgoing tenure miner and Mine deposits the 20% remainder into ResonanceRouter. An empty slot deposits 100%. A
+   later permissionless `route()` call may forward the Router balance into Resonance.
 2. The slot miner continuously accrues GBX at a rate fixed for that complete tenure.
 3. GBX holders call SignalGBX (`sGBX`), the non-transferable governance token and sole signal coordinator, to deposit
    GBX, mint the same sGBX amount, and assign every minted unit to one live Strategy atomically. They may move an
@@ -48,13 +49,14 @@ burned for caller-selected Fund assets.
 4. A Strategy buyer atomically pulls its released USDG, receives the complete Strategy balance, and pays the asset that
    Strategy acquires. Strategy snapshots Resonance's current global Bribe rate, floors that purchase's Bribe share,
    sends the 80%-to-100% complement directly to Fund, and sends the 0%-to-20% Bribe share to its minimal BribeRouter
-   buffer. Paired Bribes use a `1e36` reward index so ordinary six-decimal rewards remain distributable at realistic
+   buffer. Paired Bribes use a `1e36` reward-per-signal index so ordinary six-decimal rewards remain distributable at realistic
    sGBX supply.
 5. A GBX holder burns tokens to redeem a proportional share of caller-selected Fund assets.
 
 ```text
-replacement USDG -> Mine --20% deposit--> ResonanceRouter --permissionless route()--> Resonance
-                         \--80%--> displaced miner                                  \--7-day stream--> Strategies
+nonempty replacement USDG -> Mine --20% deposit--> ResonanceRouter --permissionless route()--> Resonance
+                                  \--80%--> outgoing tenure miner claim              \--7-day stream--> Strategies
+empty-slot payment -------------> Mine --100% deposit--> ResonanceRouter
 Mine -> continuous GBX
 GBX -> SignalGBX --mandatory signal--> Resonance allocation weights
 SignalGBX --IVotes checkpoints-------> external governance (unselected) --owns--> Resonance
@@ -64,13 +66,13 @@ GBX burn -> Fund selected assets
 ```
 
 Mine stops after a successful `SafeERC20` request for the nominal protocol share to ResonanceRouter; under the
-supported standard USDG model, that amount reached the Router. Mine does not call `route()` during a handoff. Anyone
+supported standard USDG model, that amount reached the Router. Mine does not call `route()` during a replacement. Anyone
 may route later, directly or through optional frontend/cron automation, but there is no keeper role, bounty, or
 liveness guarantee.
 
 ResonanceRouter waits while its USDG balance is below either one raw unit per stream second or the amount left in the
-active stream. A qualifying balance checkpoints elapsed revenue and restarts seven days with the new reward plus the
-ordinary Synthetix leftover. Resonance uses a `1e36` reward index; rate, index, and Strategy floors,
+active stream. A qualifying balance checkpoints elapsed revenue and restarts seven days with the new revenue plus the
+ordinary Synthetix leftover. Resonance uses a `1e36` revenue-per-signal index; rate, index, and Strategy floors,
 zero-active-signal intervals, and direct donations are accepted surplus.
 
 ## Mining and supply
@@ -95,7 +97,7 @@ indefinitely.
 Fund reads Mine's constant-time effective supply, without checkpointing any slot, then pays each selected token as:
 
 ```text
-floor(Fund token balance * GBX burned / (minted GBX + pending mining emission) before burn)
+floor(Fund token balance * GBX burned / (GBX totalSupply() + pending mining emission) before burn)
 ```
 
 The denominator includes accrued unminted mining rewards. Omitted assets stay in Fund. A failed selected-token
@@ -122,21 +124,24 @@ batching an addition before the old Strategy's kill.
 
 ## Contracts
 
-| Contract          | Role                                                                                              |
-| ----------------- | ------------------------------------------------------------------------------------------------- |
-| `GBX`             | Zero-premint token with permanent Mine authority, cumulative mint/burn accounting, and ERC-2612.  |
-| `Mine`            | Hourly multislot handoffs, continuous tenure-locked GBX accrual, 80/20 USDG split, positive tail. |
-| `SignalGBX`       | Mandatory signal-backed GBX escrow, ERC20Votes governance, and sole signal coordinator.           |
-| `ResonanceRouter` | Buffers USDG until it can sustain a nonzero stream and cover the active amount left.              |
-| `Resonance`       | Scalar seven-day USDG rewards, active signal totals, and Strategy/Bribe administration.           |
-| `Strategy`        | Reverse Dutch acquisition auction.                                                                |
-| `BribeRouter`     | Minimal buffer that permissionlessly notifies a paired Bribe with its acquired-asset share.       |
-| `Bribe`           | Synthetix-shaped automatic and independent rewards with fixed token and lifetime caps.            |
-| `Fund`            | Registry-free backing, selective redemption, and permissionless Fund-held GBX burn.               |
+| Contract          | Role                                                                                             |
+| ----------------- | ------------------------------------------------------------------------------------------------ |
+| `GBX`             | Zero-premint token with permanent Mine authority, cumulative mint/burn accounting, and ERC-2612. |
+| `Mine`            | Hourly multislot replacements, tenure-locked GBX accrual, 80/20 USDG split, and positive tail.   |
+| `SignalGBX`       | Mandatory signal-backed GBX escrow, ERC20Votes governance, and sole signal coordinator.          |
+| `ResonanceRouter` | Buffers USDG until it can sustain a nonzero stream and cover the active amount left.             |
+| `Resonance`       | Scalar seven-day USDG revenue, active signal totals, and Strategy/Bribe administration.          |
+| `StrategyFactory` | Resonance-bound factory for uniform Strategy deployments.                                        |
+| `Strategy`        | Reverse Dutch acquisition auction.                                                               |
+| `BribeFactory`    | Resonance-bound factory for paired Bribe deployments.                                            |
+| `BribeRouter`     | Minimal buffer that permissionlessly notifies a paired Bribe with its acquired-asset share.      |
+| `Bribe`           | Synthetix-shaped automatic and independent rewards with fixed token and lifetime caps.           |
+| `Fund`            | Registry-free backing, selective redemption, and permissionless Fund-held GBX burn.              |
 
-The core contains no liquidity contract. One reviewed external fungible USDG/GBX LP token is registered during
-bootstrap as an ordinary Strategy payment token, using the same Fund/Bribe settlement as every other index asset. Its
-address and configuration are deployment inputs; the protocol neither creates nor guarantees liquidity.
+The core contains no liquidity contract. One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token
+is registered during bootstrap as an ordinary Strategy payment token, using the same Fund/Bribe settlement as every
+other index asset. Its address and configuration are deployment inputs; the protocol neither creates nor guarantees
+liquidity.
 
 ## Repository
 

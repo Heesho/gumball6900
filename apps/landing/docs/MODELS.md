@@ -35,13 +35,13 @@ Occupied tenures are staggered to prevent lockstep.
 
 The never-taken state is a **deployment-only** condition and is deliberately not drawn. At
 deployment every slot is empty and carries Mine's `$1` deployment auction; once a slot takes its
-first fill it always has an owner, because a take replaces the incumbent in the same transaction —
+first fill it always has an owner, because a take replaces the outgoing tenure in the same transaction —
 `it is never reopened after a first fill`. So a live board never shows a vacant slot, and the
 owner's ruling (23 Aug 2026) is that the diagram opens after that transient rather than inside it.
 
 The empty-slot branch remains in the model and in the contract — an empty-slot first fill deposits
 the complete payment, where an occupied slot credits `floor(paid * 8_000 / 10_000)` to the
-displaced miner and deposits the remainder. It simply never fires in this display. Vacant slots
+outgoing-tenure miner and assigns the remainder to the Router. It simply never fires in this display. Vacant slots
 have zero TPS. Occupied era-zero slots have `64 / 16 = 4 GBX/s` each, or `14,400
 GBX/hour`, and keep that assigned rate until replacement.
 
@@ -54,28 +54,29 @@ reservation are choreography, not Mine rules.
 
 Buy event — the contract-shaped accounting shown by the model:
 
-1. Settle the outgoing tenure: `accrued = (t - lastAccruedAt) * tps` is "minted" to the displaced
+1. Settle the outgoing tenure: `accrued = (t - lastAccruedAt) * tps` is "minted" to the outgoing
    miner (`totalMined += accrued`) at replacement.
 2. Allocate a nonzero payment: an empty slot deposits 100% in ResonanceRouter; an occupied slot
-   credits `floor(paid * 8_000 / 10_000)` as the displaced miner's pull claim and deposits the exact
-   remainder in ResonanceRouter. The Router tally means deposited, not forwarded or streamed.
+   credits `floor(paid * 8_000 / 10_000)` as the outgoing-tenure miner's pull claim and assigns the
+   exact arithmetic remainder to ResonanceRouter. The Router tally means a nominal transfer request succeeded under
+   the standard-USDG assumption, not that the balance was forwarded or streamed.
 3. Start the new tenure at `max(paid * 2, $1)`. Assign
    `globalTps(t - MINE_START_TIME) / 16`, independent of `totalMined`, and lock it until replacement.
 4. Show the restart leap, the pull claim, the Router deposit, and the outgoing GBX settlement for
    about one second. The first-fill state is consumed once and never fabricated again.
 
-Mine emits `RevenueDeposited` after an exact nonzero Router deposit and stops. The model deliberately
+Mine emits `RevenueDeposited` after a successful nominal nonzero Router transfer request and stops. The model deliberately
 does not feed the deposit directly into the Resonance simulation: `ResonanceRouter.route()` is a
 separate permissionless action with no role, bounty, or liveness guarantee, and funds may wait in
 the Router indefinitely.
 
 Paint: all sixteen auctions are drawn as one-hour descending ramps. Four detailed DOM cells show
 owner, price, a clock that fills from tenure start to the one-hour zero, pending GBX, and locked
-GBX/hour. Tallies show Router deposits, displaced-miner claims, GBX settled so far, and the live sum
+GBX/hour. Tallies show Router deposits, outgoing-tenure claims, GBX settled so far, and the live sum
 of all assigned slot rates.
 
 Re-implementer traps: the restart is fixed at `paid × 2` with a `$1` floor; new TPS depends on elapsed
-time from Mine deployment, never cumulative emission; incumbents do not reprice at a halving; the
+time from Mine deployment, never cumulative emission; outgoing tenures do not reprice at a halving; the
 aggregate rate may therefore exceed the prospective global rate; accrued GBX mints at replacement;
 and a Router deposit does not prove that a seven-day stream began.
 
@@ -117,7 +118,7 @@ Step (1409–1462), sim time ×900:
   "Signalers move stake in discrete decisions, not as a continuous trickle" (1412–1415).
 - **Stream restart**: this isolated Resonance model begins after revenue has been forwarded from
   ResonanceRouter. It accumulates an illustrative weekly amount locally and restarts only after the
-  current display stream finishes. It is deliberately not a claim that a Mine handoff forwards or
+  current display stream finishes. It is deliberately not a claim that a Mine replacement forwards or
   schedules revenue synchronously.
 - **Allocation and fills** (1446–1461): `released = rate*dt` while streaming; each asset's
   `pot += released * (stake/totalStake)`. When `t >= epochEnd` and `pot > 0` the auction flushes:
@@ -230,12 +231,12 @@ state (display interpolates with `k`; the decrement happens once at the end); re
 - Linear decay to zero over one hour: `PRICE_DECAY_PERIOD = 1 hours`; `_price` returns zero once
   the hour elapses.
 - The next starting price is hard-coded as `paid * PRICE_MULTIPLIER`, where
-  `PRICE_MULTIPLIER = 2`, clamped up to `MINIMUM_INITIAL_PRICE = 1e6` raw USDG and down to the
+  `PRICE_MULTIPLIER = 2`, clamped up to `MIN_INITIAL_PRICE = 1e6` raw USDG and down to the
   `uint192` raw-price cap. These are source constants, not constructor inputs or settings.
 - Payment allocation uses `PREVIOUS_MINER_BPS = 8_000`. An occupied-slot payment credits
-  `floor(paid * 8_000 / 10_000)` to the displaced miner as a pull claim; the exact remainder is
-  transferred into the immutable ResonanceRouter. An empty-slot first fill deposits the complete
-  payment. Zero-price handoffs move no USDG.
+  `floor(paid * 8_000 / 10_000)` to the outgoing-tenure miner as a pull claim; the exact arithmetic
+  remainder is the nominal amount requested into the immutable ResonanceRouter. An empty-slot first fill deposits the complete
+  payment. Zero-price replacements move no USDG.
 - A successful paid deposit emits `Mine.RevenueDeposited(index, epochId, amount)`. Mine never calls
   `ResonanceRouter.route()`. Routing is a later permissionless action with no caller role, reward,
   or liveness guarantee, so Router revenue may wait indefinitely. Only
@@ -243,7 +244,7 @@ state (display interpolates with `k`; the decrement happens once at the end); re
 - `startTime` anchors the prospective schedule. `INITIAL_TPS = 64 ether`,
   `HALVING_PERIOD = 69 days`, and `TAIL_TPS = 1 ether`. A new tenure gets
   `max(INITIAL_TPS >> floor((now - startTime) / HALVING_PERIOD), TAIL_TPS) / 16`.
-- A slot's assigned TPS is tenure-locked. A time boundary does not reprice incumbents, so aggregate
+- A slot's assigned TPS is tenure-locked. A time boundary does not reprice outgoing tenures, so aggregate
   issuance may exceed the current prospective global rate until higher-rate slots turn over.
   Pending emission is kept exact in constant time but does not select the prospective rate.
 - The 64/69-day/1 curve is the provisional development candidate pending independent economic
@@ -251,10 +252,10 @@ state (display interpolates with `k`; the decrement happens once at the end); re
 
 `packages/contracts/src/core/Resonance.sol`:
 
-- Seven-day stream: `DURATION = 7 days`. `notifyRevenue` can restart the period mid-stream when
-  the new reward is `>= left()`, where `left()` is the whole-unit reward remaining at the active
-  rate. It schedules `reward + left()` at `rate = scheduled / DURATION` and sets
-  `periodFinish = now + DURATION`. Ordinary integer division floors the rate; the remainder stays
+- Seven-day stream: `REWARD_DURATION = 7 days`. `notifyRevenue` can restart the period mid-stream when
+  the new revenue is `>= remainingRevenue()`, the whole-unit revenue remaining at the active
+  rate. It schedules `amount + remaining` at `rate = scheduled / REWARD_DURATION` and sets
+  `periodFinish = now + REWARD_DURATION`. Ordinary integer division floors the rate; the remainder stays
   as unallocated Resonance surplus rather than being front-loaded. The flow sim simplifies this
   to restart-only-after-expiry.
 - Signaler share: `DEFAULT_BRIBE_BPS = 1_000` (10%) and `MAX_BRIBE_BPS = 2_000`. The ceiling

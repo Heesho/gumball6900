@@ -102,7 +102,7 @@ export function buildMine(parameters: MineParameters): ContractTransaction {
   );
 }
 
-/** Claims a displaced miner's complete accumulated USDG payment to that same account. */
+/** Claims an outgoing tenure miner's complete accumulated USDG payment to that same account. */
 export function buildClaimMiningPayment(mine: Address, account: Address): ContractTransaction {
   return transaction(
     mine,

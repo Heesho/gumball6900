@@ -7,36 +7,47 @@ import { Bribe } from "./Bribe.sol";
 import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 
 /// @title GumBall6900 Resonance-Bound Bribe Factory
-/// @notice Deploys the Bribe associated with each Resonance-created Strategy.
-/// @dev Adapted from Liquid Signal Governance. The factory is bound to one Resonance and is not publicly
-///      permissionless.
+/// @author @heesho
+/// @notice Deploys the dedicated Bribe associated with each Strategy created through one permanently bound Resonance.
+/// @dev Adapted from Liquid Signal Governance. A temporary setup owner binds the factory once, after reciprocal
+///      identity validation. Only that Resonance may subsequently deploy Bribes, and each deployment makes Resonance
+///      the new Bribe's immutable signal-weight and registry authority. The inherited ownership surface remains after
+///      binding but has no further custom factory action.
 contract BribeFactory is Ownable {
-    /// @notice Resonance exclusively authorized to create Bribes.
+    /// @notice Returns the Resonance exclusively authorized to create Bribes, or zero before one-time binding.
     address public resonance;
 
-    /// @notice Emitted when Resonance deploys a Bribe.
-    /// @param bribe Address of the new Bribe.
-    /// @param resonance Resonance authorized to maintain the Bribe's virtual balances.
+    /// @notice Emitted when the bound Resonance deploys a fresh Bribe.
+    /// @param bribe Address of the newly deployed Bribe.
+    /// @param resonance Bound Resonance set as the Bribe's immutable authority.
     event BribeCreated(address indexed bribe, address indexed resonance);
-    /// @notice Emitted when the factory is permanently bound to Resonance.
-    /// @param resonance Bound Resonance address.
+    /// @notice Emitted when the factory completes its one-time Resonance binding.
+    /// @param resonance Permanently bound Resonance address.
     event ResonanceSet(address indexed resonance);
 
-    /// @notice A caller other than the permanently bound Resonance requested deployment.
+    /// @notice Raised when an account other than the bound Resonance attempts to deploy a Bribe.
+    /// @param caller Unauthorized caller; every caller is unauthorized while the factory is unbound.
     error NotResonance(address caller);
-    /// @notice A candidate Resonance does not point back to this factory.
+    /// @notice Raised when a candidate fails to report this contract as its BribeFactory.
+    /// @param resonance Candidate contract that reverted, lacked the identity getter, or returned another factory.
     error InvalidResonance(address resonance);
-    /// @notice The one-time Resonance binding has already completed.
+    /// @notice Raised when the owner attempts to repeat the one-time Resonance binding.
+    /// @param resonance Existing bound Resonance address.
     error ResonanceAlreadySet(address resonance);
-    /// @notice A required deployment or binding address is zero.
+    /// @notice Raised when a candidate Resonance is zero or has no deployed code.
     error ZeroAddress();
 
     /// @notice Creates an unbound factory whose owner may set Resonance exactly once.
-    /// @param initialOwner Deployment-time owner responsible for binding Resonance.
+    /// @dev OpenZeppelin `Ownable` rejects a zero `initialOwner`. Transferring or renouncing ownership before binding
+    ///      changes or can permanently remove the only authority able to complete setup.
+    /// @param initialOwner Deployment-time owner responsible for the one-time Resonance binding.
     constructor(address initialOwner) Ownable(initialOwner) { }
 
-    /// @notice Binds the only Resonance allowed to deploy Bribes after reciprocal factory validation.
-    /// @param resonance_ Resonance address to bind permanently.
+    /// @notice Permanently binds the only Resonance allowed to deploy Bribes.
+    /// @dev Callable only by the current owner and only while `resonance` is zero. The candidate must be a nonzero
+    ///      contract whose `bribeFactory()` identity getter returns this factory; a failed call or mismatch reverts
+    ///      with `InvalidResonance`. Successful binding emits `ResonanceSet` and has no replacement path.
+    /// @param resonance_ Resonance contract address to validate and bind.
     function setResonance(address resonance_) external onlyOwner {
         if (resonance != address(0)) revert ResonanceAlreadySet(resonance);
         if (resonance_ == address(0) || resonance_.code.length == 0) revert ZeroAddress();
@@ -51,8 +62,10 @@ contract BribeFactory is Ownable {
         emit ResonanceSet(resonance_);
     }
 
-    /// @notice Deploys a Bribe controlled by the bound Resonance.
-    /// @return bribe Newly deployed Bribe.
+    /// @notice Deploys a new empty Bribe whose immutable authority is the bound Resonance.
+    /// @dev Callable only by `resonance`; an unbound factory therefore rejects every possible caller. Each call deploys
+    ///      a distinct Bribe with an empty signal ledger and reward-token registry, then emits `BribeCreated`.
+    /// @return bribe Newly deployed Bribe controlled by the bound Resonance.
     function createBribe() external returns (Bribe bribe) {
         address configuredResonance = resonance;
         if (msg.sender != configuredResonance) revert NotResonance(msg.sender);

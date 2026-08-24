@@ -3,10 +3,10 @@
 Status: implemented locally and reconciled through ADR 0050 on 2026-08-24. The focused ADR-0048 migration suites passed 104/104,
 covering the sixteen-token bound, composed remove-then-add move, rollback, checkpoint ordering, removed Resonance
 selector, and maximum-bound gas, but those results predate ADRs 0049 and 0050. The largest focused measurement is 1,890,938 gas for a composed move with sixteen
-active streams on both Bribes. The revised focused mutation campaign kills 47/47 mutants. The complete deterministic,
-integration, and workspace matrix recorded for ADR 0047 predates ADR 0048 and requires rerun. This is engineering
-evidence only: the external governance integration is unselected, and nothing is independently audited, deployed, or
-authorized for user funds.
+active streams on both Bribes. The revised focused mutation campaign killed 47/47 mutants and likewise predates ADRs
+0049 and 0050. The complete deterministic, integration, and workspace matrix recorded for ADR 0047 predates ADR 0048
+and requires rerun. This is engineering evidence only: the external governance integration is unselected, and nothing
+is independently audited, deployed, or authorized for user funds.
 
 ## SignalGBX state machine
 
@@ -46,10 +46,11 @@ signal hooks; Resonance exposes no dedicated move hook.
 ## Resonance revenue
 
 Resonance is a USDG-only, virtual-staking Bribe derivative. Its schedule and per-Strategy accounting are scalar: there
-is no reward-token registry, token-keyed revenue state, or redundant token parameter on revenue views. USDG is six
-decimals, the period is exactly seven days, and the global revenue-per-signal index uses `1e36`. Each signal change
-checkpoints elapsed revenue under the old weights. In a move, source removal checkpoints before removal and destination
-addition checkpoints before addition; no time elapses between the calls. A Strategy purchase calls
+is no reward-token registry, token-keyed revenue state, or redundant token parameter on revenue views. The canonical
+deployment assumes six-decimal USDG, but the contracts account only in raw units and neither read nor enforce token
+decimals. The period is exactly seven days, and the global revenue-per-signal index uses `1e36`. Each signal change
+checkpoints elapsed revenue under the old weights. In a move, source removal checkpoints before removal and
+destination addition checkpoints before addition; no time elapses between the calls. A Strategy purchase calls
 `Resonance.distributeRevenue(strategy)` before taking its USDG inventory snapshot.
 
 The raw stream uses the ordinary Synthetix schedule. A notification during an active period combines the incoming
@@ -70,11 +71,11 @@ Only live Strategies accept new signal or a move destination. A killed Strategy 
 weight from the live denominator exactly once, earns no future Resonance revenue, and remains a valid move source and
 withdrawal source. `liveStrategyCount` tracks registered live Strategies; killing the final live Strategy reverts.
 
-The killed Strategy's paired Bribe remains a closed reward pool under ADR 0028. Incumbent signalers may stay, claim,
-move, or withdraw, and new rewards remain permissionlessly notifiable while the token has lifetime headroom. If the
-last signaler exits during an active stream, reward time continues at zero supply and the later elapsed reward remains
-unallocated Bribe surplus. There is no queue, pause, retirement withdrawal, refund, rescue, sweep, migration, Fund
-reclassification, or killed-Strategy escape hatch.
+The killed Strategy's paired Bribe is closed to new signal under ADR 0028, but not to reward funding. Incumbent
+signalers may stay, claim, move, or withdraw, and new rewards remain permissionlessly notifiable while the token has
+lifetime headroom. If the last signaler exits during an active stream, reward time continues at zero supply and the
+later elapsed reward remains unallocated Bribe surplus. There is no queue, pause, retirement withdrawal, refund,
+rescue, sweep, migration, Fund reclassification, or killed-Strategy escape hatch.
 
 ## Bribe rewards
 
@@ -133,6 +134,10 @@ notifies the complete balance. A failed notification reverts only `route`, leavi
 reverting the earlier Strategy purchase. Compatible direct donations join the next notification. At a 0% rate, the
 complete purchase goes to Fund and BribeRouter receives nothing; independent Bribe funding and all signal operations
 remain available.
+
+The core creates, owns, and manages no liquidity position. A reviewed, externally created fungible Uniswap v2-style
+USDG-GBX LP ERC-20 may be registered as an ordinary Strategy payment token and receives exactly the same Fund/Bribe
+split and token handling as every other supported Strategy payment token.
 
 ## Governance boundary
 

@@ -37,7 +37,8 @@ Before release, build a current non-broadcast deployment/fork harness, bind it t
 provider capability without exposing credentials, and pin chain ID, block number, block hash, dependency code hashes,
 constructor inputs, one-time bindings, the exact external-governance release and bytecode, proxy/upgrade and permission
 graph, voting/execution/delay/cancellation policy, Resonance ownership receipt, and every reviewed initial Strategy
-input, including the external USDG/GBX LP ERC-20 and its ordinary Strategy configuration. Then rerun Fund EIP-1153
+input, including the externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 and its ordinary Strategy
+configuration. Then rerun Fund EIP-1153
 redemption and the complete current core campaign against that exact state. No pool operation belongs in the core fork
 harness.
 

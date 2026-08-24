@@ -67,7 +67,7 @@ and the important beats must be guaranteed rather than left to chance. Do not re
 Do not let a beat depend on wall-clock time. Never fake a state the mechanism cannot actually reach
 — e.g. the 100%-to-Router deposit only exists while never-taken slots remain, and re-opening a
 taken slot to keep it repeating would be a lie about the protocol. Mine must never be drawn as
-calling `route()` or starting the seven-day stream in its handoff.
+calling `route()` or starting the seven-day stream during a replacement.
 
 Links remain links. The page must still be fully keyboard-navigable and screen-reader sane. Any
 `aria-live` region that was written on user action must now either be removed or rate-limited so an

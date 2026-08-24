@@ -55,7 +55,7 @@ pink   #F92B92    blue   #29B6F0    black  #0C0C0C    white  #FFFFFF
 
 Modak for the wordmark. The mark (`public/gumball-logo.png`, 208px; a 512px master exists at
 `docs/landing/src/assets/logo512.png` in git history — regenerate from the deck if needed) is a
-roundel: bubble letters "GUM BALL 6900" outlined in pink and blue.
+roundel: bubble letters "GumBall6900" outlined in pink and blue.
 
 Tone: this is a **financial product with candy-machine heritage**. It must be credible enough to
 hold a whitepaper link and playful enough to be called GumBall6900. Not childish, not corporate.

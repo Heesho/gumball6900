@@ -5,22 +5,24 @@ price promises, deployment configurations, or investment projections.
 
 ## Units and rounding
 
-- USDG uses raw 6-decimal units; GBX and modeled target assets use raw 18-decimal units.
+- The models use the canonical deployment assumption of a 6-decimal USDG and 18-decimal GBX and target assets. The
+  contracts account only in raw units and do not read or enforce token decimals.
 - GBX starts at zero supply. Mine is its sole lifetime issuer and issuance is unbounded.
 - A live slot accrues `elapsedSeconds * assignedTps`; the assigned TPS remains fixed until replacement.
 - Mine has exactly sixteen slots; time-based halvings affect only newly occupied or replaced slots.
 - A new tenure receives `globalTps(elapsedSinceStart) / 16`; division residue is unissued.
-- A nonempty-slot replacement pays `floor(price * 80%)` to the displaced miner and deposits the residue into
+- A nonempty-slot replacement pays `floor(price * 80%)` to the outgoing tenure miner and deposits the residue into
   ResonanceRouter. An empty slot deposits 100%. Mine stops after that deposit; a later permissionless `route()` call
   may forward Router custody into Resonance.
-- Resonance uses a `1e36` reward-per-signal index and a seven-day Synthetix-style stream. Division by the duration
+- Resonance uses a `1e36` revenue-per-signal index and a seven-day Synthetix-style stream. Division by the duration
   floors the rate and leaves the remainder as unallocated surplus. A live top-up qualifies when the new amount is at
-  least the active reward left; it checkpoints elapsed rewards and restarts seven days with `new reward + left`.
+  least the active scheduled revenue left; it checkpoints elapsed revenue and restarts seven days with
+  `new revenue + remaining revenue`.
   ResonanceRouter also waits until its balance can sustain at least one raw unit per second. Zero-signal emission,
   direct donations, rate residue, global-index residue, and per-Strategy flooring remain unallocated surplus.
 - Killing a Strategy checkpoints it against the old active denominator, preserves its stored whole-unit reward, removes
   its complete weight from the future denominator, and leaves its recorded signal available for incremental exit.
-- Bribe uses `1e36` reward precision with the same Synthetix-style leftover rollover. Reward time does not pause at
+- Bribe uses a `1e36` reward-per-signal index with the same Synthetix-style leftover rollover. Reward time does not pause at
   zero virtual supply, notifications do not queue, and rate/index/account floors remain unallocated token surplus.
 - Strategy payments use one global prospective automatic-Bribe rate: 10% by default, settable from 0% through 20%,
   with Fund receiving the complement directly during each purchase. Each purchase independently computes
@@ -38,15 +40,16 @@ price promises, deployment configurations, or investment projections.
 
 - zero initial supply, unbounded mint/burn reconciliation, time-based halvings, and a positive tail;
 - hourly price endpoints, replacement transitions, zero-price rollover, and 80/20 payment conservation;
-- staggered fixed-slot handoffs where an incumbent keeps its old TPS and later miners receive the halved TPS;
-- a time boundary where the incumbent retains its rate and only the next replacement receives the lower rate;
+- staggered fixed-slot replacements where an earlier tenure keeps its old TPS and later tenures receive the halved TPS;
+- a time boundary where the earlier tenure retains its rate and only the next replacement receives the lower rate;
 - ordinary Strategy auctions and per-purchase settlement across 10% → 0% → 5% → 20% rate changes,
   Bribe rewards, Fund-held GBX burns, and raw-basket redemptions.
 
-Separate TypeScript and Python conservation models cover one-raw-unit Resonance streams, qualifying live-period resets,
-Router retention below the reset threshold, zero-signal and direct-donation surplus, per-Strategy rounding surplus,
-irreversible Strategy death, partition-sensitive tiny-payment settlement, bounded Bribe-rate changes, zero-rate liveness,
-direct Fund settlement, Router donation inclusion, and ordinary Bribe flooring across entry and exit boundaries.
+Separate TypeScript and Python conservation models cover one-raw-unit-per-second Resonance streams, qualifying
+live-period resets, Router retention below the reset threshold, zero-signal and direct-donation surplus, per-Strategy
+rounding surplus, irreversible Strategy death, partition-sensitive tiny-payment settlement, bounded Bribe-rate
+changes, zero-rate liveness, direct Fund settlement, Router donation inclusion, and ordinary Bribe flooring across
+entry and exit boundaries.
 These state-machine tests are independent of Solidity.
 
 The smaller `fixtures/reference-results.json` is the SDK formula-vector fixture. Both fixtures are checked across
@@ -74,7 +77,7 @@ agree, then regenerates the committed SVGs.
 | Zero initial supply and unbounded issuance | `assumptions.initialSupplyGBXRaw`, `mining.synchronizedSupply` |
 | Tenure-locked fixed-slot TPS               | `mining.staggeredFixedSlots`                                   |
 | Exact time boundaries and empty aging      | `mining.timeBasedSchedule`                                     |
-| Time boundaries affect only handoffs       | `mining.handoffHalving`                                        |
+| Time boundaries affect only new tenures    | `mining.handoffHalving`                                        |
 | Hourly decay and 80/20 split               | `mining.priceCurve`, `mining.paymentExamples`                  |
 | Strategy and Bribe arithmetic              | `strategyAuction`, `bribeRewards`, conservation models         |
 | Resonance streaming and signal time        | TypeScript/Python `conservation-model` tests                   |

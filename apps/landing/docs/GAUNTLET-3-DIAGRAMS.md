@@ -16,7 +16,7 @@ of patience.
 
 **1. The diagrams stay 2D canvas. This is settled — do not re-open it.**
 A Three.js rebuild was attempted and cancelled by the owner after three build/critique rounds:
-*"set on going back to 2d diagrams, it just looks so buggy."* That work is archived unmerged on
+_"set on going back to 2d diagrams, it just looks so buggy."_ That work is archived unmerged on
 branch `claude/gauntlet-2-factory-decompose-49fb5f` (commit `9e6239b`). Do not propose 3D, WebGL, a
 gumball-machine render, or a glass dome. The `docs/ART-DIRECTION.md` amendment about 3D machinery
 material is **moot** — ignore it.
@@ -53,7 +53,7 @@ are invisible in a screenshot:
   explicit that a `RevenueDeposited` event proves money reached `ResonanceRouter` and nothing more;
   a seven-day stream begins only on a separate permissionless `route()` call. A diagram that draws
   the deposit flowing straight on into resonance is **wrong**, however much better it composes;
-- mining's displaced-miner leg reading as a **pull claim the miner must collect**, not a payment
+- mining's outgoing-tenure-miner leg reading as a **pull claim the miner must collect**, not a payment
   pushed to them;
 - resonance's scripted move **always originating from the largest Strategy** — 24/24, including six
   near-ties decided by 100–200 GBX;
@@ -72,10 +72,10 @@ Measured with real installs + esbuild bundling + gzip, not quoted from a size se
 
 ### Adopt
 
-| Package | Version | Licence | Measured gz | Role |
-|---|---|---|---|---|
-| **d3-shape** | 3.2.0 | ISC | **2.4 kB** | The one load-bearing dependency. Tapered conserved-width ribbons and smooth links drawn **directly into the existing canvas context** via `.context(ctx)` — no DOM, no SVG serialization. Serves overview and fund; optional for resonance. |
-| **bezier-easing** | 3.0.1 | MIT | **0.4 kB** | Canvas motion eases on the page's own `--ease` token `cubic-bezier(.2,.6,.2,1)` instead of hand-rolled cubics that do not match it. |
+| Package           | Version | Licence | Measured gz | Role                                                                                                                                                                                                                                        |
+| ----------------- | ------- | ------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **d3-shape**      | 3.2.0   | ISC     | **2.4 kB**  | The one load-bearing dependency. Tapered conserved-width ribbons and smooth links drawn **directly into the existing canvas context** via `.context(ctx)` — no DOM, no SVG serialization. Serves overview and fund; optional for resonance. |
+| **bezier-easing** | 3.0.1   | MIT     | **0.4 kB**  | Canvas motion eases on the page's own `--ease` token `cubic-bezier(.2,.6,.2,1)` instead of hand-rolled cubics that do not match it.                                                                                                         |
 
 Add `@types/d3-shape` as a devDependency. Both packages are pure math: no rAF, no DOM, no canvas
 ownership, no network, ESM, side-effect-free, SSR-safe.
@@ -85,15 +85,17 @@ ownership, no network, ESM, side-effect-free, SSR-safe.
 ```ts
 import { area, curveMonotoneX } from 'd3-shape';
 
-type Station = { x: number; top: number; bot: number };   // from the frozen model's quantities
+type Station = { x: number; top: number; bot: number }; // from the frozen model's quantities
 const ribbon = area<Station>()
-  .x(s => s.x).y0(s => s.top).y1(s => s.bot)
+  .x((s) => s.x)
+  .y0((s) => s.top)
+  .y1((s) => s.bot)
   .curve(curveMonotoneX)
-  .context(ctx);                        // emits ctx path calls — nothing else
+  .context(ctx); // emits ctx path calls — nothing else
 
 // inside paint():
 ctx.beginPath();
-ribbon(stations);                       // stations computed in buildLayout(), never here
+ribbon(stations); // stations computed in buildLayout(), never here
 ctx.fillStyle = TOKEN_BLUE;
 ctx.fill();
 ```
@@ -103,20 +105,20 @@ are identical page-wide.
 
 ### Declined, with reasons — do not re-litigate
 
-| Considered | Why not |
-|---|---|
-| **d3-sankey** (2.8 kB, BSD-3) | Its value is iterative node ordering to minimise crossings on *unknown* graphs. This graph is fixed and hand-ordered, and the overview's "loop" is a **DAG ending in a sink** — nothing materially flows back to miners; the burn is terminal. Its solver would fight the designed label rows on resize. Hand conservation math is ~50 lines. **Judgement call, not a ban:** if a builder finds the 16-into-1 collector stacking genuinely fiddly, it may propose adopting it — to the lead, with evidence. |
-| `d3-sankey-circular` | Unmaintained ~7 yrs, deprecated deps, 7.9 kB, known overlap artifacts — and solves a circularity this figure does not have. |
-| `d3-sankey-diagram` | 22.5 kB layout-only (drags graphlib) for one return edge. |
-| `dagre`, `elkjs` | Auto-layout is the wrong tool when composition is hand-art-directed with reserved label rows. **`elkjs` also fails licence: EPL-2.0 OR GPL-3.0.** |
-| `rough.js` | Hand-sketched aesthetic contradicts instrument-grade hairlines. |
-| `flubber` | 18.5 kB, six deps, morphs arbitrary polygons; resonance's morphs are weight lerps through existing parametric cross-sections. |
-| `perfect-arrows`, `curved-arrows` | Whiteboard-app arc-arrow idiom, not plumbed-channel grammar. |
-| `d3-scale` | 7.7 kB for tick logic the art direction rejects; the linear maps here are two lines each. |
-| `d3-format`, `d3-interpolate` | The page's mono money formatter is 6 deliberate lines; every interpolation is a scalar lerp on model quantities. |
-| `d3-labeler`, `label-locator`, `avoid-overlap` | Runtime label solving is nondeterministic frame-to-frame. The codebase's **designed reserved rows** already measure zero type collisions — annealing would *reduce* craft. |
-| `d3-hierarchy`, `d3-chord` | Fund bays are four rectangles with widths ∝ weights. Chord's circular grammar clashes with the rectilinear editorial system. |
-| Any P&ID / SCADA symbol library | **None viable exists** at a permissive licence — the space is full HMI platforms or commercial DOM-owning suites (GoJS, JointJS). See the ISA ruling below. |
+| Considered                                     | Why not                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **d3-sankey** (2.8 kB, BSD-3)                  | Its value is iterative node ordering to minimise crossings on _unknown_ graphs. This graph is fixed and hand-ordered, and the overview's "loop" is a **DAG ending in a sink** — nothing materially flows back to miners; the burn is terminal. Its solver would fight the designed label rows on resize. Hand conservation math is ~50 lines. **Judgement call, not a ban:** if a builder finds the 16-into-1 collector stacking genuinely fiddly, it may propose adopting it — to the lead, with evidence. |
+| `d3-sankey-circular`                           | Unmaintained ~7 yrs, deprecated deps, 7.9 kB, known overlap artifacts — and solves a circularity this figure does not have.                                                                                                                                                                                                                                                                                                                                                                                 |
+| `d3-sankey-diagram`                            | 22.5 kB layout-only (drags graphlib) for one return edge.                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `dagre`, `elkjs`                               | Auto-layout is the wrong tool when composition is hand-art-directed with reserved label rows. **`elkjs` also fails licence: EPL-2.0 OR GPL-3.0.**                                                                                                                                                                                                                                                                                                                                                           |
+| `rough.js`                                     | Hand-sketched aesthetic contradicts instrument-grade hairlines.                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `flubber`                                      | 18.5 kB, six deps, morphs arbitrary polygons; resonance's morphs are weight lerps through existing parametric cross-sections.                                                                                                                                                                                                                                                                                                                                                                               |
+| `perfect-arrows`, `curved-arrows`              | Whiteboard-app arc-arrow idiom, not plumbed-channel grammar.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `d3-scale`                                     | 7.7 kB for tick logic the art direction rejects; the linear maps here are two lines each.                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `d3-format`, `d3-interpolate`                  | The page's mono money formatter is 6 deliberate lines; every interpolation is a scalar lerp on model quantities.                                                                                                                                                                                                                                                                                                                                                                                            |
+| `d3-labeler`, `label-locator`, `avoid-overlap` | Runtime label solving is nondeterministic frame-to-frame. The codebase's **designed reserved rows** already measure zero type collisions — annealing would _reduce_ craft.                                                                                                                                                                                                                                                                                                                                  |
+| `d3-hierarchy`, `d3-chord`                     | Fund bays are four rectangles with widths ∝ weights. Chord's circular grammar clashes with the rectilinear editorial system.                                                                                                                                                                                                                                                                                                                                                                                |
+| Any P&ID / SCADA symbol library                | **None viable exists** at a permissive licence — the space is full HMI platforms or commercial DOM-owning suites (GoJS, JointJS). See the ISA ruling below.                                                                                                                                                                                                                                                                                                                                                 |
 
 ### The ISA-5.1 ruling
 
@@ -138,8 +140,8 @@ single change most likely to make these read as engineering drawings rather than
 **Decided by the owner, looking at the rendered overview. This binds, and it supersedes anything
 below that contradicts it.**
 
-The owner's verdict on the current overview: *"it tries to get too granular instead focusing on
-the whole flow of the system."*
+The owner's verdict on the current overview: _"it tries to get too granular instead focusing on
+the whole flow of the system."_
 
 That is the diagnosis for `overview-flow`. The figure is **competing with the sections below it**.
 Bands 01 and 03 redraw mechanisms that `mining-board` and `fund-flows` already own properly —
@@ -188,16 +190,16 @@ This single move fixes the granularity **and** the flat-pink defect: the overvie
 section finally encode holdings identically, which is a named deliverable of this gauntlet.
 
 **This amends "Keep the five-band vertical composition and the sphere ledger (the best thing in the
-figure)" in the table below.** The five-band composition stays. The ledger stays *as four hued
-groups*, not as ninety flat-pink spheres.
+figure)" in the table below.** The five-band composition stays. The ledger stays _as four hued
+groups_, not as ninety flat-pink spheres.
 
 ## OWNER AMENDMENT 2 — 22 Aug 2026: ONE PLATE. This supersedes the five-figure structure.
 
 **Decided by the owner. This is the deliverable now. Everything below that assumes five separate
 figures is superseded.**
 
-The owner, on the five figures: *"im not really liking the diagrams… im starting to think we try
-to make just one diagram with all the moving pieces in it, its gonna be big and detailed."*
+The owner, on the five figures: _"im not really liking the diagrams… im starting to think we try
+to make just one diagram with all the moving pieces in it, its gonna be big and detailed."_
 
 ### The decision
 
@@ -206,7 +208,7 @@ into it; each section's **copy becomes annotation beside the plate's matching st
 keeps a separate diagram.
 
 **Projection is settled: flat orthographic 2D. Not 3D, not perspective.** The reason is not taste —
-it is that **width is the encoding**. A flow's width *is* its quantity, which is what makes
+it is that **width is the encoding**. A flow's width _is_ its quantity, which is what makes
 conservation checkable by eye. Perspective makes width vary with distance from camera, so a
 narrowing ribbon becomes ambiguous between "less money" and "further away". Perspective and
 measurable width are mutually exclusive, which is why P&IDs and Sankey balances are orthographic.
@@ -215,8 +217,8 @@ this.**
 
 ### The anchor — the grammar already exists in Resonance
 
-The owner on the resonance figure: *"i think this diagram actually does do a good job just needs to
-be improved."* **That figure is the grammar.** Conserved bands whose width is the quantity,
+The owner on the resonance figure: _"i think this diagram actually does do a good job just needs to
+be improved."_ **That figure is the grammar.** Conserved bands whose width is the quantity,
 splitting into per-asset lanes that always sum to the trunk. Extend that language to the whole
 system. Nothing new needs inventing.
 
@@ -232,7 +234,7 @@ THE MINE   4x4 · sixteen slots, each a falling-price (Dutch) auction
            mine() → restart price x2 (with the $1 floor named where it binds),
            colour flash on the take; GBX accrues out on a clock (neutral/white)
            the payment FORKS:
-              80%  ──▶ displaced miner — a PULL CLAIM they must collect. DEAD END.
+              80%  ──▶ outgoing tenure miner — a PULL CLAIM they must collect. DEAD END.
               rem. │   (100% only on an empty slot's first fill)
                    ▼
 ROUTER     a POOL that HOLDS. It fills. It does NOT forward.
@@ -251,9 +253,9 @@ YOUR SHARE the same pro-rata slice out of EVERY bay ──▶ YOU
 ### THE DISCONTINUITY AT THE ROUTER IS MANDATORY — it is the plate's most important feature
 
 **The plate is NOT one continuous conserved flow from mine to fund, and must never be drawn as
-one.** `docs/MODELS.md` is explicit that the Resonance model *"begins after revenue has been
-forwarded from ResonanceRouter… It is deliberately not a claim that a Mine handoff forwards or
-schedules revenue synchronously."* Mine emits `RevenueDeposited` and stops; only
+one.** `docs/MODELS.md` is explicit that the Resonance model _"begins after revenue has been
+forwarded from ResonanceRouter… It is deliberately not a claim that a Mine replacement forwards or
+schedules revenue synchronously."_ Mine emits `RevenueDeposited` and stops; only
 `ResonanceRouter.RevenueRouted` proves a forward.
 
 So: **conservation holds strictly WITHIN each segment, and the Router is an explicit buffer where
@@ -263,14 +265,15 @@ straight on into the stream is **wrong**, however much better it composes.
 ### Three honesty corrections to the owner's sketch — all three bind
 
 1. **Most mining USDG does not reach the pool.** On an occupied slot `floor(paid * 8000/10000)` —
-   **80%** — is credited to the *displaced miner* as a **pull claim they must collect**; only the
-   exact remainder enters the Router. It is 100% only on an **empty slot's first fill**. The mine's
-   payment must visibly fork, with the 80% leg dead-ending at the displaced miner.
+   **80%** — is credited to the _outgoing tenure miner_ as a **pull claim they must collect**; only the
+   nominal remainder is requested into the Router. Under the supported standard USDG model that amount arrives. It
+   is 100% only on an **empty slot's first fill**. The mine's payment must visibly fork, with the 80% leg dead-ending
+   at the outgoing tenure miner.
 2. **USDG does not buy GBX.** The payment buys the **slot** — the right to mint. GBX then accrues
    on time at `globalTps/16`, **tenure-locked** and independent of what was paid. The honest and
    equally punchy framing: **USDG buys the slot; the slot mints GBX on a clock.**
-3. **Signalers may be simplified but not erased.** The owner: *"i think we leave out signallers
-   getting paid for now to keep things simple."* Agreed for the *payout*, but the **10% tap must
+3. **Signalers may be simplified but not erased.** The owner: _"i think we leave out signallers
+   getting paid for now to keep things simple."_ Agreed for the _payout_, but the **10% tap must
    still be drawn and labelled** at the auction, or the split reads as 100%-to-fund, which is
    false. One labelled stub that is not followed further.
 
@@ -304,12 +307,12 @@ still stands as the only authorised model change.
 per-figure grammar below is retained because it still describes what each STATION of the plate must
 do.**
 
-| Figure | Grammar | Libraries |
-|---|---|---|
-| **Overview** — the whole loop | **Stock-and-flow / Sankey: width = quantity, strictly conserved.** **⚠ READ THE OWNER AMENDMENT ABOVE FIRST — it sets the altitude and overrides parts of this cell.** Keep the five-band vertical composition; the sphere ledger survives **as four asset-hued groups, width ∝ holdings**, not as ninety flat-pink spheres. Strip the mechanism detail (16 slot ticks, 4 auction cylinders, price-fall lines) and the drifting specks — the sections below own those. Close the loop with an explicit labelled exit stub and return rule as *art direction* — the burn is a sink, not a re-entrant flow. **Draw the Router as a holding vessel with its own outlet, never as a pass-through elbow** — see the deposit-is-not-a-stream rule above. | `d3-shape` ribbons; hand conservation math |
-| **Mining** — 16 slots | **Small-multiples instrument board.** Sixteen identical mechanisms, mono labels, one job each. Slot meters read as **clocks** — empty at restart, full at the hour (standing owner rule; overrides DESIGN.md's shrink rule for these meters only). | none — the decay is a straight line; `bezier-easing` for the take/restart snap |
-| **Resonance** — signal aimed at strategies | **Conserved streamgraph — already implemented, and correctly.** The existing cross-section machinery with per-station lag so four channels always sum to the whole stream is *better than any library provides*. **Do not replace it.** | `bezier-easing` only |
-| **Fund** — acquisition + redemption | **Proportional stacked bays (stock) + tapered claim ribbons (flow).** Redemption is where a library visibly raises craft: *n* parallel ribbons, one per bay, each leaving at width ∝ (burn share × holdings), converging on the burner, asset-hued; the GBX burn drawn neutral. | `d3-shape` via the shared `lib/ribbon.ts` |
+| Figure                                     | Grammar                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | Libraries                                                                      |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| **Overview** — the whole loop              | **Stock-and-flow / Sankey: width = quantity, strictly conserved.** **⚠ READ THE OWNER AMENDMENT ABOVE FIRST — it sets the altitude and overrides parts of this cell.** Keep the five-band vertical composition; the sphere ledger survives **as four asset-hued groups, width ∝ holdings**, not as ninety flat-pink spheres. Strip the mechanism detail (16 slot ticks, 4 auction cylinders, price-fall lines) and the drifting specks — the sections below own those. Close the loop with an explicit labelled exit stub and return rule as _art direction_ — the burn is a sink, not a re-entrant flow. **Draw the Router as a holding vessel with its own outlet, never as a pass-through elbow** — see the deposit-is-not-a-stream rule above. | `d3-shape` ribbons; hand conservation math                                     |
+| **Mining** — 16 slots                      | **Small-multiples instrument board.** Sixteen identical mechanisms, mono labels, one job each. Slot meters read as **clocks** — empty at restart, full at the hour (standing owner rule; overrides DESIGN.md's shrink rule for these meters only).                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | none — the decay is a straight line; `bezier-easing` for the take/restart snap |
+| **Resonance** — signal aimed at strategies | **Conserved streamgraph — already implemented, and correctly.** The existing cross-section machinery with per-station lag so four channels always sum to the whole stream is _better than any library provides_. **Do not replace it.**                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             | `bezier-easing` only                                                           |
+| **Fund** — acquisition + redemption        | **Proportional stacked bays (stock) + tapered claim ribbons (flow).** Redemption is where a library visibly raises craft: _n_ parallel ribbons, one per bay, each leaving at width ∝ (burn share × holdings), converging on the burner, asset-hued; the GBX burn drawn neutral.                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `d3-shape` via the shared `lib/ribbon.ts`                                      |
 
 **Where no library is the right answer, say so and hand-roll it.** Do not add a dependency for
 something thirty lines of arithmetic already does better.
@@ -336,11 +339,11 @@ something thirty lines of arithmetic already does better.
 
 A reader learns three types **once** and can then read any diagram on the page.
 
-| quantity | colour | rule |
-|---|---|---|
-| **USDG** — capital arriving | `#29B6F0` blue | **always**, everywhere, no variation |
-| **GBX** — supply, and what gets burned | neutral / white | **always**, everywhere, no variation |
-| **Assets** — what signal buys | one distinct hue per asset | differ from each other; each consistent with itself |
+| quantity                               | colour                     | rule                                                |
+| -------------------------------------- | -------------------------- | --------------------------------------------------- |
+| **USDG** — capital arriving            | `#29B6F0` blue             | **always**, everywhere, no variation                |
+| **GBX** — supply, and what gets burned | neutral / white            | **always**, everywhere, no variation                |
+| **Assets** — what signal buys          | one distinct hue per asset | differ from each other; each consistent with itself |
 
 Asset palette, already shipped by `Fund.tsx`: `NVDA #9E5CF2` · `QQQ #F92B92` · `WBTC #FF6274` ·
 `AAPL #F57ACD`.
@@ -349,7 +352,7 @@ Asset palette, already shipped by `Fund.tsx`: `NVDA #9E5CF2` · `QQQ #F92B92` ·
   it as an exchange, not a recolour in place.
 - **Fix on sight — this is a named deliverable:** the overview paints its whole fund field flat
   pink while the fund paints four asset hues. Same holdings, two encodings. **Unify them.**
-- **Flagged risk:** `QQQ #F92B92` *is* the brand pink, which page-wide also means "signal". A QQQ
+- **Flagged risk:** `QQQ #F92B92` _is_ the brand pink, which page-wide also means "signal". A QQQ
   ribbon beside a signal ribbon can collide semantically. Resolve by **form, not hue** — signal as
   lines/planes, assets as labelled bays and ribbons — or bring the lead a better answer.
 - Wide flat ribbons make token colours structural: **verify AA contrast at ribbon scale**, and that
@@ -396,8 +399,9 @@ Landed as commit `16f22d3` on `claude/landing-2d-fixes`, each with measured acce
    is occluded by an existing `border-top`.)
 2. Flash inks lifted: lit inset alpha `.16 → .10`, `fund-evt-white .09 → .06`. `.cell__id`/
    `.cell__sub`, the open cell, and both acquisition labels now measure **4.64–4.91:1** during the
-   flash, and the flash reads *stronger* than before.
-3. Mining's `NO ONE DISPLACED` — the label that teaches the 100 %-to-fund route — painted at
+   flash, and the flash reads _stronger_ than before.
+3. Mining's historical `NO ONE DISPLACED` UI label — meaning first occupation of an empty slot, not
+   that self-replacement is forbidden — teaches the 100 %-to-Router route and was painted at
    `inkA(0.55)`: **2.48 → 5.21:1** measured.
 4. Resonance's ledger delta holds at full opacity then fades on a 320 ms transition:
    **98.1 % of its visible life ≥3:1** (was ~65 %), longest partial ramp 186 ms.

@@ -58,7 +58,7 @@ Colour meaning (from the whitepaper's diagram grammar — keep it): **blue = USD
   presale, or discretionary mint. Mint authority passes to the Mine once and locks.
 - **Mining.** **Sixteen** permanent slots. Every slot is always for sale; its price falls in a
   straight line to zero over **one hour** and restarts at twice the accepted price, subject to a
-  **$1 USDG floor**. Taking an occupied slot credits **80%** as the displaced miner's pull claim and
+  **$1 USDG floor**. Taking an occupied slot credits **80%** as the outgoing-tenure miner's pull claim and
   requests a nominal **20%** transfer to ResonanceRouter; an untaken slot transfers **100%**. Mine emits
   `RevenueDeposited` and stops: it never calls `route()`. A later Router call is permissionless but
   has no liveness guarantee. A new tenure receives one-sixteenth of the prospective rate, which
@@ -80,9 +80,12 @@ Colour meaning (from the whitepaper's diagram grammar — keep it): **blue = USD
   way: a holder burns GBX and takes their share.
 - **Redemption.** Burn any amount at any time and receive that same proportion of every holding,
   in the tokens themselves, in one transaction.
-- **Authority.** Ten contracts have no owner. One — Resonance — has four powers: add a Strategy,
-  retire a Strategy, register a reward token, set the signaler share within its bound. It can
-  never retire the last Strategy. **Who holds that address has not been decided.**
+- **Authority.** Resonance has the only continuing custom owner powers: add a Strategy, retire a
+  Strategy, register a reward token, and set the signaler share within its bound. SignalGBX,
+  StrategyFactory, and BribeFactory retain setup-only Ownable shells whose temporary owners must be
+  removed after binding. Mine, Fund, GBX, Strategies, Bribes, and both Router types have no owner
+  authority. Resonance can never retire the last Strategy. **Who ultimately holds its owner address
+  has not been decided.**
 - **What it can hold.** Any ERC-20: blue-chip crypto (WBTC, WETH), tokenized equities (AAPL,
   NVDA, TSLA, QQQ, SPCX), long-tail ecosystem tokens, LP positions that are themselves ERC-20s.
 

@@ -32,7 +32,7 @@ const occupy = buildMine({
   maximumPrice,
   message: 'hello from the mine',
 });
-const claim = buildClaimMiningPayment(mine, displacedMiner);
+const claim = buildClaimMiningPayment(mine, outgoingMiner);
 const signal = buildSignal(signalGBX, strategy, 1_000n * 10n ** 18n);
 const signalWithPermit = buildSignalWithPermit({
   signalGBX,
@@ -49,8 +49,9 @@ const purchase = buildStrategyBuy({ strategy, revenueReceiver: receiver, expecte
 ```
 
 `quoteMiningAccrual` accepts explicit per-slot TPS values because occupied rates are tenure-locked. `miningRateAt`
-computes the global TPS from elapsed Mine deployment time that a future handoff will divide by sixteen; it must not be
-used to reprice an incumbent. A handoff executing across a halving boundary receives the new lower TPS. When a quoted
+computes the global TPS from elapsed Mine deployment time that a future replacement will divide by sixteen; it must
+not be used to reprice an occupied tenure. A replacement executing across a halving boundary receives the new lower
+TPS. When a quoted
 TPS must remain valid, set the `buildMine` deadline strictly before `slot.nextHalvingBoundary`. The composed Mine read
 derives that value from onchain `startTime`, `HALVING_PERIOD`, and its pinned block timestamp; it is `null` once the
 permanent tail has begun. Do not derive this deadline from the caller's wall clock.
@@ -63,10 +64,11 @@ the change. No production deployment or compatibility shim exists.
 Every composed reader pins its RPC calls to one block and revalidates that block before returning. Generated ABIs and
 API docs are updated by repository scripts and must not be edited by hand.
 
-`readResonanceView` includes `rewardDuration`, `remainingRevenue`, `revenuePerSignalStored`, `1e36` reward precision,
-live signal weight, the bound Router and USDG, the scalar Synthetix schedule, and Resonance's actual USDG balance. Arithmetic
-floors, zero-active-signal intervals, and direct donations may make the token balance exceed scheduled and claimable
-revenue. `readStrategyView.availableRevenue` reads the Strategy's USDG `balanceOf` directly; it omits
+`readResonanceView` includes `rewardDuration`, `remainingRevenue`, `revenuePerSignalStored`, the `1e36`
+`rewardPrecision` revenue-index scale, total live signal weight, the bound Router and USDG, the scalar Synthetix
+schedule, and Resonance's actual USDG balance. Arithmetic floors, zero-active-signal intervals, and direct donations
+may make the token balance exceed scheduled and claimable revenue. `readStrategyView.availableRevenue` is an SDK
+derived field that reads the Strategy's USDG `balanceOf` directly; it omits
 released-but-not-yet-transferred stream revenue.
 
 Resonance's USDG accounting uses revenue-specific names: `revenueData`, `revenuePerSignal`,

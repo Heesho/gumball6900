@@ -31,7 +31,7 @@ prose and pictures rather than derived figures. Two constraints are worth keepin
 - **Slides must fit one viewport.** Nothing is clipped at 1366x640 or wider. The vertical budget is
   tight; check any slide you add.
 - **Simulations mirror the contracts, not a canned animation.** The exactly sixteen slots, one-hour decay,
-  80/20 replacement handoff (100% deposited on first occupation), Mine/Router failure isolation, Router restart
+  80/20 occupied-slot replacement split (100% deposited on first occupation), Mine/Router failure isolation, Router restart
   threshold, seven-day stream,
   old-weight checkpointing, and bounded global signaler share all come from the real contract behavior.
   Mine's 2x reset, 1 USDG floor, 64 GBX/s initial rate, 69-day eras, and 1 GBX/s tail are fixed

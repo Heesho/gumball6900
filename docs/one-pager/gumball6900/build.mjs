@@ -284,7 +284,7 @@ function scanStylesheet(css) {
  * privileged fee recipient.
  *
  * ADR 0024 complicated this guard rather than retiring it. `Mine` genuinely does split a
- * payment in basis points: 80% to the miner being displaced, 20% into the buying flow. A
+ * payment in basis points: 80% to the outgoing-tenure miner, 20% into the buying flow. A
  * flat "no bps in core" rule would now fail on an honest contract, and deleting the rule
  * would give up the check everywhere else. Mine's split is pinned to exactly two constants.
  * Resonance's bounded policy and Strategy's direct two-way classification are pinned independently.
@@ -328,8 +328,8 @@ function assertNoProtocolFee() {
     }
   }
 
-  // The pinned half: Mine's handoff split is the two shares the sheet prints, and nothing
-  // else. `revenueAmount = paid - previousMinerAmount` is the line that makes the split
+  // The pinned half: Mine's replacement split is the two shares the sheet prints, and nothing
+  // else. `revenueAmount = paymentAmount - previousMinerAmount` is the line that makes the split
   // exhaustive - with it, there is no third share to pay a team out of.
   const mine = sources.find((entry) => entry.name === 'Mine.sol');
   if (!mine) hits.push('Mine.sol is missing');
@@ -337,10 +337,10 @@ function assertNoProtocolFee() {
     const pins = [
       ['PREVIOUS_MINER_BPS = 8_000', /uint256 public constant PREVIOUS_MINER_BPS = 8_000;/],
       ['BPS = 10_000', /uint256 public constant BPS = 10_000;/],
-      ['exhaustive two-way split', /revenueAmount = paid - previousMinerAmount;/],
+      ['exhaustive two-way split', /revenueAmount = paymentAmount - previousMinerAmount;/],
       [
         'RevenueDeposited event',
-        /event RevenueDeposited\(uint256 indexed index, uint256 indexed epochId, uint256 amount\);/,
+        /event RevenueDeposited\(uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount\);/,
       ],
       [
         'nominal SafeERC20 transfer request to ResonanceRouter',

@@ -8,8 +8,9 @@ The target graph is direct, immutable, and deliberately small.
 > graph.
 
 ```text
-slot replacement USDG -> Mine --20% deposit--> ResonanceRouter --permissionless route()--> Resonance
-                              \--80%--> displaced miner pull claim                    \--7-day stream--> Strategy
+nonempty replacement USDG -> Mine --20% deposit--> ResonanceRouter --permissionless route()--> Resonance
+                                       \--80%--> outgoing tenure miner claim           \--7-day stream--> Strategy
+empty-slot payment ------------------> Mine --100% deposit--> ResonanceRouter
 
 Mine --continuous GBX--> current slot miners
 GBX --signal deposit--> SignalGBX --signal coordination--> Resonance allocation weights
@@ -17,21 +18,22 @@ GBX --signal deposit--> SignalGBX --signal coordination--> Resonance allocation 
 Strategy acquired-asset payment --(100% - global bribeBps)--> Fund
                                 \--global bribeBps (0%-20%)--> BribeRouter buffer --> paired Bribe
 additional reward funder ------------------------------> Bribe -> Strategy signalers
-external USDG/GBX LP ERC-20 -> ordinary bootstrap Strategy -> Fund / paired Bribe
+external Uniswap v2-style USDG/GBX LP ERC-20 -> ordinary bootstrap Strategy -> Fund / paired Bribe
 GBX holder -> Fund.redeem(selected tokens) -> in-kind assets
 ```
 
 The core keeps custody and accounting invariants inside the contracts that own them, while optional transaction
-composition and liveness automation stay in periphery. In particular, a paid Mine handoff transfers its nominal
+composition and liveness automation stay in periphery. In particular, a paid Mine replacement transfers its nominal
 protocol share into ResonanceRouter through `SafeERC20` under the standard-USDG assumption and then ends.
 `Mine.RevenueDeposited` records that requested deposit only. A manual caller, frontend,
 volunteer keeper, or cron process may later call the permissionless `route()` function; there is no role, bounty, or
 guaranteed caller, so even a qualifying balance may wait indefinitely. A future frontend-facing helper could compose
-`mine()` and `route()`, but Mine correctness and handoff liveness must never depend on that optional call succeeding.
+`mine()` and `route()`, but Mine correctness and replacement liveness must never depend on that optional call succeeding.
 
 GBX starts with zero supply and zero lifetime minted. Its setup minter cannot mint before a one-time deployment binding
 permanently assigns all lifetime mint authority to a Mine that identifies the same GBX. Mine has exactly sixteen ownerless hourly reverse-Dutch
-slots. Each occupied slot keeps its TPS until replacement; newly filled slots divide the current global TPS by sixteen.
+slots. Each occupied slot keeps its TPS until replacement; each newly opened tenure receives the current global TPS
+divided by sixteen.
 
 Fund reads Mine's constant-time effective supply before its redemption snapshot. Pending GBX is included in the
 denominator without minting it, iterating slots, or changing mining state.
@@ -52,13 +54,13 @@ each elapsed interval. SignalGBX calls Resonance's restricted coordination hooks
 before changing weights. A Strategy purchase also
 checkpoints and pulls its released allocation before reading the auction inventory. During an active period,
 ResonanceRouter holds a nonzero balance until it is at least both `REWARD_DURATION` raw USDG units and
-`remainingRevenue()` at the active rate. A qualifying complete-balance notification checkpoints elapsed emission, combines the new reward
+`remainingRevenue()` at the active rate. A qualifying complete-balance notification checkpoints elapsed emission, combines the new revenue
 with `remainingSeconds * revenueRate`, and restarts the schedule for seven days. The Synthetix-style rate uses ordinary
 integer division; rate, index, and Strategy floors, zero-active-signal emission, and direct donations remain
 unclassified surplus. The revenue-per-signal index uses `1e36` precision.
 
 Signal state is deliberately split rather than duplicated: `SignalGBX.balanceOf(account)` is each account's aggregate
-signal, the paired Bribe stores account-by-Strategy balances and each Strategy's complete supply, and Resonance stores
+signal, the paired Bribe stores `signalWeightOf(account)` and its complete `totalSignalWeight`, and Resonance stores
 the active total across live Strategies. There is no separate `allocatedBalance` duplicate.
 
 StrategyFactory and BribeFactory are bound once to Resonance. Each Strategy has a dedicated Bribe and BribeRouter.
@@ -72,13 +74,14 @@ carry, or Fund rounding state. Each Bribe has a fixed append-only limit of sixte
 reward precision, and each
 reward token has a monotonic lifetime notification cap of `floor(type(uint256).max / 1e36)` raw units, checked
 before checkpointing or transfer so index overflow cannot block signal exits. Killing a Strategy checkpoints and
-preserves its accrued Resonance claim, removes its complete weight from active reward supply, and leaves its Bribe as a
+preserves its accrued Resonance claim, removes its complete weight from active revenue allocation, and leaves its Bribe as a
 closed pool for existing signalers; no new signal can enter, and a final exit can permanently abandon unfinished
 rewards. After bootstrap, the final live Strategy cannot be killed until a replacement has been added, while killed-
 Strategy positions remain movable out or withdrawable.
 
 Fund is an ownerless raw-token treasury with caller-selected redemption arrays and no registry or migration path. One
-reviewed external fungible USDG/GBX LP token is registered as an ordinary bootstrap Strategy payment token, with the
+reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token is registered as an ordinary bootstrap
+Strategy payment token, with the
 same Fund/Bribe split as every other Strategy. Its address remains a deployment input. The core creates, owns, prices,
 harvests, swaps, or guarantees no liquidity.
 

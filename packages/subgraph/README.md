@@ -5,12 +5,12 @@ and `Fund` data sources.
 
 The subgraph tracks minted and burned supply, mining slots and claims, signal escrow, successful ResonanceRouter
 forwards, Resonance revenue notifications and distributions, its global prospective automatic-Bribe rate, Strategy
-registrations and kills, signal weights, Bribe reward activity, BribeRouter distributions, and redemptions.
-`ProtocolEvent` records handled events positionally. Each `RevenueNotified` resets the seven-day reward period, but its
+registrations and kills, signal weights, Bribe reward activity, BribeRouter routes, and redemptions.
+`ProtocolEvent` records handled events positionally. Each `RevenueNotified` resets the seven-day revenue period, but its
 event exposes only the newly notified amount. The subgraph therefore records cumulative notification volume, reset
 count, and the latest notification amount and timestamp without inventing the carried `left` amount, rate, remainder,
 or finish. This is a convenience index, not authoritative protocol accounting: pending Mine accrual, retained
-ResonanceRouter balance, and current Resonance reward state must be read live between events.
+ResonanceRouter balance, and current Resonance revenue state must be read live between events.
 
 Signal allocation deltas remain canonical from Resonance `SignalAdded` and `SignalRemoved` logs, including the paired
 remove/add logs produced by an atomic move. SignalGBX delegation logs separately maintain each account's selected

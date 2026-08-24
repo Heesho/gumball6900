@@ -157,8 +157,9 @@ These were found by cross-cutting audits and are **not yet applied**. Apply them
    inset alpha `.16 → .10` and `fund-evt-white .09 → .06`, which lifts all four to 4.64–4.91.
    Combined with (1) the ring goes from 50% to 100% perimeter and **the flash reads stronger than
    what shipped**.
-3. **Mining's canvas prints `NO ONE DISPLACED` at 2.48:1** — the label that teaches the
-   100%-to-Router deposit. `inkA(0.55)` gives 5.57:1.
+3. **Mining's historical canvas prints `NO ONE DISPLACED` at 2.48:1** — this means first occupation
+   of an empty slot, not that self-replacement is forbidden; the label teaches the 100%-to-Router
+   deposit. `inkA(0.55)` gives 5.57:1.
 4. **Resonance's ledger delta lingers sub-AA** — a linear opacity ramp leaves ~1.2s of a ~3.3s life
    below 3:1. The fund's `.acq__delta` pattern (hold at 1, fade with a 320ms transition) passes 99%
    of its life. Adopt it.

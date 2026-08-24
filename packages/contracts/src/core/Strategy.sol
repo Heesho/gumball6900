@@ -9,17 +9,21 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { IResonance } from "./interfaces/IResonance.sol";
 
 /// @title GumBall6900 Reverse Dutch Strategy
-/// @notice Reverse Dutch auction that sells accumulated USDG for a configured payment asset.
-/// @dev The auction design is adapted with credit to Euler Fee Flow and Liquid Signal Governance. Price falls linearly
-///      to zero, then the next auction starts from the previous payment multiplied within immutable bounds.
+/// @author @heesho
+/// @notice Sells the Strategy's complete accumulated USDG balance for a configured ERC-20 payment asset.
+/// @dev Each permissionless reverse Dutch auction starts at `initialPrice` and decays to zero over `epochDuration`.
+///      A successful fill sends the whole payment directly to Fund and the paired BribeRouter at the Resonance-wide
+///      split captured before token interaction, transfers the pre-payment USDG balance to the selected receiver, and
+///      starts the next epoch from the bounded, multiplied clearing payment. The auction design is adapted with credit
+///      to Euler Fee Flow and Liquid Signal Governance. Core accounting assumes standard non-rebasing ERC-20 transfers.
 contract Strategy is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
-    /// @notice Immutable auction parameters validated at Strategy creation.
-    /// @param initialPrice First epoch's starting payment-token amount.
-    /// @param epochDuration Seconds over which the price linearly decays to zero.
-    /// @param priceMultiplier Fixed-point multiplier applied to the previous clearing payment.
-    /// @param minimumPrice Floor for the next epoch's starting payment, not a fill-time price floor.
+    /// @notice Immutable auction parameters validated when a Strategy is deployed.
+    /// @param initialPrice First epoch's starting price in raw payment-token units.
+    /// @param epochDuration Seconds over which each epoch's price decays to zero.
+    /// @param priceMultiplier Multiplier applied to a clearing payment, scaled by `PRICE_SCALE`.
+    /// @param minimumPrice Floor in raw payment-token units for the next epoch's start, not a fill-time price floor.
     struct Config {
         uint256 initialPrice;
         uint256 epochDuration;
@@ -27,50 +31,50 @@ contract Strategy is ReentrancyGuard {
         uint256 minimumPrice;
     }
 
-    /// @notice Shortest permitted price-decay period.
+    /// @notice Shortest permitted price-decay period, in seconds.
     uint256 public constant MIN_EPOCH_DURATION = 1 hours;
-    /// @notice Longest permitted price-decay period.
+    /// @notice Longest permitted price-decay period, in seconds.
     uint256 public constant MAX_EPOCH_DURATION = 365 days;
-    /// @notice Smallest multiplier permitted for the next starting price.
+    /// @notice Smallest next-starting-price multiplier, scaled by `PRICE_SCALE`.
     uint256 public constant MIN_PRICE_MULTIPLIER = 1.1e18;
-    /// @notice Largest multiplier permitted for the next starting price.
+    /// @notice Largest next-starting-price multiplier, scaled by `PRICE_SCALE`.
     uint256 public constant MAX_PRICE_MULTIPLIER = 3e18;
-    /// @notice Absolute lower bound for a configured minimum price.
+    /// @notice Absolute lower bound for `minimumPrice`, in raw payment-token units regardless of token decimals.
     uint256 public constant ABSOLUTE_MINIMUM_PRICE = 1e6;
-    /// @notice Absolute upper bound for a starting or minimum price.
+    /// @notice Absolute upper bound for a starting or minimum price, in raw payment-token units.
     uint256 public constant ABSOLUTE_MAXIMUM_PRICE = type(uint192).max;
-    /// @notice Fixed-point precision for the next-price multiplier.
+    /// @notice Fixed-point scale representing a 1.0 next-starting-price multiplier.
     uint256 public constant PRICE_SCALE = 1e18;
-    /// @notice Basis-point denominator used for the acquired-payment split.
+    /// @notice Basis-point denominator used to split each acquired payment.
     uint256 public constant BPS = 10_000;
-    /// @notice Resonance that supplies the paired BribeRouter.
+    /// @notice Immutable Resonance that releases USDG and supplies the current Bribe split and paired BribeRouter.
     address public immutable resonance;
-    /// @notice USDG sold by this Strategy.
+    /// @notice Immutable USDG revenue token sold by this Strategy, accounted for in raw token units.
     IERC20 public immutable usdg;
-    /// @notice Asset required from a buyer.
+    /// @notice Immutable ERC-20 asset required from buyers, accounted for in raw token units.
     IERC20 public immutable paymentToken;
-    /// @notice Treasury that receives the non-Bribe share of every auction payment.
+    /// @notice Immutable treasury that receives the payment remainder after the floored Bribe share.
     address public immutable fund;
-    /// @notice Number of seconds over which price declines to zero.
+    /// @notice Immutable number of seconds over which each epoch's price declines to zero.
     uint256 public immutable epochDuration;
-    /// @notice Fixed-point multiplier applied to a completed epoch's payment.
+    /// @notice Immutable `PRICE_SCALE`-scaled multiplier applied to a completed epoch's clearing payment.
     uint256 public immutable priceMultiplier;
-    /// @notice Floor applied to the next epoch's starting price.
+    /// @notice Immutable raw-payment-token floor applied only to each next epoch's starting price.
     uint256 public immutable minimumPrice;
 
-    /// @notice Current auction epoch identifier.
+    /// @notice Zero-based identifier of the active auction epoch, incremented after every successful fill.
     uint256 public epochId;
-    /// @notice Price at the beginning of the active epoch.
+    /// @notice Starting price of the active epoch, in raw payment-token units.
     uint256 public initialPrice;
-    /// @notice Timestamp at which the active epoch began.
+    /// @notice Unix timestamp at which the active epoch began.
     uint256 public epochStartedAt;
 
-    /// @notice Emitted after a buyer fills one auction epoch.
-    /// @param buyer Account that supplied the payment asset.
-    /// @param revenueReceiver Address that received the Strategy's USDG.
-    /// @param epochId Completed auction epoch.
-    /// @param revenueAmount Amount of USDG purchased.
-    /// @param paymentAmount Amount paid for the USDG.
+    /// @notice Emitted after a buyer atomically fills one auction epoch and the next epoch begins.
+    /// @param buyer Account that supplied the payment asset or completed a free fill.
+    /// @param revenueReceiver Address that received the complete snapshotted USDG balance.
+    /// @param epochId Zero-based identifier of the completed auction epoch.
+    /// @param revenueAmount Whole raw USDG units purchased.
+    /// @param paymentAmount Whole raw payment-token units paid, possibly zero after full decay.
     event Purchased(
         address indexed buyer,
         address indexed revenueReceiver,
@@ -79,31 +83,42 @@ contract Strategy is ReentrancyGuard {
         uint256 paymentAmount
     );
 
-    /// @notice The caller-supplied purchase deadline has passed.
+    /// @notice Thrown when execution occurs after the caller-supplied purchase deadline.
+    /// @param deadline Latest valid Unix timestamp supplied by the buyer.
     error DeadlinePassed(uint256 deadline);
-    /// @notice A purchase was attempted while the Strategy held no USDG revenue.
+    /// @notice Thrown when the Strategy holds no USDG after pulling its currently released Resonance revenue.
     error EmptyRevenue();
-    /// @notice The configured auction duration is outside immutable safety bounds.
+    /// @notice Thrown when the configured auction duration is outside its immutable bounds.
+    /// @param duration Invalid duration in seconds.
     error EpochDurationOutOfRange(uint256 duration);
-    /// @notice The caller's expected auction epoch differs from current state.
+    /// @notice Thrown when the caller's expected auction epoch differs from the active epoch.
+    /// @param expected Epoch identifier supplied by the buyer.
+    /// @param actual Active epoch identifier at execution.
     error EpochIdMismatch(uint256 expected, uint256 actual);
-    /// @notice The configured initial auction price is outside immutable safety bounds.
+    /// @notice Thrown when the configured initial price is below the configured floor or above the absolute maximum.
+    /// @param price Invalid starting price in raw payment-token units.
     error InitialPriceOutOfRange(uint256 price);
-    /// @notice The current Dutch-auction payment exceeds the caller's slippage ceiling.
+    /// @notice Thrown when the current Dutch-auction payment exceeds the caller's slippage ceiling.
+    /// @param payment Required raw payment-token units at execution.
+    /// @param maximum Maximum raw payment-token units authorized by the buyer.
     error MaximumPaymentExceeded(uint256 payment, uint256 maximum);
-    /// @notice The configured minimum next-auction price is outside immutable safety bounds.
+    /// @notice Thrown when the configured minimum next-auction price is outside its absolute bounds.
+    /// @param price Invalid floor in raw payment-token units.
     error MinimumPriceOutOfRange(uint256 price);
-    /// @notice The configured next-price multiplier is outside immutable safety bounds.
+    /// @notice Thrown when the configured next-price multiplier is outside its immutable bounds.
+    /// @param multiplier Invalid multiplier scaled by `PRICE_SCALE`.
     error PriceMultiplierOutOfRange(uint256 multiplier);
-    /// @notice A required deployment address is zero.
+    /// @notice Thrown for a zero or codeless constructor dependency, zero revenue receiver, or missing BribeRouter.
     error ZeroAddress();
 
-    /// @notice Creates one immutable Strategy.
-    /// @param resonance_ Resonance that provides the paired BribeRouter.
-    /// @param usdg_ USDG token sold by this Strategy.
-    /// @param paymentToken_ Asset buyers pay to fill this Strategy.
-    /// @param fund_ Treasury that receives the non-Bribe share of every auction payment.
-    /// @param config Immutable auction configuration.
+    /// @notice Creates one Strategy and starts its zero-based first auction epoch immediately.
+    /// @dev All address dependencies must be nonzero deployed contracts. Configuration validation enforces duration,
+    ///      multiplier, minimum-price, and absolute-price bounds; `initialPrice` must be at least `minimumPrice`.
+    /// @param resonance_ Resonance that releases USDG and provides split and BribeRouter configuration.
+    /// @param usdg_ USDG revenue token sold by this Strategy.
+    /// @param paymentToken_ ERC-20 asset buyers pay to fill this Strategy.
+    /// @param fund_ Treasury receiving the non-Bribe share of every auction payment.
+    /// @param config Immutable auction configuration expressed in seconds, raw payment units, and fixed-point scale.
     constructor(address resonance_, IERC20 usdg_, IERC20 paymentToken_, address fund_, Config memory config) {
         if (
             resonance_ == address(0) || address(usdg_) == address(0) || address(paymentToken_) == address(0)
@@ -133,12 +148,21 @@ contract Strategy is ReentrancyGuard {
         epochStartedAt = block.timestamp;
     }
 
-    /// @notice Purchases the Strategy's complete USDG balance at the current declining price.
-    /// @param revenueReceiver Address that receives the accumulated USDG.
-    /// @param expectedEpochId Expected epoch, protecting the buyer from another fill changing the price first.
-    /// @param deadline Latest timestamp at which this transaction may execute.
-    /// @param maximumPayment Maximum payment accepted by the buyer.
-    /// @return paymentAmount Actual payment required at execution time.
+    /// @notice Purchases all released and directly held Strategy USDG at the current declining price.
+    /// @dev Permissionless. Snapshots Resonance's prospective Bribe share before token interaction, then checkpoints
+    ///      and pulls this Strategy's released USDG. The resulting complete USDG balance is fixed before payment is
+    ///      collected, which also keeps a Strategy priced in USDG from co-mingling payment with purchased revenue.
+    ///      The Bribe share is `floor(paymentAmount * bribeBps / BPS)` and the Fund receives the remainder, so split
+    ///      rounding favors Fund. A zero price after full decay skips payment collection, payment settlement, and
+    ///      BribeRouter interaction. All transfers, auction-state updates, and the event are atomic. Reverts for a zero
+    ///      receiver, expired deadline, stale epoch, empty USDG balance, payment above `maximumPayment`, a missing
+    ///      BribeRouter when the floored Bribe amount is nonzero, or a failed token operation. Emits `Purchased` after
+    ///      the next epoch is initialized.
+    /// @param revenueReceiver Address that receives the complete snapshotted USDG balance; need not equal the buyer.
+    /// @param expectedEpochId Active epoch expected by the buyer, protecting against a prior fill.
+    /// @param deadline Latest valid Unix timestamp; execution exactly at this timestamp is allowed.
+    /// @param maximumPayment Maximum raw payment-token units authorized by the buyer.
+    /// @return paymentAmount Actual raw payment-token units required at execution, possibly zero.
     function buy(address revenueReceiver, uint256 expectedEpochId, uint256 deadline, uint256 maximumPayment)
         external
         nonReentrant
@@ -175,18 +199,23 @@ contract Strategy is ReentrancyGuard {
         emit Purchased(msg.sender, revenueReceiver, completedEpoch, revenueAmount, paymentAmount);
     }
 
-    /// @notice Returns the current linearly declining price.
-    /// @return paymentAmount Payment required to fill the active auction epoch.
+    /// @notice Returns the payment required to fill the active auction epoch at the current timestamp.
+    /// @dev Before full decay, subtracts the floored elapsed-price fraction from `initialPrice`, which rounds the exact
+    ///      remaining-fraction price up to a whole raw token unit. Returns zero at and after `epochDuration` seconds.
+    /// @return paymentAmount Current price in raw payment-token units.
     function currentPrice() public view returns (uint256 paymentAmount) {
         uint256 elapsed = block.timestamp - epochStartedAt;
         if (elapsed >= epochDuration) return 0;
         return initialPrice - Math.mulDiv(initialPrice, elapsed, epochDuration);
     }
 
-    /// @notice Splits one payment between Fund and the paired BribeRouter at the captured global Bribe share.
-    /// @param configuredResonance Resonance that supplies the paired BribeRouter.
-    /// @param paymentAmount Total payment collected from the buyer.
-    /// @param appliedBribeBps Prospective global Bribe share captured before payment-token interaction.
+    /// @notice Splits one collected payment between Fund and the paired BribeRouter.
+    /// @dev Computes the Bribe share with downward rounding and sends the exact remainder to Fund. A zero Bribe share
+    ///      avoids the Router lookup and transfer. This helper does not call `BribeRouter.route`; rewards remain
+    ///      buffered for a separate permissionless transaction. Any failure reverts the complete purchase atomically.
+    /// @param configuredResonance Resonance used to resolve this Strategy's paired BribeRouter.
+    /// @param paymentAmount Total raw payment-token units collected from the buyer.
+    /// @param appliedBribeBps Global Bribe share snapshotted before either token can invoke a callback.
     function _settlePayment(IResonance configuredResonance, uint256 paymentAmount, uint256 appliedBribeBps) private {
         uint256 bribeAmount = Math.mulDiv(paymentAmount, appliedBribeBps, BPS);
         uint256 fundAmount = paymentAmount - bribeAmount;
@@ -199,10 +228,11 @@ contract Strategy is ReentrancyGuard {
         paymentToken.safeTransfer(router, bribeAmount);
     }
 
-    /// @notice Computes the next auction's bounded starting price.
-    /// @dev Uses the completed payment, configured multiplier, floor, and absolute cap.
-    /// @param paymentAmount Payment collected for the completed epoch.
-    /// @return nextPrice Starting price for the next epoch.
+    /// @notice Computes the next auction epoch's bounded starting price.
+    /// @dev Calculates `floor(paymentAmount * priceMultiplier / PRICE_SCALE)`, then applies
+    ///      `ABSOLUTE_MAXIMUM_PRICE` as a cap and `minimumPrice` as a floor. A free fill restarts at the floor.
+    /// @param paymentAmount Raw payment-token units collected for the completed epoch.
+    /// @return nextPrice Raw payment-token units at which the next epoch starts.
     function _nextInitialPrice(uint256 paymentAmount) private view returns (uint256 nextPrice) {
         nextPrice = Math.mulDiv(paymentAmount, priceMultiplier, PRICE_SCALE);
         if (nextPrice > ABSOLUTE_MAXIMUM_PRICE) return ABSOLUTE_MAXIMUM_PRICE;

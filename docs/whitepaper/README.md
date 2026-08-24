@@ -9,14 +9,15 @@ pnpm docs:whitepaper
 
 The current edition describes the immutable multislot Mine introduced by ADR 0024 and refined through ADRs 0033 and
 0038-0045: zero initial GBX supply, permanent Mine authority, exactly sixteen slots, hourly price decay, 80/20 nonempty
-handoffs, tenure-locked slot rates, a provisional 64 GBX/second to 1 GBX/second schedule with 69-day periods, a
+replacements, tenure-locked slot rates, a provisional 64 GBX/second to 1 GBX/second schedule with 69-day periods, a
 positive infinite tail, and Fund's constant-time effective-supply denominator. It also reflects ADR 0030's
 non-transferable sGBX voting checkpoints and ADR 0034's external-governance ownership boundary, ADR 0031's mandatory
 signal-backed receipt, ADR 0036's bounded global Bribe rate, ADR 0037's high-precision Bribe reward index, ADR 0046's
 scalar USDG-only Resonance state, ADR 0047's Synthetix-shaped rewards and direct Strategy settlement, and ADR 0048's
 sixteen-token Bribe bound and composed signal moves. ADR 0049 removes balance-delta snapshots from canonical GBX/USDG
 paths while preserving Fund's arbitrary-asset redemption guards. ADR 0050 removes the canonical liquidity contract and
-premint; a reviewed external USDG-GBX LP token may instead be registered as an ordinary bootstrap Strategy asset.
+premint; a reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token may instead be registered as an
+ordinary bootstrap Strategy asset.
 
 ADR 0044 makes ResonanceRouter deposit Mine's terminal revenue action. Under ADR 0049 Mine requests the nominal amount
 through `SafeERC20` without inspecting balance deltas. Mine emits `RevenueDeposited` but never

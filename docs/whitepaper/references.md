@@ -10,8 +10,9 @@ this list; the claim-by-claim mapping lives in `FACT-CHECK.md`.
 - Internal audit record: `packages/contracts/audit/` (AUDIT-BASELINE,
   INDEPENDENT-SPECIFICATION, INTERNAL-AUDIT, FINDINGS, TEST-CAMPAIGN, STATIC-ANALYSIS,
   MUTATION-TESTING, FORMAL-CHECKS, FORK-VALIDATION, EXTERNAL_FUZZING,
-  RESIDUAL-RISKS, RELEASE-CHECKLIST). Register candidate:
-  `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84`.
+  RESIDUAL-RISKS, RELEASE-CHECKLIST). The recorded register candidate
+  `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84` is historical and predates the current architecture; no current
+  review candidate is pinned.
 - Independent models and fixtures: `packages/simulations/` (TypeScript and Python,
   cross-checked at build time via `src/protocol-facts.mjs`).
 - Design history: `docs/adr/0013` through `docs/adr/0050`, especially ADR 0019
@@ -31,7 +32,7 @@ this list; the claim-by-claim mapping lives in `FACT-CHECK.md`.
 
 - OpenZeppelin Contracts 5.6.1 - ERC-20, ERC20Permit, ERC20Votes, Ownable, ReentrancyGuard, SafeERC20, and Math.
   https://docs.openzeppelin.com/contracts/5.x/
-- Uniswap V2 documentation, relevant only to review of an externally deployed fungible USDG-GBX LP token that may be
+- Uniswap V2 documentation, relevant only to review of an externally created fungible Uniswap v2-style USDG/GBX LP token that may be
   registered as an ordinary Strategy payment asset. No Uniswap code is embedded in the core. https://docs.uniswap.org/contracts/v2/
 - Ethereum Improvement Proposals: EIP-20 (token standard), EIP-712 (typed signing),
   EIP-1153 (transient storage), EIP-2612 (permit). https://eips.ethereum.org/
