@@ -37,7 +37,7 @@ export const contractConstants = {
   },
   bribe: {
     source: 'packages/contracts/src/core/Bribe.sol',
-    maxRewardTokens: 8,
+    maxRewardTokens: 16,
     rewardPrecision: 10n ** 36n,
   },
   strategy: {
@@ -59,9 +59,9 @@ export const contractConstants = {
 };
 
 export const status = {
-  editionVersion: 'v0.8',
-  editionDate: '23 August 2026',
-  contractsCommit: 'uncommitted working tree based on d80b92da5e60c0daa54dbae29653898dde514053',
+  editionVersion: 'v0.9',
+  editionDate: '24 August 2026',
+  contractsCommit: 'uncommitted working tree based on 5e4dc23849dec01ccce5e49c0e55120a9f7dcac0',
   contractsCommitShort: 'uncommitted',
   auditCandidateCommit: 'none for the current architecture',
   auditCandidateCommitShort: 'none',
@@ -69,7 +69,7 @@ export const status = {
   externalAudit: 'Independent external audit not completed',
   licensing: 'donut-miner, give.fun, Liquid Signal, and transitive lineage remain unresolved release blockers',
   architectureImplementation:
-    'ADRs 0031, 0033-0047, 0049, and 0050 implemented in the development tree; the provisional Mine emission schedule and external governance owner remain under review',
+    'ADRs 0031 and 0033-0050 implemented in the development tree; the provisional Mine emission schedule and external governance owner remain under review',
 };
 
 export function verifyProtocolFacts() {
@@ -189,6 +189,7 @@ export function verifyProtocolFacts() {
   }
   const bribePins = [
     ['Bribe reward precision', /uint256 public constant REWARD_PRECISION = 1e36;/],
+    ['Bribe reward-token limit', /uint256 public constant MAX_REWARD_TOKENS = 16;/],
     [
       'Bribe lifetime cap follows precision',
       /uint256 public constant MAX_LIFETIME_REWARD_AMOUNT = type\(uint256\)\.max \/ REWARD_PRECISION;/,

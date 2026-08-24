@@ -29,19 +29,20 @@ development candidate. It is not an independent audit result.
   ERC20Permit for approval-based signaling but has no voting checkpoints; SignalGBX exposes the core's only IVotes
   checkpoints for a future external governance integration.
 - Mine has exactly sixteen permanent slots from construction.
-- Each slot price decays linearly to zero over one hour. Epoch ID, deadline, and maximum price protect handoffs.
-- A handoff settles only the displaced slot. Each tenure receives `elapsed * slot.tps`, and `slot.tps` is never recomputed.
+- Each slot price decays linearly to zero over one hour. Epoch ID, deadline, and maximum payment protect replacements.
+- A replacement settles only the outgoing tenure in its selected slot. Each tenure receives `elapsed * slot.tps`, and
+  `slot.tps` is never recomputed.
 - The incoming tenure receives `globalTps(now - startTime) / 16`.
 - `aggregateTps`, `storedPendingEmission`, and `pendingUpdatedAt` make total pending emission and effective supply
   constant-time without iterating or mutating all slots.
-- Future-handoff global rates halve at immutable intervals measured from Mine deployment and stop falling at a positive tail.
-- A nonempty price splits into an 80% displaced-miner pull claim plus a 20% nominal deposit into ResonanceRouter. An
-  empty slot deposits 100%.
+- Future-tenure global rates halve at immutable intervals measured from Mine deployment and stop falling at a positive tail.
+- A nonempty price splits into an 80% outgoing tenure miner pull claim plus a 20% nominal deposit into
+  ResonanceRouter. An empty slot deposits 100%.
 - Mine uses `SafeERC20` without balance-delta checks and trusts canonical USDG to move requested amounts. Mine retains
   only outstanding claims, claims cannot be redirected, and `RevenueDeposited` records the nominal protocol share
   requested into ResonanceRouter.
 - Mine never calls `ResonanceRouter.route()`. Routing is a later permissionless action with no caller role, bounty, or
-  liveness guarantee. A failed Router deposit can revert a paid handoff; later Router or Resonance failure cannot.
+  liveness guarantee. A failed Router deposit can revert a paid replacement; later Router or Resonance failure cannot.
 
 ## Signals, Strategies, and Bribes
 
@@ -57,6 +58,8 @@ development candidate. It is not an independent audit result.
 - Resonance remains solvent for its scheduled balance and Strategy claims. Per-index and per-Strategy floors,
   zero-active-signal emission, and direct donations are intentionally unclassified surplus rather than Fund
   liabilities.
+- The canonical deployment assumes six-decimal USDG, but Resonance, its Router, Mine, and Strategy account only in raw
+  units and neither read nor enforce token decimals.
 - Resonance stores one scalar four-field USDG schedule in `revenueData`: `periodFinish`, `revenueRate`,
   `lastUpdateTime`, and `revenuePerSignalStored`. It streams at `1e36` index precision using the ordinary whole-unit
   rate. A qualifying top-up
@@ -67,8 +70,9 @@ development candidate. It is not an independent audit result.
   sub-`REWARD_DURATION` balance needs another deposit even after the old stream ends.
 - A qualifying Router balance does not execute itself and may wait indefinitely until a manual, frontend, volunteer-
   keeper, or cron caller invokes `route()`.
-- Killing a Strategy checkpoints and preserves its accrued claim, excludes its full weight from future rewards, blocks
-  later additions, and leaves incumbent signalers free to exit without decrementing the active total twice.
+- Killing a Strategy checkpoints and preserves its accrued claim, excludes its full weight from future Resonance
+  revenue, blocks later signal additions, and leaves incumbent signalers free to exit without decrementing the active
+  total twice. Its paired Bribe remains independently fundable.
 - SignalGBX moves by calling `removeSignalFor` for the source and then `addSignalFor` for the destination in one
   transaction. Each hook checkpoints its Strategy before its own weight mutation; destination failure rolls the
   source removal back. Resonance exposes no dedicated move hook.
@@ -97,13 +101,14 @@ development candidate. It is not an independent audit result.
 - Every selected token uses one effective pre-burn supply and raw balance snapshot. The burn and
   all exact transfers are atomic. Zero, GBX, and duplicates are rejected with EIP-1153 marks. A basket-wide final
   balance check rejects distinct selected addresses whose transfers consume the same snapshotted backing.
-- The core contains no liquidity custodian or liquidity-specific settlement path. An externally created USDG-GBX LP
-  token may be registered as an ordinary Strategy payment token and follows the same acquisition split as any ERC-20.
+- The core contains no liquidity custodian or liquidity-specific settlement path. A reviewed, externally created
+  fungible Uniswap v2-style USDG-GBX LP ERC-20 may be registered as an ordinary Strategy payment token and follows the
+  same acquisition split as any other supported payment token.
 
 ## Release properties
 
 - Foundry and Hardhat compile the same Solidity tree; SDK/subgraph ABIs come from current artifacts.
-- TypeScript and Python independently assert fixed sixteen-slot tenure, future-handoff halvings, 80/20 payments, the
+- TypeScript and Python independently assert fixed sixteen-slot tenure, future-tenure halvings, 80/20 payments, the
   no-economic-cap issuance model, effective-supply redemption, qualifying Resonance resets and surplus solvency. The
   Solidity suites cover per-purchase Strategy floors, direct Fund settlement, Router buffering, Synthetix leftover
   rollover, and Bribe surplus floors. The ADR-0048 focused suites passed 104/104 and the revised mutation campaign
@@ -112,6 +117,6 @@ development candidate. It is not an independent audit result.
 - Foundry separately proves coordinator rollback, move semantics, and that historical SignalGBX voting checkpoints
   survive withdrawal. A later integration campaign must prove the selected external system's token compatibility,
   permissions, voting, proposal scope, delay, cancellation, execution, and ownership handoff.
-- No consumer may display pending Mine accrual as already minted supply or the 80% handoff as guaranteed.
+- No consumer may display pending Mine accrual as already minted supply or the 80% replacement claim as guaranteed.
 - A green local campaign does not clear independent audit, parameter, monitored testnet, manifest, licensing, or legal
   review gates.

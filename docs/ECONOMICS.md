@@ -16,36 +16,39 @@ totalSupply = lifetimeMinted - lifetimeBurned
 
 The positive tail rate allows mining revenue, signaling participation, and asset acquisition to continue indefinitely.
 
-## Mining handoffs
+## Mining replacements
 
-Each slot is an hourly reverse Dutch auction. Its replacement price falls linearly from `initialPrice` to zero. When a
-slot changes hands:
+Each slot is an hourly reverse Dutch auction. Its replacement price falls linearly from `initialPrice` to zero. For a
+nonempty-slot replacement:
 
-- the displaced miner receives an 80% USDG pull claim;
-- Mine deposits the 20% remainder into ResonanceRouter; and
-- the first occupation of an empty slot deposits 100% into ResonanceRouter because nobody was displaced.
+- the outgoing tenure miner receives an 80% USDG pull claim;
+- Mine deposits the 20% remainder into ResonanceRouter.
 
-There is no team fee. A miner accepts rollover risk: if no successor pays to replace them, they receive GBX but no 80%
-handoff payment.
+The first occupation of an empty slot instead deposits 100% into ResonanceRouter because there is no outgoing tenure
+miner.
+
+There is no team fee. A miner accepts rollover risk: if no positive-price replacement occurs, the tenure accrues GBX
+but produces no nonzero 80% replacement claim. The current miner may replace its own slot, including for zero USDG
+after the hourly price reaches zero.
 
 ## Tenure-locked rates
 
-The TPS assigned when a slot is occupied is fixed until that slot changes hands. Redemptions and later time-based
-halvings never dilute an incumbent. A new or replaced slot receives:
+The TPS assigned when a tenure begins is fixed until the next replacement. Redemptions and later time-based halvings
+never dilute that tenure. Each newly opened tenure receives:
 
 ```text
 current global GBX tokens per second / 16
 ```
 
-Integer division residue is unissued. Protecting incumbents means aggregate issuance can remain above the new global
+Integer division residue is unissued. Protecting tenure rates means aggregate issuance can remain above the new global
 rate for as long as legacy slots retain older TPS; turnover is not guaranteed. The reproduced scenario in
 `packages/simulations/fixtures/economic-scenarios.json` makes this tradeoff explicit.
 
 ## Emission curve
 
 Mine hard-codes an initial global rate of 64 GBX per second, a provisional 69-day halving period measured from
-deployment, and a positive global tail of 1 GBX per second. A lower prospective rate applies only when a slot next
-changes hands. The schedule remains subject to independent economic review even though deployments cannot choose an
+deployment, and a positive global tail of 1 GBX per second. A lower prospective rate applies only when a slot's next
+tenure begins. The schedule remains subject to independent economic review even though deployments cannot choose an
 alternative after deployment.
 
 In the synchronized reference path—every slot occupied, refreshed and settled at each boundary, with no burns—the
@@ -70,13 +73,14 @@ not from Mine deployment.
 
 ## Revenue, acquisitions, and redemption
 
-Mining handoffs deposit their protocol USDG share into ResonanceRouter without calling it. A later permissionless
-`route()` call moves the complete balance once it is at least both seven days of raw units and the active scheduled
-reward left; the duration threshold prevents a zero whole-unit rate. There is no caller bounty or liveness guarantee,
+Mining replacements deposit their protocol USDG share into ResonanceRouter without calling it. A later permissionless
+`route()` call moves the complete balance once it is at least both seven days of raw units and the scheduled revenue
+remaining; the duration threshold prevents a zero whole-unit rate. There is no caller bounty or liveness guarantee,
 so deposit and stream entry may be separated indefinitely. Each elapsed interval follows the SignalGBX
 weights active during that interval; moving a signal checkpoints the old interval first and affects only later flow.
 A holder mints sGBX only by atomically assigning the same amount to a live Strategy. SignalGBX coordinates every
-change; its account balance is the aggregate signal, paired Bribes store per-Strategy positions and supply, and
+change; its account balance is the aggregate signal, paired Bribes store per-Strategy positions and
+`totalSignalWeight`, and
 Resonance stores only the active total across live Strategies. Moving signal changes no custody or votes; withdrawal
 removes the position, burns sGBX, and returns GBX atomically.
 A Strategy purchase atomically pulls all revenue released to it through that timestamp, then sells its complete USDG
@@ -113,7 +117,7 @@ qualifying complete balance checkpoints the stream, combines the new amount with
 Resonance uses whole-unit `revenueRate`, while each per-token Bribe stream uses `rewardRate`, so division floors remain
 as unallocated token surplus rather than explicit carry. Their respective revenue-per-signal and reward-per-signal
 indices use `1e36` precision, but index and account division can floor as well. Stream time continues at zero active
-signal weight, making that interval's rewards unclaimable, and
+signal weight, making that interval's streamed revenue or rewards unclaimable, and
 direct Resonance or Bribe donations are unscheduled. Compatible donations to ResonanceRouter or BribeRouter instead
 join that Router's next valid complete-balance notification. None of the unallocated surplus is assigned to Fund or
 later signalers.
@@ -129,6 +133,7 @@ Omitted assets remain for the post-redemption supply. A basket also reverts if o
 another selected address below its own snapshot less payout, preventing shared-ledger double counting. Pending
 Fund-held GBX should be burned before quoting redemption.
 
-One reviewed external fungible USDG/GBX LP ERC-20 is an ordinary bootstrap Strategy payment token. Its purchases use
+One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 is an ordinary bootstrap Strategy
+payment token. Its purchases use
 the same global Fund/Bribe split described above; there is no liquidity-specific accounting, fee route, valuation, or
 guarantee in the core.

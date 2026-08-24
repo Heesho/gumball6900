@@ -14,45 +14,65 @@ import { IResonance } from "./interfaces/IResonance.sol";
 import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 
 /// @title GumBall6900 Non-Transferable Signal Token
-/// @notice Non-transferable signal receipt with ticker sGBX, minted one-for-one only while assigning GBX to a Strategy.
-/// @dev Adapted from Liquid Signal Governance. Idle sGBX is unreachable: minting and burning are atomically coupled to
-///      the matching Resonance and paired-Bribe virtual balance change. Moves compose the same remove and add hooks.
+/// @author @heesho
+/// @notice Escrows GBX one-for-one as non-transferable sGBX while assigning the same raw amount to live Strategies.
+/// @dev SignalGBX is the sole public signal coordinator. Idle receipts are unreachable through supported operations:
+///      every mint includes a Resonance signal addition, every burn includes a matching signal removal, and moves
+///      atomically compose the same remove and add hooks without changing custody or supply. The receipt inherits
+///      block-number-based ERC20Votes delegation and checkpoints, but not ERC-2612 permit; ERC-20 approvals remain
+///      exposed while every direct receipt transfer, including a zero-value transfer, reverts. Signal and withdrawal
+///      token transfers assume standard, non-rebasing GBX behavior. Setup ownership does not expire when Resonance is
+///      bound: it retains inherited ownership transfer and renunciation until explicitly removed, although no custom
+///      owner action remains after binding.
 contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
-    /// @notice Underlying GBX that backs the SignalGBX supply at least one-for-one.
-    /// @dev Direct GBX donations are stranded surplus and never mint receipts or voting power.
+    /// @notice Returns the immutable underlying GBX escrowed one raw unit per raw sGBX unit minted.
+    /// @dev Direct GBX donations create stranded surplus: they mint no receipt, signal weight, or voting units and
+    ///      provide no additional withdrawal entitlement.
     IERC20 public immutable gbx;
 
-    /// @notice Resonance that applies this coordinator's per-Strategy signal changes.
+    /// @notice Returns the permanently bound Resonance that applies signal changes, or zero before setup completes.
     address public resonance;
 
-    /// @notice Emitted when an account atomically deposits GBX, mints sGBX, and assigns it to a Strategy.
+    /// @notice Emitted after an account deposits GBX, receives sGBX, and assigns matching signal to a Strategy.
+    /// @param account Signaler whose GBX was deposited and whose sGBX balance increased.
+    /// @param strategy Live Strategy that received the signal weight.
+    /// @param amount Equal raw units of GBX deposited, sGBX minted, and signal weight added.
     event Signaled(address indexed account, address indexed strategy, uint256 amount);
-    /// @notice Emitted when an account atomically removes signal, burns sGBX, and receives GBX.
+    /// @notice Emitted after an account removes signal, burns sGBX, and receives matching GBX.
+    /// @param account Signaler whose sGBX was burned and who received the underlying GBX.
+    /// @param strategy Strategy from which signal weight was removed; it may already be killed.
+    /// @param amount Equal raw units of signal removed, sGBX burned, and GBX returned.
     event SignalWithdrawn(address indexed account, address indexed strategy, uint256 amount);
-    /// @notice Emitted when the signal token is permanently bound to Resonance.
-    /// @param resonance Bound Resonance address.
+    /// @notice Emitted when this receipt completes its one-time Resonance binding.
+    /// @param resonance Permanently bound Resonance address.
     event ResonanceSet(address indexed resonance);
 
-    /// @notice A candidate Resonance does not point back to this SignalGBX receipt.
+    /// @notice Raised when a candidate Resonance fails to report this contract as its SignalGBX receipt.
+    /// @param resonance Candidate that reverted, lacked the identity getter, or returned another receipt.
     error InvalidResonance(address resonance);
-    /// @notice A transfer other than minting or burning was attempted.
+    /// @notice Raised when an inherited ERC-20 transfer attempts to move sGBX between two nonzero addresses.
     error TransferDisabled();
-    /// @notice The one-time Resonance binding has already completed.
+    /// @notice Raised when the owner attempts to repeat the one-time Resonance binding.
+    /// @param resonance Existing bound Resonance address.
     error ResonanceAlreadySet(address resonance);
-    /// @notice A signal operation was attempted before the immutable Resonance graph was validated.
+    /// @notice Raised when a signal, move, or withdrawal is attempted before Resonance is bound.
     error ResonanceNotSet();
-    /// @notice A signal move named the same Strategy as both source and destination.
+    /// @notice Raised when a signal move names the same Strategy as both source and destination.
+    /// @param strategy Duplicated source and destination Strategy address.
     error SameStrategy(address strategy);
-    /// @notice A required deployment or binding address is zero.
+    /// @notice Raised when GBX or a candidate Resonance is zero or has no deployed code.
     error ZeroAddress();
-    /// @notice A signal operation amount is zero.
+    /// @notice Raised when a signal, move, or withdrawal requests zero raw units.
     error ZeroAmount();
 
-    /// @notice Creates the non-transferable signal token and assigns deployment-time ownership.
-    /// @param gbx_ GBX token deposited by signalers.
-    /// @param initialOwner Deployment-time owner responsible for binding Resonance.
+    /// @notice Creates the `SignalGumBall6900` (`sGBX`) receipt and assigns deployment-time setup ownership.
+    /// @dev Uses 18 decimals inherited from ERC-20 and EIP-712 version `1` for ERC20Votes signatures. Reverts with
+    ///      `ZeroAddress` unless `gbx_` is a nonzero contract. OpenZeppelin `Ownable` rejects a zero `initialOwner`;
+    ///      renouncing ownership before binding Resonance permanently prevents signaling setup from completing.
+    /// @param gbx_ Standard ERC-20 GBX token deposited and returned one-for-one in raw units.
+    /// @param initialOwner Deployment-time owner responsible for the one-time Resonance binding.
     constructor(IERC20 gbx_, address initialOwner)
         ERC20("SignalGumBall6900", "sGBX")
         EIP712("SignalGumBall6900", "1")
@@ -64,9 +84,15 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         gbx = gbx_;
     }
 
-    /// @notice Atomically deposits GBX, mints the same sGBX amount, and assigns it to one live Strategy.
-    /// @param strategy Live Strategy receiving the complete new signal.
-    /// @param amount Exact GBX deposited, sGBX minted, and signal assigned.
+    /// @notice Deposits GBX, mints equal sGBX, and assigns equal signal weight to one live Strategy atomically.
+    /// @dev Pulls GBX from the caller using its existing allowance. If the caller has no current delegate, the newly
+    ///      minted voting units self-delegate; an existing delegate is preserved. Resonance and the paired Bribe then
+    ///      checkpoint prior weights before adding the signal. Any failed transfer, mint, or Resonance hook reverts the
+    ///      complete transition. The function is unavailable before the one-time Resonance binding. Emits `Signaled`
+    ///      after the complete transition; inherited mint and delegation events and downstream signal events also
+    ///      apply.
+    /// @param strategy Registered live Strategy receiving the complete new signal weight.
+    /// @param amount Nonzero raw units of GBX deposited, sGBX minted, and signal weight assigned.
     function signal(address strategy, uint256 amount) external nonReentrant {
         _requireAmount(amount);
         IResonance configuredResonance = _configuredResonance();
@@ -77,14 +103,18 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         emit Signaled(msg.sender, strategy, amount);
     }
 
-    /// @notice Attempts an underlying GBX permit, then performs the same atomic transition as `signal`.
-    /// @dev A pre-consumed permit may fail harmlessly because the underlying transfer remains authoritative.
-    /// @param strategy Live Strategy receiving signal.
-    /// @param amount Amount of GBX deposited, SignalGBX minted, and signal assigned.
-    /// @param deadline Permit expiry timestamp.
-    /// @param v Permit recovery identifier.
-    /// @param r Permit signature `r` component.
-    /// @param s Permit signature `s` component.
+    /// @notice Attempts an ERC-2612 permit on GBX, then performs the same atomic transition as `signal`.
+    /// @dev The permit authorizes this contract to spend `amount` from the caller. Permit failure is deliberately
+    ///      ignored, allowing a pre-consumed signature or an existing allowance to proceed; `safeTransferFrom` remains
+    ///      the authoritative custody and authorization check. A successful permit is rolled back if any later step
+    ///      reverts. This function does not add permit support to the sGBX receipt itself. Emits `Signaled` after the
+    ///      complete transition; inherited mint and delegation events and downstream signal events also apply.
+    /// @param strategy Registered live Strategy receiving the complete new signal weight.
+    /// @param amount Nonzero raw units of GBX deposited, sGBX minted, and signal weight assigned.
+    /// @param deadline Unix timestamp after which the underlying GBX permit is invalid.
+    /// @param v ECDSA recovery identifier for the GBX permit signature.
+    /// @param r ECDSA `r` component for the GBX permit signature.
+    /// @param s ECDSA `s` component for the GBX permit signature.
     function signalWithPermit(address strategy, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
         external
         nonReentrant
@@ -102,10 +132,15 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         emit Signaled(msg.sender, strategy, amount);
     }
 
-    /// @notice Atomically moves signal from one Strategy to another without moving GBX or minting SignalGBX.
-    /// @param fromStrategy Strategy losing signal; may be killed.
-    /// @param toStrategy Live Strategy receiving signal.
-    /// @param amount Absolute SignalGBX delta moved.
+    /// @notice Moves an account's signal weight from one Strategy to another without changing GBX custody or sGBX.
+    /// @dev Resonance removes source weight before adding destination weight, checkpointing both Strategies and paired
+    ///      Bribes under their prior weights. The source may be killed, but the destination must be live. A failed
+    ///      destination addition reverts the earlier removal. Supply, balances, delegation, and voting units do not
+    ///      change. No cooldown or epoch restriction applies. This contract emits no event, while Resonance and the two
+    ///      paired Bribes emit their removal and addition events.
+    /// @param fromStrategy Strategy losing signal weight; may already be killed.
+    /// @param toStrategy Registered live Strategy receiving signal weight; must differ from `fromStrategy`.
+    /// @param amount Nonzero raw signal units moved; cannot exceed the caller's source position.
     function moveSignal(address fromStrategy, address toStrategy, uint256 amount) external nonReentrant {
         _requireAmount(amount);
         IResonance configuredResonance = _configuredResonance();
@@ -115,9 +150,15 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         configuredResonance.addSignalFor(msg.sender, toStrategy, amount);
     }
 
-    /// @notice Atomically removes signal, burns the same sGBX amount, and returns the same amount of GBX.
-    /// @param strategy Strategy losing signal; exits remain available after kill.
-    /// @param amount Amount of signal removed, SignalGBX burned, and GBX returned.
+    /// @notice Removes signal weight, burns equal sGBX, and returns equal GBX to the caller atomically.
+    /// @dev Resonance first checkpoints revenue and the paired Bribe checkpoints rewards under the prior weight. Exits
+    ///      remain available when `strategy` is killed. Burning updates ERC20Votes checkpoints before GBX is
+    ///      transferred; a failed hook, burn, or transfer reverts the transition. Direct GBX donations are not part of
+    ///      the one-for-one entitlement.
+    ///      No cooldown, epoch restriction, or withdrawal lock applies. Emits `SignalWithdrawn` after completion;
+    ///      inherited burn events and downstream removal events also apply.
+    /// @param strategy Strategy losing signal weight; may already be killed.
+    /// @param amount Nonzero raw units of signal removed, sGBX burned, and GBX returned.
     function withdrawSignal(address strategy, uint256 amount) external nonReentrant {
         _requireAmount(amount);
         IResonance configuredResonance = _configuredResonance();
@@ -128,8 +169,12 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         emit SignalWithdrawn(msg.sender, strategy, amount);
     }
 
-    /// @notice Binds the Resonance dependency once after reciprocal SignalGBX identity validation.
-    /// @param resonance_ Resonance address to bind permanently.
+    /// @notice Permanently binds the Resonance dependency after reciprocal SignalGBX identity validation.
+    /// @dev Callable only by the current owner and only while `resonance` is zero. The candidate must be a nonzero
+    ///      contract whose `signalGBX()` identity getter returns this receipt; a failed call or mismatch reverts with
+    ///      `InvalidResonance`. Successful binding emits `ResonanceSet` and has no replacement path. It does not
+    ///      automatically transfer or renounce inherited ownership.
+    /// @param resonance_ Resonance contract address to validate and bind.
     function setResonance(address resonance_) external onlyOwner {
         if (resonance != address(0)) revert ResonanceAlreadySet(resonance);
         if (resonance_ == address(0) || resonance_.code.length == 0) revert ZeroAddress();
@@ -145,6 +190,10 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         emit ResonanceSet(resonance_);
     }
 
+    /// @dev Pulls raw GBX from `account`, mints equal sGBX, and self-delegates only when the account currently has no
+    ///      delegate. The caller performs Resonance signaling after this helper so the full transaction remains atomic.
+    /// @param account GBX owner, sGBX recipient, and potential self-delegate.
+    /// @param amount Raw GBX units pulled and equal sGBX units minted.
     function _depositAndMint(address account, uint256 amount) private {
         gbx.safeTransferFrom(account, address(this), amount);
         _mint(account, amount);
@@ -153,13 +202,17 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         if (delegates(account) == address(0)) _delegate(account, account);
     }
 
+    /// @dev Burns raw sGBX and transfers the same raw GBX amount to `account`; transfer failure reverts the burn.
+    /// @param account Account whose receipt is burned and that receives GBX.
+    /// @param amount Raw sGBX units burned and equal GBX units transferred.
     function _burnAndWithdraw(address account, uint256 amount) private {
         _burn(account, amount);
         gbx.safeTransfer(account, amount);
     }
 
-    /// @notice Applies receipt and signal-checkpoint accounting for a mint or burn.
-    /// @dev Only mint and burn updates are allowed. Direct SignalGBX transfers would bypass Resonance accounting.
+    /// @notice Applies ERC-20 and voting checkpoints only to permitted mint or burn balance changes.
+    /// @dev Reverts whenever both `from` and `to` are nonzero because direct sGBX transfers would separate receipt
+    ///      ownership from Resonance signal accounting. The restriction also applies to zero-value transfers.
     /// @param from Address tokens move from, or zero during minting.
     /// @param to Address tokens move to, or zero during burning.
     /// @param value Amount moved.
@@ -168,11 +221,15 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         super._update(from, to, value);
     }
 
+    /// @dev Loads the one-time Resonance binding and rejects signal operations while setup is incomplete.
+    /// @return configuredResonance Bound Resonance interface.
     function _configuredResonance() private view returns (IResonance configuredResonance) {
         configuredResonance = IResonance(resonance);
         if (address(configuredResonance) == address(0)) revert ResonanceNotSet();
     }
 
+    /// @dev Reverts with `ZeroAmount` unless a signal operation uses a nonzero raw-unit amount.
+    /// @param amount Signal operation amount to validate.
     function _requireAmount(uint256 amount) private pure {
         if (amount == 0) revert ZeroAmount();
     }

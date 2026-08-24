@@ -10,55 +10,75 @@ import { GBX } from "./GBX.sol";
 import { IMine } from "./interfaces/IMine.sol";
 
 /// @title GumBall6900 Ownerless In-Kind Redemption Fund
+/// @author @heesho
 /// @notice Holds the protocol's raw token backing and lets GBX holders redeem a selected in-kind basket.
 /// @dev Fund intentionally has no asset registry. Callers select the assets they want to redeem, which keeps a
 ///      malformed token from blocking every other asset in the treasury. Fund is ownerless and immutable: it has no
-///      administrator, no upgrade path, no successor, and no way to move assets except redemption by GBX holders.
+///      administrator, upgrade path, or successor. Non-GBX backing moves only through holder redemption; Fund-held GBX
+///      may instead be destroyed through the permissionless `burnGBX` path. Each selected payout rounds down in that
+///      token's raw units and is checked for exact sender and receiver deltas.
 contract Fund is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
+    /// @dev Domain separator for transaction-scoped EIP-1153 duplicate-token marks.
     bytes32 private constant REDEMPTION_NAMESPACE = keccak256("gumball6900.fund.redemption");
 
-    /// @notice GBX token burned by redemptions and permissionless maintenance.
+    /// @notice Canonical GBX token burned by redemptions and permissionless maintenance.
     GBX public immutable gbx;
 
     /// @notice Emitted when GBX held by Fund is permanently burned.
     /// @param caller Account that triggered the burn.
-    /// @param amount Amount of GBX burned.
+    /// @param amount Raw GBX amount burned from Fund's balance.
     event GBXBurned(address indexed caller, uint256 amount);
     /// @notice Emitted after a holder completes a selective in-kind redemption.
     /// @param account Account whose GBX was burned.
     /// @param receiver Address that received the selected assets.
-    /// @param gbxAmount Amount of GBX burned.
-    /// @param tokenCount Number of selected assets processed.
+    /// @param gbxAmount Raw GBX amount burned from `account`.
+    /// @param tokenCount Number of unique selected asset addresses processed.
     event Redeemed(address indexed account, address indexed receiver, uint256 gbxAmount, uint256 tokenCount);
 
     /// @notice A redemption selected the same token more than once.
+    /// @param token Repeated token address.
     error DuplicateToken(address token);
     /// @notice A redemption selected no backing assets.
     error EmptyTokenList();
-    /// @notice A redemption selected GBX or the zero address.
+    /// @notice A redemption selected GBX or zero, or construction received a zero or code-less GBX dependency.
+    /// @param token Forbidden selection or invalid constructor dependency.
     error ForbiddenToken(address token);
     /// @notice A selected asset did not debit Fund and credit the receiver by the exact payout.
+    /// @param token Selected token whose transfer produced inexact balance deltas.
+    /// @param expected Expected payout in the selected token's raw units.
+    /// @param fundDebit Actual decrease in Fund's raw token balance.
+    /// @param receiverCredit Actual increase in the receiver's raw token balance.
     error InexactTransfer(address token, uint256 expected, uint256 fundDebit, uint256 receiverCredit);
-    /// @notice Another selected-token transfer reduced this token below its own post-payout backing floor.
+    /// @notice A selected token's balance fell below the minimum required at the current processing stage.
+    /// @param token Selected token whose Fund balance fell too far.
+    /// @param expectedMinimum Minimum permitted raw token balance at this stage of redemption.
+    /// @param currentBalance Observed raw token balance held by Fund.
     error SelectedBalanceDecreased(address token, uint256 expectedMinimum, uint256 currentBalance);
     /// @notice A redemption receiver is the zero address or Fund itself.
+    /// @param receiver Invalid requested receiver.
     error InvalidReceiver(address receiver);
     /// @notice GBX mining authority is not permanently bound to the expected deployed Mine shape.
+    /// @param mine Address reported by GBX as its current minter.
     error InvalidMine(address mine);
     /// @notice A burn or redemption amount is zero.
     error ZeroAmount();
 
     /// @notice Creates the ownerless, registry-free treasury backing `gbx_`.
-    /// @param gbx_ GBX token backed by this Fund.
+    /// @dev Reverts unless `gbx_` is a nonzero address containing deployed code. Reciprocal Mine validation is deferred
+    ///      until redemption because GBX is expected to be constructed before its one-time Mine handoff.
+    /// @param gbx_ Canonical GBX token backed by this Fund.
     constructor(GBX gbx_) {
         if (address(gbx_) == address(0) || address(gbx_).code.length == 0) revert ForbiddenToken(address(gbx_));
         gbx = gbx_;
     }
 
     /// @notice Burns GBX already held by Fund, including GBX received from a Strategy payment.
-    /// @param amount Amount of GBX to burn.
+    /// @dev Permissionless and non-reentrant. Burns from Fund's own balance, never from the caller, and reverts if Fund
+    ///      holds less than `amount`. No backing asset is transferred by this maintenance operation. GBX emits its burn
+    ///      events, followed by Fund's `GBXBurned`.
+    /// @param amount Nonzero raw GBX amount to burn from Fund's balance.
     function burnGBX(uint256 amount) external nonReentrant {
         if (amount == 0) revert ZeroAmount();
 
@@ -68,11 +88,17 @@ contract Fund is ReentrancyGuard {
     }
 
     /// @notice Burns GBX and returns the caller-selected pro-rata share of Fund assets.
-    /// @param gbxAmount Amount of GBX to burn.
-    /// @param receiver Address that receives the selected assets.
-    /// @param tokens Unique, non-GBX token addresses to include in this redemption.
-    /// @dev Every payout uses the same total supply captured before GBX is burned. Tokens omitted by the caller remain
-    ///      in Fund for the remaining GBX supply, and a failure in any selected transfer reverts the entire operation.
+    /// @dev Non-reentrant and atomic. The caller must hold and approve `gbxAmount`. Every payout is
+    ///      `floor(balanceBefore * gbxAmount / effectiveSupplyBeforeBurn)` in the selected token's raw units, using one
+    ///      denominator that includes all accrued unminted Mine emission. Balances are snapshotted before the GBX burn.
+    ///      Each nonzero asset transfer must debit Fund and credit `receiver` by the exact payout, and no selected
+    ///      transfer may consume another selected address's backing. Tokens omitted by the caller remain in Fund and
+    ///      that redeemer permanently forfeits their share. The token array has no length cap beyond transaction gas.
+    ///      Any validation, burn, or transfer failure reverts all work. Emits `Redeemed` after every selected token has
+    ///      passed its final balance check.
+    /// @param gbxAmount Nonzero raw GBX amount transferred from and burned for the caller.
+    /// @param receiver Nonzero, non-Fund address receiving every selected asset payout; may differ from the caller.
+    /// @param tokens Nonempty array of unique, nonzero, non-GBX token addresses selected by the caller.
     function redeem(uint256 gbxAmount, address receiver, address[] calldata tokens) external nonReentrant {
         if (gbxAmount == 0) revert ZeroAmount();
         if (receiver == address(0) || receiver == address(this)) revert InvalidReceiver(receiver);
@@ -130,6 +156,11 @@ contract Fund is ReentrancyGuard {
         emit Redeemed(msg.sender, receiver, gbxAmount, tokenCount);
     }
 
+    /// @dev Transfers one selected payout and rejects fee-on-transfer, rebasing, aliasing, or other behavior that does
+    ///      not reduce Fund's balance and increase the receiver's balance by exactly `amount` raw units.
+    /// @param token Selected ERC-20 asset to transfer.
+    /// @param receiver Account receiving the payout.
+    /// @param amount Nonzero payout in the selected token's raw units.
     function _transferExact(address token, address receiver, uint256 amount) private {
         IERC20 asset = IERC20(token);
         uint256 fundBalanceBefore = asset.balanceOf(address(this));
@@ -143,8 +174,8 @@ contract Fund is ReentrancyGuard {
     }
 
     /// @notice Marks one token for duplicate detection during the current transaction.
-    /// @dev This provides O(n) duplicate detection without an asset
-    ///      registry, sorting requirement, permanent mapping writes, or monotonically increasing nonce.
+    /// @dev Rejects the zero address, GBX, and any token already marked by this Fund in the transaction. This provides
+    ///      O(n) duplicate detection without an asset registry, sorting requirement, permanent writes, or a nonce.
     /// @param token Token address to mark for the current transaction.
     function _markToken(address token) private {
         if (token == address(0) || token == address(gbx)) revert ForbiddenToken(token);
@@ -154,7 +185,7 @@ contract Fund is ReentrancyGuard {
         _transientStore(slot, 1);
     }
 
-    /// @notice Clears one token's transient duplicate mark after a successful operation.
+    /// @notice Clears one token's transient duplicate mark after its successful payout processing.
     /// @dev Clearing allows another call involving the token later in the same transaction.
     /// @param token Token address whose mark is cleared.
     function _clearToken(address token) private {

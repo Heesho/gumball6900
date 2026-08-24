@@ -2,7 +2,8 @@
 
 > This is an unexecuted development outline, not a deployment manifest or release authorization.
 
-Required inputs include reviewed USDG, the external USDG/GBX LP ERC-20 address and Strategy configuration, all other
+Required inputs include reviewed USDG, the externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 address and
+Strategy configuration, all other
 initial Strategies, independent review of the hard-coded Mine economics, provenance clearance, independent security evidence,
 and a later ADR selecting the exact external governance provider, release, executor, plugins, voting configuration,
 permission graph, upgrade model, execution delay, cancellation rules, and ownership-handoff evidence.
@@ -30,9 +31,10 @@ The intended order is:
 5. From the temporary GBX minter, call `GBX.setMinter(Mine)` exactly once. Verify `minterLocked == true`, Mine is the
    minter, `Mine.gbx()` equals GBX, and no alternative mint authority exists. This step is irreversible and must be
    complete before publishing or exposing the Mine address because Mine does not repeat these deployment checks on
-   every handoff.
+   every replacement.
 6. While the temporary setup owner still controls Resonance, create every reviewed initial Strategy, including one
-   ordinary Strategy whose payment token is the reviewed external fungible USDG/GBX LP ERC-20, and register any
+   ordinary Strategy whose payment token is the reviewed, externally created fungible Uniswap v2-style USDG/GBX LP
+   ERC-20, and register any
    reviewed initial Bribe reward tokens. Verify the complete Strategy, BribeRouter, and Bribe graph. The LP token has
    no special core configuration or behavior. Do not defer bootstrap membership until after ownership handoff.
 7. Stop unless a later ADR has selected and reviewed the external governance integration. This repository deploys no

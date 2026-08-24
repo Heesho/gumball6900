@@ -3,9 +3,9 @@
 This local campaign is not an independent audit or proof of safety. Its recorded native-fuzzer results predate ADR
 0034's removal of the local Governor and Timelock, ADR 0036's governed global Bribe share, ADR 0037's high-precision
 Bribe index, ADR 0047's reward and Strategy-settlement simplification, and ADR 0048's sixteen-token and composed-move
-change. The following are the current residuals after the 2026-08-23 development reconciliation; the recorded native
-campaign results remain historical. Focused ADR-0048 suites pass 104/104 and its revised mutation campaign kills
-47/47 targeted mutants.
+change. The following residuals were reconciled through ADR 0050 on 2026-08-24; the recorded native campaign results
+remain historical. Focused ADR-0048 suites passed 104/104 and its revised mutation campaign killed 47/47 targeted
+mutants, but both results predate ADRs 0049 and 0050.
 
 1. ADR 0028 accepts that a killed Strategy's final signal exit can leave the remaining active Bribe stream and later
    zero-supply notifications permanently unclaimable. Reward time continues rather than pausing, and there is no
@@ -59,7 +59,7 @@ campaign results remain historical. Focused ADR-0048 suites pass 104/104 and its
     must define delay, cancellation, batching, monitoring, and emergency behavior for this lever; the current core
     supplies none.
 14. Each Bribe may register sixteen reward tokens. The loop remains fixed, but maximum work is higher than the former
-    former eight-token design: a composed move with sixteen active streams on both Bribes measured 1,890,938 gas in the
+    eight-token design: a composed move with sixteen active streams on both Bribes measured 1,890,938 gas in the
     focused suite. Deployment review must preserve sufficient chain-specific headroom.
 15. SignalGBX composes source removal then destination addition. Atomic rollback preserves state when the destination
     fails, but the failed transaction may spend the source checkpoint work before reverting.

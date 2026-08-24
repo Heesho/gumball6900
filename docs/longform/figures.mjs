@@ -91,7 +91,7 @@ const protocolLoop = `
   <text x="500" y="12" ${S.tag}>VALUE OUT</text>
   ${node(8, 24, 104, 40, ['Mine', '16 slot auctions'], 'deep')}
   ${node(8, 104, 104, 40, ['External UniV2 LP', 'ordinary target'], 'deep')}
-  ${node(8, 196, 104, 34, ['Displaced miner'])}
+  ${node(8, 196, 104, 34, ['Outgoing miner'])}
   ${node(154, 64, 100, 40, ['ResonanceRouter'])}
   ${node(292, 64, 100, 40, ['Resonance', '7-day USDG stream'])}
   ${node(292, 158, 100, 36, ['sGBX signal'], 'blue')}
@@ -143,7 +143,7 @@ const contractGraph = `
   <text x="24" y="432" ${S.label}>Redemption and GBX burning</text>
   <text x="24" y="446" ${S.label}>are the only exits.</text>
   ${edge('M 82 84 L 82 138', 'mint authority, once', 82, 104)}
-  ${edge('M 140 64 L 188 64', 'signal 1:1', 164, 56)}
+  ${edge('M 140 64 L 188 64', 'deposit + signal 1:1', 164, 56)}
   ${edge('M 136 158 L 168 158', '', 0, 0)}
   ${edge('M 222 178 L 222 196 L 300 196 L 300 232', 'notifyRevenue', 261, 191)}
   ${edge('M 340 84 L 424 84 L 424 196 L 360 196 L 360 232', 'signal changes', 392, 191)}
@@ -160,7 +160,7 @@ const contractGraph = `
   <text x="452" y="268" ${S.label}>External. Not selected.</text>
   <text x="452" y="282" ${S.label}>Not in this repository.</text>
   <text x="452" y="302" ${S.tag}>ADDSTRATEGY · KILLSTRATEGY</text>
-  <text x="452" y="314" ${S.tag}>ADDBRIBEREWARD</text>
+  <text x="452" y="314" ${S.tag}>ADDBRIBEREWARDTOKEN</text>
   <text x="452" y="326" ${S.tag}>SETBRIBEBPS (0–20%)</text>
   <text x="440" y="118" ${S.tag}>IVOTES CHECKPOINTS ARE KEPT</text>
   <text x="440" y="130" ${S.tag}>BUT READ BY NOTHING IN THE CORE</text>
@@ -173,7 +173,7 @@ const FIGURES = [
   {
     id: 'contract-graph',
     /** Hash of the `flowchart TB` contract graph in the whitepaper. */
-    hashes: ['9931ae5a9e2ddc82'],
+    hashes: ['7d4c7ecc43f669dd'],
     match: (src) => src.includes('StrategyFactory'),
     svg: contractGraph,
     caption:
@@ -186,7 +186,7 @@ const FIGURES = [
     match: (src) => src.includes('slot auctions') && !src.includes('StrategyFactory'),
     svg: protocolLoop,
     caption:
-      'The economic loop. Mine deposits revenue into ResonanceRouter for a later permissionless route, then Resonance streams forwarded USDG under live signal weights. A reviewed external UniV2 USDG-GBX LP token may be an ordinary Strategy target, with no liquidity-specific core path. Strategy floors each purchase’s current 0%-to-20% Bribe share independently, sends Fund’s complement directly, and buffers only the Bribe share.',
+      'The economic loop. Mine deposits revenue into ResonanceRouter for a later permissionless route, then Resonance streams forwarded USDG under live signal weights. A reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token may be an ordinary Strategy target, with no liquidity-specific core path. Strategy floors each purchase’s current 0%-to-20% Bribe share independently, sends Fund’s complement directly, and buffers only the Bribe share.',
   },
 ];
 

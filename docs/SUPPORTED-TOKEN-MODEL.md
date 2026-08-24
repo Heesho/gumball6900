@@ -1,6 +1,6 @@
 # Supported token model
 
-> ADRs 0031, 0035, 0036, 0037, 0047, and 0049 define the current token interactions below.
+> ADRs 0031, 0035, 0036, 0037, 0047, 0049, and 0050 define the current token interactions below.
 
 ## Canonical and registered tokens
 
@@ -53,16 +53,16 @@ active stream combines the new amount with the scheduled remainder and restarts 
 `floor((amount + remaining) / duration)`. Neither contract stores a front-loaded remainder, successor queue, pause clock,
 fractional carry, or Fund reward liability.
 
-Both rewarders use a `1e36` reward-per-signal index. The following amounts remain unallocated surplus in the reward
-contract rather than becoming liabilities:
+Resonance uses a `1e36` revenue-per-signal index, and each Bribe uses a `1e36` reward-per-signal index. The following
+amounts remain unallocated surplus in the respective contract rather than becoming liabilities:
 
 - the notification amount omitted by the whole-unit rate floor;
 - the global-index division remainder;
-- each account's sub-token division remainder;
-- rewards whose stream time elapses while active signal supply is zero; and
+- each Strategy's Resonance allocation floor and each Bribe account's reward floor;
+- streamed revenue or rewards whose time elapses while active signal weight is zero; and
 - direct donations that were never admitted through a notification.
 
-The high-precision index lets a single raw reward unit remain useful at realistic 18-decimal signal supplies, but it
+The high-precision index lets a single raw streamed-token unit remain useful at realistic 18-decimal signal weights, but it
 does not promise exact conservation or a later path for every fraction.
 
 Each reward token also has a per-Bribe lifetime notification budget of
@@ -110,10 +110,10 @@ reverts the complete redemption, while omitted assets remain permanently for the
 selected address must also retain at least its own snapshotted balance less its payout after the complete basket
 transfer, preventing two token facades backed by one shared ledger from consuming the same backing twice.
 
-Mine USDG is isolated through pull accounting. It requests the complete nominal price, retains only displaced-miner
+Mine USDG is isolated through pull accounting. It requests the complete nominal price, retains only outgoing-tenure-miner
 claims, and requests transfer of the nominal protocol share to ResonanceRouter. Under the supported standard USDG
 model, successful `SafeERC20` calls move those requested amounts; Mine does not prove them with balance snapshots. A
-blocked transfer into the Router reverts the paid handoff, but later Router or Resonance failures occur in a separate
+blocked transfer into the Router reverts the paid replacement, but later Router or Resonance failures occur in a separate
 transaction and cannot roll it back. A blocked claim recipient does not redirect the claim or block another miner's
 claim.
 

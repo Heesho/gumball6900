@@ -1,6 +1,7 @@
 # Security invariants
 
-This file defines the accounting identities used by the hardening tests. For Resonance and Bribe rewards, `P = 1e36`.
+This file defines the accounting identities used by the hardening tests. For Resonance revenue and Bribe rewards,
+`P = 1e36`.
 Quantities named `Scaled` already include their subsystem's precision unit.
 
 > ADRs 0031, 0034, 0035, 0037, and 0047-0050 make the SignalGBX, Bribe, Strategy settlement, and external-governance
@@ -18,8 +19,8 @@ pendingEmission = sum_slots((now - lastAccruedAt) * slot.tps)
 effectiveTotalSupply = totalSupply + pendingEmission
 ```
 
-`slot.tps` is written only when a slot receives a new miner. It is not rewritten by a time-based halving boundary or a
-Fund redemption. On a handoff, only the outgoing slot is settled, then:
+`slot.tps` is written only when a new tenure begins. It is not rewritten by a time-based halving boundary or a Fund
+redemption. On a replacement, only the outgoing slot is settled, then:
 
 ```text
 newSlot.tps = globalTps(now - startTime) / 16
@@ -28,15 +29,15 @@ newSlot.tps = globalTps(now - startTime) / 16
 For a positive nonempty-slot payment:
 
 ```text
-previousMinerClaim = floor(price * 8,000 / 10,000)
-routerDeposit = price - previousMinerClaim
+outgoingMinerClaim = floor(price * 8,000 / 10,000)
+routerDeposit = price - outgoingMinerClaim
 Mine USDG balance = totalClaimableMinerPayments
 ```
 
-For an empty slot, `routerDeposit = price`; for a zero-price handoff both values are zero. Mine requests these nominal
+For an empty slot, `routerDeposit = price`; for a zero-price replacement both values are zero. Mine requests these nominal
 amounts with `SafeERC20` and trusts canonical USDG's standard movement without sender/receiver balance checks. The
 deposit is Mine's terminal revenue action: a later permissionless `ResonanceRouter.route()` call is neither part of nor
-a precondition for the handoff.
+a precondition for the replacement.
 
 ## Signals and virtual Bribe balances
 
@@ -115,9 +116,9 @@ USDG.balanceOf(Resonance)
 surplus >= 0
 ```
 
-`surplus` includes global-index and per-Strategy floors, emission elapsed while active signal supply was zero, and USDG
+`surplus` includes global-index and per-Strategy floors, emission elapsed while active signal weight was zero, and USDG
 sent directly without a Router notification. It is neither a Strategy nor Fund liability and there is no synchronization,
-recovery, or later-allocation path. Strategy payouts reduce both the token balance and the matching whole reward.
+recovery, or later-allocation path. Strategy payouts reduce both the token balance and the matching whole revenue.
 
 For every active stream:
 
@@ -136,7 +137,7 @@ restarts a seven-day schedule at
 `floor((routerBalance + remainingRevenueBeforeNotification) / REWARD_DURATION)`. The division remainder remains
 surplus.
 
-For positive active signal supply, elapsed raw emission advances the global revenue-per-signal index by
+For positive active signal weight, elapsed raw emission advances the global revenue-per-signal index by
 `floor(emittedRaw * P / totalSignalWeight)`. Strategy checkpointing accrues
 `floor(strategyWeight * indexDelta / P)`. Neither floor retains a remainder. At zero active supply the index is unchanged
 while stream time advances, so that elapsed emission enters `surplus`.
@@ -144,7 +145,7 @@ while stream time advances, so that elapsed emission enters `surplus`.
 Elapsed revenue is checkpointed before a signal weight changes. `Strategy.buy` checkpoints and transfers its released
 allocation before it snapshots auction inventory. In one block, newly notified revenue has zero elapsed stream time.
 
-Killing a live Strategy checkpoints its whole accrued reward, preserves that claim, and subtracts its complete recorded
+Killing a live Strategy checkpoints its whole accrued revenue, preserves that claim, and subtracts its complete recorded
 weight from active `totalSignalWeight`. The recorded account, Strategy, and Bribe balances remain. Later removals reduce
 those three balances but do not subtract the already excluded weight from active `totalSignalWeight`; additions are
 forbidden. The transition also decrements `liveStrategyCount` and reverts if the Strategy is the final live one.
@@ -208,7 +209,8 @@ Fund first reads Mine's effective supply, then every selected payout uses the sa
 balance:
 
 ```text
-payout(token) = floor(balanceBefore(token) * gbxAmount / totalSupplyBeforeBurn)
+effectiveSupplyBeforeBurn = GBX.totalSupply() + Mine.pendingEmission()
+payout(token) = floor(balanceBefore(token) * gbxAmount / effectiveSupplyBeforeBurn)
 ```
 
 The GBX burn and every selected transfer are atomic. Every successful redemption also satisfies:
@@ -220,6 +222,7 @@ finalBalance(token) >= balanceBefore(token) - payout(token)
 This basket-wide postcondition prevents distinct selected token addresses backed by one shared ledger from consuming
 the same backing twice.
 
-One reviewed external USDG/GBX LP ERC-20 may be an ordinary bootstrap Strategy payment token. It obeys the same
+One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 may be an ordinary bootstrap Strategy
+payment token. It obeys the same
 Strategy split and Fund redemption rules as every other payment token. No core invariant depends on pool reserves,
 price, custody, fees, or liquidity availability because the core performs no liquidity operation.

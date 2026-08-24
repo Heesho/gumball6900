@@ -1,19 +1,19 @@
 ---
-title: How GUM BALL 6900 Turns Community Conviction Into an Onchain Portfolio
+title: How GumBall6900 Turns Community Conviction Into an Onchain Portfolio
 version: 2.0.0
-date: 2026-08-23
+date: 2026-08-24
 source_commit: uncommitted-working-tree
-base_commit: d80b92da5e60c0daa54dbae29653898dde514053
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0049; not approved for user funds.
+base_commit: 5e4dc23849dec01ccce5e49c0e55120a9f7dcac0
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0050; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
 internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
 independent_audit_status: No independent external audit has been performed.
 ---
 
-# How GUM BALL 6900 Turns Community Conviction Into an Onchain Portfolio
+# How GumBall6900 Turns Community Conviction Into an Onchain Portfolio
 
 > **Before you read on:** this protocol is not deployed, not audited, and not approved for user funds. This article
-> describes the current uncommitted development tree based on `e3ebdd7`, not a live product or commit-pinned review
+> describes the current uncommitted development tree based on `5e4dc23`, not a live product or commit-pinned review
 > artifact. Nothing here is investment advice.
 
 ## 1. The central idea
@@ -31,7 +31,7 @@ appraiser, no price feed, no discretion.
 **Third**, leaving is arithmetic rather than a request. Burn your membership tokens and the vault hands you your
 proportional share of whichever holdings you name. No redemption window, no gate, no manager who can say no.
 
-That is GUM BALL 6900. These are not policies people follow — they are smart contracts that execute. The manager is
+That is GumBall6900. These are not policies people follow — they are smart contracts that execute. The manager is
 not honest; the manager does not exist.
 
 ## 2. Why ordinary funds require trust
@@ -45,7 +45,7 @@ products and you find an admin key that can change holdings, an upgradeable cont
 switch that can stop withdrawals, and an oracle that decides what everything is worth. Same promises, different
 paperwork.
 
-GUM BALL 6900's premise is that if you remove _every_ discretionary lever, what remains is either verifiable or
+GumBall6900's premise is that if you remove _every_ discretionary lever, what remains is either verifiable or
 absent. In this development tree the protocol has no upgrade path, proxy, pause switch, rescue or sweep function,
 arbitrary-call executor, migration route, price oracle, NAV calculation, rebalancing engine, or keeper role. The
 treasury has no owner at all.
@@ -150,13 +150,13 @@ deployment it has six decimal places, which matters later for the arithmetic.
 There is one protocol-defined revenue source.
 
 **Mining.** The mine has exactly sixteen permanent slots. Whoever occupies a slot accrues GBX continuously at a fixed
-rate, minted when that slot next changes hands. To take a slot, you win its auction: the price to
-displace the current occupant starts at some level and falls in a straight line to zero over one hour, then sits at
+rate, minted when that slot's current tenure is replaced. To take a slot, you win its auction: the replacement price
+starts at some level and falls in a straight line to zero over one hour, then sits at
 zero until someone takes it.
 
-When you take an **occupied** slot, 80% of what you pay becomes a claim for the miner you displaced, and 20% becomes
+When you take an **occupied** slot, 80% of what you pay becomes a claim for the outgoing tenure's miner, and 20% becomes
 protocol revenue. When you take an **empty** slot, there is nobody to compensate, so 100% becomes protocol revenue.
-There is no team fee anywhere in this. The displaced miner's 80% is held as a claim they withdraw when they like —
+There is no team fee anywhere in this. The outgoing tenure miner's 80% is held as a claim they withdraw when they like —
 anyone can trigger the withdrawal, but the money can only ever go to the miner.
 
 Mine requests a nominal transfer of that protocol-revenue share into **ResonanceRouter** and stops. Under the supported
@@ -164,17 +164,18 @@ standard USDG model, its `RevenueDeposited` event means the `SafeERC20` transfer
 money entered Resonance's stream in the same transaction.
 
 Two things a prospective miner should understand. First, your GBX rate is **locked for your entire tenure** — halving
-issuance, redemptions, and other slots' handoffs never change it. Only a newly occupied or replaced slot receives the
-current global TPS divided by sixteen. Second, less comfortably: **the 80% handoff is not guaranteed.** You receive it only if
-someone later replaces you at a nonzero price, and since the price falls to zero after an hour, a successor can
-replace you having paid nothing. You keep the GBX you accrued, but no handoff payment. Interfaces must not present
+issuance, redemptions, and other slots' replacements never change it. Only a newly occupied or replaced slot receives
+the current global TPS divided by sixteen. Second, less comfortably: **the 80% replacement claim is not
+guaranteed.** You receive it only if a later replacement clears at a nonzero price, and since the price falls to zero
+after an hour, any caller — including you — can replace the tenure having paid nothing. You keep the GBX you accrued,
+but receive no replacement claim. Interfaces must not present
 that 80% as principal, yield, or a refund.
 
 <!-- figure: mine-grid -->
 
 <!-- figure: mining-split -->
 
-**External LP token.** A reviewed fungible USDG-GBX Uniswap V2 LP token may be registered during bootstrap as an
+**External LP token.** A reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token may be registered during bootstrap as an
 ordinary Strategy target. That is an index-asset choice, not a second revenue mechanism: the Strategy acquires and
 settles the LP token under the same global Fund/Bribe split as every other asset. The core does not create, seed,
 custody, price, rebalance, compound, harvest, or swap liquidity, and it guarantees no market liquidity.
@@ -430,7 +431,7 @@ anyone can ever change:
 That is the complete list. All four live on **Resonance**, which is the only contract with continuing custom owner
 authority. SignalGBX, StrategyFactory, and BribeFactory retain setup-only Ownable shells until production explicitly
 renounces them after their one-time Resonance bindings are consumed; those shells expose no custom protocol action
-after setup. The Mine has no owner. The Fund has no owner. The liquidity position has no owner. Nobody — not a
+after setup. The Mine has no owner. The Fund has no owner. The core has no liquidity position. Nobody — not a
 developer, not a voter, not a future administrator — can change mining prices, issuance rates, halving parameters,
 the tail rate, mint authority, Fund assets, liquidity custody, the auction mechanism, or the sixteen-slot count. There
 is no upgrade path, no pause switch, and no sweep function to add one later.
@@ -493,7 +494,7 @@ nobody new can join. If the **last** signaler withdraws while rewards remain, th
 possibly an entire unvested stream, not merely dust. There is deliberately no refund or rescue. Interfaces must warn
 the final signaler before they exit.
 
-## 15. What GUM BALL 6900 does not guarantee
+## 15. What GumBall6900 does not guarantee
 
 Read this section twice.
 
@@ -529,7 +530,7 @@ Read this section twice.
 | Deployment correctness | Parameters, reviewed Strategy inputs, and role setup must be right the first time, forever.                |
 | Unresolved economics   | The provisional 64 GBX/s, 69-day, 1 GBX/s Mine schedule and other fixed economics lack independent review. |
 | Unfinished governance  | The external owner of Resonance is unselected; today one address holds all four powers outright.           |
-| Miner rollover         | The 80% handoff arrives only if a successor pays. It can be zero.                                          |
+| Miner rollover         | The 80% replacement claim exists only if a later replacement pays. It can be zero.                         |
 | Abandoned rewards      | A retired Strategy's last signaler can strand an unbounded amount of rewards.                              |
 | Accepted dust          | Rounding and zero-signal intervals accumulate unrecoverable USDG in Resonance.                             |
 | Third-party tokens     | USDG and every acquired asset carry independent freeze, upgrade, and solvency risk.                        |

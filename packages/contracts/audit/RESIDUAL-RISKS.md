@@ -3,24 +3,24 @@
 ## Mine and supply
 
 - Fixed-tenure rates prevent mid-mine dilution but can keep aggregate issuance above the prospective rate after a
-  future-handoff halving. Old slots keep their earlier rates indefinitely unless replaced.
-- Miners face rollover risk and may be replaced at zero USDG after one hour. The 80% successor payment is not a refund
-  or guarantee.
-- GBX has no protocol-defined economic supply cap. Immutable future-handoff halvings converge to a positive tail, so
+  future-tenure halving. Old slots keep their earlier rates indefinitely unless replaced.
+- Miners face rollover risk: an outgoing tenure can be settled at zero USDG after one hour. Its 80% replacement share
+  is not a refund or guarantee.
+- GBX has no protocol-defined economic supply cap. Immutable future-tenure halvings converge to a positive tail, so
   dilution does not terminate on any modeled horizon. SignalGBX voting checkpoints impose a `uint208` ceiling on the
   amount that can be signaled for governance, even though GBX itself has no such implementation ceiling.
 - The hard-coded Mine parameters, including the provisional 64 GBX-per-second initial rate, 69-day halving period, and
   1 GBX-per-second tail, lack independent economic review and materially affect demand, dilution, revenue, and MEV.
-- The 771,161,600 GBX day-414 supply and approximately 4.089% initial annual tail ratio are synchronized, fully
+- The 751,161,600 GBX day-414 supply and approximately 4.198% initial annual tail ratio are synchronized, fully
   occupied, fully refreshed, fully settled, no-burn references—not caps or forecasts. The ratio declines as supply
   grows; legacy tenures can emit above that path, empty slots can emit below it, and burns alter the denominator.
-- Accrued GBX is unminted until a slot handoff. Fund uses Mine's constant-time effective supply, and indexers should
+- Accrued GBX is unminted until a slot replacement. Fund uses Mine's constant-time effective supply, and indexers should
   use the same view for inclusive supply displays.
 - Mine revenue becomes a Router deposit rather than an automatic stream notification. Permissionless `route()` has no
   designated caller or bounty, so even qualifying revenue may wait indefinitely and its eventual caller can influence
   notification timing. A Router balance below `REWARD_DURATION` raw USDG cannot qualify without another deposit even
-  after an active stream finishes. This cannot block a completed Mine handoff, but it can delay Strategy revenue.
-- Mine handoffs and effective-supply reads are constant time; rigorous tests separately traverse all sixteen slots as
+  after an active stream finishes. This cannot block a completed Mine replacement, but it can delay Strategy revenue.
+- Mine replacements and effective-supply reads are constant time; rigorous tests separately traverse all sixteen slots as
   a differential oracle.
 - The permanent GBX minter handoff and immutable dependencies cannot be repaired after an incorrect deployment.
   Reciprocal binding checks reject crossed GBX/Mine, Resonance/SignalGBX/factory, and Resonance/router graphs. Mine's
@@ -44,8 +44,9 @@
   tokens can reach it at a much smaller displayed amount. At exhaustion, new direct and automatic notifications fail;
   existing claims and signal exits remain available. An automatic reward stays buffered in BribeRouter while Fund has
   already received its complement atomically with the purchase.
-- The core does not create, custody, manage, or harvest liquidity. Any external USDG-GBX LP token admitted as a
-  Strategy carries the ordinary token, market, and governance-admission risks of that Strategy.
+- The core does not create, custody, manage, or harvest liquidity. Any reviewed, externally created fungible Uniswap
+  v2-style USDG-GBX LP ERC-20 admitted as a Strategy carries the ordinary token, market, and governance-admission
+  risks of that Strategy.
 - Signal timing changes which Strategies earn later intervals of a restarted revenue stream because signaling has no
   cooldown. Checkpoint-before-weight-change ordering prevents retroactive capture but not short-duration positioning.
 - Strategy price may fall to zero. Fund has no curated asset list, recovery, or migration.

@@ -19,7 +19,7 @@ binding, its continuing protocol administration methods are:
 
 The Resonance owner can also call inherited `transferOwnership` and `renounceOwnership`; the core no longer claims to
 enforce a selector-bounded proposal surface around those capabilities. Mine has no owner or administrative methods.
-Resonance ownership cannot change mining replacement prices or their 80/20 displaced-miner split, halving parameters,
+Resonance ownership cannot change mining replacement prices or their 80/20 outgoing-tenure-miner split, halving parameters,
 the tail rate, GBX mint authority, Fund assets, or external liquidity.
 
 SignalGBX, StrategyFactory, and BribeFactory also inherit Ownable for their one-time `setResonance` bindings. Once a
@@ -50,8 +50,8 @@ GBX binds Mine once during deployment. SignalGBX, StrategyFactory, and BribeFact
 are ownerless. There are no proxies, pause switches, sweep methods, successor bindings, migrations,
 or generic executors in the core protocol contracts.
 
-Mining, displaced-miner claims, routing, `signal`, `signalWithPermit`, `moveSignal`,
-`withdrawSignal`, Strategy purchases, reward claims, buffered paired-Bribe distribution, Fund GBX burning, and
+Mining replacements, outgoing-tenure-miner claims, routing, `signal`, `signalWithPermit`, `moveSignal`,
+`withdrawSignal`, Strategy purchases, reward claims, buffered paired-Bribe routing, Fund GBX burning, and
 redemption are permissionless. There is no standalone staking or unstaking surface.
 Mine stops after a successful nominal `SafeERC20` transfer request to ResonanceRouter under the supported standard
 USDG model. The later permissionless `route()` has no keeper role, bounty, or liveness guarantee and belongs to

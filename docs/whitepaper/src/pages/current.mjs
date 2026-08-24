@@ -36,7 +36,7 @@ export const currentPages = [
               </div>
               <div>
                 <div class="kpi__value">80 / 20</div>
-                <div class="kpi__label">Handoff / Resonance</div>
+                <div class="kpi__label">Replacement / Resonance</div>
               </div>
               <div>
                 <div class="kpi__value">Fixed</div>
@@ -116,12 +116,12 @@ export const currentPages = [
             <div class="col-main">
               ${steps([
                 'A participant takes a mining slot at its current hourly decaying USDG price.',
-                'The incumbent accrues GBX continuously at the fixed rate assigned on entry.',
+                'The outgoing tenure accrues GBX continuously at the fixed rate assigned on entry.',
                 'A signal atomically escrows GBX, mints non-transferable voting sGBX, and assigns every unit to one live Strategy.',
-                'Twenty percent of a nonempty-slot handoff is deposited into ResonanceRouter; eighty percent becomes a displaced-miner claim.',
+                'Twenty percent of a nonempty-slot replacement is deposited into ResonanceRouter; eighty percent becomes an outgoing-tenure miner claim.',
                 'Mine stops after deposit. A later permissionless route of a qualifying balance restarts seven days with new USDG plus the remainder.',
                 'Strategies pull released USDG; each acquired-asset payment uses the current global 0%-to-20% Bribe rate and its Fund complement, with 1e36 reward-index precision.',
-                'A reviewed external USDG-GBX LP token may be a bootstrap Strategy asset; it receives no special core treatment.',
+                'A reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token may be a bootstrap Strategy asset; it receives no special core treatment.',
                 'A GBX holder may burn GBX for a selected pro-rata basket of raw Fund assets.',
               ])}
             </div>
@@ -139,7 +139,7 @@ export const currentPages = [
   {
     id: 'mining',
     runner: 'Mining market',
-    section: { title: 'Mining market', note: 'Hourly handoffs and rollover risk' },
+    section: { title: 'Mining market', note: 'Hourly replacements and rollover risk' },
     render: () =>
       frame(
         html`${sectionHead({
@@ -152,13 +152,14 @@ export const currentPages = [
             <div class="col-main">
               <p>
                 A miner buys the right to accrue GBX until replacement and the possibility of receiving 80% of the next
-                payment. The second value is uncertain: without a successor, no handoff claim arrives. This rollover
-                risk disciplines the price miners are willing to pay.
+                payment. The second value is uncertain: unless a later replacement clears at a nonzero price, no
+                outgoing-tenure claim arises. Because self-replacement is permitted, this rollover risk is about the
+                clearing price rather than a required change of miner.
               </p>
               <p>
-                After each handoff, the next opening price is the paid amount multiplied by an immutable factor, with an
-                immutable minimum. Expected GBX value, market liquidity, gas, replacement probability, and contract risk
-                all influence the real clearing price.
+                After each replacement, the next opening price is the paid amount multiplied by an immutable factor,
+                with an immutable minimum. Expected GBX value, market liquidity, gas, replacement probability, and
+                contract risk all influence the real clearing price.
               </p>
               ${table({
                 head: ['Moment', 'Contract outcome'],
@@ -174,7 +175,7 @@ export const currentPages = [
               ${note({
                 label: 'Not guaranteed',
                 kind: 'asset',
-                body: 'Profitability, a successor payment, GBX liquidity, and frequent replacement are market outcomes—not contract guarantees.',
+                body: 'Profitability, a nonzero later replacement payment, GBX liquidity, and frequent replacement are market outcomes—not contract guarantees.',
               })}
               ${note({
                 label: 'Caller bounds',
@@ -187,32 +188,32 @@ export const currentPages = [
   {
     id: 'fairness',
     runner: 'Fixed-tenure fairness',
-    section: { title: 'Fixed-tenure fairness', note: 'Halvings cannot dilute incumbents' },
+    section: { title: 'Fixed-tenure fairness', note: 'Halvings cannot dilute outgoing tenures' },
     render: () =>
       frame(
         html`${sectionHead({
             eyebrow: 'Part III',
             number: '03',
             title: 'Miners keep the rate they bought',
-            deck: 'A slot rate changes only when that slot changes hands.',
+            deck: 'A slot rate changes only when its next tenure begins.',
           })}
           <p class="lead">
-            Time-based halving boundaries, claims, redemptions, and other slots' handoffs never rewrite an occupied
+            Time-based halving boundaries, claims, redemptions, and other slots' replacements never rewrite an occupied
             slot's GBX-per-second rate.
           </p>
           ${table({
-            head: ['State', 'Earlier incumbent', 'New tenure'],
+            head: ['State', 'Outgoing tenure', 'New tenure'],
             rows: [
               ['Global 230,400 GBX/hour', '14,400 GBX/hour', '14,400 GBX/hour'],
               ['Global rate halves', 'Still 14,400 GBX/hour', '7,200 GBX/hour'],
-              ['Incumbent is replaced', 'Tenure ends', '7,200 GBX/hour'],
+              ['Replacement clears', 'Outgoing tenure ends', '7,200 GBX/hour'],
             ],
           })}
           <div class="spread stack-2">
             <div class="col-main">
               <p>
                 All sixteen slots divide the current global rate by sixteen when a tenure begins. A time boundary
-                changes only the rate offered at a later handoff, never an incumbent's already-assigned rate.
+                changes only the rate offered at a later replacement, never an outgoing tenure's already-assigned rate.
               </p>
             </div>
             <div class="col-side">
@@ -240,16 +241,16 @@ export const currentPages = [
           <div class="spread">
             <div class="col-main">
               <p>
-                GBX begins with ${Number(contractConstants.gbx.genesisLiquidityTokens).toLocaleString('en-US')} genesis
-                tokens. Its only later issuer is the permanently bound Mine. Global rates offered to future occupants
-                halve every 69 days measured from Mine deployment and reach a 1 GBX-per-second tail at day 414. That
-                schedule is provisional pending independent economic review. GBX supports permit approvals but has no
-                governance checkpoints; votes begin only after signaling into sGBX.
+                GBX begins with ${Number(contractConstants.gbx.initialSupplyTokens).toLocaleString('en-US')} tokens:
+                deployment creates no GBX. Its sole lifetime issuer is the permanently bound Mine. Global rates offered
+                to future occupants halve every 69 days measured from Mine deployment and reach a 1 GBX-per-second tail
+                at day 414. That schedule is provisional pending independent economic review. GBX supports permit
+                approvals but has no governance checkpoints; votes begin only after signaling into sGBX.
               </p>
               <p>
-                Rewards accrue continuously but each slot mints only when it changes hands. Fund reads Mine's
-                constant-time effective supply before every redemption, so already-earned unminted GBX cannot be omitted
-                from the denominator and redemption never depends on touching all slots.
+                Mining emission accrues continuously but each slot mints only when its current tenure is replaced. Fund
+                reads Mine's constant-time effective supply before every redemption, so already-earned unminted GBX
+                cannot be omitted from the denominator and redemption never depends on touching all slots.
               </p>
               <p class="formula">
                 <span class="formula__label">Payout</span> floor(Fund token balance × GBX burned ÷ effective pre-burn
@@ -292,7 +293,7 @@ export const currentPages = [
             ],
             noHead: 'Absent powers',
             noItems: [
-              'No Mine administration or incumbent repricing',
+              'No Mine administration or outgoing-tenure repricing',
               'No emission setter or replacement authority',
               'No core Governor, Timelock, or generic executor',
               'No Fund withdrawal or liquidity-specific core custody',

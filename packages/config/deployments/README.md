@@ -1,7 +1,7 @@
 # Archived deployment evidence
 
-> Schema version 3 predates the current core and ADR 0024. It is retained only to validate historical candidate files;
-> it is not a deployment format for the current protocol and cannot authorize a release.
+> Schema version 3 predates the current core and ADRs 0024 and 0050. It is retained only to validate historical
+> candidate files; it is not a deployment format for the current protocol and cannot authorize a release.
 
 The archived `deployment-manifest.ts` schema records these 14 legacy deployments:
 
@@ -44,8 +44,10 @@ active root export exposes only the current blocked release status; historical m
 validators are available from the explicit `@gumball-6900/config/archival-release` entrypoint. This prevents an
 archived validation success from being mistaken for current deployment eligibility.
 
-The Acquisition/Buyback distinction, legacy mining graph, and atomic Buyback burn in this schema are incompatible with
-ADR 0024's immutable multislot Mine and the current uniform Strategy settlement. Current deployment tooling must be
-rebuilt after the external Resonance owner and governance integration required by ADR 0034 are selected. The examples
-and policy files here remain provisional or archival inputs; they do not supply canonical addresses, governance
-parameters, approvals, or deployment authorization.
+The Acquisition/Buyback distinction, legacy mining graph, genesis liquidity allocation, and atomic Buyback burn in
+this schema are incompatible with ADR 0024's immutable multislot Mine and ADR 0050's zero-premint, eleven-contract
+core. The current core has no liquidity-position deployment: a reviewed, externally created fungible Uniswap v2-style
+USDG/GBX LP ERC-20 may instead be an ordinary Strategy input. Current deployment tooling must be rebuilt after the
+external Resonance owner and governance integration required by ADR 0034 are selected. The examples and policy files
+here remain provisional or archival inputs; they do not supply canonical addresses, governance parameters,
+approvals, or deployment authorization.

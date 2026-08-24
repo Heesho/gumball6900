@@ -21,15 +21,15 @@ authorized for user funds. A green local build is engineering evidence, never a 
 ## Revenue, signaling, and acquisitions
 
 - Mining revenue follows `Mine -> ResonanceRouter -> Resonance seven-day stream -> Strategy`. On a nonempty-slot
-  replacement, 80% of the USDG payment becomes a pull claim for the displaced miner and Mine transfers the nominal 20%
-  remainder into ResonanceRouter. The first occupation of an empty slot deposits 100% into ResonanceRouter. There is
-  no team fee.
-- Mine never calls `ResonanceRouter.route()` during a handoff. Routing is a separate permissionless manual, frontend,
+  replacement, 80% of the USDG payment becomes a pull claim for the outgoing tenure miner and Mine transfers the
+  nominal 20% remainder into ResonanceRouter. The first occupation of an empty slot deposits 100% into
+  ResonanceRouter. There is no team fee.
+- Mine never calls `ResonanceRouter.route()` during a replacement. Routing is a separate permissionless manual, frontend,
   keeper, or cron action with no role or bounty and no liveness guarantee; Router revenue may wait indefinitely if
   nobody calls. `Mine.RevenueDeposited` records a successful `SafeERC20` transfer request for the nominal protocol
   share into ResonanceRouter; under the supported standard USDG model that amount reached the Router. It does not mean
   the USDG reached Resonance or entered the seven-day stream in that transaction. A failed transfer into the Router
-  still reverts the paid handoff, but later Router or Resonance failure is isolated from Mine.
+  still reverts the paid replacement, but later Router or Resonance failure is isolated from Mine.
 - GBX starts with zero supply and zero lifetime minted. Its temporary setup minter cannot mint; deployment permanently
   hands its sole mint authority to one deployed `Mine`, after which Mine is the only lifetime issuer. The handover is
   one-time and cannot be replaced or reopened. There is no protocol-defined economic supply cap, and supply reconciles
@@ -38,11 +38,12 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - Deployment must verify `GBX.minter() == Mine`, `GBX.minterLocked() == true`, `Mine.gbx() == GBX`,
   `Mine.usdg() == USDG`, `Mine.resonanceRouter() == ResonanceRouter`, and `ResonanceRouter.usdg() == USDG` before
   exposing the market. Mine does not validate the Router's USDG identity in its constructor or repeatedly read
-  permanent deployment facts on each handoff; GBX itself continues to enforce the permanent minter binding whenever
+  permanent deployment facts on each replacement; GBX itself continues to enforce the permanent minter binding whenever
   Mine mints.
 - Mine has exactly 16 immutable slots. Each slot uses an independent hourly reverse Dutch replacement auction and may
-  change hands at any time. Mine is ownerless and has no capacity or all-slot checkpoint operation.
-- Every Mine handoff may attach an event-only message of at most 280 raw bytes. The message is emitted unindexed in
+  begin a new tenure at any time, including with the same miner. Mine is ownerless and has no capacity or all-slot
+  checkpoint operation.
+- Every Mine replacement may attach an event-only message of at most 280 raw bytes. The message is emitted unindexed in
   `Mined` and is never written to Mine storage. Empty messages are permitted.
 - A slot's assigned GBX tokens-per-second (`tps`) rate is locked for that miner's complete tenure. Redemptions and
   time-based halving boundaries must not reprice or dilute an occupied slot. Only a newly occupied or replaced
@@ -92,7 +93,7 @@ authorized for user funds. A green local build is engineering evidence, never a 
   duplicate `balanceOf`. Resonance's `addSignalFor` and `removeSignalFor` hooks are callable only by SignalGBX; do not
   restore a dedicated move hook, direct user signaling on Resonance, or duplicate these ledgers.
 - Killing a Strategy is irreversible. The kill checkpoints and preserves its accrued Resonance claim, excludes its
-  complete weight from active reward supply, rejects later signal additions, and lets existing signalers remove their
+  complete weight from active revenue allocation, rejects later signal additions, and lets existing signalers remove their
   allocations without subtracting the excluded weight again. The killed Strategy earns no later Resonance revenue.
   Resonance tracks `liveStrategyCount`: before bootstrap it may be zero, but after the first Strategy is registered,
   `killStrategy` must not remove the final live Strategy. Governance replaces the final Strategy by atomically batching
@@ -122,7 +123,7 @@ authorized for user funds. A green local build is engineering evidence, never a 
   It pulls the complete payment, transfers the complement directly to Fund, and transfers any nonzero Bribe amount to
   its paired BribeRouter. There is no cumulative split carry or deferred Fund liability. The acquired payment asset,
   not USDG, is the automatic Bribe reward.
-- BribeRouter is only a Bribe buffer. Its permissionless `route` operation notifies its complete payment-token balance
+- BribeRouter is only a Bribe buffer. Its permissionless `route()` operation notifies its complete payment-token balance
   once that balance satisfies the Bribe's minimum-notification and current-remaining thresholds. Bribe failure leaves
   the buffered tokens retryable without reverting the completed Strategy purchase. Compatible direct donations join
   the next notification. Additional independently funded Bribe rewards remain permitted within the fixed token and
@@ -174,9 +175,9 @@ authorized for user funds. A green local build is engineering evidence, never a 
   upgrade path, proxy, pause switch, rescue or sweep function, arbitrary-call executor, successor binding, migration
   routine, or any new owner role. When a design choice trades governance flexibility against immutability, choose
   immutability and record the accepted consequence.
-- `Fund` is ownerless. Its assets move only when a GBX holder burns their own tokens
-  through redemption; assets that redeemers omit stay in `Fund` for the remaining GBX supply indefinitely. GBX held by
-  `Fund` is burnable by anyone through the dedicated burn function.
+- `Fund` is ownerless. Its non-GBX backing assets move only when a GBX holder burns their own tokens through
+  redemption; assets that redeemers omit stay in `Fund` for the remaining GBX supply indefinitely. GBX held by `Fund`
+  is burnable by anyone through the dedicated burn function.
 - The continuing protocol administration surface is `Resonance.addStrategy`, `Resonance.killStrategy`,
   `Resonance.addBribeRewardToken`, and bounded global `Resonance.setBribeBps`. Resonance also retains inherited ownership
   transfer and renunciation. Do not add another owner-gated protocol method.

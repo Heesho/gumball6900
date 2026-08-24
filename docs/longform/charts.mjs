@@ -49,7 +49,7 @@ const rect = (x, y, w, h, fill, { rx = 2, opacity = 1 } = {}) =>
 const svg = (height, body, label) =>
   `<svg viewBox="0 0 ${W} ${height}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${label}">${body}</svg>`;
 
-/* ------------------------------------------------------- 1. mining handoff ---- */
+/* --------------------------------------------------- 1. mining replacement ---- */
 
 const miningSplit = () => {
   const { previousMinerBps, resonanceBps } = contractConstants.mine;
@@ -62,7 +62,7 @@ const miningSplit = () => {
   return svg(
     150,
     [
-      txt(x0, 16, 'OCCUPIED SLOT — SOMEONE IS DISPLACED', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
+      txt(x0, 16, 'OCCUPIED-SLOT REPLACEMENT', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
       rect(x0, 24, minerW, 26, blue),
       rect(x0 + minerW, 24, barW - minerW, 26, pink),
       txt(x0 + minerW / 2, 41, `${minerPct}%`, { anchor: 'middle', fill: '#fff', weight: 600, size: 11 }),
@@ -72,9 +72,9 @@ const miningSplit = () => {
         weight: 600,
         size: 10,
       }),
-      txt(x0 + barW + 10, 34, 'Displaced miner', { size: 10, fill: ink }),
+      txt(x0 + barW + 10, 34, 'Outgoing miner', { size: 10, fill: ink }),
       txt(x0 + barW + 10, 46, 'pull claim', { size: 9, fill: muted }),
-      txt(x0, 66, `${minerPct}% is a claim the displaced miner withdraws.`, { size: 9.5, fill: muted }),
+      txt(x0, 66, `${minerPct}% is a claim the outgoing tenure miner withdraws.`, { size: 9.5, fill: muted }),
       txt(x0, 78, `${revenuePct}% is deposited in Router for later routing.`, { size: 9.5, fill: muted }),
 
       txt(x0, 106, 'EMPTY SLOT — NOBODY TO COMPENSATE', { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
@@ -82,7 +82,7 @@ const miningSplit = () => {
       txt(x0 + barW / 2, 131, '100%', { anchor: 'middle', fill: '#fff', weight: 600, size: 11 }),
       txt(x0 + barW + 10, 131, 'All protocol revenue', { size: 10, fill: ink }),
     ].join(''),
-    'Mining handoff payment split',
+    'Mining replacement payment split',
   );
 };
 
@@ -595,7 +595,7 @@ const tenureLock = () => {
       // global rate, stepping down at the time boundary
       `<path d="M ${ox} ${yFor(1)} L ${halvingX} ${yFor(1)} L ${halvingX} ${yFor(0.5)} L ${ox + w} ${yFor(0.5)}" fill="none" stroke="${ink}" stroke-width="1.6" />`,
 
-      // one incumbent carrying its pre-halving rate past the time boundary
+      // one earlier tenure carrying its pre-halving rate past the time boundary
       `<path d="M ${halvingX - 46} ${yFor(1) - 7} L ${halvingX + 84} ${yFor(1) - 7}" fill="none" stroke="${pink}" stroke-width="1.6" stroke-dasharray="4 2.5" />`,
       `<circle cx="${halvingX + 84}" cy="${yFor(1) - 7}" r="2.6" fill="${pink}" />`,
 
@@ -604,7 +604,7 @@ const tenureLock = () => {
       txt(halvingX, oy + 13, 'time boundary', { anchor: 'middle', size: 8.5, fill: faint }),
 
       txt(ox + w + 6, yFor(0.5) + 3, 'new tenures', { size: 9, fill: ink }),
-      txt(halvingX + 92, yFor(1) - 4, 'incumbent, unchanged', { size: 9, fill: pink, weight: 600 }),
+      txt(halvingX + 92, yFor(1) - 4, 'earlier tenure, unchanged', { size: 9, fill: pink, weight: 600 }),
       txt(halvingX + 92, yFor(1) + 8, 'until replaced', { size: 8.5, fill: muted }),
 
       txt(
@@ -720,7 +720,7 @@ const authorityMap = () => {
 
 /**
  * The accounting trick behind ADR 0033. Sixteen slots start at different times and hold
- * different rates, yet total pending emission is one multiplication, and a handoff mints
+ * different rates, yet total pending emission is one multiplication, and a replacement mints
  * for exactly one slot. Redemption depends on the first property; miner fairness on the
  * second.
  */
@@ -778,7 +778,7 @@ const pendingEmission = () => {
       txt(
         x0,
         boxY + 86,
-        'A handoff mints for the replaced slot only. The other fifteen are not read, checkpointed, or disturbed.',
+        'A replacement mints for the replaced slot only. The other fifteen are not read, checkpointed, or disturbed.',
         {
           size: 9.5,
           fill: muted,
@@ -864,7 +864,7 @@ const CHARTS = {
   'mining-split': {
     svg: miningSplit,
     caption:
-      'Mining handoff. Taking an occupied slot compensates the miner you displaced; taking an empty one funds the protocol entirely.',
+      'Mining replacement. Starting a new occupied-slot tenure compensates the outgoing miner; taking an empty slot funds the protocol entirely.',
   },
   'auction-decay': {
     svg: auctionDecay,
@@ -917,7 +917,7 @@ const CHARTS = {
   'pending-emission': {
     svg: pendingEmission,
     caption:
-      'Sixteen independent tenures, one constant-time total. Redemption reads the accumulator; a handoff settles only the slot that changed hands.',
+      'Sixteen independent tenures, one constant-time total. Redemption reads the accumulator; a replacement settles only the slot beginning a new tenure.',
   },
   'signal-lifecycle': {
     svg: signalLifecycle,

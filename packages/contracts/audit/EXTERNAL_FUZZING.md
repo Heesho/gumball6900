@@ -7,7 +7,7 @@
 > the reward-token cap to sixteen and replaces the dedicated Resonance move hook with atomic remove-then-add
 > composition, so every eight-token and move-hook statement below is historical too.
 
-`harness/ProtocolStateMachineCampaign.sol` deploys and wires the current core graph without Forge cheatcodes. Three
+`harness/ProtocolStateMachineCampaign.sol` deployed and wired the then-current core graph without Forge cheatcodes. Three
 distinct actor contracts drive atomic signaling, moves, and withdrawal, bounded global Bribe-share changes, mining,
 routing, Strategy purchases, claims, redemption, Strategy killing, and one bounded post-bootstrap Strategy addition.
 Echidna and Medusa share the `echidna_` property surface.

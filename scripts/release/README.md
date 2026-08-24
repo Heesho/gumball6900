@@ -5,6 +5,10 @@ contracts, fork suites, deployment phases, and a release workflow that no longer
 They have no package-script or CI entrypoint and must not be used as current build, deployment, authorization, or
 release evidence.
 
+In particular, that process predates ADR 0050's zero-premint, eleven-contract core and still assumes protocol-owned
+genesis liquidity. The current core deploys no liquidity position; any reviewed external Uniswap v2-style USDG-GBX LP
+ERC-20 is only an ordinary Strategy deployment input.
+
 The minimal rebuild is intentionally not deployed or release-ready. Any future release process must be designed from
 the external-governance ownership boundary in ADR 0034 after that integration is selected and separately authorized;
 these archived scripts are not a starting authorization and must not be re-enabled piecemeal.
