@@ -9,7 +9,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { GBX } from "./GBX.sol";
 
 /// @title GumBall6900 Fixed-Slot Mine
-/// @author @heesho
+/// @author heesho
 /// @notice Distributes GBX through sixteen independently replaceable mining slots priced by reverse Dutch auctions.
 /// @dev Each slot has its own hourly reverse Dutch auction and tenure-locked GBX emission rate. Replacing an occupied
 ///      tenure settles its accrued GBX and credits 80% of the USDG price to its miner. The remainder is deposited into

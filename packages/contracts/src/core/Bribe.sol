@@ -7,7 +7,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 /// @title GumBall6900 Multi-Token Strategy Reward Stream
-/// @author @heesho
+/// @author heesho
 /// @notice Streams as many as sixteen registered reward tokens among the accounts signaling one paired Strategy.
 /// @dev Resonance is the sole writer of virtual signal weights and the append-only token registry. Each token uses an
 ///      independent Synthetix-style seven-day stream and a cumulative reward-per-signal index scaled by `1e36`.

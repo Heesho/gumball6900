@@ -9,7 +9,7 @@ import { IResonance } from "./interfaces/IResonance.sol";
 import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
 
 /// @title GumBall6900 Permissionless Revenue Router
-/// @author @heesho
+/// @author heesho
 /// @notice Buffers USDG revenue and permissionlessly forwards each qualifying full balance into Resonance.
 /// @dev A balance qualifies when it is at least both the USDG still scheduled by Resonance and `REWARD_DURATION` raw
 ///      units, the minimum that produces a nonzero whole-unit-per-second seven-day rate. A sub-threshold balance

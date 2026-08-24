@@ -7,7 +7,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { IBribe } from "./interfaces/IBribe.sol";
 
 /// @title GumBall6900 Bribe Reward Router
-/// @author @heesho
+/// @author heesho
 /// @notice Buffers one Strategy's acquired payment-token Bribe share until the paired reward stream can accept it.
 /// @dev The Strategy performs the Fund/Bribe split and transfers only the Bribe share here. Any account may attempt to
 ///      route the complete buffer, but the balance remains in place until it can sustain a nonzero seven-day rate and,

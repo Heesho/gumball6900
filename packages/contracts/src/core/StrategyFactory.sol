@@ -11,7 +11,7 @@ import { IBribe } from "./interfaces/IBribe.sol";
 import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 
 /// @title GumBall6900 Resonance-Bound Strategy Factory
-/// @author @heesho
+/// @author heesho
 /// @notice Deploys each protocol Strategy together with its dedicated BribeRouter.
 /// @dev The temporary owner may permanently bind exactly one reciprocally configured Resonance. Only that Resonance can
 ///      create Strategy graphs; there is no generic public deployment path. The one-time binding is adapted from Liquid

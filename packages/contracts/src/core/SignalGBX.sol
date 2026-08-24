@@ -14,7 +14,7 @@ import { IResonance } from "./interfaces/IResonance.sol";
 import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 
 /// @title GumBall6900 Non-Transferable Signal Token
-/// @author @heesho
+/// @author heesho
 /// @notice Escrows GBX one-for-one as non-transferable sGBX while assigning the same raw amount to live Strategies.
 /// @dev SignalGBX is the sole public signal coordinator. Idle receipts are unreachable through supported operations:
 ///      every mint includes a Resonance signal addition, every burn includes a matching signal removal, and moves

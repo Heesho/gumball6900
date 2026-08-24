@@ -9,7 +9,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 import { IResonance } from "./interfaces/IResonance.sol";
 
 /// @title GumBall6900 Reverse Dutch Strategy
-/// @author @heesho
+/// @author heesho
 /// @notice Sells the Strategy's complete accumulated USDG balance for a configured ERC-20 payment asset.
 /// @dev Each permissionless reverse Dutch auction starts at `initialPrice` and decays to zero over `epochDuration`.
 ///      A successful fill sends the whole payment directly to Fund and the paired BribeRouter at the Resonance-wide

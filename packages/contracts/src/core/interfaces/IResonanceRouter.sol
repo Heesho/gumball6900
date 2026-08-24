@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 /// @title GumBall6900 Revenue Router Interface
-/// @author @heesho
+/// @author heesho
 /// @notice Permissionless entry point for forwarding buffered USDG revenue into Resonance.
 /// @dev The production Router is a retryable buffer: sub-threshold balances remain held and no role, bounty, or
 ///      liveness guarantee is attached to routing. USDG is assumed standard and non-rebasing; SafeERC20 calls do not
@@ -19,7 +19,7 @@ interface IResonanceRouter {
 }
 
 /// @title GumBall6900 Revenue Router Identity Interface
-/// @author @heesho
+/// @author heesho
 /// @notice Exposes immutable route endpoints checked before Resonance permanently accepts one revenue source.
 interface IResonanceRouterIdentity {
     /// @notice Returns the immutable USDG token forwarded by the router.

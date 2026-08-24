@@ -7,7 +7,7 @@ import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 import { IMine } from "./interfaces/IMine.sol";
 
 /// @title GumBall6900 Mining and Redemption Token
-/// @author @heesho
+/// @author heesho
 /// @notice Transferable token issued through mining and used for SignalGBX signaling and Fund redemption.
 /// @dev Starts with zero supply. Deployment permanently hands mint authority to one Mine exactly once; no caller can
 ///      mint before that handoff or replace the Mine afterward. Burns never reopen or alter mint authority. GBX uses

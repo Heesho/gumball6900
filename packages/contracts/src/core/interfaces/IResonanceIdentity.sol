@@ -2,7 +2,7 @@
 pragma solidity 0.8.26;
 
 /// @title GumBall6900 Resonance Deployment Identity
-/// @author @heesho
+/// @author heesho
 /// @notice Exposes Resonance's immutable graph references for reciprocal one-time factory and coordinator bindings.
 /// @dev Setup contracts use these getters to fail closed unless a proposed Resonance points back to the exact contract
 ///      being bound. The interface grants no authority and does not itself perform a binding.

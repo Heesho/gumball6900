@@ -15,7 +15,7 @@ import { StrategyFactory } from "./StrategyFactory.sol";
 import { IResonanceRouterIdentity } from "./interfaces/IResonanceRouter.sol";
 
 /// @title GumBall6900 Signal-Directed Revenue Allocator
-/// @author @heesho
+/// @author heesho
 /// @notice Streams USDG revenue to live Strategies in proportion to their SignalGBX weights.
 /// @dev Uses one Synthetix-style seven-day stream and a global revenue-per-signal index. SignalGBX is the only caller
 ///      allowed to change weights, and each paired Bribe is the canonical ledger for a Strategy's account and total
