@@ -15,10 +15,6 @@
     "./chains": {
       "types": "./dist/chains/robinhood.d.ts",
       "import": "./dist/chains/robinhood.js"
-    },
-    "./uniswap-v4": {
-      "types": "./dist/deployments/uniswap-v4.d.ts",
-      "import": "./dist/deployments/uniswap-v4.js"
     }
   },
   "scripts": {
@@ -32,7 +28,6 @@
     "manifest:bytecode": "tsx scripts/verify-canonical-bytecode.ts",
     "manifest:validate": "tsx scripts/assert-current-release-tooling.ts",
     "manifest:archive:validate": "tsx scripts/validate-deployment-manifest.ts",
-    "permissioned-pool:graph:validate": "tsx scripts/validate-permissioned-pool-graph.ts",
     "fork:evidence:export": "tsx scripts/export-testnet-fork-evidence.ts",
     "fork:evidence:live:verify": "tsx scripts/verify-testnet-fork-observation.ts",
     "authorization:validate": "tsx scripts/assert-current-release-tooling.ts",

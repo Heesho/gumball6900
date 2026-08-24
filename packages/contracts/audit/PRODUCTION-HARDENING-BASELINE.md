@@ -10,7 +10,8 @@
 > inventory, sizes, constants, and results below are not current release evidence.
 
 > Historical snapshot only. ADR 0022 later superseded the captured LiquidityPosition compounding API and A-06/A-07
-> dispositions with fixed-principal fee routing. The inventory below is intentionally preserved as baseline evidence.
+> dispositions with fixed-principal fee routing; ADR 0050 later removes LiquidityPosition and the GBX premint
+> entirely. The inventory below is intentionally preserved as baseline evidence.
 
 > Captured before production Solidity was modified on 2026-08-09. This is internal engineering evidence for the
 > reviewed checkout; it is not a deployment, release authorization, or independent audit.

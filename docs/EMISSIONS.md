@@ -16,12 +16,14 @@ any moment, including at zero after one hour.
 
 ## Payment
 
-For an occupied slot, 80% of the paid USDG accrues to the displaced miner and Mine exact-transfers the 20% remainder
-into ResonanceRouter. Claims are pull-based and permissionless to trigger, but always pay the entitled account. An
+For an occupied slot, 80% of the nominal paid USDG accrues to the displaced miner and Mine transfers the 20% remainder
+into ResonanceRouter. Mine uses `SafeERC20` and trusts canonical USDG without sender/receiver balance-delta checks.
+Claims are pull-based and permissionless to trigger, but always pay the entitled account. An
 empty slot has no displaced miner, so its complete first payment is deposited into ResonanceRouter.
 
-Mine does not call `ResonanceRouter.route()` during the handoff. `Mine.RevenueDeposited` means the Router deposit
-completed, not that the USDG reached Resonance or entered a stream. Anyone may route later, but absent a manual,
+Mine does not call `ResonanceRouter.route()` during the handoff. `Mine.RevenueDeposited` records the nominal Router
+deposit, which is treated as delivered under the supported USDG model; it does not mean the USDG reached Resonance or
+entered a stream. Anyone may route later, but absent a manual,
 frontend, keeper, or cron caller the balance may remain in the Router indefinitely.
 
 ## GBX accrual
@@ -43,8 +45,8 @@ deployment, and stops at a fixed 1 GBX-per-second tail at the sixth boundary, da
 GBX issuance and mining-sourced USDG revenue can continue indefinitely. Integer division by sixteen may leave unissued
 rate residue.
 
-If all slots are occupied, refreshed and settled exactly at every boundary and no GBX is burned, pre-tail mining is
-751,161,600 GBX and gross supply including the 20 million genesis allocation is 771,161,600 GBX at day 414. Annual
-scheduled tail flow is 31,536,000 GBX, initially about 4.089% of that synchronized reference supply and declining as
+GBX starts with zero supply. If all slots are occupied, refreshed and settled exactly at every boundary and no GBX is
+burned, pre-tail mining and gross supply are both 751,161,600 GBX at day 414. Annual scheduled tail flow is 31,536,000
+GBX, initially about 4.198% of that synchronized reference supply and declining as
 supply grows. Legacy tenures can retain higher rates and exceed this reference; empty slots can undershoot it, and burns
 change the actual denominator.

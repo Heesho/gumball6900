@@ -1,6 +1,6 @@
 # ADR 0017: Remove successor migration and make Fund and LiquidityPosition ownerless
 
-- Status: accepted
+- Status: accepted as historical context; all `LiquidityPosition` provisions are superseded by ADR 0050
 - Date: 2026-08-09
 - Supersedes the migration provisions of [ADR 0013](0013-upstream-shaped-core-starting-point.md) and
   [ADR 0014](0014-fixed-distribution-and-v4-liquidity-position.md)

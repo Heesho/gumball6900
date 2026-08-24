@@ -1,10 +1,5 @@
 import '@nomicfoundation/hardhat-toolbox';
-import { subtask, type HardhatUserConfig } from 'hardhat/config';
-import { TASK_COMPILE_GET_REMAPPINGS } from 'hardhat/builtin-tasks/task-names';
-
-subtask(TASK_COMPILE_GET_REMAPPINGS).setAction(async () => ({
-  'permit2/': '@uniswap/v4-periphery/lib/permit2/',
-}));
+import { type HardhatUserConfig } from 'hardhat/config';
 
 const config: HardhatUserConfig = {
   defaultNetwork: 'hardhat',

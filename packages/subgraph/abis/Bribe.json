@@ -64,6 +64,30 @@
   },
   {
     "type": "function",
+    "name": "accountRewardPerSignalPaid",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "paid",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "addRewardToken",
     "inputs": [
       {
@@ -77,22 +101,21 @@
   },
   {
     "type": "function",
-    "name": "balanceOf",
+    "name": "addSignalWeight",
     "inputs": [
       {
         "name": "account",
         "type": "address",
         "internalType": "address"
-      }
-    ],
-    "outputs": [
+      },
       {
-        "name": "balance",
+        "name": "amount",
         "type": "uint256",
         "internalType": "uint256"
       }
     ],
-    "stateMutability": "view"
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -122,24 +145,6 @@
     "type": "function",
     "name": "claimRewards",
     "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "deposit",
-    "inputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
       {
         "name": "account",
         "type": "address",
@@ -194,44 +199,6 @@
   },
   {
     "type": "function",
-    "name": "lastTimeRewardApplicable",
-    "inputs": [
-      {
-        "name": "rewardToken",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "timestamp",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "left",
-    "inputs": [
-      {
-        "name": "rewardToken",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "lifetimeRewardNotified",
     "inputs": [
       {
@@ -251,10 +218,47 @@
   },
   {
     "type": "function",
-    "name": "notifyRewardAmount",
+    "name": "notifyReward",
     "inputs": [
       {
         "name": "rewardToken",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "remainingReward",
+    "inputs": [
+      {
+        "name": "rewardToken",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "removeSignalWeight",
+    "inputs": [
+      {
+        "name": "account",
         "type": "address",
         "internalType": "address"
       },
@@ -307,7 +311,7 @@
         "internalType": "uint256"
       },
       {
-        "name": "rewardPerTokenStored",
+        "name": "rewardPerSignalStored",
         "type": "uint256",
         "internalType": "uint256"
       }
@@ -316,7 +320,7 @@
   },
   {
     "type": "function",
-    "name": "rewardPerToken",
+    "name": "rewardPerSignal",
     "inputs": [
       {
         "name": "rewardToken",
@@ -372,7 +376,26 @@
   },
   {
     "type": "function",
-    "name": "totalSupply",
+    "name": "signalWeightOf",
+    "inputs": [
+      {
+        "name": "account",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [
+      {
+        "name": "weight",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "totalSignalWeight",
     "inputs": [],
     "outputs": [
       {
@@ -382,61 +405,6 @@
       }
     ],
     "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "userRewardPerTokenPaid",
-    "inputs": [
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "token",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "paid",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "withdraw",
-    "inputs": [
-      {
-        "name": "amount",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "account",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "event",
-    "name": "RewardAdded",
-    "inputs": [
-      {
-        "name": "rewardToken",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
   },
   {
     "type": "event",
@@ -484,7 +452,20 @@
   },
   {
     "type": "event",
-    "name": "SignalWeightDeposited",
+    "name": "RewardTokenAdded",
+    "inputs": [
+      {
+        "name": "rewardToken",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "SignalWeightAdded",
     "inputs": [
       {
         "name": "account",
@@ -503,7 +484,7 @@
   },
   {
     "type": "event",
-    "name": "SignalWeightWithdrawn",
+    "name": "SignalWeightRemoved",
     "inputs": [
       {
         "name": "account",

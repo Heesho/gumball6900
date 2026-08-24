@@ -3,13 +3,12 @@
 Typed ABIs, transaction builders, canonical-block readers, validation, and independent math helpers for the GUM BALL
 6900 development core.
 
-The generated ABI set covers `GBX`, `Mine`, `LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`, both
-factories, `Strategy`, `BribeRouter`, `Bribe`, and `Fund`.
+The generated ABI set covers `GBX`, `Mine`, `SignalGBX`, `ResonanceRouter`, `Resonance`, both factories, `Strategy`,
+`BribeRouter`, `Bribe`, and `Fund`.
 
 ```ts
 import {
   buildClaimMiningPayment,
-  buildHarvestLiquidityFees,
   buildMine,
   buildRedemption,
   buildSignal,
@@ -44,7 +43,7 @@ const signalWithPermit = buildSignalWithPermit({
   r,
   s,
 }); // Uses the underlying GBX permit; SignalGBX itself has no ERC-20 Permit.
-const harvest = buildHarvestLiquidityFees(liquidityPosition);
+const redemptionPreview = await readRedemptionPreview(publicClient, { fund, mine }, gbxAmount, selectedTokens);
 const redemption = buildRedemption(fund, gbxAmount, receiver, selectedTokens);
 const purchase = buildStrategyBuy({ strategy, revenueReceiver: receiver, expectedEpochId, deadline, maximumPayment });
 ```
@@ -64,19 +63,25 @@ the change. No production deployment or compatibility shim exists.
 Every composed reader pins its RPC calls to one block and revalidates that block before returning. Generated ABIs and
 API docs are updated by repository scripts and must not be edited by hand.
 
-`readResonanceView` includes the seven-day duration, `1e36` reward precision, live signal weight, bound Router and USDG,
-the scalar Synthetix schedule, current amount left, and Resonance's actual USDG balance. Arithmetic
+`readResonanceView` includes `rewardDuration`, `remainingRevenue`, `revenuePerSignalStored`, `1e36` reward precision,
+live signal weight, the bound Router and USDG, the scalar Synthetix schedule, and Resonance's actual USDG balance. Arithmetic
 floors, zero-active-signal intervals, and direct donations may make the token balance exceed scheduled and claimable
-revenue. Strategy raw balances alone omit released-but-not-yet-transferred stream revenue.
+revenue. `readStrategyView.availableRevenue` reads the Strategy's USDG `balanceOf` directly; it omits
+released-but-not-yet-transferred stream revenue.
+
+Resonance's USDG accounting uses revenue-specific names: `revenueData`, `revenuePerSignal`,
+`strategyRevenuePerSignalPaid`, `strategyRevenue`, and `earnedRevenue`. `addBribeRewardToken` registers another paired
+Bribe token. Bribe itself intentionally retains `rewardData`, `rewardPerSignal`, and `earned` because it handles
+independently funded rewards rather than Resonance revenue.
 
 SignalGBX is the user-facing signaling and vote-delegation boundary. `buildSignal` atomically deposits GBX, mints the
 same sGBX amount, and assigns it to one live Strategy; `buildSignalWithPermit` does the same using underlying GBX
 permit. `buildMoveSignal` reallocates existing signal, and `buildWithdrawSignal` atomically removes signal, burns sGBX,
 and returns GBX. Idle SignalGBX is unreachable, and direct SignalGBX transfers are disabled.
 
-`buildRouteRevenue` leaves a Router balance below `max(DURATION, left())` in the Router; a qualifying complete balance
-restarts seven days with ordinary Synthetix leftover rollover. `buildNotifyRevenue` encodes that Router-only call.
-`buildDistributeBribeRewards` performs the matching full-balance distribution for a paired BribeRouter, and
+`buildRouteRevenue` leaves a Router balance below `max(REWARD_DURATION, remainingRevenue())` in the Router; a qualifying
+complete balance restarts seven days with ordinary Synthetix leftover rollover. `buildRouteBribeRewards` performs the
+matching full-balance route for a paired BribeRouter, and
 `buildClaimAllBribeRewards` complements the scalar-token claim builder.
 
 The SDK intentionally includes no governance proposal builders or readers. SignalGBX exposes ERC20Votes checkpoints,

@@ -1,8 +1,6 @@
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  // Official Uniswap packages reference unpublished sources in their source maps; suppress that dependency-only noise.
-  logLevel: 'error',
   oxc: {
     jsx: {
       runtime: 'automatic',

@@ -1,7 +1,7 @@
-import { getAddress, zeroAddress, type Address, type PublicClient } from 'viem';
+import { getAddress, type Address, type PublicClient } from 'viem';
 import { describe, expect, it, vi } from 'vitest';
 
-import { canonicalPoolKey, protocolAddressesSchema, readRedemptionPreview, readSupplyView } from '../src/index.js';
+import { protocolAddressesSchema, readRedemptionPreview, readSupplyView } from '../src/index.js';
 
 const address = (value: number): Address => `0x${value.toString(16).padStart(40, '0')}`;
 const BLOCK_HASH = `0x${'ab'.repeat(32)}` as const;
@@ -26,7 +26,6 @@ function pinnedClient(values: Readonly<Record<string, unknown>>): PublicClient {
 describe('minimal SDK reads and deployment metadata', () => {
   it('pins and revalidates mined supply reads', async () => {
     const client = pinnedClient({
-      GENESIS_LIQUIDITY_ALLOCATION: 20n,
       lifetimeBurned: 5n,
       lifetimeMinted: 1_000n,
       minter: address(2),
@@ -35,7 +34,6 @@ describe('minimal SDK reads and deployment metadata', () => {
     });
     await expect(readSupplyView(client, address(1))).resolves.toEqual({
       blockNumber: 100n,
-      genesisLiquidityAllocation: 20n,
       lifetimeBurned: 5n,
       lifetimeMinted: 1_000n,
       minter: address(2),
@@ -45,25 +43,20 @@ describe('minimal SDK reads and deployment metadata', () => {
     expect(client.getBlock).toHaveBeenCalledTimes(2);
   });
 
-  it('previews each raw vault balance against the pre-burn supply', async () => {
-    const gbx = address(1);
+  it('previews each Fund balance against Mine effective supply at the pinned block', async () => {
+    const mine = address(2);
     const vault = address(3);
     const usdG = address(4);
     const target = address(5);
     const client = pinnedClient({
-      [`${gbx.toLowerCase()}:totalSupply`]: 100n,
+      [`${mine.toLowerCase()}:effectiveTotalSupply`]: 125n,
       [`${usdG.toLowerCase()}:balanceOf`]: 1_000n,
       [`${target.toLowerCase()}:balanceOf`]: 500n,
     });
-    (client.readContract as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce(100n)
-      .mockResolvedValueOnce(1_000n)
-      .mockResolvedValueOnce(500n);
-
-    await expect(readRedemptionPreview(client, { fund: vault, gbx }, 25n, [usdG, target])).resolves.toMatchObject({
-      amounts: [250n, 125n],
+    await expect(readRedemptionPreview(client, { fund: vault, mine }, 25n, [usdG, target])).resolves.toMatchObject({
+      amounts: [200n, 100n],
+      effectiveSupplyBefore: 125n,
       gbxAmount: 25n,
-      supplyBefore: 100n,
       tokens: [usdG, target],
     });
   });
@@ -73,7 +66,6 @@ describe('minimal SDK reads and deployment metadata', () => {
       'bribeFactory',
       'fund',
       'gbx',
-      'liquidityPosition',
       'mine',
       'signalGBX',
       'strategyFactory',
@@ -85,22 +77,5 @@ describe('minimal SDK reads and deployment metadata', () => {
       Object.fromEntries(Object.entries(deployment).map(([key, value]) => [key, getAddress(value)])),
     );
     expect(() => protocolAddressesSchema.parse({ ...deployment, legacyVault: address(99) })).toThrow();
-  });
-
-  it('builds the hookless GBX/USDG PoolKey only from explicit reviewed fee and spacing inputs', () => {
-    expect(
-      canonicalPoolKey(
-        address(2),
-        address(1),
-        { chainId: 4663, gbxDecimals: 18, usdGDecimals: 6 },
-        { fee: 500, tickSpacing: 10 },
-      ),
-    ).toEqual({
-      currency0: address(1),
-      currency1: address(2),
-      fee: 500,
-      hooks: zeroAddress,
-      tickSpacing: 10,
-    });
   });
 });

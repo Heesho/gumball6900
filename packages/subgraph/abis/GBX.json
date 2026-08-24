@@ -3,11 +3,6 @@
     "type": "constructor",
     "inputs": [
       {
-        "name": "genesisLiquidityRecipient",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
         "name": "initialMinter",
         "type": "address",
         "internalType": "address"
@@ -24,19 +19,6 @@
         "name": "",
         "type": "bytes32",
         "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "GENESIS_LIQUIDITY_ALLOCATION",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "",
-        "type": "uint256",
-        "internalType": "uint256"
       }
     ],
     "stateMutability": "view"

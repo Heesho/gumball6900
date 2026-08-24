@@ -8,17 +8,18 @@ describe('core starting-point status page', () => {
     render(<HomePage />);
 
     expect(screen.getByRole('heading', { level: 1, name: 'The governance-minimized GBX protocol.' })).toBeTruthy();
-    expect(screen.getByText('20,000,000 GBX')).toBeTruthy();
+    expect(screen.getByText('GBX premint')).toBeTruthy();
+    expect(screen.getByText('0 GBX')).toBeTruthy();
     expect(screen.getByText('10% default · 0–20%')).toBeTruthy();
     expect(screen.getByText('None')).toBeTruthy();
     expect(screen.getByText(/Deposit GBX directly into a Strategy signal to mint non-transferable sGBX/i)).toBeTruthy();
     expect(screen.getByText('Pro-rata Bribe stream from its explicit notifications')).toBeTruthy();
     expect(screen.getByText('signal() / signalWithPermit() · withdrawSignal()')).toBeTruthy();
     expect(screen.getByText('20% Router deposit · 80% displaced miner')).toBeTruthy();
-    expect(screen.getByText('USDG → Resonance · GBX → Fund burn · principal fixed')).toBeTruthy();
+    expect(screen.getByText('Ordinary ERC-20 Strategy target')).toBeTruthy();
     expect(screen.getByText('Internally hardened candidate · not deployed · external audit pending')).toBeTruthy();
-    expect(screen.getByText('left() · distribute(strategy)')).toBeTruthy();
-    expect(screen.getByText('Strategy → Fund · Strategy → BribeRouter → distribute()')).toBeTruthy();
+    expect(screen.getByText('remainingRevenue() · distributeRevenue(strategy)')).toBeTruthy();
+    expect(screen.getByText('Strategy → Fund · Strategy → BribeRouter → route()')).toBeTruthy();
     expect(screen.getByText('claimReward(account, token) · claimRewards(account)')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /connect wallet/i })).toBeNull();
   });

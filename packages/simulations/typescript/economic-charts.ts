@@ -87,17 +87,6 @@ function miningPriceChart(root: { [key: string]: DecimalJson }): string {
   );
 }
 
-function genesisChart(root: { [key: string]: DecimalJson }): string {
-  const genesis = object(root.genesisLiquidity!, 'genesisLiquidity');
-  const allocation = BigInt(string(genesis.genesisLiquidityAllocationGBXRaw, 'allocation'));
-  const height = Number((allocation * 280n) / (20_000_000n * 10n ** 18n));
-  return frame(
-    'Genesis liquidity allocation',
-    'Only 20M GBX is precreated; all later GBX is minted by the permanently bound Mine',
-    `  <rect x="330" y="${410 - height}" width="180" height="${height}" rx="8" fill="#56b4e9"/>`,
-  );
-}
-
 function redemptionChart(root: { [key: string]: DecimalJson }): string {
   const redemption = object(root.redemption!, 'redemption');
   const without = BigInt(string(redemption.payoutIgnoringPendingRaw, 'without'));
@@ -121,7 +110,6 @@ export function renderEconomicCharts(): Record<string, string> {
   return {
     'emissions-supply.svg': miningSupply(root),
     'auction-curve.svg': miningPriceChart(root),
-    'genesis-liquidity.svg': genesisChart(root),
     'gbx-acquisition-burn.svg': redemptionChart(root),
   };
 }

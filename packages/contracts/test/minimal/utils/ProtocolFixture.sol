@@ -66,7 +66,7 @@ abstract contract ProtocolFixture is Test {
         target = new MockERC20("Target Asset", "TGT", 18);
         secondAsset = new MockERC20("Second Asset", "TWO", 18);
 
-        gbx = new GBX(GENESIS, address(this));
+        gbx = new GBX(address(this));
         fund = new Fund(gbx);
         signalGBX = new SignalGBX(IERC20(address(gbx)), address(this));
         bribeFactory = new BribeFactory(address(this));
@@ -145,7 +145,7 @@ abstract contract ProtocolFixture is Test {
     /// @notice Moves the account's complete default-Strategy signal to `strategy` when necessary.
     function _signalOne(address account, address strategy) internal {
         if (strategy == address(targetStrategy)) return;
-        uint256 amount = resonance.accountSignals(account, address(targetStrategy));
+        uint256 amount = _accountSignalWeight(account, address(targetStrategy));
         if (amount == 0) return;
         vm.prank(account);
         signalGBX.moveSignal(address(targetStrategy), strategy, amount);
@@ -159,8 +159,8 @@ abstract contract ProtocolFixture is Test {
         uint256 totalRelativeWeight = firstWeight + secondWeight;
         uint256 firstAmount = Math.mulDiv(available, firstWeight, totalRelativeWeight);
         uint256 secondAmount = Math.mulDiv(available, secondWeight, totalRelativeWeight);
-        uint256 currentFirst = resonance.accountSignals(account, first);
-        uint256 currentSecond = resonance.accountSignals(account, second);
+        uint256 currentFirst = _accountSignalWeight(account, first);
+        uint256 currentSecond = _accountSignalWeight(account, second);
 
         if (currentFirst > firstAmount) {
             vm.prank(account);
@@ -173,8 +173,8 @@ abstract contract ProtocolFixture is Test {
 
     /// @notice Removes every signal assigned to either Strategy in the fixed test graph.
     function _removeAllSignals(address account) internal {
-        uint256 targetAmount = resonance.accountSignals(account, address(targetStrategy));
-        uint256 gbxAmount = resonance.accountSignals(account, address(gbxStrategy));
+        uint256 targetAmount = _accountSignalWeight(account, address(targetStrategy));
+        uint256 gbxAmount = _accountSignalWeight(account, address(gbxStrategy));
 
         vm.startPrank(account);
         if (targetAmount != 0) signalGBX.withdrawSignal(address(targetStrategy), targetAmount);
@@ -191,8 +191,8 @@ abstract contract ProtocolFixture is Test {
 
     /// @notice Advances through the complete global revenue stream and checkpoints its final release.
     function _finishRevenueStream() internal {
-        vm.warp(block.timestamp + resonance.DURATION());
-        resonance.distribute(address(targetStrategy));
+        vm.warp(block.timestamp + resonance.REWARD_DURATION());
+        resonance.distributeRevenue(address(targetStrategy));
     }
 
     /// @notice Fills one acquisition epoch at the current price.
@@ -204,6 +204,20 @@ abstract contract ProtocolFixture is Test {
         payment.approve(address(strategy), price);
         paid = strategy.buy(buyer, strategy.epochId(), block.timestamp, price);
         vm.stopPrank();
+    }
+
+    /// @notice Reads one account's canonical signal weight from the Strategy's paired Bribe.
+    function _accountSignalWeight(address account, address strategy) internal view returns (uint256 amount) {
+        address bribe = resonance.bribeFor(strategy);
+        if (bribe == address(0)) return 0;
+        return Bribe(bribe).signalWeightOf(account);
+    }
+
+    /// @notice Reads one Strategy's canonical aggregate signal weight from its paired Bribe.
+    function _strategySignalWeight(address strategy) internal view returns (uint256 amount) {
+        address bribe = resonance.bribeFor(strategy);
+        if (bribe == address(0)) return 0;
+        return Bribe(bribe).totalSignalWeight();
     }
 
     function _addresses(address value) internal pure returns (address[] memory values) {

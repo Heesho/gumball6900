@@ -50,8 +50,8 @@ dataSources:
         - name: Mine
           file: ./abis/Mine.json
       eventHandlers:
-        - event: Claimed(indexed address,uint256)
-          handler: handleClaimed
+        - event: MinerPaymentClaimed(indexed address,uint256)
+          handler: handleMinerPaymentClaimed
         - event: EmissionSettled(indexed address,indexed uint256,indexed uint256,uint256)
           handler: handleEmissionSettled
         - event: Mined(indexed address,indexed address,indexed
@@ -63,29 +63,6 @@ dataSources:
         - event: RevenueDeposited(indexed uint256,indexed uint256,uint256)
           handler: handleMiningRevenueDeposited
       file: ./src/mine.ts
-  - kind: ethereum/contract
-    name: LiquidityPosition
-    network: robinhood
-    source:
-      abi: LiquidityPosition
-      address: "0x0000000000000000000000000000000000000000"
-      startBlock: 0
-    mapping:
-      kind: ethereum/events
-      apiVersion: 0.0.9
-      language: wasm/assemblyscript
-      entities:
-        - ProtocolState
-        - ProtocolEvent
-      abis:
-        - name: LiquidityPosition
-          file: ./abis/LiquidityPosition.json
-      eventHandlers:
-        - event: FeesHarvested(indexed uint256,indexed address,uint128,uint256,uint256)
-          handler: handleFeesHarvested
-        - event: PositionRecorded(indexed uint256,indexed address,indexed bytes32)
-          handler: handlePositionRecorded
-      file: ./src/liquidity-position.ts
   - kind: ethereum/contract
     name: SignalGBX
     network: robinhood
@@ -159,8 +136,8 @@ dataSources:
       eventHandlers:
         - event: BribeBpsSet(uint256,uint256)
           handler: handleBribeBpsSet
-        - event: BribeRewardAdded(indexed address,indexed address,indexed address)
-          handler: handleBribeRewardAdded
+        - event: BribeRewardTokenAdded(indexed address,indexed address,indexed address)
+          handler: handleBribeRewardTokenAdded
         - event: RevenueDistributed(indexed address,indexed address,uint256)
           handler: handleRevenueDistributed
         - event: RevenueNotified(indexed address,uint256)
@@ -238,6 +215,6 @@ templates:
         - name: BribeRouter
           file: ./abis/BribeRouter.json
       eventHandlers:
-        - event: RewardsDistributed(indexed address,indexed address,uint256)
-          handler: handleRouterRewardsDistributed
+        - event: RewardRouted(indexed address,indexed address,uint256)
+          handler: handleRouterRewardRouted
       file: ./src/bribe-router.ts

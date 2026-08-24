@@ -8,7 +8,7 @@ interface IReconciledResonance {
 }
 
 /// @title ArchitectureReconciliationRegressionTest
-/// @notice Deterministic regressions for ADR 0031 and ADR 0032 before their production fixes are applied.
+/// @notice Deterministic regressions for reconciled protocol boundaries and intentionally absent ABI surface.
 contract ArchitectureReconciliationRegressionTest is ProtocolFixture {
     function setUp() external {
         _deployProtocol();
@@ -28,10 +28,10 @@ contract ArchitectureReconciliationRegressionTest is ProtocolFixture {
         assertEq(signalGBX.balanceOf(ALICE), amount);
         assertEq(signalGBX.totalSupply(), amount);
         assertEq(signalGBX.getVotes(ALICE), amount);
-        assertEq(targetBribe.balanceOf(ALICE), amount);
-        assertEq(targetBribe.totalSupply(), amount);
-        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), amount);
-        assertEq(resonance.accountSignalWeight(ALICE), amount);
+        assertEq(targetBribe.signalWeightOf(ALICE), amount);
+        assertEq(targetBribe.totalSignalWeight(), amount);
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), amount);
+        assertEq(signalGBX.balanceOf(ALICE), amount);
         assertEq(resonance.totalSignalWeight(), amount);
     }
 
@@ -80,7 +80,7 @@ contract ArchitectureReconciliationRegressionTest is ProtocolFixture {
         resonance.killStrategy(address(gbxStrategy));
     }
 
-    function test_StrategySplitsPaymentInlineAndRouterOnlyDistributesTheBribeShare() external {
+    function test_StrategySplitsPaymentInlineAndRouterOnlyRoutesTheBribeShare() external {
         usdg.mint(address(targetStrategy), 1);
         uint256 price = targetStrategy.currentPrice();
         uint256 bribeAmount = (price * resonance.bribeBps()) / resonance.BPS();
@@ -91,7 +91,7 @@ contract ArchitectureReconciliationRegressionTest is ProtocolFixture {
         assertEq(target.balanceOf(address(targetRouter)), bribeAmount);
         assertEq(target.balanceOf(address(targetStrategy)), 0);
 
-        assertEq(targetRouter.distribute(), bribeAmount);
+        assertEq(targetRouter.route(), bribeAmount);
         assertEq(target.balanceOf(address(targetRouter)), 0);
         assertEq(target.balanceOf(address(targetBribe)), bribeAmount);
         assertEq(targetBribe.lifetimeRewardNotified(address(target)), bribeAmount);
@@ -106,6 +106,30 @@ contract ArchitectureReconciliationRegressionTest is ProtocolFixture {
         assertFalse(_hasPush4Selector(router, bytes4(keccak256("bribePaymentLiability()"))));
         assertFalse(_hasPush4Selector(router, bytes4(keccak256("splitRemainder()"))));
         assertFalse(_hasPush4Selector(router, bytes4(keccak256("accountedPaymentBalance()"))));
+    }
+
+    function test_RenamedAndRedundantConvenienceSelectorsAreAbsentFromRuntime() external view {
+        assertFalse(_hasPush4Selector(address(mine), bytes4(keccak256("getSlot(uint256)"))));
+        assertFalse(_hasPush4Selector(address(mine), bytes4(keccak256("slots(uint256)"))));
+        assertFalse(_hasPush4Selector(address(mine), bytes4(keccak256("price(uint256)"))));
+        assertTrue(_hasPush4Selector(address(mine), bytes4(keccak256("slot(uint256)"))));
+        assertTrue(_hasPush4Selector(address(mine), bytes4(keccak256("currentPrice(uint256)"))));
+
+        assertFalse(_hasPush4Selector(address(fund), bytes4(keccak256("pendingGBX()"))));
+        assertFalse(_hasPush4Selector(address(resonanceRouter), bytes4(keccak256("pendingRevenue()"))));
+        assertFalse(_hasPush4Selector(address(targetStrategy), bytes4(keccak256("availableRevenue()"))));
+        assertFalse(_hasPush4Selector(address(resonance), bytes4(keccak256("accountSignals(address,address)"))));
+        assertFalse(_hasPush4Selector(address(resonance), bytes4(keccak256("accountSignalWeight(address)"))));
+        assertFalse(_hasPush4Selector(address(resonance), bytes4(keccak256("strategySignalWeight(address)"))));
+        assertFalse(_hasPush4Selector(address(resonance), bytes4(keccak256("getRewardForDuration()"))));
+        assertFalse(_hasPush4Selector(address(resonance), bytes4(keccak256("lastTimeRewardApplicable()"))));
+
+        assertFalse(_hasPush4Selector(address(targetRouter), bytes4(keccak256("distribute()"))));
+        assertTrue(_hasPush4Selector(address(targetRouter), bytes4(keccak256("route()"))));
+        assertFalse(_hasPush4Selector(address(targetBribe), bytes4(keccak256("balanceOf(address)"))));
+        assertFalse(_hasPush4Selector(address(targetBribe), bytes4(keccak256("totalSupply()"))));
+        assertTrue(_hasPush4Selector(address(targetBribe), bytes4(keccak256("signalWeightOf(address)"))));
+        assertTrue(_hasPush4Selector(address(targetBribe), bytes4(keccak256("totalSignalWeight()"))));
     }
 
     function _hasPush4Selector(address target, bytes4 selector) private view returns (bool found) {

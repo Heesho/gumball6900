@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 WAD = 10**18
-GENESIS_LP_GBX = 20_000_000 * WAD
+INITIAL_SUPPLY = 0
 
 
 def mul_div(a: int, b: int, denominator: int) -> int:
@@ -85,7 +85,7 @@ def compute(scenarios: dict[str, Any]) -> dict[str, Any]:
                 "nextGlobalTps": str(next_global),
                 "nextSlotTps": str(next_global // 16),
                 "synchronizedMiningEmission": str(synchronized_emission),
-                "synchronizedGrossSupply": str(GENESIS_LP_GBX + synchronized_emission),
+                "synchronizedGrossSupply": str(INITIAL_SUPPLY + synchronized_emission),
             }
         )
 
@@ -171,7 +171,7 @@ def compute(scenarios: dict[str, Any]) -> dict[str, Any]:
         "usdGDecimals": scenarios["usdGDecimals"],
         "targetDecimals": scenarios["targetDecimals"],
         "infiniteSupply": True,
-        "genesisLiquidityAllocation": str(GENESIS_LP_GBX),
+        "initialSupply": str(INITIAL_SUPPLY),
         "miningQuotes": mining_quotes,
         "auctionQuotes": auction_quotes,
         "rewardQuotes": reward_quotes,

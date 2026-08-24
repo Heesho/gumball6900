@@ -6,9 +6,9 @@ const DEFAULT_STRATEGY_BRIBE_BPS = 1_000n;
 const MAX_STRATEGY_BRIBE_BPS = 2_000n;
 const HOUR = 3_600n;
 const YEAR = 365n * 24n * HOUR;
-const GENESIS_LP_GBX = 20_000_000n * WAD;
+const INITIAL_SUPPLY = 0n;
 const MINE_PRICE_MULTIPLIER = 2n;
-const MINE_MINIMUM_INITIAL_PRICE = 1_000_000n;
+const MINE_MIN_INITIAL_PRICE = 1_000_000n;
 const MINE_INITIAL_TPS = 64n * WAD;
 const MINE_HALVING_PERIOD = 69n * 24n * HOUR;
 const MINE_TAIL_TPS = WAD;
@@ -118,20 +118,20 @@ function rawSuite() {
       elapsedSinceStart,
       globalTps,
       miningEmission,
-      grossSupply: GENESIS_LP_GBX + miningEmission,
+      grossSupply: INITIAL_SUPPLY + miningEmission,
     };
   });
   const synchronizedHorizonSupply = [1n, 3n, 5n, 10n, 40n].map((years) => {
     const elapsedSinceStart = years * YEAR;
     const miningEmission = synchronizedMiningEmission(elapsedSinceStart);
-    return { years, elapsedSinceStart, miningEmission, grossSupply: GENESIS_LP_GBX + miningEmission };
+    return { years, elapsedSinceStart, miningEmission, grossSupply: INITIAL_SUPPLY + miningEmission };
   });
   const tailStartsAtSeconds = MINE_TAIL_BOUNDARY_COUNT * MINE_HALVING_PERIOD;
   const synchronizedTailRelativeHorizonSupply = [1n, 2n, 5n, 10n].map((yearsAfterTail) => {
     const elapsedSinceTail = yearsAfterTail * YEAR;
     const elapsedSinceStart = tailStartsAtSeconds + elapsedSinceTail;
     const miningEmission = synchronizedMiningEmission(elapsedSinceStart);
-    const grossSupply = GENESIS_LP_GBX + miningEmission;
+    const grossSupply = INITIAL_SUPPLY + miningEmission;
     return {
       yearsAfterTail,
       elapsedSinceTail,
@@ -149,17 +149,17 @@ function rawSuite() {
   const redeemGBX = 1_000_000n * WAD;
 
   return {
-    schemaVersion: 14,
+    schemaVersion: 15,
     purpose: 'Deterministic protocol mechanics; not forecasts, valuations, or investment projections.',
     assumptions: {
-      genesisLiquidityAllocationGBXRaw: GENESIS_LP_GBX,
+      initialSupplyGBXRaw: INITIAL_SUPPLY,
       infiniteSupply: true,
       priceDecaySeconds: HOUR,
       previousMinerBps: 8_000n,
       resonanceRevenueBps: 2_000n,
       fixedSlotCount: 16n,
       minePriceMultiplier: MINE_PRICE_MULTIPLIER,
-      mineMinimumInitialPrice: MINE_MINIMUM_INITIAL_PRICE,
+      mineMinimumInitialPrice: MINE_MIN_INITIAL_PRICE,
       mineInitialTps: MINE_INITIAL_TPS,
       mineHalvingPeriodSeconds: MINE_HALVING_PERIOD,
       mineTailTps: MINE_TAIL_TPS,
@@ -171,6 +171,8 @@ function rawSuite() {
       maximumStrategyBribeBps: MAX_STRATEGY_BRIBE_BPS,
       minimumStrategyBribeBps: 0n,
       strategyFundBpsIsDerived: true,
+      externalLpUsesOrdinaryStrategySettlement: true,
+      liquiditySpecificCoreLogic: false,
     },
     mining: {
       timeBasedSchedule: {
@@ -195,9 +197,9 @@ function rawSuite() {
         tailBoundaryCount: MINE_TAIL_BOUNDARY_COUNT,
         tailStartsAtSeconds,
         miningEmissionAtTail,
-        grossSupplyAtTail: GENESIS_LP_GBX + miningEmissionAtTail,
-        minedBpsOfGrossSupplyAtTail: mulDiv(miningEmissionAtTail, BPS, GENESIS_LP_GBX + miningEmissionAtTail),
-        annualTailInflationPpmAtTail: mulDiv(MINE_TAIL_TPS * YEAR, 1_000_000n, GENESIS_LP_GBX + miningEmissionAtTail),
+        grossSupplyAtTail: INITIAL_SUPPLY + miningEmissionAtTail,
+        minedBpsOfGrossSupplyAtTail: mulDiv(miningEmissionAtTail, BPS, INITIAL_SUPPLY + miningEmissionAtTail),
+        annualTailInflationPpmAtTail: mulDiv(MINE_TAIL_TPS * YEAR, 1_000_000n, INITIAL_SUPPLY + miningEmissionAtTail),
       },
       priceCurve: [0n, 900n, 1_800n, 2_700n, 3_600n].map((elapsedSeconds) => ({
         elapsedSeconds,
@@ -250,12 +252,6 @@ function rawSuite() {
       redeemGBX,
       payoutIgnoringPendingRaw: redemption(fundUSDG, redeemGBX, mintedSupplyBefore),
       payoutWithEffectiveSupplyRaw: redemption(fundUSDG, redeemGBX, mintedSupplyBefore + pendingMining),
-    },
-    genesisLiquidity: {
-      publicBootstrap: false,
-      genesisLiquidityAllocationGBXRaw: GENESIS_LP_GBX,
-      oneSidedPositionBudgetGBXRaw: GENESIS_LP_GBX,
-      positionPrincipalRemainsFixed: true,
     },
     strategyAuction: {
       durationSeconds: 86_400n,

@@ -58,7 +58,6 @@ async function main() {
     configFile,
     manifest: manifestValue,
     manifestFile,
-    permissionedFiles,
     policyFile,
     safePolicyFile,
     stateFile,
@@ -119,17 +118,6 @@ async function main() {
     releaseManifestSignaturePolicyId: signaturePolicy.policyId,
     releaseManifestSignaturePolicyRepositoryPath: policyFile.repositoryPath,
     releaseManifestSignaturePolicySha256: await sha256File(policyFile.absolutePath),
-    permissionedPoolEvidence:
-      permissionedFiles === null
-        ? null
-        : {
-            graphRepositoryPath: permissionedFiles.graph.repositoryPath,
-            graphSha256: await sha256File(permissionedFiles.graph.absolutePath),
-            officialSourceBuildRepositoryPath: permissionedFiles.officialSourceBuild.repositoryPath,
-            officialSourceBuildSha256: await sha256File(permissionedFiles.officialSourceBuild.absolutePath),
-            robinhoodForkRehearsalRepositoryPath: permissionedFiles.robinhoodForkRehearsal.repositoryPath,
-            robinhoodForkRehearsalSha256: await sha256File(permissionedFiles.robinhoodForkRehearsal.absolutePath),
-          },
     safeControlPlanePolicyRepositoryPath: safePolicyFile.repositoryPath,
     safeControlPlanePolicySha256: await sha256File(safePolicyFile.absolutePath),
     releaseTag: tag,
@@ -162,17 +150,6 @@ async function main() {
   await copyFile(assetCandidateFile.absolutePath, path.join(outputDirectory, 'reviewed-asset-candidate.json'));
   await copyFile(configFile.absolutePath, path.join(outputDirectory, 'deployment-config.json'));
   await copyFile(manifestFile.absolutePath, path.join(outputDirectory, 'deployment-manifest.json'));
-  if (permissionedFiles !== null) {
-    await copyFile(permissionedFiles.graph.absolutePath, path.join(outputDirectory, 'permissioned-pool-graph.json'));
-    await copyFile(
-      permissionedFiles.officialSourceBuild.absolutePath,
-      path.join(outputDirectory, 'permissioned-pool-official-source-build.json'),
-    );
-    await copyFile(
-      permissionedFiles.robinhoodForkRehearsal.absolutePath,
-      path.join(outputDirectory, 'permissioned-pool-robinhood-fork-rehearsal.json'),
-    );
-  }
   await copyFile(policyFile.absolutePath, path.join(outputDirectory, 'release-manifest-signature-policy.json'));
   await copyFile(safePolicyFile.absolutePath, path.join(outputDirectory, 'safe-control-plane-policy.json'));
   await copyFile(registryRevalidationPath, path.join(outputDirectory, 'robinhood-registry-revalidation.json'));

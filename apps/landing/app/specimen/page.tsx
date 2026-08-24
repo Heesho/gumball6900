@@ -694,7 +694,7 @@ export default function SpecimenPage() {
             <div className="sp-ramp__row">
               <span className="sp-ramp__k">.dnum</span>
               <span className="sp-ramp__s dnum hi" style={{ fontSize: '40px' }}>
-                16 · 0 · 20M
+                16 · 0 · 7d
               </span>
               <span className="sp-ramp__spec">Modak 400 · inherits size / 1 / 0.02em · font-synthesis: none</span>
             </div>
@@ -1419,7 +1419,6 @@ export default function SpecimenPage() {
               never fire in lockstep. These four are live, which is why they are the only framed things in this section.
             </p>
           </div>
-
         </div>
       </section>
 
@@ -1508,7 +1507,9 @@ export default function SpecimenPage() {
                 </div>
               </dl>
 
-              <div className="sp-h sp-gram__lab">And the balance, which has to hold across every cycle, not inside one</div>
+              <div className="sp-h sp-gram__lab">
+                And the balance, which has to hold across every cycle, not inside one
+              </div>
               <dl className="tallies sp-gram__check">
                 <div className="tally">
                   <dt>Charged in, every cycle</dt>
@@ -1542,9 +1543,9 @@ export default function SpecimenPage() {
               </span>
               <p className="note sim-note">
                 Quantities here are illustrative and in one unit; this figure demonstrates the drawing grammar and makes
-                no protocol claim. Δ is printed in exponential form so an error can never hide behind a rounded zero, and
-                the balance is printed against the cumulative charge as well, because a residual has to be read against
-                the size of the thing it is a residual of. The legs&apos; quantities sum to the trunk&apos;s by
+                no protocol claim. Δ is printed in exponential form so an error can never hide behind a rounded zero,
+                and the balance is printed against the cumulative charge as well, because a residual has to be read
+                against the size of the thing it is a residual of. The legs&apos; quantities sum to the trunk&apos;s by
                 construction — the splitter allocates its residual to the last lane, the way the contracts do — so the
                 three checks printed are the drawn ones, in px.
               </p>

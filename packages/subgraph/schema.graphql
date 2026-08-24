@@ -4,7 +4,6 @@ type ProtocolState @entity(immutable: false) {
   resonance: Bytes
   resonanceRouter: Bytes
   bribeBps: BigInt!
-  initialSupplyRaw: BigInt!
   lifetimeMintedRaw: BigInt!
   lifetimeBurnedRaw: BigInt!
   totalSupplyRaw: BigInt!
@@ -13,10 +12,6 @@ type ProtocolState @entity(immutable: false) {
   previousMinerPaymentsRaw: BigInt!
   miningRevenueDepositedRaw: BigInt!
   miningSlotCount: BigInt!
-  liquidityPrincipalRaw: BigInt!
-  liquidityFeeHarvestCount: BigInt!
-  liquidityUSDGRoutedRaw: BigInt!
-  liquidityGBXBurnedRaw: BigInt!
   routedRevenueRaw: BigInt!
   notifiedRevenueRaw: BigInt!
   revenueNotificationCount: BigInt!
@@ -35,7 +30,6 @@ type ProtocolState @entity(immutable: false) {
 type Account @entity(immutable: false) {
   id: ID!
   address: Bytes!
-  gbxInitialAllocationRaw: BigInt!
   gbxMinedRaw: BigInt!
   gbxBurnedRaw: BigInt!
   miningPaymentAccruedRaw: BigInt!
@@ -77,7 +71,7 @@ type Strategy @entity(immutable: false) {
   distributedRevenueRaw: BigInt!
   notifiedRewardRaw: BigInt!
   paidRewardRaw: BigInt!
-  routerRewardsDistributedRaw: BigInt!
+  routerRewardsRoutedRaw: BigInt!
   createdBlockNumber: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!

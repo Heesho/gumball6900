@@ -6,7 +6,7 @@ price promises, deployment configurations, or investment projections.
 ## Units and rounding
 
 - USDG uses raw 6-decimal units; GBX and modeled target assets use raw 18-decimal units.
-- GBX starts with exactly 20M genesis-liquidity tokens and then has unbounded Mine issuance.
+- GBX starts at zero supply. Mine is its sole lifetime issuer and issuance is unbounded.
 - A live slot accrues `elapsedSeconds * assignedTps`; the assigned TPS remains fixed until replacement.
 - Mine has exactly sixteen slots; time-based halvings affect only newly occupied or replaced slots.
 - A new tenure receives `globalTps(elapsedSinceStart) / 16`; division residue is unissued.
@@ -36,11 +36,11 @@ price promises, deployment configurations, or investment projections.
 
 `fixtures/economic-scenarios.json` covers:
 
-- 20M genesis supply, unbounded mint/burn reconciliation, time-based halvings, and a positive tail;
+- zero initial supply, unbounded mint/burn reconciliation, time-based halvings, and a positive tail;
 - hourly price endpoints, replacement transitions, zero-price rollover, and 80/20 payment conservation;
 - staggered fixed-slot handoffs where an incumbent keeps its old TPS and later miners receive the halved TPS;
 - a time boundary where the incumbent retains its rate and only the next replacement receives the lower rate;
-- genesis-position budgeting, Strategy auctions, per-purchase settlement across 10% → 0% → 5% → 20% rate changes,
+- ordinary Strategy auctions and per-purchase settlement across 10% → 0% → 5% → 20% rate changes,
   Bribe rewards, Fund-held GBX burns, and raw-basket redemptions.
 
 Separate TypeScript and Python conservation models cover one-raw-unit Resonance streams, qualifying live-period resets,
@@ -62,8 +62,6 @@ python -m pip check
 pnpm --filter @gumball-6900/simulations test
 pnpm --filter @gumball-6900/simulations fixtures:check
 pnpm --filter @gumball-6900/simulations charts:check
-pnpm --filter @gumball-6900/simulations liquidity:check
-pnpm --filter @gumball-6900/simulations liquidity:report
 ```
 
 Only run `fixtures:generate` after intentionally changing a formula. It refuses to write unless the independent models
@@ -71,13 +69,13 @@ agree, then regenerates the committed SVGs.
 
 ## Traceability
 
-| Requirement                           | Fixture path / evidence                                    |
-| ------------------------------------- | ---------------------------------------------------------- |
-| 20M genesis and unbounded issuance    | `assumptions.genesisSupply`, `mining.supplyReconciliation` |
-| Tenure-locked fixed-slot TPS          | `mining.staggeredFixedSlots`                               |
-| Exact time boundaries and empty aging | `mining.timeBasedSchedule`                                 |
-| Time boundaries affect only handoffs  | `mining.handoffHalving`                                    |
-| Hourly decay and 80/20 split          | `mining.priceCurve`, `mining.paymentExamples`              |
-| Strategy and Bribe arithmetic         | `strategyAuction`, `bribeRewards`, conservation models     |
-| Resonance streaming and signal time   | TypeScript/Python `conservation-model` tests               |
-| Raw redemptions and GBX burns         | `redemptionAndGbxBurn`                                     |
+| Requirement                                | Fixture path / evidence                                        |
+| ------------------------------------------ | -------------------------------------------------------------- |
+| Zero initial supply and unbounded issuance | `assumptions.initialSupplyGBXRaw`, `mining.synchronizedSupply` |
+| Tenure-locked fixed-slot TPS               | `mining.staggeredFixedSlots`                                   |
+| Exact time boundaries and empty aging      | `mining.timeBasedSchedule`                                     |
+| Time boundaries affect only handoffs       | `mining.handoffHalving`                                        |
+| Hourly decay and 80/20 split               | `mining.priceCurve`, `mining.paymentExamples`                  |
+| Strategy and Bribe arithmetic              | `strategyAuction`, `bribeRewards`, conservation models         |
+| Resonance streaming and signal time        | TypeScript/Python `conservation-model` tests                   |
+| Raw redemptions and GBX burns              | `redemptionAndGbxBurn`                                         |

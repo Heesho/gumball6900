@@ -6,4 +6,4 @@
 
 # Variable: GBX_TOKEN_NAME
 
-> `const` **GBX_TOKEN_NAME**: `"GUM BALL 6900"`
+> `const` **GBX_TOKEN_NAME**: `"GumBall6900"`

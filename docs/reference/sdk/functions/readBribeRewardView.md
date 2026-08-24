@@ -6,7 +6,7 @@
 
 # Function: readBribeRewardView()
 
-> **readBribeRewardView**(`client`, `bribe`, `account`, `options?`): `Promise`\<\{ `account`: `` `0x${string}` ``; `accountSignalWeight`: `bigint`; `blockNumber`: `bigint`; `earned`: `bigint`[]; `rewardsLeft`: `bigint`[]; `rewardTokens`: `` `0x${string}` ``[]; `totalSignalWeight`: `bigint`; \}\>
+> **readBribeRewardView**(`client`, `bribe`, `account`, `options?`): `Promise`\<\{ `account`: `` `0x${string}` ``; `accountSignalWeight`: `bigint`; `blockNumber`: `bigint`; `earned`: `bigint`[]; `remainingRewards`: `bigint`[]; `rewardTokens`: `` `0x${string}` ``[]; `totalSignalWeight`: `bigint`; \}\>
 
 Reads all rewards currently accrued by one account in a Bribe.
 
@@ -21,4 +21,4 @@ Reads all rewards currently accrued by one account in a Bribe.
 
 ## Returns
 
-`Promise`\<\{ `account`: `` `0x${string}` ``; `accountSignalWeight`: `bigint`; `blockNumber`: `bigint`; `earned`: `bigint`[]; `rewardsLeft`: `bigint`[]; `rewardTokens`: `` `0x${string}` ``[]; `totalSignalWeight`: `bigint`; \}\>
+`Promise`\<\{ `account`: `` `0x${string}` ``; `accountSignalWeight`: `bigint`; `blockNumber`: `bigint`; `earned`: `bigint`[]; `remainingRewards`: `bigint`[]; `rewardTokens`: `` `0x${string}` ``[]; `totalSignalWeight`: `bigint`; \}\>

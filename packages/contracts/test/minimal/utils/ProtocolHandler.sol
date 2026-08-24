@@ -101,7 +101,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         address[] memory selected = _accountStrategies(actor);
         if (selected.length == 0) return;
         address strategy = selected[0];
-        uint256 held = resonance.accountSignals(actor, strategy);
+        uint256 held = _accountSignalWeight(actor, strategy);
 
         vm.prank(actor);
         signalGBX.withdrawSignal(strategy, _bound(amount, 1, held));
@@ -156,7 +156,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         if (selected.length == 0) return;
 
         address strategy = selected[_bound(strategySeed, 0, selected.length - 1)];
-        uint256 held = resonance.accountSignals(actor, strategy);
+        uint256 held = _accountSignalWeight(actor, strategy);
         vm.prank(actor);
         signalGBX.withdrawSignal(strategy, _bound(amount, 1, held));
 
@@ -199,7 +199,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         uint256[] memory amounts = new uint256[](count);
         for (uint256 i; i < count; ++i) {
             selected[i] = current[i];
-            amounts[i] = resonance.accountSignals(actor, current[i]);
+            amounts[i] = _accountSignalWeight(actor, current[i]);
         }
 
         vm.startPrank(actor);
@@ -218,8 +218,8 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     function mine(uint256 actorSeed, uint256 slotSeed) external {
         address actor = _actor(actorSeed);
         uint256 index = _bound(slotSeed, 0, mineContract.SLOT_COUNT() - 1);
-        Mine.Slot memory slot = mineContract.getSlot(index);
-        uint256 payment = mineContract.price(index);
+        Mine.Slot memory slot = mineContract.slot(index);
+        uint256 payment = mineContract.currentPrice(index);
         if (payment != 0) _mintUSDG(actor, payment);
 
         vm.startPrank(actor);
@@ -249,7 +249,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     function distributeAll() external {
         address[] memory strategies = strategyRegistry.all();
         for (uint256 i; i < strategies.length; ++i) {
-            resonance.distribute(strategies[i]);
+            resonance.distributeRevenue(strategies[i]);
         }
         ghostCalls["distributeAll"] += 1;
     }
@@ -264,9 +264,9 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
         address actor = _actor(actorSeed);
         Strategy strategy = Strategy(strategies[_bound(strategySeed, 0, strategies.length - 1)]);
-        if (strategy.availableRevenue() == 0) {
-            if (!resonance.isStrategyAlive(address(strategy))) return;
-            if (resonance.earned(address(strategy)) == 0) return;
+        if (usdg.balanceOf(address(strategy)) == 0) {
+            if (!resonance.isStrategyLive(address(strategy))) return;
+            if (resonance.earnedRevenue(address(strategy)) == 0) return;
         }
 
         uint256 price = strategy.currentPrice();
@@ -298,7 +298,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         IERC20 payment = strategy.paymentToken();
         Bribe bribe = Bribe(resonance.bribeFor(address(strategy)));
         uint256 duration = bribe.REWARD_DURATION();
-        uint256 minimum = bribe.left(address(payment));
+        uint256 minimum = bribe.remainingReward(address(payment));
         if (minimum < duration) minimum = duration;
 
         uint256 headroom = bribe.MAX_LIFETIME_REWARD_AMOUNT() - bribe.lifetimeRewardNotified(address(payment));
@@ -316,30 +316,30 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         }
 
         payment.approve(address(bribe), reward);
-        bribe.notifyRewardAmount(address(payment), reward);
+        bribe.notifyReward(address(payment), reward);
 
         ghostCalls["notifyTinyReward"] += 1;
     }
 
-    function distributeBribeRewards() external {
+    function routeBribeRewards() external {
         address[] memory strategies = strategyRegistry.all();
         for (uint256 i; i < strategies.length; ++i) {
-            BribeRouter(resonance.bribeRouterFor(strategies[i])).distribute();
+            BribeRouter(resonance.bribeRouterFor(strategies[i])).route();
         }
 
-        ghostCalls["distributeBribeRewards"] += 1;
+        ghostCalls["routeBribeRewards"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////
                             MINING ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function claimMiningPayment(uint256 actorSeed) external {
+    function claimMinerPayment(uint256 actorSeed) external {
         address actor = _actor(actorSeed);
-        if (mineContract.claimable(actor) == 0) return;
+        if (mineContract.claimableMinerPayment(actor) == 0) return;
 
-        mineContract.claim(actor);
-        ghostCalls["claimMiningPayment"] += 1;
+        mineContract.claimMinerPayment(actor);
+        ghostCalls["claimMinerPayment"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -407,7 +407,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
     /// @notice Records the highest revenue index seen so far so monotonicity can be asserted between calls.
     function recordRevenueIndex() external {
-        uint256 current = resonance.rewardPerToken();
+        uint256 current = resonance.revenuePerSignal();
         if (current > ghostHighestRevenueIndex) ghostHighestRevenueIndex = current;
     }
 
@@ -419,13 +419,13 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         address[] memory strategies = strategyRegistry.all();
         uint256 count;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.isStrategyAlive(strategies[i])) ++count;
+            if (resonance.isStrategyLive(strategies[i])) ++count;
         }
 
         alive = new address[](count);
         uint256 cursor;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.isStrategyAlive(strategies[i])) alive[cursor++] = strategies[i];
+            if (resonance.isStrategyLive(strategies[i])) alive[cursor++] = strategies[i];
         }
     }
 
@@ -433,14 +433,20 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         address[] memory strategies = strategyRegistry.all();
         uint256 count;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.accountSignals(account, strategies[i]) != 0) ++count;
+            if (_accountSignalWeight(account, strategies[i]) != 0) ++count;
         }
 
         selected = new address[](count);
         uint256 cursor;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.accountSignals(account, strategies[i]) != 0) selected[cursor++] = strategies[i];
+            if (_accountSignalWeight(account, strategies[i]) != 0) selected[cursor++] = strategies[i];
         }
+    }
+
+    function _accountSignalWeight(address account, address strategy) private view returns (uint256 amount) {
+        address bribe = resonance.bribeFor(strategy);
+        if (bribe == address(0)) return 0;
+        return Bribe(bribe).signalWeightOf(account);
     }
 
     /// @notice Creates test-only GBX without waiting for elapsed mining time.

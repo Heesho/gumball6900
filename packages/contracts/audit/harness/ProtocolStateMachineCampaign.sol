@@ -69,7 +69,6 @@ contract CampaignActor {
 ///      means a genuine state the protocol should never be able to reach.
 contract ProtocolStateMachineCampaign {
     uint256 private constant ACTOR_COUNT = 3;
-    uint256 private constant SEED_PER_ACTOR = 2_000_000 ether;
 
     uint256 private constant AUCTION_INITIAL_PRICE = 10 ether;
     uint256 private constant AUCTION_EPOCH_DURATION = 1 days;
@@ -98,9 +97,6 @@ contract ProtocolStateMachineCampaign {
     uint256 public highestRevenueIndex;
     /// @notice Keeps post-bootstrap Strategy growth bounded so fuzz loops cannot grow without limit.
     bool public addedStrategy;
-    /// @notice Complete GBX supply recorded immediately after deployment.
-    uint256 public immutable genesisSupply;
-
     /// @notice Independent expected cumulative Fund classification for each Strategy payment Router.
     mapping(address strategy => uint256 amount) public expectedFundClassification;
     /// @notice Independent expected cumulative Bribe classification for each Strategy payment Router.
@@ -112,7 +108,7 @@ contract ProtocolStateMachineCampaign {
         usdg = new CampaignToken("Global Dollar", "USDG", 6);
         paymentAsset = new CampaignToken("Acquisition Asset", "ACQ", 18);
 
-        gbx = new GBX(address(this), address(this));
+        gbx = new GBX(address(this));
         fund = new Fund(gbx);
         signalGBX = new SignalGBX(IERC20(address(gbx)), address(this));
         bribeFactory = new BribeFactory(address(this));
@@ -157,15 +153,11 @@ contract ProtocolStateMachineCampaign {
         for (uint256 i; i < supplementalCount; ++i) {
             CampaignToken supplemental = new CampaignToken("Supplemental Reward", "SUP", 6);
             supplementalRewardTokens.push(supplemental);
-            resonance.addBribeReward(paymentStrategy, address(supplemental));
+            resonance.addBribeRewardToken(paymentStrategy, address(supplemental));
         }
 
-        genesisSupply = gbx.totalSupply();
-
-        // Seed actors only from the 20 million genesis-liquidity allocation; all later GBX comes from Mine.
         for (uint256 i; i < ACTOR_COUNT; ++i) {
             actors[i] = new CampaignActor();
-            gbx.transfer(address(actors[i]), SEED_PER_ACTOR);
         }
     }
 
@@ -175,7 +167,9 @@ contract ProtocolStateMachineCampaign {
 
     function signalDefault(uint8 actorSeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
-        uint256 requested = _clamp(amount, 1, gbx.balanceOf(address(actor)));
+        uint256 available = gbx.balanceOf(address(actor));
+        if (available == 0) return;
+        uint256 requested = _clamp(amount, 1, available);
         address[] memory alive = _aliveStrategies();
         if (alive.length == 0) revert("NO_LIVE_STRATEGY");
 
@@ -189,7 +183,7 @@ contract ProtocolStateMachineCampaign {
         address[] memory selected = _accountStrategies(account);
         if (selected.length == 0) revert("NO_ACCOUNT_STRATEGY");
         address strategy = selected[0];
-        uint256 requested = _clamp(amount, 1, resonance.accountSignals(account, strategy));
+        uint256 requested = _clamp(amount, 1, _accountSignalWeight(account, strategy));
 
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.withdrawSignal, (strategy, requested)));
     }
@@ -197,11 +191,13 @@ contract ProtocolStateMachineCampaign {
     function signal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
+        uint256 available = gbx.balanceOf(account);
+        if (available == 0) return;
         address[] memory alive = _aliveStrategies();
         if (alive.length == 0) revert("NO_LIVE_STRATEGY");
 
         address strategy = alive[uint256(strategySeed) % alive.length];
-        uint256 requested = _clamp(amount, 1, gbx.balanceOf(account));
+        uint256 requested = _clamp(amount, 1, available);
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), requested)));
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.signal, (strategy, requested)));
     }
@@ -213,7 +209,7 @@ contract ProtocolStateMachineCampaign {
         if (selected.length == 0) revert("NO_ACCOUNT_STRATEGY");
 
         address strategy = selected[uint256(strategySeed) % selected.length];
-        uint256 requested = _clamp(amount, 1, resonance.accountSignals(account, strategy));
+        uint256 requested = _clamp(amount, 1, _accountSignalWeight(account, strategy));
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.withdrawSignal, (strategy, requested)));
     }
 
@@ -233,7 +229,7 @@ contract ProtocolStateMachineCampaign {
         if (destination == source && alive.length > 1) destination = alive[(destinationIndex + 1) % alive.length];
         if (destination == source) revert("NO_ALTERNATE_LIVE_STRATEGY");
 
-        uint256 requested = _clamp(amount, 1, resonance.accountSignals(account, source));
+        uint256 requested = _clamp(amount, 1, _accountSignalWeight(account, source));
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.moveSignal, (source, destination, requested)));
     }
 
@@ -245,7 +241,7 @@ contract ProtocolStateMachineCampaign {
         if (alive.length == 0) revert("NO_LIVE_STRATEGY");
 
         uint256 count = (uint256(countSeed) % alive.length) + 1;
-        if (available < count) revert("INSUFFICIENT_FREE_SIGNAL");
+        if (available < count) return;
         address[] memory selected = new address[](count);
         uint256[] memory amounts = new uint256[](count);
         uint256 share = available / count;
@@ -272,7 +268,7 @@ contract ProtocolStateMachineCampaign {
         uint256[] memory amounts = new uint256[](count);
         for (uint256 i; i < count; ++i) {
             selected[i] = current[i];
-            amounts[i] = resonance.accountSignals(account, current[i]);
+            amounts[i] = _accountSignalWeight(account, current[i]);
         }
 
         for (uint256 i; i < count; ++i) {
@@ -283,8 +279,8 @@ contract ProtocolStateMachineCampaign {
     function mine(uint8 actorSeed, uint8 slotSeed) external {
         CampaignActor actor = _actor(actorSeed);
         uint256 index = uint256(slotSeed) % mineContract.SLOT_COUNT();
-        Mine.Slot memory slot = mineContract.getSlot(index);
-        uint256 payment = mineContract.price(index);
+        Mine.Slot memory slot = mineContract.slot(index);
+        uint256 payment = mineContract.currentPrice(index);
         if (payment != 0) {
             _createUSDG(address(actor), payment);
             actor.run(address(usdg), abi.encodeCall(IERC20.approve, (address(mineContract), payment)));
@@ -313,12 +309,12 @@ contract ProtocolStateMachineCampaign {
 
     function distributeAll() external {
         for (uint256 i; i < strategies.length; ++i) {
-            resonance.distribute(strategies[i]);
+            resonance.distributeRevenue(strategies[i]);
         }
     }
 
     function distributeOne(uint8 strategySeed) external {
-        resonance.distribute(_strategy(strategySeed));
+        resonance.distributeRevenue(_strategy(strategySeed));
     }
 
     function buy(uint8 actorSeed, uint8 strategySeed) external {
@@ -333,6 +329,8 @@ contract ProtocolStateMachineCampaign {
                 _createUSDG(address(actor), price);
             } else if (payment == address(paymentAsset)) {
                 paymentAsset.mint(address(actor), price);
+            } else if (payment == address(gbx) && gbx.balanceOf(address(actor)) < price) {
+                return;
             }
             actor.run(payment, abi.encodeCall(IERC20.approve, (address(strategy), price)));
         }
@@ -371,7 +369,7 @@ contract ProtocolStateMachineCampaign {
         CampaignActor actor = _actor(actorSeed);
         CampaignToken token = supplementalRewardTokens[uint256(tokenSeed) % supplementalRewardTokens.length];
         Bribe bribe = Bribe(resonance.bribeFor(strategies[0]));
-        uint256 minimum = bribe.left(address(token));
+        uint256 minimum = bribe.remainingReward(address(token));
         uint256 duration = bribe.REWARD_DURATION();
         if (minimum < duration) minimum = duration;
         uint256 headroom = bribe.MAX_LIFETIME_REWARD_AMOUNT() - bribe.lifetimeRewardNotified(address(token));
@@ -382,7 +380,7 @@ contract ProtocolStateMachineCampaign {
 
         token.mint(address(actor), reward);
         actor.run(address(token), abi.encodeCall(IERC20.approve, (address(bribe), reward)));
-        actor.run(address(bribe), abi.encodeCall(Bribe.notifyRewardAmount, (address(token), reward)));
+        actor.run(address(bribe), abi.encodeCall(Bribe.notifyReward, (address(token), reward)));
     }
 
     function claimOneReward(uint8 actorSeed, uint8 strategySeed, uint8 tokenSeed) external {
@@ -393,17 +391,17 @@ contract ProtocolStateMachineCampaign {
         bribe.claimReward(address(actor), token);
     }
 
-    function distributeBribeRewards() external {
+    function routeBribeRewards() external {
         for (uint256 i; i < strategies.length; ++i) {
             address strategy = strategies[i];
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(strategy));
             IERC20 payment = Strategy(strategy).paymentToken();
             uint256 balanceBefore = payment.balanceOf(address(router));
-            uint256 distributed = router.distribute();
+            uint256 distributed = router.route();
             uint256 balanceAfter = payment.balanceOf(address(router));
             if (distributed == 0 && balanceAfter != balanceBefore) revert("HELD_BRIBE_CHANGED");
             if (distributed != 0 && (distributed != balanceBefore || balanceAfter != 0)) {
-                revert("INEXACT_BRIBE_DISTRIBUTION");
+                revert("INEXACT_BRIBE_ROUTING");
             }
         }
     }
@@ -414,15 +412,17 @@ contract ProtocolStateMachineCampaign {
         resonance.setBribeBps(uint256(requestedBps) % (resonance.MAX_BRIBE_BPS() + 1));
     }
 
-    function claimMiningPayment(uint8 actorSeed) external {
+    function claimMinerPayment(uint8 actorSeed) external {
         CampaignActor actor = _actor(actorSeed);
-        if (mineContract.claimable(address(actor)) == 0) revert("NOTHING_TO_CLAIM");
-        mineContract.claim(address(actor));
+        if (mineContract.claimableMinerPayment(address(actor)) == 0) revert("NOTHING_TO_CLAIM");
+        mineContract.claimMinerPayment(address(actor));
     }
 
     function redeem(uint8 actorSeed, uint96 amount, bool includePaymentAsset) external {
         CampaignActor actor = _actor(actorSeed);
-        uint256 burned = _clamp(amount, 1, gbx.balanceOf(address(actor)));
+        uint256 available = gbx.balanceOf(address(actor));
+        if (available == 0) return;
+        uint256 burned = _clamp(amount, 1, available);
 
         uint256 length = includePaymentAsset ? 2 : 1;
         address[] memory tokens = new address[](length);
@@ -434,7 +434,9 @@ contract ProtocolStateMachineCampaign {
     }
 
     function burnFundGBX(uint96 amount) external {
-        fund.burnGBX(_clamp(amount, 1, gbx.balanceOf(address(fund))));
+        uint256 available = gbx.balanceOf(address(fund));
+        if (available == 0) return;
+        fund.burnGBX(_clamp(amount, 1, available));
     }
 
     function killStrategy(uint8 strategySeed) external {
@@ -477,6 +479,11 @@ contract ProtocolStateMachineCampaign {
         return gbx.totalSupply() == gbx.lifetimeMinted() - gbx.lifetimeBurned();
     }
 
+    /// @notice Every lifetime-minted GBX unit came through Mine; GBX has no premint or second issuer.
+    function echidna_mineIsTheOnlyLifetimeIssuer() public view returns (bool holds) {
+        return gbx.lifetimeMinted() == mineContract.totalMined();
+    }
+
     /// @notice The one-time minter binding remains permanently attached to Mine.
     function echidna_miningAuthorityRemainsFinal() public view returns (bool holds) {
         return gbx.minterLocked() && gbx.minter() == address(mineContract);
@@ -491,7 +498,7 @@ contract ProtocolStateMachineCampaign {
     function echidna_strategyWeightsSumToTheGlobalTotal() public view returns (bool holds) {
         uint256 summed;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.isStrategyAlive(strategies[i])) summed += resonance.strategySignalWeight(strategies[i]);
+            if (resonance.isStrategyLive(strategies[i])) summed += _strategySignalWeight(strategies[i]);
         }
         return summed == resonance.totalSignalWeight();
     }
@@ -500,12 +507,12 @@ contract ProtocolStateMachineCampaign {
     function echidna_accountWeightsSumToTheGlobalTotal() public view returns (bool holds) {
         uint256 accountTotal;
         for (uint256 i; i < ACTOR_COUNT; ++i) {
-            accountTotal += resonance.accountSignalWeight(address(actors[i]));
+            accountTotal += signalGBX.balanceOf(address(actors[i]));
         }
 
         uint256 strategyTotal;
         for (uint256 i; i < strategies.length; ++i) {
-            strategyTotal += resonance.strategySignalWeight(strategies[i]);
+            strategyTotal += _strategySignalWeight(strategies[i]);
         }
         return accountTotal == strategyTotal;
     }
@@ -514,7 +521,11 @@ contract ProtocolStateMachineCampaign {
     function echidna_signalWeightNeverExceedsTheReceiptBalance() public view returns (bool holds) {
         for (uint256 i; i < ACTOR_COUNT; ++i) {
             address actor = address(actors[i]);
-            if (resonance.accountSignalWeight(actor) != signalGBX.balanceOf(actor)) return false;
+            uint256 allocated;
+            for (uint256 j; j < strategies.length; ++j) {
+                allocated += _accountSignalWeight(actor, strategies[j]);
+            }
+            if (allocated > signalGBX.balanceOf(actor)) return false;
         }
         return true;
     }
@@ -528,14 +539,14 @@ contract ProtocolStateMachineCampaign {
 
             uint256 summed;
             for (uint256 j; j < selected.length; ++j) {
-                uint256 signalAmount = resonance.accountSignals(actor, selected[j]);
+                uint256 signalAmount = _accountSignalWeight(actor, selected[j]);
                 if (signalAmount == 0) return false;
                 summed += signalAmount;
                 for (uint256 k = j + 1; k < selected.length; ++k) {
                     if (selected[j] == selected[k]) return false;
                 }
             }
-            if (summed != resonance.accountSignalWeight(actor)) return false;
+            if (summed != signalGBX.balanceOf(actor)) return false;
         }
         return true;
     }
@@ -553,15 +564,12 @@ contract ProtocolStateMachineCampaign {
     function echidna_bribeAccountingMirrorsResonance() public view returns (bool holds) {
         for (uint256 i; i < strategies.length; ++i) {
             Bribe bribe = Bribe(resonance.bribeFor(strategies[i]));
-            if (bribe.totalSupply() != resonance.strategySignalWeight(strategies[i])) return false;
-
             uint256 summed;
             for (uint256 j; j < ACTOR_COUNT; ++j) {
                 address actor = address(actors[j]);
-                if (bribe.balanceOf(actor) != resonance.accountSignals(actor, strategies[i])) return false;
-                summed += bribe.balanceOf(actor);
+                summed += bribe.signalWeightOf(actor);
             }
-            if (summed != bribe.totalSupply()) return false;
+            if (summed != bribe.totalSignalWeight()) return false;
         }
         return true;
     }
@@ -570,36 +578,36 @@ contract ProtocolStateMachineCampaign {
     function echidna_resonanceIsSolventAgainstClaimableRevenue() public view returns (bool holds) {
         uint256 owed;
         for (uint256 i; i < strategies.length; ++i) {
-            owed += resonance.earned(strategies[i]);
+            owed += resonance.earnedRevenue(strategies[i]);
         }
         return owed <= usdg.balanceOf(address(resonance));
     }
 
     /// @notice Scheduled and already-earned USDG remain solvent; accepted rounding may leave surplus.
     function echidna_resonanceIsSolventIncludingScheduled() public view returns (bool holds) {
-        uint256 owed = resonance.left();
+        uint256 owed = resonance.remainingRevenue();
         for (uint256 i; i < strategies.length; ++i) {
-            owed += resonance.earned(strategies[i]);
+            owed += resonance.earnedRevenue(strategies[i]);
         }
         return owed <= usdg.balanceOf(address(resonance));
     }
 
     /// @notice Resonance's one reward period has coherent timestamps and is fully backed.
     function echidna_revenueStreamStateIsCoherent() public view returns (bool holds) {
-        (uint256 finish, uint256 rewardRate, uint256 lastUpdate, uint256 storedIndex) = resonance.rewardData();
+        (uint256 finish, uint256 revenueRate, uint256 lastUpdate, uint256 storedIndex) = resonance.revenueData();
         if (finish == 0) {
-            return rewardRate == 0 && lastUpdate == 0 && storedIndex == 0;
+            return revenueRate == 0 && lastUpdate == 0 && storedIndex == 0;
         }
 
-        return lastUpdate <= finish && resonance.left() <= usdg.balanceOf(address(resonance));
+        return lastUpdate <= finish && resonance.remainingRevenue() <= usdg.balanceOf(address(resonance));
     }
 
     /// @notice Dead Strategy weights are excluded from the active denominator while remaining removable.
     function echidna_deadStrategiesAreExcludedFromActiveWeight() public view returns (bool holds) {
         uint256 activeWeight;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.isStrategyAlive(strategies[i])) {
-                activeWeight += resonance.strategySignalWeight(strategies[i]);
+            if (resonance.isStrategyLive(strategies[i])) {
+                activeWeight += _strategySignalWeight(strategies[i]);
             }
         }
         return activeWeight == resonance.totalSignalWeight();
@@ -607,9 +615,9 @@ contract ProtocolStateMachineCampaign {
 
     /// @notice A Strategy checkpoint never runs ahead of the global revenue index.
     function echidna_checkpointsNeverLeadTheGlobalIndex() public view returns (bool holds) {
-        uint256 current = resonance.rewardPerToken();
+        uint256 current = resonance.revenuePerSignal();
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.strategyRewardPerTokenPaid(strategies[i]) > current) return false;
+            if (resonance.strategyRevenuePerSignalPaid(strategies[i]) > current) return false;
         }
         return true;
     }
@@ -626,7 +634,7 @@ contract ProtocolStateMachineCampaign {
                     owed += bribe.earned(address(actors[j]), rewardTokens[t]);
                 }
                 uint256 balance = IERC20(rewardTokens[t]).balanceOf(address(bribe));
-                if (owed + bribe.left(rewardTokens[t]) > balance) return false;
+                if (owed + bribe.remainingReward(rewardTokens[t]) > balance) return false;
             }
         }
         return true;
@@ -642,18 +650,20 @@ contract ProtocolStateMachineCampaign {
                 address token = rewardTokens[t];
                 uint256 lifetimeNotified = bribe.lifetimeRewardNotified(token);
                 if (lifetimeNotified > bribe.MAX_LIFETIME_REWARD_AMOUNT()) return false;
-                if (bribe.rewardPerToken(token) > lifetimeNotified * bribe.REWARD_PRECISION()) return false;
+                if (bribe.rewardPerSignal(token) > lifetimeNotified * bribe.REWARD_PRECISION()) return false;
 
                 (uint256 finish, uint256 rate, uint256 lastUpdate, uint256 storedIndex) = bribe.rewardData(token);
                 if (finish == 0) {
                     if (rate != 0 || lastUpdate != 0 || storedIndex != 0) return false;
-                } else if (lastUpdate > finish || bribe.left(token) > IERC20(token).balanceOf(address(bribe))) {
+                } else if (
+                    lastUpdate > finish || bribe.remainingReward(token) > IERC20(token).balanceOf(address(bribe))
+                ) {
                     return false;
                 }
 
-                uint256 currentIndex = bribe.rewardPerToken(token);
+                uint256 currentIndex = bribe.rewardPerSignal(token);
                 for (uint256 j; j < ACTOR_COUNT; ++j) {
-                    if (bribe.userRewardPerTokenPaid(address(actors[j]), token) > currentIndex) return false;
+                    if (bribe.accountRewardPerSignalPaid(address(actors[j]), token) > currentIndex) return false;
                 }
             }
         }
@@ -692,14 +702,9 @@ contract ProtocolStateMachineCampaign {
     function echidna_atLeastOneStrategyRemainsLive() public view returns (bool holds) {
         uint256 counted;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.isStrategyAlive(strategies[i])) ++counted;
+            if (resonance.isStrategyLive(strategies[i])) ++counted;
         }
         return counted != 0 && counted == resonance.liveStrategyCount();
-    }
-
-    /// @notice The router never conceals or misreports any balance awaiting a permissionless route call.
-    function echidna_routerRetentionIsFullyVisible() public view returns (bool holds) {
-        return resonanceRouter.pendingRevenue() == usdg.balanceOf(address(resonanceRouter));
     }
 
     /// @notice Every auction's starting price stays inside its immutable configured bounds.
@@ -725,17 +730,17 @@ contract ProtocolStateMachineCampaign {
         if (mineContract.INITIAL_TPS() != 64 ether) return false;
         if (mineContract.HALVING_PERIOD() != 69 days) return false;
         if (mineContract.TAIL_TPS() != 1 ether) return false;
-        if (usdg.balanceOf(address(mineContract)) != mineContract.totalClaimable()) return false;
+        if (usdg.balanceOf(address(mineContract)) != mineContract.totalClaimableMinerPayments()) return false;
 
         uint256 combinedTps;
         uint256 naivePending;
         for (uint256 i; i < slotCount; ++i) {
-            Mine.Slot memory slot = mineContract.getSlot(i);
+            Mine.Slot memory slot = mineContract.slot(i);
             if (slot.miner == address(0) && slot.tps != 0) return false;
-            if (mineContract.price(i) > slot.initialPrice) return false;
+            if (mineContract.currentPrice(i) > slot.initialPrice) return false;
             if (slot.tps > mineContract.INITIAL_TPS()) return false;
             combinedTps += slot.tps;
-            naivePending += mineContract.pendingEmission(i);
+            naivePending += mineContract.pendingSlotEmission(i);
         }
         uint256 elapsedHalvings = (block.timestamp - mineContract.startTime()) / mineContract.HALVING_PERIOD();
         uint256 expectedGlobalTps = mineContract.INITIAL_TPS() >> elapsedHalvings;
@@ -765,7 +770,7 @@ contract ProtocolStateMachineCampaign {
     /// @notice The revenue index never moves backwards.
     /// @dev `highestRevenueIndex` is refreshed by every action through `_recordRevenueIndex`.
     function echidna_revenueIndexIsMonotonic() public view returns (bool holds) {
-        return resonance.rewardPerToken() >= highestRevenueIndex;
+        return resonance.revenuePerSignal() >= highestRevenueIndex;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -789,31 +794,43 @@ contract ProtocolStateMachineCampaign {
     function _aliveStrategies() private view returns (address[] memory alive) {
         uint256 count;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.isStrategyAlive(strategies[i])) ++count;
+            if (resonance.isStrategyLive(strategies[i])) ++count;
         }
 
         alive = new address[](count);
         uint256 cursor;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.isStrategyAlive(strategies[i])) alive[cursor++] = strategies[i];
+            if (resonance.isStrategyLive(strategies[i])) alive[cursor++] = strategies[i];
         }
     }
 
     function _accountStrategies(address account) private view returns (address[] memory selected) {
         uint256 count;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.accountSignals(account, strategies[i]) != 0) ++count;
+            if (_accountSignalWeight(account, strategies[i]) != 0) ++count;
         }
 
         selected = new address[](count);
         uint256 cursor;
         for (uint256 i; i < strategies.length; ++i) {
-            if (resonance.accountSignals(account, strategies[i]) != 0) selected[cursor++] = strategies[i];
+            if (_accountSignalWeight(account, strategies[i]) != 0) selected[cursor++] = strategies[i];
         }
     }
 
+    function _accountSignalWeight(address account, address strategy) private view returns (uint256 amount) {
+        address bribe = resonance.bribeFor(strategy);
+        if (bribe == address(0)) return 0;
+        return Bribe(bribe).signalWeightOf(account);
+    }
+
+    function _strategySignalWeight(address strategy) private view returns (uint256 amount) {
+        address bribe = resonance.bribeFor(strategy);
+        if (bribe == address(0)) return 0;
+        return Bribe(bribe).totalSignalWeight();
+    }
+
     function _recordRevenueIndex() private {
-        uint256 current = resonance.rewardPerToken();
+        uint256 current = resonance.revenuePerSignal();
         if (current > highestRevenueIndex) highestRevenueIndex = current;
     }
 

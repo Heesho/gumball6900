@@ -43,10 +43,10 @@ def test_reference_cases_pin_synchronized_supply_at_tail_and_year_ten() -> None:
     quotes = {quote["id"]: quote for quote in compute(scenarios)["miningQuotes"]}
     at_tail = quotes["at-tail-time-boundary"]
     assert at_tail["synchronizedMiningEmission"] == "751161600000000000000000000"
-    assert at_tail["synchronizedGrossSupply"] == "771161600000000000000000000"
+    assert at_tail["synchronizedGrossSupply"] == "751161600000000000000000000"
     at_year_ten = quotes["ten-years-synchronized-supply"]
     assert at_year_ten["synchronizedMiningEmission"] == "1030752000000000000000000000"
-    assert at_year_ten["synchronizedGrossSupply"] == "1050752000000000000000000000"
+    assert at_year_ten["synchronizedGrossSupply"] == "1030752000000000000000000000"
 
 
 def test_one_raw_unit_payments_are_independently_floored() -> None:

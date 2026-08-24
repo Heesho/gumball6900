@@ -6,13 +6,9 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 
 import { IBribe } from "./interfaces/IBribe.sol";
 
-/**
- * @title GumBall6900 Bribe Reward Router
- * @author Heesho
- * @notice Buffers one Strategy's acquired-payment Bribe share until it can start or top up the paired reward stream.
- * @dev Strategy performs the Fund/Bribe split and transfers only the Bribe share here. Distribution is permissionless.
- * @custom:version 2.0.0
- */
+/// @title GumBall6900 Bribe Reward Router
+/// @notice Buffers one Strategy's acquired-payment Bribe share until it can start or top up the paired reward stream.
+/// @dev Strategy performs the Fund/Bribe split and transfers only the Bribe share here. Routing is permissionless.
 contract BribeRouter {
     using SafeERC20 for IERC20;
 
@@ -22,7 +18,7 @@ contract BribeRouter {
     IBribe public immutable bribe;
 
     /// @notice Emitted when the Router's complete buffered balance enters the paired Bribe.
-    event RewardsDistributed(address indexed bribe, address indexed rewardToken, uint256 amount);
+    event RewardRouted(address indexed bribe, address indexed rewardToken, uint256 amount);
 
     /// @notice Raised for a zero or code-less immutable dependency.
     error ZeroAddress();
@@ -41,16 +37,17 @@ contract BribeRouter {
     }
 
     /// @notice Notifies the paired Bribe with the Router's complete balance once it satisfies the top-up gates.
-    /// @return distributed Amount sent to Bribe, or zero when the Router is empty or the balance must keep accumulating.
-    function distribute() external returns (uint256 distributed) {
-        distributed = paymentToken.balanceOf(address(this));
-        if (
-            distributed == 0 || distributed < bribe.REWARD_DURATION() || distributed < bribe.left(address(paymentToken))
-        ) return 0;
+    /// @return amount Amount sent to Bribe, or zero when the Router is empty or its balance must keep
+    ///         accumulating.
+    function route() external returns (uint256 amount) {
+        amount = paymentToken.balanceOf(address(this));
+        if (amount == 0 || amount < bribe.REWARD_DURATION() || amount < bribe.remainingReward(address(paymentToken))) {
+            return 0;
+        }
 
-        paymentToken.forceApprove(address(bribe), distributed);
-        bribe.notifyRewardAmount(address(paymentToken), distributed);
+        paymentToken.forceApprove(address(bribe), amount);
+        bribe.notifyReward(address(paymentToken), amount);
 
-        emit RewardsDistributed(address(bribe), address(paymentToken), distributed);
+        emit RewardRouted(address(bribe), address(paymentToken), amount);
     }
 }

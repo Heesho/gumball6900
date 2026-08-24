@@ -76,9 +76,6 @@ import './mining.css';
    tenure runs is redrawn every cycle, so what the reader walks away with is a
    different number each time rather than a figure they can predict. */
 
-
-
-
 // Deterministic initial shell for the four detail cells: the geometry is final
 // in the server HTML; the effect's pre-run overwrites the text before the first
 // post-hydration paint (useLayoutEffect). Text lengths mirror what paintSim
@@ -104,7 +101,6 @@ interface CellRefs {
   sub: HTMLElement;
   timer: ReturnType<typeof setTimeout> | null;
 }
-
 
 interface Layout {
   w: number;
@@ -492,7 +488,6 @@ export function Mining() {
     /* The scripted beats, the payment allocation and the never-taken walk all
        live with the model in lib/models/mine.ts. */
 
-    
     /* The step is the frozen model's; this section supplies the three effects
        the model cannot own — the tape, the detail-cell flash, and where on
        this canvas a payment's chips are launched from. */
@@ -1164,8 +1159,8 @@ export function Mining() {
             </span>
             <h3 className="h3 col__t">80% claim, 20% Router deposit</h3>
             <p className="col__b">
-              Taking an occupied slot credits 80% of the price as the displaced miner&apos;s pull claim and
-              exact-transfers the other 20% into ResonanceRouter. A paid first fill deposits 100%. Mine then emits{' '}
+              Taking an occupied slot credits 80% of the price as the displaced miner&apos;s pull claim and requests a
+              nominal transfer of the other 20% into ResonanceRouter. A paid first fill transfers 100%. Mine then emits{' '}
               <span className="num">RevenueDeposited</span> and never calls <span className="num">route()</span>; a
               zero-price handoff moves no USDG.
             </p>

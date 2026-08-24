@@ -2,8 +2,9 @@
 
 ## Status
 
-Accepted as historical context; GBX mint authority and distribution are superseded by ADR 0024 (which also supersedes
-ADR 0023). Not approved for deployment or user funds.
+Accepted as historical context; GBX mint authority and distribution were superseded by ADR 0024 (which also
+supersedes ADR 0023), and the genesis allocation and canonical liquidity position are superseded by ADR 0050. Not
+approved for deployment or user funds.
 
 ## Context
 

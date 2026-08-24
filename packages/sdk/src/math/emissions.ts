@@ -1,7 +1,7 @@
 import {
   BPS_DENOMINATOR,
   MINE_MAX_INITIAL_PRICE,
-  MINE_MINIMUM_INITIAL_PRICE,
+  MINE_MIN_INITIAL_PRICE,
   MINE_PRICE_DECAY_PERIOD,
   MINE_PRICE_MULTIPLIER,
   PREVIOUS_MINER_BPS,
@@ -72,7 +72,7 @@ export function quoteMiningPayment(payment: bigint, hasPreviousMiner: boolean): 
 export function nextMiningInitialPrice(payment: bigint): bigint {
   assertNonNegative(payment, 'payment');
   const multiplied = payment * MINE_PRICE_MULTIPLIER;
-  if (multiplied < MINE_MINIMUM_INITIAL_PRICE) return MINE_MINIMUM_INITIAL_PRICE;
+  if (multiplied < MINE_MIN_INITIAL_PRICE) return MINE_MIN_INITIAL_PRICE;
   if (multiplied > MINE_MAX_INITIAL_PRICE) return MINE_MAX_INITIAL_PRICE;
   return multiplied;
 }

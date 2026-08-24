@@ -20,8 +20,8 @@ const targets = [
   },
   {
     address: getAddress('0x0000000000000000000000000000000000000022'),
-    key: 'uniswapV4.poolManager',
-    source: 'uniswap-v4',
+    key: 'WETH',
+    source: 'canonical-token',
   },
 ] as const satisfies readonly BytecodeTarget[];
 
@@ -36,7 +36,7 @@ function expectedHashes(): ExpectedBytecodeHashes {
     chainId: 4663,
     hashes: {
       USDG: keccak256(codeByAddress[targets[0].address]!),
-      'uniswapV4.poolManager': keccak256(codeByAddress[targets[1].address]!),
+      WETH: keccak256(codeByAddress[targets[1].address]!),
     },
     observedAt: '2026-08-01T00:00:00Z',
     schemaVersion: 1,
@@ -55,7 +55,7 @@ describe('canonical bytecode verifier', () => {
     ) as unknown;
     const parsed = expectedBytecodeHashesSchema.parse(provisional);
     expect(parsed.status).toBe('provisional');
-    expect(Object.keys(parsed.hashes)).toHaveLength(10);
+    expect(Object.keys(parsed.hashes)).toHaveLength(2);
   });
 
   it('collects hashes without approving deployment only when explicitly requested', async () => {
@@ -69,7 +69,7 @@ describe('canonical bytecode verifier', () => {
     expect(report.deploymentApproved).toBe(false);
     expect(report.blockHash).toBe(BytecodeFixtureRpc.blockHash);
     expect(report.parentBlockHash).toBe(BytecodeFixtureRpc.parentBlockHash);
-    expect(report.targets.map(({ key }) => key)).toEqual(['USDG', 'uniswapV4.poolManager']);
+    expect(report.targets.map(({ key }) => key)).toEqual(['USDG', 'WETH']);
   });
 
   it('matches every target against provisional pins without approving deployment', async () => {

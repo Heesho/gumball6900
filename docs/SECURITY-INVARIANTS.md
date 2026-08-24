@@ -3,14 +3,14 @@
 This file defines the accounting identities used by the hardening tests. For Resonance and Bribe rewards, `P = 1e36`.
 Quantities named `Scaled` already include their subsystem's precision unit.
 
-> ADRs 0031, 0034, 0035, 0037, 0047, and 0048 make the SignalGBX, Bribe, Strategy settlement, and external-governance
+> ADRs 0031, 0034, 0035, 0037, and 0047-0050 make the SignalGBX, Bribe, Strategy settlement, and external-governance
 > boundary below authoritative. Governance execution remains unselected and contributes no production invariant until
 > separately reviewed.
 
 ## Supply and mining
 
 ```text
-genesis mint = 20,000,000e18
+initial supply = 0
 totalSupply = lifetimeMinted - lifetimeBurned
 aggregateTps = sum_slots(slot.tps)
 pendingEmission = storedPendingEmission + (now - pendingUpdatedAt) * aggregateTps
@@ -30,32 +30,31 @@ For a positive nonempty-slot payment:
 ```text
 previousMinerClaim = floor(price * 8,000 / 10,000)
 routerDeposit = price - previousMinerClaim
-Mine USDG balance = totalClaimable
+Mine USDG balance = totalClaimableMinerPayments
 ```
 
-For an empty slot, `routerDeposit = price`; for a zero-price handoff both values are zero. Every nonzero token movement
-checks exact sender debit and receiver credit. The deposit is Mine's terminal revenue action: a later permissionless
-`ResonanceRouter.route()` call is neither part of nor a precondition for the handoff.
+For an empty slot, `routerDeposit = price`; for a zero-price handoff both values are zero. Mine requests these nominal
+amounts with `SafeERC20` and trusts canonical USDG's standard movement without sender/receiver balance checks. The
+deposit is Mine's terminal revenue action: a later permissionless `ResonanceRouter.route()` call is neither part of nor
+a precondition for the handoff.
 
 ## Signals and virtual Bribe balances
 
 ```text
-SignalGBX.balanceOf(account) = accountSignalWeight(account)
-sum_strategy Bribe(strategy).balanceOf(account) = SignalGBX.balanceOf(account)
-sum_strategy Bribe(strategy).totalSupply() = SignalGBX.totalSupply()
+sum_strategy Bribe(strategy).signalWeightOf(account) = SignalGBX.balanceOf(account)
+sum_strategy Bribe(strategy).totalSignalWeight() = SignalGBX.totalSupply()
 GBX.balanceOf(SignalGBX) >= SignalGBX.totalSupply()
-sum_account accountSignals[account][strategy] = strategySignalWeight[strategy]
-sum_live_strategies strategySignalWeight[strategy] = totalSignalWeight
-Bribe(strategy).balanceOf(account) = accountSignals[account][strategy]
-Bribe(strategy).totalSupply() = strategySignalWeight[strategy]
+sum_account Bribe(strategy).signalWeightOf(account) = Bribe(strategy).totalSignalWeight()
+sum_live_strategies Bribe(strategy).totalSignalWeight() = Resonance.totalSignalWeight()
 ```
 
-Every successful `signal` or `signalWithPermit` deposits exact GBX, mints the same SignalGBX amount, and creates the
-same Strategy and Bribe position atomically. Every successful `withdrawSignal` removes the same position, burns the
-same SignalGBX amount, and returns exact GBX atomically. `moveSignal` changes neither escrow custody, SignalGBX supply,
-nor voting units. Excess escrow GBX is unsolicited surplus and creates no receipt, signal, or withdrawal entitlement.
-A killed Strategy's recorded `strategySignalWeight` and paired Bribe supply remain, but its balance is excluded from
-active `totalSignalWeight` and remains movable out or withdrawable.
+Every successful `signal` or `signalWithPermit` requests a GBX deposit, mints the same nominal SignalGBX amount, and
+creates the same Strategy and Bribe position atomically. Every successful `withdrawSignal` removes that position,
+burns the same SignalGBX amount, and requests the same nominal GBX return atomically. Canonical GBX transfers use
+`SafeERC20` without balance-delta enforcement. `moveSignal` changes neither escrow custody, SignalGBX supply, nor
+voting units. Excess escrow GBX is unsolicited surplus and creates no receipt, signal, or withdrawal entitlement.
+A killed Strategy's paired-Bribe `totalSignalWeight` remains, but its balance is excluded from Resonance's active
+`totalSignalWeight` and remains movable out or withdrawable.
 
 SignalGBX is the only caller accepted by Resonance's `addSignalFor` and `removeSignalFor`. Its public `moveSignal`
 atomically calls removal for the source and addition for the destination; Resonance has no dedicated move hook, and a
@@ -67,7 +66,7 @@ Before the first Strategy is registered, `liveStrategyCount = 0` and new signal 
 
 ```text
 liveStrategyCount >= 1
-liveStrategyCount = sum_strategy(isStrategyAlive(strategy) ? 1 : 0)
+liveStrategyCount = sum_strategy(isStrategyLive(strategy) ? 1 : 0)
 ```
 
 Killing the final live Strategy reverts. Adding a replacement before killing the old Strategy preserves the invariant;
@@ -82,7 +81,7 @@ SignalGBX IVotes clock = blocknumber
 continuing Resonance owner calls = {
   Resonance.addStrategy,
   Resonance.killStrategy,
-  Resonance.addBribeReward,
+  Resonance.addBribeRewardToken,
   Resonance.setBribeBps
 }
 inherited Resonance owner calls = {
@@ -109,8 +108,8 @@ Resonance intentionally uses a solvency inequality rather than exact carried acc
 Strategy at one block:
 
 ```text
-scheduledRevenue = left()
-previewedStrategyLiability = sum(earned(strategy))
+scheduledRevenue = remainingRevenue()
+previewedStrategyLiability = sum(earnedRevenue(strategy))
 USDG.balanceOf(Resonance)
   = scheduledRevenue + previewedStrategyLiability + surplus
 surplus >= 0
@@ -131,11 +130,13 @@ releasedRaw(first x active seconds)
 releasedRaw(7 days) = scheduledRaw - rateRemainderRaw
 ```
 
-ResonanceRouter forwards only when its complete balance is at least `max(DURATION, left())`; otherwise `route` returns
-zero. Resonance checkpoints elapsed emission and restarts a seven-day schedule at
-`floor((routerBalance + leftBeforeNotification) / DURATION)`. The division remainder remains surplus.
+ResonanceRouter forwards only when its complete balance is at least
+`max(REWARD_DURATION, remainingRevenue())`; otherwise `route` returns zero. Resonance checkpoints elapsed emission and
+restarts a seven-day schedule at
+`floor((routerBalance + remainingRevenueBeforeNotification) / REWARD_DURATION)`. The division remainder remains
+surplus.
 
-For positive active signal supply, elapsed raw emission advances the global reward-per-signal index by
+For positive active signal supply, elapsed raw emission advances the global revenue-per-signal index by
 `floor(emittedRaw * P / totalSignalWeight)`. Strategy checkpointing accrues
 `floor(strategyWeight * indexDelta / P)`. Neither floor retains a remainder. At zero active supply the index is unchanged
 while stream time advances, so that elapsed emission enters `surplus`.
@@ -154,7 +155,7 @@ For Bribe precision `P = 1e36`, every token in every Bribe satisfies:
 
 ```text
 0 <= lifetimeRewardNotified[token] <= floor(type(uint256).max / P)
-previewedRewardPerToken[token] <= lifetimeRewardNotified[token] * P <= type(uint256).max
+previewedRewardPerSignal[token] <= lifetimeRewardNotified[token] * P <= type(uint256).max
 ```
 
 Every accepted notification adds its raw amount to `lifetimeRewardNotified`; claims and later
@@ -162,16 +163,17 @@ balance changes never decrease it. Direct donations do not count because Bribe n
 reverts before reward checkpointing or token transfer, so the rejection cannot mutate a stream or gate a signal exit.
 
 ```text
-scheduledReward[token] = left(token)
+scheduledReward[token] = remainingReward(token)
 previewedAccountRewards[token] = sum_account earned(account, token)
 ERC20(token).balanceOf(Bribe)
   = scheduledReward[token] + previewedAccountRewards[token] + surplus[token]
 surplus[token] >= 0
 ```
 
-Notifications must satisfy `amount >= REWARD_DURATION` and `amount >= left(token)`. A valid notification checkpoints
+Notifications must satisfy `amount >= REWARD_DURATION` and `amount >= remainingReward(token)`. A valid notification checkpoints
 the current index, pulls the standard token, and sets
-`rewardRate = floor((amount + leftBeforeNotification) / REWARD_DURATION)`. Stream time continues at zero supply.
+`rewardRate = floor((amount + remainingRewardBeforeNotification) / REWARD_DURATION)`. Stream time continues at zero
+signal weight.
 Rate, global-index, and account floors remain surplus; there are no queue, pause, carry, or Fund-reward buckets.
 
 All-token claims are atomic across the registered set. Scalar claims touch only one token and therefore preserve
@@ -192,14 +194,15 @@ directly to Fund, and transfers nonzero `bribeAmount` to BribeRouter. There is n
 liability; different payment partitions may differ by sub-token flooring. A failed Fund transfer reverts the purchase.
 
 BribeRouter's complete compatible-token balance is the next candidate notification, including direct donations. Its
-`distribute` operation returns zero until that balance is at least both `REWARD_DURATION` and the Bribe's `left` amount.
+`route` operation returns zero until that balance is at least both `REWARD_DURATION` and the Bribe's `remainingReward`
+amount.
 A failed notification reverts without moving the balance; a successful notification leaves the Router empty.
 
 Signal and exit liveness is independent of `bribeBps`: `signal`, `signalWithPermit`, `moveSignal`, and
 `withdrawSignal` do not require a new automatic liability or settlement of an acquired payment token. This remains
 true at 0% and for killed-Strategy exits.
 
-## Fund and liquidity
+## Fund and external liquidity
 
 Fund first reads Mine's effective supply, then every selected payout uses the same effective pre-burn supply and raw
 balance:
@@ -217,12 +220,6 @@ finalBalance(token) >= balanceBefore(token) - payout(token)
 This basket-wide postcondition prevents distinct selected token addresses backed by one shared ledger from consuming
 the same backing twice.
 
-Every successful liquidity fee harvest satisfies:
-
-```text
-liquidityAfter = liquidityBefore
-USDG balance after = 0; collected USDG = USDG routed through ResonanceRouter
-GBX balance after = 0; collected GBX = GBX transferred to Fund and burned
-```
-
-No function transfers the canonical position NFT out or removes principal.
+One reviewed external USDG/GBX LP ERC-20 may be an ordinary bootstrap Strategy payment token. It obeys the same
+Strategy split and Fund redemption rules as every other payment token. No core invariant depends on pool reserves,
+price, custody, fees, or liquidity availability because the core performs no liquidity operation.

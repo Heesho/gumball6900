@@ -2,8 +2,9 @@
 
 ## Status
 
-Accepted as historical starting point; acquisition-split and buyback provisions are superseded by ADR 0021, and the
-external proposer/canceller model is superseded by ADR 0030. Not approved for deployment or user funds.
+Accepted as historical starting point; acquisition-split and buyback provisions are superseded by ADR 0021, the
+external proposer/canceller model is superseded by ADR 0030, and the canonical-liquidity-position boundary is
+superseded by ADR 0050. Not approved for deployment or user funds.
 
 ## Context
 

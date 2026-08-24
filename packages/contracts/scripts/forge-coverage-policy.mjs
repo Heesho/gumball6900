@@ -13,8 +13,6 @@ export const FORGE_COVERAGE_POLICY = Object.freeze([
   // Mine is the new distribution boundary. Final thresholds remain a release gate until the current report is recorded.
   policy('src/core/Mine.sol', [85_00, 12], [75_00, 25], [90_00, 120]),
   policy('src/core/GBX.sol', [95_00, 4], [95_00, 14], [95_00, 34]),
-  // Genuine PositionManager integration is measured separately; this floor covers the default mock/deep suite.
-  policy('src/core/LiquidityPosition.sol', [50_00, 8], [50_00, 24], [55_00, 102]),
   policy('src/core/Resonance.sol', [95_00, 27], [80_00, 51], [95_00, 197]),
   policy('src/core/ResonanceRouter.sol', [95_00, 3], [95_00, 3], [95_00, 17]),
   policy('src/core/SignalGBX.sol', [95_00, 11], [95_00, 13], [95_00, 63]),

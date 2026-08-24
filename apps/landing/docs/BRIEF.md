@@ -54,13 +54,12 @@ Colour meaning (from the whitepaper's diagram grammar — keep it): **blue = USD
 
 ## The protocol — ground truth, never invent
 
-- **GBX** is the token. It exists exactly two ways: a single **20,000,000** allocation at
-  deployment into permanently locked market liquidity, and issuance to miners after that. No team
-  allocation, no presale, no discretionary mint. Mint authority passes to the Mine once and locks.
+- **GBX** is the token. It begins with zero supply and is issued only to miners. No premint, team allocation,
+  presale, or discretionary mint. Mint authority passes to the Mine once and locks.
 - **Mining.** **Sixteen** permanent slots. Every slot is always for sale; its price falls in a
   straight line to zero over **one hour** and restarts at twice the accepted price, subject to a
   **$1 USDG floor**. Taking an occupied slot credits **80%** as the displaced miner's pull claim and
-  exact-deposits **20%** in ResonanceRouter; an untaken slot deposits **100%**. Mine emits
+  requests a nominal **20%** transfer to ResonanceRouter; an untaken slot transfers **100%**. Mine emits
   `RevenueDeposited` and stops: it never calls `route()`. A later Router call is permissionless but
   has no liveness guarantee. A new tenure receives one-sixteenth of the prospective rate, which
   starts at **64 GBX/second**, halves every **69 days** from `Mine.startTime`, and bottoms at **1

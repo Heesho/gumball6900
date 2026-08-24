@@ -9,9 +9,14 @@ import {
   test,
 } from 'matchstick-as/assembly/index';
 import { Burned, Minted } from '../generated/GBX/GBX';
-import { FeesHarvested } from '../generated/LiquidityPosition/LiquidityPosition';
-import { Claimed, EmissionSettled, Mined, MinerPaymentAccrued, RevenueDeposited } from '../generated/Mine/Mine';
-import { RewardsDistributed } from '../generated/templates/BribeRouterTemplate/BribeRouter';
+import {
+  EmissionSettled,
+  Mined,
+  MinerPaymentAccrued,
+  MinerPaymentClaimed,
+  RevenueDeposited,
+} from '../generated/Mine/Mine';
+import { RewardRouted } from '../generated/templates/BribeRouterTemplate/BribeRouter';
 import {
   BribeBpsSet,
   RevenueDistributed,
@@ -21,15 +26,14 @@ import {
   StrategyAdded,
   StrategyKilled,
 } from '../generated/Resonance/Resonance';
-import { handleRouterRewardsDistributed } from '../src/bribe-router';
+import { handleRouterRewardRouted } from '../src/bribe-router';
 import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId } from '../src/ids';
-import { handleFeesHarvested } from '../src/liquidity-position';
 import {
-  handleClaimed,
   handleEmissionSettled,
   handleMined,
   handleMinerPaymentAccrued,
+  handleMinerPaymentClaimed,
   handleMiningRevenueDeposited,
 } from '../src/mine';
 import {
@@ -59,16 +63,15 @@ import {
 export {
   handleBribeBpsSet,
   handleBurned,
-  handleClaimed,
   handleEmissionSettled,
-  handleFeesHarvested,
   handleMined,
   handleMinerPaymentAccrued,
+  handleMinerPaymentClaimed,
   handleMiningRevenueDeposited,
   handleMinted,
   handleRevenueDistributed,
   handleRevenueNotified,
-  handleRouterRewardsDistributed,
+  handleRouterRewardRouted,
   handleSignaled,
   handleSignalWithdrawn,
   handleStrategyAdded,
@@ -82,34 +85,26 @@ describe('core protocol mappings', () => {
     clearStore();
   });
 
-  test('tracks genesis, mining issuance, and burning', () => {
-    const allocation = changetype<Minted>(newMockEvent());
-    configureEvent(allocation, CONTRACT, 1);
-    allocation.parameters = new Array<ethereum.EventParam>();
-    allocation.parameters.push(addressParam('account', USER));
-    allocation.parameters.push(uintParam('amount', 100));
-    handleMinted(allocation);
-
+  test('tracks mining issuance and burning from zero supply', () => {
     const miningMint = changetype<Minted>(newMockEvent());
-    configureEvent(miningMint, CONTRACT, 2);
+    configureEvent(miningMint, CONTRACT, 1);
     miningMint.parameters = new Array<ethereum.EventParam>();
     miningMint.parameters.push(addressParam('account', USER_TWO));
     miningMint.parameters.push(uintParam('amount', 50));
     handleMinted(miningMint);
 
     const burned = changetype<Burned>(newMockEvent());
-    configureEvent(burned, CONTRACT, 3);
+    configureEvent(burned, CONTRACT, 2);
     burned.parameters = new Array<ethereum.EventParam>();
-    burned.parameters.push(addressParam('account', USER));
+    burned.parameters.push(addressParam('account', USER_TWO));
     burned.parameters.push(uintParam('amount', 25));
     handleBurned(burned);
 
-    assert.fieldEquals('ProtocolState', '4663', 'initialSupplyRaw', '100');
-    assert.fieldEquals('ProtocolState', '4663', 'lifetimeMintedRaw', '150');
+    assert.fieldEquals('ProtocolState', '4663', 'lifetimeMintedRaw', '50');
     assert.fieldEquals('ProtocolState', '4663', 'lifetimeBurnedRaw', '25');
-    assert.fieldEquals('ProtocolState', '4663', 'totalSupplyRaw', '125');
-    assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'gbxInitialAllocationRaw', '100');
-    assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'gbxBurnedRaw', '25');
+    assert.fieldEquals('ProtocolState', '4663', 'totalSupplyRaw', '25');
+    assert.fieldEquals('Account', '4663-' + USER_TWO.toHexString(), 'gbxBurnedRaw', '25');
+    assert.fieldEquals('ProtocolEvent', eventId(miningMint), 'eventType', 'GBX_MINTED');
     assert.fieldEquals('ProtocolEvent', eventId(burned), 'eventType', 'GBX_BURNED');
   });
 
@@ -119,11 +114,11 @@ describe('core protocol mappings', () => {
     mined.parameters = new Array<ethereum.EventParam>();
     mined.parameters.push(addressParam('payer', USER));
     mined.parameters.push(addressParam('miner', USER_TWO));
-    mined.parameters.push(uintParam('index', 0));
+    mined.parameters.push(uintParam('slotIndex', 0));
     mined.parameters.push(uintParam('epochId', 7));
     mined.parameters.push(addressParam('previousMiner', USER));
-    mined.parameters.push(uintParam('price', 50));
-    mined.parameters.push(uintParam('initialPrice', 100));
+    mined.parameters.push(uintParam('paymentAmount', 50));
+    mined.parameters.push(uintParam('nextInitialPrice', 100));
     mined.parameters.push(uintParam('tps', 4));
     mined.parameters.push(stringParam('message', 'hello from the mine'));
     handleMined(mined);
@@ -132,22 +127,22 @@ describe('core protocol mappings', () => {
     configureEvent(accrued, CONTRACT, 2);
     accrued.parameters = new Array<ethereum.EventParam>();
     accrued.parameters.push(addressParam('miner', USER));
-    accrued.parameters.push(uintParam('index', 0));
+    accrued.parameters.push(uintParam('slotIndex', 0));
     accrued.parameters.push(uintParam('epochId', 7));
     accrued.parameters.push(uintParam('amount', 40));
     handleMinerPaymentAccrued(accrued);
 
-    const claim = changetype<Claimed>(newMockEvent());
+    const claim = changetype<MinerPaymentClaimed>(newMockEvent());
     configureEvent(claim, CONTRACT, 3);
     claim.parameters = new Array<ethereum.EventParam>();
     claim.parameters.push(addressParam('account', USER));
     claim.parameters.push(uintParam('amount', 40));
-    handleClaimed(claim);
+    handleMinerPaymentClaimed(claim);
 
     const deposited = changetype<RevenueDeposited>(newMockEvent());
     configureEvent(deposited, CONTRACT, 4);
     deposited.parameters = new Array<ethereum.EventParam>();
-    deposited.parameters.push(uintParam('index', 0));
+    deposited.parameters.push(uintParam('slotIndex', 0));
     deposited.parameters.push(uintParam('epochId', 7));
     deposited.parameters.push(uintParam('amount', 10));
     handleMiningRevenueDeposited(deposited);
@@ -164,35 +159,20 @@ describe('core protocol mappings', () => {
     assert.fieldEquals('ProtocolEvent', eventId(deposited), 'eventType', 'MINE_REVENUE_DEPOSITED');
   });
 
-  test('tracks target-slot mining settlement and fixed-principal fee harvesting', () => {
+  test('tracks target-slot mining settlement', () => {
     const settled = changetype<EmissionSettled>(newMockEvent());
     configureEvent(settled, CONTRACT, 1);
     settled.parameters = new Array<ethereum.EventParam>();
     settled.parameters.push(addressParam('miner', USER));
-    settled.parameters.push(uintParam('index', 0));
+    settled.parameters.push(uintParam('slotIndex', 0));
     settled.parameters.push(uintParam('epochId', 7));
     settled.parameters.push(uintParam('amount', 80));
     handleEmissionSettled(settled);
-
-    const harvested = changetype<FeesHarvested>(newMockEvent());
-    configureEvent(harvested, CONTRACT, 2);
-    harvested.parameters = new Array<ethereum.EventParam>();
-    harvested.parameters.push(uintParam('positionTokenId', 11));
-    harvested.parameters.push(addressParam('caller', USER));
-    harvested.parameters.push(uintParam('principalLiquidity', 5000));
-    harvested.parameters.push(uintParam('usdgRouted', 20));
-    harvested.parameters.push(uintParam('gbxBurned', 30));
-    handleFeesHarvested(harvested);
 
     const miningSlotId = '4663-' + CONTRACT.toHexString() + '-slot-0';
     assert.fieldEquals('MiningSlot', miningSlotId, 'totalMinedRaw', '80');
     assert.fieldEquals('ProtocolState', '4663', 'minedGBXRaw', '80');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'gbxMinedRaw', '80');
-    assert.fieldEquals('ProtocolState', '4663', 'liquidityPrincipalRaw', '5000');
-    assert.fieldEquals('ProtocolState', '4663', 'liquidityFeeHarvestCount', '1');
-    assert.fieldEquals('ProtocolState', '4663', 'liquidityUSDGRoutedRaw', '20');
-    assert.fieldEquals('ProtocolState', '4663', 'liquidityGBXBurnedRaw', '30');
-    assert.fieldEquals('ProtocolEvent', eventId(harvested), 'eventType', 'LIQUIDITY_FEES_HARVESTED');
   });
 
   test('tracks Strategy creation and incremental absolute signal events', () => {
@@ -267,7 +247,7 @@ describe('core protocol mappings', () => {
     );
   });
 
-  test('tracks permissionless distribution from the minimal BribeRouter buffer', () => {
+  test('tracks permissionless routing from the minimal BribeRouter buffer', () => {
     const added = changetype<StrategyAdded>(newMockEvent());
     configureEvent(added, CONTRACT, 1);
     added.parameters = new Array<ethereum.EventParam>();
@@ -281,18 +261,18 @@ describe('core protocol mappings', () => {
     context.setString('strategyId', '4663-' + STRATEGY.toHexString());
     dataSourceMock.setReturnValues(USER_TWO.toHexString(), 'robinhood', context);
 
-    const distributed = changetype<RewardsDistributed>(newMockEvent());
-    configureEvent(distributed, USER_TWO, 2);
-    distributed.parameters = new Array<ethereum.EventParam>();
-    distributed.parameters.push(addressParam('bribe', REWARDS));
-    distributed.parameters.push(addressParam('rewardToken', ASSET));
-    distributed.parameters.push(uintParam('amount', 1));
-    handleRouterRewardsDistributed(distributed);
+    const routed = changetype<RewardRouted>(newMockEvent());
+    configureEvent(routed, USER_TWO, 2);
+    routed.parameters = new Array<ethereum.EventParam>();
+    routed.parameters.push(addressParam('bribe', REWARDS));
+    routed.parameters.push(addressParam('rewardToken', ASSET));
+    routed.parameters.push(uintParam('amount', 1));
+    handleRouterRewardRouted(routed);
 
     const strategyId = '4663-' + STRATEGY.toHexString();
-    assert.fieldEquals('Strategy', strategyId, 'routerRewardsDistributedRaw', '1');
-    assert.fieldEquals('ProtocolEvent', eventId(distributed), 'eventType', 'BRIBE_ROUTER_REWARDS_DISTRIBUTED');
-    assert.fieldEquals('ProtocolEvent', eventId(distributed), 'values', '[1]');
+    assert.fieldEquals('Strategy', strategyId, 'routerRewardsRoutedRaw', '1');
+    assert.fieldEquals('ProtocolEvent', eventId(routed), 'eventType', 'BRIBE_ROUTER_REWARD_ROUTED');
+    assert.fieldEquals('ProtocolEvent', eventId(routed), 'values', '[1]');
   });
 
   test('tracks the default and owner-selected prospective Bribe rate', () => {
@@ -310,15 +290,15 @@ describe('core protocol mappings', () => {
     const disabled = changetype<BribeBpsSet>(newMockEvent());
     configureEvent(disabled, CONTRACT, 2);
     disabled.parameters = new Array<ethereum.EventParam>();
-    disabled.parameters.push(uintParam('previousBps', 1_000));
-    disabled.parameters.push(uintParam('newBps', 0));
+    disabled.parameters.push(uintParam('previousBribeBps', 1_000));
+    disabled.parameters.push(uintParam('newBribeBps', 0));
     handleBribeBpsSet(disabled);
 
     const restored = changetype<BribeBpsSet>(newMockEvent());
     configureEvent(restored, CONTRACT, 3);
     restored.parameters = new Array<ethereum.EventParam>();
-    restored.parameters.push(uintParam('previousBps', 0));
-    restored.parameters.push(uintParam('newBps', 500));
+    restored.parameters.push(uintParam('previousBribeBps', 0));
+    restored.parameters.push(uintParam('newBribeBps', 500));
     handleBribeBpsSet(restored);
 
     assert.fieldEquals('ProtocolState', '4663', 'bribeBps', '500');

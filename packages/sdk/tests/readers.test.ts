@@ -2,8 +2,8 @@ import { type Address, type Hex, type PublicClient } from 'viem';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  readBribeRewardView,
   readBribeRouterView,
-  readLiquidityPositionView,
   readMineSlotView,
   readResonanceView,
   readSignalView,
@@ -17,7 +17,7 @@ const BLOCK_HASH = `0x${'ab'.repeat(32)}` as Hex;
 describe('Strategy reads', () => {
   it('pins the complete Strategy view to one revalidated block', async () => {
     const values: Readonly<Record<string, unknown>> = {
-      availableRevenue: 50n,
+      balanceOf: 50n,
       currentPrice: 9n,
       epochDuration: 86_400n,
       epochId: 3n,
@@ -27,7 +27,7 @@ describe('Strategy reads', () => {
       minimumPrice: 1n,
       paymentToken: address(3),
       priceMultiplier: 1_100_000_000_000_000_000n,
-      revenueToken: address(4),
+      usdg: address(4),
     };
     const readContract = vi.fn(
       async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
@@ -36,30 +36,41 @@ describe('Strategy reads', () => {
     const client = { getBlock, readContract } as unknown as PublicClient;
 
     await expect(readStrategyView(client, address(1))).resolves.toEqual({
-      ...values,
+      availableRevenue: 50n,
       blockNumber: BLOCK_NUMBER,
+      currentPrice: 9n,
+      epochDuration: 86_400n,
+      epochId: 3n,
+      epochStartedAt: 1_900n,
+      fund: address(2),
+      initialPrice: 10n,
+      minimumPrice: 1n,
+      paymentToken: address(3),
+      priceMultiplier: 1_100_000_000_000_000_000n,
       strategy: address(1),
+      usdg: address(4),
     });
     expect(getBlock).toHaveBeenCalledTimes(2);
     for (const [request] of readContract.mock.calls) expect(request.blockNumber).toBe(BLOCK_NUMBER);
   });
 });
 
-describe('Mine and liquidity reads', () => {
+describe('Mine reads', () => {
   it('reads a tenure-locked Mine slot and global accounting at one block', async () => {
     const values: Readonly<Record<string, unknown>> = {
       aggregateTps: 8n,
       HALVING_PERIOD: 1_000n,
       SLOT_COUNT: 16n,
       TAIL_TPS: 1n,
-      claimable: 80n,
+      claimableMinerPayment: 80n,
+      currentPrice: 50n,
       effectiveTotalSupply: 1_020n,
-      getSlot: [7n, 100n, 1_000n, 1_500n, 4n, address(2)],
+      slot: [7n, 100n, 1_000n, 1_500n, 4n, address(2)],
       nextGlobalTps: 2n,
       pendingEmission: 20n,
-      price: 50n,
+      pendingSlotEmission: 3n,
       startTime: 1_000n,
-      totalClaimable: 80n,
+      totalClaimableMinerPayments: 80n,
       totalMined: 1_000n,
     };
     const readContract = vi.fn(
@@ -73,7 +84,7 @@ describe('Mine and liquidity reads', () => {
       auctionStartedAt: 1_000n,
       blockNumber: BLOCK_NUMBER,
       blockTimestamp: 2_000n,
-      claimablePayment: 80n,
+      claimableMinerPayment: 80n,
       currentHalvingEra: 1n,
       currentPrice: 50n,
       effectiveTotalSupply: 1_020n,
@@ -85,41 +96,16 @@ describe('Mine and liquidity reads', () => {
       mine: address(1),
       nextHalvingBoundary: 3_000n,
       nextGlobalTps: 2n,
-      pendingEmission: 20n,
+      pendingSlotEmission: 3n,
       prospectiveSlotTps: 0n,
       slotCount: 16n,
       slotMiner: address(2),
       startTime: 1_000n,
       tailTps: 1n,
-      totalClaimable: 80n,
+      totalClaimableMinerPayments: 80n,
       totalMined: 1_000n,
       totalPendingEmission: 20n,
       tps: 4n,
-    });
-  });
-
-  it('reads the canonical v4 position custody and range state', async () => {
-    const poolKeyHash = `0x${'cd'.repeat(32)}`;
-    const values: Readonly<Record<string, unknown>> = {
-      expectedPositionTokenId: 11n,
-      expectedTickLower: -120,
-      expectedTickUpper: -60,
-      fund: address(2),
-      poolKeyHash,
-      positionInCustody: true,
-      positionRecorded: true,
-      positionTokenId: 11n,
-      resonanceRouter: address(3),
-    };
-    const readContract = vi.fn(
-      async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
-    );
-    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
-    const client = { getBlock, readContract } as unknown as PublicClient;
-
-    await expect(readLiquidityPositionView(client, address(1))).resolves.toEqual({
-      ...values,
-      blockNumber: BLOCK_NUMBER,
     });
   });
 });
@@ -131,12 +117,12 @@ describe('Resonance reads', () => {
       BPS: 10_000n,
       bribeBps: 500n,
       DEFAULT_BRIBE_BPS: 1_000n,
-      DURATION: 604_800n,
-      left: 600n,
+      remainingRevenue: 600n,
+      REWARD_DURATION: 604_800n,
       MAX_BRIBE_BPS: 2_000n,
       REWARD_PRECISION: 10n ** 36n,
       resonanceRouter: address(2),
-      rewardData: [2_600n, 7n, 2_000n, 5n],
+      revenueData: [2_600n, 7n, 2_000n, 5n],
       totalSignalWeight: 100n,
       usdg: address(3),
     };
@@ -151,16 +137,16 @@ describe('Resonance reads', () => {
       blockNumber: BLOCK_NUMBER,
       bribeBasisPoints: 500n,
       defaultBribeBasisPoints: 1_000n,
-      duration: 604_800n,
+      rewardDuration: 604_800n,
       fundBasisPoints: 9_500n,
       lastUpdateTime: 2_000n,
-      left: 600n,
+      remainingRevenue: 600n,
       maximumBribeBasisPoints: 2_000n,
       periodFinish: 2_600n,
       resonanceRouter: address(2),
-      rewardPerTokenStored: 5n,
+      revenuePerSignalStored: 5n,
       rewardPrecision: 10n ** 36n,
-      rewardRate: 7n,
+      revenueRate: 7n,
       totalSignalWeight: 100n,
       usdg: address(3),
       usdgBalance: 700n,
@@ -175,7 +161,7 @@ describe('BribeRouter reads', () => {
     const values: Readonly<Record<string, unknown>> = {
       balanceOf: 100n,
       bribe: address(2),
-      left: 80n,
+      remainingReward: 80n,
       paymentToken: address(4),
       REWARD_DURATION: 604_800n,
     };
@@ -189,9 +175,36 @@ describe('BribeRouter reads', () => {
       blockNumber: BLOCK_NUMBER,
       bribe: address(2),
       bufferedReward: 100n,
-      currentRewardLeft: 80n,
       minimumRewardAmount: 604_800n,
       paymentToken: address(4),
+      remainingReward: 80n,
+    });
+  });
+});
+
+describe('Bribe reads', () => {
+  it('uses the Bribe-specific signal and reward names', async () => {
+    const values: Readonly<Record<string, unknown>> = {
+      earned: 9n,
+      remainingReward: 80n,
+      rewardTokens: [address(4)],
+      signalWeightOf: 40n,
+      totalSignalWeight: 100n,
+    };
+    const readContract = vi.fn(
+      async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
+    );
+    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
+    const client = { getBlock, readContract } as unknown as PublicClient;
+
+    await expect(readBribeRewardView(client, address(1), address(2))).resolves.toEqual({
+      account: address(2),
+      accountSignalWeight: 40n,
+      blockNumber: BLOCK_NUMBER,
+      earned: [9n],
+      remainingRewards: [80n],
+      rewardTokens: [address(4)],
+      totalSignalWeight: 100n,
     });
   });
 });

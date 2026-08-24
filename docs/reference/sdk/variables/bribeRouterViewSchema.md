@@ -6,4 +6,4 @@
 
 # Variable: bribeRouterViewSchema
 
-> `const` **bribeRouterViewSchema**: `ZodObject`\<\{ `blockNumber`: `ZodBigInt`; `bribe`: `ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>; `bufferedReward`: `ZodBigInt`; `currentRewardLeft`: `ZodBigInt`; `minimumRewardAmount`: `ZodBigInt`; `paymentToken`: `ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>; \}, `$strip`\>
+> `const` **bribeRouterViewSchema**: `ZodObject`\<\{ `blockNumber`: `ZodBigInt`; `bribe`: `ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>; `bufferedReward`: `ZodBigInt`; `minimumRewardAmount`: `ZodBigInt`; `paymentToken`: `ZodPipe`\<`ZodString`, `ZodTransform`\<`` `0x${string}` ``, `string`\>\>; `remainingReward`: `ZodBigInt`; \}, `$strip`\>

@@ -637,7 +637,6 @@ const authorityMap = () => {
   const noContinuingCustomAuthority = [
     ['Mine', 'sixteen slots, fixed'],
     ['Fund', 'the treasury itself'],
-    ['LiquidityPosition', 'the v4 position'],
     ['GBX', 'minter locked once'],
     ['Strategy', 'auction parameters fixed'],
     ['BribeRouter', 'Bribe-only qualifying buffer'],

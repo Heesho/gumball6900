@@ -9,8 +9,8 @@
     "pnpmVersion": "10.14.0",
     "pnpmWorkspaceSha256": "3604bce409a06ed0777341b414504513ac3bd5d5899fd859dfe376da93b24532"
   },
-  "packageEntryCount": 1079,
-  "dependencyEntriesSha256": "047acbca252404982ae85bdff398a778c14cb53504defcb919d7f1bf5de3ac2e",
+  "packageEntryCount": 1052,
+  "dependencyEntriesSha256": "121eaa98bd8537adb9bba65b1205b894e52648a0f52a23faf8f1ff07f603ff34",
   "entries": [
     {
       "license": "(Apache-2.0 OR MIT)",
@@ -399,11 +399,6 @@
     },
     {
       "license": "Apache-2.0",
-      "name": "jsbi",
-      "versions": ["3.2.5"]
-    },
-    {
-      "license": "Apache-2.0",
       "name": "long",
       "versions": ["5.3.2"]
     },
@@ -476,11 +471,6 @@
       "license": "BSD-2-Clause",
       "name": "damerau-levenshtein",
       "versions": ["1.0.8"]
-    },
-    {
-      "license": "BSD-2-Clause",
-      "name": "dotenv",
-      "versions": ["14.3.2"]
     },
     {
       "license": "BSD-2-Clause",
@@ -678,16 +668,6 @@
       "versions": ["6.0.2"]
     },
     {
-      "license": "BUSL-1.1",
-      "name": "@uniswap/v3-core",
-      "versions": ["1.0.0", "1.0.1"]
-    },
-    {
-      "license": "BUSL-1.1",
-      "name": "@uniswap/v4-core",
-      "versions": ["1.0.2"]
-    },
-    {
       "license": "BlueOak-1.0.0",
       "name": "@isaacs/cliui",
       "versions": ["9.0.0"]
@@ -743,31 +723,6 @@
       "versions": ["2.27.1"]
     },
     {
-      "license": "GPL-2.0-or-later",
-      "name": "@uniswap/swap-router-contracts",
-      "versions": ["1.3.1"]
-    },
-    {
-      "license": "GPL-2.0-or-later",
-      "name": "@uniswap/v3-periphery",
-      "versions": ["1.4.4"]
-    },
-    {
-      "license": "GPL-3.0-or-later",
-      "name": "@uniswap/lib",
-      "versions": ["4.0.1-alpha"]
-    },
-    {
-      "license": "GPL-3.0-or-later",
-      "name": "@uniswap/v2-core",
-      "versions": ["1.0.1"]
-    },
-    {
-      "license": "GPL-3.0-or-later",
-      "name": "@uniswap/v3-staker",
-      "versions": ["1.0.0"]
-    },
-    {
       "license": "ISC",
       "name": "@isaacs/cliui",
       "versions": ["8.0.2"]
@@ -811,6 +766,16 @@
       "license": "ISC",
       "name": "cliui",
       "versions": ["7.0.4", "8.0.1"]
+    },
+    {
+      "license": "ISC",
+      "name": "d3-path",
+      "versions": ["3.1.0"]
+    },
+    {
+      "license": "ISC",
+      "name": "d3-shape",
+      "versions": ["3.2.0"]
     },
     {
       "license": "ISC",
@@ -1294,11 +1259,6 @@
     },
     {
       "license": "MIT",
-      "name": "@ethersproject/basex",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
       "name": "@ethersproject/bignumber",
       "versions": ["5.8.0"]
     },
@@ -1314,28 +1274,13 @@
     },
     {
       "license": "MIT",
-      "name": "@ethersproject/contracts",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
       "name": "@ethersproject/hash",
       "versions": ["5.8.0"]
     },
     {
       "license": "MIT",
-      "name": "@ethersproject/hdnode",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
-      "name": "@ethersproject/json-wallets",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
       "name": "@ethersproject/keccak256",
-      "versions": ["5.7.0", "5.8.0"]
+      "versions": ["5.8.0"]
     },
     {
       "license": "MIT",
@@ -1349,22 +1294,7 @@
     },
     {
       "license": "MIT",
-      "name": "@ethersproject/pbkdf2",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
       "name": "@ethersproject/properties",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
-      "name": "@ethersproject/providers",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
-      "name": "@ethersproject/random",
       "versions": ["5.8.0"]
     },
     {
@@ -1374,23 +1304,13 @@
     },
     {
       "license": "MIT",
-      "name": "@ethersproject/sha2",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
       "name": "@ethersproject/signing-key",
       "versions": ["5.8.0"]
     },
     {
       "license": "MIT",
-      "name": "@ethersproject/solidity",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
       "name": "@ethersproject/strings",
-      "versions": ["5.7.0", "5.8.0"]
+      "versions": ["5.8.0"]
     },
     {
       "license": "MIT",
@@ -1404,17 +1324,7 @@
     },
     {
       "license": "MIT",
-      "name": "@ethersproject/wallet",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
       "name": "@ethersproject/web",
-      "versions": ["5.8.0"]
-    },
-    {
-      "license": "MIT",
-      "name": "@ethersproject/wordlists",
       "versions": ["5.8.0"]
     },
     {
@@ -1765,7 +1675,7 @@
     {
       "license": "MIT",
       "name": "@openzeppelin/contracts",
-      "versions": ["3.4.1-solc-0.7-2", "3.4.2-solc-0.7", "5.6.1"]
+      "versions": ["5.6.1"]
     },
     {
       "license": "MIT",
@@ -1989,6 +1899,16 @@
     },
     {
       "license": "MIT",
+      "name": "@types/d3-path",
+      "versions": ["3.1.1"]
+    },
+    {
+      "license": "MIT",
+      "name": "@types/d3-shape",
+      "versions": ["3.2.0"]
+    },
+    {
+      "license": "MIT",
       "name": "@types/deep-eql",
       "versions": ["4.0.2"]
     },
@@ -2129,26 +2049,6 @@
     },
     {
       "license": "MIT",
-      "name": "@uniswap/sdk-core",
-      "versions": ["7.19.0"]
-    },
-    {
-      "license": "MIT",
-      "name": "@uniswap/v3-sdk",
-      "versions": ["3.31.1"]
-    },
-    {
-      "license": "MIT",
-      "name": "@uniswap/v4-periphery",
-      "versions": ["1.0.3"]
-    },
-    {
-      "license": "MIT",
-      "name": "@uniswap/v4-sdk",
-      "versions": ["2.3.1"]
-    },
-    {
-      "license": "MIT",
       "name": "@unrs/resolver-binding-darwin-arm64",
       "versions": ["1.12.2"]
     },
@@ -2260,7 +2160,7 @@
     {
       "license": "MIT",
       "name": "aes-js",
-      "versions": ["3.0.0", "4.0.0-beta.5"]
+      "versions": ["4.0.0-beta.5"]
     },
     {
       "license": "MIT",
@@ -2429,23 +2329,13 @@
     },
     {
       "license": "MIT",
-      "name": "base64-sol",
-      "versions": ["1.0.1"]
-    },
-    {
-      "license": "MIT",
-      "name": "bech32",
-      "versions": ["1.1.4"]
+      "name": "bezier-easing",
+      "versions": ["3.0.1"]
     },
     {
       "license": "MIT",
       "name": "bidi-js",
       "versions": ["1.0.3"]
-    },
-    {
-      "license": "MIT",
-      "name": "big.js",
-      "versions": ["5.2.2"]
     },
     {
       "license": "MIT",
@@ -2784,11 +2674,6 @@
     },
     {
       "license": "MIT",
-      "name": "decimal.js-light",
-      "versions": ["2.5.1"]
-    },
-    {
-      "license": "MIT",
       "name": "decompress-response",
       "versions": ["6.0.0"]
     },
@@ -3065,7 +2950,7 @@
     {
       "license": "MIT",
       "name": "ethers",
-      "versions": ["5.8.0", "6.17.0"]
+      "versions": ["6.17.0"]
     },
     {
       "license": "MIT",
@@ -3326,11 +3211,6 @@
       "license": "MIT",
       "name": "hardhat-gas-reporter",
       "versions": ["2.3.0"]
-    },
-    {
-      "license": "MIT",
-      "name": "hardhat-watcher",
-      "versions": ["2.5.0"]
     },
     {
       "license": "MIT",
@@ -4929,16 +4809,6 @@
     },
     {
       "license": "MIT",
-      "name": "tiny-invariant",
-      "versions": ["1.3.3"]
-    },
-    {
-      "license": "MIT",
-      "name": "tiny-warning",
-      "versions": ["1.0.3"]
-    },
-    {
-      "license": "MIT",
       "name": "tinybench",
       "versions": ["2.9.0"]
     },
@@ -4986,11 +4856,6 @@
       "license": "MIT",
       "name": "to-regex-range",
       "versions": ["5.0.1"]
-    },
-    {
-      "license": "MIT",
-      "name": "toformat",
-      "versions": ["2.0.0"]
     },
     {
       "license": "MIT",
@@ -5435,7 +5300,7 @@
     },
     {
       "license": "Apache-2.0",
-      "packageEntryCount": 46
+      "packageEntryCount": 45
     },
     {
       "license": "Apache-2.0 OR MIT",
@@ -5447,7 +5312,7 @@
     },
     {
       "license": "BSD-2-Clause",
-      "packageEntryCount": 15
+      "packageEntryCount": 14
     },
     {
       "license": "BSD-3-Clause",
@@ -5456,10 +5321,6 @@
     {
       "license": "BSD-3-Clause OR MIT",
       "packageEntryCount": 1
-    },
-    {
-      "license": "BUSL-1.1",
-      "packageEntryCount": 2
     },
     {
       "license": "BlueOak-1.0.0",
@@ -5474,16 +5335,8 @@
       "packageEntryCount": 2
     },
     {
-      "license": "GPL-2.0-or-later",
-      "packageEntryCount": 2
-    },
-    {
-      "license": "GPL-3.0-or-later",
-      "packageEntryCount": 3
-    },
-    {
       "license": "ISC",
-      "packageEntryCount": 52
+      "packageEntryCount": 54
     },
     {
       "license": "LGPL-3.0",
@@ -5495,7 +5348,7 @@
     },
     {
       "license": "MIT",
-      "packageEntryCount": 853
+      "packageEntryCount": 833
     },
     {
       "license": "MIT-0",
@@ -5545,51 +5398,9 @@
     },
     {
       "classification": "restricted",
-      "license": "BUSL-1.1",
-      "name": "@uniswap/v3-core",
-      "versions": ["1.0.0", "1.0.1"]
-    },
-    {
-      "classification": "restricted",
-      "license": "BUSL-1.1",
-      "name": "@uniswap/v4-core",
-      "versions": ["1.0.2"]
-    },
-    {
-      "classification": "restricted",
       "license": "CC-BY-4.0",
       "name": "caniuse-lite",
       "versions": ["1.0.30001806"]
-    },
-    {
-      "classification": "copyleft",
-      "license": "GPL-2.0-or-later",
-      "name": "@uniswap/swap-router-contracts",
-      "versions": ["1.3.1"]
-    },
-    {
-      "classification": "copyleft",
-      "license": "GPL-2.0-or-later",
-      "name": "@uniswap/v3-periphery",
-      "versions": ["1.4.4"]
-    },
-    {
-      "classification": "copyleft",
-      "license": "GPL-3.0-or-later",
-      "name": "@uniswap/lib",
-      "versions": ["4.0.1-alpha"]
-    },
-    {
-      "classification": "copyleft",
-      "license": "GPL-3.0-or-later",
-      "name": "@uniswap/v2-core",
-      "versions": ["1.0.1"]
-    },
-    {
-      "classification": "copyleft",
-      "license": "GPL-3.0-or-later",
-      "name": "@uniswap/v3-staker",
-      "versions": ["1.0.0"]
     },
     {
       "classification": "copyleft",

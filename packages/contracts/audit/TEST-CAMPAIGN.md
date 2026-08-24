@@ -4,7 +4,8 @@
 > scalar Synthetix scheduling, per-purchase Strategy splitting, direct Fund payment, and a Bribe-only Router. Any
 > exact-carry, queue, pause, liability, selected-batch, exact-transfer, test name, count, gas, coverage, or campaign
 > conclusion below is intentionally preserved for its pinned checkout and is not current evidence. ADR 0048 further
-> replaces the historical eight-token cap and dedicated move hook with a sixteen-token cap and composed moves.
+> replaces the historical eight-token cap and dedicated move hook with a sixteen-token cap and composed moves. ADR
+> 0050 later removes LiquidityPosition and the GBX premint, so those references are historical as well.
 
 > Historical evidence only. ADR 0024 changed the Mine graph, ADR 0026 changed Resonance streaming and carry, and ADR
 > 0027 later resolved the A-09 Bribe boundary behavior demonstrated below. Counts and campaign conclusions below do

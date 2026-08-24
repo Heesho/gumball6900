@@ -123,6 +123,10 @@ const STALE_PHRASES = [
   'migrate liquidity',
   'liquidityposition migration',
   'withdraw the lp nft',
+  'liquidityposition',
+  'uniswap v4',
+  'genesis issuance',
+  'genesis gbx',
   'withdrawable lp',
   'compoundRequirement',
   'compound the position',
@@ -338,7 +342,10 @@ function assertNoProtocolFee() {
         'RevenueDeposited event',
         /event RevenueDeposited\(uint256 indexed index, uint256 indexed epochId, uint256 amount\);/,
       ],
-      ['exact ResonanceRouter deposit', /usdg\.safeTransfer\(resonanceRouter, revenueAmount\);/],
+      [
+        'nominal SafeERC20 transfer request to ResonanceRouter',
+        /usdg\.safeTransfer\(resonanceRouter, revenueAmount\);/,
+      ],
     ];
     for (const [label, pattern] of pins) {
       if (!pattern.test(mine.text)) hits.push(`Mine.sol: ${label} no longer holds`);
@@ -379,7 +386,7 @@ function assertNoProtocolFee() {
   else {
     const pins = [
       ['BPS = 10_000', /uint256 public constant BPS = 10_000;/],
-      ['global rate snapshot', /uint256 appliedBribeBps = ICoreResonance\(resonance\)\.bribeBps\(\);/],
+      ['global rate snapshot', /uint256 appliedBribeBps = configuredResonance\.bribeBps\(\);/],
       ['dynamic Bribe amount', /Math\.mulDiv\(paymentAmount, appliedBribeBps, BPS\)/],
       ['exhaustive Fund complement', /uint256 fundAmount = paymentAmount - bribeAmount;/],
       ['direct Fund payment', /paymentToken\.safeTransfer\(fund, fundAmount\);/],

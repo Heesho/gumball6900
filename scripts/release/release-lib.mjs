@@ -469,14 +469,13 @@ export function validateReleaseEvidenceEnvelope(manifest) {
     'deploymentState',
     'emergencyGuardianSafe',
     'observation',
-    ...(schemaVersion === 2 ? ['permissionedPool'] : []),
     'protocolAdminSafe',
   ];
   if (
     evidence === null ||
     typeof evidence !== 'object' ||
     Array.isArray(evidence) ||
-    (schemaVersion !== 1 && schemaVersion !== 2) ||
+    schemaVersion !== 1 ||
     !exactObjectKeys(evidence, expectedEvidenceKeys)
   ) {
     throw new Error(
@@ -486,37 +485,9 @@ export function validateReleaseEvidenceEnvelope(manifest) {
   const assetCandidateDescriptor = validateSnapshotDescriptor(evidence.assetCandidate, 'Reviewed asset candidate');
   const configDescriptor = validateSnapshotDescriptor(evidence.deploymentConfig, 'Deployment config snapshot');
   const stateDescriptor = validateSnapshotDescriptor(evidence.deploymentState, 'Deployment state snapshot');
-  let permissionedDescriptors = null;
-  if (schemaVersion === 2) {
-    if (
-      manifest?.compliance?.mode !== 'permissioned-production' ||
-      evidence.permissionedPool === null ||
-      typeof evidence.permissionedPool !== 'object' ||
-      Array.isArray(evidence.permissionedPool) ||
-      !exactObjectKeys(evidence.permissionedPool, ['graph', 'officialSourceBuild', 'robinhoodForkRehearsal'])
-    ) {
-      throw new Error('Schema v2 release evidence must bind the exact permissioned production artifact set');
-    }
-    permissionedDescriptors = {
-      graph: validateSnapshotDescriptor(evidence.permissionedPool.graph, 'Permissioned pool graph'),
-      officialSourceBuild: validateSnapshotDescriptor(
-        evidence.permissionedPool.officialSourceBuild,
-        'Permissioned official-source build',
-      ),
-      robinhoodForkRehearsal: validateSnapshotDescriptor(
-        evidence.permissionedPool.robinhoodForkRehearsal,
-        'Permissioned Robinhood fork rehearsal',
-      ),
-    };
-  }
-  const descriptorPaths = [
-    assetCandidateDescriptor.path,
-    configDescriptor.path,
-    stateDescriptor.path,
-    ...(permissionedDescriptors === null ? [] : Object.values(permissionedDescriptors).map(({ path }) => path)),
-  ];
+  const descriptorPaths = [assetCandidateDescriptor.path, configDescriptor.path, stateDescriptor.path];
   if (new Set(descriptorPaths).size !== descriptorPaths.length) {
-    throw new Error('Reviewed asset, deployment, and permissioned evidence paths must be distinct');
+    throw new Error('Reviewed asset and deployment evidence paths must be distinct');
   }
   const observation = evidence.observation;
   if (
@@ -562,7 +533,7 @@ export function validateReleaseEvidenceEnvelope(manifest) {
   if (protocolAdminSafe.safeAddress.toLowerCase() === emergencyGuardianSafe.safeAddress.toLowerCase()) {
     throw new Error('Protocol-admin and emergency-guardian Safe roles must be distinct');
   }
-  return { assetCandidateDescriptor, configDescriptor, permissionedDescriptors, stateDescriptor };
+  return { assetCandidateDescriptor, configDescriptor, stateDescriptor };
 }
 
 /** Enforces freshness only at authorization time so expired records remain parseable historical evidence. */
@@ -600,13 +571,8 @@ export async function validateReleaseEvidenceCommit({
     label: 'Deployment manifest',
   });
   const manifest = await readJson(manifestFile.absolutePath);
-  const { assetCandidateDescriptor, configDescriptor, permissionedDescriptors, stateDescriptor } =
-    validateReleaseEvidenceEnvelope(manifest);
-  const addedEvidencePaths = [
-    configDescriptor.path,
-    stateDescriptor.path,
-    ...(permissionedDescriptors === null ? [] : Object.values(permissionedDescriptors).map(({ path }) => path)),
-  ];
+  const { assetCandidateDescriptor, configDescriptor, stateDescriptor } = validateReleaseEvidenceEnvelope(manifest);
+  const addedEvidencePaths = [configDescriptor.path, stateDescriptor.path];
   if (
     new Set([manifestRepositoryPath, assetCandidateDescriptor.path, ...addedEvidencePaths]).size !==
     addedEvidencePaths.length + 2
@@ -687,25 +653,6 @@ export async function validateReleaseEvidenceCommit({
     commit: evidenceCommit,
     label: 'Deployment state snapshot',
   });
-  const permissionedFiles =
-    permissionedDescriptors === null
-      ? null
-      : {
-          graph: await resolveTrackedRepositoryFile(workspaceRealPath, permissionedDescriptors.graph.path, {
-            commit: evidenceCommit,
-            label: 'Permissioned pool graph',
-          }),
-          officialSourceBuild: await resolveTrackedRepositoryFile(
-            workspaceRealPath,
-            permissionedDescriptors.officialSourceBuild.path,
-            { commit: evidenceCommit, label: 'Permissioned official-source build' },
-          ),
-          robinhoodForkRehearsal: await resolveTrackedRepositoryFile(
-            workspaceRealPath,
-            permissionedDescriptors.robinhoodForkRehearsal.path,
-            { commit: evidenceCommit, label: 'Permissioned Robinhood fork rehearsal' },
-          ),
-        };
   if ((await sha256File(configFile.absolutePath)) !== configDescriptor.rawSha256) {
     throw new Error('Deployment config snapshot raw bytes do not match the SHA-256 signed in the manifest');
   }
@@ -715,14 +662,6 @@ export async function validateReleaseEvidenceCommit({
   if ((await sha256File(assetCandidateFile.absolutePath)) !== assetCandidateDescriptor.rawSha256) {
     throw new Error('Reviewed asset candidate raw bytes do not match the SHA-256 signed in the manifest');
   }
-  if (permissionedFiles !== null && permissionedDescriptors !== null) {
-    for (const key of ['graph', 'officialSourceBuild', 'robinhoodForkRehearsal']) {
-      if ((await sha256File(permissionedFiles[key].absolutePath)) !== permissionedDescriptors[key].rawSha256) {
-        throw new Error(`Permissioned ${key} raw bytes do not match the SHA-256 signed in the manifest`);
-      }
-      await readJson(permissionedFiles[key].absolutePath);
-    }
-  }
   await readJson(assetCandidateFile.absolutePath);
   await readJson(configFile.absolutePath);
   await readJson(stateFile.absolutePath);
@@ -731,7 +670,6 @@ export async function validateReleaseEvidenceCommit({
     configFile,
     manifest,
     manifestFile,
-    permissionedFiles,
     policyFile,
     safePolicyFile,
     stateFile,
@@ -1291,7 +1229,7 @@ export function validateRobinhoodTestnetForkEvidence(
   } catch {
     throw new Error('Robinhood testnet fork source URL is invalid');
   }
-  const dependencyKeys = ['permit2', 'poolManager', 'positionManager', 'usdG', 'weth'];
+  const dependencyKeys = ['usdG'];
   if (
     evidence.dependencies === null ||
     typeof evidence.dependencies !== 'object' ||

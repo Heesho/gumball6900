@@ -5,7 +5,6 @@ import {
   bribeRouterAbi,
   fundAbi,
   gbxAbi,
-  liquidityPositionAbi,
   mineAbi,
   signalGbxAbi,
   strategyAbi,
@@ -105,17 +104,9 @@ export function buildMine(parameters: MineParameters): ContractTransaction {
 
 /** Claims a displaced miner's complete accumulated USDG payment to that same account. */
 export function buildClaimMiningPayment(mine: Address, account: Address): ContractTransaction {
-  return transaction(mine, encodeFunctionData({ abi: mineAbi, functionName: 'claim', args: [getAddress(account)] }));
-}
-
-/** Collects canonical LP fees, routes USDG through ResonanceRouter, and burns GBX through Fund. */
-export function buildHarvestLiquidityFees(liquidityPosition: Address): ContractTransaction {
   return transaction(
-    liquidityPosition,
-    encodeFunctionData({
-      abi: liquidityPositionAbi,
-      functionName: 'harvestFees',
-    }),
+    mine,
+    encodeFunctionData({ abi: mineAbi, functionName: 'claimMinerPayment', args: [getAddress(account)] }),
   );
 }
 
@@ -229,22 +220,13 @@ export function buildRouteRevenue(resonanceRouter: Address): ContractTransaction
 export function buildDistributeRevenue(resonance: Address, strategy: Address): ContractTransaction {
   return transaction(
     resonance,
-    encodeFunctionData({ abi: resonanceAbi, functionName: 'distribute', args: [getAddress(strategy)] }),
-  );
-}
-
-/** Encodes the Router-only notification that restarts Resonance with ordinary Synthetix leftover rollover. */
-export function buildNotifyRevenue(resonance: Address, reward: bigint): ContractTransaction {
-  positiveUint256(reward, 'reward');
-  return transaction(
-    resonance,
-    encodeFunctionData({ abi: resonanceAbi, functionName: 'notifyRevenue', args: [reward] }),
+    encodeFunctionData({ abi: resonanceAbi, functionName: 'distributeRevenue', args: [getAddress(strategy)] }),
   );
 }
 
 /** Attempts to notify a paired Bribe with the Router's complete buffered payment-token balance. */
-export function buildDistributeBribeRewards(bribeRouter: Address): ContractTransaction {
-  return transaction(bribeRouter, encodeFunctionData({ abi: bribeRouterAbi, functionName: 'distribute' }));
+export function buildRouteBribeRewards(bribeRouter: Address): ContractTransaction {
+  return transaction(bribeRouter, encodeFunctionData({ abi: bribeRouterAbi, functionName: 'route' }));
 }
 
 /** Parameters required to fill a Strategy at a caller-defined price and time bound. */

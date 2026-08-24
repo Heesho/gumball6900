@@ -1,9 +1,5 @@
 {
   "filter_paths": "node_modules|(^|/)(lib|test)/",
   "foundry_compile_all": true,
-  "solc_remaps": [
-    "@openzeppelin/contracts/=../../node_modules/@openzeppelin/contracts/",
-    "@uniswap/v4-core/=../../node_modules/@uniswap/v4-core/",
-    "@uniswap/v4-periphery/=../../node_modules/@uniswap/v4-periphery/"
-  ]
+  "solc_remaps": ["@openzeppelin/contracts/=../../node_modules/@openzeppelin/contracts/"]
 }

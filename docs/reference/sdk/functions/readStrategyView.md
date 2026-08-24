@@ -6,7 +6,7 @@
 
 # Function: readStrategyView()
 
-> **readStrategyView**(`client`, `strategyAddress`, `options?`): `Promise`\<\{ `availableRevenue`: `bigint`; `blockNumber`: `bigint`; `currentPrice`: `bigint`; `epochDuration`: `bigint`; `epochId`: `bigint`; `epochStartedAt`: `bigint`; `fund`: `` `0x${string}` ``; `initialPrice`: `bigint`; `minimumPrice`: `bigint`; `paymentToken`: `` `0x${string}` ``; `priceMultiplier`: `bigint`; `revenueToken`: `` `0x${string}` ``; `strategy`: `` `0x${string}` ``; \}\>
+> **readStrategyView**(`client`, `strategyAddress`, `options?`): `Promise`\<\{ `availableRevenue`: `bigint`; `blockNumber`: `bigint`; `currentPrice`: `bigint`; `epochDuration`: `bigint`; `epochId`: `bigint`; `epochStartedAt`: `bigint`; `fund`: `` `0x${string}` ``; `initialPrice`: `bigint`; `minimumPrice`: `bigint`; `paymentToken`: `` `0x${string}` ``; `priceMultiplier`: `bigint`; `strategy`: `` `0x${string}` ``; `usdg`: `` `0x${string}` ``; \}\>
 
 Reads the active state and immutable configuration of one Strategy.
 
@@ -20,4 +20,4 @@ Reads the active state and immutable configuration of one Strategy.
 
 ## Returns
 
-`Promise`\<\{ `availableRevenue`: `bigint`; `blockNumber`: `bigint`; `currentPrice`: `bigint`; `epochDuration`: `bigint`; `epochId`: `bigint`; `epochStartedAt`: `bigint`; `fund`: `` `0x${string}` ``; `initialPrice`: `bigint`; `minimumPrice`: `bigint`; `paymentToken`: `` `0x${string}` ``; `priceMultiplier`: `bigint`; `revenueToken`: `` `0x${string}` ``; `strategy`: `` `0x${string}` ``; \}\>
+`Promise`\<\{ `availableRevenue`: `bigint`; `blockNumber`: `bigint`; `currentPrice`: `bigint`; `epochDuration`: `bigint`; `epochId`: `bigint`; `epochStartedAt`: `bigint`; `fund`: `` `0x${string}` ``; `initialPrice`: `bigint`; `minimumPrice`: `bigint`; `paymentToken`: `` `0x${string}` ``; `priceMultiplier`: `bigint`; `strategy`: `` `0x${string}` ``; `usdg`: `` `0x${string}` ``; \}\>

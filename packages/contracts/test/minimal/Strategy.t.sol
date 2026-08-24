@@ -44,7 +44,7 @@ contract StubResonance {
     IERC20 public distributionToken;
     uint256 public distributionAmount;
 
-    function distribute(address strategy) external returns (uint256 amount) {
+    function distributeRevenue(address strategy) external returns (uint256 amount) {
         amount = distributionAmount;
         if (amount == 0) return 0;
 
@@ -320,7 +320,7 @@ contract StrategyTest is ProtocolFixture {
         vm.stopPrank();
 
         assertEq(usdg.balanceOf(address(resonance)), 50_000_000);
-        assertEq(resonance.left(), 0, "direct donations do not enter the reward schedule");
+        assertEq(resonance.remainingRevenue(), 0, "direct donations do not enter the reward schedule");
     }
 
     function test_BuyAtomicallyIncludesRevenueReleasedThroughTheCurrentTimestamp() external {
@@ -333,7 +333,7 @@ contract StrategyTest is ProtocolFixture {
         targetStrategy.buy(CAROL, 0, block.timestamp, type(uint256).max);
 
         assertEq(usdg.balanceOf(CAROL), 86_400);
-        assertEq(resonance.left(), 518_400);
+        assertEq(resonance.remainingRevenue(), 518_400);
         assertEq(targetStrategy.epochId(), 1);
     }
 
@@ -568,7 +568,7 @@ contract StrategyTest is ProtocolFixture {
         _buyTarget(CAROL, targetStrategy, target);
 
         assertEq(usdg.balanceOf(CAROL), 75_000_000);
-        assertEq(targetStrategy.availableRevenue(), 0);
+        assertEq(usdg.balanceOf(address(targetStrategy)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

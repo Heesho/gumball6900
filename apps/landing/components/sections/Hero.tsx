@@ -36,7 +36,7 @@ const MOVES = [
      16   Mine.sol SLOT_COUNT = 16                        (BRIEF "Mining")
      1h   Mine.sol PRICE_DECAY_PERIOD = 1 hours           (BRIEF "Mining")
      0    no oracle exists anywhere in the protocol       (BRIEF "Acquisition")
-     20M  GBX.sol GENESIS_LIQUIDITY_ALLOCATION = 20e6     (BRIEF "The protocol")
+     7d   Resonance.sol DURATION = 7 days                  (BRIEF "Resonance")
    None is illustrative, so none is labelled illustrative. Hue follows meaning:
    blue where the subject is USDG capital arriving, neutral for GBX supply.
    Set in JetBrains Mono 700 at display scale, not Modak: Modak's zero is a
@@ -47,7 +47,7 @@ const RIBBON = [
   { n: '16', tone: 'rail__n--blue', a: 'Permanent mining slots', b: 'always for sale' },
   { n: '1h', tone: 'rail__n--blue', a: 'Every slot’s price falls', b: 'in a straight line to zero' },
   { n: '0', tone: '', a: 'Oracles anywhere', b: 'in the protocol' },
-  { n: '20M', tone: '', a: 'GBX locked into liquidity', b: 'at deployment, forever' },
+  { n: '7d', tone: '', a: 'Revenue streams', b: 'through Resonance' },
 ];
 
 /* The page's banner. Lives here because it shares hero.css. The mark here is

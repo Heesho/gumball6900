@@ -28,9 +28,8 @@ contract GBXMinterHarness {
 }
 
 /// @title GBXTest
-/// @notice Covers the genesis premint, permanent Mine handover, issuance, burns, transfers, and permits.
+/// @notice Covers zero-supply deployment, permanent Mine handover, issuance, burns, transfers, and permits.
 contract GBXTest is Test {
-    address private constant GENESIS = address(0x6E4E515);
     address private constant ALICE = address(0xA11CE);
     address private constant BOB = address(0xB0B);
 
@@ -44,25 +43,23 @@ contract GBXTest is Test {
     function setUp() external {
         vm.warp(365 days);
         vm.roll(1_000);
-        gbx = new GBX(GENESIS, address(this));
+        gbx = new GBX(address(this));
         minter = new GBXMinterHarness(gbx);
     }
 
-    function test_ConstructorCreatesOnlyGenesisLiquiditySupply() external view {
-        assertEq(gbx.balanceOf(GENESIS), 20_000_000 ether);
-        assertEq(gbx.totalSupply(), 20_000_000 ether);
-        assertEq(gbx.lifetimeMinted(), 20_000_000 ether);
+    function test_ConstructorStartsWithZeroSupply() external view {
+        assertEq(gbx.name(), "GumBall6900");
+        assertEq(gbx.symbol(), "GBX");
+        assertEq(gbx.totalSupply(), 0);
+        assertEq(gbx.lifetimeMinted(), 0);
         assertEq(gbx.lifetimeBurned(), 0);
         assertEq(gbx.minter(), address(this));
         assertFalse(gbx.minterLocked());
     }
 
-    function test_ConstructorRejectsZeroAddresses() external {
+    function test_ConstructorRejectsZeroMinter() external {
         vm.expectRevert(GBX.ZeroAddress.selector);
-        new GBX(address(0), address(this));
-
-        vm.expectRevert(GBX.ZeroAddress.selector);
-        new GBX(GENESIS, address(0));
+        new GBX(address(0));
     }
 
     function test_MinterHandoverIsOneTimeAndRequiresDeployedCode() external {
@@ -75,7 +72,7 @@ contract GBXTest is Test {
         vm.expectRevert(abi.encodeWithSelector(GBX.AddressHasNoCode.selector, ALICE));
         gbx.setMinter(ALICE);
 
-        GBX unrelatedCode = new GBX(GENESIS, address(this));
+        GBX unrelatedCode = new GBX(address(this));
         vm.expectRevert(abi.encodeWithSelector(GBX.InvalidMine.selector, address(unrelatedCode)));
         gbx.setMinter(address(unrelatedCode));
 
@@ -111,8 +108,8 @@ contract GBXTest is Test {
         minter.mint(ALICE, 7 ether);
 
         assertEq(gbx.balanceOf(ALICE), 7 ether);
-        assertEq(gbx.lifetimeMinted(), 20_000_007 ether);
-        assertEq(gbx.totalSupply(), 20_000_007 ether);
+        assertEq(gbx.lifetimeMinted(), 7 ether);
+        assertEq(gbx.totalSupply(), 7 ether);
     }
 
     function test_MintRejectsDegenerateArguments() external {
@@ -141,7 +138,7 @@ contract GBXTest is Test {
     }
 
     function test_BurnRejectsZeroAndExcess() external {
-        vm.prank(GENESIS);
+        vm.prank(ALICE);
         vm.expectRevert(GBX.ZeroAmount.selector);
         gbx.burn(0);
 
@@ -152,8 +149,8 @@ contract GBXTest is Test {
 
     function test_PermitGrantsAllowanceAndCannotBeReplayed() external {
         (address owner, uint256 ownerKey) = makeAddrAndKey("permit-owner");
-        vm.prank(GENESIS);
-        gbx.transfer(owner, 10 ether);
+        gbx.setMinter(address(minter));
+        minter.mint(owner, 10 ether);
 
         uint256 deadline = block.timestamp + 1 hours;
         (uint8 v, bytes32 r, bytes32 s) = _signPermit(ownerKey, owner, BOB, 10 ether, 0, deadline);

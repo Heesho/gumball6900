@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { assertUint, tokenDecimalsSchema, unsignedBigIntSchema } from './validation.js';
 
 export const CANONICAL_USDG_DECIMALS = 6 as const;
-export const GBX_TOKEN_NAME = 'GUM BALL 6900' as const;
+export const GBX_TOKEN_NAME = 'GumBall6900' as const;
 export const GBX_DECIMALS = 18 as const;
 
 export const tokenAmountMetadataSchema = z

@@ -3,7 +3,8 @@
 > **Pre-ADR-0047 historical snapshot.** ADR 0047 later replaced the captured reward and settlement mechanics with
 > scalar Synthetix scheduling, per-purchase Strategy splitting, direct Fund payment, and a Bribe-only Router. Any
 > exact-carry, queue, pause, liability, selected-batch, exact-transfer, test-count, or analyzer conclusion below is
-> intentionally preserved for its pinned checkout and is not current evidence.
+> intentionally preserved for its pinned checkout and is not current evidence. ADR 0050 later removes
+> LiquidityPosition, IFund, and the GBX premint; the captured inventory remains historical.
 
 > Historical evidence only. ADR 0024 replaced the distribution contract and supply model with Mine; counts,
 > inventory, gas, coverage, and conclusions below do not review the current development graph.

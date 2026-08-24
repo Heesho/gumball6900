@@ -1,7 +1,7 @@
 import { DataSourceContext } from '@graphprotocol/graph-ts';
 import {
   BribeBpsSet,
-  BribeRewardAdded,
+  BribeRewardTokenAdded,
   RevenueDistributed,
   RevenueNotified,
   StrategyAdded,
@@ -16,16 +16,16 @@ import { getAccount, getProtocol, getStrategy, recordEvent } from './entities';
 
 export function handleBribeBpsSet(event: BribeBpsSet): void {
   const protocol = getProtocol(event);
-  protocol.bribeBps = event.params.newBps;
+  protocol.bribeBps = event.params.newBribeBps;
   protocol.save();
 
   const record = recordEvent(event, 'RESONANCE_BRIBE_BPS_SET');
-  record.values = [event.params.previousBps, event.params.newBps];
+  record.values = [event.params.previousBribeBps, event.params.newBribeBps];
   record.save();
 }
 
-export function handleBribeRewardAdded(event: BribeRewardAdded): void {
-  const record = recordEvent(event, 'RESONANCE_BRIBE_REWARD_ADDED');
+export function handleBribeRewardTokenAdded(event: BribeRewardTokenAdded): void {
+  const record = recordEvent(event, 'RESONANCE_BRIBE_REWARD_TOKEN_ADDED');
   record.addresses = [event.params.strategy, event.params.bribe, event.params.rewardToken];
   record.save();
 }

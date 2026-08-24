@@ -31,6 +31,9 @@ describe('multislot Mine economic suite', () => {
     expect(assumptions.mineHalvingPeriodSeconds).toBe('5961600');
     expect(assumptions.mineTailTps).toBe('1000000000000000000');
     expect(assumptions.mineTailBoundaryCount).toBe('6');
+    expect(assumptions.initialSupplyGBXRaw).toBe('0');
+    expect(assumptions.externalLpUsesOrdinaryStrategySettlement).toBe(true);
+    expect(assumptions.liquiditySpecificCoreLogic).toBe(false);
 
     const mining = row(root.mining);
     const curve = list(mining.priceCurve).map(row);
@@ -84,7 +87,7 @@ describe('multislot Mine economic suite', () => {
   it('pins synchronized supply separately from turnover-dependent actual issuance', () => {
     const root = row(loadTypeScriptEconomicSuite());
     const synchronized = row(row(root.mining).synchronizedSupply);
-    expect(root.schemaVersion).toBe('14');
+    expect(root.schemaVersion).toBe('15');
     expect(synchronized.referenceCase).toBe('synchronized-full-refresh-no-burn');
     expect(synchronized.modelAssumption).toBe(
       'Synchronized full-refresh, no-burn reference: all sixteen slots are occupied from deployment, all sixteen refresh to the prospective rate at every boundary, and all accrued emission is settled. Actual tenure-locked issuance depends on slot occupancy and turnover; this is neither a supply cap nor a forecast.',
@@ -92,9 +95,9 @@ describe('multislot Mine economic suite', () => {
     expect(synchronized.tailBoundaryCount).toBe('6');
     expect(synchronized.tailStartsAtSeconds).toBe('35769600');
     expect(synchronized.miningEmissionAtTail).toBe('751161600000000000000000000');
-    expect(synchronized.grossSupplyAtTail).toBe('771161600000000000000000000');
-    expect(synchronized.minedBpsOfGrossSupplyAtTail).toBe('9740');
-    expect(synchronized.annualTailInflationPpmAtTail).toBe('40894');
+    expect(synchronized.grossSupplyAtTail).toBe('751161600000000000000000000');
+    expect(synchronized.minedBpsOfGrossSupplyAtTail).toBe('10000');
+    expect(synchronized.annualTailInflationPpmAtTail).toBe('41982');
 
     expect(
       list(synchronized.boundaryPoints).map((point) => {
@@ -102,13 +105,13 @@ describe('multislot Mine economic suite', () => {
         return [parsed.boundaryIndex, parsed.globalTps, parsed.grossSupply];
       }),
     ).toEqual([
-      ['0', '64000000000000000000', '20000000000000000000000000'],
-      ['1', '32000000000000000000', '401542400000000000000000000'],
-      ['2', '16000000000000000000', '592313600000000000000000000'],
-      ['3', '8000000000000000000', '687699200000000000000000000'],
-      ['4', '4000000000000000000', '735392000000000000000000000'],
-      ['5', '2000000000000000000', '759238400000000000000000000'],
-      ['6', '1000000000000000000', '771161600000000000000000000'],
+      ['0', '64000000000000000000', '0'],
+      ['1', '32000000000000000000', '381542400000000000000000000'],
+      ['2', '16000000000000000000', '572313600000000000000000000'],
+      ['3', '8000000000000000000', '667699200000000000000000000'],
+      ['4', '4000000000000000000', '715392000000000000000000000'],
+      ['5', '2000000000000000000', '739238400000000000000000000'],
+      ['6', '1000000000000000000', '751161600000000000000000000'],
     ]);
 
     const horizons = Object.fromEntries(
@@ -118,11 +121,11 @@ describe('multislot Mine economic suite', () => {
       }),
     );
     expect(horizons).toEqual({
-      '1': '762694400000000000000000000',
-      '3': '830000000000000000000000000',
-      '5': '893072000000000000000000000',
-      '10': '1050752000000000000000000000',
-      '40': '1996832000000000000000000000',
+      '1': '742694400000000000000000000',
+      '3': '810000000000000000000000000',
+      '5': '873072000000000000000000000',
+      '10': '1030752000000000000000000000',
+      '40': '1976832000000000000000000000',
     });
 
     const tailRelativeHorizons = Object.fromEntries(
@@ -132,10 +135,10 @@ describe('multislot Mine economic suite', () => {
       }),
     );
     expect(tailRelativeHorizons).toEqual({
-      '1': ['802697600000000000000000000', '39287'],
-      '2': ['834233600000000000000000000', '37802'],
-      '5': ['928841600000000000000000000', '33951'],
-      '10': ['1086521600000000000000000000', '29024'],
+      '1': ['782697600000000000000000000', '40291'],
+      '2': ['814233600000000000000000000', '38730'],
+      '5': ['908841600000000000000000000', '34699'],
+      '10': ['1066521600000000000000000000', '29569'],
     });
   });
 

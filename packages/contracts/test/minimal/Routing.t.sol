@@ -22,7 +22,7 @@ contract BribeRouterTest is Test {
     BribeRouter private router;
     MockERC20 private payment;
 
-    event RewardsDistributed(address indexed bribe, address indexed rewardToken, uint256 amount);
+    event RewardRouted(address indexed bribe, address indexed rewardToken, uint256 amount);
 
     function setUp() external {
         vm.warp(365 days);
@@ -48,24 +48,24 @@ contract BribeRouterTest is Test {
         new BribeRouter(IBribe(address(bribe)), IERC20(ALICE));
     }
 
-    function test_DistributeIsPermissionlessAndAnEmptyRouterIsANoOp() external {
+    function test_RouteIsPermissionlessAndAnEmptyRouterIsANoOp() external {
         vm.prank(ALICE);
-        assertEq(router.distribute(), 0);
+        assertEq(router.route(), 0);
         assertEq(payment.allowance(address(router), address(bribe)), 0);
     }
 
-    function test_DistributeAccumulatesUntilTheBalanceCanSustainANonzeroRate() external {
+    function test_RouteAccumulatesUntilTheBalanceCanSustainANonzeroRate() external {
         uint256 duration = bribe.REWARD_DURATION();
         payment.mint(address(router), duration - 1);
 
         vm.prank(KEEPER);
-        assertEq(router.distribute(), 0);
+        assertEq(router.route(), 0);
         assertEq(payment.balanceOf(address(router)), duration - 1);
 
         payment.mint(address(router), 1);
         vm.expectEmit(true, true, false, true);
-        emit RewardsDistributed(address(bribe), address(payment), duration);
-        assertEq(router.distribute(), duration);
+        emit RewardRouted(address(bribe), address(payment), duration);
+        assertEq(router.route(), duration);
 
         assertEq(payment.balanceOf(address(router)), 0);
         assertEq(payment.balanceOf(address(bribe)), duration);
@@ -73,32 +73,32 @@ contract BribeRouterTest is Test {
         assertEq(payment.allowance(address(router), address(bribe)), 0);
     }
 
-    function test_DistributeWaitsUntilTheCompleteBalanceMeetsTheActiveStreamLeft() external {
+    function test_RouteWaitsUntilTheCompleteBalanceMeetsTheActiveStreamLeft() external {
         payment.mint(address(router), 7 ether);
-        assertEq(router.distribute(), 7 ether);
+        assertEq(router.route(), 7 ether);
 
-        uint256 remaining = bribe.left(address(payment));
+        uint256 remaining = bribe.remainingReward(address(payment));
         payment.mint(address(router), remaining - 1);
-        assertEq(router.distribute(), 0);
+        assertEq(router.route(), 0);
         assertEq(payment.balanceOf(address(router)), remaining - 1);
 
         payment.mint(address(router), 1);
-        assertEq(router.distribute(), remaining);
+        assertEq(router.route(), remaining);
         assertEq(payment.balanceOf(address(router)), 0);
         assertEq(payment.balanceOf(address(bribe)), 7 ether + remaining);
     }
 
-    function test_DistributeIncludesTheCompleteDirectlyDonatedBalance() external {
+    function test_RouteIncludesTheCompleteDirectlyDonatedBalance() external {
         payment.mint(address(router), 3 ether);
 
         vm.prank(KEEPER);
-        assertEq(router.distribute(), 3 ether);
+        assertEq(router.route(), 3 ether);
 
         assertEq(payment.balanceOf(address(router)), 0);
         assertEq(payment.balanceOf(address(bribe)), 3 ether);
     }
 
-    function test_DistributeCanRetryAfterTheBribeTokenPullFails() external {
+    function test_RouteCanRetryAfterTheBribeTokenPullFails() external {
         RevertingToken hostile = new RevertingToken(18);
         Bribe hostileBribe = new Bribe(address(this));
         hostileBribe.addRewardToken(address(hostile));
@@ -108,12 +108,12 @@ contract BribeRouterTest is Test {
         hostile.setBlocked(address(hostileBribe), true);
 
         vm.expectRevert("BLOCKED");
-        hostileRouter.distribute();
+        hostileRouter.route();
         assertEq(hostile.balanceOf(address(hostileRouter)), 1 ether);
         assertEq(hostile.allowance(address(hostileRouter), address(hostileBribe)), 0);
 
         hostile.setBlocked(address(hostileBribe), false);
-        assertEq(hostileRouter.distribute(), 1 ether);
+        assertEq(hostileRouter.route(), 1 ether);
         assertEq(hostile.balanceOf(address(hostileRouter)), 0);
         assertEq(hostile.balanceOf(address(hostileBribe)), 1 ether);
     }
@@ -158,25 +158,25 @@ contract ResonanceRouterTest is ProtocolFixture {
         emit RevenueRouted(KEEPER, 100_000_000);
         assertEq(resonanceRouter.route(), 100_000_000);
 
-        assertEq(resonanceRouter.pendingRevenue(), 0);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
         assertEq(usdg.allowance(address(resonanceRouter), address(resonance)), 0, "no approval may survive");
         assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
     }
 
     function test_SubThresholdRevenueWaitsUntilTheRouterBalanceQualifies() external {
-        uint256 duration = resonance.DURATION();
+        uint256 duration = resonance.REWARD_DURATION();
         usdg.mint(address(resonanceRouter), duration - 1);
 
         vm.prank(KEEPER);
         assertEq(resonanceRouter.route(), 0);
-        assertEq(resonanceRouter.pendingRevenue(), duration - 1);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), duration - 1);
         assertEq(usdg.balanceOf(address(resonance)), 0);
 
         usdg.mint(address(resonanceRouter), 1);
         vm.prank(DAVE);
         assertEq(resonanceRouter.route(), duration);
-        assertEq(resonanceRouter.pendingRevenue(), 0);
-        assertEq(resonance.left(), duration);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
+        assertEq(resonance.remainingRevenue(), duration);
 
         usdg.mint(address(resonanceRouter), duration - 1);
         vm.prank(DAVE);
@@ -184,8 +184,8 @@ contract ResonanceRouterTest is ProtocolFixture {
         usdg.mint(address(resonanceRouter), 1);
         vm.prank(DAVE);
         assertEq(resonanceRouter.route(), duration);
-        assertEq(resonanceRouter.pendingRevenue(), 0);
-        assertEq(resonance.left(), 2 * duration);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
+        assertEq(resonance.remainingRevenue(), 2 * duration);
     }
 
     function test_ZeroSignalRevenueBecomesUnallocatedResonanceSurplus() external {
@@ -193,9 +193,9 @@ contract ResonanceRouterTest is ProtocolFixture {
         vm.prank(DAVE);
         resonanceRouter.route();
 
-        vm.warp(block.timestamp + resonance.DURATION());
-        assertEq(resonance.left(), 0);
-        assertEq(resonance.earned(address(targetStrategy)), 0);
+        vm.warp(block.timestamp + resonance.REWARD_DURATION());
+        assertEq(resonance.remainingRevenue(), 0);
+        assertEq(resonance.earnedRevenue(address(targetStrategy)), 0);
         assertEq(usdg.balanceOf(address(resonance)), 42_000_000);
     }
 
@@ -212,7 +212,8 @@ contract ResonanceRouterTest is ProtocolFixture {
         resonanceRouter.route();
 
         assertEq(
-            resonanceRouter.pendingRevenue() + usdg.balanceOf(address(resonance)) + usdg.balanceOf(address(fund)),
+            usdg.balanceOf(address(resonanceRouter)) + usdg.balanceOf(address(resonance))
+                + usdg.balanceOf(address(fund)),
             revenue
         );
     }

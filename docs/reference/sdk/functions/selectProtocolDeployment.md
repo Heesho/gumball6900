@@ -36,10 +36,6 @@
 
 > **gbx**: `` `0x${string}` `` = `addressSchema`
 
-#### addresses.liquidityPosition
-
-> **liquidityPosition**: `` `0x${string}` `` = `addressSchema`
-
 #### addresses.mine
 
 > **mine**: `` `0x${string}` `` = `addressSchema`

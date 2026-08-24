@@ -27,8 +27,8 @@ export const currentPages = [
             <div class="rule" style="background:${palette.deepRule}"></div>
             <div class="kpi-row">
               <div>
-                <div class="kpi__value">20M</div>
-                <div class="kpi__label">Genesis GBX</div>
+                <div class="kpi__value">0</div>
+                <div class="kpi__label">Preminted GBX</div>
               </div>
               <div>
                 <div class="kpi__value">16</div>
@@ -63,9 +63,9 @@ export const currentPages = [
                 dependencies, legal provenance, and a signed deployment manifest remain unresolved.
               </p>
               <p style="color:${palette.onDeepMuted}">
-                This edition describes the uncommitted development tree implementing ADRs 0031 and 0033-0047. There is
-                no commit-pinned review candidate. External governance remains unselected. A local green build is
-                engineering evidence, never a safety, audit, or release claim.
+                This edition describes the uncommitted development tree implementing ADRs 0031, 0033-0047, 0049, and
+                0050. There is no commit-pinned review candidate. External governance remains unselected. A local green
+                build is engineering evidence, never a safety, audit, or release claim.
               </p>
             </div>
             <div class="col-side">
@@ -79,8 +79,8 @@ export const currentPages = [
           <div class="stack-2">
             ${table({
               rows: [
-                ['Genesis issuance', '20,000,000 GBX for canonical liquidity'],
-                ['Later issuance', 'One permanently bound immutable Mine'],
+                ['Initial supply', 'Zero; GBX creates no tokens at deployment'],
+                ['Lifetime issuer', 'One permanently bound immutable Mine'],
                 ['Supply limit', 'No economic cap; GBX has no voting checkpoints'],
                 ['Governance', 'External Resonance owner unselected; sGBX IVotes retained'],
                 ['Legal status', status.licensing],
@@ -121,6 +121,7 @@ export const currentPages = [
                 'Twenty percent of a nonempty-slot handoff is deposited into ResonanceRouter; eighty percent becomes a displaced-miner claim.',
                 'Mine stops after deposit. A later permissionless route of a qualifying balance restarts seven days with new USDG plus the remainder.',
                 'Strategies pull released USDG; each acquired-asset payment uses the current global 0%-to-20% Bribe rate and its Fund complement, with 1e36 reward-index precision.',
+                'A reviewed external USDG-GBX LP token may be a bootstrap Strategy asset; it receives no special core treatment.',
                 'A GBX holder may burn GBX for a selected pro-rata basket of raw Fund assets.',
               ])}
             </div>
@@ -294,7 +295,7 @@ export const currentPages = [
               'No Mine administration or incumbent repricing',
               'No emission setter or replacement authority',
               'No core Governor, Timelock, or generic executor',
-              'No Fund withdrawal or liquidity NFT recovery',
+              'No Fund withdrawal or liquidity-specific core custody',
             ],
           })}
           <div class="spread stack-2">

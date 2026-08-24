@@ -55,10 +55,6 @@
     {
       "artifact": "out/Fund.sol/Fund.json",
       "contract": "Fund"
-    },
-    {
-      "artifact": "out/LiquidityPosition.sol/LiquidityPosition.json",
-      "contract": "LiquidityPosition"
     }
   ],
   "acceptedFindings": []

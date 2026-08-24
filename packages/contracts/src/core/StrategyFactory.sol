@@ -11,10 +11,8 @@ import { IBribe } from "./interfaces/IBribe.sol";
 import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 
 /// @title GumBall6900 Resonance-Bound Strategy Factory
-/// @author Heesho
 /// @notice Deploys each Strategy together with its dedicated BribeRouter.
 /// @dev Adapted from Liquid Signal Governance. Only the bound Resonance can create protocol Strategies.
-/// @custom:version 1.0.0
 contract StrategyFactory is Ownable {
     /// @notice Resonance exclusively authorized to create Strategy graphs.
     address public resonance;
@@ -58,7 +56,7 @@ contract StrategyFactory is Ownable {
     }
 
     /// @notice Deploys a Strategy and the BribeRouter paired with it.
-    /// @param revenueToken USDG token sold by the Strategy.
+    /// @param usdg USDG token sold by the Strategy.
     /// @param paymentToken Asset buyers pay to fill the Strategy.
     /// @param fund Treasury that receives the non-Bribe share of each payment.
     /// @param bribe Independently fundable Bribe paired with the Strategy.
@@ -66,7 +64,7 @@ contract StrategyFactory is Ownable {
     /// @return strategy Newly deployed Strategy.
     /// @return bribeRouter Newly deployed BribeRouter paired with `strategy`.
     function createStrategy(
-        IERC20 revenueToken,
+        IERC20 usdg,
         IERC20 paymentToken,
         address fund,
         Bribe bribe,
@@ -75,7 +73,7 @@ contract StrategyFactory is Ownable {
         address configuredResonance = resonance;
         if (msg.sender != configuredResonance) revert NotResonance(msg.sender);
 
-        strategy = new Strategy(configuredResonance, revenueToken, paymentToken, fund, config);
+        strategy = new Strategy(configuredResonance, usdg, paymentToken, fund, config);
         bribeRouter = new BribeRouter(IBribe(address(bribe)), paymentToken);
 
         emit StrategyCreated(address(strategy), address(bribeRouter), address(paymentToken));

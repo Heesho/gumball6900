@@ -5,15 +5,13 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
+import { IResonance } from "./interfaces/IResonance.sol";
 import { IResonanceRouter } from "./interfaces/IResonanceRouter.sol";
 
 /// @title GumBall6900 Permissionless Revenue Router
-/// @author Heesho
 /// @notice Collects USDG revenue and forwards every qualifying balance into Resonance's Strategy reward stream.
-/// @dev A top-up qualifies once the Router balance covers both the active reward left and the minimum amount needed for
+/// @dev A top-up qualifies once the Router balance covers both the active revenue remaining and the minimum needed for
 ///      a nonzero seven-day whole-unit rate. Smaller balances remain available for later permissionless routing.
-/// @custom:version 1.1.0
 contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -55,8 +53,9 @@ contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
         uint256 pending = usdg.balanceOf(address(this));
         if (pending == 0) revert NoRevenue();
 
-        uint256 minimum = ICoreResonance(resonance).left();
-        uint256 duration = ICoreResonance(resonance).DURATION();
+        IResonance configuredResonance = IResonance(resonance);
+        uint256 minimum = configuredResonance.remainingRevenue();
+        uint256 duration = configuredResonance.REWARD_DURATION();
         if (minimum < duration) minimum = duration;
         if (pending < minimum) {
             emit RevenueHeld(msg.sender, pending, minimum);
@@ -66,14 +65,8 @@ contract ResonanceRouter is IResonanceRouter, ReentrancyGuard {
         amount = pending;
 
         usdg.forceApprove(resonance, amount);
-        ICoreResonance(resonance).notifyRevenue(amount);
+        configuredResonance.notifyRevenue(amount);
 
         emit RevenueRouted(msg.sender, amount);
-    }
-
-    /// @notice Returns USDG waiting to be routed.
-    /// @return amount Current USDG balance of the router.
-    function pendingRevenue() external view returns (uint256 amount) {
-        return usdg.balanceOf(address(this));
     }
 }

@@ -75,7 +75,7 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
         address toStrategy = _liveStrategy(toSeed, fromStrategy);
         if (toStrategy == address(0)) return;
 
-        uint256 held = resonance.accountSignals(actor, fromStrategy);
+        uint256 held = _accountSignalWeight(actor, fromStrategy);
         vm.prank(actor);
         signalGBX.moveSignal(fromStrategy, toStrategy, _bound(amount, 1, held));
 
@@ -87,7 +87,7 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
         address strategy = _allocatedStrategy(actor, strategySeed);
         if (strategy == address(0)) return;
 
-        uint256 held = resonance.accountSignals(actor, strategy);
+        uint256 held = _accountSignalWeight(actor, strategy);
         vm.prank(actor);
         signalGBX.withdrawSignal(strategy, _bound(amount, 1, held));
 
@@ -163,7 +163,7 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
         uint256 start = seed % length;
         for (uint256 i; i < length; ++i) {
             address candidate = strategyRegistry.at((start + i) % length);
-            if (candidate != excluded && resonance.isStrategyAlive(candidate)) return candidate;
+            if (candidate != excluded && resonance.isStrategyLive(candidate)) return candidate;
         }
     }
 
@@ -173,7 +173,13 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
         uint256 start = seed % length;
         for (uint256 i; i < length; ++i) {
             address candidate = strategyRegistry.at((start + i) % length);
-            if (resonance.accountSignals(actor, candidate) != 0) return candidate;
+            if (_accountSignalWeight(actor, candidate) != 0) return candidate;
         }
+    }
+
+    function _accountSignalWeight(address account, address strategy) private view returns (uint256 amount) {
+        address bribe = resonance.bribeFor(strategy);
+        if (bribe == address(0)) return 0;
+        return Bribe(bribe).signalWeightOf(account);
     }
 }

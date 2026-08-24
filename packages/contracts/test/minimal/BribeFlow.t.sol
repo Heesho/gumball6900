@@ -30,14 +30,14 @@ contract BribeRewardFlowTest is Test {
     function test_AllTokenFailureIsAtomicAndScalarClaimsIsolateABrokenToken() external {
         RevertingToken broken = new RevertingToken(18);
         bribe.addRewardToken(address(broken));
-        bribe.deposit(1, ALICE);
+        bribe.addSignalWeight(ALICE, 1);
 
         uint256 healthyAmount = 10 * WEEK;
         uint256 brokenAmount = 5 * WEEK;
         _notify(reward, healthyAmount);
         broken.mint(address(this), brokenAmount);
         broken.approve(address(bribe), brokenAmount);
-        bribe.notifyRewardAmount(address(broken), brokenAmount);
+        bribe.notifyReward(address(broken), brokenAmount);
         vm.warp(block.timestamp + WEEK);
 
         broken.setBlocked(ALICE, true);
@@ -64,12 +64,12 @@ contract BribeRewardFlowTest is Test {
     function test_LifetimeCapIsCheckedBeforeCheckpointOrTokenTransfer() external {
         RevertingToken capped = new RevertingToken(18);
         bribe.addRewardToken(address(capped));
-        bribe.deposit(1, ALICE);
+        bribe.addSignalWeight(ALICE, 1);
 
         uint256 maximum = bribe.MAX_LIFETIME_REWARD_AMOUNT();
         capped.mint(address(this), maximum + WEEK);
         capped.approve(address(bribe), maximum + WEEK);
-        bribe.notifyRewardAmount(address(capped), maximum);
+        bribe.notifyReward(address(capped), maximum);
 
         vm.warp(block.timestamp + 1 days);
         (uint256 finishBefore, uint256 rateBefore, uint256 updateBefore, uint256 indexBefore) =
@@ -84,7 +84,7 @@ contract BribeRewardFlowTest is Test {
                 Bribe.RewardLifetimeCapExceeded.selector, address(capped), maximum, uint256(WEEK), maximum
             )
         );
-        bribe.notifyRewardAmount(address(capped), WEEK);
+        bribe.notifyReward(address(capped), WEEK);
 
         (uint256 finishAfter, uint256 rateAfter, uint256 updateAfter, uint256 indexAfter) =
             bribe.rewardData(address(capped));
@@ -99,19 +99,19 @@ contract BribeRewardFlowTest is Test {
     }
 
     function test_TwoCompletedStreamsMayConsumeTheLifetimeCapWithoutReopeningIt() external {
-        bribe.deposit(1, ALICE);
+        bribe.addSignalWeight(ALICE, 1);
         uint256 maximum = bribe.MAX_LIFETIME_REWARD_AMOUNT();
         uint256 first = maximum / 2;
         uint256 second = maximum - first;
         reward.mint(address(this), maximum + WEEK);
         reward.approve(address(bribe), maximum + WEEK);
 
-        bribe.notifyRewardAmount(address(reward), first);
+        bribe.notifyReward(address(reward), first);
         vm.warp(block.timestamp + WEEK);
         uint256 firstPaid = bribe.claimReward(ALICE, address(reward));
         assertEq(firstPaid, first - (first % WEEK));
 
-        bribe.notifyRewardAmount(address(reward), second);
+        bribe.notifyReward(address(reward), second);
         vm.warp(block.timestamp + WEEK);
         uint256 secondPaid = bribe.claimReward(ALICE, address(reward));
         assertEq(secondPaid, second - (second % WEEK));
@@ -123,18 +123,18 @@ contract BribeRewardFlowTest is Test {
                 Bribe.RewardLifetimeCapExceeded.selector, address(reward), maximum, uint256(WEEK), maximum
             )
         );
-        bribe.notifyRewardAmount(address(reward), WEEK);
+        bribe.notifyReward(address(reward), WEEK);
     }
 
     function test_MissingReturnRewardTokenCompletesIngressAndPayout() external {
         MissingReturnToken noReturn = new MissingReturnToken(6);
         bribe.addRewardToken(address(noReturn));
-        bribe.deposit(1, ALICE);
+        bribe.addSignalWeight(ALICE, 1);
 
         uint256 amount = 10 * WEEK;
         noReturn.mint(address(this), amount);
         noReturn.approve(address(bribe), amount);
-        bribe.notifyRewardAmount(address(noReturn), amount);
+        bribe.notifyReward(address(noReturn), amount);
         vm.warp(block.timestamp + WEEK);
 
         assertEq(bribe.claimReward(ALICE, address(noReturn)), amount);
@@ -145,12 +145,12 @@ contract BribeRewardFlowTest is Test {
     function test_ReentrantRewardPayoutCannotDoubleClaim() external {
         ReentrantToken hostile = new ReentrantToken(18);
         bribe.addRewardToken(address(hostile));
-        bribe.deposit(1, ALICE);
+        bribe.addSignalWeight(ALICE, 1);
 
         uint256 amount = 10 * WEEK;
         hostile.mint(address(this), amount);
         hostile.approve(address(bribe), amount);
-        bribe.notifyRewardAmount(address(hostile), amount);
+        bribe.notifyReward(address(hostile), amount);
         vm.warp(block.timestamp + WEEK);
 
         hostile.arm(address(bribe), abi.encodeCall(Bribe.claimReward, (ALICE, address(hostile))));
@@ -167,7 +167,7 @@ contract BribeRewardFlowTest is Test {
     function _notify(MockERC20 token, uint256 amount) private {
         token.mint(address(this), amount);
         token.approve(address(bribe), amount);
-        bribe.notifyRewardAmount(address(token), amount);
+        bribe.notifyReward(address(token), amount);
     }
 
     function _selectorOf(bytes memory data) private pure returns (bytes4 selector) {
@@ -191,7 +191,7 @@ contract BribeRetirementCompatibilityTest is ProtocolFixture {
         target.mint(DAVE, streamed);
         vm.startPrank(DAVE);
         target.approve(address(targetBribe), streamed);
-        targetBribe.notifyRewardAmount(address(target), streamed);
+        targetBribe.notifyReward(address(target), streamed);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 1 days);
@@ -201,7 +201,7 @@ contract BribeRetirementCompatibilityTest is ProtocolFixture {
         signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
         assertEq(targetBribe.claimReward(ALICE, address(target)), 1 days);
         assertEq(target.balanceOf(ALICE), 1 days);
-        assertEq(targetBribe.totalSupply(), 0);
+        assertEq(targetBribe.totalSignalWeight(), 0);
 
         _mintTestGBX(BOB, 1 ether);
         vm.startPrank(BOB);

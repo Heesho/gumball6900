@@ -1,8 +1,8 @@
 # Signal and Resonance executable specification
 
-Status: implemented locally and reconciled through ADR 0048 on 2026-08-23. The focused migration suites pass 104/104,
+Status: implemented locally and reconciled through ADR 0050 on 2026-08-24. The focused ADR-0048 migration suites passed 104/104,
 covering the sixteen-token bound, composed remove-then-add move, rollback, checkpoint ordering, removed Resonance
-selector, and maximum-bound gas. The largest focused measurement is 1,890,938 gas for a composed move with sixteen
+selector, and maximum-bound gas, but those results predate ADRs 0049 and 0050. The largest focused measurement is 1,890,938 gas for a composed move with sixteen
 active streams on both Bribes. The revised focused mutation campaign kills 47/47 mutants. The complete deterministic,
 integration, and workspace matrix recorded for ADR 0047 predates ADR 0048 and requires rerun. This is engineering
 evidence only: the external governance integration is unselected, and nothing is independently audited, deployed, or
@@ -28,40 +28,41 @@ For every reachable state:
 
 ```text
 SignalGBX.balanceOf(account)
-  == sum(Bribe.balanceOf(account) for every registered Strategy, live or killed)
+  == sum(Bribe.signalWeightOf(account) for every registered Strategy, live or killed)
 
 SignalGBX.totalSupply()
-  == sum(Bribe.totalSupply() for every registered Strategy, live or killed)
+  == sum(Bribe.totalSignalWeight() for every registered Strategy, live or killed)
 
 GBX.balanceOf(SignalGBX) >= SignalGBX.totalSupply()
 
 Resonance.totalSignalWeight()
-  == sum(Bribe.totalSupply() for live Strategies only)
+  == sum(Bribe.totalSignalWeight() for live Strategies only)
 ```
 
 The paired Bribe owns account-by-Strategy balances and Strategy supply. SignalGBX owns aggregate account balance and
 receipt supply. Resonance owns only the live aggregate. Only SignalGBX may invoke Resonance's retained add/remove
 signal hooks; Resonance exposes no dedicated move hook.
 
-## Resonance rewards
+## Resonance revenue
 
 Resonance is a USDG-only, virtual-staking Bribe derivative. Its schedule and per-Strategy accounting are scalar: there
-is no reward-token registry, token-keyed reward state, or redundant token parameter on reward views. USDG is six
-decimals, the period is exactly seven days, and the global reward-per-signal index uses `1e36`. Each signal change
+is no reward-token registry, token-keyed revenue state, or redundant token parameter on revenue views. USDG is six
+decimals, the period is exactly seven days, and the global revenue-per-signal index uses `1e36`. Each signal change
 checkpoints elapsed revenue under the old weights. In a move, source removal checkpoints before removal and destination
 addition checkpoints before addition; no time elapses between the calls. A Strategy purchase calls
-`Resonance.distribute(strategy)` before taking its USDG inventory snapshot.
+`Resonance.distributeRevenue(strategy)` before taking its USDG inventory snapshot.
 
 The raw stream uses the ordinary Synthetix schedule. A notification during an active period combines the incoming
-amount with `remainingSeconds * rewardRate`, divides the result by seven days, and restarts the period. There is no
+amount with `remainingSeconds * revenueRate`, divides the result by seven days, and restarts the period. There is no
 front-loaded rate remainder. Rate flooring, global-index flooring, per-Strategy flooring, direct donations, and
 revenue elapsed with zero live signal remain unallocated Resonance surplus. Distribution is permissionless, always
 pays the fixed Strategy entitlement, clears its recorded claim before interaction, and uses `SafeERC20` under the
 standard-token assumption.
 
-ResonanceRouter retains its complete USDG balance below `max(DURATION, Resonance.left())`. Once the balance qualifies,
-any caller may invoke `route()` to approve and notify the complete balance. Routing does not execute itself and has no
-role, bounty, or liveness guarantee.
+ResonanceRouter retains its complete USDG balance below
+`max(REWARD_DURATION, Resonance.remainingRevenue())`. Once the balance qualifies, any caller may invoke `route()` to
+approve and notify the complete balance. Routing does not execute itself and has no role, bounty, or liveness
+guarantee.
 
 ## Strategy lifecycle
 
@@ -77,9 +78,10 @@ reclassification, or killed-Strategy escape hatch.
 
 ## Bribe rewards
 
-Each paired Bribe maintains Resonance-controlled virtual balances and at most sixteen append-only reward tokens. Every
-token has its own seven-day `periodFinish`, `rewardRate`, `lastUpdateTime`, and `rewardPerTokenStored` state. A
-permissionless notification must be at least `REWARD_DURATION` raw units and at least the current `left` amount. It
+Each paired Bribe maintains Resonance-controlled virtual signal weights and at most sixteen append-only reward tokens.
+Every token has its own seven-day `periodFinish`, `rewardRate`, `lastUpdateTime`, and `rewardPerSignalStored` state. A
+permissionless notification must be at least `REWARD_DURATION` raw units and at least the current `remainingReward`.
+It
 combines with `remainingSeconds * rewardRate`, applies ordinary integer division over seven days, and restarts the
 period.
 
@@ -99,10 +101,10 @@ With `P = REWARD_PRECISION = 1e36`, the immutable maximum is:
 ```text
 MAX_LIFETIME_REWARD_AMOUNT = floor((2^256 - 1) / P)
 lifetimeRewardNotified[token] <= MAX_LIFETIME_REWARD_AMOUNT
-rewardPerTokenStored[token] <= lifetimeRewardNotified[token] * P
+rewardPerSignalStored[token] <= lifetimeRewardNotified[token] * P
 ```
 
-Before checkpointing or interacting with the reward token, `notifyRewardAmount` rejects any amount greater than the
+Before checkpointing or interacting with the reward token, `notifyReward` rejects any amount greater than the
 remaining lifetime headroom with `RewardLifetimeCapExceeded`. Because one raw signal unit is the smallest nonzero
 denominator, each admitted reward unit contributes at most `P` cumulative-index units. The limit therefore prevents a
 claimed stream from reopening index-overflow capacity. At the cap, existing claims, moves, and withdrawals remain
@@ -125,9 +127,9 @@ Strategy pulls the complete payment, transfers `fundAmount` directly to its immu
 deferred Fund or Bribe liability. A failed Fund transfer reverts the complete purchase. A successful purchase is final
 once Fund and the Bribe-only Router have received their respective amounts.
 
-BribeRouter exposes only its paired Bribe, payment token, and permissionless `distribute()`. It buffers its complete
-balance until that balance is at least the Bribe's duration and active-left thresholds, then approves and notifies the
-complete balance. A failed notification reverts only `distribute`, leaving the buffered balance retryable without
+BribeRouter exposes only its paired Bribe, payment token, and permissionless `route()`. It buffers its complete balance
+until that balance is at least the Bribe's `REWARD_DURATION` and `remainingReward` thresholds, then approves and
+notifies the complete balance. A failed notification reverts only `route`, leaving the buffered balance retryable without
 reverting the earlier Strategy purchase. Compatible direct donations join the next notification. At a 0% rate, the
 complete purchase goes to Fund and BribeRouter receives nothing; independent Bribe funding and all signal operations
 remain available.
@@ -136,7 +138,7 @@ remain available.
 
 The core contains no Governor or protocol Timelock. SignalGBX retains non-transferable ERC20Votes checkpoints, but the
 core assigns them no proposal, quorum, delay, execution, or cancellation semantics. Resonance remains owner-gated for
-`addStrategy`, `killStrategy`, `addBribeReward`, and bounded global `setBribeBps`; inherited ownership transfer and
+`addStrategy`, `killStrategy`, `addBribeRewardToken`, and bounded global `setBribeBps`; inherited ownership transfer and
 renunciation also remain. Mine has no administrative surface.
 
 Production is blocked until a later ADR selects the exact external governance provider and release, verifies
@@ -145,12 +147,13 @@ Resonance directly from the temporary setup owner to the reviewed external execu
 
 ## Supported-token assumption
 
-USDG, Strategy payment tokens, and owner-registered Bribe rewards must be conventional, non-rebasing ERC-20s whose
-successful transfer moves the requested amount. Strategy, Resonance, ResonanceRouter, BribeRouter, and Bribe use
+GBX, USDG, Strategy payment tokens, and owner-registered Bribe rewards must be conventional, non-rebasing ERC-20s whose
+successful transfer moves the requested amount. Mine, SignalGBX, Strategy, Resonance,
+ResonanceRouter, BribeRouter, and Bribe use
 `SafeERC20` but do not duplicate sender/receiver balance checks or support fee-on-transfer, surcharge, rebasing,
 shared-ledger, or mutable blocklist behavior. Those mechanics may revert, underfund accounting, consume surplus, or
-make a registered market unusable; governance is responsible for admitting suitable assets. Mine, SignalGBX, Fund
-redemption, and LiquidityPosition retain their separate custody-critical exact-delta checks.
+make a registered market unusable; deployment and governance are responsible for admitting suitable assets. Fund
+redemption alone retains exact payout deltas and basket guards because selected assets are arbitrary.
 
 The Bribe lifetime limit is measured in raw units: at 18 decimals it is approximately `1.158e23` whole tokens, but
 unusually high-decimal assets can reach it at a much smaller displayed amount. Broken Fund assets remain

@@ -6,7 +6,7 @@
 
 # Function: readBribeRouterView()
 
-> **readBribeRouterView**(`client`, `bribeRouter`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bufferedReward`: `bigint`; `currentRewardLeft`: `bigint`; `minimumRewardAmount`: `bigint`; `paymentToken`: `` `0x${string}` ``; \}\>
+> **readBribeRouterView**(`client`, `bribeRouter`, `options?`): `Promise`\<\{ `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bufferedReward`: `bigint`; `minimumRewardAmount`: `bigint`; `paymentToken`: `` `0x${string}` ``; `remainingReward`: `bigint`; \}\>
 
 Reads one Strategy's minimal Bribe buffer and current notification thresholds.
 
@@ -20,4 +20,4 @@ Reads one Strategy's minimal Bribe buffer and current notification thresholds.
 
 ## Returns
 
-`Promise`\<\{ `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bufferedReward`: `bigint`; `currentRewardLeft`: `bigint`; `minimumRewardAmount`: `bigint`; `paymentToken`: `` `0x${string}` ``; \}\>
+`Promise`\<\{ `blockNumber`: `bigint`; `bribe`: `` `0x${string}` ``; `bufferedReward`: `bigint`; `minimumRewardAmount`: `bigint`; `paymentToken`: `` `0x${string}` ``; `remainingReward`: `bigint`; \}\>

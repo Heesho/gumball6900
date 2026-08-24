@@ -1,7 +1,9 @@
 # Trust assumptions
 
-- USDG, GBX, Strategy payment tokens, and registered Bribe reward tokens are standard non-rebasing ERC-20s. Exact-
-  delta checks make unsupported movement fail closed but cannot make an adversarial token safe.
+- USDG, GBX, Strategy payment tokens, and registered Bribe reward tokens are standard non-rebasing ERC-20s.
+  `SafeERC20` checks call success and conventional optional returns but does not prove balance movement. Canonical
+  Mine and SignalGBX transfers deliberately trust the reviewed GBX/USDG implementations; Fund
+  retains stricter checks only for caller-selected arbitrary assets.
 - Users and integrators account for each Bribe's immutable per-token lifetime notification cap of
   `floor(type(uint256).max / 1e36)` raw units. It cannot be reset or bypassed; an exhausted pool must be replaced with a
   new Strategy and Bribe while incumbent positions remain movable or withdrawable from the old pool.
@@ -12,7 +14,7 @@
   later ADR pins and reviews the provider release, deployed code, plugins, SignalGBX compatibility, permission and admin
   graph, upgrade paths, proposal rules, batching, delay, cancellation behavior, and ownership handoff.
 - Users understand that a compromised external Resonance owner can misuse Strategy membership or Bribe reward-token
-  registration and can transfer or renounce ownership. Mine, Fund, and LiquidityPosition remain ownerless and outside
+  registration and can transfer or renounce ownership. Mine and Fund remain ownerless and outside
   that authority.
 - Users understand that Mine has exactly sixteen ownerless slots and a halving never reprices an occupied tenure.
 - Interfaces derive the next boundary from Mine `startTime` and use a pre-boundary handoff deadline when a quoted TPS
@@ -23,16 +25,17 @@
 - Deployment verifies the permanent reciprocal GBX/Mine binding before exposing Mine. Mine does not spend gas
   re-reading that immutable deployment fact on each handoff; GBX still rejects every unauthorized mint.
 - Miners understand rollover risk: a miner receives the 80% handoff payment only if another user replaces the slot.
-- Users understand that a paid Mine handoff ends after the exact protocol share reaches ResonanceRouter. Permissionless
-  `route()` has no designated keeper, bounty, or liveness guarantee, so the balance may wait indefinitely until a
-  manual, frontend, volunteer-keeper, or cron caller acts. LiquidityPosition fee harvesting remains atomically coupled
-  to its own route attempt.
+- Users understand that a paid Mine handoff ends after Mine's successful `SafeERC20` transfer request for the nominal
+  protocol share into ResonanceRouter. Under the supported USDG model the requested amount arrives; Mine does not
+  inspect transfer deltas. Permissionless `route()` has no designated keeper, bounty, or liveness guarantee, so the
+  balance may wait indefinitely until a manual, frontend, volunteer-keeper, or cron caller acts.
 - Miners realize accrued GBX when their slot is replaced and may self-replace for zero USDG after one hour.
 - Interfaces treat Mine messages as untrusted payer-authored event data, escape them before display, and enforce the
   280-byte limit in bytes rather than assuming 280 Unicode characters. Mine does not validate UTF-8 or store messages.
-- Deployment converts the 20 million genesis allocation into the reviewed out-of-range GBX-only v4 position and
-  verifies price, ticks, liquidity, token ID, and rounding residual before irreversible custody.
-- Configured Uniswap v4 and USDG addresses and runtime code hashes match independently reviewed target-chain values.
+- GBX begins at zero supply and the temporary setup minter cannot mint before Mine is permanently bound as the sole
+  lifetime issuer.
+- One reviewed external fungible USDG/GBX LP ERC-20 is registered as an ordinary bootstrap Strategy payment token.
+  Its address and configuration are deployment inputs; the core makes no reserve-value or liquidity guarantee.
 - Initial Strategy tokens and price parameters are reviewed and bootstrapped by the temporary setup owner before
   Resonance ownership passes directly to the exact reviewed external governance executor; the deployment then proves
   all temporary authority is gone.

@@ -10,7 +10,6 @@ export const protocolAddressesSchema = z
     bribeFactory: addressSchema,
     fund: addressSchema,
     gbx: addressSchema,
-    liquidityPosition: addressSchema,
     mine: addressSchema,
     signalGBX: addressSchema,
     strategyFactory: addressSchema,

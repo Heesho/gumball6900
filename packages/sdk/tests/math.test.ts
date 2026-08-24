@@ -5,10 +5,9 @@ import {
   ABS_MAX_AUCTION_INIT_PRICE,
   ABS_MIN_AUCTION_INIT_PRICE,
   DEFAULT_STRATEGY_BRIBE_BPS,
-  GENESIS_LIQUIDITY_ALLOCATION,
   MINE_SLOT_COUNT,
   MINE_PRICE_MULTIPLIER,
-  MINE_MINIMUM_INITIAL_PRICE,
+  MINE_MIN_INITIAL_PRICE,
   MINE_MAX_INITIAL_PRICE,
   MINE_INITIAL_TPS,
   MINE_HALVING_PERIOD,
@@ -57,12 +56,11 @@ describe('integer helpers', () => {
 });
 
 describe('multislot mining economics', () => {
-  it('pins genesis, hourly decay, and fixed slot constants', () => {
-    expect(GENESIS_LIQUIDITY_ALLOCATION).toBe(token(20_000_000n));
+  it('pins hourly decay and fixed slot constants', () => {
     expect(MINE_PRICE_DECAY_PERIOD).toBe(3_600n);
     expect(MINE_SLOT_COUNT).toBe(16n);
     expect(MINE_PRICE_MULTIPLIER).toBe(2n);
-    expect(MINE_MINIMUM_INITIAL_PRICE).toBe(1_000_000n);
+    expect(MINE_MIN_INITIAL_PRICE).toBe(1_000_000n);
     expect(MINE_MAX_INITIAL_PRICE).toBe((1n << 192n) - 1n);
     expect(MINE_INITIAL_TPS).toBe(token(64n));
     expect(MINE_HALVING_PERIOD).toBe(69n * 86_400n);
@@ -101,7 +99,7 @@ describe('multislot mining economics', () => {
 
   it('clamps the next mining initial price', () => {
     expect(nextMiningInitialPrice(1_000_000n)).toBe(2_000_000n);
-    expect(nextMiningInitialPrice(0n)).toBe(MINE_MINIMUM_INITIAL_PRICE);
+    expect(nextMiningInitialPrice(0n)).toBe(MINE_MIN_INITIAL_PRICE);
     expect(nextMiningInitialPrice(MINE_MAX_INITIAL_PRICE)).toBe(MINE_MAX_INITIAL_PRICE);
   });
 });

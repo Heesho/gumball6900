@@ -37,7 +37,6 @@ export const REQUIRED_MYTHRIL_TARGETS = Object.freeze(
     ['BribeRouter', 'out/BribeRouter.sol/BribeRouter.json'],
     ['Bribe', 'out/Bribe.sol/Bribe.json'],
     ['Fund', 'out/Fund.sol/Fund.json'],
-    ['LiquidityPosition', 'out/LiquidityPosition.sol/LiquidityPosition.json'],
   ].map(([contract, artifact]) => Object.freeze({ artifact, contract })),
 );
 

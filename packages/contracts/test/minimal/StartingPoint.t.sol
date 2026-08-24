@@ -88,7 +88,7 @@ contract StartingPointTest is Test {
         usdg = new CoreTestToken("Global Dollar", "USDG", 6);
         target = new CoreTestToken("Target", "TGT", 18);
         secondAsset = new CoreTestToken("Second Asset", "TWO", 18);
-        gbx = new GBX(address(this), address(this));
+        gbx = new GBX(address(this));
         fund = new Fund(gbx);
         signalGBX = new SignalGBX(IERC20(address(gbx)), address(this));
         bribeFactory = new BribeFactory(address(this));
@@ -116,8 +116,10 @@ contract StartingPointTest is Test {
 
         mine = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter));
         gbx.setMinter(address(mine));
-        gbx.transfer(ALICE, 200 ether);
-        gbx.transfer(BOB, 200 ether);
+        vm.startPrank(address(mine));
+        gbx.mint(ALICE, 200 ether);
+        gbx.mint(BOB, 200 ether);
+        vm.stopPrank();
     }
 
     function test_SignalGBXUsesSgbxTicker() external view {
@@ -134,13 +136,13 @@ contract StartingPointTest is Test {
         assertEq(secondPrice, 1e6);
         assertEq(usdg.balanceOf(address(resonance)), 0);
         assertEq(usdg.balanceOf(address(resonanceRouter)), 1_200_000);
-        assertEq(resonance.left(), 0);
+        assertEq(resonance.remainingRevenue(), 0);
         assertEq(usdg.balanceOf(address(mine)), 800_000);
         assertEq(usdg.balanceOf(address(fund)), 0);
         assertEq(gbx.balanceOf(ALICE), 100 ether + 7_200 ether);
         assertEq(gbx.balanceOf(BOB), 100 ether);
 
-        mine.claim(ALICE);
+        mine.claimMinerPayment(ALICE);
         assertEq(usdg.balanceOf(ALICE), 800_000);
     }
 
@@ -149,8 +151,8 @@ contract StartingPointTest is Test {
         _mine(BOB, 1);
 
         assertEq(mine.SLOT_COUNT(), 16);
-        assertEq(mine.getSlot(0).tps, 4 ether);
-        assertEq(mine.getSlot(1).tps, 4 ether);
+        assertEq(mine.slot(0).tps, 4 ether);
+        assertEq(mine.slot(1).tps, 4 ether);
 
         vm.warp(block.timestamp + 1 hours);
         assertEq(mine.pendingEmission(), 28_800 ether);
@@ -193,10 +195,10 @@ contract StartingPointTest is Test {
 
     function test_RevenueWithoutSignalsBecomesUnallocatedResonanceSurplus() external {
         _routeRevenue(100_000_000);
-        vm.warp(block.timestamp + resonance.DURATION());
+        vm.warp(block.timestamp + resonance.REWARD_DURATION());
 
-        assertEq(resonance.left(), 0);
-        assertEq(resonance.earned(address(targetStrategy)), 0);
+        assertEq(resonance.remainingRevenue(), 0);
+        assertEq(resonance.earnedRevenue(address(targetStrategy)), 0);
         assertEq(usdg.balanceOf(address(resonance)), 100_000_000);
         assertEq(usdg.balanceOf(address(resonanceRouter)), 0);
     }
@@ -231,8 +233,8 @@ contract StartingPointTest is Test {
         signalGBX.signal(address(targetStrategy), 100 ether);
         signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
         signalGBX.withdrawSignal(address(targetStrategy), 60 ether);
-        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 0);
-        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 40 ether);
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 0);
+        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 40 ether);
 
         signalGBX.withdrawSignal(address(gbxStrategy), 40 ether);
         vm.stopPrank();
@@ -391,14 +393,18 @@ contract StartingPointTest is Test {
     }
 
     function _mine(address account, uint256 index) private returns (uint256 paid) {
-        Mine.Slot memory slot = mine.getSlot(index);
-        paid = mine.price(index);
+        Mine.Slot memory slot = mine.slot(index);
+        paid = mine.currentPrice(index);
         if (paid != 0) usdg.mint(account, paid);
 
         vm.startPrank(account);
         if (paid != 0) usdg.approve(address(mine), paid);
         mine.mine(account, index, slot.epochId, block.timestamp, paid, "");
         vm.stopPrank();
+    }
+
+    function _accountSignalWeight(address account, address strategy) private view returns (uint256 amount) {
+        return Bribe(resonance.bribeFor(strategy)).signalWeightOf(account);
     }
 
     function _strategyConfig() private pure returns (Strategy.Config memory) {

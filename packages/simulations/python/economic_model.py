@@ -10,9 +10,9 @@ DEFAULT_STRATEGY_BRIBE_BPS = 1_000
 MAX_STRATEGY_BRIBE_BPS = 2_000
 HOUR = 3_600
 YEAR = 365 * 24 * HOUR
-GENESIS = 20_000_000 * WAD
+INITIAL_SUPPLY = 0
 MINE_PRICE_MULTIPLIER = 2
-MINE_MINIMUM_INITIAL_PRICE = 1_000_000
+MINE_MIN_INITIAL_PRICE = 1_000_000
 MINE_INITIAL_TPS = 64 * WAD
 MINE_HALVING_PERIOD = 69 * 24 * HOUR
 MINE_TAIL_TPS = WAD
@@ -119,7 +119,7 @@ def compute() -> dict[str, object]:
             {
                 **point,
                 "miningEmission": mining_emission,
-                "grossSupply": GENESIS + mining_emission,
+                "grossSupply": INITIAL_SUPPLY + mining_emission,
             }
         )
     synchronized_horizon_supply = []
@@ -131,7 +131,7 @@ def compute() -> dict[str, object]:
                 "years": years,
                 "elapsedSinceStart": elapsed_since_start,
                 "miningEmission": mining_emission,
-                "grossSupply": GENESIS + mining_emission,
+                "grossSupply": INITIAL_SUPPLY + mining_emission,
             }
         )
     tail_starts_at_seconds = MINE_TAIL_BOUNDARY_COUNT * MINE_HALVING_PERIOD
@@ -140,7 +140,7 @@ def compute() -> dict[str, object]:
         elapsed_since_tail = years_after_tail * YEAR
         elapsed_since_start = tail_starts_at_seconds + elapsed_since_tail
         mining_emission = synchronized_mining_emission(elapsed_since_start)
-        gross_supply = GENESIS + mining_emission
+        gross_supply = INITIAL_SUPPLY + mining_emission
         synchronized_tail_relative_horizon_supply.append(
             {
                 "yearsAfterTail": years_after_tail,
@@ -159,17 +159,17 @@ def compute() -> dict[str, object]:
     fund_usdg = 50_000_000 * 10**6
     redeem = 1_000_000 * WAD
     return {
-        "schemaVersion": 14,
+        "schemaVersion": 15,
         "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
         "assumptions": {
-            "genesisLiquidityAllocationGBXRaw": GENESIS,
+            "initialSupplyGBXRaw": INITIAL_SUPPLY,
             "infiniteSupply": True,
             "priceDecaySeconds": HOUR,
             "previousMinerBps": 8_000,
             "resonanceRevenueBps": 2_000,
             "fixedSlotCount": 16,
             "minePriceMultiplier": MINE_PRICE_MULTIPLIER,
-            "mineMinimumInitialPrice": MINE_MINIMUM_INITIAL_PRICE,
+            "mineMinimumInitialPrice": MINE_MIN_INITIAL_PRICE,
             "mineInitialTps": MINE_INITIAL_TPS,
             "mineHalvingPeriodSeconds": MINE_HALVING_PERIOD,
             "mineTailTps": MINE_TAIL_TPS,
@@ -181,6 +181,8 @@ def compute() -> dict[str, object]:
             "maximumStrategyBribeBps": MAX_STRATEGY_BRIBE_BPS,
             "minimumStrategyBribeBps": 0,
             "strategyFundBpsIsDerived": True,
+            "externalLpUsesOrdinaryStrategySettlement": True,
+            "liquiditySpecificCoreLogic": False,
         },
         "mining": {
             "timeBasedSchedule": {
@@ -206,14 +208,14 @@ def compute() -> dict[str, object]:
                 "tailBoundaryCount": MINE_TAIL_BOUNDARY_COUNT,
                 "tailStartsAtSeconds": tail_starts_at_seconds,
                 "miningEmissionAtTail": mining_emission_at_tail,
-                "grossSupplyAtTail": GENESIS + mining_emission_at_tail,
+                "grossSupplyAtTail": INITIAL_SUPPLY + mining_emission_at_tail,
                 "minedBpsOfGrossSupplyAtTail": mul_div(
-                    mining_emission_at_tail, BPS, GENESIS + mining_emission_at_tail
+                    mining_emission_at_tail, BPS, INITIAL_SUPPLY + mining_emission_at_tail
                 ),
                 "annualTailInflationPpmAtTail": mul_div(
                     MINE_TAIL_TPS * YEAR,
                     1_000_000,
-                    GENESIS + mining_emission_at_tail,
+                    INITIAL_SUPPLY + mining_emission_at_tail,
                 ),
             },
             "priceCurve": [
@@ -264,12 +266,6 @@ def compute() -> dict[str, object]:
             "redeemGBX": redeem,
             "payoutIgnoringPendingRaw": mul_div(fund_usdg, redeem, supply),
             "payoutWithEffectiveSupplyRaw": mul_div(fund_usdg, redeem, supply + pending),
-        },
-        "genesisLiquidity": {
-            "publicBootstrap": False,
-            "genesisLiquidityAllocationGBXRaw": GENESIS,
-            "oneSidedPositionBudgetGBXRaw": GENESIS,
-            "positionPrincipalRemainsFixed": True,
         },
         "strategyAuction": {
             "durationSeconds": 86_400,

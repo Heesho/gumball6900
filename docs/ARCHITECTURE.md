@@ -2,7 +2,7 @@
 
 The target graph is direct, immutable, and deliberately small.
 
-> Development architecture: ADRs 0031 and 0033-0048 are authoritative in whole or in their recorded unsuperseded
+> Development architecture: ADRs 0031 and 0033-0050 are authoritative in whole or in their recorded unsuperseded
 > parts. Governance execution remains an
 > unselected external integration, so this document is not deployment approval or evidence of a complete production
 > graph.
@@ -17,19 +17,20 @@ GBX --signal deposit--> SignalGBX --signal coordination--> Resonance allocation 
 Strategy acquired-asset payment --(100% - global bribeBps)--> Fund
                                 \--global bribeBps (0%-20%)--> BribeRouter buffer --> paired Bribe
 additional reward funder ------------------------------> Bribe -> Strategy signalers
+external USDG/GBX LP ERC-20 -> ordinary bootstrap Strategy -> Fund / paired Bribe
 GBX holder -> Fund.redeem(selected tokens) -> in-kind assets
-Uniswap v4 fees -> LiquidityPosition -> USDG revenue / GBX burn
 ```
 
 The core keeps custody and accounting invariants inside the contracts that own them, while optional transaction
-composition and liveness automation stay in periphery. In particular, a paid Mine handoff exact-transfers its protocol
-share into ResonanceRouter and then ends. `Mine.RevenueDeposited` records that deposit only. A manual caller, frontend,
+composition and liveness automation stay in periphery. In particular, a paid Mine handoff transfers its nominal
+protocol share into ResonanceRouter through `SafeERC20` under the standard-USDG assumption and then ends.
+`Mine.RevenueDeposited` records that requested deposit only. A manual caller, frontend,
 volunteer keeper, or cron process may later call the permissionless `route()` function; there is no role, bounty, or
 guaranteed caller, so even a qualifying balance may wait indefinitely. A future frontend-facing helper could compose
 `mine()` and `route()`, but Mine correctness and handoff liveness must never depend on that optional call succeeding.
 
-GBX creates only the 20 million genesis-liquidity allocation. A one-time deployment binding permanently assigns all
-later mint authority to a Mine that identifies the same GBX. Mine has exactly sixteen ownerless hourly reverse-Dutch
+GBX starts with zero supply and zero lifetime minted. Its setup minter cannot mint before a one-time deployment binding
+permanently assigns all lifetime mint authority to a Mine that identifies the same GBX. Mine has exactly sixteen ownerless hourly reverse-Dutch
 slots. Each occupied slot keeps its TPS until replacement; newly filled slots divide the current global TPS by sixteen.
 
 Fund reads Mine's constant-time effective supply before its redemption snapshot. Pending GBX is included in the
@@ -46,15 +47,15 @@ the same sGBX, and returns the same GBX. The permit path uses underlying GBX aut
 approval permit.
 
 Resonance holds forwarded USDG in one scalar global seven-day stream, with no reward-token registry or token-keyed
-reward state, and uses unrestricted absolute SignalGBX allocations for
+revenue state, and uses unrestricted absolute SignalGBX allocations for
 each elapsed interval. SignalGBX calls Resonance's restricted coordination hooks, which checkpoint elapsed revenue
 before changing weights. A Strategy purchase also
 checkpoints and pulls its released allocation before reading the auction inventory. During an active period,
-ResonanceRouter holds a nonzero balance until it is at least both `DURATION` raw USDG units and the whole reward left
-at the active rate. A qualifying complete-balance notification checkpoints elapsed emission, combines the new reward
-with `remainingSeconds * rewardRate`, and restarts the schedule for seven days. The Synthetix-style rate uses ordinary
+ResonanceRouter holds a nonzero balance until it is at least both `REWARD_DURATION` raw USDG units and
+`remainingRevenue()` at the active rate. A qualifying complete-balance notification checkpoints elapsed emission, combines the new reward
+with `remainingSeconds * revenueRate`, and restarts the schedule for seven days. The Synthetix-style rate uses ordinary
 integer division; rate, index, and Strategy floors, zero-active-signal emission, and direct donations remain
-unclassified surplus. The reward-per-signal index uses `1e36` precision.
+unclassified surplus. The revenue-per-signal index uses `1e36` precision.
 
 Signal state is deliberately split rather than duplicated: `SignalGBX.balanceOf(account)` is each account's aggregate
 signal, the paired Bribe stores account-by-Strategy balances and each Strategy's complete supply, and Resonance stores
@@ -76,11 +77,13 @@ closed pool for existing signalers; no new signal can enter, and a final exit ca
 rewards. After bootstrap, the final live Strategy cannot be killed until a replacement has been added, while killed-
 Strategy positions remain movable out or withdrawable.
 
-Fund is an ownerless raw-token treasury with caller-selected redemption arrays and no registry or migration path.
-LiquidityPosition permanently holds the precommitted, fixed-principal Uniswap v4 NFT.
+Fund is an ownerless raw-token treasury with caller-selected redemption arrays and no registry or migration path. One
+reviewed external fungible USDG/GBX LP token is registered as an ordinary bootstrap Strategy payment token, with the
+same Fund/Bribe split as every other Strategy. Its address remains a deployment input. The core creates, owns, prices,
+harvests, swaps, or guarantees no liquidity.
 
 The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. Resonance is its
-only contract with continuing custom owner authority and retains `addStrategy`, `killStrategy`, `addBribeReward`, and
+only contract with continuing custom owner authority and retains `addStrategy`, `killStrategy`, `addBribeRewardToken`, and
 bounded global `setBribeBps`, plus inherited ownership transfer and renunciation. SignalGBX, StrategyFactory, and
 BribeFactory retain setup-only inherited ownership shells after their one-time bindings. A production setup must
 transfer Resonance from its temporary bootstrap owner directly to the exact external governance executor selected by a
@@ -107,6 +110,8 @@ See [STARTING_CONTRACTS.md](STARTING_CONTRACTS.md), [ADR 0024](adr/0024-immutabl
 [ADR 0043](adr/0043-provisional-one-gbx-tail.md),
 [ADR 0044](adr/0044-decouple-mine-from-revenue-routing.md),
 [ADR 0045](adr/0045-defer-mine-router-token-verification.md),
-[ADR 0046](adr/0046-usdg-only-resonance-accounting.md), and
-[ADR 0047](adr/0047-synthetix-shaped-rewards-and-strategy-settlement.md), and
-[ADR 0048](adr/0048-expand-bribe-rewards-and-compose-signal-moves.md).
+[ADR 0046](adr/0046-usdg-only-resonance-accounting.md),
+[ADR 0047](adr/0047-synthetix-shaped-rewards-and-strategy-settlement.md),
+[ADR 0048](adr/0048-expand-bribe-rewards-and-compose-signal-moves.md),
+[ADR 0049](adr/0049-trust-canonical-token-transfers.md), and
+[ADR 0050](adr/0050-zero-premint-and-external-lp-strategy.md).

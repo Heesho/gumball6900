@@ -135,15 +135,15 @@ const mutants = [
   {
     id: 'RES-01-omit-bribe-deposit',
     file: 'src/core/Resonance.sol',
-    from: '        Bribe(bribeFor[strategy]).deposit(amount, account);',
-    to: '        // MUTANT: paired Bribe deposit omitted',
+    from: '        Bribe(bribeFor[strategy]).addSignalWeight(account, amount);',
+    to: '        // MUTANT: paired Bribe signal-weight addition omitted',
     test: ['test/minimal/Resonance.t.sol', 'test_AddSignalIsIncrementalAndMirrorsTheBribe'],
   },
   {
     id: 'RES-02-omit-bribe-withdraw',
     file: 'src/core/Resonance.sol',
-    from: '        bribe.withdraw(amount, account);',
-    to: '        // MUTANT: paired Bribe withdrawal omitted',
+    from: '        bribe.removeSignalWeight(account, amount);',
+    to: '        // MUTANT: paired Bribe signal-weight removal omitted',
     test: ['test/minimal/Resonance.t.sol', 'test_RemoveSignalPreservesTheExactPartialAllocation'],
   },
   {
@@ -165,24 +165,24 @@ const mutants = [
   {
     id: 'RES-05-restore-move-hook',
     file: 'src/core/Resonance.sol',
-    from: '    /// @notice Pulls qualifying USDG from ResonanceRouter and restarts the seven-day reward period.',
+    from: '    /// @notice Pulls qualifying USDG from ResonanceRouter and restarts the seven-day revenue period.',
     to: `    function moveSignalFor(address, address, address, uint256) external { }
 
-    /// @notice Pulls qualifying USDG from ResonanceRouter and restarts the seven-day reward period.`,
+    /// @notice Pulls qualifying USDG from ResonanceRouter and restarts the seven-day revenue period.`,
     test: ['test/minimal/ArchitectureReconciliation.t.sol', 'test_RemovedResonanceMoveHookIsAbsentFromRuntime'],
   },
   {
     id: 'RES-08-add-after-weight-checkpoint',
     file: 'src/core/Resonance.sol',
-    from: '        _updateReward(strategy);\n\n        totalSignalWeight += amount;',
+    from: '        _updateRevenue(strategy);\n\n        totalSignalWeight += amount;',
     to: '        // MUTANT: pre-add checkpoint omitted\n\n        totalSignalWeight += amount;',
     test: ['test/integration/CampaignHarness.t.sol', 'test_RevenueIsCheckpointedBeforeMidStreamSignalEntry'],
   },
   {
     id: 'RES-09-remove-without-checkpoint',
     file: 'src/core/Resonance.sol',
-    from: '        _updateReward(strategy);\n\n        if (isStrategyAlive[strategy]) totalSignalWeight -= amount;',
-    to: '        // MUTANT: pre-remove checkpoint omitted\n\n        if (isStrategyAlive[strategy]) totalSignalWeight -= amount;',
+    from: '        _updateRevenue(strategy);\n\n        if (isStrategyLive[strategy]) totalSignalWeight -= amount;',
+    to: '        // MUTANT: pre-remove checkpoint omitted\n\n        if (isStrategyLive[strategy]) totalSignalWeight -= amount;',
     test: ['test/integration/CampaignHarness.t.sol', 'test_RevenueIsCheckpointedBeforeMidStreamSignalExit'],
   },
   {
@@ -195,21 +195,21 @@ const mutants = [
   {
     id: 'RES-12-change-duration',
     file: 'src/core/Resonance.sol',
-    from: '    uint256 public constant DURATION = 7 days;',
-    to: '    uint256 public constant DURATION = 6 days;',
+    from: '    uint256 public constant REWARD_DURATION = 7 days;',
+    to: '    uint256 public constant REWARD_DURATION = 6 days;',
     test: ['test/minimal/Resonance.t.sol', 'test_InitialStateAndImmutableIdentities'],
   },
   {
     id: 'RES-13-omit-leftover-on-reset',
     file: 'src/core/Resonance.sol',
-    from: '        data.rewardRate = (reward + remaining) / DURATION;',
-    to: '        data.rewardRate = reward / DURATION;',
+    from: '        data.revenueRate = (amount + remaining) / REWARD_DURATION;',
+    to: '        data.revenueRate = amount / REWARD_DURATION;',
     test: ['test/minimal/Resonance.t.sol', 'test_QualifyingTopUpCheckpointsAndRestartsWithRewardPlusLeft'],
   },
   {
     id: 'RES-14-do-not-clear-distribution',
     file: 'src/core/Resonance.sol',
-    from: '        strategyRewards[strategy] = 0;',
+    from: '        strategyRevenue[strategy] = 0;',
     to: '        // MUTANT: Strategy reward not cleared',
     test: ['test/minimal/Resonance.t.sol', 'test_DistributingTwicePaysNothingTheSecondTime'],
   },
@@ -237,22 +237,22 @@ const mutants = [
   {
     id: 'RES-18-block-killed-strategy-withdrawal',
     file: 'src/core/Resonance.sol',
-    from: '        if (!isStrategy[strategy]) revert StrategyNotFound(strategy);\n        if (amount == 0) revert ZeroAmount();',
-    to: '        if (!isStrategy[strategy]) revert StrategyNotFound(strategy);\n        if (!isStrategyAlive[strategy]) revert StrategyAlreadyDead(strategy);\n        if (amount == 0) revert ZeroAmount();',
+    from: '        if (!isStrategyRegistered[strategy]) revert StrategyNotFound(strategy);\n        if (amount == 0) revert ZeroAmount();',
+    to: '        if (!isStrategyRegistered[strategy]) revert StrategyNotFound(strategy);\n        if (!isStrategyLive[strategy]) revert StrategyAlreadyDead(strategy);\n        if (amount == 0) revert ZeroAmount();',
     test: ['test/minimal/SignalGBX.t.sol', 'test_WithdrawFromKilledStrategyDoesNotDecrementActiveWeightTwice'],
   },
   {
     id: 'RES-19-allow-dead-signal-destination',
     file: 'src/core/Resonance.sol',
-    from: '        if (!isStrategyAlive[strategy]) revert StrategyAlreadyDead(strategy);',
-    to: '        if (false && !isStrategyAlive[strategy]) revert StrategyAlreadyDead(strategy);',
+    from: '        if (!isStrategyLive[strategy]) revert StrategyAlreadyDead(strategy);',
+    to: '        if (false && !isStrategyLive[strategy]) revert StrategyAlreadyDead(strategy);',
     occurrence: 0,
     test: ['test/minimal/SignalGBX.t.sol', 'test_MoveSignalDestinationFailureRollsBackSourceRemoval'],
   },
   {
     id: 'RES-20-remove-killed-weight-twice',
     file: 'src/core/Resonance.sol',
-    from: '        if (isStrategyAlive[strategy]) totalSignalWeight -= amount;',
+    from: '        if (isStrategyLive[strategy]) totalSignalWeight -= amount;',
     to: '        totalSignalWeight -= amount;',
     test: ['test/minimal/SignalGBX.t.sol', 'test_WithdrawFromKilledStrategyDoesNotDecrementActiveWeightTwice'],
   },
@@ -266,7 +266,7 @@ const mutants = [
   {
     id: 'STRAT-01-snapshot-before-claim',
     file: 'src/core/Strategy.sol',
-    from: '        ICoreResonance(resonance).distribute(address(this));',
+    from: '        configuredResonance.distributeRevenue(address(this));',
     to: '        // MUTANT: released Resonance revenue not claimed before inventory snapshot',
     test: ['test/minimal/Strategy.t.sol', 'test_BuyAtomicallyIncludesRevenueReleasedThroughTheCurrentTimestamp'],
   },
@@ -301,7 +301,7 @@ const mutants = [
   {
     id: 'SETTLE-01-ignore-governed-share',
     file: 'src/core/Strategy.sol',
-    from: '        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();',
+    from: '        uint256 appliedBribeBps = configuredResonance.bribeBps();',
     to: '        uint256 appliedBribeBps = 1_000;',
     test: ['test/minimal/BribeBps.t.sol', 'test_FourCompletedAuctionsUseTenZeroFiveAndTwentyPercentProspectively'],
   },
@@ -309,15 +309,18 @@ const mutants = [
     id: 'SETTLE-02-snapshot-share-after-token-callback',
     file: 'src/core/Strategy.sol',
     from: `        // Fix the prospective split before either token can invoke a callback, including a self-priced Strategy.
-        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();
+        IResonance configuredResonance = IResonance(resonance);
+        uint256 appliedBribeBps = configuredResonance.bribeBps();
 
         // Make the purchase include every USDG unit released to this Strategy through the execution timestamp.
-        ICoreResonance(resonance).distribute(address(this));`,
-    to: `        // Make the purchase include every USDG unit released to this Strategy through the execution timestamp.
-        ICoreResonance(resonance).distribute(address(this));
+        configuredResonance.distributeRevenue(address(this));`,
+    to: `        IResonance configuredResonance = IResonance(resonance);
+
+        // Make the purchase include every USDG unit released to this Strategy through the execution timestamp.
+        configuredResonance.distributeRevenue(address(this));
 
         // MUTANT: a self-priced revenue callback can change policy before the snapshot.
-        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();`,
+        uint256 appliedBribeBps = configuredResonance.bribeBps();`,
     test: ['test/minimal/Strategy.t.sol', 'test_SelfPricedRevenueCallbackCannotChangeTheCurrentPaymentSnapshot'],
   },
   {

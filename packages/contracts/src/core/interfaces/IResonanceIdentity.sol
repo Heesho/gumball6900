@@ -13,13 +13,3 @@ interface IResonanceIdentity {
     /// @notice Returns the immutable StrategyFactory controlled by Resonance.
     function strategyFactory() external view returns (address factory);
 }
-
-/// @title GumBall6900 ResonanceRouter Deployment Identity
-/// @notice Immutable route endpoints checked before Resonance permanently accepts one revenue source.
-interface IResonanceRouterIdentity {
-    /// @notice Returns the immutable USDG token forwarded by the router.
-    function usdg() external view returns (address token);
-
-    /// @notice Returns the immutable Resonance receiver used by the router.
-    function resonance() external view returns (address receiver);
-}

@@ -97,7 +97,7 @@ contract FactoriesTest is ProtocolFixture {
         Bribe created = factory.createBribe();
 
         assertEq(created.resonance(), address(identity));
-        assertEq(created.totalSupply(), 0);
+        assertEq(created.totalSignalWeight(), 0);
         assertEq(created.rewardTokens().length, 0);
     }
 
@@ -157,7 +157,7 @@ contract FactoriesTest is ProtocolFixture {
         );
 
         assertEq(strategy.resonance(), address(identity));
-        assertEq(address(strategy.revenueToken()), address(usdg));
+        assertEq(address(strategy.usdg()), address(usdg));
         assertEq(address(strategy.paymentToken()), address(target));
         assertEq(strategy.fund(), address(fund));
 
@@ -174,8 +174,8 @@ contract FactoriesTest is ProtocolFixture {
         assertTrue(firstStrategy != secondStrategy);
         assertTrue(firstBribe != secondBribe);
         assertTrue(firstRouter != secondRouter);
-        assertTrue(resonance.isStrategy(firstStrategy));
-        assertTrue(resonance.isStrategy(secondStrategy));
+        assertTrue(resonance.isStrategyRegistered(firstStrategy));
+        assertTrue(resonance.isStrategyRegistered(secondStrategy));
         assertEq(resonance.bribeFor(firstStrategy), firstBribe);
         assertEq(resonance.bribeFor(secondStrategy), secondBribe);
         assertEq(resonance.bribeRouterFor(firstStrategy), firstRouter);
