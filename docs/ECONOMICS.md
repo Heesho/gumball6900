@@ -5,7 +5,7 @@
 
 ## Supply
 
-GBX creates 20 million tokens for genesis liquidity, then permanently assigns mint authority to Mine. There is no
+GBX starts with zero supply and permanently assigns its only lifetime mint authority to Mine before minting can begin. There is no
 protocol-defined economic maximum supply. GBX supports ERC-2612 approvals but has no voting checkpoints; governance
 power is minted one-for-one only when GBX is deposited into a Strategy signal through SignalGBX. Supply is exact
 cumulative accounting:
@@ -49,23 +49,23 @@ changes hands. The schedule remains subject to independent economic review even 
 alternative after deployment.
 
 In the synchronized reference path—every slot occupied, refreshed and settled at each boundary, with no burns—the
-sixth boundary at day 414 follows 751,161,600 GBX of mining and gives a 771,161,600 GBX gross supply including genesis.
-The 31,536,000 GBX annual tail flow is initially about 4.089% of that reference supply and declines as supply grows.
+sixth boundary at day 414 follows 751,161,600 GBX of mining and gives the same 751,161,600 GBX gross supply.
+The 31,536,000 GBX annual tail flow is initially about 4.198% of that reference supply and declines as supply grows.
 This is not a cap, forecast, or guaranteed inflation rate: empty slots reduce issuance, legacy tenures can keep higher
 rates indefinitely and exceed this path, and burns change the live denominator.
 
 | Boundary | Day | Fresh global TPS | Synchronized no-burn gross supply |
 | -------- | --- | ---------------- | --------------------------------- |
-| Launch   | 0   | 64               | 20,000,000                        |
-| 1        | 69  | 32               | 401,542,400                       |
-| 2        | 138 | 16               | 592,313,600                       |
-| 3        | 207 | 8                | 687,699,200                       |
-| 4        | 276 | 4                | 735,392,000                       |
-| 5        | 345 | 2                | 759,238,400                       |
-| 6 (tail) | 414 | 1                | 771,161,600                       |
+| Launch   | 0   | 64               | 0                                 |
+| 1        | 69  | 32               | 381,542,400                       |
+| 2        | 138 | 16               | 572,313,600                       |
+| 3        | 207 | 8                | 667,699,200                       |
+| 4        | 276 | 4                | 715,392,000                       |
+| 5        | 345 | 2                | 739,238,400                       |
+| 6 (tail) | 414 | 1                | 751,161,600                       |
 
-After the tail, that same synchronized no-burn reference reaches 802,697,600 GBX after one year, 834,233,600 after
-two years, 928,841,600 after five years, and 1,086,521,600 after ten years. These are measured from the day-414 tail,
+After the tail, that same synchronized no-burn reference reaches 782,697,600 GBX after one year, 814,233,600 after
+two years, 908,841,600 after five years, and 1,066,521,600 after ten years. These are measured from the day-414 tail,
 not from Mine deployment.
 
 ## Revenue, acquisitions, and redemption
@@ -73,8 +73,7 @@ not from Mine deployment.
 Mining handoffs deposit their protocol USDG share into ResonanceRouter without calling it. A later permissionless
 `route()` call moves the complete balance once it is at least both seven days of raw units and the active scheduled
 reward left; the duration threshold prevents a zero whole-unit rate. There is no caller bounty or liveness guarantee,
-so deposit and stream entry may be separated indefinitely. Liquidity fee harvesting keeps its atomic route attempt.
-Each elapsed interval follows the SignalGBX
+so deposit and stream entry may be separated indefinitely. Each elapsed interval follows the SignalGBX
 weights active during that interval; moving a signal checkpoints the old interval first and affects only later flow.
 A holder mints sGBX only by atomically assigning the same amount to a live Strategy. SignalGBX coordinates every
 change; its account balance is the aggregate signal, paired Bribes store per-Strategy positions and supply, and
@@ -97,8 +96,8 @@ reclassifies no earlier Fund transfer, buffered Bribe share, active stream, or c
 most 20%, Fund receives at least 80% of each payment.
 
 The payment asset, not USDG, funds the automatic paired-Bribe stream. BribeRouter buffers only that share and exposes
-permissionless `distribute()`. It notifies the paired Bribe with its complete balance only when the balance is at least
-one raw unit per stream second and at least the active reward left; this prevents a zero-rate schedule and preserves
+permissionless `route()`. It notifies the paired Bribe with its complete balance only when the balance is at least one
+raw unit per stream second and at least `remainingReward`; this prevents a zero-rate schedule and preserves
 standard leftover rollover. Compatible direct donations join the next notification, and a failed notification leaves
 the tokens buffered without reversing the completed purchase. If the payment asset is GBX, the Fund share may be
 burned permissionlessly after the purchase while the buffered share rewards signalers. A 0% automatic share does not
@@ -109,11 +108,12 @@ Streaming is lazy accounting: no keeper transaction is required each second. A l
 purchase, or qualifying notification materializes the elapsed amount. A separate caller is required to attempt Router
 forwarding, however. During an active schedule ResonanceRouter holds its balance until `route()` is called. A
 qualifying complete balance checkpoints the stream, combines the new amount with the ordinary Synthetix leftover
-(`remainingSeconds * rewardRate`), and restarts seven days; this can raise or lower the rate and move the finish.
+(`remainingSeconds * revenueRate`), and restarts seven days; this can raise or lower the rate and move the finish.
 
-Resonance and each per-token Bribe stream use whole-unit `rewardRate`, so division floors remain as unallocated token
-surplus rather than explicit carry. Their reward-per-signal indices use `1e36` precision, but index and account division
-can floor as well. Stream time continues at zero active signal weight, making that interval's rewards unclaimable, and
+Resonance uses whole-unit `revenueRate`, while each per-token Bribe stream uses `rewardRate`, so division floors remain
+as unallocated token surplus rather than explicit carry. Their respective revenue-per-signal and reward-per-signal
+indices use `1e36` precision, but index and account division can floor as well. Stream time continues at zero active
+signal weight, making that interval's rewards unclaimable, and
 direct Resonance or Bribe donations are unscheduled. Compatible donations to ResonanceRouter or BribeRouter instead
 join that Router's next valid complete-balance notification. None of the unallocated surplus is assigned to Fund or
 later signalers.
@@ -128,3 +128,7 @@ floor(Fund balance * GBX burned / effective supply before burn)
 Omitted assets remain for the post-redemption supply. A basket also reverts if one selected token transfer reduces
 another selected address below its own snapshot less payout, preventing shared-ledger double counting. Pending
 Fund-held GBX should be burned before quoting redemption.
+
+One reviewed external fungible USDG/GBX LP ERC-20 is an ordinary bootstrap Strategy payment token. Its purchases use
+the same global Fund/Bribe split described above; there is no liquidity-specific accounting, fee route, valuation, or
+guarantee in the core.

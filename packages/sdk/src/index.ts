@@ -7,5 +7,4 @@ export * from './deployment.js';
 export * from './math/index.js';
 export * from './readers.js';
 export * from './subgraph.js';
-export * from './v4.js';
 export * from './validation.js';

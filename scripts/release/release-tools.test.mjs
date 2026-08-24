@@ -285,15 +285,12 @@ const configuredTestnetForkEvidence = {
   blockHash: `0x${'cd'.repeat(32)}`,
   blockNumber: '123456',
   chainId: 46630,
-  dependencies: Object.fromEntries(
-    ['permit2', 'poolManager', 'positionManager', 'usdG', 'weth'].map((key, index) => [
-      key,
-      {
-        address: `0x${(index + 1).toString(16).padStart(40, '0')}`,
-        runtimeBytecodeHash: `0x${(index + 1).toString(16).repeat(64)}`,
-      },
-    ]),
-  ),
+  dependencies: {
+    usdG: {
+      address: '0x0000000000000000000000000000000000000001',
+      runtimeBytecodeHash: `0x${'1'.repeat(64)}`,
+    },
+  },
   expiresAt: new Date(configuredTestnetObservedAt + 60 * 60 * 1_000).toISOString(),
   kind: 'gumball-6900-robinhood-testnet-fork-evidence',
   observedAt: new Date(configuredTestnetObservedAt).toISOString(),
@@ -460,20 +457,6 @@ async function createReleaseSource(prefix = 'gumball-release-evidence-') {
 
 const releaseDeploymentConfigPath = 'manifests/release-deployment-config.json';
 const releaseDeploymentStatePath = 'manifests/release-deployment-state.json';
-const permissionedGraphPath = 'manifests/permissioned-pool-graph.json';
-const permissionedSourceBuildPath = 'manifests/permissioned-pool-official-source-build.json';
-const permissionedForkRehearsalPath = 'manifests/permissioned-pool-robinhood-fork-rehearsal.json';
-const permissionedEvidenceFixtures = {
-  graph: { kind: 'gumball-6900-permissioned-pool-graph', reviewed: true },
-  officialSourceBuild: {
-    kind: 'gumball-6900-permissioned-pool-official-source-build',
-    status: 'reproduced',
-  },
-  robinhoodForkRehearsal: {
-    kind: 'gumball-6900-permissioned-pool-robinhood-fork-rehearsal',
-    status: 'passed',
-  },
-};
 const releaseDeploymentConfigFixture = {
   assetReview: {
     path: releaseAssetCandidatePath,
@@ -639,49 +622,6 @@ function releaseManifestFixture(sourceCommit, tag = 'v1.2.3') {
     },
     signatures: [{}],
   };
-}
-
-function permissionedReleaseManifestFixture(sourceCommit, tag = 'v1.2.3') {
-  const manifest = releaseManifestFixture(sourceCommit, tag);
-  manifest.schemaVersion = 2;
-  manifest.compliance = { mode: 'permissioned-production' };
-  manifest.releaseEvidence.permissionedPool = {
-    graph: {
-      path: permissionedGraphPath,
-      rawSha256: sha256(Buffer.from(deterministicJson(permissionedEvidenceFixtures.graph), 'utf8')),
-    },
-    officialSourceBuild: {
-      path: permissionedSourceBuildPath,
-      rawSha256: sha256(Buffer.from(deterministicJson(permissionedEvidenceFixtures.officialSourceBuild), 'utf8')),
-    },
-    robinhoodForkRehearsal: {
-      path: permissionedForkRehearsalPath,
-      rawSha256: sha256(Buffer.from(deterministicJson(permissionedEvidenceFixtures.robinhoodForkRehearsal), 'utf8')),
-    },
-  };
-  return manifest;
-}
-
-async function writePermissionedEvidenceFiles(
-  release,
-  manifest = permissionedReleaseManifestFixture(release.sourceCommit),
-) {
-  await writeEvidenceFiles(release, manifest);
-  await Promise.all([
-    writeFile(
-      path.join(release.workspace, permissionedGraphPath),
-      deterministicJson(permissionedEvidenceFixtures.graph),
-    ),
-    writeFile(
-      path.join(release.workspace, permissionedSourceBuildPath),
-      deterministicJson(permissionedEvidenceFixtures.officialSourceBuild),
-    ),
-    writeFile(
-      path.join(release.workspace, permissionedForkRehearsalPath),
-      deterministicJson(permissionedEvidenceFixtures.robinhoodForkRehearsal),
-    ),
-  ]);
-  return manifest;
 }
 
 async function writeRegistryRevalidationInputs(release, evidenceCommit, manifest, stage = 'preliminary') {
@@ -870,95 +810,17 @@ test('nightly mainnet reconnaissance is exact-block, provisional, read-only, and
   assert.doesNotMatch(job, /release-approval|deployment-manifest|authorization|--broadcast|PRIVATE_KEY/);
 });
 
-test('release workflow separates preliminary registry evidence from protected-final authorization evidence', async () => {
-  const repositoryRoot = path.resolve(import.meta.dirname, '../..');
-  const [workflow, packager] = await Promise.all([
-    readFile(path.join(repositoryRoot, '.github/workflows/release.yml'), 'utf8'),
-    readFile(path.join(repositoryRoot, 'scripts/release/package-offline-evidence.sh'), 'utf8'),
-  ]);
-  const resolveTag = workflow.slice(workflow.indexOf('\n  resolve_tag:'), workflow.indexOf('\n  release_readiness:'));
-  const offline = workflow.slice(workflow.indexOf('\n  offline_gates:'), workflow.indexOf('\n  fork_gates:'));
-  const fork = workflow.slice(workflow.indexOf('\n  fork_gates:'), workflow.indexOf('\n  security_evidence:'));
-  const authorization = workflow.slice(workflow.indexOf('\n  candidate_authorization:'));
-
-  assert.match(resolveTag, /robinhood-registry-revalidation\.mjs[\s\S]+--stage preliminary/);
-  assert.doesNotMatch(resolveTag, /--stage protected-final/);
-  assert.match(resolveTag, /--registry-revalidation-stage preliminary/);
-  for (const technicalJob of [offline, fork]) {
-    assert.match(technicalJob, /actions\/download-artifact@[0-9a-f]{40}/);
-    assert.match(technicalJob, /--registry-revalidation-stage preliminary/);
-  }
-  assert.match(fork, /RELEASE_REGISTRY_REVALIDATION_STAGE=preliminary/);
-  assert.match(fork, /export-mainnet-fork-context\.mjs[\s\S]+--registry-revalidation-stage preliminary/);
-  assert.match(authorization, /robinhood-registry-revalidation\.mjs[\s\S]+--stage protected-final/);
-  assert.match(authorization, /--registry-revalidation-stage protected-final/);
-  assert.match(authorization, /RELEASE_REGISTRY_REVALIDATION_STAGE=protected-final/);
-  assert.match(authorization, /export-mainnet-fork-context\.mjs[\s\S]+--registry-revalidation-stage protected-final/);
-  assert.match(authorization, /--match-path test\/foundry\/fork\/RobinhoodMainnetFork\.t\.sol/);
-  assert.doesNotMatch(authorization, /--match-test/);
-  assert.match(authorization, /protected-release-authorization-inputs-/);
-  assert.ok(
-    authorization.indexOf('--stage protected-final') <
-      authorization.indexOf('Release-candidate evidence is technically authorized.'),
-    'Protected-final registry fetch must precede technical authorization',
+test('testnet fork export is build-bound and USDG-only', async () => {
+  const exporter = await readFile(
+    path.resolve(import.meta.dirname, '../../packages/config/scripts/export-testnet-fork-evidence.ts'),
+    'utf8',
   );
-  for (const requiredBinding of [
-    'robinhoodRegistryRevalidation.authorizationEligible',
-    'robinhood-registry-revalidation.json',
-    'robinhood-registry-response.json',
-    'safeControlPlanePolicyRepositoryPath',
-    'safeControlPlanePolicySha256',
-    'safe-control-plane-policy.json',
-  ]) {
-    assert.ok(packager.includes(requiredBinding), `Offline evidence packager omits ${requiredBinding}`);
-  }
-});
-
-test('release fork facts are build-bound and never sourced from mutable repository variables', async () => {
-  const repositoryRoot = path.resolve(import.meta.dirname, '../..');
-  const [workflow, mainWorkflow, exporter, testnetHarness] = await Promise.all([
-    readFile(path.join(repositoryRoot, '.github/workflows/release.yml'), 'utf8'),
-    readFile(path.join(repositoryRoot, '.github/workflows/main.yml'), 'utf8'),
-    readFile(path.join(repositoryRoot, 'packages/config/scripts/export-testnet-fork-evidence.ts'), 'utf8'),
-    readFile(
-      path.join(repositoryRoot, 'packages/contracts/test/foundry/fork-testnet/RobinhoodTestnetFork.t.sol'),
-      'utf8',
-    ),
-  ]);
-  const forkJob = workflow.slice(workflow.indexOf('\n  fork_gates:'), workflow.indexOf('\n  security_evidence:'));
-  const forkHeader = forkJob.slice(0, forkJob.indexOf('\n    steps:'));
-  assert.doesNotMatch(forkHeader, /ROBINHOOD_(?:MAINNET|TESTNET)_RPC_URL/);
-  assert.ok(
-    forkJob.indexOf('ROBINHOOD_MAINNET_ARCHIVE_RPC_URL') > forkJob.indexOf('pnpm install --frozen-lockfile'),
-    'Archive RPC credentials must not be present during dependency installation',
-  );
-  assert.ok(workflow.includes('fork:evidence:export'));
-  assert.ok(workflow.includes('testnet-fork-evidence.json'));
-  assert.ok(workflow.includes('ROBINHOOD_TESTNET_FORK_BLOCK_HASH'));
-  assert.ok(workflow.includes('ROBINHOOD_TESTNET_OBSERVED_AT_UNIX'));
-  assert.ok(workflow.includes('ROBINHOOD_TESTNET_PARENT_BLOCK_HASH'));
-  assert.doesNotMatch(forkJob, /ROBINHOOD_MAINNET_FORK_BLOCK:\s*['"]?\d/);
-  assert.match(forkJob, /export-mainnet-fork-context\.mjs/);
-  assert.match(forkJob, /mainnet-fork-context\.json/);
-  assert.match(forkJob, /\.variables \| length/);
-  assert.match(forkJob, /\.variables \| keys\[\]/);
-  assert.match(forkJob, /--require-release-evidence/);
-  assert.match(forkJob, /release-mainnet-inputs\/deployment-config\.json/);
-  assert.match(forkJob, /release-mainnet-inputs\/deployment-state\.json/);
-  assert.match(forkJob, /release-mainnet-inputs\/deployment-manifest\.json/);
-  assert.match(forkJob, /contracts:verify:mainnet/);
-  assert.match(forkJob, /fork:evidence:live:verify/);
-  assert.match(forkJob, /redact-stream\.mjs" ROBINHOOD_TESTNET_RPC_URL/);
-  assert.match(mainWorkflow, /fork:evidence:live:verify/);
-  assert.match(mainWorkflow, /redact-stream\.mjs" ROBINHOOD_TESTNET_RPC_URL/);
-  assert.match(
-    exporter,
-    /ROBINHOOD_TESTNET_OBSERVED_AT_UNIX: String\(Math\.floor\(Date\.parse\(evidence\.observedAt\) \/ 1_000\)\)/,
-  );
-  assert.match(testnetHarness, /vm\.envOr\("ROBINHOOD_TESTNET_OBSERVED_AT_UNIX"/);
-  assert.match(testnetHarness, /assertLe\(block\.timestamp, observedAt/);
-  assert.match(testnetHarness, /assertLe\(observedAt - block\.timestamp, MAX_OBSERVATION_BLOCK_LAG/);
-  assert.doesNotMatch(workflow, /\$\{\{\s*vars\.ROBINHOOD_TESTNET_/);
+  assert.match(exporter, /ROBINHOOD_TESTNET_FORK_BLOCK_HASH/);
+  assert.match(exporter, /ROBINHOOD_TESTNET_OBSERVED_AT_UNIX/);
+  assert.match(exporter, /ROBINHOOD_TESTNET_PARENT_BLOCK_HASH/);
+  assert.match(exporter, /ROBINHOOD_TESTNET_USDG_ADDRESS/);
+  assert.match(exporter, /ROBINHOOD_TESTNET_USDG_CODE_HASH/);
+  assert.doesNotMatch(exporter, /PERMIT2|POOL_MANAGER|POSITION_MANAGER/);
 });
 
 test('candidate authorization requires fresh source-commit deep security and economics campaigns', async () => {
@@ -994,10 +856,6 @@ test('protected candidate authorization revalidates exact evidence freshness and
   const evidenceRevalidation = authorizationJob.indexOf(
     'Revalidate exact evidence E after protected-environment approval',
   );
-  const protectedForkBinding = authorizationJob.indexOf(
-    'Bind protected-final registry evidence to the signed mainnet fork context',
-  );
-  const protectedForkReplay = authorizationJob.indexOf('--match-path test/foundry/fork/RobinhoodMainnetFork.t.sol');
   const liveRevalidation = authorizationJob.indexOf(
     'Requery signed block and current head immediately before authorization',
   );
@@ -1021,7 +879,6 @@ test('protected candidate authorization revalidates exact evidence freshness and
     /git -c core\.hooksPath=\/dev\/null -C "\$RELEASE_SOURCE_WORKSPACE" checkout --quiet --detach "\$SOURCE_COMMIT"/,
   );
   assert.match(authorizationJob, /foundry-rs\/foundry-toolchain@[0-9a-f]{40}/);
-  assert.match(authorizationJob, /protected-final-mainnet-fork-context\.json/);
   assert.match(authorizationJob, /contracts:release-observation:mainnet/);
   assert.match(
     authorizationJob,
@@ -1039,18 +896,7 @@ test('protected candidate authorization revalidates exact evidence freshness and
   assert.match(authorizationJob, /contracts:verify:mainnet/);
   assert.match(authorizationJob, /release-authorization-inputs\/deployment-manifest\.json/);
   assert.ok(evidenceRevalidation >= 0, 'Post-approval evidence revalidation step is missing');
-  assert.ok(
-    protectedForkBinding > evidenceRevalidation,
-    'Protected-final context binding must follow exact-E validation',
-  );
-  assert.ok(
-    protectedForkReplay > protectedForkBinding,
-    'Protected-final full fork replay must follow exact context binding',
-  );
-  assert.ok(
-    liveRevalidation > protectedForkReplay,
-    'Live observation revalidation must follow the protected-final full fork replay',
-  );
+  assert.ok(liveRevalidation > evidenceRevalidation, 'Live observation revalidation must follow exact-E validation');
   assert.ok(fullVerifier > liveRevalidation, 'Full manifest verification must follow the live observation precheck');
   assert.ok(testnetForkFreshness > fullVerifier, 'Testnet fork freshness must be rechecked after full verification');
   assert.ok(
@@ -1078,23 +924,6 @@ test('release workspace gates enforce checked-in generated documentation', async
   const nextStep = workflow.indexOf('\n      - name:', gateStart + 1);
   assert.ok(gateStart >= 0 && nextStep > gateStart, 'Offline workspace gate step is missing');
   assert.match(workflow.slice(gateStart, nextStep), /^\s+pnpm docs:check$/m);
-});
-
-test('release documentation matches the enforced mainnet fork-context widths', async () => {
-  const repositoryRoot = path.resolve(import.meta.dirname, '../..');
-  const [workflow, releaseDocumentation, deploymentDocumentation] = await Promise.all([
-    readFile(path.join(repositoryRoot, '.github/workflows/release.yml'), 'utf8'),
-    readFile(path.join(repositoryRoot, 'docs/RELEASE.md'), 'utf8'),
-    readFile(path.join(repositoryRoot, 'docs/DEPLOYMENT.md'), 'utf8'),
-  ]);
-
-  assert.equal((workflow.match(/expected_variables=88/g) ?? []).length, 2);
-  assert.equal((workflow.match(/manifest_schema" = 2; then expected_variables=92/g) ?? []).length, 2);
-  assert.equal((releaseDocumentation.match(/88 schema-v1 or 92/g) ?? []).length, 2);
-  assert.match(deploymentDocumentation, /88 fields for schema v1 or 92 for permissioned schema v2/);
-  for (const documentation of [releaseDocumentation, deploymentDocumentation]) {
-    assert.doesNotMatch(documentation, /67 (?:schema-v1|fields for schema v1) or 71/);
-  }
 });
 
 test('release readiness binds analyzer locks only after exact tracked-worktree proof', async () => {
@@ -1265,16 +1094,6 @@ test('release evidence commit has one source parent and adds only the exact sign
   assert.equal(result.configFile.repositoryPath, releaseDeploymentConfigPath);
   assert.equal(result.stateFile.repositoryPath, releaseDeploymentStatePath);
   assert.equal(result.policyFile.repositoryPath, releaseManifestSignaturePolicyPath);
-});
-
-test('archived schema-v2 evidence commits retain all three permissioned-artifact bindings', async () => {
-  const release = await createReleaseSource('gumball-release-permissioned-v2-');
-  await writePermissionedEvidenceFiles(release);
-  const evidenceCommit = commitAll(release.workspace, 'permissioned release evidence');
-  const result = await validateReleaseEvidenceCommit({ ...release, evidenceCommit });
-  assert.equal(result.permissionedFiles.graph.repositoryPath, permissionedGraphPath);
-  assert.equal(result.permissionedFiles.officialSourceBuild.repositoryPath, permissionedSourceBuildPath);
-  assert.equal(result.permissionedFiles.robinhoodForkRehearsal.repositoryPath, permissionedForkRehearsalPath);
 });
 
 test('reads the fixed Safe policy from source C while workspace HEAD remains evidence E', async () => {
@@ -2036,7 +1855,7 @@ test('release-readiness CLI reads and hash-binds every analyzer lock from the wo
   assert.match(missing.blockers.join('\n'), /lock file is missing or not regular/);
 });
 
-test('testnet fork evidence is exact, configured, and dependency-unique', () => {
+test('testnet fork evidence is exact and USDG-only', () => {
   assert.equal(validateRobinhoodTestnetForkEvidence(configuredTestnetForkEvidence), configuredTestnetForkEvidence);
   assert.throws(
     () =>
@@ -2044,10 +1863,10 @@ test('testnet fork evidence is exact, configured, and dependency-unique', () => 
         ...configuredTestnetForkEvidence,
         dependencies: {
           ...configuredTestnetForkEvidence.dependencies,
-          weth: configuredTestnetForkEvidence.dependencies.usdG,
+          unexpectedDependency: configuredTestnetForkEvidence.dependencies.usdG,
         },
       }),
-    /unique/,
+    /dependency set/,
   );
   const expired = {
     ...configuredTestnetForkEvidence,

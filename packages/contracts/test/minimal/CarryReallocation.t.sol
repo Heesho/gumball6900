@@ -26,14 +26,14 @@ contract BribeFlooringTest is Test {
     }
 
     function test_LaterSignalerCannotReceivePreEntryRoundedReward() external {
-        bribe.deposit(50e36, ALICE);
-        bribe.deposit(50e36, CAROL);
+        bribe.addSignalWeight(ALICE, 50e36);
+        bribe.addSignalWeight(CAROL, 50e36);
         uint256 startedAt = block.timestamp;
         _notify(WEEK);
 
         vm.warp(startedAt + 99);
-        bribe.deposit(100e36, BOB);
-        assertEq(bribe.rewardPerToken(address(reward)), 0);
+        bribe.addSignalWeight(BOB, 100e36);
+        assertEq(bribe.rewardPerSignal(address(reward)), 0);
         assertEq(bribe.earned(BOB, address(reward)), 0);
 
         vm.warp(startedAt + WEEK);
@@ -47,14 +47,14 @@ contract BribeFlooringTest is Test {
     }
 
     function test_RemainingSignalerCannotReceivePreExitRoundedReward() external {
-        bribe.deposit(50e36, ALICE);
-        bribe.deposit(50e36, CAROL);
+        bribe.addSignalWeight(ALICE, 50e36);
+        bribe.addSignalWeight(CAROL, 50e36);
         uint256 startedAt = block.timestamp;
         _notify(WEEK);
 
         vm.warp(startedAt + 99);
-        bribe.withdraw(50e36, ALICE);
-        assertEq(bribe.rewardPerToken(address(reward)), 0);
+        bribe.removeSignalWeight(ALICE, 50e36);
+        assertEq(bribe.rewardPerSignal(address(reward)), 0);
         assertEq(bribe.earned(ALICE, address(reward)), 0);
 
         vm.warp(startedAt + WEEK);
@@ -67,13 +67,13 @@ contract BribeFlooringTest is Test {
     }
 
     function test_FullExitSubTokenFloorIsNotReallocated() external {
-        bribe.deposit(3, ALICE);
-        bribe.deposit(7, CAROL);
+        bribe.addSignalWeight(ALICE, 3);
+        bribe.addSignalWeight(CAROL, 7);
         uint256 startedAt = block.timestamp;
         _notify(WEEK);
 
         vm.warp(startedAt + 1);
-        bribe.withdraw(3, ALICE);
+        bribe.removeSignalWeight(ALICE, 3);
         assertEq(bribe.earned(ALICE, address(reward)), 0);
 
         vm.warp(startedAt + WEEK);
@@ -87,6 +87,6 @@ contract BribeFlooringTest is Test {
     function _notify(uint256 amount) private {
         reward.mint(address(this), amount);
         reward.approve(address(bribe), amount);
-        bribe.notifyRewardAmount(address(reward), amount);
+        bribe.notifyReward(address(reward), amount);
     }
 }

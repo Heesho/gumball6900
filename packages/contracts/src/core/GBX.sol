@@ -6,21 +6,16 @@ import { ERC20Permit } from "@openzeppelin/contracts/token/ERC20/extensions/ERC2
 
 import { IMine } from "./interfaces/IMine.sol";
 
-/// @title GUM BALL 6900 Mining, Staking, and Redemption Token
-/// @author Heesho
-/// @notice Transferable token used for liquidity, mining rewards, SignalGBX staking, and Fund redemption.
-/// @dev Creates only the 20 million genesis-liquidity allocation. Deployment may permanently hand mint authority to
-///      one Mine exactly once; no caller can replace that Mine afterward. Burns never reopen or alter mint authority.
-/// @custom:version 1.0.0
+/// @title GumBall6900 Mining and Redemption Token
+/// @notice Transferable token issued through mining and used for SignalGBX signaling and Fund redemption.
+/// @dev Starts with zero supply. Deployment permanently hands mint authority to one Mine exactly once; no caller can
+///      mint before that handoff or replace the Mine afterward. Burns never reopen or alter mint authority.
 contract GBX is ERC20, ERC20Permit {
-    /// @notice GBX created once for the canonical genesis-liquidity position.
-    uint256 public constant GENESIS_LIQUIDITY_ALLOCATION = 20_000_000 ether;
-
     /// @notice Current mint authority; permanently becomes the canonical Mine after setup.
     address public minter;
     /// @notice Whether the one-time Mine handoff has permanently completed.
     bool public minterLocked;
-    /// @notice Cumulative GBX created, including the genesis allocation.
+    /// @notice Cumulative GBX created by Mine.
     uint256 public lifetimeMinted;
     /// @notice Cumulative GBX permanently destroyed.
     uint256 public lifetimeBurned;
@@ -38,19 +33,11 @@ contract GBX is ERC20, ERC20Permit {
     error ZeroAddress();
     error ZeroAmount();
 
-    /// @notice Creates the genesis-liquidity allocation and temporary deployment-time mint authority.
-    constructor(address genesisLiquidityRecipient, address initialMinter)
-        ERC20("GUM BALL 6900", "GBX")
-        ERC20Permit("GUM BALL 6900")
-    {
-        if (genesisLiquidityRecipient == address(0) || initialMinter == address(0)) {
-            revert ZeroAddress();
-        }
+    /// @notice Creates GBX with zero supply and temporary deployment-time mint authority.
+    constructor(address initialMinter) ERC20("GumBall6900", "GBX") ERC20Permit("GumBall6900") {
+        if (initialMinter == address(0)) revert ZeroAddress();
 
         minter = initialMinter;
-        lifetimeMinted = GENESIS_LIQUIDITY_ALLOCATION;
-        _mint(genesisLiquidityRecipient, GENESIS_LIQUIDITY_ALLOCATION);
-        emit Minted(genesisLiquidityRecipient, GENESIS_LIQUIDITY_ALLOCATION);
     }
 
     /// @notice Permanently hands mint authority to the canonical Mine after reciprocal GBX identity validation.

@@ -96,11 +96,6 @@ contract FundTest is ProtocolFixture {
         _deployProtocol();
         _mintTestGBX(ALICE, 300 ether);
         _mintTestGBX(BOB, 100 ether);
-
-        // Isolate Fund arithmetic from the genesis allocation while dedicated Mine tests cover pending emissions.
-        uint256 genesisBalance = gbx.balanceOf(GENESIS);
-        vm.prank(GENESIS);
-        gbx.burn(genesisBalance);
         assertEq(gbx.totalSupply(), 400 ether);
     }
 
@@ -136,7 +131,7 @@ contract FundTest is ProtocolFixture {
         fund.burnGBX(40 ether);
 
         assertEq(gbx.totalSupply(), supplyBefore - 40 ether);
-        assertEq(fund.pendingGBX(), 0);
+        assertEq(gbx.balanceOf(address(fund)), 0);
     }
 
     function test_BurnGBXCannotExceedTheFundBalance() external {
@@ -260,7 +255,7 @@ contract FundTest is ProtocolFixture {
     }
 
     function test_RedeemRequiresAFinalizedReciprocalMineIdentity() external {
-        GBX unboundGBX = new GBX(ALICE, address(this));
+        GBX unboundGBX = new GBX(address(this));
         Fund unboundFund = new Fund(unboundGBX);
         target.mint(address(unboundFund), 1 ether);
 

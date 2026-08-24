@@ -1,11 +1,12 @@
 # ADR 0033: Fixed Mine slots and constant-time pending emission
 
-- Status: accepted for development; not approved for deployment or user funds
+- Status: accepted for development; its genesis-offset supply statement is superseded by ADR 0050; not approved for
+  deployment or user funds
 - Date: 2026-08-18
 - Supersedes: ADR 0024's capacity, checkpoint, emission-settlement, redemption-denominator, and Mine-administration decisions
 - Partially superseded by: ADR 0041 replaces the cumulative-mining halving rule with a deployment-time schedule; ADR
   0042 replaces ADR 0041's provisional period and initial rate; ADR 0043 replaces the tail rate; ADR 0044 replaces
-  Mine's synchronous downstream revenue-routing behavior
+  Mine's synchronous downstream revenue-routing behavior; ADR 0050 removes the genesis supply offset
 
 ## Context
 
@@ -62,7 +63,7 @@ change any mining timestamp.
 
 - `aggregateTps == sum(slots[i].tps for i in 0..15)`.
 - `pendingEmission() == sum(pendingEmission(i) for i in 0..15)`.
-- In the absence of burns, `GBX.totalSupply == genesis allocation + totalMined`.
+- In the absence of burns, `GBX.totalSupply == totalMined`; ADR 0050 removes the historical genesis allocation.
 - `totalMined + pendingEmission()` changes only by exact elapsed aggregate emission.
 - Settling one slot moves its accrual from pending to minted without changing their sum.
 - Pending emission and claim timing do not influence the prospective global rate.

@@ -26,16 +26,8 @@ const variables = {
   ROBINHOOD_TESTNET_FORK_BLOCK_HASH: evidence.blockHash,
   ROBINHOOD_TESTNET_OBSERVED_AT_UNIX: String(Math.floor(Date.parse(evidence.observedAt) / 1_000)),
   ROBINHOOD_TESTNET_PARENT_BLOCK_HASH: evidence.parentBlockHash,
-  ROBINHOOD_TESTNET_PERMIT2_ADDRESS: evidence.dependencies.permit2.address,
-  ROBINHOOD_TESTNET_PERMIT2_CODE_HASH: evidence.dependencies.permit2.runtimeBytecodeHash,
-  ROBINHOOD_TESTNET_POOL_MANAGER_ADDRESS: evidence.dependencies.poolManager.address,
-  ROBINHOOD_TESTNET_POOL_MANAGER_CODE_HASH: evidence.dependencies.poolManager.runtimeBytecodeHash,
-  ROBINHOOD_TESTNET_POSITION_MANAGER_ADDRESS: evidence.dependencies.positionManager.address,
-  ROBINHOOD_TESTNET_POSITION_MANAGER_CODE_HASH: evidence.dependencies.positionManager.runtimeBytecodeHash,
   ROBINHOOD_TESTNET_USDG_ADDRESS: evidence.dependencies.usdG.address,
   ROBINHOOD_TESTNET_USDG_CODE_HASH: evidence.dependencies.usdG.runtimeBytecodeHash,
-  ROBINHOOD_TESTNET_WETH_ADDRESS: evidence.dependencies.weth.address,
-  ROBINHOOD_TESTNET_WETH_CODE_HASH: evidence.dependencies.weth.runtimeBytecodeHash,
 } as const;
 
 await appendFile(

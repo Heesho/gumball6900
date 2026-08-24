@@ -1,5 +1,5 @@
 import { dataSource } from '@graphprotocol/graph-ts';
-import { RewardsDistributed } from '../generated/templates/BribeRouterTemplate/BribeRouter';
+import { RewardRouted } from '../generated/templates/BribeRouterTemplate/BribeRouter';
 import { Strategy } from '../generated/schema';
 import { recordEvent } from './entities';
 
@@ -9,14 +9,14 @@ function strategy(): Strategy {
   return entity!;
 }
 
-export function handleRouterRewardsDistributed(event: RewardsDistributed): void {
+export function handleRouterRewardRouted(event: RewardRouted): void {
   const entity = strategy();
-  entity.routerRewardsDistributedRaw = entity.routerRewardsDistributedRaw.plus(event.params.amount);
+  entity.routerRewardsRoutedRaw = entity.routerRewardsRoutedRaw.plus(event.params.amount);
   entity.lastBlockNumber = event.block.number;
   entity.lastTimestamp = event.block.timestamp;
   entity.save();
 
-  const record = recordEvent(event, 'BRIBE_ROUTER_REWARDS_DISTRIBUTED');
+  const record = recordEvent(event, 'BRIBE_ROUTER_REWARD_ROUTED');
   record.addresses = [event.params.bribe, event.params.rewardToken];
   record.values = [event.params.amount];
   record.save();

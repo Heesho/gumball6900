@@ -1,7 +1,7 @@
 # ADR 0031: Mandatory signal-backed SignalGBX
 
-- Status: accepted and implemented in the development tree; not independently audited or deployed; not approved for
-  user funds
+- Status: accepted and implemented in the development tree; its canonical-GBX balance-delta checks are superseded by
+  ADR 0049; not independently audited or deployed; not approved for user funds
 - Date: 2026-08-16
 - Supersedes:
   - ADR 0030's idle SignalGBX, standalone staking, standalone unstaking, redundant combined workflows, and
@@ -10,6 +10,10 @@
 - Preserves: ADR 0030's non-transferable ERC20Votes token, immediate scalar signal changes, and absence of a lock,
   pause, rescue, migration, or core upgrade path. ADR 0034 later supersedes its ProtocolGovernor and Timelock
   dependencies.
+
+[ADR 0049](0049-trust-canonical-token-transfers.md) later removes the sender/receiver balance-delta verification from
+SignalGBX's canonical GBX transfers while preserving every one-for-one nominal amount and atomic transition below.
+The decision body records the ADR-0031 state historically where it describes an "exact" GBX transfer.
 
 ## Context
 

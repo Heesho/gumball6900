@@ -1,0 +1,9 @@
+[**GUM BALL 6900 TypeScript SDK**](../README.md)
+
+---
+
+[GUM BALL 6900 TypeScript SDK](../README.md) / MINE_MIN_INITIAL_PRICE
+
+# Variable: MINE_MIN_INITIAL_PRICE
+
+> `const` **MINE_MIN_INITIAL_PRICE**: `1000000n` = `1_000_000n`

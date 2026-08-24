@@ -3,15 +3,7 @@
   "chainId": 4663,
   "hashes": {
     "USDG": "0x864cc9ad53b338b82da1f7cab85ab0b3d5c8861acb422b6fec63cf36234f36a6",
-    "WETH": "0x5706be52f64875fee65a2cec0d80e47a23d8793cbe85d214b48445e2d05f5353",
-    "uniswapV4.permit2": "0x5208783f52488f7d3493e5e38311ab707c1d75457fe472a19b0b4d57d66a7fca",
-    "uniswapV4.poolManager": "0xbd3881180b547f5fe817545743cfb4343e96b1bc6640dcd70c106b0066e95626",
-    "uniswapV4.positionDescriptor": "0x09d3b199609b46e8921e47c5d0d98ae083e70d2d3b63a6099dc7e947b2f58b20",
-    "uniswapV4.positionManager": "0xc873e135dc9aaec88489cfbad146b4cb49d6a32e0d80326377784b7ba17670b2",
-    "uniswapV4.quoter": "0xd707b1da8cb165e5ea35a3b4450d971eb562ec171e23492aa117036b78a868f6",
-    "uniswapV4.reservesLens": "0x157a3174cbad65b8ff57b8fbf94253b58be07398593d7d677e4fd6051e16ca91",
-    "uniswapV4.stateView": "0x7d9c591e0956fd89d98feb4ffcfe8bf1f7a62bd485edd979fa21d104b49878a6",
-    "uniswapV4.universalRouter": "0x2ce6aaaf9f4151f5e1cbf774668772f17f532ae11b15e9284fd0a072a8b0fbde"
+    "WETH": "0x5706be52f64875fee65a2cec0d80e47a23d8793cbe85d214b48445e2d05f5353"
   },
   "observedAt": "2026-08-01T13:40:00Z",
   "schemaVersion": 1,

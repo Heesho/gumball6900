@@ -16,8 +16,7 @@ import {
 } from '@gumball-6900/sdk';
 
 type StringRecord = Record<string, unknown>;
-const WAD = 10n ** 18n;
-const GENESIS_LP_GBX = 20_000_000n * WAD;
+const INITIAL_SUPPLY = 0n;
 
 export interface ReferenceScenarios extends StringRecord {
   schemaVersion: string;
@@ -115,7 +114,7 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
       nextGlobalTps: decimal(nextGlobalTps),
       nextSlotTps: decimal(nextGlobalTps / 16n),
       synchronizedMiningEmission: decimal(synchronizedEmission),
-      synchronizedGrossSupply: decimal(GENESIS_LP_GBX + synchronizedEmission),
+      synchronizedGrossSupply: decimal(INITIAL_SUPPLY + synchronizedEmission),
     };
   });
 
@@ -208,7 +207,7 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
     usdGDecimals: scenarios.usdGDecimals,
     targetDecimals: scenarios.targetDecimals,
     infiniteSupply: true,
-    genesisLiquidityAllocation: GENESIS_LP_GBX.toString(),
+    initialSupply: INITIAL_SUPPLY.toString(),
     miningQuotes,
     auctionQuotes,
     rewardQuotes,

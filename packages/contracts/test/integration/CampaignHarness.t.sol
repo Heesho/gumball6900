@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-import {Test} from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 
-import {ProtocolStateMachineCampaign} from "../../audit/harness/ProtocolStateMachineCampaign.sol";
-import {Strategy} from "../../src/core/Strategy.sol";
+import { ProtocolStateMachineCampaign } from "../../audit/harness/ProtocolStateMachineCampaign.sol";
+import { Bribe } from "../../src/core/Bribe.sol";
+import { Strategy } from "../../src/core/Strategy.sol";
 
 /// @title CampaignHarnessTest
 /// @notice Verifies the Echidna and Medusa campaign harness is live rather than dead configuration.
@@ -17,6 +18,17 @@ contract CampaignHarnessTest is Test {
     function setUp() external {
         vm.warp(365 days);
         campaign = new ProtocolStateMachineCampaign();
+
+        // Give every actor mined GBX so signal and GBX-payment actions remain reachable without a premint.
+        for (uint8 i; i < 3; ++i) {
+            campaign.mine(i, i);
+        }
+        vm.warp(block.timestamp + 1 hours);
+        for (uint8 i; i < 3; ++i) {
+            campaign.mine((i + 1) % 3, i);
+        }
+        campaign.donateRevenue(1);
+        vm.warp(block.timestamp + campaign.resonance().REWARD_DURATION());
     }
 
     function test_TheCampaignWiresTheCompleteProtocolGraph() external view {
@@ -28,15 +40,16 @@ contract CampaignHarnessTest is Test {
         assertEq(campaign.resonance().resonanceRouter(), address(campaign.resonanceRouter()));
         assertEq(campaign.bribeFactory().resonance(), address(campaign.resonance()));
         assertEq(campaign.strategyFactory().resonance(), address(campaign.resonance()));
-        assertEq(campaign.genesisSupply(), campaign.gbx().GENESIS_LIQUIDITY_ALLOCATION());
+        assertGt(campaign.gbx().totalSupply(), 0);
+        assertEq(campaign.gbx().lifetimeMinted(), campaign.mineContract().totalMined());
     }
 
-    function test_EveryPropertyHoldsOnTheFreshlyDeployedState() external view {
+    function test_EveryPropertyHoldsOnTheMinedBootstrapState() external view {
         _assertAllProperties();
     }
 
     function test_EveryActionDrivesRealStateAndKeepsEveryPropertyTrue() external {
-        campaign.signalDefault(0, 1_000_000 ether);
+        campaign.signalDefault(0, 1_000 ether);
         _assertAllProperties();
 
         campaign.signalMany(0, 2);
@@ -44,13 +57,13 @@ contract CampaignHarnessTest is Test {
         _assertAllProperties();
 
         campaign.mine(1, 0);
-        assertEq(campaign.mineContract().getSlot(0).miner, address(campaign.actors(1)), "miner must occupy the slot");
+        assertEq(campaign.mineContract().slot(0).miner, address(campaign.actors(1)), "miner must occupy the slot");
         _assertAllProperties();
 
         campaign.donateRevenue(250_000_000);
         vm.warp(block.timestamp + 45 minutes);
         campaign.recordRevenueIndex();
-        assertGt(campaign.resonance().rewardPerToken(), 0, "donated revenue must reach the index");
+        assertGt(campaign.resonance().revenuePerSignal(), 0, "donated revenue must reach the index");
         _assertAllProperties();
 
         campaign.distributeAll();
@@ -58,17 +71,21 @@ contract CampaignHarnessTest is Test {
         _assertAllProperties();
 
         campaign.buy(2, 0);
-        campaign.distributeBribeRewards();
+        campaign.routeBribeRewards();
         _assertAllProperties();
 
         campaign.notifySupplementalReward(0, 0, 604_800);
         _assertAllProperties();
 
         campaign.mine(2, 0);
-        assertGt(campaign.mineContract().claimable(address(campaign.actors(1))), 0, "replacement must accrue a claim");
+        assertGt(
+            campaign.mineContract().claimableMinerPayment(address(campaign.actors(1))),
+            0,
+            "replacement must accrue a claim"
+        );
         _assertAllProperties();
 
-        campaign.claimMiningPayment(1);
+        campaign.claimMinerPayment(1);
         vm.warp(block.timestamp + 1 hours);
         campaign.mine(2, 0);
         assertGt(campaign.gbx().balanceOf(address(campaign.actors(2))), 0, "emission must actually mint");
@@ -93,7 +110,7 @@ contract CampaignHarnessTest is Test {
 
     /// @notice A GBX-priced Strategy sends its Fund share inline and buffers only its Bribe share.
     function test_TheGBXPaymentPathIsReachableFromTheCampaign() external {
-        campaign.signalDefault(0, 1_000_000 ether);
+        campaign.signalDefault(0, 1_000 ether);
         campaign.signalMany(0, 2);
         campaign.donateRevenue(500_000_000);
         vm.warp(block.timestamp + 30 minutes);
@@ -113,7 +130,7 @@ contract CampaignHarnessTest is Test {
         assertEq(campaign.gbx().balanceOf(address(campaign.fund())), fundBefore + fundAmount);
         assertEq(campaign.gbx().balanceOf(router), routerBefore + bribeAmount);
 
-        campaign.distributeBribeRewards();
+        campaign.routeBribeRewards();
         assertEq(campaign.gbx().balanceOf(router), 0);
         assertEq(
             campaign.gbx().balanceOf(campaign.resonance().bribeFor(strategy)),
@@ -140,18 +157,18 @@ contract CampaignHarnessTest is Test {
         assertEq(campaign.strategyCount(), addedIndex + 1);
         address addedStrategy = campaign.strategies(addedIndex);
         address actor = address(campaign.actors(0));
-        assertTrue(campaign.resonance().isStrategyAlive(addedStrategy));
+        assertTrue(campaign.resonance().isStrategyLive(addedStrategy));
 
         uint96 fullSignalSeed = uint96(100 ether - 1);
         campaign.signal(0, uint8(addedIndex), fullSignalSeed);
-        assertEq(campaign.resonance().accountSignals(actor, addedStrategy), 100 ether);
+        assertEq(Bribe(campaign.resonance().bribeFor(addedStrategy)).signalWeightOf(actor), 100 ether);
         _assertAllProperties();
 
         campaign.killStrategy(uint8(addedIndex));
-        assertFalse(campaign.resonance().isStrategyAlive(addedStrategy));
+        assertFalse(campaign.resonance().isStrategyLive(addedStrategy));
 
         campaign.withdrawSignal(0, uint8(addedIndex), fullSignalSeed);
-        assertEq(campaign.resonance().accountSignals(actor, addedStrategy), 0);
+        assertEq(Bribe(campaign.resonance().bribeFor(addedStrategy)).signalWeightOf(actor), 0);
         assertEq(campaign.signalGBX().balanceOf(actor), 0);
         _assertAllProperties();
     }
@@ -234,23 +251,23 @@ contract CampaignHarnessTest is Test {
             uint8 actor = seed % 3;
 
             // Failing actions are exactly what the fuzzer discards, so ignore them and keep exploring.
-            if (seed % 13 == 0) try campaign.signalDefault(actor, uint96(1e18) * (uint96(seed) + 1)) {} catch {}
-            if (seed % 13 == 1) try campaign.signal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) {} catch {}
+            if (seed % 13 == 0) try campaign.signalDefault(actor, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
+            if (seed % 13 == 1) try campaign.signal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
             if (seed % 13 == 2) {
-                try campaign.moveSignal(actor, seed, uint8(uint256(seed) + 1), uint96(1e18) * (uint96(seed) + 1)) {}
-                    catch {}
+                try campaign.moveSignal(actor, seed, uint8(uint256(seed) + 1), uint96(1e18) * (uint96(seed) + 1)) { }
+                    catch { }
             }
-            if (seed % 13 == 3) try campaign.mine(actor, seed) {} catch {}
-            if (seed % 13 == 4) try campaign.donateRevenue(uint64(seed) * 1e6 + 1) {} catch {}
-            if (seed % 13 == 5) try campaign.distributeAll() {} catch {}
-            if (seed % 13 == 6) try campaign.buy(actor, seed) {} catch {}
-            if (seed % 13 == 7) try campaign.withdrawSignalMany(actor, seed) {} catch {}
-            if (seed % 13 == 8) try campaign.claimRewards(actor, seed) {} catch {}
-            if (seed % 13 == 9) try campaign.addStrategy() {} catch {}
-            if (seed % 13 == 10) try campaign.setBribeBps(uint16(seed) * 10) {} catch {}
-            if (seed % 13 == 11) try campaign.distributeBribeRewards() {} catch {}
+            if (seed % 13 == 3) try campaign.mine(actor, seed) { } catch { }
+            if (seed % 13 == 4) try campaign.donateRevenue(uint64(seed) * 1e6 + 1) { } catch { }
+            if (seed % 13 == 5) try campaign.distributeAll() { } catch { }
+            if (seed % 13 == 6) try campaign.buy(actor, seed) { } catch { }
+            if (seed % 13 == 7) try campaign.withdrawSignalMany(actor, seed) { } catch { }
+            if (seed % 13 == 8) try campaign.claimRewards(actor, seed) { } catch { }
+            if (seed % 13 == 9) try campaign.addStrategy() { } catch { }
+            if (seed % 13 == 10) try campaign.setBribeBps(uint16(seed) * 10) { } catch { }
+            if (seed % 13 == 11) try campaign.routeBribeRewards() { } catch { }
             if (seed % 13 == 12) {
-                try campaign.notifySupplementalReward(actor, seed, uint64(seed) * 1e6 + 1) {} catch {}
+                try campaign.notifySupplementalReward(actor, seed, uint64(seed) * 1e6 + 1) { } catch { }
             }
 
             vm.warp(block.timestamp + 1 hours + uint256(seed) * 1 hours);
@@ -261,6 +278,7 @@ contract CampaignHarnessTest is Test {
     function _assertAllProperties() private view {
         assertTrue(campaign.echidna_signalReceiptIsFullyCollateralized(), "signal collateralization");
         assertTrue(campaign.echidna_gbxSupplyReconciles(), "supply reconciliation");
+        assertTrue(campaign.echidna_mineIsTheOnlyLifetimeIssuer(), "Mine-only lifetime issuance");
         assertTrue(campaign.echidna_miningAuthorityRemainsFinal(), "permanent mining authority");
         assertTrue(campaign.echidna_effectiveSupplyIncludesPendingMining(), "effective supply");
         assertTrue(campaign.echidna_strategyWeightsSumToTheGlobalTotal(), "strategy weight sum");
@@ -279,7 +297,6 @@ contract CampaignHarnessTest is Test {
         assertTrue(campaign.echidna_bribeRouterBalancesReconcile(), "Router buffer reconciliation");
         assertTrue(campaign.echidna_bribeBpsPolicyIsBounded(), "bounded global Bribe share");
         assertTrue(campaign.echidna_atLeastOneStrategyRemainsLive(), "final live Strategy");
-        assertTrue(campaign.echidna_routerRetentionIsFullyVisible(), "visible router retention");
         assertTrue(campaign.echidna_auctionPricesStayWithinTheirBounds(), "auction bounds");
         assertTrue(campaign.echidna_gbxPaymentsLeaveStrategy(), "GBX payment leaves Strategy");
         assertTrue(campaign.echidna_miningAccountingStaysBoundedAndSolvent(), "mining accounting");
@@ -289,7 +306,7 @@ contract CampaignHarnessTest is Test {
 
     function _aliveCount() private view returns (uint256 count) {
         for (uint256 i; i < campaign.strategyCount(); ++i) {
-            if (campaign.resonance().isStrategyAlive(campaign.strategies(i))) ++count;
+            if (campaign.resonance().isStrategyLive(campaign.strategies(i))) ++count;
         }
     }
 }

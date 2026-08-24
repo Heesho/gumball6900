@@ -10,15 +10,13 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
+import { IResonance } from "./interfaces/IResonance.sol";
 import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 
 /// @title GumBall6900 Non-Transferable Signal Token
-/// @author Heesho
 /// @notice Non-transferable signal receipt with ticker sGBX, minted one-for-one only while assigning GBX to a Strategy.
 /// @dev Adapted from Liquid Signal Governance. Idle sGBX is unreachable: minting and burning are atomically coupled to
 ///      the matching Resonance and paired-Bribe virtual balance change. Moves compose the same remove and add hooks.
-/// @custom:version 1.1.0
 contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     using SafeERC20 for IERC20;
 
@@ -37,18 +35,13 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     /// @param resonance Bound Resonance address.
     event ResonanceSet(address indexed resonance);
 
-    /// @notice The underlying token did not move by the exact requested amount at both ends of a transfer.
-    /// @param expected Requested underlying amount.
-    /// @param senderDebit Amount removed from the sender.
-    /// @param receiverCredit Amount credited to the receiver.
-    error InexactUnderlyingTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
     /// @notice A candidate Resonance does not point back to this SignalGBX receipt.
     error InvalidResonance(address resonance);
     /// @notice A transfer other than minting or burning was attempted.
     error TransferDisabled();
     /// @notice The one-time Resonance binding has already completed.
     error ResonanceAlreadySet(address resonance);
-    /// @notice Staking was attempted before the immutable Resonance graph was validated.
+    /// @notice A signal operation was attempted before the immutable Resonance graph was validated.
     error ResonanceNotSet();
     /// @notice A signal move named the same Strategy as both source and destination.
     error SameStrategy(address strategy);
@@ -61,8 +54,8 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     /// @param gbx_ GBX token deposited by signalers.
     /// @param initialOwner Deployment-time owner responsible for binding Resonance.
     constructor(IERC20 gbx_, address initialOwner)
-        ERC20("Signal GUM BALL 6900", "sGBX")
-        EIP712("Signal GUM BALL 6900", "1")
+        ERC20("SignalGumBall6900", "sGBX")
+        EIP712("SignalGumBall6900", "1")
         Ownable(initialOwner)
     {
         if (address(gbx_) == address(0) || address(gbx_).code.length == 0) {
@@ -76,16 +69,16 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     /// @param amount Exact GBX deposited, sGBX minted, and signal assigned.
     function signal(address strategy, uint256 amount) external nonReentrant {
         _requireAmount(amount);
-        address configuredResonance = _configuredResonance();
+        IResonance configuredResonance = _configuredResonance();
 
         _depositAndMint(msg.sender, amount);
-        ICoreResonance(configuredResonance).addSignalFor(msg.sender, strategy, amount);
+        configuredResonance.addSignalFor(msg.sender, strategy, amount);
 
         emit Signaled(msg.sender, strategy, amount);
     }
 
     /// @notice Attempts an underlying GBX permit, then performs the same atomic transition as `signal`.
-    /// @dev A pre-consumed permit may fail harmlessly because the exact underlying transfer remains authoritative.
+    /// @dev A pre-consumed permit may fail harmlessly because the underlying transfer remains authoritative.
     /// @param strategy Live Strategy receiving signal.
     /// @param amount Amount of GBX deposited, SignalGBX minted, and signal assigned.
     /// @param deadline Permit expiry timestamp.
@@ -97,14 +90,14 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         nonReentrant
     {
         _requireAmount(amount);
-        address configuredResonance = _configuredResonance();
+        IResonance configuredResonance = _configuredResonance();
 
         // A permit is permissionless to submit and may already have been consumed by an observer. In that case the
         // allowance created by the successful permit is still sufficient for `_depositAndMint`; every other failure
-        // remains harmless because the exact `transferFrom` below is the authorization and custody backstop.
+        // remains harmless because the `transferFrom` below is the authorization and custody backstop.
         try IERC20Permit(address(gbx)).permit(msg.sender, address(this), amount, deadline, v, r, s) { } catch { }
         _depositAndMint(msg.sender, amount);
-        ICoreResonance(configuredResonance).addSignalFor(msg.sender, strategy, amount);
+        configuredResonance.addSignalFor(msg.sender, strategy, amount);
 
         emit Signaled(msg.sender, strategy, amount);
     }
@@ -115,11 +108,11 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     /// @param amount Absolute SignalGBX delta moved.
     function moveSignal(address fromStrategy, address toStrategy, uint256 amount) external nonReentrant {
         _requireAmount(amount);
-        address configuredResonance = _configuredResonance();
+        IResonance configuredResonance = _configuredResonance();
         if (fromStrategy == toStrategy) revert SameStrategy(fromStrategy);
 
-        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
-        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);
+        configuredResonance.removeSignalFor(msg.sender, fromStrategy, amount);
+        configuredResonance.addSignalFor(msg.sender, toStrategy, amount);
     }
 
     /// @notice Atomically removes signal, burns the same sGBX amount, and returns the same amount of GBX.
@@ -127,9 +120,9 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     /// @param amount Amount of signal removed, SignalGBX burned, and GBX returned.
     function withdrawSignal(address strategy, uint256 amount) external nonReentrant {
         _requireAmount(amount);
-        address configuredResonance = _configuredResonance();
+        IResonance configuredResonance = _configuredResonance();
 
-        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, strategy, amount);
+        configuredResonance.removeSignalFor(msg.sender, strategy, amount);
         _burnAndWithdraw(msg.sender, amount);
 
         emit SignalWithdrawn(msg.sender, strategy, amount);
@@ -140,7 +133,8 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     function setResonance(address resonance_) external onlyOwner {
         if (resonance != address(0)) revert ResonanceAlreadySet(resonance);
         if (resonance_ == address(0) || resonance_.code.length == 0) revert ZeroAddress();
-        try IResonanceIdentity(resonance_).signalGBX() returns (address configuredSignalGBX) {
+        IResonanceIdentity resonanceIdentity = IResonanceIdentity(resonance_);
+        try resonanceIdentity.signalGBX() returns (address configuredSignalGBX) {
             if (configuredSignalGBX != address(this)) revert InvalidResonance(resonance_);
         } catch {
             revert InvalidResonance(resonance_);
@@ -151,40 +145,17 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
         emit ResonanceSet(resonance_);
     }
 
-    function _configuredResonance() private view returns (address configuredResonance) {
-        configuredResonance = resonance;
-        if (configuredResonance == address(0)) revert ResonanceNotSet();
-    }
-
-    function _requireAmount(uint256 amount) private pure {
-        if (amount == 0) revert ZeroAmount();
-    }
-
     function _depositAndMint(address account, uint256 amount) private {
-        uint256 senderBalanceBefore = gbx.balanceOf(account);
-        uint256 receiptBalanceBefore = gbx.balanceOf(address(this));
         gbx.safeTransferFrom(account, address(this), amount);
-        uint256 senderDebit = senderBalanceBefore - gbx.balanceOf(account);
-        uint256 receiverCredit = gbx.balanceOf(address(this)) - receiptBalanceBefore;
-        if (senderDebit != amount || receiverCredit != amount) {
-            revert InexactUnderlyingTransfer(amount, senderDebit, receiverCredit);
-        }
         _mint(account, amount);
 
-        // Any stake with no current delegate self-delegates, activating vote checkpoints without a second transaction.
+        // An account with no current delegate self-delegates, activating vote checkpoints without a second transaction.
         if (delegates(account) == address(0)) _delegate(account, account);
     }
 
     function _burnAndWithdraw(address account, uint256 amount) private {
         _burn(account, amount);
-        uint256 receiptBalanceBefore = gbx.balanceOf(address(this));
-        uint256 receiverBalanceBefore = gbx.balanceOf(account);
         gbx.safeTransfer(account, amount);
-        uint256 senderDebit = receiptBalanceBefore - gbx.balanceOf(address(this));
-        uint256 receiverCredit = gbx.balanceOf(account) - receiverBalanceBefore;
-        if (senderDebit != amount || receiverCredit != amount) {
-            revert InexactUnderlyingTransfer(amount, senderDebit, receiverCredit);
-        }
     }
 
     /// @notice Applies receipt and signal-checkpoint accounting for a mint or burn.
@@ -195,5 +166,14 @@ contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable {
     function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Votes) {
         if (from != address(0) && to != address(0)) revert TransferDisabled();
         super._update(from, to, value);
+    }
+
+    function _configuredResonance() private view returns (IResonance configuredResonance) {
+        configuredResonance = IResonance(resonance);
+        if (address(configuredResonance) == address(0)) revert ResonanceNotSet();
+    }
+
+    function _requireAmount(uint256 amount) private pure {
+        if (amount == 0) revert ZeroAmount();
     }
 }

@@ -28,10 +28,8 @@ function percentFromBps(bps) {
 }
 
 export const numbers = {
-  /** GBX.sol GENESIS_LIQUIDITY_ALLOCATION, minted once in the constructor. */
-  genesisLiquidity: grouped(contractConstants.gbx.genesisLiquidityTokens),
-  /** The same figure, abbreviated for the reasons strip. */
-  genesisLiquidityShort: `${contractConstants.gbx.genesisLiquidityTokens / 1_000_000}M`,
+  /** GBX starts at zero supply; Mine is its sole lifetime issuer. */
+  initialSupply: grouped(contractConstants.gbx.initialSupplyTokens),
   /** Mine.sol PREVIOUS_MINER_BPS: the displaced miner's share of a nonempty handoff. */
   minerShare: percentFromBps(contractConstants.mine.previousMinerBps),
   /** The remainder, which Mine deposits into ResonanceRouter for later permissionless routing. */
@@ -50,7 +48,7 @@ export const numbers = {
   maximumBribeRewardShare: percentFromBps(contractConstants.resonance.maximumBribeBps),
   /** Bribe.sol MAX_REWARD_TOKENS, immutable and not governable. */
   maxRewardTokens: contractConstants.bribe.maxRewardTokens,
-  /** Fund and LiquidityPosition inherit no ownership and expose no withdrawal surface. */
+  /** Fund inherits no ownership and exposes no administrative withdrawal surface. */
   fundAdministrators: 0,
 };
 

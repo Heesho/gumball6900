@@ -1,6 +1,6 @@
 # Release checklist
 
-Current description: **ADR 0024/0029/0031/0033-0048 development candidate;
+Current description: **ADR 0024/0029/0031/0033-0050 development candidate;
 external governance unselected and independent review required**. This is not production-ready or
 deployment-authorized.
 
@@ -11,17 +11,19 @@ deployment-authorized.
 - [x] Sixteen slots are fixed at construction and Mine has no administrative surface.
 - [x] Nonempty payments classify 80% to displaced miner and deposit 20% into ResonanceRouter; empty slots deposit 100%.
 - [x] Mine emits `RevenueDeposited` and performs no synchronous `route()` call; permissionless routing has no role,
-      bounty, or liveness guarantee, while LiquidityPosition retains its atomic route attempt.
+      bounty, or liveness guarantee.
+- [x] GBX starts with zero supply, Mine is its sole lifetime issuer after the permanent handoff, and the core contains
+      no liquidity-specific contract; an external USDG-GBX LP token uses the ordinary Strategy path.
 - [x] Fund uses constant-time effective supply, including all pending mining, for the redemption denominator.
-- [x] Current source, focused tests, audit records, and architecture references reconciled through ADR 0048.
-- [ ] Final post-ADR-0048 Foundry, invariant, integration, Hardhat, SDK, simulation, subgraph, frontend, workspace,
+- [x] Current source, focused tests, audit records, and architecture references reconciled through ADR 0050.
+- [ ] Final post-ADR-0050 Foundry, invariant, integration, Hardhat, SDK, simulation, subgraph, frontend, workspace,
       ABI, artifact, lint, typecheck, documentation, and mutation matrix rerun. The recorded complete ADR-0047 matrix
       predates the sixteen-token and composed-move changes.
 - [x] Focused ADR-0048 migration suites pass 104/104, including the sixteen-token bound, composed move, rollback,
       checkpoint ordering, absent Resonance move selector, and maximum-bound gas regressions.
 - [ ] Repository-wide format gate passes. Eleven unchanged baseline landing/lockfile files still fail Prettier; this
       remains open even though the changed files and Solidity formatting pass.
-- [ ] Static findings regenerated and manually dispositioned for the complete ADR-0048 graph.
+- [ ] Static findings regenerated and manually dispositioned for the complete ADR-0050 graph.
 - [ ] Current-tree coverage thresholds recorded for Mine.
 - [x] Focused ADR-0048 mutation campaign killed 47/47 mutants, including the cap regression and composed-move
       omission, same-Strategy, and restored-hook mutations.
@@ -62,13 +64,13 @@ deployment-authorized.
 
 ## Deployment evidence
 
-- [ ] Canonical USDG and Uniswap dependencies approved with runtime code hashes.
+- [ ] Canonical USDG and any selected external LP dependencies approved with runtime code hashes.
 - [ ] Signed manifest verifies chain, bytecode, constructor arguments, fixed Mine constants, `startTime`, deployment
       block timestamp, first boundary, deployment-to-exposure delay, and dependencies.
 - [ ] Pinned post-deployment reads prove `Mine.gbx() == GBX`, `Mine.usdg() == USDG`,
       `Mine.resonanceRouter() == ResonanceRouter`, and `ResonanceRouter.usdg() == USDG` before the permanent GBX minter
       handoff or market exposure.
-- [ ] GBX genesis recipient receives exactly 20M and permanent minter handoff resolves to the deployed Mine.
+- [ ] GBX deploys with zero supply and its permanent minter handoff resolves to the deployed Mine before any issuance.
 - [ ] Reviewed initial Strategies are created and receipt-recorded before external-governance ownership handoff.
 - [ ] Mine starts with exactly sixteen slots and no owner; Resonance ownership resolves to the exact reviewed external
       governance executor.
@@ -78,6 +80,7 @@ deployment-authorized.
 - [ ] Ownership-transfer receipts prove the temporary Resonance setup owner retains no authority.
 - [ ] One-time SignalGBX/factory/ResonanceRouter bindings are verified; receipts prove the consumed SignalGBX and factory
       ownership shells were renounced and the temporary setup owner retains no authority through them.
-- [ ] PoolKey, price, ticks, NFT ID, genesis principal, rounding residual, and permanent custody verified.
+- [ ] Any initial USDG-GBX LP Strategy is verified as an ordinary external token Strategy with the intended pair and
+      deployment provenance; no liquidity-specific core behavior is assumed.
 - [ ] Frontend remains read-only until the complete manifest passes.
 - [ ] No CI or local validation script broadcasts mainnet transactions.

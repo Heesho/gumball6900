@@ -13,20 +13,18 @@ export const REVIEWED_EXTENSION_ENTITIES = Object.freeze([]);
 
 export const REQUIRED_HANDLERS = Object.freeze([
   'handleBribeBpsSet',
-  'handleBribeRewardAdded',
+  'handleBribeRewardTokenAdded',
   'handleBurned',
-  'handleClaimed',
   'handleDelegateChanged',
   'handleDelegateVotesChanged',
   'handleEmissionSettled',
-  'handleFeesHarvested',
   'handleFundGBXBurned',
   'handleMined',
   'handleMinerPaymentAccrued',
+  'handleMinerPaymentClaimed',
   'handleMinterSet',
   'handleMinted',
   'handleMiningRevenueDeposited',
-  'handlePositionRecorded',
   'handleRedeemed',
   'handleRevenueDistributed',
   'handleRevenueNotified',
@@ -41,7 +39,7 @@ export const REQUIRED_HANDLERS = Object.freeze([
   'handleResonanceRouterSet',
   'handleRewardNotified',
   'handleRewardPaid',
-  'handleRouterRewardsDistributed',
+  'handleRouterRewardRouted',
 ]);
 
 function matches(text, expression, captureIndex = 1) {

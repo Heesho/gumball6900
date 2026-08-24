@@ -4,7 +4,6 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import { robinhoodMainnetAssetManifest, robinhoodTestnetAssetManifest } from '../assets/robinhood.js';
-import { robinhoodMainnetUniswapV4Manifest, robinhoodTestnetUniswapV4Manifest } from '../deployments/uniswap-v4.js';
 import { assertAuthorizedDeploymentTarget, parseDeploymentConfigEnvelope } from '../schemas/deployment-config.js';
 import { wrappedBtcBridgeDependencyFixture } from './fixtures/wrapped-btc-bridge-dependency.js';
 
@@ -227,9 +226,8 @@ describe('deployment config target binding', () => {
 });
 
 describe('provisional Robinhood testnet dependencies', () => {
-  it('records official testnet USDG, WETH, and Permit2 without treating partial discovery as authorization', () => {
+  it('records official testnet USDG and WETH without treating discovery as authorization', () => {
     expect(robinhoodMainnetAssetManifest.specificationAsOf).toBe('2026-08-02');
-    expect(robinhoodMainnetUniswapV4Manifest.specificationAsOf).toBe('2026-08-01');
     expect(robinhoodTestnetAssetManifest.status).toBe('provisional');
     expect(robinhoodTestnetAssetManifest.specificationAsOf).toBe('2026-08-02');
     expect(robinhoodTestnetAssetManifest.canonicalTokens).toEqual([
@@ -248,11 +246,6 @@ describe('provisional Robinhood testnet dependencies', () => {
         role: 'quote-token',
       },
     ]);
-    expect(robinhoodTestnetUniswapV4Manifest.status).toBe('unresolved');
-    expect(robinhoodTestnetUniswapV4Manifest.specificationAsOf).toBe('2026-08-02');
-    expect(robinhoodTestnetUniswapV4Manifest.addresses).toEqual({
-      permit2: '0x000000000022D473030F116dDEE9F6B43aC78BA3',
-    });
   });
 
   it('keeps the exact-block mainnet wrapped-BTC candidate provisional and never carries it into testnet', () => {

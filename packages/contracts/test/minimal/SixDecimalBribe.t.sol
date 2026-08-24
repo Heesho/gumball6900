@@ -44,7 +44,7 @@ contract SixDecimalBribeTest is Test {
         assertEq(reward.balanceOf(ALICE), 362_880);
         assertEq(reward.balanceOf(BOB), 241_920);
         assertEq(reward.balanceOf(address(bribe)), 395_200);
-        assertGt(bribe.rewardPerToken(address(reward)), 0);
+        assertGt(bribe.rewardPerSignal(address(reward)), 0);
     }
 
     function test_DivisibleSixDecimalStreamDistributesProportionally() external {
@@ -59,12 +59,12 @@ contract SixDecimalBribeTest is Test {
     }
 
     function test_LowDecimalSignalEntryCheckpointsThePriorWeight() external {
-        bribe.deposit(ALICE_SIGNAL, ALICE);
+        bribe.addSignalWeight(ALICE, ALICE_SIGNAL);
         uint256 amount = 10 * WEEK;
         _notify(amount);
 
         vm.warp(block.timestamp + 1 days);
-        bribe.deposit(BOB_SIGNAL, BOB);
+        bribe.addSignalWeight(BOB, BOB_SIGNAL);
         assertEq(bribe.earned(ALICE, address(reward)), 10 * 1 days);
         assertEq(bribe.earned(BOB, address(reward)), 0);
 
@@ -83,8 +83,8 @@ contract SixDecimalBribeTest is Test {
         uint256 bobSignal = bound(bobSignalSeed, 1, 5_000_000) * 1 ether;
         uint256 amount = bound(amountSeed, WEEK, 20_000_000);
 
-        bribe.deposit(aliceSignal, ALICE);
-        bribe.deposit(bobSignal, BOB);
+        bribe.addSignalWeight(ALICE, aliceSignal);
+        bribe.addSignalWeight(BOB, bobSignal);
         _notify(amount);
         vm.warp(block.timestamp + WEEK);
 
@@ -104,14 +104,14 @@ contract SixDecimalBribeTest is Test {
     }
 
     function _depositTwoSignalers() private {
-        bribe.deposit(ALICE_SIGNAL, ALICE);
-        bribe.deposit(BOB_SIGNAL, BOB);
-        assertEq(bribe.totalSupply(), TOTAL_SIGNAL);
+        bribe.addSignalWeight(ALICE, ALICE_SIGNAL);
+        bribe.addSignalWeight(BOB, BOB_SIGNAL);
+        assertEq(bribe.totalSignalWeight(), TOTAL_SIGNAL);
     }
 
     function _notify(uint256 amount) private {
         reward.mint(address(this), amount);
         reward.approve(address(bribe), amount);
-        bribe.notifyRewardAmount(address(reward), amount);
+        bribe.notifyReward(address(reward), amount);
     }
 }

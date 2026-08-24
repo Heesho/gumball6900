@@ -715,9 +715,9 @@
       <p class="eyebrow">How it works, end to end</p>
       <h2>One loop. Money in, aimed by holders, out as assets you can claim.</h2>
       <div class="figure">
-        <svg viewBox="0 0 1000 420" role="img" aria-label="Revenue enters from mining and liquidity fees, holders aim it, an auction converts it to assets, the Fund receives the 80-to-100-percent complement of a bounded 0-to-20-percent signaler share, and holders burn to redeem">
+        <svg viewBox="0 0 1000 420" role="img" aria-label="Revenue enters from mining, holders aim it, an auction can acquire an external UniV2 LP token as an ordinary Strategy asset, the Fund receives the 80-to-100-percent complement of a bounded 0-to-20-percent signaler share, and holders burn to redeem">
           <g font-family="Archivo" font-size="11" font-weight="700" letter-spacing="1.5" fill="#6C6C77">
-            <text x="0" y="14">MONEY IN</text>
+            <text x="0" y="14">REVENUE / ASSET</text>
             <text x="500" y="14" text-anchor="middle">WHAT IT BUYS</text>
             <text x="1000" y="14" text-anchor="end">WHAT BACKS YOU</text>
           </g>
@@ -727,8 +727,8 @@
             <text x="98" y="88" font-size="12" fill="#5C5C66">always for sale</text>
 
             <rect x="0" y="140" width="196" height="72" rx="8" fill="#FFFFFF"></rect>
-            <text x="98" y="172" font-size="15" font-weight="700" fill="#0C0C0C">Liquidity fees</text>
-            <text x="98" y="192" font-size="12" fill="#5C5C66">anyone can collect</text>
+            <text x="98" y="172" font-size="15" font-weight="700" fill="#0C0C0C">External UniV2 LP</text>
+            <text x="98" y="192" font-size="12" fill="#5C5C66">ordinary Strategy target</text>
 
             <rect x="252" y="82" width="200" height="88" rx="8" fill="#1B1B1F" stroke="#26262B"></rect>
             <text x="352" y="118" font-size="15" font-weight="700" fill="#FFFFFF">Resonance</text>
@@ -755,7 +755,7 @@
           </g>
           <g fill="none" stroke="#4A4A54" stroke-width="1.7" marker-end="url(#ah)">
             <path d="M 196 72 L 252 106"></path>
-            <path d="M 196 176 L 252 146"></path>
+            <path d="M 196 176 C 324 216, 442 206, 504 150"></path>
             <path d="M 452 126 L 504 126"></path>
             <path d="M 196 336 L 252 336"></path>
           </g>
@@ -767,7 +767,7 @@
           </g>
           <g font-family="Archivo" font-size="11" font-weight="700" letter-spacing="0.9" text-anchor="middle">
             <text x="228" y="62" fill="#6C6C77">20%*</text>
-            <text x="228" y="200" fill="#6C6C77">USDG</text>
+            <text x="354" y="204" fill="#6C6C77">LP TOKEN</text>
             <text x="732" y="72" fill="#F92B92">80&ndash;100%</text>
             <text x="732" y="178" fill="#F92B92">0&ndash;20%</text>
             <text x="400" y="244" fill="#6C6C77">YOU AIM IT</text>
@@ -781,7 +781,8 @@
         starts: <strong>miners pay USDG for slots</strong>. Mine deposits 20% of a replacement into ResonanceRouter,
         or 100% on first occupation; a separate permissionless call routes later, with no keeper role, bounty, or
         guaranteed caller. The Bribe share is 10% by default, may be set globally from 0% through 20%, and Fund
-        receives the complement.
+        receives the complement. A reviewed external UniV2 USDG&ndash;GBX LP token can be registered as an ordinary
+        Strategy target; the core does not create, custody, price, or guarantee that liquidity.
       </p>
     </div>
     <span class="slideno">04</span>
@@ -802,15 +803,14 @@
         </div>
       </div>
       <p class="lede" style="margin-top:34px">
-        <strong>GBX cannot be created on a whim.</strong> It exists exactly two ways: a single 20,000,000 token
-        allocation at deployment that goes straight into permanently locked market liquidity, and
-        continuous issuance to miners after that. There is no team allocation, no presale, no treasury
-        mint, and no second issuer &mdash; ever.
+        <strong>GBX cannot be created on a whim.</strong> Supply starts at zero and GBX is issued only to miners.
+        There is no team allocation, presale, treasury mint, genesis-liquidity allocation, or second issuer
+        &mdash; ever.
       </p>
       <div class="stats">
         <div class="stat">
-          <div class="stat__value num">20,000,000</div>
-          <div class="stat__label">Created once at deployment, locked into market liquidity and never withdrawable</div>
+          <div class="stat__value num">0</div>
+          <div class="stat__label">GBX in existence at deployment; all supply begins with mining</div>
         </div>
         <div class="stat">
           <div class="stat__value num">1</div>
@@ -1194,8 +1194,8 @@
     var MINER_BPS = 8000;        // Mine.PREVIOUS_MINER_BPS
     var BPS = 10000;
     var MULT = 2.0;              // Mine.PRICE_MULTIPLIER
-    var MIN_PRICE = 1;           // 1 displayed USDG = Mine.MINIMUM_INITIAL_PRICE's 1e6 raw units
-    var STREAM = 7 * 86400;      // Resonance.DURATION
+    var MIN_PRICE = 1;           // 1 displayed USDG = Mine.MIN_INITIAL_PRICE's 1e6 raw units
+    var STREAM = 7 * 86400;      // Resonance.REWARD_DURATION
     var BRIBE_BPS = 1000;        // Resonance.bribeBps default
 
     // Exact development-contract emission curve. Sixty-nine days is 5,961,600 seconds.

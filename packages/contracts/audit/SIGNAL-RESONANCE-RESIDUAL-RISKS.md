@@ -36,21 +36,22 @@ campaign results remain historical. Focused ADR-0048 suites pass 104/104 and its
 8. Forge coverage emits known source-map anchor warnings. The run completed and the parsed LCOV policy passed; those
    warnings prevent interpreting the percentages as a formal reachability proof.
 9. Reward and payment tokens admitted by the Resonance owner are externally implemented. Strategy, Resonance, Bribe,
-   and their Routers assume standard, non-rebasing ERC-20 behavior and use `SafeERC20` without exact balance-delta
+   their Routers, Mine, and SignalGBX assume standard, non-rebasing ERC-20 behavior and use `SafeERC20` without exact balance-delta
    verification. Fee, surcharge, rebasing, shared-ledger, callback, or sticky-allowance behavior may revert, underfund
-   accounting, consume surplus, or make that market unusable. Mine, SignalGBX, Fund redemption, and LiquidityPosition
-   retain their local custody-critical checks.
+   accounting, consume surplus, or make that market unusable. Fund redemption retains local exact payout and basket
+   checks because its selected tokens are arbitrary.
 10. SignalGBX historical voting power survives movement or withdrawal after a checkpoint. No local Governor now bounds
     that property: proposal snapshots, delay, period, threshold, quorum, execution scope, and cancellation are all
     unselected external-integration decisions. Voting-power rental risk must be reviewed against the exact system.
 11. No exact external-governance release, permission/admin graph, execution policy, ownership handoff, mainnet fork,
     deployment receipt, legal clearance, signed manifest, or independent review was produced. The tree is suitable
     for independent review, not release authorization.
-12. Mine revenue routing is intentionally asynchronous after exact Router deposit. `route()` is permissionless but has
+12. Mine revenue routing is intentionally asynchronous after the nominal Router deposit requested through `SafeERC20`.
+    `route()` is permissionless but has
     no designated caller or bounty, so qualifying USDG may wait indefinitely and the eventual caller can influence
-    notification timing. A balance below `DURATION` raw units remains buffered until another deposit even after the
-    active stream finishes. Optional frontend or cron automation is periphery, not a protocol liveness guarantee;
-    LiquidityPosition remains atomically coupled to its own route attempt.
+    notification timing. A balance below `REWARD_DURATION` raw units remains buffered until another deposit even
+    after the active stream finishes. Optional frontend or cron automation is periphery, not a protocol liveness
+    guarantee.
 13. The Resonance owner may set the global prospective automatic-Bribe share anywhere from 0% through 20%. The change
     cannot reprice an earlier purchase, Fund balance, buffered Bribe share, active stream, or claim. Each purchase
     floors independently with no split carry. A 0% rate does not block signal operations, but governance can

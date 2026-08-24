@@ -1,47 +1,48 @@
 # Internal security finding register
 
 Date: 2026-08-16. Governance, Bribe-cap, payment-share, Bribe-precision, Mine-halving, Mine-routing, Mine dependency,
-and reward/settlement dispositions reconciled 2026-08-23 through ADR 0048.
+reward/settlement, canonical-transfer, and zero-premint dispositions reconciled 2026-08-24 through ADR 0050.
 
-Status: ADRs 0031 and 0033-0048 form an uncommitted development candidate. The focused ADR-0048 migration suites pass
+Status: ADRs 0031 and 0033-0050 form an uncommitted development candidate. The focused ADR-0048 migration suites pass
 104/104 and cover the sixteen-token bound, composed remove-then-add moves, rollback, checkpoint ordering, and removed
 Resonance selector. Maximum measured gas is 1,890,938 for a composed move with sixteen active streams on both Bribes;
 the complete measurements are recorded below. The revised focused mutation campaign kills 47/47 mutants. The complete
 deterministic, integration, and workspace matrix recorded for ADR 0047 predates these changes and requires a
-post-ADR-0048 rerun. Native external-fuzzer and static-analyzer records remain older historical evidence. The
+post-ADR-0050 rerun because the canonical-transfer and issuance graph changed afterward. Native external-fuzzer and
+static-analyzer records remain older historical evidence. The
 candidate has no pinned review commit and has not received an independent audit, compatible symbolic analysis,
 external-governance integration review, or release review required for deployment. The older campaign-specific ledger
 in `SIGNAL-RESONANCE-FINDINGS.md` is explicitly a pre-ADR-0047 historical record.
 
 ## Current dispositions
 
-| ID   | Severity | Status                                                        | Summary                                                                                                                                       |
-| ---- | -------- | ------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| A-02 | High     | Accepted by ADR 0029 and simplified by ADR 0047               | Resonance retains rate/index/account floors, zero-signal emission, and direct-donation USDG as unallocated surplus.                           |
-| A-03 | High     | Superseded by ADR 0047                                        | Exact carry, queue/pause, and selected batches were removed; Bribe uses Synthetix floors plus all-token and scalar claims.                    |
-| A-04 | High     | Superseded by ADR 0047                                        | The former deferred Fund-liability mechanism was removed; each Strategy purchase now transfers its Fund share directly and atomically.        |
-| A-06 | Medium   | Resolved by ADR 0022                                          | Liquidity fee harvesting preserves fixed principal and fixed destinations.                                                                    |
-| A-08 | Medium   | Liveness resolved; bound raised by ADR 0048                   | Bribe work remains capped at sixteen reward tokens; the higher fixed maximum increases worst-case gas without making loops unbounded.         |
-| A-09 | Medium   | Former remedy superseded; flooring accepted by ADR 0047       | Resonance and Bribe use ordinary index/account floors; rounded value remains surplus and is not carried across later weights.                 |
-| A-10 | High     | Superseded design; current mechanism mitigates the same class | Fund includes constant-time pending Mine accrual in every redemption denominator snapshot.                                                    |
-| A-11 | High     | ADR 0029 retained; schedule simplified by ADR 0047            | Checkpoint-first signals prevent same-transaction capture; qualifying top-ups reset behind a Router threshold.                                |
-| A-12 | Medium   | Resolved in development by ADR 0044                           | Mine ends after exact Router deposit; downstream routing failure cannot revert a completed paid handoff.                                      |
-| BR-1 | Medium   | Accepted by ADR 0028; terminal mechanics simplified by 0047   | A killed Strategy's Bribe remains a closed pool; streams continue through zero supply and can leave permanently unclaimable surplus.          |
-| BR-2 | High     | Fixed by ADR 0035 and retained by ADR 0047                    | A per-token lifetime notification cap prevents a reset current balance from reopening cumulative-index overflow capacity.                     |
-| BR-3 | High     | Fixed locally by ADR 0037 and simplified by ADR 0047          | A `1e36` Bribe index keeps low-decimal rewards useful; ordinary floors remain surplus rather than Fund carry.                                 |
-| M-01 | Economic | Accepted by ADR 0033 and retained by ADR 0041                 | Fixed-tenure fairness allows aggregate issuance above the current global rate for as long as legacy tenures remain.                           |
-| M-02 | Economic | Accepted by ADR 0024                                          | A miner receives the 80% handoff amount only if a successor pays a nonzero replacement price.                                                 |
-| E-01 | High     | Resolved in development                                       | Fund rejects selected-token transfers that reduce another selected address's snapshotted backing.                                             |
-| E-02 | High     | Mitigated; M-03 release gate remains                          | One-time bindings require reciprocal protocol identities; codehash, parameter, and manifest review remains external.                          |
-| E-03 | Medium   | Resolved in development                                       | Resonance rejects non-transferable SignalGBX as a Strategy payment or Bribe reward token.                                                     |
-| E-04 | Medium   | Superseded by ADR 0047                                        | The former exact-consumed allowance cleanup was replaced by direct Strategy transfers and complete-balance Router notifications.              |
-| E-05 | Low      | Superseded by ADR 0047                                        | The former Bribe-carry event/indexing requirement disappeared with carry classification and Fund reward liabilities.                          |
-| M-03 | High     | Mitigated; open release gate                                  | Binding checks plus post-deployment Mine/Router verification mitigate crossed graphs; wrong dependencies remain unrecoverable after exposure. |
-| M-04 | High     | Open independent-review gate                                  | The provisional halving period, fixed rates, multiplier, and minimum price have not been independently reviewed.                              |
-| G-01 | High     | Token property retained; external-integration review required | Snapshot checkpoints survive sGBX withdrawal; consequences depend on the unselected external governance system.                               |
-| G-02 | Medium   | Superseded by ADR 0034                                        | The removed ProtocolGovernor/Timelock had no public cancellation path after queueing.                                                         |
-| G-03 | High     | Superseded locally; external-integration gate remains         | Local quorum liveness parameters were removed; exact external voting and delegation semantics remain unselected.                              |
-| G-04 | Economic | ADR 0036 retained; settlement simplified by ADR 0047          | Resonance ownership can change the prospective automatic Bribe share globally between 0% and 20%.                                             |
+| ID   | Severity | Status                                                        | Summary                                                                                                                                                                                   |
+| ---- | -------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A-02 | High     | Accepted by ADR 0029 and simplified by ADR 0047               | Resonance retains rate/index/account floors, zero-signal emission, and direct-donation USDG as unallocated surplus.                                                                       |
+| A-03 | High     | Superseded by ADR 0047                                        | Exact carry, queue/pause, and selected batches were removed; Bribe uses Synthetix floors plus all-token and scalar claims.                                                                |
+| A-04 | High     | Superseded by ADR 0047                                        | The former deferred Fund-liability mechanism was removed; each Strategy purchase now transfers its Fund share directly and atomically.                                                    |
+| A-06 | Medium   | Superseded by ADR 0050                                        | The dedicated LiquidityPosition and its fee-harvest path were removed.                                                                                                                    |
+| A-08 | Medium   | Liveness resolved; bound raised by ADR 0048                   | Bribe work remains capped at sixteen reward tokens; the higher fixed maximum increases worst-case gas without making loops unbounded.                                                     |
+| A-09 | Medium   | Former remedy superseded; flooring accepted by ADR 0047       | Resonance and Bribe use ordinary index/account floors; rounded value remains surplus and is not carried across later weights.                                                             |
+| A-10 | High     | Superseded design; current mechanism mitigates the same class | Fund includes constant-time pending Mine accrual in every redemption denominator snapshot.                                                                                                |
+| A-11 | High     | ADR 0029 retained; schedule simplified by ADR 0047            | Checkpoint-first signals prevent same-transaction capture; qualifying top-ups reset behind a Router threshold.                                                                            |
+| A-12 | Medium   | Resolved in development by ADR 0044                           | Mine ends after a successful nominal SafeERC20 transfer request to the Router under the supported standard-USDG model; downstream routing failure cannot revert a completed paid handoff. |
+| BR-1 | Medium   | Accepted by ADR 0028; terminal mechanics simplified by 0047   | A killed Strategy's Bribe remains a closed pool; streams continue through zero supply and can leave permanently unclaimable surplus.                                                      |
+| BR-2 | High     | Fixed by ADR 0035 and retained by ADR 0047                    | A per-token lifetime notification cap prevents a reset current balance from reopening cumulative-index overflow capacity.                                                                 |
+| BR-3 | High     | Fixed locally by ADR 0037 and simplified by ADR 0047          | A `1e36` Bribe index keeps low-decimal rewards useful; ordinary floors remain surplus rather than Fund carry.                                                                             |
+| M-01 | Economic | Accepted by ADR 0033 and retained by ADR 0041                 | Fixed-tenure fairness allows aggregate issuance above the current global rate for as long as legacy tenures remain.                                                                       |
+| M-02 | Economic | Accepted by ADR 0024                                          | A miner receives the 80% handoff amount only if a successor pays a nonzero replacement price.                                                                                             |
+| E-01 | High     | Resolved in development                                       | Fund rejects selected-token transfers that reduce another selected address's snapshotted backing.                                                                                         |
+| E-02 | High     | Mitigated; M-03 release gate remains                          | One-time bindings require reciprocal protocol identities; codehash, parameter, and manifest review remains external.                                                                      |
+| E-03 | Medium   | Resolved in development                                       | Resonance rejects non-transferable SignalGBX as a Strategy payment or Bribe reward token.                                                                                                 |
+| E-04 | Medium   | Superseded by ADR 0047                                        | The former exact-consumed allowance cleanup was replaced by direct Strategy transfers and complete-balance Router notifications.                                                          |
+| E-05 | Low      | Superseded by ADR 0047                                        | The former Bribe-carry event/indexing requirement disappeared with carry classification and Fund reward liabilities.                                                                      |
+| M-03 | High     | Mitigated; open release gate                                  | Binding checks plus post-deployment Mine/Router verification mitigate crossed graphs; wrong dependencies remain unrecoverable after exposure.                                             |
+| M-04 | High     | Open independent-review gate                                  | The provisional halving period, fixed rates, multiplier, and minimum price have not been independently reviewed.                                                                          |
+| G-01 | High     | Token property retained; external-integration review required | Snapshot checkpoints survive sGBX withdrawal; consequences depend on the unselected external governance system.                                                                           |
+| G-02 | Medium   | Superseded by ADR 0034                                        | The removed ProtocolGovernor/Timelock had no public cancellation path after queueing.                                                                                                     |
+| G-03 | High     | Superseded locally; external-integration gate remains         | Local quorum liveness parameters were removed; exact external voting and delegation semantics remain unselected.                                                                          |
+| G-04 | Economic | ADR 0036 retained; settlement simplified by ADR 0047          | Resonance ownership can change the prospective automatic Bribe share globally between 0% and 20%.                                                                                         |
 
 No production-safety conclusion applies to the Mine redesign.
 
@@ -50,7 +51,7 @@ No production-safety conclusion applies to the Mine redesign.
 ADR 0034 removed ProtocolGovernor and the protocol Timelock. SignalGBX deliberately retains non-transferable
 ERC20Votes checkpoints, but the core assigns them no proposal threshold, quorum, voting period, execution delay,
 cancellation rule, or proposal authority. Resonance remains owner-gated for `addStrategy`, `killStrategy`,
-`addBribeReward`, and bounded global `setBribeBps`; its owner can also transfer or renounce ownership. Mine remains
+`addBribeRewardToken`, and bounded global `setBribeBps`; its owner can also transfer or renounce ownership. Mine remains
 ownerless.
 
 SignalGBX snapshots still survive a signal withdrawal. An account may hold or borrow GBX through a checkpoint, signal
@@ -147,12 +148,12 @@ changing weights, and `Strategy.buy` checkpoints released revenue before reading
 between same-transaction operations, so the fill can acquire only inventory that predates that transaction's routed
 payment. Deterministic mid-stream entry and exit regressions independently pin checkpoint ordering.
 
-ADR 0047 simplifies the raw stream to the ordinary Synthetix rule. Resonance's scheduled `left` is
-`remainingSeconds * rewardRate`; a qualifying notification combines that amount with the incoming reward, divides by
-seven days with ordinary flooring, and restarts. ResonanceRouter holds a balance below `max(DURATION, left)` and routes
+ADR 0047 simplifies the raw stream to the ordinary Synthetix rule. Resonance's `remainingRevenue()` is
+`remainingSeconds * revenueRate`; a qualifying notification combines that amount with the incoming revenue, divides by
+seven days with ordinary flooring, and restarts. ResonanceRouter holds a balance below
+`max(REWARD_DURATION, remainingRevenue())` and routes
 its complete qualifying balance only when called. ADR 0044 separately removes Mine's synchronous route attempt, so
-downstream Router or Resonance failure cannot revert an already completed Mine handoff; LiquidityPosition remains
-atomically coupled to its route attempt. Current regressions include
+downstream Router or Resonance failure cannot revert an already completed Mine handoff. Current regressions include
 `test_SubThresholdRevenueWaitsUntilTheRouterBalanceQualifies`,
 `test_RouterBuffersUntilItsBalanceReachesTheActiveAmountLeft`, and
 `test_QualifyingTopUpCheckpointsAndRestartsWithRewardPlusLeft`.
@@ -163,13 +164,13 @@ distributable, signal mutations stop checkpointing, or Strategy stops synchroniz
 
 ## A-12 — Mine handoff coupled to downstream revenue routing
 
-Mine previously called `ResonanceRouter.route()` synchronously after exact-transferring the protocol share. A failure
+Mine previously called `ResonanceRouter.route()` synchronously after requesting the nominal protocol-share transfer. A failure
 inside the Router or Resonance could therefore revert an otherwise valid paid slot handoff, even though Mine's claim
 accounting required only delivery into its immutable staging Router.
 
 ADR 0044 makes that deposit Mine's terminal revenue action and renames the Mine event to `RevenueDeposited`.
 `ResonanceRouter.route()` remains permissionless and separate. A transfer failure into the Router still reverts the
-handoff; any later routing failure is isolated. LiquidityPosition deliberately retains its atomic route attempt.
+handoff; any later routing failure is isolated. ADR 0050 removes the former LiquidityPosition path entirely.
 
 Disposition: resolved in the development candidate and covered by current-tree regression and integration evidence.
 The accepted residual risk is unbounded Router latency if no manual, frontend, volunteer-keeper, or cron caller acts.
@@ -201,7 +202,7 @@ changes.
 ## BR-2 — lifetime cumulative-index overflow after rewards leave custody
 
 Bribe's prior scale guard bounded only its current accounted reward balance. Claims and Fund payments reduced that
-balance and reopened the guard, but they did not reduce the token's monotonic cumulative `rewardPerTokenStored` index.
+balance and reopened the guard, but they did not reduce the token's monotonic cumulative `rewardPerSignalStored` index.
 A freely mintable or unusually high-decimal registered reward could therefore notify an enormous first stream at one
 raw unit of signal supply, let the indexed reward leave Bribe custody, and notify again. A later checkpoint would add
 another precision-scaled increment to an index already near `uint256` maximum and revert on overflow. Signal deposits,
@@ -217,7 +218,7 @@ MAX_LIFETIME_REWARD_AMOUNT = floor((2^256 - 1) / P)
 ```
 
 For lifetime notifications `N`, each admitted raw reward unit contributes at most `P` index units because one raw
-signal unit is the smallest reachable nonzero denominator. Therefore `rewardPerTokenStored <= N * P <= 2^256 - 1`.
+signal unit is the smallest reachable nonzero denominator. Therefore `rewardPerSignalStored <= N * P <= 2^256 - 1`.
 One raw signal unit attains the bound, so this is the largest history-independent cap safe across arbitrary claims,
 ordinary stream restarts, zero-supply time, and signal-supply changes. Claims, Strategy death, and a return to zero
 supply do not reopen capacity; direct donations do not consume it because they are never scheduled or indexed.
@@ -244,7 +245,7 @@ classified old-denominator remainders to Fund, but materially enlarged the state
 
 ADR 0037 raised the index to `1e36`. ADR 0047 then superseded the exact-carry and Fund-classification implementation
 while retaining that precision and its coupled lifetime cap. Current Bribe scheduling first floors
-`notified / DURATION`; index and account divisions then floor independently. Against five million sGBX, a one-token
+`notified / REWARD_DURATION`; index and account divisions then floor independently. Against five million sGBX, a one-token
 six-decimal notification schedules 604,800 raw units and distributes the scheduled units proportionally; the 395,200
 raw rate remainder stays in Bribe as unallocated surplus. There is no sole-signaler special path, pending scaled carry,
 or Fund precision bucket.

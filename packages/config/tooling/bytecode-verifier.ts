@@ -2,7 +2,6 @@ import { getAddress, isAddress, isHex, keccak256, type Address, type Hex } from 
 import { z } from 'zod';
 
 import { robinhoodMainnetAssetManifest } from '../assets/robinhood.js';
-import { robinhoodMainnetUniswapV4Manifest } from '../deployments/uniswap-v4.js';
 import { compareCodeUnits } from './deterministic-json.js';
 import type { EvmJsonRpcClient } from './json-rpc.js';
 
@@ -26,7 +25,7 @@ export type ExpectedBytecodeHashes = z.infer<typeof expectedBytecodeHashesSchema
 export interface BytecodeTarget {
   readonly address: Address;
   readonly key: string;
-  readonly source: 'canonical-token' | 'uniswap-v4';
+  readonly source: 'canonical-token';
 }
 
 const verifiedBytecodeTargetSchema = z
@@ -35,7 +34,7 @@ const verifiedBytecodeTargetSchema = z
     expectedRuntimeBytecodeHash: hashSchema.nullable(),
     key: z.string().min(1),
     runtimeBytecodeHash: hashSchema,
-    source: z.enum(['canonical-token', 'uniswap-v4']),
+    source: z.literal('canonical-token'),
   })
   .strict();
 
@@ -142,12 +141,7 @@ export function canonicalRobinhoodMainnetBytecodeTargets(): readonly BytecodeTar
     key: token.key,
     source: 'canonical-token' as const,
   }));
-  const uniswapTargets = Object.entries(robinhoodMainnetUniswapV4Manifest.addresses).map(([key, address]) => ({
-    address: getAddress(address),
-    key: `uniswapV4.${key}`,
-    source: 'uniswap-v4' as const,
-  }));
-  return [...tokenTargets, ...uniswapTargets].sort((left, right) => compareCodeUnits(left.key, right.key));
+  return tokenTargets.sort((left, right) => compareCodeUnits(left.key, right.key));
 }
 
 export async function verifyCanonicalBytecode(

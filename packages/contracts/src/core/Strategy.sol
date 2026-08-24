@@ -6,19 +6,17 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-import { ICoreResonance } from "./interfaces/ICoreResonance.sol";
+import { IResonance } from "./interfaces/IResonance.sol";
 
 /// @title GumBall6900 Reverse Dutch Strategy
-/// @author Heesho
 /// @notice Reverse Dutch auction that sells accumulated USDG for a configured payment asset.
 /// @dev The auction design is adapted with credit to Euler Fee Flow and Liquid Signal Governance. Price falls linearly
 ///      to zero, then the next auction starts from the previous payment multiplied within immutable bounds.
-/// @custom:version 1.0.0
 contract Strategy is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /// @notice Immutable auction parameters validated at Strategy creation.
-    /// @param initialPrice First epoch's starting canonical-token payment.
+    /// @param initialPrice First epoch's starting payment-token amount.
     /// @param epochDuration Seconds over which the price linearly decays to zero.
     /// @param priceMultiplier Fixed-point multiplier applied to the previous clearing payment.
     /// @param minimumPrice Floor for the next epoch's starting payment, not a fill-time price floor.
@@ -48,7 +46,7 @@ contract Strategy is ReentrancyGuard {
     /// @notice Resonance that supplies the paired BribeRouter.
     address public immutable resonance;
     /// @notice USDG sold by this Strategy.
-    IERC20 public immutable revenueToken;
+    IERC20 public immutable usdg;
     /// @notice Asset required from a buyer.
     IERC20 public immutable paymentToken;
     /// @notice Treasury that receives the non-Bribe share of every auction payment.
@@ -102,14 +100,14 @@ contract Strategy is ReentrancyGuard {
 
     /// @notice Creates one immutable Strategy.
     /// @param resonance_ Resonance that provides the paired BribeRouter.
-    /// @param revenueToken_ USDG token sold by this Strategy.
+    /// @param usdg_ USDG token sold by this Strategy.
     /// @param paymentToken_ Asset buyers pay to fill this Strategy.
     /// @param fund_ Treasury that receives the non-Bribe share of every auction payment.
     /// @param config Immutable auction configuration.
-    constructor(address resonance_, IERC20 revenueToken_, IERC20 paymentToken_, address fund_, Config memory config) {
+    constructor(address resonance_, IERC20 usdg_, IERC20 paymentToken_, address fund_, Config memory config) {
         if (
-            resonance_ == address(0) || address(revenueToken_) == address(0) || address(paymentToken_) == address(0)
-                || fund_ == address(0) || resonance_.code.length == 0 || address(revenueToken_).code.length == 0
+            resonance_ == address(0) || address(usdg_) == address(0) || address(paymentToken_) == address(0)
+                || fund_ == address(0) || resonance_.code.length == 0 || address(usdg_).code.length == 0
                 || address(paymentToken_).code.length == 0 || fund_.code.length == 0
         ) revert ZeroAddress();
         if (config.initialPrice < config.minimumPrice || config.initialPrice > ABSOLUTE_MAXIMUM_PRICE) {
@@ -125,7 +123,7 @@ contract Strategy is ReentrancyGuard {
             revert MinimumPriceOutOfRange(config.minimumPrice);
         }
         resonance = resonance_;
-        revenueToken = revenueToken_;
+        usdg = usdg_;
         paymentToken = paymentToken_;
         fund = fund_;
         epochDuration = config.epochDuration;
@@ -151,11 +149,12 @@ contract Strategy is ReentrancyGuard {
         if (expectedEpochId != epochId) revert EpochIdMismatch(expectedEpochId, epochId);
 
         // Fix the prospective split before either token can invoke a callback, including a self-priced Strategy.
-        uint256 appliedBribeBps = ICoreResonance(resonance).bribeBps();
+        IResonance configuredResonance = IResonance(resonance);
+        uint256 appliedBribeBps = configuredResonance.bribeBps();
 
         // Make the purchase include every USDG unit released to this Strategy through the execution timestamp.
-        ICoreResonance(resonance).distribute(address(this));
-        uint256 revenueAmount = revenueToken.balanceOf(address(this));
+        configuredResonance.distributeRevenue(address(this));
+        uint256 revenueAmount = usdg.balanceOf(address(this));
         if (revenueAmount == 0) revert EmptyRevenue();
 
         paymentAmount = currentPrice();
@@ -163,10 +162,10 @@ contract Strategy is ReentrancyGuard {
 
         if (paymentAmount != 0) {
             paymentToken.safeTransferFrom(msg.sender, address(this), paymentAmount);
-            _settlePayment(paymentAmount, appliedBribeBps);
+            _settlePayment(configuredResonance, paymentAmount, appliedBribeBps);
         }
 
-        revenueToken.safeTransfer(revenueReceiver, revenueAmount);
+        usdg.safeTransfer(revenueReceiver, revenueAmount);
 
         uint256 completedEpoch = epochId;
         initialPrice = _nextInitialPrice(paymentAmount);
@@ -176,31 +175,26 @@ contract Strategy is ReentrancyGuard {
         emit Purchased(msg.sender, revenueReceiver, completedEpoch, revenueAmount, paymentAmount);
     }
 
-    /// @notice Returns USDG currently available for purchase.
-    /// @return amount USDG currently held by this Strategy.
-    function availableRevenue() external view returns (uint256 amount) {
-        return revenueToken.balanceOf(address(this));
-    }
-
     /// @notice Returns the current linearly declining price.
-    /// @return price Payment required to fill the active auction epoch.
-    function currentPrice() public view returns (uint256 price) {
+    /// @return paymentAmount Payment required to fill the active auction epoch.
+    function currentPrice() public view returns (uint256 paymentAmount) {
         uint256 elapsed = block.timestamp - epochStartedAt;
         if (elapsed >= epochDuration) return 0;
         return initialPrice - Math.mulDiv(initialPrice, elapsed, epochDuration);
     }
 
     /// @notice Splits one payment between Fund and the paired BribeRouter at the captured global Bribe share.
+    /// @param configuredResonance Resonance that supplies the paired BribeRouter.
     /// @param paymentAmount Total payment collected from the buyer.
     /// @param appliedBribeBps Prospective global Bribe share captured before payment-token interaction.
-    function _settlePayment(uint256 paymentAmount, uint256 appliedBribeBps) private {
+    function _settlePayment(IResonance configuredResonance, uint256 paymentAmount, uint256 appliedBribeBps) private {
         uint256 bribeAmount = Math.mulDiv(paymentAmount, appliedBribeBps, BPS);
         uint256 fundAmount = paymentAmount - bribeAmount;
 
         if (fundAmount != 0) paymentToken.safeTransfer(fund, fundAmount);
         if (bribeAmount == 0) return;
 
-        address router = ICoreResonance(resonance).bribeRouterFor(address(this));
+        address router = configuredResonance.bribeRouterFor(address(this));
         if (router == address(0)) revert ZeroAddress();
         paymentToken.safeTransfer(router, bribeAmount);
     }

@@ -976,27 +976,6 @@
   },
   {
     "type": "error",
-    "name": "InexactUnderlyingTransfer",
-    "inputs": [
-      {
-        "name": "expected",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "senderDebit",
-        "type": "uint256",
-        "internalType": "uint256"
-      },
-      {
-        "name": "receiverCredit",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ]
-  },
-  {
-    "type": "error",
     "name": "InvalidAccountNonce",
     "inputs": [
       {

@@ -8,13 +8,11 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 import { GBX } from "./GBX.sol";
 
-/// @title GUM BALL 6900 Fixed-Slot Mine
-/// @author Heesho
+/// @title GumBall6900 Fixed-Slot Mine
 /// @notice Distributes GBX through sixteen independently replaceable mining slots priced by reverse Dutch auctions.
 /// @dev Each slot has its own hourly reverse Dutch auction and tenure-locked GBX emission rate. Replacing an occupied
 ///      slot settles its accrued GBX, credits 80% of the USDG price to the displaced miner, and deposits the remainder
 ///      into ResonanceRouter. The first occupation of an empty slot deposits the complete payment into the Router.
-/// @custom:version 1.3.0
 contract Mine is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -38,7 +36,7 @@ contract Mine is ReentrancyGuard {
     /// @notice Multiplier applied to each paid price to start the next auction.
     uint256 public constant PRICE_MULTIPLIER = 2;
     /// @notice Raw USDG floor for every newly started reverse Dutch auction.
-    uint256 public constant MINIMUM_INITIAL_PRICE = 1e6;
+    uint256 public constant MIN_INITIAL_PRICE = 1e6;
     /// @notice Highest raw USDG starting price for a new auction.
     uint256 public constant MAX_INITIAL_PRICE = type(uint192).max;
     /// @notice Initial global GBX tokens-per-second rate.
@@ -67,40 +65,55 @@ contract Mine is ReentrancyGuard {
     /// @notice Cumulative GBX actually minted when individual slots were replaced.
     uint256 public totalMined;
     /// @notice Total USDG currently owed to displaced miners.
-    uint256 public totalClaimable;
+    uint256 public totalClaimableMinerPayments;
 
-    /// @notice Mining-slot state by zero-based slot index.
-    mapping(uint256 index => Slot slot) public slots;
     /// @notice Pull-based USDG replacement proceeds owed to each displaced miner.
-    mapping(address account => uint256 amount) public claimable;
+    mapping(address account => uint256 amount) public claimableMinerPayment;
+    /// @notice Mining-slot state keyed by zero-based slot index.
+    mapping(uint256 slotIndex => Slot slotState) private _slots;
 
-    event Claimed(address indexed account, uint256 amount);
-    event EmissionSettled(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
+    /// @notice Emitted after accumulated USDG replacement proceeds are paid to a miner.
+    event MinerPaymentClaimed(address indexed account, uint256 amount);
+    /// @notice Emitted after one outgoing miner's complete tenure emission is minted.
+    event EmissionSettled(address indexed miner, uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount);
+    /// @notice Emitted after one mining slot changes hands.
     event Mined(
         address indexed payer,
         address indexed miner,
-        uint256 indexed index,
+        uint256 indexed slotIndex,
         uint256 epochId,
         address previousMiner,
-        uint256 price,
-        uint256 initialPrice,
+        uint256 paymentAmount,
+        uint256 nextInitialPrice,
         uint256 tps,
         string message
     );
-    event MinerPaymentAccrued(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
+    /// @notice Emitted after replacement proceeds become claimable by a displaced miner.
+    event MinerPaymentAccrued(
+        address indexed miner, uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount
+    );
     /// @notice Emitted after mining revenue is deposited into ResonanceRouter for later permissionless routing.
-    event RevenueDeposited(uint256 indexed index, uint256 indexed epochId, uint256 amount);
+    event RevenueDeposited(uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount);
 
+    /// @notice The caller-supplied mining deadline has passed.
     error DeadlinePassed(uint256 deadline);
+    /// @notice The caller's expected slot epoch differs from current state.
     error EpochIdMismatch(uint256 expected, uint256 actual);
-    error InexactTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-    error IndexOutOfBounds(uint256 index);
-    error MaxPriceExceeded(uint256 price, uint256 maximumPrice);
+    /// @notice A slot index is outside the immutable sixteen-slot range.
+    error IndexOutOfBounds(uint256 slotIndex);
+    /// @notice The current replacement payment exceeds the caller's slippage ceiling.
+    error MaximumPaymentExceeded(uint256 paymentAmount, uint256 maximumPayment);
+    /// @notice The event-only mining message exceeds the raw-byte limit.
     error MessageTooLong(uint256 length);
+    /// @notice An account has no accumulated replacement payment to claim.
     error NothingToClaim(address account);
+    /// @notice A required deployment or mining address is zero.
     error ZeroAddress();
 
     /// @notice Creates the immutable mining market with sixteen empty slots.
+    /// @param gbx_ GBX token whose sole mint authority will be this Mine.
+    /// @param usdg_ USDG token paid by miners.
+    /// @param resonanceRouter_ Router that receives the protocol share of each payment.
     constructor(GBX gbx_, IERC20 usdg_, address resonanceRouter_) {
         if (
             address(gbx_) == address(0) || address(usdg_) == address(0) || resonanceRouter_ == address(0)
@@ -115,38 +128,47 @@ contract Mine is ReentrancyGuard {
         pendingUpdatedAt = block.timestamp;
 
         for (uint256 i; i < SLOT_COUNT; ++i) {
-            slots[i] = _emptySlot();
+            _slots[i] = _emptySlot();
         }
     }
 
     /// @notice Replaces one slot's miner at its current linearly decaying USDG price.
     /// @dev The optional message is emitted in `Mined` and is never stored in contract state.
+    /// @param miner Account receiving the slot and its later GBX emission.
+    /// @param slotIndex Zero-based slot to replace.
+    /// @param expectedEpochId Expected slot epoch, protecting against an earlier handoff.
+    /// @param deadline Latest timestamp at which the handoff may execute.
+    /// @param maximumPayment Maximum USDG payment accepted by the caller.
+    /// @param message Optional event-only message of at most `MAX_MESSAGE_BYTES` raw bytes.
+    /// @return paymentAmount Actual USDG payment required at execution time.
     function mine(
         address miner,
-        uint256 index,
-        uint256 epochId,
+        uint256 slotIndex,
+        uint256 expectedEpochId,
         uint256 deadline,
-        uint256 maximumPrice,
+        uint256 maximumPayment,
         string calldata message
-    ) external nonReentrant returns (uint256 paid) {
+    ) external nonReentrant returns (uint256 paymentAmount) {
         if (miner == address(0)) revert ZeroAddress();
-        if (index >= SLOT_COUNT) revert IndexOutOfBounds(index);
+        if (slotIndex >= SLOT_COUNT) revert IndexOutOfBounds(slotIndex);
         if (block.timestamp > deadline) revert DeadlinePassed(deadline);
         uint256 messageLength = bytes(message).length;
         if (messageLength > MAX_MESSAGE_BYTES) revert MessageTooLong(messageLength);
-        Slot memory previousSlot = slots[index];
-        if (epochId != previousSlot.epochId) revert EpochIdMismatch(epochId, previousSlot.epochId);
+        Slot memory previousSlot = _slots[slotIndex];
+        if (expectedEpochId != previousSlot.epochId) {
+            revert EpochIdMismatch(expectedEpochId, previousSlot.epochId);
+        }
 
-        paid = _price(previousSlot);
-        if (paid > maximumPrice) revert MaxPriceExceeded(paid, maximumPrice);
+        paymentAmount = _price(previousSlot);
+        if (paymentAmount > maximumPayment) revert MaximumPaymentExceeded(paymentAmount, maximumPayment);
 
         _accruePendingEmission();
-        _settleSlot(index);
+        _settleSlot(slotIndex, previousSlot);
 
-        uint256 revenueAmount = _allocatePayment(previousSlot.miner, index, epochId, paid);
+        uint256 revenueAmount = _allocatePayment(previousSlot.miner, slotIndex, expectedEpochId, paymentAmount);
         Slot memory nextSlot = Slot({
-            epochId: epochId + 1,
-            initialPrice: _nextInitialPrice(paid),
+            epochId: expectedEpochId + 1,
+            initialPrice: _nextInitialPrice(paymentAmount),
             auctionStartedAt: block.timestamp,
             lastAccruedAt: block.timestamp,
             tps: _globalTps() / SLOT_COUNT,
@@ -154,65 +176,79 @@ contract Mine is ReentrancyGuard {
         });
 
         aggregateTps = aggregateTps - previousSlot.tps + nextSlot.tps;
-        slots[index] = nextSlot;
+        _slots[slotIndex] = nextSlot;
 
-        if (paid != 0) _collectAndDeposit(msg.sender, index, epochId, paid, revenueAmount);
+        if (paymentAmount != 0) {
+            _collectAndDeposit(msg.sender, slotIndex, expectedEpochId, paymentAmount, revenueAmount);
+        }
 
         emit Mined(
-            msg.sender, miner, index, epochId, previousSlot.miner, paid, nextSlot.initialPrice, nextSlot.tps, message
+            msg.sender,
+            miner,
+            slotIndex,
+            expectedEpochId,
+            previousSlot.miner,
+            paymentAmount,
+            nextSlot.initialPrice,
+            nextSlot.tps,
+            message
         );
     }
 
     /// @notice Claims accumulated USDG replacement payments for an account.
-    function claim(address account) external nonReentrant {
+    /// @param account Displaced miner receiving the payment.
+    function claimMinerPayment(address account) external nonReentrant {
         if (account == address(0)) revert ZeroAddress();
-        uint256 amount = claimable[account];
+        uint256 amount = claimableMinerPayment[account];
         if (amount == 0) revert NothingToClaim(account);
 
-        claimable[account] = 0;
-        totalClaimable -= amount;
-
-        uint256 minerBalanceBefore = usdg.balanceOf(address(this));
-        uint256 accountBalanceBefore = usdg.balanceOf(account);
+        claimableMinerPayment[account] = 0;
+        totalClaimableMinerPayments -= amount;
         usdg.safeTransfer(account, amount);
-        uint256 minerDebit = minerBalanceBefore - usdg.balanceOf(address(this));
-        uint256 accountCredit = usdg.balanceOf(account) - accountBalanceBefore;
-        if (minerDebit != amount || accountCredit != amount) revert InexactTransfer(amount, minerDebit, accountCredit);
 
-        emit Claimed(account, amount);
+        emit MinerPaymentClaimed(account, amount);
     }
 
     /// @notice Returns one slot's current linearly decaying USDG replacement price.
-    function price(uint256 index) external view returns (uint256 amount) {
-        if (index >= SLOT_COUNT) revert IndexOutOfBounds(index);
-        return _price(slots[index]);
+    /// @param slotIndex Zero-based slot to quote.
+    /// @return paymentAmount Current USDG replacement payment.
+    function currentPrice(uint256 slotIndex) external view returns (uint256 paymentAmount) {
+        if (slotIndex >= SLOT_COUNT) revert IndexOutOfBounds(slotIndex);
+        return _price(_slots[slotIndex]);
     }
 
     /// @notice Returns the complete state of one mining slot.
-    function getSlot(uint256 index) external view returns (Slot memory slot) {
-        if (index >= SLOT_COUNT) revert IndexOutOfBounds(index);
-        return slots[index];
+    /// @param slotIndex Zero-based slot to read.
+    /// @return slotState Current slot state.
+    function slot(uint256 slotIndex) external view returns (Slot memory slotState) {
+        if (slotIndex >= SLOT_COUNT) revert IndexOutOfBounds(slotIndex);
+        return _slots[slotIndex];
     }
 
     /// @notice Returns accrued unminted GBX for one slot without changing its state.
-    function pendingEmission(uint256 index) public view returns (uint256 amount) {
-        if (index >= SLOT_COUNT) revert IndexOutOfBounds(index);
-        Slot memory slot = slots[index];
-        if (slot.miner == address(0)) return 0;
-        return (block.timestamp - slot.lastAccruedAt) * slot.tps;
+    /// @param slotIndex Zero-based slot to read.
+    /// @return amount Accrued unminted GBX for the slot.
+    function pendingSlotEmission(uint256 slotIndex) external view returns (uint256 amount) {
+        if (slotIndex >= SLOT_COUNT) revert IndexOutOfBounds(slotIndex);
+        Slot memory slotState = _slots[slotIndex];
+        if (slotState.miner == address(0)) return 0;
+        return (block.timestamp - slotState.lastAccruedAt) * slotState.tps;
     }
 
     /// @notice Returns total accrued unminted GBX in constant time across all sixteen slots.
+    /// @return amount Complete accrued unminted GBX amount.
     function pendingEmission() public view returns (uint256 amount) {
         return storedPendingEmission + (block.timestamp - pendingUpdatedAt) * aggregateTps;
     }
 
     /// @notice Returns minted GBX supply plus all accrued unminted mining emission.
+    /// @return amount Economically effective GBX supply.
     function effectiveTotalSupply() external view returns (uint256 amount) {
         return gbx.totalSupply() + pendingEmission();
     }
 
     /// @notice Returns the global tokens-per-second rate that the next handoff will divide by sixteen.
+    /// @return tps Prospective global GBX tokens-per-second rate.
     function nextGlobalTps() external view returns (uint256 tps) {
         return _globalTps();
     }
@@ -224,59 +260,49 @@ contract Mine is ReentrancyGuard {
     }
 
     /// @dev Mints only the selected outgoing slot's complete tenure accrual and removes it from global pending supply.
-    function _settleSlot(uint256 index) private returns (uint256 amount) {
-        Slot storage slot = slots[index];
-        if (slot.miner == address(0)) return 0;
+    function _settleSlot(uint256 slotIndex, Slot memory previousSlot) private {
+        if (previousSlot.miner == address(0)) return;
 
-        amount = (block.timestamp - slot.lastAccruedAt) * slot.tps;
-        slot.lastAccruedAt = block.timestamp;
-        if (amount == 0) return 0;
+        uint256 amount = (block.timestamp - previousSlot.lastAccruedAt) * previousSlot.tps;
+        if (amount == 0) return;
 
         storedPendingEmission -= amount;
         totalMined += amount;
-        gbx.mint(slot.miner, amount);
-        emit EmissionSettled(slot.miner, index, slot.epochId, amount);
+        gbx.mint(previousSlot.miner, amount);
+        emit EmissionSettled(previousSlot.miner, slotIndex, previousSlot.epochId, amount);
     }
 
-    function _allocatePayment(address previousMiner, uint256 index, uint256 epochId, uint256 paid)
+    function _allocatePayment(address previousMiner, uint256 slotIndex, uint256 epochId, uint256 paymentAmount)
         private
         returns (uint256 revenueAmount)
     {
-        if (paid == 0) return 0;
-        if (previousMiner == address(0)) return paid;
+        if (paymentAmount == 0) return 0;
+        if (previousMiner == address(0)) return paymentAmount;
 
-        uint256 previousMinerAmount = Math.mulDiv(paid, PREVIOUS_MINER_BPS, BPS);
-        revenueAmount = paid - previousMinerAmount;
-        claimable[previousMiner] += previousMinerAmount;
-        totalClaimable += previousMinerAmount;
-        emit MinerPaymentAccrued(previousMiner, index, epochId, previousMinerAmount);
+        uint256 previousMinerAmount = Math.mulDiv(paymentAmount, PREVIOUS_MINER_BPS, BPS);
+        revenueAmount = paymentAmount - previousMinerAmount;
+        claimableMinerPayment[previousMiner] += previousMinerAmount;
+        totalClaimableMinerPayments += previousMinerAmount;
+        emit MinerPaymentAccrued(previousMiner, slotIndex, epochId, previousMinerAmount);
     }
 
-    function _collectAndDeposit(address payer, uint256 index, uint256 epochId, uint256 paid, uint256 revenueAmount)
-        private
-    {
-        uint256 payerBalanceBefore = usdg.balanceOf(payer);
-        uint256 minerBalanceBefore = usdg.balanceOf(address(this));
-        usdg.safeTransferFrom(payer, address(this), paid);
-        uint256 payerDebit = payerBalanceBefore - usdg.balanceOf(payer);
-        uint256 minerCredit = usdg.balanceOf(address(this)) - minerBalanceBefore;
-        if (payerDebit != paid || minerCredit != paid) revert InexactTransfer(paid, payerDebit, minerCredit);
-
-        uint256 routerBalanceBefore = usdg.balanceOf(resonanceRouter);
+    function _collectAndDeposit(
+        address payer,
+        uint256 slotIndex,
+        uint256 epochId,
+        uint256 paymentAmount,
+        uint256 revenueAmount
+    ) private {
+        usdg.safeTransferFrom(payer, address(this), paymentAmount);
         usdg.safeTransfer(resonanceRouter, revenueAmount);
-        uint256 minerDebit = minerBalanceBefore + paid - usdg.balanceOf(address(this));
-        uint256 routerCredit = usdg.balanceOf(resonanceRouter) - routerBalanceBefore;
-        if (minerDebit != revenueAmount || routerCredit != revenueAmount) {
-            revert InexactTransfer(revenueAmount, minerDebit, routerCredit);
-        }
 
-        emit RevenueDeposited(index, epochId, revenueAmount);
+        emit RevenueDeposited(slotIndex, epochId, revenueAmount);
     }
 
-    function _nextInitialPrice(uint256 paid) private pure returns (uint256 nextInitialPrice) {
-        nextInitialPrice = paid * PRICE_MULTIPLIER;
+    function _nextInitialPrice(uint256 paymentAmount) private pure returns (uint256 nextInitialPrice) {
+        nextInitialPrice = paymentAmount * PRICE_MULTIPLIER;
         if (nextInitialPrice > MAX_INITIAL_PRICE) return MAX_INITIAL_PRICE;
-        if (nextInitialPrice < MINIMUM_INITIAL_PRICE) return MINIMUM_INITIAL_PRICE;
+        if (nextInitialPrice < MIN_INITIAL_PRICE) return MIN_INITIAL_PRICE;
     }
 
     function _globalTps() private view returns (uint256 tps) {
@@ -285,16 +311,16 @@ contract Mine is ReentrancyGuard {
         if (tps < TAIL_TPS) tps = TAIL_TPS;
     }
 
-    function _price(Slot memory slot) private view returns (uint256 amount) {
-        uint256 elapsed = block.timestamp - slot.auctionStartedAt;
+    function _price(Slot memory slotState) private view returns (uint256 amount) {
+        uint256 elapsed = block.timestamp - slotState.auctionStartedAt;
         if (elapsed >= PRICE_DECAY_PERIOD) return 0;
-        return slot.initialPrice - Math.mulDiv(slot.initialPrice, elapsed, PRICE_DECAY_PERIOD);
+        return slotState.initialPrice - Math.mulDiv(slotState.initialPrice, elapsed, PRICE_DECAY_PERIOD);
     }
 
-    function _emptySlot() private view returns (Slot memory slot) {
+    function _emptySlot() private view returns (Slot memory slotState) {
         return Slot({
             epochId: 1,
-            initialPrice: MINIMUM_INITIAL_PRICE,
+            initialPrice: MIN_INITIAL_PRICE,
             auctionStartedAt: block.timestamp,
             lastAccruedAt: block.timestamp,
             tps: 0,

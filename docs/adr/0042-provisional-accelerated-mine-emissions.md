@@ -1,9 +1,10 @@
 # ADR 0042: Provisional accelerated Mine emissions
 
 - Status: partially superseded by ADR 0043's `TAIL_TPS` value; the 64 GBX/second initial rate and 69-day period remain
-  accepted provisionally for development; independent economic review remains required; not approved for deployment
-  or user funds
-- Partially superseded by: ADR 0043 replaces the 0.5 GBX/second tail with 1 GBX/second
+  accepted provisionally for development; its genesis allocation and resulting supply offsets are superseded by ADR
+  0050; independent economic review remains required; not approved for deployment or user funds
+- Partially superseded by: ADR 0043 replaces the 0.5 GBX/second tail with 1 GBX/second; ADR 0050 removes the genesis
+  allocation and its supply offset
 - Date: 2026-08-22
 - Supersedes: ADR 0038's `INITIAL_TPS` and `TAIL_TPS` values and ADR 0041's provisional `HALVING_PERIOD`
 

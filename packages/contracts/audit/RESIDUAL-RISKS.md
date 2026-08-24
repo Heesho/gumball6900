@@ -18,9 +18,8 @@
   use the same view for inclusive supply displays.
 - Mine revenue becomes a Router deposit rather than an automatic stream notification. Permissionless `route()` has no
   designated caller or bounty, so even qualifying revenue may wait indefinitely and its eventual caller can influence
-  notification timing. A Router balance below `DURATION` raw USDG cannot qualify without another deposit even after
-  an active stream finishes. This cannot block a completed Mine handoff, but it can delay Strategy revenue.
-  LiquidityPosition remains atomically coupled to its route attempt.
+  notification timing. A Router balance below `REWARD_DURATION` raw USDG cannot qualify without another deposit even
+  after an active stream finishes. This cannot block a completed Mine handoff, but it can delay Strategy revenue.
 - Mine handoffs and effective-supply reads are constant time; rigorous tests separately traverse all sixteen slots as
   a differential oracle.
 - The permanent GBX minter handoff and immutable dependencies cannot be repaired after an incorrect deployment.
@@ -45,7 +44,8 @@
   tokens can reach it at a much smaller displayed amount. At exhaustion, new direct and automatic notifications fail;
   existing claims and signal exits remain available. An automatic reward stays buffered in BribeRouter while Fund has
   already received its complement atomically with the purchase.
-- Permissionless LP fee harvesting has no bounty and may be delayed until someone volunteers gas.
+- The core does not create, custody, manage, or harvest liquidity. Any external USDG-GBX LP token admitted as a
+  Strategy carries the ordinary token, market, and governance-admission risks of that Strategy.
 - Signal timing changes which Strategies earn later intervals of a restarted revenue stream because signaling has no
   cooldown. Checkpoint-before-weight-change ordering prevents retroactive capture but not short-duration positioning.
 - Strategy price may fall to zero. Fund has no curated asset list, recovery, or migration.
@@ -73,8 +73,8 @@ misuse all four administration methods, transfer control again, or permanently r
 
 No external provider, release, proxy/upgrade model, plugin set, permission graph, voting configuration, delay,
 cancellation policy, emergency path, or executor address has been selected. Incorrect dependencies, bootstrap
-Strategies, bindings, ownership, PoolKey, ticks, token ID, external-governance permissions, or ownership handoff may be
-permanent. Deployment evidence must prove the exact integration and that no temporary setup authority survives.
+Strategies, bindings, ownership, external-governance permissions, or ownership handoff may be permanent. Deployment
+evidence must prove the exact integration and that no temporary setup authority survives.
 
 ## Evidence gaps
 
@@ -82,6 +82,6 @@ No independent audit, compatible symbolic proof, exact external-governance integ
 signed deployment manifest exists. The pinned Echidna and Medusa campaigns and the recorded full 43-mutant
 SignalGBX/Resonance/BribeRouter campaign predate ADRs 0034–0036 and are internal engineering evidence, not independent
 review. A later narrow 49-mutant campaign passed with no survivors against the ADR 0036/0037 tree, but it predates ADR
-0047 and remains historical internal engineering evidence. The focused ADR-0048 migration passes 104/104 and kills
-47/47 targeted mutants, but no current external-fuzzer, static-analysis, symbolic, or complete deterministic/workspace
-campaign covers the complete ADR-0048 tree.
+0047 and remains historical internal engineering evidence. The focused ADR-0048 migration passed 104/104 and killed
+47/47 targeted mutants, but it predates ADRs 0049 and 0050. No current external-fuzzer, static-analysis, symbolic, or
+complete deterministic/workspace campaign covers the complete ADR-0050 tree.

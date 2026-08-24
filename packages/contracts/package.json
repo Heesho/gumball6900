@@ -10,7 +10,8 @@
     "docs:generate": "forge build && node scripts/generate-contract-docs.mjs",
     "fmt": "forge fmt",
     "fmt:check": "forge fmt --check",
-    "lint": "solhint 'src/**/*.sol' && forge fmt --check",
+    "lint": "solhint 'src/**/*.sol' && node --test scripts/check-solidity-order.test.mjs && node scripts/check-solidity-order.mjs && forge fmt --check",
+    "lint:order:test": "node --test scripts/check-solidity-order.test.mjs",
     "snapshot": "forge snapshot",
     "test": "forge test",
     "test:gas": "forge test --gas-report",
@@ -19,13 +20,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "5.6.1",
-    "@uniswap/v4-core": "1.0.2",
-    "@uniswap/v4-periphery": "1.0.3"
+    "@openzeppelin/contracts": "5.6.1"
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "6.1.0",
-    "@uniswap/v3-sdk": "3.31.1",
     "@types/chai": "4.3.20",
     "@types/mocha": "10.0.10",
     "@types/node": "22.18.0",

@@ -5,16 +5,16 @@ escape-hatch code change. This note is engineering evidence, not deployment appr
 
 ## Exact terminal state
 
-When the last signaler exits a dead Strategy, `Bribe.withdraw` checkpoints every registered reward under the old
-balance and supply, records the user's accrued whole-token claim, and reduces virtual supply to zero. No reward token
-or Fund asset moves during signal exit.
+When the last signaler exits a dead Strategy, `Bribe.removeSignalWeight` checkpoints every registered reward under the
+old account and total signal weights, records the user's accrued whole-token claim, and reduces
+`totalSignalWeight` to zero. No reward token or Fund asset moves during signal exit.
 
-Reward time does not pause. The active `left(token)` amount continues to elapse while supply is zero, but the reward
+Reward time does not pause. The active `remainingReward(token)` amount continues to elapse while signal weight is zero, but the reward
 index cannot advance without a denominator, so that emission is never allocated. A later permissionless notification
 can also start or restart a stream at zero supply and its elapsed rewards are likewise unclaimable because Strategy
 death prevents any new signal from entering.
 
-There is no exact unreachable-principal identity. It can include the active `left(token)`, later zero-supply
+There is no exact unreachable-principal identity. It can include the active `remainingReward(token)`, later zero-supply
 notifications as they elapse, rate/index/account floors, and direct donations outside notification accounting. The
 remaining lifetime notification headroom is:
 
@@ -39,10 +39,11 @@ bound raw units per token/Bribe pair, but the protocol does not bound their econ
 ## Operational controls
 
 - Interfaces must show Strategy liveness and warn before the final signal exits when any registered reward has a
-  nonzero `left(token)` amount.
+  nonzero `remainingReward(token)` amount.
 - Reward-funding clients must warn on every dead Strategy and refuse by default when its Bribe signal supply is zero.
   Direct contract calls remain possible while lifetime headroom remains and cannot be made recoverable.
-- Monitoring must classify `dead Strategy && Bribe.totalSupply() == 0 && Bribe.left(token) > 0` as a stream whose
+- Monitoring must classify
+  `dead Strategy && Bribe.totalSignalWeight() == 0 && Bribe.remainingReward(token) > 0` as a stream whose
   later emission will be permanently unclaimable, not as a recoverable protocol receivable. Token balance alone
   cannot distinguish scheduled value, accrued user rewards, direct donations, and floor surplus.
 - Monitoring and reward-funding clients should expose `lifetimeRewardNotified(token)` and

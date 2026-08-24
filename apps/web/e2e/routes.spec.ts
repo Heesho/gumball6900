@@ -5,8 +5,9 @@ test('minimal rebuild status renders without accessibility violations', async ({
   await page.goto('/');
   await expect(page.getByRole('heading', { level: 1, name: 'The governance-minimized GBX protocol.' })).toBeVisible();
   await expect(page.getByText('No deployment configured', { exact: true })).toBeVisible();
-  await expect(page.getByText('20,000,000 GBX', { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2, name: 'Twelve direct, non-upgradeable contracts' })).toBeVisible();
+  await expect(page.getByText('GBX premint', { exact: true })).toBeVisible();
+  await expect(page.getByText('0 GBX', { exact: true })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 2, name: 'Eleven direct, non-upgradeable contracts' })).toBeVisible();
   await expect(
     page.getByText(/does not select or implement the governance system that will own Resonance/i),
   ).toBeVisible();

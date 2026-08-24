@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 20. Documented ABI entries: 447. Documented public ABI functions: 235.
+Documented source surfaces: 17. Documented ABI entries: 386. Documented public ABI functions: 199.
 
 ## Bribe
 
@@ -13,7 +13,7 @@ Source: [`src/core/Bribe.sol`](../../packages/contracts/src/core/Bribe.sol)
 
 Artifact: `out/Bribe.sol/Bribe.json`
 
-Public ABI: 23 functions, 5 events, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 22 functions, 5 events, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address)`
 
@@ -59,6 +59,14 @@ function REWARD_PRECISION() external view returns (uint256 arg0);
 
 Fixed-point scale preserving low-decimal rewards over eighteen-decimal virtual signal weights.
 
+### `accountRewardPerSignalPaid(address,address)`
+
+```solidity
+function accountRewardPerSignalPaid(address account, address token) external view returns (uint256 paid);
+```
+
+Cumulative reward index already incorporated for one account and token.
+
 ### `addRewardToken(address)`
 
 ```solidity
@@ -71,13 +79,18 @@ Registers another append-only reward token through Resonance governance.
 
 - `rewardToken`: Token to register.
 
-### `balanceOf(address)`
+### `addSignalWeight(address,uint256)`
 
 ```solidity
-function balanceOf(address account) external view returns (uint256 balance);
+function addSignalWeight(address account, uint256 amount) external;
 ```
 
-Virtual signal weight assigned to each account by Resonance.
+Adds virtual signal weight for `account` after checkpointing all registered rewards.
+
+**Parameters**
+
+- `account`: Account whose virtual balance increases.
+- `amount`: Weight to add.
 
 ### `claimReward(address,address)`
 
@@ -110,19 +123,6 @@ A broken reward token reverts this convenience path; the scalar claim remains in
 
 - `account`: Account whose accrued rewards are paid.
 
-### `deposit(uint256,address)`
-
-```solidity
-function deposit(uint256 amount, address account) external;
-```
-
-Adds virtual signal weight for `account` after checkpointing all registered rewards.
-
-**Parameters**
-
-- `account`: Account whose virtual balance increases.
-- `amount`: Weight to add.
-
 ### `earned(address,address)`
 
 ```solidity
@@ -139,22 +139,6 @@ function isRewardToken(address token) external view returns (bool isReward);
 
 Append-only membership flag for tokens governance registered through Resonance.
 
-### `lastTimeRewardApplicable(address)`
-
-```solidity
-function lastTimeRewardApplicable(address rewardToken) external view returns (uint256 timestamp);
-```
-
-Returns the last timestamp currently eligible to advance one reward stream.
-
-### `left(address)`
-
-```solidity
-function left(address rewardToken) external view returns (uint256 amount);
-```
-
-Returns whole reward units remaining in the active stream.
-
 ### `lifetimeRewardNotified(address)`
 
 ```solidity
@@ -163,19 +147,40 @@ function lifetimeRewardNotified(address token) external view returns (uint256 am
 
 Monotonic cumulative raw units admitted through notifications for each reward token.
 
-### `notifyRewardAmount(address,uint256)`
+### `notifyReward(address,uint256)`
 
 ```solidity
-function notifyRewardAmount(address rewardToken, uint256 amount) external;
+function notifyReward(address rewardToken, uint256 amount) external;
 ```
 
 Funds and restarts a seven-day reward stream using the standard leftover-rollover model.
-Permissionless funding must be at least one duration in raw units and at least the active reward left.
+Permissionless funding must be at least one duration in raw units and at least the active reward remaining.
 
 **Parameters**
 
 - `amount`: Amount pulled from the caller.
 - `rewardToken`: Registered token to fund.
+
+### `remainingReward(address)`
+
+```solidity
+function remainingReward(address rewardToken) external view returns (uint256 amount);
+```
+
+Returns whole reward units remaining in the active stream.
+
+### `removeSignalWeight(address,uint256)`
+
+```solidity
+function removeSignalWeight(address account, uint256 amount) external;
+```
+
+Removes virtual signal weight for `account` after checkpointing all registered rewards.
+
+**Parameters**
+
+- `account`: Account whose virtual balance decreases.
+- `amount`: Weight to remove.
 
 ### `resonance()`
 
@@ -188,15 +193,15 @@ Resonance exclusively authorized to maintain virtual balances and register rewar
 ### `rewardData(address)`
 
 ```solidity
-function rewardData(address token) external view returns (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerTokenStored);
+function rewardData(address token) external view returns (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerSignalStored);
 ```
 
 Independent stream state for every registered reward token.
 
-### `rewardPerToken(address)`
+### `rewardPerSignal(address)`
 
 ```solidity
-function rewardPerToken(address rewardToken) external view returns (uint256 accumulatedReward);
+function rewardPerSignal(address rewardToken) external view returns (uint256 accumulatedReward);
 ```
 
 Returns the cumulative reward per virtual signal unit.
@@ -217,44 +222,23 @@ function rewards(address account, address token) external view returns (uint256 
 
 Whole-token accrued user liability, payable only to the entitled account.
 
-### `totalSupply()`
+### `signalWeightOf(address)`
 
 ```solidity
-function totalSupply() external view returns (uint256 arg0);
+function signalWeightOf(address account) external view returns (uint256 weight);
+```
+
+Virtual signal weight assigned to each account by Resonance.
+
+### `totalSignalWeight()`
+
+```solidity
+function totalSignalWeight() external view returns (uint256 arg0);
 ```
 
 Total virtual signal weight assigned to this Bribe.
 
-### `userRewardPerTokenPaid(address,address)`
-
-```solidity
-function userRewardPerTokenPaid(address account, address token) external view returns (uint256 paid);
-```
-
-Cumulative reward index already incorporated for one account and token.
-
-### `withdraw(uint256,address)`
-
-```solidity
-function withdraw(uint256 amount, address account) external;
-```
-
-Removes virtual signal weight for `account` after checkpointing all registered rewards.
-
-**Parameters**
-
-- `account`: Account whose virtual balance decreases.
-- `amount`: Weight to remove.
-
 ### Events
-
-#### `RewardAdded(address)`
-
-```solidity
-event RewardAdded(address indexed rewardToken);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
 
 #### `RewardNotified(address,uint256)`
 
@@ -272,18 +256,26 @@ event RewardPaid(address indexed account, address indexed rewardToken, uint256 a
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `SignalWeightDeposited(address,uint256)`
+#### `RewardTokenAdded(address)`
 
 ```solidity
-event SignalWeightDeposited(address indexed account, uint256 amount);
+event RewardTokenAdded(address indexed rewardToken);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `SignalWeightWithdrawn(address,uint256)`
+#### `SignalWeightAdded(address,uint256)`
 
 ```solidity
-event SignalWeightWithdrawn(address indexed account, uint256 amount);
+event SignalWeightAdded(address indexed account, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SignalWeightRemoved(address,uint256)`
+
+```solidity
+event SignalWeightRemoved(address indexed account, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -559,18 +551,6 @@ function bribe() external view returns (contract IBribe arg0);
 
 Bribe paired with the Strategy and fixed as the reward destination.
 
-### `distribute()`
-
-```solidity
-function distribute() external returns (uint256 distributed);
-```
-
-Notifies the paired Bribe with the Router's complete balance once it satisfies the top-up gates.
-
-**Returns**
-
-- `distributed`: Amount sent to Bribe, or zero when the Router is empty or the balance must keep accumulating.
-
 ### `paymentToken()`
 
 ```solidity
@@ -579,12 +559,24 @@ function paymentToken() external view returns (contract IERC20 arg0);
 
 Strategy payment token distributed by the paired Bribe.
 
-### Events
-
-#### `RewardsDistributed(address,address,uint256)`
+### `route()`
 
 ```solidity
-event RewardsDistributed(address indexed bribe, address indexed rewardToken, uint256 amount);
+function route() external returns (uint256 amount);
+```
+
+Notifies the paired Bribe with the Router's complete balance once it satisfies the top-up gates.
+
+**Returns**
+
+- `amount`: Amount sent to Bribe, or zero when the Router is empty or its balance must keep accumulating.
+
+### Events
+
+#### `RewardRouted(address,address,uint256)`
+
+```solidity
+event RewardRouted(address indexed bribe, address indexed rewardToken, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -613,7 +605,7 @@ Source: [`src/core/Fund.sol`](../../packages/contracts/src/core/Fund.sol)
 
 Artifact: `out/Fund.sol/Fund.json`
 
-Public ABI: 4 functions, 2 events, 10 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 3 functions, 2 events, 10 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address)`
 
@@ -646,18 +638,6 @@ function gbx() external view returns (contract GBX arg0);
 ```
 
 GBX token burned by redemptions and permissionless maintenance.
-
-### `pendingGBX()`
-
-```solidity
-function pendingGBX() external view returns (uint256 amount);
-```
-
-Returns GBX currently held by Fund and available to burn.
-
-**Returns**
-
-- `amount`: GBX balance currently held by Fund.
 
 ### `redeem(uint256,address,address[])`
 
@@ -780,15 +760,15 @@ Source: [`src/core/GBX.sol`](../../packages/contracts/src/core/GBX.sol)
 
 Artifact: `out/GBX.sol/GBX.json`
 
-Public ABI: 21 functions, 6 events, 22 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 20 functions, 6 events, 22 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
-### `constructor(address,address)`
+### `constructor(address)`
 
 ```solidity
-constructor(address genesisLiquidityRecipient, address initialMinter);
+constructor(address initialMinter);
 ```
 
-Creates the genesis-liquidity allocation and temporary deployment-time mint authority.
+Creates GBX with zero supply and temporary deployment-time mint authority.
 
 ### `DOMAIN_SEPARATOR()`
 
@@ -797,14 +777,6 @@ function DOMAIN_SEPARATOR() external view returns (bytes32 arg0);
 ```
 
 Returns the domain separator used in the encoding of the signature for {permit}, as defined by {EIP712}.
-
-### `GENESIS_LIQUIDITY_ALLOCATION()`
-
-```solidity
-function GENESIS_LIQUIDITY_ALLOCATION() external view returns (uint256 arg0);
-```
-
-GBX created once for the canonical genesis-liquidity position.
 
 ### `allowance(address,address)`
 
@@ -868,7 +840,7 @@ Cumulative GBX permanently destroyed.
 function lifetimeMinted() external view returns (uint256 arg0);
 ```
 
-Cumulative GBX created, including the genesis allocation.
+Cumulative GBX created by Mine.
 
 ### `mint(address,uint256)`
 
@@ -1186,434 +1158,13 @@ error ZeroAmount();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-## ILiquidityRevenueRouter
-
-Source: [`src/core/LiquidityPosition.sol`](../../packages/contracts/src/core/LiquidityPosition.sol)
-
-Artifact: `out/LiquidityPosition.sol/ILiquidityRevenueRouter.json`
-
-Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `route()`
-
-```solidity
-function route() external returns (uint256 amount);
-```
-
-Routes the complete nonzero pending USDG balance into Resonance.
-
-**Returns**
-
-- `amount`: Amount delivered to Resonance.
-
-### `usdg()`
-
-```solidity
-function usdg() external view returns (contract IERC20 token);
-```
-
-Canonical USDG token accepted by the router.
-
-**Returns**
-
-- `token`: Canonical USDG token.
-
-## LiquidityPosition
-
-Source: [`src/core/LiquidityPosition.sol`](../../packages/contracts/src/core/LiquidityPosition.sol)
-
-Artifact: `out/LiquidityPosition.sol/LiquidityPosition.json`
-
-Public ABI: 20 functions, 2 events, 20 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
-
-### `constructor((address,address,uint256,address,address,address,address),(address,address,uint24,int24,address),int24,int24)`
-
-```solidity
-constructor(struct LiquidityPosition.Dependencies dependencies, struct PoolKey canonicalPoolKey, int24 tickLower, int24 tickUpper);
-```
-
-Fixes the exact v4 pool, range, and NFT permanently.
-
-**Parameters**
-
-- `canonicalPoolKey`: Exact hookless GBX/USDG pool identity.
-- `dependencies`: Immutable protocol and PositionManager dependencies.
-- `tickLower`: Expected lower tick of the precommitted single-sided position.
-- `tickUpper`: Expected upper tick of the precommitted single-sided position.
-
-### `currency0()`
-
-```solidity
-function currency0() external view returns (address arg0);
-```
-
-Lower-address token of the canonical pool.
-
-### `currency1()`
-
-```solidity
-function currency1() external view returns (address arg0);
-```
-
-Higher-address token of the canonical pool.
-
-### `expectedPositionTokenId()`
-
-```solidity
-function expectedPositionTokenId() external view returns (uint256 arg0);
-```
-
-Precommitted token ID of the genesis position.
-
-### `expectedTickLower()`
-
-```solidity
-function expectedTickLower() external view returns (int24 arg0);
-```
-
-Expected lower tick of the genesis position.
-
-### `expectedTickUpper()`
-
-```solidity
-function expectedTickUpper() external view returns (int24 arg0);
-```
-
-Expected upper tick of the genesis position.
-
-### `fund()`
-
-```solidity
-function fund() external view returns (contract IFund arg0);
-```
-
-Ownerless Fund that receives and burns harvested GBX.
-
-### `gbx()`
-
-```solidity
-function gbx() external view returns (contract GBX arg0);
-```
-
-GBX side of the canonical pool.
-
-### `harvestFees()`
-
-```solidity
-function harvestFees() external returns (uint256 usdgRouted, uint256 gbxBurned);
-```
-
-Collects every accrued LP fee while preserving principal, routes USDG, and burns GBX.
-`DECREASE_LIQUIDITY` with zero liquidity is Uniswap v4 PositionManager's fee-collection path. The two `CLOSE_CURRENCY` actions take the complete fee credits into this contract without removing principal. Any direct canonical-token donation is intentionally processed with the same destination on the next harvest. Routing and burn are atomic with collection: any failure restores the position's fee accounting.
-
-**Returns**
-
-- `gbxBurned`: Complete GBX balance sent to Fund and burned.
-- `usdgRouted`: Complete USDG balance routed through ResonanceRouter.
-
-### `onERC721Received(address,address,uint256,bytes)`
-
-```solidity
-function onERC721Received(address operator, address from, uint256 tokenId, bytes data) external returns (bytes4 selector);
-```
-
-Records and validates the first and only accepted PositionManager NFT.
-The ERC-721 operator and data parameters are intentionally ignored; only the fixed manager, depositor, token ID, pool key, hookless configuration, ticks, fee, and custody state authorize acceptance.
-
-**Parameters**
-
-- `data`: Optional transfer data; ignored.
-- `from`: Previous position owner.
-- `operator`: Account that initiated the safe transfer; not used for authorization.
-- `tokenId`: PositionManager token ID.
-
-**Returns**
-
-- `selector`: ERC-721 receiver acceptance selector.
-
-### `poolFee()`
-
-```solidity
-function poolFee() external view returns (uint24 arg0);
-```
-
-Fee tier of the canonical pool.
-
-### `poolKey()`
-
-```solidity
-function poolKey() external view returns (struct PoolKey key);
-```
-
-Returns the immutable canonical hookless pool identity.
-
-**Returns**
-
-- `key`: Canonical GBX/USDG PoolKey.
-
-### `poolKeyHash()`
-
-```solidity
-function poolKeyHash() external view returns (bytes32 arg0);
-```
-
-Hash of the complete hookless GBX/USDG pool key.
-
-### `positionDepositor()`
-
-```solidity
-function positionDepositor() external view returns (address arg0);
-```
-
-One-time account expected to deliver the genesis position.
-
-### `positionInCustody()`
-
-```solidity
-function positionInCustody() external view returns (bool inCustody);
-```
-
-Returns whether this contract currently owns the exact recorded position.
-
-**Returns**
-
-- `inCustody`: Whether this contract currently owns the position NFT.
-
-### `positionManager()`
-
-```solidity
-function positionManager() external view returns (contract IPositionManager arg0);
-```
-
-Canonical Uniswap v4 PositionManager.
-
-### `positionRecorded()`
-
-```solidity
-function positionRecorded() external view returns (bool arg0);
-```
-
-Whether the expected position has been received and validated.
-
-### `positionTokenId()`
-
-```solidity
-function positionTokenId() external view returns (uint256 arg0);
-```
-
-The canonical PositionManager NFT held by this contract.
-
-### `resonanceRouter()`
-
-```solidity
-function resonanceRouter() external view returns (contract ILiquidityRevenueRouter arg0);
-```
-
-Immutable permissionless USDG route into Resonance.
-
-### `tickSpacing()`
-
-```solidity
-function tickSpacing() external view returns (int24 arg0);
-```
-
-Tick spacing of the canonical pool.
-
-### `usdg()`
-
-```solidity
-function usdg() external view returns (contract IERC20 arg0);
-```
-
-USDG side of the canonical pool.
-
-### Events
-
-#### `FeesHarvested(uint256,address,uint128,uint256,uint256)`
-
-```solidity
-event FeesHarvested(uint256 indexed positionTokenId, address indexed caller, uint128 principalLiquidity, uint256 usdgRouted, uint256 gbxBurned);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `PositionRecorded(uint256,address,bytes32)`
-
-```solidity
-event PositionRecorded(uint256 indexed positionTokenId, address indexed previousOwner, bytes32 indexed poolKeyHash);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-### Custom errors
-
-#### `AddressHasNoCode(address)`
-
-```solidity
-error AddressHasNoCode(address account);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `EmptyPosition(uint256)`
-
-```solidity
-error EmptyPosition(uint256 positionTokenId);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InexactTransfer(address,address,uint256,uint256,uint256)`
-
-```solidity
-error InexactTransfer(address token, address destination, uint256 expected, uint256 debit, uint256 credit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InvalidDestinationToken(address,address,address)`
-
-```solidity
-error InvalidDestinationToken(address destination, address expected, address actual);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InvalidPoolCurrencies(address,address)`
-
-```solidity
-error InvalidPoolCurrencies(address currency0, address currency1);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InvalidPoolKey(bytes32,bytes32)`
-
-```solidity
-error InvalidPoolKey(bytes32 expected, bytes32 actual);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InvalidPositionTicks(int24,int24,int24,int24)`
-
-```solidity
-error InvalidPositionTicks(int24 expectedLower, int24 expectedUpper, int24 actualLower, int24 actualUpper);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `InvalidTickRange(int24,int24)`
-
-```solidity
-error InvalidTickRange(int24 tickLower, int24 tickUpper);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `NoPositionRecorded()`
-
-```solidity
-error NoPositionRecorded();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `NonzeroHook(address)`
-
-```solidity
-error NonzeroHook(address hook);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `PositionAlreadyRecorded(uint256)`
-
-```solidity
-error PositionAlreadyRecorded(uint256 positionTokenId);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `PositionNotInCustody(uint256)`
-
-```solidity
-error PositionNotInCustody(uint256 positionTokenId);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `PositionNotOwned(uint256,address)`
-
-```solidity
-error PositionNotOwned(uint256 positionTokenId, address owner);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `PrincipalLiquidityChanged(uint128,uint128)`
-
-```solidity
-error PrincipalLiquidityChanged(uint128 expected, uint128 actual);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ReentrancyGuardReentrantCall()`
-
-```solidity
-error ReentrancyGuardReentrantCall();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SafeERC20FailedOperation(address)`
-
-```solidity
-error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `UnexpectedNFTSender(address)`
-
-```solidity
-error UnexpectedNFTSender(address sender);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `UnexpectedPositionDepositor(address)`
-
-```solidity
-error UnexpectedPositionDepositor(address depositor);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `UnexpectedPositionTokenId(uint256,uint256)`
-
-```solidity
-error UnexpectedPositionTokenId(uint256 expected, uint256 actual);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `ZeroAddress()`
-
-```solidity
-error ZeroAddress();
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 ## Mine
 
 Source: [`src/core/Mine.sol`](../../packages/contracts/src/core/Mine.sol)
 
 Artifact: `out/Mine.sol/Mine.json`
 
-Public ABI: 30 functions, 5 events, 10 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 29 functions, 5 events, 9 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address)`
 
@@ -1622,6 +1173,12 @@ constructor(contract GBX gbx_, contract IERC20 usdg_, address resonanceRouter_);
 ```
 
 Creates the immutable mining market with sixteen empty slots.
+
+**Parameters**
+
+- `gbx_`: GBX token whose sole mint authority will be this Mine.
+- `resonanceRouter_`: Router that receives the protocol share of each payment.
+- `usdg_`: USDG token paid by miners.
 
 ### `BPS()`
 
@@ -1663,10 +1220,10 @@ function MAX_MESSAGE_BYTES() external view returns (uint256 arg0);
 
 Maximum raw byte length of the event-only message attached to a mining handoff.
 
-### `MINIMUM_INITIAL_PRICE()`
+### `MIN_INITIAL_PRICE()`
 
 ```solidity
-function MINIMUM_INITIAL_PRICE() external view returns (uint256 arg0);
+function MIN_INITIAL_PRICE() external view returns (uint256 arg0);
 ```
 
 Raw USDG floor for every newly started reverse Dutch auction.
@@ -1719,21 +1276,41 @@ function aggregateTps() external view returns (uint256 arg0);
 
 Sum of all occupied slots' tenure-locked tokens-per-second rates.
 
-### `claim(address)`
+### `claimMinerPayment(address)`
 
 ```solidity
-function claim(address account) external;
+function claimMinerPayment(address account) external;
 ```
 
 Claims accumulated USDG replacement payments for an account.
 
-### `claimable(address)`
+**Parameters**
+
+- `account`: Displaced miner receiving the payment.
+
+### `claimableMinerPayment(address)`
 
 ```solidity
-function claimable(address account) external view returns (uint256 amount);
+function claimableMinerPayment(address account) external view returns (uint256 amount);
 ```
 
 Pull-based USDG replacement proceeds owed to each displaced miner.
+
+### `currentPrice(uint256)`
+
+```solidity
+function currentPrice(uint256 slotIndex) external view returns (uint256 paymentAmount);
+```
+
+Returns one slot's current linearly decaying USDG replacement price.
+
+**Parameters**
+
+- `slotIndex`: Zero-based slot to quote.
+
+**Returns**
+
+- `paymentAmount`: Current USDG replacement payment.
 
 ### `effectiveTotalSupply()`
 
@@ -1743,6 +1320,10 @@ function effectiveTotalSupply() external view returns (uint256 amount);
 
 Returns minted GBX supply plus all accrued unminted mining emission.
 
+**Returns**
+
+- `amount`: Economically effective GBX supply.
+
 ### `gbx()`
 
 ```solidity
@@ -1751,22 +1332,27 @@ function gbx() external view returns (contract GBX arg0);
 
 Canonical GBX token whose sole mint authority is this Mine.
 
-### `getSlot(uint256)`
-
-```solidity
-function getSlot(uint256 index) external view returns (struct Mine.Slot slot);
-```
-
-Returns the complete state of one mining slot.
-
 ### `mine(address,uint256,uint256,uint256,uint256,string)`
 
 ```solidity
-function mine(address miner, uint256 index, uint256 epochId, uint256 deadline, uint256 maximumPrice, string message) external returns (uint256 paid);
+function mine(address miner, uint256 slotIndex, uint256 expectedEpochId, uint256 deadline, uint256 maximumPayment, string message) external returns (uint256 paymentAmount);
 ```
 
 Replaces one slot's miner at its current linearly decaying USDG price.
 The optional message is emitted in `Mined` and is never stored in contract state.
+
+**Parameters**
+
+- `deadline`: Latest timestamp at which the handoff may execute.
+- `expectedEpochId`: Expected slot epoch, protecting against an earlier handoff.
+- `maximumPayment`: Maximum USDG payment accepted by the caller.
+- `message`: Optional event-only message of at most `MAX_MESSAGE_BYTES` raw bytes.
+- `miner`: Account receiving the slot and its later GBX emission.
+- `slotIndex`: Zero-based slot to replace.
+
+**Returns**
+
+- `paymentAmount`: Actual USDG payment required at execution time.
 
 ### `nextGlobalTps()`
 
@@ -1776,6 +1362,10 @@ function nextGlobalTps() external view returns (uint256 tps);
 
 Returns the global tokens-per-second rate that the next handoff will divide by sixteen.
 
+**Returns**
+
+- `tps`: Prospective global GBX tokens-per-second rate.
+
 ### `pendingEmission()`
 
 ```solidity
@@ -1784,13 +1374,25 @@ function pendingEmission() external view returns (uint256 amount);
 
 Returns total accrued unminted GBX in constant time across all sixteen slots.
 
-### `pendingEmission(uint256)`
+**Returns**
+
+- `amount`: Complete accrued unminted GBX amount.
+
+### `pendingSlotEmission(uint256)`
 
 ```solidity
-function pendingEmission(uint256 index) external view returns (uint256 amount);
+function pendingSlotEmission(uint256 slotIndex) external view returns (uint256 amount);
 ```
 
 Returns accrued unminted GBX for one slot without changing its state.
+
+**Parameters**
+
+- `slotIndex`: Zero-based slot to read.
+
+**Returns**
+
+- `amount`: Accrued unminted GBX for the slot.
 
 ### `pendingUpdatedAt()`
 
@@ -1800,14 +1402,6 @@ function pendingUpdatedAt() external view returns (uint256 arg0);
 
 Timestamp through which `storedPendingEmission` incorporates `aggregateTps`.
 
-### `price(uint256)`
-
-```solidity
-function price(uint256 index) external view returns (uint256 amount);
-```
-
-Returns one slot's current linearly decaying USDG replacement price.
-
 ### `resonanceRouter()`
 
 ```solidity
@@ -1816,13 +1410,21 @@ function resonanceRouter() external view returns (address arg0);
 
 Router receiving the Resonance share of replacement payments.
 
-### `slots(uint256)`
+### `slot(uint256)`
 
 ```solidity
-function slots(uint256 index) external view returns (uint256 epochId, uint256 initialPrice, uint256 auctionStartedAt, uint256 lastAccruedAt, uint256 tps, address miner);
+function slot(uint256 slotIndex) external view returns (struct Mine.Slot slotState);
 ```
 
-Mining-slot state by zero-based slot index.
+Returns the complete state of one mining slot.
+
+**Parameters**
+
+- `slotIndex`: Zero-based slot to read.
+
+**Returns**
+
+- `slotState`: Current slot state.
 
 ### `startTime()`
 
@@ -1840,10 +1442,10 @@ function storedPendingEmission() external view returns (uint256 arg0);
 
 Total unminted slot emission accrued through `pendingUpdatedAt`.
 
-### `totalClaimable()`
+### `totalClaimableMinerPayments()`
 
 ```solidity
-function totalClaimable() external view returns (uint256 arg0);
+function totalClaimableMinerPayments() external view returns (uint256 arg0);
 ```
 
 Total USDG currently owed to displaced miners.
@@ -1866,18 +1468,10 @@ USDG token paid to replace mining slots.
 
 ### Events
 
-#### `Claimed(address,uint256)`
-
-```solidity
-event Claimed(address indexed account, uint256 amount);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `EmissionSettled(address,uint256,uint256,uint256)`
 
 ```solidity
-event EmissionSettled(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
+event EmissionSettled(address indexed miner, uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1885,7 +1479,7 @@ _No additional NatSpec notice is present in the compiled artifact._
 #### `Mined(address,address,uint256,uint256,address,uint256,uint256,uint256,string)`
 
 ```solidity
-event Mined(address indexed payer, address indexed miner, uint256 indexed index, uint256 epochId, address previousMiner, uint256 price, uint256 initialPrice, uint256 tps, string message);
+event Mined(address indexed payer, address indexed miner, uint256 indexed slotIndex, uint256 epochId, address previousMiner, uint256 paymentAmount, uint256 nextInitialPrice, uint256 tps, string message);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1893,7 +1487,15 @@ _No additional NatSpec notice is present in the compiled artifact._
 #### `MinerPaymentAccrued(address,uint256,uint256,uint256)`
 
 ```solidity
-event MinerPaymentAccrued(address indexed miner, uint256 indexed index, uint256 indexed epochId, uint256 amount);
+event MinerPaymentAccrued(address indexed miner, uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `MinerPaymentClaimed(address,uint256)`
+
+```solidity
+event MinerPaymentClaimed(address indexed account, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1901,7 +1503,7 @@ _No additional NatSpec notice is present in the compiled artifact._
 #### `RevenueDeposited(uint256,uint256,uint256)`
 
 ```solidity
-event RevenueDeposited(uint256 indexed index, uint256 indexed epochId, uint256 amount);
+event RevenueDeposited(uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1927,23 +1529,15 @@ _No additional NatSpec notice is present in the compiled artifact._
 #### `IndexOutOfBounds(uint256)`
 
 ```solidity
-error IndexOutOfBounds(uint256 index);
+error IndexOutOfBounds(uint256 slotIndex);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InexactTransfer(uint256,uint256,uint256)`
+#### `MaximumPaymentExceeded(uint256,uint256)`
 
 ```solidity
-error InexactTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `MaxPriceExceeded(uint256,uint256)`
-
-```solidity
-error MaxPriceExceeded(uint256 price, uint256 maximumPrice);
+error MaximumPaymentExceeded(uint256 paymentAmount, uint256 maximumPayment);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1994,7 +1588,7 @@ Source: [`src/core/Resonance.sol`](../../packages/contracts/src/core/Resonance.s
 
 Artifact: `out/Resonance.sol/Resonance.json`
 
-Public ABI: 42 functions, 10 events, 19 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 36 functions, 10 events, 19 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address,address,address)`
 
@@ -2002,7 +1596,7 @@ Public ABI: 42 functions, 10 events, 19 custom errors, 1 constructor, 0 receive 
 constructor(contract IERC20 signalGBX_, contract IERC20 usdg_, address fund_, contract BribeFactory bribeFactory_, contract StrategyFactory strategyFactory_, address initialOwner);
 ```
 
-Creates the rewarder with immutable token, Fund, and factory dependencies.
+Creates the allocator with immutable token, Fund, and factory dependencies.
 
 ### `BPS()`
 
@@ -2020,14 +1614,6 @@ function DEFAULT_BRIBE_BPS() external view returns (uint256 arg0);
 
 Initial share of every new Strategy payment assigned to its paired Bribe.
 
-### `DURATION()`
-
-```solidity
-function DURATION() external view returns (uint256 arg0);
-```
-
-Fixed duration of every USDG reward period.
-
 ### `MAX_BRIBE_BPS()`
 
 ```solidity
@@ -2035,6 +1621,14 @@ function MAX_BRIBE_BPS() external view returns (uint256 arg0);
 ```
 
 Hard governance ceiling preserving at least 80% of every classified payment for Fund.
+
+### `REWARD_DURATION()`
+
+```solidity
+function REWARD_DURATION() external view returns (uint256 arg0);
+```
+
+Fixed duration of every USDG revenue period.
 
 ### `REWARD_PRECISION()`
 
@@ -2044,28 +1638,10 @@ function REWARD_PRECISION() external view returns (uint256 arg0);
 
 Fixed-point precision for allocating six-decimal USDG across eighteen-decimal SignalGBX.
 
-### `accountSignalWeight(address)`
+### `addBribeRewardToken(address,address)`
 
 ```solidity
-function accountSignalWeight(address account) external view returns (uint256 amount);
-```
-
-Returns an account's complete signal across live and killed Strategies.
-SignalGBX balance is the canonical account aggregate because idle sGBX is unreachable.
-
-### `accountSignals(address,address)`
-
-```solidity
-function accountSignals(address account, address strategy) external view returns (uint256 amount);
-```
-
-Returns the SignalGBX one account has assigned to one Strategy.
-The paired Bribe is the canonical account-by-Strategy signal ledger.
-
-### `addBribeReward(address,address)`
-
-```solidity
-function addBribeReward(address strategy, address rewardToken) external;
+function addBribeRewardToken(address strategy, address rewardToken) external;
 ```
 
 Registers an additional independently funded reward token on one Strategy's Bribe.
@@ -2118,21 +1694,21 @@ function bribeRouterFor(address strategy) external view returns (address router)
 
 BribeRouter associated with each Strategy.
 
-### `distribute(address)`
+### `distributeRevenue(address)`
 
 ```solidity
-function distribute(address strategy) external returns (uint256 amount);
+function distributeRevenue(address strategy) external returns (uint256 amount);
 ```
 
 Pays one Strategy's accrued USDG. Anyone may trigger payment to the fixed entitled Strategy.
 
-### `earned(address)`
+### `earnedRevenue(address)`
 
 ```solidity
-function earned(address strategy) external view returns (uint256 reward);
+function earnedRevenue(address strategy) external view returns (uint256 revenue);
 ```
 
-Returns one Strategy's stored plus elapsed USDG reward.
+Returns one Strategy's stored plus elapsed USDG revenue.
 
 ### `fund()`
 
@@ -2142,29 +1718,21 @@ function fund() external view returns (address arg0);
 
 Treasury exposed to the paired Bribe graph and Strategy settlement.
 
-### `getRewardForDuration()`
+### `isStrategyLive(address)`
 
 ```solidity
-function getRewardForDuration() external view returns (uint256 reward);
+function isStrategyLive(address strategy) external view returns (bool live);
 ```
 
-Returns the complete amount represented by the current seven-day schedule.
+Whether a Strategy can receive new signal and future Resonance revenue.
 
-### `isStrategy(address)`
+### `isStrategyRegistered(address)`
 
 ```solidity
-function isStrategy(address strategy) external view returns (bool valid);
+function isStrategyRegistered(address strategy) external view returns (bool registered);
 ```
 
 Whether an address is a Resonance-created Strategy.
-
-### `isStrategyAlive(address)`
-
-```solidity
-function isStrategyAlive(address strategy) external view returns (bool alive);
-```
-
-Whether a Strategy can receive new signal and future Resonance rewards.
 
 ### `killStrategy(address)`
 
@@ -2172,24 +1740,8 @@ Whether a Strategy can receive new signal and future Resonance rewards.
 function killStrategy(address strategy) external;
 ```
 
-Permanently stops a Strategy from receiving new signal or future Resonance rewards.
-Rewards accrued through this checkpoint remain claimable. Existing signal remains recorded and removable.
-
-### `lastTimeRewardApplicable()`
-
-```solidity
-function lastTimeRewardApplicable() external view returns (uint256 timestamp);
-```
-
-Returns the final timestamp applicable to the active reward period.
-
-### `left()`
-
-```solidity
-function left() external view returns (uint256 reward);
-```
-
-Returns whole raw USDG units left at the active period's stored rate.
+Permanently stops a Strategy from receiving new signal or future Resonance revenue.
+Revenue accrued through this checkpoint remains claimable. Existing signal remains recorded and removable.
 
 ### `liveStrategyCount()`
 
@@ -2197,16 +1749,16 @@ Returns whole raw USDG units left at the active period's stored rate.
 function liveStrategyCount() external view returns (uint256 arg0);
 ```
 
-Number of registered Strategies eligible for new signal and future Resonance rewards.
+Number of registered Strategies eligible for new signal and future Resonance revenue.
 
 ### `notifyRevenue(uint256)`
 
 ```solidity
-function notifyRevenue(uint256 reward) external;
+function notifyRevenue(uint256 amount) external;
 ```
 
-Pulls qualifying USDG from ResonanceRouter and restarts the seven-day reward period.
-During an active period, the new reward must be at least the scheduled reward left in that period. As in Synthetix StakingRewards, division by `DURATION` floors and any raw-unit remainder stays as contract surplus.
+Pulls qualifying USDG from ResonanceRouter and restarts the seven-day revenue period.
+During an active period, the new amount must be at least the scheduled revenue remaining in that period. As in Synthetix StakingRewards, division by `REWARD_DURATION` floors and any raw-unit remainder stays as contract surplus.
 
 ### `owner()`
 
@@ -2216,13 +1768,13 @@ function owner() external view returns (address arg0);
 
 Returns the address of the current owner.
 
-### `paymentTokenFor(address)`
+### `remainingRevenue()`
 
 ```solidity
-function paymentTokenFor(address strategy) external view returns (address paymentToken);
+function remainingRevenue() external view returns (uint256 amount);
 ```
 
-Payment token required by each Strategy.
+Returns whole raw USDG units remaining at the active period's stored rate.
 
 ### `removeSignalFor(address,address,uint256)`
 
@@ -2247,20 +1799,20 @@ Leaves the contract without owner. It will not be possible to call `onlyOwner` f
 function resonanceRouter() external view returns (address arg0);
 ```
 
-Sole validated Router authorized to pull USDG into Resonance and notify rewards.
+Sole validated Router authorized to pull USDG into Resonance and notify revenue.
 
-### `rewardData()`
+### `revenueData()`
 
 ```solidity
-function rewardData() external view returns (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime, uint256 rewardPerTokenStored);
+function revenueData() external view returns (uint256 periodFinish, uint256 revenueRate, uint256 lastUpdateTime, uint256 revenuePerSignalStored);
 ```
 
-The sole USDG reward schedule and cumulative reward-per-signal index.
+The sole USDG revenue schedule and cumulative revenue-per-signal index.
 
-### `rewardPerToken()`
+### `revenuePerSignal()`
 
 ```solidity
-function rewardPerToken() external view returns (uint256 accumulatedReward);
+function revenuePerSignal() external view returns (uint256 accumulatedRevenue);
 ```
 
 Returns cumulative scaled USDG allocated per unit of active SignalGBX.
@@ -2302,30 +1854,21 @@ function strategyFactory() external view returns (contract StrategyFactory arg0)
 
 Resonance-bound factory used to create Strategies and their BribeRouters.
 
-### `strategyRewardPerTokenPaid(address)`
+### `strategyRevenue(address)`
 
 ```solidity
-function strategyRewardPerTokenPaid(address strategy) external view returns (uint256 paid);
-```
-
-Cumulative USDG reward-per-signal already incorporated for each Strategy.
-
-### `strategyRewards(address)`
-
-```solidity
-function strategyRewards(address strategy) external view returns (uint256 reward);
+function strategyRevenue(address strategy) external view returns (uint256 revenue);
 ```
 
 Accrued whole raw USDG units owed to each Strategy.
 
-### `strategySignalWeight(address)`
+### `strategyRevenuePerSignalPaid(address)`
 
 ```solidity
-function strategySignalWeight(address strategy) external view returns (uint256 amount);
+function strategyRevenuePerSignalPaid(address strategy) external view returns (uint256 paid);
 ```
 
-Returns the complete SignalGBX weight recorded for one Strategy.
-The paired Bribe is the canonical per-Strategy signal-supply ledger.
+Cumulative USDG revenue-per-signal already incorporated for each Strategy.
 
 ### `totalSignalWeight()`
 
@@ -2333,7 +1876,7 @@ The paired Bribe is the canonical per-Strategy signal-supply ledger.
 function totalSignalWeight() external view returns (uint256 arg0);
 ```
 
-Total active SignalGBX weight eligible for Resonance rewards.
+Total active SignalGBX weight eligible for Resonance revenue.
 
 ### `transferOwnership(address)`
 
@@ -2349,22 +1892,22 @@ Transfers ownership of the contract to a new account (`newOwner`). Can only be c
 function usdg() external view returns (contract IERC20 arg0);
 ```
 
-Six-decimal reward token streamed to Strategies.
+Six-decimal revenue token streamed to Strategies.
 
 ### Events
 
 #### `BribeBpsSet(uint256,uint256)`
 
 ```solidity
-event BribeBpsSet(uint256 previousBps, uint256 newBps);
+event BribeBpsSet(uint256 previousBribeBps, uint256 newBribeBps);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `BribeRewardAdded(address,address,address)`
+#### `BribeRewardTokenAdded(address,address,address)`
 
 ```solidity
-event BribeRewardAdded(address indexed strategy, address indexed bribe, address indexed rewardToken);
+event BribeRewardTokenAdded(address indexed strategy, address indexed bribe, address indexed rewardToken);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2523,10 +2066,10 @@ error ResonanceRouterAlreadySet(address resonanceRouter);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `RewardSmallerThanLeft(uint256,uint256)`
+#### `RevenueBelowRemaining(uint256,uint256)`
 
 ```solidity
-error RewardSmallerThanLeft(uint256 reward, uint256 left);
+error RevenueBelowRemaining(uint256 amount, uint256 remaining);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2593,7 +2136,7 @@ Source: [`src/core/ResonanceRouter.sol`](../../packages/contracts/src/core/Reson
 
 Artifact: `out/ResonanceRouter.sol/ResonanceRouter.json`
 
-Public ABI: 4 functions, 2 events, 4 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 3 functions, 2 events, 4 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -2607,18 +2150,6 @@ Creates a fixed USDG route into `resonance_`.
 
 - `resonance_`: Resonance that receives and indexes routed USDG.
 - `usdg_`: USDG token forwarded by the router.
-
-### `pendingRevenue()`
-
-```solidity
-function pendingRevenue() external view returns (uint256 amount);
-```
-
-Returns USDG waiting to be routed.
-
-**Returns**
-
-- `amount`: Current USDG balance of the router.
 
 ### `resonance()`
 
@@ -2706,7 +2237,7 @@ Source: [`src/core/SignalGBX.sol`](../../packages/contracts/src/core/SignalGBX.s
 
 Artifact: `out/SignalGBX.sol/SignalGBX.json`
 
-Public ABI: 31 functions, 9 events, 30 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 31 functions, 9 events, 29 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -2935,7 +2466,7 @@ function signalWithPermit(address strategy, uint256 amount, uint256 deadline, ui
 ```
 
 Attempts an underlying GBX permit, then performs the same atomic transition as `signal`.
-A pre-consumed permit may fail harmlessly because the exact underlying transfer remains authoritative.
+A pre-consumed permit may fail harmlessly because the underlying transfer remains authoritative.
 
 **Parameters**
 
@@ -3179,14 +2710,6 @@ error ERC6372InconsistentClock();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `InexactUnderlyingTransfer(uint256,uint256,uint256)`
-
-```solidity
-error InexactUnderlyingTransfer(uint256 expected, uint256 senderDebit, uint256 receiverCredit);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
 #### `InvalidAccountNonce(address,uint256)`
 
 ```solidity
@@ -3321,12 +2844,12 @@ Source: [`src/core/Strategy.sol`](../../packages/contracts/src/core/Strategy.sol
 
 Artifact: `out/Strategy.sol/Strategy.json`
 
-Public ABI: 21 functions, 1 event, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 20 functions, 1 event, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address,(uint256,uint256,uint256,uint256))`
 
 ```solidity
-constructor(address resonance_, contract IERC20 revenueToken_, contract IERC20 paymentToken_, address fund_, struct Strategy.Config config);
+constructor(address resonance_, contract IERC20 usdg_, contract IERC20 paymentToken_, address fund_, struct Strategy.Config config);
 ```
 
 Creates one immutable Strategy.
@@ -3337,7 +2860,7 @@ Creates one immutable Strategy.
 - `fund_`: Treasury that receives the non-Bribe share of every auction payment.
 - `paymentToken_`: Asset buyers pay to fill this Strategy.
 - `resonance_`: Resonance that provides the paired BribeRouter.
-- `revenueToken_`: USDG token sold by this Strategy.
+- `usdg_`: USDG token sold by this Strategy.
 
 ### `ABSOLUTE_MAXIMUM_PRICE()`
 
@@ -3403,18 +2926,6 @@ function PRICE_SCALE() external view returns (uint256 arg0);
 
 Fixed-point precision for the next-price multiplier.
 
-### `availableRevenue()`
-
-```solidity
-function availableRevenue() external view returns (uint256 amount);
-```
-
-Returns USDG currently available for purchase.
-
-**Returns**
-
-- `amount`: USDG currently held by this Strategy.
-
 ### `buy(address,uint256,uint256,uint256)`
 
 ```solidity
@@ -3437,14 +2948,14 @@ Purchases the Strategy's complete USDG balance at the current declining price.
 ### `currentPrice()`
 
 ```solidity
-function currentPrice() external view returns (uint256 price);
+function currentPrice() external view returns (uint256 paymentAmount);
 ```
 
 Returns the current linearly declining price.
 
 **Returns**
 
-- `price`: Payment required to fill the active auction epoch.
+- `paymentAmount`: Payment required to fill the active auction epoch.
 
 ### `epochDuration()`
 
@@ -3518,10 +3029,10 @@ function resonance() external view returns (address arg0);
 
 Resonance that supplies the paired BribeRouter.
 
-### `revenueToken()`
+### `usdg()`
 
 ```solidity
-function revenueToken() external view returns (contract IERC20 arg0);
+function usdg() external view returns (contract IERC20 arg0);
 ```
 
 USDG sold by this Strategy.
@@ -3649,7 +3160,7 @@ Creates an unbound factory whose owner may set Resonance exactly once.
 ### `createStrategy(address,address,address,address,(uint256,uint256,uint256,uint256))`
 
 ```solidity
-function createStrategy(contract IERC20 revenueToken, contract IERC20 paymentToken, address fund, contract Bribe bribe, struct Strategy.Config config) external returns (contract Strategy strategy, contract BribeRouter bribeRouter);
+function createStrategy(contract IERC20 usdg, contract IERC20 paymentToken, address fund, contract Bribe bribe, struct Strategy.Config config) external returns (contract Strategy strategy, contract BribeRouter bribeRouter);
 ```
 
 Deploys a Strategy and the BribeRouter paired with it.
@@ -3660,7 +3171,7 @@ Deploys a Strategy and the BribeRouter paired with it.
 - `config`: Immutable auction configuration.
 - `fund`: Treasury that receives the non-Bribe share of each payment.
 - `paymentToken`: Asset buyers pay to fill the Strategy.
-- `revenueToken`: USDG token sold by the Strategy.
+- `usdg`: USDG token sold by the Strategy.
 
 **Returns**
 
@@ -3807,10 +3318,23 @@ Returns the fixed duration required for each reward stream.
 
 - `duration`: Reward duration in seconds.
 
-### `left(address)`
+### `notifyReward(address,uint256)`
 
 ```solidity
-function left(address rewardToken) external view returns (uint256 amount);
+function notifyReward(address rewardToken, uint256 amount) external;
+```
+
+Starts or restarts a seven-day reward stream using standard leftover rollover.
+
+**Parameters**
+
+- `amount`: Amount pulled from the caller and added to the stream.
+- `rewardToken`: Token to stream.
+
+### `remainingReward(address)`
+
+```solidity
+function remainingReward(address rewardToken) external view returns (uint256 amount);
 ```
 
 Returns rewards remaining in a token's active stream.
@@ -3823,31 +3347,50 @@ Returns rewards remaining in a token's active stream.
 
 - `amount`: Undistributed amount remaining in the stream.
 
-### `notifyRewardAmount(address,uint256)`
+## IMine
+
+Source: [`src/core/interfaces/IMine.sol`](../../packages/contracts/src/core/interfaces/IMine.sol)
+
+Artifact: `out/IMine.sol/IMine.json`
+
+Public ABI: 3 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `effectiveTotalSupply()`
 
 ```solidity
-function notifyRewardAmount(address rewardToken, uint256 amount) external;
+function effectiveTotalSupply() external view returns (uint256 amount);
 ```
 
-Starts or restarts a seven-day reward stream using standard leftover rollover.
+Returns minted GBX supply plus every live slot's accrued unminted GBX.
 
-**Parameters**
+### `gbx()`
 
-- `amount`: Amount pulled from the caller and added to the stream.
-- `rewardToken`: Token to stream.
+```solidity
+function gbx() external view returns (address token);
+```
 
-## ICoreResonance
+Canonical GBX token minted by this contract.
 
-Source: [`src/core/interfaces/ICoreResonance.sol`](../../packages/contracts/src/core/interfaces/ICoreResonance.sol)
+### `pendingEmission()`
 
-Artifact: `out/ICoreResonance.sol/ICoreResonance.json`
+```solidity
+function pendingEmission() external view returns (uint256 amount);
+```
+
+Returns accrued GBX that has not yet been minted across all sixteen slots in constant time.
+
+## IResonance
+
+Source: [`src/core/interfaces/IResonance.sol`](../../packages/contracts/src/core/interfaces/IResonance.sol)
+
+Artifact: `out/IResonance.sol/IResonance.json`
 
 Public ABI: 8 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
-### `DURATION()`
+### `REWARD_DURATION()`
 
 ```solidity
-function DURATION() external view returns (uint256 duration);
+function REWARD_DURATION() external view returns (uint256 duration);
 ```
 
 Returns the fixed duration of each Resonance reward period.
@@ -3898,10 +3441,10 @@ Returns the reward router paired with a Strategy.
 
 - `router`: BribeRouter paired with `strategy`.
 
-### `distribute(address)`
+### `distributeRevenue(address)`
 
 ```solidity
-function distribute(address strategy) external returns (uint256 amount);
+function distributeRevenue(address strategy) external returns (uint256 amount);
 ```
 
 Checkpoints and transfers one Strategy's currently released USDG.
@@ -3914,18 +3457,6 @@ Checkpoints and transfers one Strategy's currently released USDG.
 
 - `amount`: Amount transferred.
 
-### `left()`
-
-```solidity
-function left() external view returns (uint256 amount);
-```
-
-Returns whole raw USDG units left at the active period's stored rate.
-
-**Returns**
-
-- `amount`: USDG units not yet emitted by the active period.
-
 ### `notifyRevenue(uint256)`
 
 ```solidity
@@ -3937,6 +3468,18 @@ Pulls and schedules newly routed USDG revenue.
 **Parameters**
 
 - `amount`: Amount of USDG to pull from the caller.
+
+### `remainingRevenue()`
+
+```solidity
+function remainingRevenue() external view returns (uint256 amount);
+```
+
+Returns whole raw USDG units remaining at the active period's stored rate.
+
+**Returns**
+
+- `amount`: USDG units not yet emitted by the active period.
 
 ### `removeSignalFor(address,address,uint256)`
 
@@ -3951,70 +3494,6 @@ Removes signal on behalf of an account through the permanently bound SignalGBX c
 - `account`: Account whose allocation decreases.
 - `amount`: Absolute SignalGBX delta removed.
 - `strategy`: Strategy losing signal; exits remain available after kill.
-
-## IFund
-
-Source: [`src/core/interfaces/IFund.sol`](../../packages/contracts/src/core/interfaces/IFund.sol)
-
-Artifact: `out/IFund.sol/IFund.json`
-
-Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `burnGBX(uint256)`
-
-```solidity
-function burnGBX(uint256 amount) external;
-```
-
-Burns GBX already held by the Fund.
-
-**Parameters**
-
-- `amount`: Amount of GBX to burn.
-
-### `gbx()`
-
-```solidity
-function gbx() external view returns (address token);
-```
-
-Returns the GBX token backed by the Fund.
-
-**Returns**
-
-- `token`: GBX token address.
-
-## IMine
-
-Source: [`src/core/interfaces/IMine.sol`](../../packages/contracts/src/core/interfaces/IMine.sol)
-
-Artifact: `out/IMine.sol/IMine.json`
-
-Public ABI: 3 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `effectiveTotalSupply()`
-
-```solidity
-function effectiveTotalSupply() external view returns (uint256 amount);
-```
-
-Returns minted GBX supply plus every live slot's accrued unminted GBX.
-
-### `gbx()`
-
-```solidity
-function gbx() external view returns (address token);
-```
-
-Canonical GBX token minted by this contract.
-
-### `pendingEmission()`
-
-```solidity
-function pendingEmission() external view returns (uint256 amount);
-```
-
-Returns accrued GBX that has not yet been minted across all sixteen slots in constant time.
 
 ## IResonanceIdentity
 
@@ -4048,30 +3527,6 @@ function strategyFactory() external view returns (address factory);
 
 Returns the immutable StrategyFactory controlled by Resonance.
 
-## IResonanceRouterIdentity
-
-Source: [`src/core/interfaces/IResonanceIdentity.sol`](../../packages/contracts/src/core/interfaces/IResonanceIdentity.sol)
-
-Artifact: `out/IResonanceIdentity.sol/IResonanceRouterIdentity.json`
-
-Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
-
-### `resonance()`
-
-```solidity
-function resonance() external view returns (address receiver);
-```
-
-Returns the immutable Resonance receiver used by the router.
-
-### `usdg()`
-
-```solidity
-function usdg() external view returns (address token);
-```
-
-Returns the immutable USDG token forwarded by the router.
-
 ## IResonanceRouter
 
 Source: [`src/core/interfaces/IResonanceRouter.sol`](../../packages/contracts/src/core/interfaces/IResonanceRouter.sol)
@@ -4091,3 +3546,27 @@ Routes the complete nonzero pending USDG balance into Resonance.
 **Returns**
 
 - `amount`: Amount delivered to Resonance.
+
+## IResonanceRouterIdentity
+
+Source: [`src/core/interfaces/IResonanceRouter.sol`](../../packages/contracts/src/core/interfaces/IResonanceRouter.sol)
+
+Artifact: `out/IResonanceRouter.sol/IResonanceRouterIdentity.json`
+
+Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `resonance()`
+
+```solidity
+function resonance() external view returns (address receiver);
+```
+
+Returns the immutable Resonance receiver used by the router.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (address token);
+```
+
+Returns the immutable USDG token forwarded by the router.

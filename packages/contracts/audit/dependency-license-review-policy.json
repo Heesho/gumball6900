@@ -4,8 +4,8 @@
   "schemaVersion": 1,
   "state": "inventory-baselined",
   "platform": "linux-x64",
-  "pnpmLockSha256": "6393ea5c70bd470733a34444259c8a14528a5f49d423e82e3643077361c0d791",
-  "licenseReportSha256": "dd719db99a57c5b7b3f395775ebef9df4f9d19b2abd38195a4b57ab3476ff43f",
+  "pnpmLockSha256": "620a43d60c7be8c0f91896da488a558cafeeb51e9c7dd3bef9c1277fb6fd4a33",
+  "licenseReportSha256": "25ba6c58d40c1e4188d092de4f7962b6e8959863280821cf2c1d7a77d4a6b1a1",
   "reviewedAt": null,
   "reviewedBy": null,
   "entries": [
@@ -29,72 +29,9 @@
     },
     {
       "classification": "restricted",
-      "license": "BUSL-1.1",
-      "name": "@uniswap/v3-core",
-      "versions": ["1.0.0", "1.0.1"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "restricted",
-      "license": "BUSL-1.1",
-      "name": "@uniswap/v4-core",
-      "versions": ["1.0.2"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "restricted",
       "license": "CC-BY-4.0",
       "name": "caniuse-lite",
       "versions": ["1.0.30001806"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "copyleft",
-      "license": "GPL-2.0-or-later",
-      "name": "@uniswap/swap-router-contracts",
-      "versions": ["1.3.1"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "copyleft",
-      "license": "GPL-2.0-or-later",
-      "name": "@uniswap/v3-periphery",
-      "versions": ["1.4.4"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "copyleft",
-      "license": "GPL-3.0-or-later",
-      "name": "@uniswap/lib",
-      "versions": ["4.0.1-alpha"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "copyleft",
-      "license": "GPL-3.0-or-later",
-      "name": "@uniswap/v2-core",
-      "versions": ["1.0.1"],
-      "disposition": "needs-counsel",
-      "releaseRelevance": "undetermined",
-      "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."
-    },
-    {
-      "classification": "copyleft",
-      "license": "GPL-3.0-or-later",
-      "name": "@uniswap/v3-staker",
-      "versions": ["1.0.0"],
       "disposition": "needs-counsel",
       "releaseRelevance": "undetermined",
       "rationale": "This inventory-only classification awaits owner and counsel disposition before release approval."

@@ -14,13 +14,13 @@ binding, its continuing protocol administration methods are:
 
 - `Resonance.addStrategy`;
 - `Resonance.killStrategy`;
-- `Resonance.addBribeReward`, within the fixed sixteen-token cap; and
+- `Resonance.addBribeRewardToken`, within the fixed sixteen-token cap; and
 - `Resonance.setBribeBps`, globally bounded from 0 through 2,000 basis points.
 
 The Resonance owner can also call inherited `transferOwnership` and `renounceOwnership`; the core no longer claims to
 enforce a selector-bounded proposal surface around those capabilities. Mine has no owner or administrative methods.
 Resonance ownership cannot change mining replacement prices or their 80/20 displaced-miner split, halving parameters,
-the tail rate, GBX mint authority, Fund assets, or liquidity custody.
+the tail rate, GBX mint authority, Fund assets, or external liquidity.
 
 SignalGBX, StrategyFactory, and BribeFactory also inherit Ownable for their one-time `setResonance` bindings. Once a
 correct binding is consumed, those owners have no remaining custom protocol action, but each contract still exposes
@@ -46,16 +46,16 @@ SignalGBX and factory ownership shells. The provider, exact release, deployed by
 permissions, root/admin holders, upgrade paths, batching, delay, cancellation, and ownership receipts all remain
 unresolved release gates. No production ownership handoff is authorized until they are reviewed and recorded.
 
-GBX binds Mine once during deployment. SignalGBX, StrategyFactory, and BribeFactory bind Resonance once. Fund and
-LiquidityPosition are ownerless. There are no proxies, pause switches, sweep methods, successor bindings, migrations,
+GBX binds Mine once during deployment. SignalGBX, StrategyFactory, and BribeFactory bind Resonance once. Fund and Mine
+are ownerless. There are no proxies, pause switches, sweep methods, successor bindings, migrations,
 or generic executors in the core protocol contracts.
 
 Mining, displaced-miner claims, routing, `signal`, `signalWithPermit`, `moveSignal`,
-`withdrawSignal`, Strategy purchases, reward claims, buffered paired-Bribe distribution, liquidity fee
-harvesting, Fund GBX burning, and redemption are permissionless. There is no standalone staking or unstaking surface.
-Mine stops after exact revenue deposit into ResonanceRouter. The later permissionless `route()` has no keeper role,
-bounty, or liveness guarantee and belongs to optional manual, frontend, or cron execution; LiquidityPosition retains
-its separate atomic route attempt.
+`withdrawSignal`, Strategy purchases, reward claims, buffered paired-Bribe distribution, Fund GBX burning, and
+redemption are permissionless. There is no standalone staking or unstaking surface.
+Mine stops after a successful nominal `SafeERC20` transfer request to ResonanceRouter under the supported standard
+USDG model. The later permissionless `route()` has no keeper role, bounty, or liveness guarantee and belongs to
+optional manual, frontend, or cron execution.
 Resonance's signal hooks accept only SignalGBX, preventing a second user-facing coordinator. Permissionless
-`BribeRouter.distribute()` can notify only its immutable paired Bribe with its immutable payment token and cannot
+`BribeRouter.route()` can notify only its immutable paired Bribe with its immutable payment token and cannot
 redirect the buffer.

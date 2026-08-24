@@ -1,9 +1,10 @@
 # ADR 0043: Provisional one-GBX Mine tail
 
-- Status: accepted provisionally for development; independent economic review remains required; not approved for
-  deployment or user funds
+- Status: accepted provisionally for development; its genesis allocation and resulting supply offsets are superseded
+  by ADR 0050; independent economic review remains required; not approved for deployment or user funds
 - Date: 2026-08-22
-- Supersedes: ADR 0042's `TAIL_TPS` value only
+- Supersedes: ADR 0042's `TAIL_TPS` value only; ADR 0050 separately removes the inherited genesis allocation and its
+  supply offset
 
 ## Context
 

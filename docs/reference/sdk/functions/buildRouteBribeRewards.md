@@ -2,11 +2,11 @@
 
 ---
 
-[GUM BALL 6900 TypeScript SDK](../README.md) / buildDistributeBribeRewards
+[GUM BALL 6900 TypeScript SDK](../README.md) / buildRouteBribeRewards
 
-# Function: buildDistributeBribeRewards()
+# Function: buildRouteBribeRewards()
 
-> **buildDistributeBribeRewards**(`bribeRouter`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildRouteBribeRewards**(`bribeRouter`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
 Attempts to notify a paired Bribe with the Router's complete buffered payment-token balance.
 

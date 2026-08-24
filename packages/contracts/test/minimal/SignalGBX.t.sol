@@ -7,7 +7,6 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { Resonance } from "../../src/core/Resonance.sol";
 import { SignalGBX } from "../../src/core/SignalGBX.sol";
-import { FeeOnTransferToken } from "./utils/Tokens.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 
 contract SignalResonanceHarness {
@@ -50,7 +49,7 @@ contract SignalGBXTest is ProtocolFixture {
     }
 
     function test_ReceiptMetadataAndUnderlyingAreFixed() external view {
-        assertEq(signalGBX.name(), "Signal GUM BALL 6900");
+        assertEq(signalGBX.name(), "SignalGumBall6900");
         assertEq(signalGBX.symbol(), "sGBX");
         assertEq(signalGBX.decimals(), 18);
         assertEq(address(signalGBX.gbx()), address(gbx));
@@ -90,10 +89,10 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(signalGBX.totalSupply(), 100 ether);
         assertEq(signalGBX.delegates(ALICE), ALICE);
         assertEq(signalGBX.getVotes(ALICE), 100 ether);
-        assertEq(targetBribe.balanceOf(ALICE), 100 ether);
-        assertEq(targetBribe.totalSupply(), 100 ether);
-        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 100 ether);
-        assertEq(resonance.accountSignalWeight(ALICE), 100 ether);
+        assertEq(targetBribe.signalWeightOf(ALICE), 100 ether);
+        assertEq(targetBribe.totalSignalWeight(), 100 ether);
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 100 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
         assertEq(resonance.totalSignalWeight(), 100 ether);
     }
 
@@ -125,27 +124,6 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(signalGBX.balanceOf(ALICE), 0);
         assertEq(signalGBX.totalSupply(), 0);
         assertEq(signalGBX.getVotes(ALICE), 0);
-    }
-
-    function test_SignalRejectsFeeOnTransferUnderlyingAndRollsBack() external {
-        FeeOnTransferToken token = new FeeOnTransferToken(18);
-        SignalGBX receipt = new SignalGBX(IERC20(address(token)), address(this));
-        SignalResonanceHarness harness = new SignalResonanceHarness(receipt);
-        receipt.setResonance(address(harness));
-        token.mint(ALICE, 100 ether);
-        token.setFeeBps(100);
-
-        vm.startPrank(ALICE);
-        token.approve(address(receipt), 100 ether);
-        vm.expectRevert(
-            abi.encodeWithSelector(SignalGBX.InexactUnderlyingTransfer.selector, 100 ether, 100 ether, 99 ether)
-        );
-        receipt.signal(address(targetStrategy), 100 ether);
-        vm.stopPrank();
-
-        assertEq(receipt.totalSupply(), 0);
-        assertEq(token.balanceOf(ALICE), 100 ether);
-        assertEq(token.balanceOf(address(receipt)), 0);
     }
 
     function test_DirectDonationIsSurplusAndCreatesNoSignalVotesOrWithdrawalEntitlement() external {
@@ -208,10 +186,10 @@ contract SignalGBXTest is ProtocolFixture {
         vm.prank(ALICE);
         signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
 
-        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 60 ether);
-        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 40 ether);
-        assertEq(targetBribe.balanceOf(ALICE), 60 ether);
-        assertEq(gbxBribe.balanceOf(ALICE), 40 ether);
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 60 ether);
+        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 40 ether);
+        assertEq(targetBribe.signalWeightOf(ALICE), 60 ether);
+        assertEq(gbxBribe.signalWeightOf(ALICE), 40 ether);
         assertEq(signalGBX.balanceOf(ALICE), 100 ether);
         assertEq(signalGBX.totalSupply(), 100 ether);
         assertEq(gbx.balanceOf(address(signalGBX)), 100 ether);
@@ -244,10 +222,10 @@ contract SignalGBXTest is ProtocolFixture {
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(gbxStrategy)));
         signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
 
-        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 100 ether);
-        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 0);
-        assertEq(targetBribe.balanceOf(ALICE), 100 ether);
-        assertEq(gbxBribe.balanceOf(ALICE), 0);
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 100 ether);
+        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 0);
+        assertEq(targetBribe.signalWeightOf(ALICE), 100 ether);
+        assertEq(gbxBribe.signalWeightOf(ALICE), 0);
         assertEq(resonance.totalSignalWeight(), 100 ether);
         assertEq(signalGBX.balanceOf(ALICE), 100 ether);
     }
@@ -260,8 +238,8 @@ contract SignalGBXTest is ProtocolFixture {
         vm.prank(ALICE);
         signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 100 ether);
 
-        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 0);
-        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 100 ether);
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 0);
+        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 100 ether);
         assertEq(resonance.totalSignalWeight(), 100 ether);
         assertEq(signalGBX.balanceOf(ALICE), 100 ether);
     }
@@ -279,8 +257,8 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(signalGBX.balanceOf(ALICE), 60 ether);
         assertEq(signalGBX.totalSupply(), 60 ether);
         assertEq(signalGBX.getVotes(ALICE), 60 ether);
-        assertEq(targetBribe.balanceOf(ALICE), 60 ether);
-        assertEq(resonance.accountSignalWeight(ALICE), 60 ether);
+        assertEq(targetBribe.signalWeightOf(ALICE), 60 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 60 ether);
         assertEq(resonance.totalSignalWeight(), 60 ether);
     }
 
@@ -320,7 +298,7 @@ contract SignalGBXTest is ProtocolFixture {
         uint256 maximum = targetBribe.MAX_LIFETIME_REWARD_AMOUNT();
         target.mint(address(this), maximum);
         target.approve(address(targetBribe), maximum);
-        targetBribe.notifyRewardAmount(address(target), maximum);
+        targetBribe.notifyReward(address(target), maximum);
         uint256 duration = targetBribe.REWARD_DURATION();
         vm.warp(block.timestamp + duration);
         assertEq(targetBribe.claimReward(ALICE, address(target)), maximum - (maximum % duration));
@@ -331,31 +309,8 @@ contract SignalGBXTest is ProtocolFixture {
         signalGBX.withdrawSignal(address(targetStrategy), 1);
 
         assertEq(signalGBX.balanceOf(ALICE), 0);
-        assertEq(targetBribe.balanceOf(ALICE), 0);
+        assertEq(targetBribe.signalWeightOf(ALICE), 0);
         assertEq(gbx.balanceOf(ALICE), 1_000 ether);
-    }
-
-    function test_WithdrawRejectsFeeOnTransferAndRestoresEveryLedger() external {
-        FeeOnTransferToken token = new FeeOnTransferToken(18);
-        SignalGBX receipt = new SignalGBX(IERC20(address(token)), address(this));
-        SignalResonanceHarness harness = new SignalResonanceHarness(receipt);
-        receipt.setResonance(address(harness));
-        token.mint(ALICE, 100 ether);
-
-        vm.startPrank(ALICE);
-        token.approve(address(receipt), 100 ether);
-        receipt.signal(address(targetStrategy), 100 ether);
-        token.setFeeBps(100);
-        vm.expectRevert(
-            abi.encodeWithSelector(SignalGBX.InexactUnderlyingTransfer.selector, 100 ether, 100 ether, 99 ether)
-        );
-        receipt.withdrawSignal(address(targetStrategy), 100 ether);
-        vm.stopPrank();
-
-        assertEq(receipt.balanceOf(ALICE), 100 ether);
-        assertEq(receipt.totalSupply(), 100 ether);
-        assertEq(token.balanceOf(address(receipt)), 100 ether);
-        assertEq(harness.accountSignals(ALICE, address(targetStrategy)), 100 ether);
     }
 
     function test_SignalRequiresBoundResonance() external {
@@ -410,7 +365,7 @@ contract SignalGBXTest is ProtocolFixture {
         bytes32 domainSeparator = keccak256(
             abi.encode(
                 keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes("Signal GUM BALL 6900")),
+                keccak256(bytes("SignalGumBall6900")),
                 keccak256(bytes("1")),
                 block.chainid,
                 address(signalGBX)
@@ -456,8 +411,8 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(gbx.nonces(owner), 2);
         assertEq(gbx.allowance(owner, address(signalGBX)), 0);
         assertEq(signalGBX.balanceOf(owner), 20 ether);
-        assertEq(resonance.accountSignals(owner, address(targetStrategy)), 10 ether);
-        assertEq(resonance.accountSignals(owner, address(gbxStrategy)), 10 ether);
+        assertEq(_accountSignalWeight(owner, address(targetStrategy)), 10 ether);
+        assertEq(_accountSignalWeight(owner, address(gbxStrategy)), 10 ether);
         assertEq(signalGBX.getVotes(owner), 20 ether);
     }
 
@@ -498,7 +453,7 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(gbx.balanceOf(ALICE), balanceBefore);
         assertEq(signalGBX.balanceOf(ALICE), 0);
         assertEq(signalGBX.totalSupply(), 0);
-        assertEq(resonance.accountSignalWeight(ALICE), 0);
+        assertEq(signalGBX.balanceOf(ALICE), 0);
     }
 
     function _signUnderlyingPermit(uint256 ownerKey, address owner, uint256 amount, uint256 nonce, uint256 deadline)

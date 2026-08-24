@@ -1,13 +1,13 @@
 # Threat model
 
-> Development threat model under ADRs through 0048. The external governance integration remains
+> Development threat model under ADRs through 0049. The external governance integration remains
 > unselected and must receive a separate threat model before deployment.
 
 ## Primary risks
 
 - The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. Resonance's
   external owner can misuse Strategy addition, Strategy death, Bribe reward registration, or the bounded global
-  acquired-asset Bribe rate and can transfer or renounce ownership. Mine, Fund, and LiquidityPosition remain outside
+  acquired-asset Bribe rate and can transfer or renounce ownership. Mine and Fund remain outside
   that authority because they are ownerless.
 - SignalGBX retains historical block-number checkpoints, but the external governance system and its voting rules are
   unselected. If it uses those snapshots, a holder may acquire and signal GBX before a snapshot, withdraw afterward,
@@ -53,10 +53,9 @@
   reward must be at least the complete amount left, so forcing an early reset requires economically matching that
   remainder; timing influence is nevertheless intentional and accepted.
 - ResonanceRouter retains its complete balance until a permissionless caller invokes `route()`. A balance below
-  `max(DURATION, active amount left)` remains held. Decay can remove the active-left constraint, but a balance below
-  `DURATION` never qualifies without another deposit, and qualification does not execute a transaction. Mine only
-  deposits and is isolated from later Router/Resonance failure. LiquidityPosition still attempts routing atomically
-  during fee harvest. Interfaces must distinguish delivery to the Router from delivery into the active stream, and
+  `max(REWARD_DURATION, remainingRevenue())` remains held. Decay can remove the active-remainder constraint, but a
+  balance below `REWARD_DURATION` never qualifies without another deposit, and qualification does not execute a transaction. Mine only
+  deposits and is isolated from later Router/Resonance failure. Interfaces must distinguish delivery to the Router from delivery into the active stream, and
   operators must accept that Mine revenue may wait indefinitely without a manual, frontend, volunteer-keeper, or cron
   caller.
 - Resonance does not carry global-index or per-Strategy division remainders. `1e36` precision makes ordinary individual
@@ -67,6 +66,10 @@
   later signalers, or has a synchronization, rescue, or recovery path.
 - Bribe uses ordinary Synthetix index floors. Rate dust, zero-supply elapsed rewards, index floors, and account floors
   remain unallocated in Bribe rather than being carried or assigned to Fund.
+- Mine and SignalGBX trust successful `SafeERC20` calls on canonical GBX/USDG without inspecting balance deltas. If
+  either canonical token violates its reviewed standard behavior, Mine claims/revenue or sGBX backing can be
+  underfunded without a clean revert. Fund retains exact payout and basket checks for arbitrary
+  caller-selected assets.
 - A broken or blocklisting token can prevent its Strategy purchase, Bribe distribution, or user payout. Strategy pays
   Fund directly, so Fund failure reverts the purchase. A later Bribe failure leaves the automatic share buffered in
   BribeRouter. `withdrawSignal` remains available because it transfers only the escrowed GBX return.
@@ -105,12 +108,10 @@
   is accepted by ADR 0028 without a retirement, refund, rescue, or Fund-redirection mechanism.
 - Fund assets are permanently committed: with no successor or recovery path, an asset that redeemers omit stays in
   Fund for the remaining GBX supply indefinitely.
-- An incorrect genesis v4 price or range can strand the initial position out of market; the custody contract validates
-  the committed pool, token ID, ticks, and nonzero liquidity but cannot reconstruct the amount deposited.
-- The canonical v4 position is locked in LiquidityPosition permanently. A deployment error in its pool, range, or
-  token ID cannot be corrected afterwards; admission checks are the only defense, and they run once, on receipt.
-- Fee harvesting has no caller bounty. Accrued fees may remain unharvested until someone voluntarily pays gas, and a
-  failing Resonance route or Fund burn reverts the entire harvest until the destination is usable again.
+- The reviewed external USDG/GBX LP token may have thin, imbalanced, manipulated, or disappearing liquidity. The core
+  neither creates nor guarantees the pair and treats its fungible LP token as an ordinary Strategy payment asset.
+- Selecting the wrong LP token or Strategy parameters can direct acquisitions toward an unsuitable asset. Those are
+  bootstrap and governance asset-selection risks, not liquidity-specific core logic.
 
 ## Explicitly absent protections
 

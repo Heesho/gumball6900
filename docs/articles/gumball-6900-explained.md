@@ -4,7 +4,7 @@ version: 2.0.0
 date: 2026-08-23
 source_commit: uncommitted-working-tree
 base_commit: d80b92da5e60c0daa54dbae29653898dde514053
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0048; not approved for user funds.
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0049; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
 internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
 independent_audit_status: No independent external audit has been performed.
@@ -57,9 +57,8 @@ cannot be corrected.
 
 **GBX** is the protocol's token. It is an ordinary transferable ERC-20 — you can hold it, send it, and trade it.
 
-It is created in exactly two ways. At deployment, the contract mints **20,000,000 GBX** once, and that allocation
-becomes the protocol's permanent market liquidity (more on that in section 11). After that, all new GBX comes from
-**mining** — continuous issuance to whoever occupies the mine's slots.
+GBX starts at zero supply. Every unit is created through **mining** — continuous issuance to whoever occupies the
+mine's slots. There is no team, presale, treasury, or liquidity premint.
 
 The crucial structural fact is that mint authority is handed to one contract, exactly once, at deployment, and then
 permanently locked. There is no way to add a second minter, replace the first, or reopen the handover. Burning GBX
@@ -148,7 +147,7 @@ been rushed.
 Protocol revenue arrives in **USDG**, a stablecoin the protocol neither issues nor controls. In the intended
 deployment it has six decimal places, which matters later for the arithmetic.
 
-There are two revenue sources, and only two.
+There is one protocol-defined revenue source.
 
 **Mining.** The mine has exactly sixteen permanent slots. Whoever occupies a slot accrues GBX continuously at a fixed
 rate, minted when that slot next changes hands. To take a slot, you win its auction: the price to
@@ -160,8 +159,9 @@ protocol revenue. When you take an **empty** slot, there is nobody to compensate
 There is no team fee anywhere in this. The displaced miner's 80% is held as a claim they withdraw when they like —
 anyone can trigger the withdrawal, but the money can only ever go to the miner.
 
-Mine exact-deposits that protocol-revenue share into **ResonanceRouter** and stops. Its `RevenueDeposited` event means
-the deposit succeeded; it does not mean the money entered Resonance's stream in the same transaction.
+Mine requests a nominal transfer of that protocol-revenue share into **ResonanceRouter** and stops. Under the supported
+standard USDG model, its `RevenueDeposited` event means the `SafeERC20` transfer request succeeded; it does not mean the
+money entered Resonance's stream in the same transaction.
 
 Two things a prospective miner should understand. First, your GBX rate is **locked for your entire tenure** — halving
 issuance, redemptions, and other slots' handoffs never change it. Only a newly occupied or replaced slot receives the
@@ -174,10 +174,10 @@ that 80% as principal, yield, or a refund.
 
 <!-- figure: mining-split -->
 
-**Liquidity fees.** The 20,000,000 GBX genesis allocation sits in a single Uniswap v4 position pairing GBX with USDG,
-held permanently in a contract with no owner and no withdrawal function. Anyone may call a public function that
-collects its trading fees: the USDG becomes revenue, the GBX is burned, and the underlying liquidity is verified
-unchanged. There is no reward for the caller, so fees can sit uncollected until someone volunteers the gas.
+**External LP token.** A reviewed fungible USDG-GBX Uniswap V2 LP token may be registered during bootstrap as an
+ordinary Strategy target. That is an index-asset choice, not a second revenue mechanism: the Strategy acquires and
+settles the LP token under the same global Fund/Bribe split as every other asset. The core does not create, seed,
+custody, price, rebalance, compound, harvest, or swap liquidity, and it guarantees no market liquidity.
 
 ## 7. How Resonance directs revenue over time
 
@@ -197,8 +197,7 @@ a fresh seven-day stream. So restarting the stream early is possible but expensi
 also means a mining payment can sit in the router for a while
 before it appears in the stream—or indefinitely if nobody calls. There is no keeper role or bounty; a frontend,
 volunteer keeper, or cron job is optional convenience infrastructure. A future mine-and-route helper could live in
-that periphery, but Mine itself must remain correct even if routing fails. Liquidity fee harvesting keeps its existing
-atomic route attempt, so downstream failure can still revert that harvest. Interfaces must show Router deposit and
+that periphery, but Mine itself must remain correct even if routing fails. Interfaces must show Router deposit and
 stream entry as different states.
 
 **Streaming is lazy.** Entitlement accrues with time in the arithmetic, but tokens move only when someone triggers a
@@ -482,8 +481,10 @@ The protocol is built so a failure in one place doesn't cascade:
 - **A frozen Fund can block its own auction purchase.** The Strategy pays Fund directly, so the purchase is atomic
   with successful Fund receipt.
 - **A broken asset cannot block redemption for everyone else.** You name what you want, so you can omit it.
-- **Only standard, non-rebasing ERC-20s are supported.** SafeERC20 checks call success, but the core deliberately does
-  not duplicate every pre/post balance. Governance must not register fee-on-transfer, rebasing, or hostile tokens.
+- **Only standard, non-rebasing ERC-20s are supported.** SafeERC20 checks call success, but Mine, SignalGBX,
+  reward, and settlement paths deliberately do not duplicate pre/post balances. Canonical GBX/USDG
+  and governance-registered tokens must not use fee-on-transfer, rebasing, or hostile behavior. Fund retains stricter
+  guards for caller-selected arbitrary redemption assets.
 - **A failed automatic Bribe notification stays buffered.** It cannot undo the completed purchase or redirect the
   tokens elsewhere.
 
@@ -525,7 +526,7 @@ Read this section twice.
 | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
 | No independent audit   | No third party has reviewed this code. The single largest unknown.                                         |
 | Immutability           | No patch, no pause, no rescue. A bug or deployment error is permanent.                                     |
-| Deployment correctness | Parameters, pool configuration, and role setup must be right the first time, forever.                      |
+| Deployment correctness | Parameters, reviewed Strategy inputs, and role setup must be right the first time, forever.                |
 | Unresolved economics   | The provisional 64 GBX/s, 69-day, 1 GBX/s Mine schedule and other fixed economics lack independent review. |
 | Unfinished governance  | The external owner of Resonance is unselected; today one address holds all four powers outright.           |
 | Miner rollover         | The 80% handoff arrives only if a successor pays. It can be zero.                                          |
@@ -539,7 +540,8 @@ Read this section twice.
 To be exact about the current uncommitted development tree:
 
 - **Not deployed.** No contract is live on any network. No signed deployment manifest exists. The intended target
-  chain and the canonical USDG and Uniswap v4 addresses remain unresolved candidates.
+  chain and the canonical USDG address remain unresolved candidates. Any bootstrap LP token address is a reviewed
+  deployment input, not a hard-coded protocol address.
 - **Not audited.** No independent external audit has been performed, and symbolic analysis and formal verification
   have not been completed.
 - **The full deterministic workspace matrix passed locally before ADR 0045.** The uncommitted ADR 0044 tree passed 356/356

@@ -86,14 +86,13 @@ function band(x, y, w, h, title) {
 const protocolLoop = `
 <svg viewBox="0 0 640 320" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Protocol loop">
   ${arrowDefs}
-  <text x="8" y="12" ${S.tag}>REVENUE IN</text>
+  <text x="8" y="12" ${S.tag}>REVENUE / ASSET IN</text>
   <text x="286" y="12" ${S.tag}>STEERED BY SIGNAL</text>
   <text x="500" y="12" ${S.tag}>VALUE OUT</text>
   ${node(8, 24, 104, 40, ['Mine', '16 slot auctions'], 'deep')}
-  ${node(8, 104, 104, 40, ['LiquidityPosition', 'Uniswap v4 fees'], 'deep')}
+  ${node(8, 104, 104, 40, ['External UniV2 LP', 'ordinary target'], 'deep')}
   ${node(8, 196, 104, 34, ['Displaced miner'])}
   ${node(154, 64, 100, 40, ['ResonanceRouter'])}
-  ${node(154, 148, 100, 40, ['Fund', 'burns the GBX'])}
   ${node(292, 64, 100, 40, ['Resonance', '7-day USDG stream'])}
   ${node(292, 158, 100, 36, ['sGBX signal'], 'blue')}
   ${node(292, 226, 100, 34, ['Anyone', 'extra Bribes'])}
@@ -102,9 +101,8 @@ const protocolLoop = `
   ${node(536, 112, 96, 40, ['Signalers'], 'pink')}
   ${node(536, 208, 96, 40, ['GBX holders'])}
   ${edge('M 112 44 L 154 78', 'deposit', 133, 38)}
-  ${edge('M 112 124 L 154 90', 'USDG', 133, 136)}
+  ${edge('M 112 124 C 220 124, 340 122, 430 98', 'optional target', 274, 116)}
   ${edge('M 60 64 L 60 196', '80%', 74, 134)}
-  ${edge('M 112 134 L 154 164', 'GBX', 133, 176)}
   ${edge('M 254 84 L 292 84', 'route()', 273, 76)}
   ${edge('M 342 158 L 342 106', 'directs', 368, 136)}
   ${edge('M 342 226 L 342 198', '', 0, 0)}
@@ -116,7 +114,7 @@ const protocolLoop = `
 </svg>`;
 
 /**
- * The contract graph, for the whitepaper: twelve deployed contract types in five layers,
+ * The contract graph, for the whitepaper: eleven deployed contract types in five layers,
  * with the deployment edges that create the per-Strategy graph and the single continuing
  * custom-owner authority edge. The three setup-only Ownable shells remain explicit production
  * renunciation obligations. Resonance's owner sits outside every band on purpose — after
@@ -125,14 +123,13 @@ const protocolLoop = `
 const contractGraph = `
 <svg viewBox="0 0 640 516" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Contract graph">
   ${arrowDefs}
-  <text x="8" y="12" ${S.tag}>TWELVE DEPLOYED CONTRACT TYPES · ONE CONTINUING CUSTOM OWNER-AUTHORITY EDGE</text>
+  <text x="8" y="12" ${S.tag}>ELEVEN DEPLOYED CONTRACT TYPES · ONE CONTINUING CUSTOM OWNER-AUTHORITY EDGE</text>
   ${band(8, 22, 400, 66, 'Token layer')}
   ${node(24, 44, 116, 40, ['GBX', 'ERC20 + Permit'], 'deep')}
   ${node(188, 44, 152, 40, ['SignalGBX', 'ERC20Votes, non-transferable'], 'blue')}
   ${band(8, 116, 400, 66, 'Issuance and revenue')}
   ${node(24, 138, 112, 40, ['Mine', '16 slots, ownerless'], 'deep')}
   ${node(168, 138, 108, 40, ['ResonanceRouter'])}
-  ${node(300, 138, 104, 40, ['LiquidityPosition', 'v4 NFT custody'], 'deep')}
   ${band(8, 210, 400, 66, 'Allocation')}
   ${node(24, 232, 104, 40, ['StrategyFactory'])}
   ${node(148, 232, 96, 40, ['BribeFactory'])}
@@ -148,7 +145,6 @@ const contractGraph = `
   ${edge('M 82 84 L 82 138', 'mint authority, once', 82, 104)}
   ${edge('M 140 64 L 188 64', 'signal 1:1', 164, 56)}
   ${edge('M 136 158 L 168 158', '', 0, 0)}
-  ${edge('M 300 158 L 280 158', '', 0, 0)}
   ${edge('M 222 178 L 222 196 L 300 196 L 300 232', 'notifyRevenue', 261, 191)}
   ${edge('M 340 84 L 424 84 L 424 196 L 360 196 L 360 232', 'signal changes', 392, 191)}
   ${edge('M 300 272 L 300 288 L 196 288 L 196 274', 'creates', 244, 283)}
@@ -156,7 +152,7 @@ const contractGraph = `
   ${edge('M 76 272 L 76 326', '', 0, 0)}
   ${edge('M 196 272 L 196 326', '', 0, 0)}
   ${edge('M 128 346 L 188 346', '0–20% buffer', 158, 338)}
-  ${edge('M 284 346 L 312 346', 'distribute()', 298, 338)}
+  ${edge('M 284 346 L 312 346', 'route()', 298, 338)}
   ${edge('M 76 366 L 76 386 L 230 386 L 230 418', '80–100% direct', 150, 380, true)}
   ${edge('M 440 252 L 408 252', 'owns', 424, 244, true)}
   <rect x="440" y="232" width="192" height="96" rx="5" fill="none" stroke="${palette.pink}" stroke-width="1.1" stroke-dasharray="4 3" />
@@ -177,20 +173,20 @@ const FIGURES = [
   {
     id: 'contract-graph',
     /** Hash of the `flowchart TB` contract graph in the whitepaper. */
-    hashes: ['7358699decd3c38c'],
+    hashes: ['9931ae5a9e2ddc82'],
     match: (src) => src.includes('StrategyFactory'),
     svg: contractGraph,
     caption:
-      'The deployed contract graph. Strategy sends Fund’s per-purchase complement directly and only the Bribe share to its qualifying buffer. Twelve contract types, one continuing custom-owner authority edge, three setup-only Ownable shells that production must explicitly renounce, and an external Resonance owner deliberately drawn outside the system because ADR 0034 removed governance implementation from this repository.',
+      'The deployed contract graph. Strategy sends Fund’s per-purchase complement directly and only the Bribe share to its qualifying buffer. Eleven contract types, one continuing custom-owner authority edge, three setup-only Ownable shells that production must explicitly renounce, and an external Resonance owner deliberately drawn outside the system because ADR 0034 removed governance implementation from this repository.',
   },
   {
     id: 'protocol-loop',
     /** Hash of the `flowchart LR` economic loop in the one-pager. */
-    hashes: ['657cfe182bbbe2c7'],
+    hashes: ['d614ea8b88151aff'],
     match: (src) => src.includes('slot auctions') && !src.includes('StrategyFactory'),
     svg: protocolLoop,
     caption:
-      'The economic loop. Mine deposits revenue into ResonanceRouter for a later permissionless route, while LiquidityPosition attempts routing atomically; Resonance then streams forwarded USDG under live signal weights. Strategy floors each purchase’s current 0%-to-20% Bribe share independently, sends Fund’s complement directly, and buffers only the Bribe share.',
+      'The economic loop. Mine deposits revenue into ResonanceRouter for a later permissionless route, then Resonance streams forwarded USDG under live signal weights. A reviewed external UniV2 USDG-GBX LP token may be an ordinary Strategy target, with no liquidity-specific core path. Strategy floors each purchase’s current 0%-to-20% Bribe share independently, sends Fund’s complement directly, and buffers only the Bribe share.',
   },
 ];
 

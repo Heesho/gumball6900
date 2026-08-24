@@ -1,7 +1,7 @@
 # GUM BALL 6900 subgraph
 
-Minimal read model for the provisional core. It indexes `GBX`, `Mine`, `LiquidityPosition`, `SignalGBX`,
-`ResonanceRouter`, `Resonance`, and `Fund` data sources.
+Minimal read model for the provisional core. It indexes `GBX`, `Mine`, `SignalGBX`, `ResonanceRouter`, `Resonance`,
+and `Fund` data sources.
 
 The subgraph tracks minted and burned supply, mining slots and claims, signal escrow, successful ResonanceRouter
 forwards, Resonance revenue notifications and distributions, its global prospective automatic-Bribe rate, Strategy

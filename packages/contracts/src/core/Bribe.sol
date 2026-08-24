@@ -6,14 +6,10 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-/**
- * @title GumBall6900 Multi-Token Strategy Reward Stream
- * @author Heesho
- * @notice Streams up to sixteen independently registered reward assets to holders signaling one Strategy.
- * @dev Uses the Synthetix MultiRewards cumulative-index and leftover-rollover model over Resonance-controlled virtual
- *      signal balances. Registered reward tokens are assumed to implement standard, non-rebasing ERC-20 semantics.
- * @custom:version 2.1.0
- */
+/// @title GumBall6900 Multi-Token Strategy Reward Stream
+/// @notice Streams up to sixteen independently registered reward assets to holders signaling one Strategy.
+/// @dev Uses the Synthetix MultiRewards cumulative-index and leftover-rollover model over Resonance-controlled virtual
+///      signal balances. Registered reward tokens are assumed to implement standard, non-rebasing ERC-20 semantics.
 contract Bribe is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -21,12 +17,12 @@ contract Bribe is ReentrancyGuard {
     /// @param periodFinish Timestamp at which the current seven-day stream ends.
     /// @param rewardRate Whole raw reward units emitted per second.
     /// @param lastUpdateTime Last timestamp incorporated into the stored cumulative index.
-    /// @param rewardPerTokenStored Cumulative reward allocated per virtual signal unit.
+    /// @param rewardPerSignalStored Cumulative reward allocated per virtual signal unit.
     struct RewardData {
         uint256 periodFinish;
         uint256 rewardRate;
         uint256 lastUpdateTime;
-        uint256 rewardPerTokenStored;
+        uint256 rewardPerSignalStored;
     }
 
     /// @notice Fixed duration assigned to every reward stream.
@@ -42,9 +38,9 @@ contract Bribe is ReentrancyGuard {
     address public immutable resonance;
 
     /// @notice Total virtual signal weight assigned to this Bribe.
-    uint256 public totalSupply;
+    uint256 public totalSignalWeight;
     /// @notice Virtual signal weight assigned to each account by Resonance.
-    mapping(address account => uint256 balance) public balanceOf;
+    mapping(address account => uint256 weight) public signalWeightOf;
 
     address[] private _rewardTokens;
     /// @notice Append-only membership flag for tokens governance registered through Resonance.
@@ -52,22 +48,22 @@ contract Bribe is ReentrancyGuard {
     /// @notice Independent stream state for every registered reward token.
     mapping(address token => RewardData data) public rewardData;
     /// @notice Cumulative reward index already incorporated for one account and token.
-    mapping(address account => mapping(address token => uint256 paid)) public userRewardPerTokenPaid;
+    mapping(address account => mapping(address token => uint256 paid)) public accountRewardPerSignalPaid;
     /// @notice Whole-token accrued user liability, payable only to the entitled account.
     mapping(address account => mapping(address token => uint256 amount)) public rewards;
     /// @notice Monotonic cumulative raw units admitted through notifications for each reward token.
     mapping(address token => uint256 amount) public lifetimeRewardNotified;
 
     /// @notice Emitted when Resonance appends one supported reward token.
-    event RewardAdded(address indexed rewardToken);
+    event RewardTokenAdded(address indexed rewardToken);
     /// @notice Emitted when a caller funds and restarts a registered reward stream.
     event RewardNotified(address indexed rewardToken, uint256 amount);
     /// @notice Emitted when accrued rewards are paid to their entitled account.
     event RewardPaid(address indexed account, address indexed rewardToken, uint256 amount);
     /// @notice Emitted when Resonance adds virtual signal weight.
-    event SignalWeightDeposited(address indexed account, uint256 amount);
+    event SignalWeightAdded(address indexed account, uint256 amount);
     /// @notice Emitted when Resonance removes virtual signal weight.
-    event SignalWeightWithdrawn(address indexed account, uint256 amount);
+    event SignalWeightRemoved(address indexed account, uint256 amount);
 
     /// @notice Raised when a token is not in the append-only reward registry.
     error NotRewardToken(address token);
@@ -127,10 +123,10 @@ contract Bribe is ReentrancyGuard {
     }
 
     /// @notice Funds and restarts a seven-day reward stream using the standard leftover-rollover model.
-    /// @dev Permissionless funding must be at least one duration in raw units and at least the active reward left.
+    /// @dev Permissionless funding must be at least one duration in raw units and at least the active reward remaining.
     /// @param rewardToken Registered token to fund.
     /// @param amount Amount pulled from the caller.
-    function notifyRewardAmount(address rewardToken, uint256 amount) external nonReentrant {
+    function notifyReward(address rewardToken, uint256 amount) external nonReentrant {
         _requireRewardToken(rewardToken);
         if (amount < REWARD_DURATION) revert RewardBelowDuration(amount);
 
@@ -140,7 +136,7 @@ contract Bribe is ReentrancyGuard {
             revert RewardLifetimeCapExceeded(rewardToken, notified, amount, maximum);
         }
 
-        uint256 remaining = left(rewardToken);
+        uint256 remaining = remainingReward(rewardToken);
         if (amount < remaining) revert RewardBelowRemaining(amount, remaining);
 
         _updateReward(address(0), rewardToken);
@@ -156,31 +152,31 @@ contract Bribe is ReentrancyGuard {
     }
 
     /// @notice Adds virtual signal weight for `account` after checkpointing all registered rewards.
-    /// @param amount Weight to add.
     /// @param account Account whose virtual balance increases.
-    function deposit(uint256 amount, address account) external onlyResonance {
+    /// @param amount Weight to add.
+    function addSignalWeight(address account, uint256 amount) external onlyResonance {
         if (amount == 0) revert ZeroAmount();
         if (account == address(0)) revert ZeroAddress();
 
         _updateAllRewards(account);
-        totalSupply += amount;
-        balanceOf[account] += amount;
+        totalSignalWeight += amount;
+        signalWeightOf[account] += amount;
 
-        emit SignalWeightDeposited(account, amount);
+        emit SignalWeightAdded(account, amount);
     }
 
     /// @notice Removes virtual signal weight for `account` after checkpointing all registered rewards.
-    /// @param amount Weight to remove.
     /// @param account Account whose virtual balance decreases.
-    function withdraw(uint256 amount, address account) external onlyResonance {
+    /// @param amount Weight to remove.
+    function removeSignalWeight(address account, uint256 amount) external onlyResonance {
         if (amount == 0) revert ZeroAmount();
         if (account == address(0)) revert ZeroAddress();
 
         _updateAllRewards(account);
-        totalSupply -= amount;
-        balanceOf[account] -= amount;
+        totalSignalWeight -= amount;
+        signalWeightOf[account] -= amount;
 
-        emit SignalWeightWithdrawn(account, amount);
+        emit SignalWeightRemoved(account, amount);
     }
 
     /// @notice Registers another append-only reward token through Resonance governance.
@@ -193,7 +189,7 @@ contract Bribe is ReentrancyGuard {
         isRewardToken[rewardToken] = true;
         _rewardTokens.push(rewardToken);
 
-        emit RewardAdded(rewardToken);
+        emit RewardTokenAdded(rewardToken);
     }
 
     /// @notice Returns all registered reward tokens in immutable insertion order.
@@ -202,31 +198,26 @@ contract Bribe is ReentrancyGuard {
     }
 
     /// @notice Returns whole reward units remaining in the active stream.
-    function left(address rewardToken) public view returns (uint256 amount) {
+    function remainingReward(address rewardToken) public view returns (uint256 amount) {
         RewardData storage data = rewardData[rewardToken];
         if (block.timestamp >= data.periodFinish) return 0;
         return (data.periodFinish - block.timestamp) * data.rewardRate;
     }
 
-    /// @notice Returns the last timestamp currently eligible to advance one reward stream.
-    function lastTimeRewardApplicable(address rewardToken) public view returns (uint256 timestamp) {
-        return Math.min(block.timestamp, rewardData[rewardToken].periodFinish);
-    }
-
     /// @notice Returns the cumulative reward per virtual signal unit.
-    function rewardPerToken(address rewardToken) public view returns (uint256 accumulatedReward) {
+    function rewardPerSignal(address rewardToken) public view returns (uint256 accumulatedReward) {
         RewardData storage data = rewardData[rewardToken];
-        uint256 supply = totalSupply;
-        if (supply == 0) return data.rewardPerTokenStored;
+        uint256 signalWeight = totalSignalWeight;
+        if (signalWeight == 0) return data.rewardPerSignalStored;
 
-        uint256 elapsed = lastTimeRewardApplicable(rewardToken) - data.lastUpdateTime;
-        return data.rewardPerTokenStored + Math.mulDiv(elapsed * data.rewardRate, REWARD_PRECISION, supply);
+        uint256 elapsed = _lastApplicableRewardTime(rewardToken) - data.lastUpdateTime;
+        return data.rewardPerSignalStored + Math.mulDiv(elapsed * data.rewardRate, REWARD_PRECISION, signalWeight);
     }
 
     /// @notice Returns whole rewards currently claimable by one account for one token.
     function earned(address account, address rewardToken) public view returns (uint256 amount) {
-        uint256 rewardDelta = rewardPerToken(rewardToken) - userRewardPerTokenPaid[account][rewardToken];
-        return rewards[account][rewardToken] + Math.mulDiv(balanceOf[account], rewardDelta, REWARD_PRECISION);
+        uint256 rewardDelta = rewardPerSignal(rewardToken) - accountRewardPerSignalPaid[account][rewardToken];
+        return rewards[account][rewardToken] + Math.mulDiv(signalWeightOf[account], rewardDelta, REWARD_PRECISION);
     }
 
     /// @notice Advances every registered reward stream and checkpoints `account` when nonzero.
@@ -240,14 +231,14 @@ contract Bribe is ReentrancyGuard {
     /// @notice Advances one reward stream and checkpoints `account` when nonzero.
     function _updateReward(address account, address rewardToken) private {
         RewardData storage data = rewardData[rewardToken];
-        uint256 current = rewardPerToken(rewardToken);
-        data.rewardPerTokenStored = current;
-        data.lastUpdateTime = lastTimeRewardApplicable(rewardToken);
+        uint256 current = rewardPerSignal(rewardToken);
+        data.rewardPerSignalStored = current;
+        data.lastUpdateTime = _lastApplicableRewardTime(rewardToken);
 
         if (account != address(0)) {
-            uint256 rewardDelta = current - userRewardPerTokenPaid[account][rewardToken];
-            rewards[account][rewardToken] += Math.mulDiv(balanceOf[account], rewardDelta, REWARD_PRECISION);
-            userRewardPerTokenPaid[account][rewardToken] = current;
+            uint256 rewardDelta = current - accountRewardPerSignalPaid[account][rewardToken];
+            rewards[account][rewardToken] += Math.mulDiv(signalWeightOf[account], rewardDelta, REWARD_PRECISION);
+            accountRewardPerSignalPaid[account][rewardToken] = current;
         }
     }
 
@@ -265,5 +256,10 @@ contract Bribe is ReentrancyGuard {
     /// @notice Reverts unless `rewardToken` is in the append-only registry.
     function _requireRewardToken(address rewardToken) private view {
         if (!isRewardToken[rewardToken]) revert NotRewardToken(rewardToken);
+    }
+
+    /// @notice Returns the last timestamp currently eligible to advance one reward stream.
+    function _lastApplicableRewardTime(address rewardToken) private view returns (uint256 timestamp) {
+        return Math.min(block.timestamp, rewardData[rewardToken].periodFinish);
     }
 }

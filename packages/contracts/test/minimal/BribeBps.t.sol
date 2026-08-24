@@ -58,7 +58,7 @@ contract BribeBpsCallbackGovernor is IBribeBpsCallbackGovernor {
 /// @title Governed global Bribe-share transition tests
 /// @notice Proves prospective, per-purchase floored Strategy splitting across the bounded global policy range.
 contract BribeBpsTransitionTest is ProtocolFixture {
-    event BribeBpsSet(uint256 previousBps, uint256 newBps);
+    event BribeBpsSet(uint256 previousBribeBps, uint256 newBribeBps);
 
     function setUp() external {
         _deployProtocol();
@@ -110,7 +110,7 @@ contract BribeBpsTransitionTest is ProtocolFixture {
         _assertTargetBalances(72.375 ether, 8.875 ether);
 
         resonance.setBribeBps(0);
-        assertEq(targetRouter.distribute(), 8.875 ether);
+        assertEq(targetRouter.route(), 8.875 ether);
         assertEq(target.balanceOf(address(fund)), 72.375 ether);
         assertEq(target.balanceOf(address(targetRouter)), 0);
         assertEq(target.balanceOf(address(targetBribe)), 8.875 ether);
@@ -149,7 +149,7 @@ contract BribeBpsTransitionTest is ProtocolFixture {
         assertEq(secondPayment, 15 ether);
         _assertTargetBalances(24 ether, 1 ether);
 
-        assertEq(targetRouter.distribute(), 1 ether, "the pre-change buffered share stays distributable");
+        assertEq(targetRouter.route(), 1 ether, "the pre-change buffered share stays distributable");
         assertEq(targetBribe.lifetimeRewardNotified(address(target)), 1 ether);
 
         vm.warp(block.timestamp + 1 days);
@@ -180,8 +180,8 @@ contract BribeBpsTransitionTest is ProtocolFixture {
         assertEq(signalGBX.balanceOf(ALICE), 75 ether);
         assertEq(gbx.balanceOf(ALICE), 25 ether);
         assertEq(gbx.balanceOf(address(signalGBX)), 75 ether);
-        assertEq(resonance.accountSignals(ALICE, address(targetStrategy)), 50 ether);
-        assertEq(resonance.accountSignals(ALICE, address(gbxStrategy)), 25 ether);
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 50 ether);
+        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 25 ether);
         assertEq(resonance.totalSignalWeight(), 75 ether);
 
         _removeAllSignals(ALICE);
@@ -203,9 +203,9 @@ contract BribeBpsTransitionTest is ProtocolFixture {
         signalGBX.withdrawSignal(address(gbxStrategy), 40 ether);
         vm.stopPrank();
 
-        assertFalse(resonance.isStrategyAlive(address(targetStrategy)));
-        assertEq(targetBribe.balanceOf(ALICE), 0);
-        assertEq(gbxBribe.balanceOf(ALICE), 0);
+        assertFalse(resonance.isStrategyLive(address(targetStrategy)));
+        assertEq(targetBribe.signalWeightOf(ALICE), 0);
+        assertEq(gbxBribe.signalWeightOf(ALICE), 0);
         assertEq(signalGBX.balanceOf(ALICE), 0);
         assertEq(signalGBX.totalSupply(), 0);
         assertEq(gbx.balanceOf(ALICE), 100 ether);
@@ -216,17 +216,17 @@ contract BribeBpsTransitionTest is ProtocolFixture {
     function test_ZeroAutomaticShareStillAllowsIndependentlyFundedBribeRewards() external {
         resonance.setBribeBps(0);
         _signalDefault(ALICE, 100 ether);
-        resonance.addBribeReward(address(targetStrategy), address(secondAsset));
+        resonance.addBribeRewardToken(address(targetStrategy), address(secondAsset));
 
         uint256 payment = _fillTargetAuction(BOB);
         assertEq(target.balanceOf(address(fund)), payment);
         assertEq(target.balanceOf(address(targetRouter)), 0);
-        assertEq(targetRouter.distribute(), 0);
+        assertEq(targetRouter.route(), 0);
 
         secondAsset.mint(DAVE, 7 ether);
         vm.startPrank(DAVE);
         secondAsset.approve(address(targetBribe), 7 ether);
-        targetBribe.notifyRewardAmount(address(secondAsset), 7 ether);
+        targetBribe.notifyReward(address(secondAsset), 7 ether);
         vm.stopPrank();
 
         vm.warp(block.timestamp + targetBribe.REWARD_DURATION());

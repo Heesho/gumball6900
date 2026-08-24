@@ -1,8 +1,8 @@
 # Uniswap v4 integration review
 
-> The LiquidityPosition custody and fixed-principal conclusions remain current. The recorded 17/17 integration result
-> predates ADR 0047's downstream Resonance/Router scheduling changes and is historical for that boundary until the
-> complete final-tree integration profile is rerun and recorded.
+> **Superseded historical review.** ADR 0050 removes LiquidityPosition and its Uniswap v4 integration entirely. The
+> recorded results below apply only to the earlier pinned design and are not evidence for the current core or for any
+> external USDG-GBX LP token registered as an ordinary Strategy.
 
 ## Pinned source packages
 
@@ -25,8 +25,9 @@ before recording the position. There is no outward ERC-721 call or Permit2 appro
 `harvestFees` reads principal liquidity, uses PositionManager
 `DECREASE_LIQUIDITY(0) + CLOSE_CURRENCY + CLOSE_CURRENCY`, and requires the resulting liquidity to equal the original
 value exactly. It then transfers the complete USDG balance to ResonanceRouter and calls `route`, transfers the complete
-GBX balance to Fund and calls `burnGBX`, and verifies exact transfer deltas. Its event records principal, routed USDG,
-and burned GBX. Collection, routing, and burning are atomic. Caller funding/payout, principal changes, swaps, oracles,
+GBX balance to Fund and calls `burnGBX`. Both transfers use `SafeERC20` under the canonical-token assumption without
+inspecting balance deltas. Its event records principal, routed USDG, and burned GBX. Collection, routing, and burning
+are atomic. Caller funding/payout, principal changes, swaps, oracles,
 fee splits, keepers, and governance parameters are absent.
 
 ## Genuine integration result

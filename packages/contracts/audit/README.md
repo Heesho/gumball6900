@@ -3,16 +3,18 @@
 This directory contains pinned analyzer runners, state-machine harnesses, and internal production-hardening evidence
 for the direct core. The committed analyzer and broad campaign records predate ADR 0047's reward and
 Strategy-settlement simplification and ADR 0048's sixteen-token/composed-move change unless a file explicitly says
-otherwise; they must be regenerated and manually reviewed before the current gates can pass. Raw tool output belongs
+otherwise; ADR 0050 subsequently removed LiquidityPosition and changed GBX to zero-premint issuance, so they must be
+regenerated and manually reviewed before the current gates can pass. Raw tool output belongs
 under the ignored `audit/reports` directory; reviewed conclusions belong in the tracked Markdown records and policy
 JSON. The focused ADR-0048 migration suites pass 104/104 and its revised focused mutation campaign kills 47/47
 mutants; neither substitutes for the outstanding broad campaigns or independent review.
 
 The material is internal engineering evidence, not an independent audit, legal clearance, deployment authorization,
 or a claim that the protocol is safe for unlimited value. ADR 0024's unsuperseded Mine decisions, together with ADR
-0033 and ADRs 0038–0045, are authoritative for Mine. Under ADR 0044, Mine ends after exact protocol-revenue deposit
-into ResonanceRouter; a later permissionless `route()` has no caller role, bounty, or liveness guarantee, while
-LiquidityPosition retains its atomic route attempt. ADR 0047 preserves ADR 0036's global 0%–20% Bribe share but makes
+0033 and ADRs 0038–0045, as modified by ADR 0049, are authoritative for Mine. Under ADRs 0044 and 0049, Mine ends
+after its nominal protocol-revenue transfer request into ResonanceRouter succeeds; a later permissionless `route()`
+has no caller role, bounty, or liveness guarantee. ADR 0050 removes the liquidity-specific core contract; an external
+USDG-GBX LP token may instead be registered through the ordinary Strategy path. ADR 0047 preserves ADR 0036's global 0%–20% Bribe share but makes
 each Strategy floor its purchase independently, pay the Fund complement directly, and transfer only the Bribe share
 to a Bribe-only Router. Resonance and Bribe use scalar/registered-token Synthetix leftover rollover respectively;
 rate, index, and account floors remain surplus, with no queue, pause, carry, Fund reward liability, or selected-batch

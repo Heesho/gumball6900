@@ -47,13 +47,13 @@ contract USDGFlowTest is ProtocolFixture {
         uint256 displacedMinerShare = (replacementPayment * mine.PREVIOUS_MINER_BPS()) / mine.BPS();
         uint256 streamedRevenue = firstPayment + replacementPayment - displacedMinerShare;
 
-        vm.warp(block.timestamp + resonance.DURATION());
-        if (resonanceRouter.pendingRevenue() != 0) resonanceRouter.route();
-        vm.warp(block.timestamp + resonance.DURATION());
+        vm.warp(block.timestamp + resonance.REWARD_DURATION());
+        if (usdg.balanceOf(address(resonanceRouter)) != 0) resonanceRouter.route();
+        vm.warp(block.timestamp + resonance.REWARD_DURATION());
         vm.prank(CAROL);
         targetStrategy.buy(CAROL, 0, block.timestamp, 0);
 
-        if (displacedMinerShare != 0) mine.claim(BOB);
+        if (displacedMinerShare != 0) mine.claimMinerPayment(BOB);
 
         uint256 streamSurplus = usdg.balanceOf(address(resonance)) + usdg.balanceOf(address(resonanceRouter));
         assertEq(
@@ -66,19 +66,19 @@ contract USDGFlowTest is ProtocolFixture {
 
         assertEq(usdg.balanceOf(address(mine)), 0);
         assertEq(usdg.balanceOf(address(targetStrategy)), 0);
-        assertEq(mine.totalClaimable(), 0);
-        assertEq(resonance.left(), 0);
+        assertEq(mine.totalClaimableMinerPayments(), 0);
+        assertEq(resonance.remainingRevenue(), 0);
     }
 
     /// @notice A blocked Resonance ingress cannot block Mine deposits, and a later permissionless route can retry.
     function test_BlockedRevenueIngressDoesNotBlockMineAndRemainsPermissionlesslyRetryable() external {
         HostileRevenueGraph memory graph = _deployHostileRevenueGraph();
-        GBX isolatedGBX = new GBX(GENESIS, address(this));
+        GBX isolatedGBX = new GBX(address(this));
         Mine isolatedMine = new Mine(isolatedGBX, IERC20(address(graph.revenue)), address(graph.router));
         isolatedGBX.setMinter(address(isolatedMine));
 
-        Mine.Slot memory initialSlot = isolatedMine.getSlot(0);
-        uint256 payment = isolatedMine.price(0);
+        Mine.Slot memory initialSlot = isolatedMine.slot(0);
+        uint256 payment = isolatedMine.currentPrice(0);
         graph.revenue.mint(DAVE, payment);
         graph.revenue.setBlocked(address(graph.resonance), true);
 
@@ -87,14 +87,14 @@ contract USDGFlowTest is ProtocolFixture {
         isolatedMine.mine(DAVE, 0, initialSlot.epochId, block.timestamp, payment, "");
         vm.stopPrank();
 
-        Mine.Slot memory occupiedSlot = isolatedMine.getSlot(0);
+        Mine.Slot memory occupiedSlot = isolatedMine.slot(0);
         assertEq(occupiedSlot.epochId, initialSlot.epochId + 1);
         assertEq(occupiedSlot.miner, DAVE);
         assertEq(graph.revenue.balanceOf(DAVE), 0);
         assertEq(graph.revenue.balanceOf(address(isolatedMine)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.router)), payment);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), 0);
-        assertEq(graph.resonance.left(), 0);
+        assertEq(graph.resonance.remainingRevenue(), 0);
 
         vm.prank(KEEPER);
         vm.expectRevert("BLOCKED");
@@ -109,8 +109,8 @@ contract USDGFlowTest is ProtocolFixture {
 
         assertEq(graph.revenue.balanceOf(address(graph.router)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), payment);
-        uint256 rewardRate = payment / graph.resonance.DURATION();
-        assertEq(graph.resonance.left(), rewardRate * graph.resonance.DURATION());
+        uint256 rewardRate = payment / graph.resonance.REWARD_DURATION();
+        assertEq(graph.resonance.remainingRevenue(), rewardRate * graph.resonance.REWARD_DURATION());
     }
 
     /// @notice A blocked buyer payout restores distribution, payment settlement, and auction state for a clean retry.
@@ -137,7 +137,7 @@ contract USDGFlowTest is ProtocolFixture {
         assertEq(graph.revenue.balanceOf(CAROL), 0);
         assertEq(graph.revenue.balanceOf(address(graph.firstStrategy)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), 604_800);
-        assertEq(graph.resonance.left(), 601_200);
+        assertEq(graph.resonance.remainingRevenue(), 601_200);
         assertEq(target.balanceOf(address(fund)), 0);
         assertEq(target.balanceOf(address(paymentRouter)), 0);
         assertEq(target.balanceOf(CAROL), price);
@@ -163,26 +163,26 @@ contract USDGFlowTest is ProtocolFixture {
         uint256 strategyShare = routed / 2;
         graph.revenue.mint(address(graph.router), routed);
         graph.router.route();
-        vm.warp(block.timestamp + graph.resonance.DURATION());
+        vm.warp(block.timestamp + graph.resonance.REWARD_DURATION());
         graph.revenue.setBlocked(address(graph.firstStrategy), true);
 
         vm.expectRevert("BLOCKED");
-        graph.resonance.distribute(address(graph.firstStrategy));
+        graph.resonance.distributeRevenue(address(graph.firstStrategy));
 
         assertEq(graph.revenue.balanceOf(address(graph.firstStrategy)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.secondStrategy)), 0);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), routed);
 
         // Permissionless single-Strategy distribution isolates the bad destination.
-        graph.resonance.distribute(address(graph.secondStrategy));
+        graph.resonance.distributeRevenue(address(graph.secondStrategy));
         assertEq(graph.revenue.balanceOf(address(graph.secondStrategy)), strategyShare);
 
         // Killing preserves the Strategy's already accrued pull claim while excluding it from future allocation.
         graph.resonance.killStrategy(address(graph.firstStrategy));
-        assertEq(graph.resonance.earned(address(graph.firstStrategy)), strategyShare);
+        assertEq(graph.resonance.earnedRevenue(address(graph.firstStrategy)), strategyShare);
 
         graph.revenue.setBlocked(address(graph.firstStrategy), false);
-        graph.resonance.distribute(address(graph.firstStrategy));
+        graph.resonance.distributeRevenue(address(graph.firstStrategy));
 
         assertEq(graph.revenue.balanceOf(address(graph.firstStrategy)), strategyShare);
         assertEq(graph.revenue.balanceOf(address(graph.secondStrategy)), strategyShare);
@@ -203,22 +203,22 @@ contract USDGFlowTest is ProtocolFixture {
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), 0);
 
         vm.expectRevert();
-        graph.resonance.distribute(address(graph.firstStrategy));
+        graph.resonance.distributeRevenue(address(graph.firstStrategy));
 
-        assertEq(graph.resonance.earned(address(graph.firstStrategy)), 3_600);
+        assertEq(graph.resonance.earnedRevenue(address(graph.firstStrategy)), 3_600);
         assertEq(graph.revenue.balanceOf(address(graph.firstStrategy)), 0);
 
         // Only replenishing the externally removed USDG can make the accounting solvent again.
         graph.revenue.mint(address(graph.resonance), routed);
-        graph.resonance.distribute(address(graph.firstStrategy));
+        graph.resonance.distributeRevenue(address(graph.firstStrategy));
 
         assertEq(graph.revenue.balanceOf(address(graph.firstStrategy)), 3_600);
         assertEq(graph.revenue.balanceOf(address(graph.resonance)), routed - 3_600);
     }
 
     function _occupyMineSlot(address minerAccount) private returns (uint256 payment) {
-        Mine.Slot memory slot = mine.getSlot(0);
-        payment = mine.price(0);
+        Mine.Slot memory slot = mine.slot(0);
+        payment = mine.currentPrice(0);
         if (payment != 0) usdg.mint(minerAccount, payment);
 
         vm.startPrank(minerAccount);

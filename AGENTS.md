@@ -7,7 +7,7 @@ authorized for user funds. A green local build is engineering evidence, never a 
 
 - Build the core contracts as a minimal adaptation of the pinned give.fun and Liquid Signal Governance contracts.
   Preserve their simple contract boundaries and behavior unless this file or a recorded ADR explicitly changes them.
-- Use these protocol names consistently: `GBX`, `Mine`, `LiquidityPosition`, `SignalGBX`, `ResonanceRouter`, `Resonance`,
+- Use these protocol names consistently: `GBX`, `Mine`, `SignalGBX`, `ResonanceRouter`, `Resonance`,
   `StrategyFactory`, `Strategy`, `BribeFactory`, `BribeRouter`, `Bribe`, and `Fund`.
 - `packages/contracts/src` is the single Solidity source tree shared by Foundry and Hardhat. Core contracts use direct,
   non-upgradeable deployments. `StrategyFactory` and `BribeFactory` are allowed only as Resonance-controlled factories;
@@ -21,18 +21,19 @@ authorized for user funds. A green local build is engineering evidence, never a 
 ## Revenue, signaling, and acquisitions
 
 - Mining revenue follows `Mine -> ResonanceRouter -> Resonance seven-day stream -> Strategy`. On a nonempty-slot
-  replacement, 80% of the USDG payment becomes a pull claim for the displaced miner and Mine exact-transfers the 20%
+  replacement, 80% of the USDG payment becomes a pull claim for the displaced miner and Mine transfers the nominal 20%
   remainder into ResonanceRouter. The first occupation of an empty slot deposits 100% into ResonanceRouter. There is
   no team fee.
 - Mine never calls `ResonanceRouter.route()` during a handoff. Routing is a separate permissionless manual, frontend,
   keeper, or cron action with no role or bounty and no liveness guarantee; Router revenue may wait indefinitely if
-  nobody calls. `Mine.RevenueDeposited` means the exact protocol share reached ResonanceRouter, not that it reached
-  Resonance or entered the seven-day stream in that transaction. A failed transfer into the Router still reverts the
-  paid handoff, but later Router or Resonance failure is isolated from Mine. LiquidityPosition's fee harvest remains
-  atomic and still attempts `route()` in the harvest transaction unless a later ADR changes that boundary.
-- GBX creates only 20 million tokens for the genesis-liquidity recipient. Deployment permanently hands its sole mint
-  authority to one deployed `Mine`; the handover is one-time and cannot be replaced or reopened. There is no
-  protocol-defined economic supply cap, and supply reconciles as `totalSupply == lifetimeMinted - lifetimeBurned`.
+  nobody calls. `Mine.RevenueDeposited` records a successful `SafeERC20` transfer request for the nominal protocol
+  share into ResonanceRouter; under the supported standard USDG model that amount reached the Router. It does not mean
+  the USDG reached Resonance or entered the seven-day stream in that transaction. A failed transfer into the Router
+  still reverts the paid handoff, but later Router or Resonance failure is isolated from Mine.
+- GBX starts with zero supply and zero lifetime minted. Its temporary setup minter cannot mint; deployment permanently
+  hands its sole mint authority to one deployed `Mine`, after which Mine is the only lifetime issuer. The handover is
+  one-time and cannot be replaced or reopened. There is no protocol-defined economic supply cap, and supply reconciles
+  as `totalSupply == lifetimeMinted - lifetimeBurned`.
   GBX retains ERC-2612 permit approvals but does not carry ERC20Votes checkpoints or governance weight.
 - Deployment must verify `GBX.minter() == Mine`, `GBX.minterLocked() == true`, `Mine.gbx() == GBX`,
   `Mine.usdg() == USDG`, `Mine.resonanceRouter() == ResonanceRouter`, and `ResonanceRouter.usdg() == USDG` before
@@ -73,23 +74,23 @@ authorized for user funds. A green local build is engineering evidence, never a 
   live Strategies according to the SignalGBX weights active during that interval. Every signal change checkpoints
   elapsed revenue before changing weights, and every Strategy purchase checkpoints and pulls that Strategy's released
   USDG. Resonance uses the Synthetix schedule: a notification during an active period combines the new amount with
-  `remainingSeconds * rewardRate`, applies ordinary integer division over seven days, and restarts the period. There is
-  no front-loaded rate remainder. ResonanceRouter buffers until its complete balance is at least `DURATION` raw USDG
-  units and, during an active period, at least the scheduled amount left, then forwards the complete balance.
-  The global reward-per-signal index uses `1e36` precision. Rate, global-index, and per-Strategy floors are accepted
+  `remainingSeconds * revenueRate`, applies ordinary integer division over seven days, and restarts the period. There is
+  no front-loaded rate remainder. ResonanceRouter buffers until its complete balance is at least `REWARD_DURATION` raw
+  USDG units and, during an active period, at least `remainingRevenue()`, then forwards the complete balance.
+  The global revenue-per-signal index uses `1e36` precision. Rate, global-index, and per-Strategy floors are accepted
   surplus rather than explicit carry. Revenue that elapses while active signal supply is zero, and direct USDG
   donations, also remain unscheduled or unclaimable surplus in Resonance. Strategy and Bribe deployment follows the
   Liquid Signal shape: Resonance uses `StrategyFactory` and `BribeFactory`, and each Strategy has a corresponding
   Bribe-only buffer `BribeRouter` and `Bribe`.
-- Resonance is permanently USDG-only. Keep its reward schedule and per-Strategy accrual scalar: do not add a Resonance
+- Resonance is permanently USDG-only. Keep its revenue schedule and per-Strategy accrual scalar: do not add a Resonance
   reward-token registry, token-keyed Resonance reward mappings, token parameters on its reward views, or another
   Resonance reward asset. This specialization does not apply to paired Bribes, which remain bounded multi-token
   rewarders.
 - Signal state has one canonical owner at each level: `SignalGBX.balanceOf(account)` is the account's aggregate signal,
-  each Strategy's paired Bribe stores account-by-Strategy balances and its complete signal supply, and Resonance stores
-  only the active live-Strategy total. Do not maintain a separate `SignalGBX.allocatedBalance` value that must duplicate
-  `balanceOf`. Resonance's `addSignalFor` and `removeSignalFor` hooks are callable only by SignalGBX; do not restore a
-  dedicated move hook, direct user signaling on Resonance, or duplicate these ledgers.
+  each Strategy's paired Bribe stores `signalWeightOf(account)` and its complete `totalSignalWeight`, and Resonance
+  stores only the active live-Strategy total. Do not maintain a separate `SignalGBX.allocatedBalance` value that must
+  duplicate `balanceOf`. Resonance's `addSignalFor` and `removeSignalFor` hooks are callable only by SignalGBX; do not
+  restore a dedicated move hook, direct user signaling on Resonance, or duplicate these ledgers.
 - Killing a Strategy is irreversible. The kill checkpoints and preserves its accrued Resonance claim, excludes its
   complete weight from active reward supply, rejects later signal additions, and lets existing signalers remove their
   allocations without subtracting the excluded weight again. The killed Strategy earns no later Resonance revenue.
@@ -104,13 +105,15 @@ authorized for user funds. A green local build is engineering evidence, never a 
   escape hatch. Reject an over-cap notification before checkpointing or token transfer so cap exhaustion cannot block
   claims, signal movement, or withdrawal. Direct token donations do not consume notification capacity.
 - Bribes use the Synthetix schedule and ordinary floor semantics. A permissionless notification must be at least
-  `DURATION` raw token units and at least the stream's current `left` amount; it combines with
+  `REWARD_DURATION` raw token units and at least the stream's current `remainingReward` amount; it combines with
   `remainingSeconds * rewardRate` and restarts the seven-day period. Streams do not pause at zero signal supply and
   notifications do not queue. Rate, index, and account floors remain unallocated token surplus; do not add carry
   buckets, Fund rounding liabilities, exact-remainder scheduling, or surplus telemetry. Keep an all-token claim and one
   scalar-token claim for broken-token isolation; caller-selected batch claims belong in periphery.
 - Core reward and payment accounting assumes standard, non-rebasing ERC-20 transfers. Use `SafeERC20`, but do not add
-  sender/receiver balance-delta enforcement or claim support for fee-on-transfer, rebasing, or mutable-blocklist tokens.
+  sender/receiver balance-delta enforcement or claim support for fee-on-transfer, rebasing, or mutable-blocklist tokens
+  to Mine, SignalGBX, Strategy, Resonance, Bribe, or their Routers. Fund redemption is the exception:
+  its caller-selected arbitrary assets retain exact payout deltas and basket guards.
 - Every Strategy is the same bounded reverse Dutch acquisition mechanism. Resonance stores one global prospective
   automatic-Bribe rate: `BPS = 10_000`,
   `DEFAULT_BRIBE_BPS = 1_000`, and `MAX_BRIBE_BPS = 2_000`. The Resonance owner may set `bribeBps` from 0 through
@@ -119,8 +122,8 @@ authorized for user funds. A green local build is engineering evidence, never a 
   It pulls the complete payment, transfers the complement directly to Fund, and transfers any nonzero Bribe amount to
   its paired BribeRouter. There is no cumulative split carry or deferred Fund liability. The acquired payment asset,
   not USDG, is the automatic Bribe reward.
-- BribeRouter is only a Bribe buffer. Its permissionless `distribute` operation notifies its complete payment-token
-  balance once that balance satisfies the Bribe's minimum-notification and current-left thresholds. Bribe failure leaves
+- BribeRouter is only a Bribe buffer. Its permissionless `route` operation notifies its complete payment-token balance
+  once that balance satisfies the Bribe's minimum-notification and current-remaining thresholds. Bribe failure leaves
   the buffered tokens retryable without reverting the completed Strategy purchase. Compatible direct donations join
   the next notification. Additional independently funded Bribe rewards remain permitted within the fixed token and
   lifetime caps. A 0% automatic rate must not disable Strategies, Bribes, signaling, exit, existing rewards, or
@@ -153,18 +156,17 @@ authorized for user funds. A green local build is engineering evidence, never a 
   persistent writes. Clear transient marks before a successful call returns so multiple redemptions in one transaction
   remain independent. Keep redemption non-reentrant.
 
-## Genesis liquidity
+## External liquidity
 
-- The canonical market position is one precommitted, hookless GBX/USDG Uniswap v4 position held by
-  `LiquidityPosition`. It begins outside the active price range with GBX only, using the 20 million genesis allocation.
-- The position retains fixed principal and removes zero liquidity. `harvestFees` is permissionless: it collects fees
-  through a zero-liquidity PositionManager decrease, verifies principal is unchanged, routes USDG through
-  `ResonanceRouter`, and sends GBX to `Fund` for an atomic burn. Do not add caller funding, Permit2 approvals, a keeper
-  role, an oracle, a swap, a fee split, a caller bounty, or a governance parameter to this mechanism.
-- Position fees are protocol revenue. Harvested USDG follows the normal `ResonanceRouter -> Resonance stream -> Strategy`
-  route, while harvested GBX is burned from Fund in the same harvest transaction.
-- The position NFT can never be withdrawn, to any receiver, by any caller. `LiquidityPosition` is ownerless and has no
-  successor or migration path: once the precommitted NFT is accepted it stays there permanently.
+- The core creates, seeds, owns, custodies, prices, rebalances, compounds, harvests, or swaps no liquidity position and
+  makes no liquidity guarantee. Do not add liquidity-specific core contracts, callbacks, custody, fee routing, oracle,
+  or market-making logic.
+- Register one reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 during bootstrap as an
+  ordinary Strategy payment token. Its exact address and configuration are reviewed deployment inputs, not source
+  constants. It receives no special treatment: the normal global Fund/Bribe split applies, and Fund holds its share as
+  an ordinary caller-selectable index asset.
+- Do not pin or invent a canonical factory, router, pair address, reserve ratio, LP supplier, or launch process in the
+  core. External liquidity is not a correctness or liveness dependency.
 
 ## Immutability and administration
 
@@ -172,11 +174,11 @@ authorized for user funds. A green local build is engineering evidence, never a 
   upgrade path, proxy, pause switch, rescue or sweep function, arbitrary-call executor, successor binding, migration
   routine, or any new owner role. When a design choice trades governance flexibility against immutability, choose
   immutability and record the accepted consequence.
-- `Fund` and `LiquidityPosition` are ownerless. `Fund` assets move only when a GBX holder burns their own tokens
+- `Fund` is ownerless. Its assets move only when a GBX holder burns their own tokens
   through redemption; assets that redeemers omit stay in `Fund` for the remaining GBX supply indefinitely. GBX held by
   `Fund` is burnable by anyone through the dedicated burn function.
 - The continuing protocol administration surface is `Resonance.addStrategy`, `Resonance.killStrategy`,
-  `Resonance.addBribeReward`, and bounded global `Resonance.setBribeBps`. Resonance also retains inherited ownership
+  `Resonance.addBribeRewardToken`, and bounded global `Resonance.setBribeBps`. Resonance also retains inherited ownership
   transfer and renunciation. Do not add another owner-gated protocol method.
 - SignalGBX, StrategyFactory, and BribeFactory retain setup-only Ownable shells around their one-time Resonance
   bindings. After those bindings are consumed, their owners have no custom protocol action but still expose inherited

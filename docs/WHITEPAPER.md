@@ -6,7 +6,7 @@ Whitepaper v0.8 — 23 August 2026 — by Heesho
 
 > Development status: experimental, not deployed, not independently audited, and not authorized for user funds.
 > Independent review of the fixed mining economics, deployment parameters, third-party provenance, and security remain
-> open release gates. ADRs 0031 and 0033-0048 are authoritative development decisions; ADRs 0042 and 0043 record the
+> open release gates. ADRs 0031 and 0033-0049 are authoritative development decisions; ADRs 0042 and 0043 record the
 > current provisional Mine rates and period. Governance execution and the production Resonance owner remain an unselected
 > external integration, so deployment is blocked.
 
@@ -54,9 +54,8 @@ management, or protocol fee in mining.
 
 ## 2. GBX supply and issuance
 
-GBX creates 20 million tokens at construction for the canonical genesis-liquidity position. A temporary deployment
-minter then permanently assigns the only mint authority to one deployed Mine. This handoff cannot be replaced or
-reopened.
+GBX starts with zero supply and zero lifetime minted. A temporary deployment minter cannot mint and permanently
+assigns the only lifetime mint authority to one deployed Mine. This handoff cannot be replaced or reopened.
 
 There is no protocol-defined economic maximum GBX supply. The global issuance rate used for future handoffs halves at
 fixed intervals measured from Mine deployment and eventually reaches a strictly positive tail. The tail allows mining—and
@@ -127,8 +126,9 @@ claim is permanently left for remaining GBX holders.
 `signal` deposits GBX and mints sGBX one-for-one only while assigning every raw unit to a live Strategy in the same
 transaction. sGBX is non-transferable, retains ERC20Votes, and is the only user-facing signal coordinator. A first
 signal made with no current delegate self-delegates voting power. `signalWithPermit` uses the underlying GBX permit and
-relies on the exact GBX transfer; sGBX itself has no ERC-2612 approval permit. Idle sGBX and standalone staking or
-unstaking are not valid protocol states.
+relies on the subsequent `SafeERC20` transfer as its allowance and call-success check; canonical GBX is trusted to move
+the requested amount without balance-delta verification. sGBX itself has no ERC-2612 approval permit. Idle sGBX and
+standalone staking or unstaking are not valid protocol states.
 
 `moveSignal` atomically removes an existing position through `Resonance.removeSignalFor` and adds the same amount to a
 live destination through `Resonance.addSignalFor`. Resonance has no dedicated move hook; a failed addition rolls back
@@ -148,16 +148,17 @@ thin Strategy, separately routing newly deposited mining USDG, and filling its s
 USDG: no stream time has elapsed.
 
 The schedule follows the ordinary Synthetix whole-unit rate and leftover rollover. Elapsed release is
-`seconds * rewardRate`; division residue is unallocated USDG surplus. Its global reward-per-signal index uses `1e36`
+`seconds * revenueRate`; division residue is unallocated USDG surplus. Its global revenue-per-signal index uses `1e36`
 precision. ResonanceRouter waits until someone calls `route()`. It holds a balance smaller than seven days in raw
 units, which would create a zero rate, and during an active period also holds a balance smaller than the scheduled
-amount left. A qualifying notification checkpoints elapsed revenue and restarts seven days with `reward + left`.
+amount remaining. A qualifying notification checkpoints elapsed revenue and restarts seven days with
+`new revenue + remaining revenue`.
 The second threshold prevents a small permissionless top-up from cheaply slowing an existing stream.
 
-Mine's `RevenueDeposited` event proves only exact delivery into ResonanceRouter. `route()` has no caller role or bounty,
-so revenue may remain there indefinitely even after qualifying. A manual caller, frontend, volunteer keeper, or cron
-process may advance it. This optional periphery does not affect Mine handoff correctness or liveness. LiquidityPosition
-fee harvesting remains different: it attempts routing atomically during the harvest.
+Mine's `RevenueDeposited` event records the nominal `SafeERC20` transfer requested into ResonanceRouter. Under the
+supported standard-USDG model that amount arrives, but Mine does not verify the balance deltas. `route()` has no caller
+role or bounty, so revenue may remain there indefinitely even after qualifying. A manual caller, frontend, volunteer
+keeper, or cron process may advance it. This optional periphery does not affect Mine handoff correctness or liveness.
 
 Settlement remains lazy—ordinary signal, distribution, purchase, and qualifying-notification calls materialize elapsed
 revenue—so the protocol needs no per-second keeper. Global-index and per-Strategy floors are accepted surplus rather
@@ -193,14 +194,14 @@ reach it. If an irregular token does reach it, existing signalers can still clai
 and Bribe must replace the exhausted pool. An automatic reward amount rejected at the cap remains buffered in
 BribeRouter. The old killed Bribe remains a closed reward pool without an escape hatch.
 
-## 7. Genesis liquidity
+## 7. External liquidity as an ordinary Strategy
 
-The 20 million genesis GBX allocation forms one precommitted, hookless GBX/USDG Uniswap v4 position. It begins outside
-the active range with GBX only. The ownerless LiquidityPosition contract permanently holds its NFT and never removes
-principal.
+One reviewed external fungible Uniswap v2-style USDG/GBX LP ERC-20 is registered during bootstrap as an ordinary
+Strategy payment token. Its exact token address and auction configuration remain deployment inputs. Acquisitions use
+the same global Fund/Bribe split as every other Strategy, and LP tokens reaching Fund are ordinary redemption assets.
 
-Anyone may harvest fees. Harvested USDG routes through ResonanceRouter, while harvested GBX goes to Fund and is burned
-atomically. There is no keeper, bounty, oracle, swap, migration, or NFT withdrawal.
+The core has no liquidity-specific contract. It does not create, seed, own, price, rebalance, compound, harvest, swap,
+or guarantee liquidity. Pool reserves, initial liquidity, and market availability remain external facts.
 
 ## 8. Governance and immutability
 
@@ -222,7 +223,7 @@ plugins, SignalGBX compatibility, permissions and administrators, upgrade model,
 cancellation, and ownership handoff. Until then the protocol makes no claim that administration is selector-filtered,
 delayed, permissionlessly executable, or cancellable, and deployment is blocked.
 
-Mine has exactly sixteen slots, no owner, and no path to reprice an incumbent. Fund and LiquidityPosition are ownerless. No
+Mine has exactly sixteen slots, no owner, and no path to reprice an incumbent. Fund is ownerless. No
 core contract has a proxy, general executor, pause switch, rescue function, emission setter, successor, or migration
 path. Deployment must bootstrap reviewed initial Strategies before transferring Resonance directly to the selected
 external governance executor and removing the temporary setup authority.
@@ -244,6 +245,9 @@ external governance executor and removing the temporary setup authority.
 - Permissionless signaling permits rapid allocation movement, but only stream time held at a weight earns new flow;
   existing Strategy inventory, qualifying-reset timing, and accepted rounding surplus still have timing considerations.
 - Broken or blocklisting tokens can block their own payout paths.
+- Mine and SignalGBX trust the canonical GBX and USDG implementations to move requested amounts;
+  `SafeERC20` does not prove sender or receiver balance changes. Fund retains explicit checks for arbitrary selected
+  redemption assets.
 - An exhausted Bribe lifetime notification cap permanently rejects that token's later notifications in the old pool;
   replacement requires a new Strategy and paired Bribe rather than a reset or rescue.
 - Fund assets omitted from redemption remain permanently for the post-redemption supply.

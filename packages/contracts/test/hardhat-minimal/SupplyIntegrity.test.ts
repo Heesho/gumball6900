@@ -2,27 +2,29 @@ import { expect } from 'chai';
 import { ethers } from 'hardhat';
 
 describe('GBX mining authority integrity', function () {
-  it('creates only the twenty-million genesis allocation', async function () {
+  it('starts with zero supply and cannot mint before the Mine handover', async function () {
     const [deployer] = await ethers.getSigners();
     if (deployer === undefined) throw new Error('Hardhat signer unavailable');
 
-    const token = await ethers.deployContract('GBX', [deployer.address, deployer.address]);
+    const token = await ethers.deployContract('GBX', [deployer.address]);
     await token.waitForDeployment();
 
-    const genesisAllocation = ethers.parseEther('20000000');
-    expect(await token.getFunction('GENESIS_LIQUIDITY_ALLOCATION')()).to.equal(genesisAllocation);
-    expect(await token.getFunction('totalSupply')()).to.equal(genesisAllocation);
-    expect(await token.getFunction('lifetimeMinted')()).to.equal(genesisAllocation);
-    expect(await token.getFunction('balanceOf')(deployer.address)).to.equal(genesisAllocation);
+    expect(await token.getFunction('totalSupply')()).to.equal(0n);
+    expect(await token.getFunction('lifetimeMinted')()).to.equal(0n);
+    expect(await token.getFunction('balanceOf')(deployer.address)).to.equal(0n);
     expect(await token.getFunction('minter')()).to.equal(deployer.address);
     expect(await token.getFunction('minterLocked')()).to.equal(false);
+    await expect(token.getFunction('mint')(deployer.address, 1n)).to.be.revertedWithCustomError(
+      token,
+      'MinterNotLocked',
+    );
   });
 
   it('requires the reciprocal Mine identity for the permanent minter handover', async function () {
     const [deployer, account] = await ethers.getSigners();
     if (deployer === undefined || account === undefined) throw new Error('Hardhat signers unavailable');
 
-    const token = await ethers.deployContract('GBX', [deployer.address, deployer.address]);
+    const token = await ethers.deployContract('GBX', [deployer.address]);
     await token.waitForDeployment();
 
     await expect(token.getFunction('mint')(account.address, 1n)).to.be.revertedWithCustomError(
@@ -53,7 +55,7 @@ describe('GBX mining authority integrity', function () {
     const [deployer] = await ethers.getSigners();
     if (deployer === undefined) throw new Error('Hardhat signer unavailable');
 
-    const token = await ethers.deployContract('GBX', [deployer.address, deployer.address]);
+    const token = await ethers.deployContract('GBX', [deployer.address]);
     await token.waitForDeployment();
     const tokenAddress = await token.getAddress();
     const router = await ethers.deployContract('ResonanceRouter', [tokenAddress, tokenAddress]);

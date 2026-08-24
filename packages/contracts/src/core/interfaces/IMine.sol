@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
-/// @title GBX Mine Interface
+/// @title GumBall6900 Mine Interface
 /// @notice Minimal constant-time supply surface used by Fund and external integrations.
 interface IMine {
     /// @notice Canonical GBX token minted by this contract.

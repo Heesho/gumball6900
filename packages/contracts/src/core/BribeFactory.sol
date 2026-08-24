@@ -7,10 +7,9 @@ import { Bribe } from "./Bribe.sol";
 import { IResonanceIdentity } from "./interfaces/IResonanceIdentity.sol";
 
 /// @title GumBall6900 Resonance-Bound Bribe Factory
-/// @author Heesho
 /// @notice Deploys the Bribe associated with each Resonance-created Strategy.
-/// @dev Adapted from Liquid Signal Governance. The factory is bound to one Resonance and is not publicly permissionless.
-/// @custom:version 1.0.0
+/// @dev Adapted from Liquid Signal Governance. The factory is bound to one Resonance and is not publicly
+///      permissionless.
 contract BribeFactory is Ownable {
     /// @notice Resonance exclusively authorized to create Bribes.
     address public resonance;

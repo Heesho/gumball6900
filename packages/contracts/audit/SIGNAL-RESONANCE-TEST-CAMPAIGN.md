@@ -113,7 +113,7 @@ branches, and functions; Resonance reached 97.50% lines, 90.38% branches, and 10
 
 - Pinned Slither 0.11.5 and Aderyn 0.6.8 produced 177 exact current-source instances across 28 reviewed detector
   classes. The two High-labeled `reentrancy-balance` paths on BribeRouter were manually reproduced with a callback
-  token; the Router guard rejected the nested call and the outer exact transfer settled once. Weak-PRNG labels are
+  token; the Router guard rejected the nested call and the outer nominal transfer request settled once. Weak-PRNG labels are
   deterministic modulo carry, not entropy. Remaining timestamp, loop, equality, return-value, naming, assembly, and
   OpenZeppelin override reports match documented bounded or intentional behavior.
 - Semgrep 1.162.0 produced zero findings. Mythril 0.24.8 installed successfully but the fail-closed runner rejected

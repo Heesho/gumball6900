@@ -166,16 +166,14 @@ export const rules = {
 /**
  * The reasons, not the trivia.
  *
- * This strip used to print protocol facts - genesis liquidity, distribution capacity -
+ * This strip used to print protocol facts - distribution capacity and supply ceilings -
  * which are true and mean nothing to someone deciding whether they want in. These five say
  * what a reader actually gets, and the three zeros are the ones a financially literate
  * reader recognises instantly: no fee, no insiders, no gate on the way out.
  *
- * The fifth figure used to be a lifetime supply ceiling. ADR 0024 removed the cap - Mine is
- * a permanent minter whose rate halves toward a positive tail - so printing a maximum
- * supply would now be false. What replaced it is the genesis allocation, which is the
- * honest version of the same reassurance: the only GBX that existed before mining is
- * locked in the liquidity position, whose principal can never be withdrawn by anyone.
+ * The fifth figure used to be a lifetime supply ceiling. ADR 0024 removed the cap, and ADR
+ * 0050 removed the genesis premint. The honest replacement is therefore the initial supply:
+ * zero GBX exists until Mine issues it.
  *
  * Values come from `facts.mjs` where they are derived; only the labels are written here.
  */
@@ -186,7 +184,7 @@ export const reasons = {
     { value: '0', label: 'Team or presale tokens' },
     { value: '0', label: 'Lockup or notice period' },
     { value: numbers.minimumFundShare, label: 'Minimum payment share to Fund' },
-    { value: numbers.genesisLiquidityShort, label: 'Genesis GBX, locked in liquidity' },
+    { value: numbers.initialSupply, label: 'Preminted GBX' },
   ],
 };
 

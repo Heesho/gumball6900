@@ -38,11 +38,7 @@ const configuredSchema = z
     chainId: z.literal(46630),
     dependencies: z
       .object({
-        permit2: dependencySchema,
-        poolManager: dependencySchema,
-        positionManager: dependencySchema,
         usdG: dependencySchema,
-        weth: dependencySchema,
       })
       .strict(),
     expiresAt: z.string().datetime({ offset: true }),
@@ -56,10 +52,6 @@ const configuredSchema = z
   })
   .strict()
   .superRefine((evidence, context) => {
-    const addresses = Object.values(evidence.dependencies).map(({ address }) => address.toLowerCase());
-    if (new Set(addresses).size !== addresses.length) {
-      context.addIssue({ code: 'custom', message: 'Testnet fork dependency addresses must be unique' });
-    }
     const observedAt = Date.parse(evidence.observedAt);
     const expiresAt = Date.parse(evidence.expiresAt);
     if (expiresAt <= observedAt || expiresAt - observedAt > TESTNET_FORK_EVIDENCE_MAX_VALIDITY_MS) {

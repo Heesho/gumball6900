@@ -1,6 +1,6 @@
 # Supported token model
 
-> ADRs 0031, 0035, 0036, 0037, and 0047 define the current token interactions below.
+> ADRs 0031, 0035, 0036, 0037, 0047, and 0049 define the current token interactions below.
 
 ## Canonical and registered tokens
 
@@ -23,16 +23,16 @@ permanently disabled.
 
 ## Transfer-check boundary
 
-The core deliberately uses two different transfer-check shapes:
+The core deliberately uses two transfer-check shapes:
 
-- `Strategy`, `Resonance`, and `Bribe` use `SafeERC20`. This checks call success and conventional optional return
-  values, but it does not prove exact sender and receiver balance deltas. These contracts do not keep fee-token
-  adapters, normalized balances, or exact-transfer helper functions.
+- Canonical GBX/USDG paths in `Mine` and `SignalGBX`, together with `Strategy`, `Resonance`, and
+  `Bribe`, use `SafeERC20`. This checks call success and conventional optional return values, but it does not prove
+  exact sender and receiver balance deltas. These contracts do not keep fee-token adapters, normalized balances, or
+  exact-transfer helper functions.
 - `BribeRouter` and `ResonanceRouter` read their complete token balance, approve that amount, and rely on the
   downstream `transferFrom`. They do not compare post-call balances or normalize a residual allowance.
-- Custody-critical `Mine` and `SignalGBX` paths, caller-selected Fund redemption transfers, and canonical
-  `LiquidityPosition` fee routing retain their own explicit balance-delta checks where those checks protect a local
-  custody or conservation invariant.
+- Caller-selected Fund redemption transfers retain explicit debit/credit checks plus pre-transfer and basket-wide
+  retained-balance guards. Fund accepts arbitrary token addresses, so it cannot rely on canonical deployment review.
 
 Router approvals are exact-sized and immediately followed by notification. With an ordinary token, the downstream
 pull consumes the allowance completely. The Routers do not clear or inspect the allowance afterward. `Strategy`
@@ -41,15 +41,16 @@ zero approval can therefore work when the initial nonzero approval succeeds and 
 allowance behavior leaves a sticky residue is unsupported.
 
 GBX supports ERC-2612 permit approvals, including the permit attempted by SignalGBX's atomic `signalWithPermit`
-workflow. That workflow uses the underlying permit as authorization and still applies SignalGBX's exact GBX custody
-check. SignalGBX deliberately has no ERC-2612 approval permit because it is non-transferable; its signature-based
-delegation belongs to ERC20Votes governance rather than token spending.
+workflow. That workflow uses the underlying permit as authorization; the subsequent `SafeERC20.safeTransferFrom`
+remains the authoritative allowance and call-success check without inspecting balance deltas. SignalGBX deliberately
+has no ERC-2612 approval permit because it is non-transferable; its signature-based delegation belongs to ERC20Votes
+governance rather than token spending.
 
 ## Reward precision, floors, and notification limits
 
 Resonance and Bribe use ordinary Synthetix-style whole-unit rates and leftover rollover. A notification during an
-active stream combines the new amount with `left()` and restarts a seven-day schedule at
-`floor((amount + left) / duration)`. Neither contract stores a front-loaded remainder, successor queue, pause clock,
+active stream combines the new amount with the scheduled remainder and restarts a seven-day schedule at
+`floor((amount + remaining) / duration)`. Neither contract stores a front-loaded remainder, successor queue, pause clock,
 fractional carry, or Fund reward liability.
 
 Both rewarders use a `1e36` reward-per-signal index. The following amounts remain unallocated surplus in the reward
@@ -79,14 +80,15 @@ Fund in the purchase transaction and transfers a nonzero Bribe share directly to
 cross-purchase split carry and no deferred Fund liability. A failed Fund transfer therefore reverts the complete
 purchase.
 
-BribeRouter is only a payment-token buffer. `distribute()` is permissionless and notifies its complete balance once
-that balance is at least both `REWARD_DURATION` and the paired Bribe's active `left(paymentToken)`. A failed
+BribeRouter is only a payment-token buffer. `route()` is permissionless and notifies its complete balance once
+that balance is at least both `REWARD_DURATION` and the paired Bribe's active `remainingReward(paymentToken)`. A failed
 notification leaves the tokens in BribeRouter for a later retry. A lifetime-cap failure likewise leaves the buffered
 balance there, but the exhausted Bribe cannot admit that token again. A replacement Strategy and Bribe would have a
 fresh per-pool lifetime budget. Direct compatible payment-token donations to BribeRouter join its next complete-balance
 notification; direct donations to Bribe are not scheduled.
 
-ResonanceRouter applies the analogous threshold `max(Resonance.DURATION(), Resonance.left())` to its complete USDG
+ResonanceRouter applies the analogous threshold
+`max(Resonance.REWARD_DURATION(), Resonance.remainingRevenue())` to its complete USDG
 balance. Direct compatible USDG donations to the Router join the next notification. Direct USDG donations to
 Resonance and stream time elapsed at zero active signal remain unclaimable surplus.
 
@@ -108,10 +110,12 @@ reverts the complete redemption, while omitted assets remain permanently for the
 selected address must also retain at least its own snapshotted balance less its payout after the complete basket
 transfer, preventing two token facades backed by one shared ledger from consuming the same backing twice.
 
-Mine USDG is isolated through pull accounting. Exact USDG receipt is required at replacement, and the exact protocol
-share must reach ResonanceRouter; Mine retains only displaced-miner claims. A blocked transfer into the Router reverts
-the paid handoff, but later Router or Resonance failures occur in a separate transaction and cannot roll it back. A
-blocked claim recipient does not redirect the claim or block another miner's claim.
+Mine USDG is isolated through pull accounting. It requests the complete nominal price, retains only displaced-miner
+claims, and requests transfer of the nominal protocol share to ResonanceRouter. Under the supported standard USDG
+model, successful `SafeERC20` calls move those requested amounts; Mine does not prove them with balance snapshots. A
+blocked transfer into the Router reverts the paid handoff, but later Router or Resonance failures occur in a separate
+transaction and cannot roll it back. A blocked claim recipient does not redirect the claim or block another miner's
+claim.
 
 ## Offchain presentation
 
@@ -122,6 +126,6 @@ indexers must:
 - allow manual Fund redemption asset-address entry and warn that omissions are forfeited;
 - show the fixed sixteen-token Bribe cap and each token's remaining lifetime notification capacity;
 - show BribeRouter and ResonanceRouter balances as buffered, not scheduled or claimable;
-- apply the live Router threshold before presenting a distribution as available;
+- apply the live Router threshold before presenting a route as available;
 - offer both all-token and scalar Bribe claims, with a warning that the all-token call is atomic; and
 - never present a seventeenth reward token, an over-cap notification, or an unsupported token behavior as valid.

@@ -95,7 +95,7 @@ const STAGES: Stage[] = [
     n: '01',
     tag: 'Deposited',
     head: 'Mine deposits',
-    body: 'Mine exact-deposits its payment share in ResonanceRouter. It never forwards or schedules that USDG itself.',
+    body: 'Mine sends its nominal payment share to ResonanceRouter. It never forwards or schedules that USDG itself.',
     tone: 'blue',
   },
   {

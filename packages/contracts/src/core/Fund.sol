@@ -10,12 +10,10 @@ import { GBX } from "./GBX.sol";
 import { IMine } from "./interfaces/IMine.sol";
 
 /// @title GumBall6900 Ownerless In-Kind Redemption Fund
-/// @author Heesho
 /// @notice Holds the protocol's raw token backing and lets GBX holders redeem a selected in-kind basket.
 /// @dev Fund intentionally has no asset registry. Callers select the assets they want to redeem, which keeps a
 ///      malformed token from blocking every other asset in the treasury. Fund is ownerless and immutable: it has no
 ///      administrator, no upgrade path, no successor, and no way to move assets except redemption by GBX holders.
-/// @custom:version 1.0.0
 contract Fund is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -96,7 +94,7 @@ contract Fund is ReentrancyGuard {
         // Snapshot all balances before moving or burning GBX so every selected asset uses one consistent denominator.
         for (uint256 i; i < tokenCount; ++i) {
             address token = tokens[i];
-            _markToken(REDEMPTION_NAMESPACE, token);
+            _markToken(token);
             uint256 balance = IERC20(token).balanceOf(address(this));
             balancesBefore[i] = balance;
             payouts[i] = Math.mulDiv(balance, gbxAmount, supplyBeforeBurn);
@@ -115,7 +113,7 @@ contract Fund is ReentrancyGuard {
 
             if (payout != 0) _transferExact(token, receiver, payout);
 
-            _clearToken(REDEMPTION_NAMESPACE, token);
+            _clearToken(token);
         }
 
         // A selected transfer must not consume another selected address's backing. This final pass also catches
@@ -144,31 +142,23 @@ contract Fund is ReentrancyGuard {
         }
     }
 
-    /// @notice Returns GBX currently held by Fund and available to burn.
-    /// @return amount GBX balance currently held by Fund.
-    function pendingGBX() external view returns (uint256 amount) {
-        return gbx.balanceOf(address(this));
-    }
-
     /// @notice Marks one token for duplicate detection during the current transaction.
     /// @dev This provides O(n) duplicate detection without an asset
     ///      registry, sorting requirement, permanent mapping writes, or monotonically increasing nonce.
-    /// @param namespace Operation-specific namespace that prevents cross-operation collisions.
     /// @param token Token address to mark for the current transaction.
-    function _markToken(bytes32 namespace, address token) private {
+    function _markToken(address token) private {
         if (token == address(0) || token == address(gbx)) revert ForbiddenToken(token);
 
-        bytes32 slot = keccak256(abi.encode(namespace, token));
+        bytes32 slot = keccak256(abi.encode(REDEMPTION_NAMESPACE, token));
         if (_transientLoad(slot) != 0) revert DuplicateToken(token);
         _transientStore(slot, 1);
     }
 
     /// @notice Clears one token's transient duplicate mark after a successful operation.
     /// @dev Clearing allows another call involving the token later in the same transaction.
-    /// @param namespace Operation-specific namespace used when the token was marked.
     /// @param token Token address whose mark is cleared.
-    function _clearToken(bytes32 namespace, address token) private {
-        _transientStore(keccak256(abi.encode(namespace, token)), 0);
+    function _clearToken(address token) private {
+        _transientStore(keccak256(abi.encode(REDEMPTION_NAMESPACE, token)), 0);
     }
 
     /// @notice Writes one EIP-1153 transient storage slot.

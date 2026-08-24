@@ -1,8 +1,8 @@
 # ADR 0024: Immutable multislot Mine with tenure-locked rates
 
 - Status: superseded in part by ADR 0033, in its GBX ERC20Votes statement by ADR 0030, in its configurable Mine
-  economics by ADR 0038, in its cumulative-mining halving model by ADR 0041, and in synchronous downstream routing by
-  ADR 0044; not approved for deployment or user funds
+  economics by ADR 0038, in its cumulative-mining halving model by ADR 0041, in synchronous downstream routing by ADR
+  0044, and in its genesis allocation by ADR 0050; not approved for deployment or user funds
 - Date: 2026-08-12
 - Supersedes: ADR 0023 and the Fundraiser/supply portions of ADR 0014
 

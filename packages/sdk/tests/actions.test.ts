@@ -7,14 +7,12 @@ import {
   buildClaimBribeReward,
   buildClaimMiningPayment,
   buildDelegateSignalVotes,
-  buildDistributeBribeRewards,
   buildDistributeRevenue,
   buildFundBurn,
-  buildHarvestLiquidityFees,
   buildMine,
   buildMoveSignal,
-  buildNotifyRevenue,
   buildRedemption,
+  buildRouteBribeRewards,
   buildRouteRevenue,
   buildSignal,
   buildSignalWithPermit,
@@ -24,7 +22,6 @@ import {
   bribeRouterAbi,
   fundAbi,
   gbxAbi,
-  liquidityPositionAbi,
   mineAbi,
   resonanceAbi,
   resonanceRouterAbi,
@@ -115,15 +112,11 @@ describe('minimal typed transaction builders', () => {
     });
   });
 
-  it('encodes Resonance routing, distribution, and notification', () => {
+  it('encodes Resonance routing and distribution', () => {
     expect(decodeFunctionData({ abi: resonanceRouterAbi, data: buildRouteRevenue(A).data }).functionName).toBe('route');
     expect(decodeFunctionData({ abi: resonanceAbi, data: buildDistributeRevenue(A, B).data })).toMatchObject({
       args: [getAddress(B)],
-      functionName: 'distribute',
-    });
-    expect(decodeFunctionData({ abi: resonanceAbi, data: buildNotifyRevenue(A, 11n).data })).toMatchObject({
-      args: [11n],
-      functionName: 'notifyRevenue',
+      functionName: 'distributeRevenue',
     });
   });
 
@@ -153,14 +146,8 @@ describe('minimal typed transaction builders', () => {
   it('encodes permissionless mining claims for the fixed beneficiary', () => {
     expect(decodeFunctionData({ abi: mineAbi, data: buildClaimMiningPayment(A, B).data })).toMatchObject({
       args: [B],
-      functionName: 'claim',
+      functionName: 'claimMinerPayment',
     });
-  });
-
-  it('encodes liquidity maintenance without a mining checkpoint action', () => {
-    expect(
-      decodeFunctionData({ abi: liquidityPositionAbi, data: buildHarvestLiquidityFees(A).data }).functionName,
-    ).toBe('harvestFees');
   });
 
   it('encodes scalar and all-token Bribe claims plus buffered reward distribution', () => {
@@ -172,8 +159,8 @@ describe('minimal typed transaction builders', () => {
       args: [B],
       functionName: 'claimRewards',
     });
-    expect(decodeFunctionData({ abi: bribeRouterAbi, data: buildDistributeBribeRewards(A).data }).functionName).toBe(
-      'distribute',
+    expect(decodeFunctionData({ abi: bribeRouterAbi, data: buildRouteBribeRewards(A).data }).functionName).toBe(
+      'route',
     );
   });
 });

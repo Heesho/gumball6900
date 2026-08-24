@@ -77,13 +77,9 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     }
 
     /// @notice The router never conceals or misreports any balance awaiting a permissionless route call.
-    function invariant_RevenueRouterRetentionIsFullyVisible() external view {
-        assertEq(resonanceRouter.pendingRevenue(), usdg.balanceOf(address(resonanceRouter)));
-    }
-
     /// @notice Mine USDG custody is exactly the sum of displaced-miner pull claims.
     function invariant_MineIsSolventAgainstReplacementClaims() external view {
-        assertEq(usdg.balanceOf(address(mine)), mine.totalClaimable());
+        assertEq(usdg.balanceOf(address(mine)), mine.totalClaimableMinerPayments());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -95,8 +91,8 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         address[] memory allStrategies = strategyRegistry.all();
         uint256 summed;
         for (uint256 i; i < allStrategies.length; ++i) {
-            if (resonance.isStrategyAlive(allStrategies[i])) {
-                summed += resonance.strategySignalWeight(allStrategies[i]);
+            if (resonance.isStrategyLive(allStrategies[i])) {
+                summed += _strategySignalWeight(allStrategies[i]);
             }
         }
         assertEq(summed, resonance.totalSignalWeight());
@@ -107,35 +103,31 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         address[] memory allStrategies = strategyRegistry.all();
         uint256 accountTotal;
         for (uint256 i; i < handler.actorCount(); ++i) {
-            accountTotal += resonance.accountSignalWeight(handler.actors(i));
+            accountTotal += signalGBX.balanceOf(handler.actors(i));
         }
 
         uint256 strategyTotal;
         for (uint256 i; i < allStrategies.length; ++i) {
-            strategyTotal += resonance.strategySignalWeight(allStrategies[i]);
+            strategyTotal += _strategySignalWeight(allStrategies[i]);
         }
         assertEq(accountTotal, strategyTotal);
     }
 
     /// @notice No account can ever signal with more weight than the receipts it holds.
     function invariant_SignalWeightNeverExceedsTheReceiptBalance() external view {
+        address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < handler.actorCount(); ++i) {
             address actor = handler.actors(i);
-            assertLe(resonance.accountSignalWeight(actor), signalGBX.balanceOf(actor));
+            uint256 allocated;
+            for (uint256 j; j < allStrategies.length; ++j) {
+                allocated += _accountSignalWeight(actor, allStrategies[j]);
+            }
+            assertLe(allocated, signalGBX.balanceOf(actor));
         }
     }
 
-    /// @notice Each Bribe's virtual supply mirrors its Strategy's recorded signal weight exactly.
-    function invariant_BribeSupplyMirrorsStrategyWeight() external view {
-        address[] memory allStrategies = strategyRegistry.all();
-        for (uint256 i; i < allStrategies.length; ++i) {
-            Bribe bribe = Bribe(resonance.bribeFor(allStrategies[i]));
-            assertEq(bribe.totalSupply(), resonance.strategySignalWeight(allStrategies[i]));
-        }
-    }
-
-    /// @notice Each account's virtual Bribe balance mirrors its recorded allocation exactly.
-    function invariant_BribeBalancesMirrorAccountSignals() external view {
+    /// @notice Each Bribe's virtual supply equals the sum of its account signal weights.
+    function invariant_BribeSupplyEqualsAccountWeights() external view {
         address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             Bribe bribe = Bribe(resonance.bribeFor(allStrategies[i]));
@@ -143,11 +135,10 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
             for (uint256 j; j < handler.actorCount(); ++j) {
                 address actor = handler.actors(j);
-                assertEq(bribe.balanceOf(actor), resonance.accountSignals(actor, allStrategies[i]));
-                summed += bribe.balanceOf(actor);
+                summed += bribe.signalWeightOf(actor);
             }
 
-            assertEq(summed, bribe.totalSupply());
+            assertEq(summed, bribe.totalSignalWeight());
         }
     }
 
@@ -159,13 +150,15 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         for (uint256 i; i < handler.actorCount(); ++i) {
             address actor = handler.actors(i);
             for (uint256 j; j < allStrategies.length; ++j) {
-                uint256 amount = resonance.accountSignals(actor, allStrategies[j]);
+                uint256 amount = _accountSignalWeight(actor, allStrategies[j]);
                 if (amount == 0) continue;
                 vm.prank(actor);
                 signalGBX.withdrawSignal(allStrategies[j], amount);
             }
 
-            assertEq(resonance.accountSignalWeight(actor), 0);
+            for (uint256 j; j < allStrategies.length; ++j) {
+                assertEq(_accountSignalWeight(actor, allStrategies[j]), 0);
+            }
             assertEq(signalGBX.balanceOf(actor), 0);
         }
 
@@ -179,9 +172,8 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             address actor = handler.actors(i);
             uint256 summed;
             for (uint256 j; j < allStrategies.length; ++j) {
-                summed += resonance.accountSignals(actor, allStrategies[j]);
+                summed += _accountSignalWeight(actor, allStrategies[j]);
             }
-            assertEq(signalGBX.balanceOf(actor), resonance.accountSignalWeight(actor));
             assertEq(summed, signalGBX.balanceOf(actor));
         }
     }
@@ -195,7 +187,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         address[] memory allStrategies = strategyRegistry.all();
         uint256 owed;
         for (uint256 i; i < allStrategies.length; ++i) {
-            owed += resonance.earned(allStrategies[i]);
+            owed += resonance.earnedRevenue(allStrategies[i]);
         }
         assertLe(owed, usdg.balanceOf(address(resonance)));
     }
@@ -203,24 +195,24 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @notice Scheduled and already-earned USDG never exceed Resonance's balance; rounding may leave surplus.
     function invariant_ResonanceScheduledAndEarnedRevenueIsSolvent() external view {
         address[] memory allStrategies = strategyRegistry.all();
-        uint256 owed = resonance.left();
+        uint256 owed = resonance.remainingRevenue();
         for (uint256 i; i < allStrategies.length; ++i) {
-            owed += resonance.earned(allStrategies[i]);
+            owed += resonance.earnedRevenue(allStrategies[i]);
         }
         assertLe(owed, usdg.balanceOf(address(resonance)));
     }
 
     /// @notice The scalar reward period has coherent bounded timestamps and remains fully backed.
     function invariant_RevenueStreamStateIsCoherent() external view {
-        (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime,) = resonance.rewardData();
+        (uint256 periodFinish, uint256 revenueRate, uint256 lastUpdateTime,) = resonance.revenueData();
         if (periodFinish == 0) {
-            assertEq(rewardRate, 0);
+            assertEq(revenueRate, 0);
             assertEq(lastUpdateTime, 0);
             return;
         }
 
         assertLe(lastUpdateTime, periodFinish);
-        assertLe(resonance.left(), usdg.balanceOf(address(resonance)));
+        assertLe(resonance.remainingRevenue(), usdg.balanceOf(address(resonance)));
     }
 
     /// @notice A killed Strategy's recorded signal is excluded from the active reward denominator.
@@ -228,8 +220,8 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         address[] memory allStrategies = strategyRegistry.all();
         uint256 activeWeight;
         for (uint256 i; i < allStrategies.length; ++i) {
-            if (resonance.isStrategyAlive(allStrategies[i])) {
-                activeWeight += resonance.strategySignalWeight(allStrategies[i]);
+            if (resonance.isStrategyLive(allStrategies[i])) {
+                activeWeight += _strategySignalWeight(allStrategies[i]);
             }
         }
         assertEq(activeWeight, resonance.totalSignalWeight());
@@ -237,7 +229,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     /// @notice The revenue index only ever moves forward.
     function invariant_RevenueIndexIsMonotonic() external view {
-        assertGe(resonance.rewardPerToken(), handler.ghostHighestRevenueIndex());
+        assertGe(resonance.revenuePerSignal(), handler.ghostHighestRevenueIndex());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -269,7 +261,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             address[] memory rewardTokens = bribe.rewardTokens();
 
             for (uint256 t; t < rewardTokens.length; ++t) {
-                assertLe(bribe.left(rewardTokens[t]), IERC20(rewardTokens[t]).balanceOf(address(bribe)));
+                assertLe(bribe.remainingReward(rewardTokens[t]), IERC20(rewardTokens[t]).balanceOf(address(bribe)));
             }
         }
     }
@@ -286,7 +278,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                 uint256 precision = bribe.REWARD_PRECISION();
                 uint256 lifetimeNotified = bribe.lifetimeRewardNotified(token);
                 assertLe(lifetimeNotified, bribe.MAX_LIFETIME_REWARD_AMOUNT());
-                assertLe(bribe.rewardPerToken(token), lifetimeNotified * precision);
+                assertLe(bribe.rewardPerSignal(token), lifetimeNotified * precision);
 
                 (uint256 periodFinish, uint256 rewardRate, uint256 lastUpdateTime,) = bribe.rewardData(token);
                 if (periodFinish == 0) {
@@ -304,7 +296,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         address[] memory allStrategies = strategyRegistry.all();
         for (uint256 i; i < allStrategies.length; ++i) {
             BribeRouter router = BribeRouter(resonance.bribeRouterFor(allStrategies[i]));
-            assertEq(address(router.paymentToken()), resonance.paymentTokenFor(allStrategies[i]));
+            assertEq(address(router.paymentToken()), address(Strategy(allStrategies[i]).paymentToken()));
             assertEq(address(router.bribe()), resonance.bribeFor(allStrategies[i]));
         }
     }
@@ -350,13 +342,13 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         uint256 naivePending;
         uint256 combinedTps;
         for (uint256 i; i < mine.SLOT_COUNT(); ++i) {
-            Mine.Slot memory slot = mine.getSlot(i);
-            assertLe(mine.price(i), slot.initialPrice);
+            Mine.Slot memory slot = mine.slot(i);
+            assertLe(mine.currentPrice(i), slot.initialPrice);
             assertLe(slot.lastAccruedAt, block.timestamp);
             if (slot.miner == address(0)) assertEq(slot.tps, 0);
             assertLe(slot.tps, mine.INITIAL_TPS());
             combinedTps += slot.tps;
-            naivePending += mine.pendingEmission(i);
+            naivePending += mine.pendingSlotEmission(i);
         }
         assertEq(combinedTps, mine.aggregateTps());
         assertEq(naivePending, mine.pendingEmission());
@@ -364,7 +356,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         uint256 expectedGlobalTps = mine.INITIAL_TPS() >> elapsedHalvings;
         if (expectedGlobalTps < mine.TAIL_TPS()) expectedGlobalTps = mine.TAIL_TPS();
         assertEq(mine.nextGlobalTps(), expectedGlobalTps);
-        assertLe(mine.totalMined(), gbx.lifetimeMinted() - gbx.GENESIS_LIQUIDITY_ALLOCATION());
+        assertLe(mine.totalMined(), gbx.lifetimeMinted());
     }
 
     /// @notice Prints how often each action actually executed, so silently dead branches are visible under `-vv`.
@@ -392,20 +384,20 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
         address addedStrategy = strategyRegistry.at(addedIndex);
         address actor = handler.actors(0);
-        assertTrue(resonance.isStrategyAlive(addedStrategy));
+        assertTrue(resonance.isStrategyLive(addedStrategy));
 
         handler.signal(0, addedIndex, 100 ether);
-        assertEq(resonance.accountSignals(actor, addedStrategy), 100 ether);
+        assertEq(_accountSignalWeight(actor, addedStrategy), 100 ether);
 
         handler.notifyTinyReward(addedIndex, 0);
         Bribe addedBribe = Bribe(resonance.bribeFor(addedStrategy));
         assertEq(addedBribe.lifetimeRewardNotified(address(target)), addedBribe.REWARD_DURATION());
 
         handler.killStrategy(addedIndex);
-        assertFalse(resonance.isStrategyAlive(addedStrategy));
+        assertFalse(resonance.isStrategyLive(addedStrategy));
 
         workflowHandler.withdrawSignal(0, addedIndex, 100 ether);
-        assertEq(resonance.accountSignals(actor, addedStrategy), 0);
+        assertEq(_accountSignalWeight(actor, addedStrategy), 0);
         assertEq(signalGBX.balanceOf(actor), 0);
     }
 
@@ -424,7 +416,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.mine(0, 0);
         vm.warp(block.timestamp + 30 minutes);
         handler.mine(1, 0);
-        handler.claimMiningPayment(0);
+        handler.claimMinerPayment(0);
         handler.donateRevenue(50_000e6);
         handler.donateDirectRevenue(1);
         vm.warp(block.timestamp + 1 hours);
@@ -435,7 +427,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
         workflowHandler.claimRewards(0, 0);
         workflowHandler.claimSelectiveReward(0, 0, 0);
-        handler.distributeBribeRewards();
+        handler.routeBribeRewards();
 
         // Fund needs a GBX balance of its own before the burn path is reachable.
         vm.prank(handler.actors(0));
@@ -481,8 +473,8 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             "distributeAll",
             "buy",
             "notifyTinyReward",
-            "distributeBribeRewards",
-            "claimMiningPayment",
+            "routeBribeRewards",
+            "claimMinerPayment",
             "redeem",
             "burnFundGBX",
             "killStrategy"

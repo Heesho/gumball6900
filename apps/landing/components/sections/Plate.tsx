@@ -369,17 +369,17 @@ export function Plate() {
        how the frozen mine reports a settled tenure. */
     const lastPayout = { who: '', gbx: 0 };
     /* ══ GBX MINTED — the emission curve, from zero ═══════════════════════
-       THE MINE IS THE ONLY MINT AUTHORITY GBX HAS. docs/ECONOMICS.md: twenty
-       million are created at genesis for liquidity and mint authority is then
-       assigned permanently to Mine. And Mine mints at exactly one moment — a
-       replacement settles the outgoing slot and mints it its accrual. So this
+       THE MINE IS THE ONLY MINT AUTHORITY GBX HAS. GBX begins with zero
+       supply, and mint authority is assigned permanently to Mine. Mine mints
+       at exactly one moment — a replacement settles the outgoing slot and
+       mints it its accrual. So this
        series starts at ZERO, is flat between takes, and steps UP by exactly
        what a take minted, at the instant that take fires on the board below.
        It never eases and it never drifts: if it moved, a take moved it.
 
        WHY THIS IS NOT CIRCULATING SUPPLY. That is a different quantity and it
-       has its own drawing, the bar at station 06: genesis plus everything ever
-       minted minus everything ever burned, ~100,000,000 while the reader is
+       has its own drawing, the bar at station 06: everything ever minted minus
+       everything ever burned, ~100,000,000 in this illustrative scenario while the reader is
        here. A take mints about 0.006% of it, so against a zero-based axis it
        is a dead flat line — which is exactly what this board used to be, and
        it also meant the two readouts were drawing the same number twice. Two
@@ -584,7 +584,6 @@ export function Plate() {
        time. `mark + since` and the model's own `supply` are two independent
        arithmetics, and the plate prints their difference. */
     const mint = { mark: SUPPLY0, since: 0, total: 0, burned: 0, rate: 0 };
-
 
     /* ------------------------------------------------------------- the fund
        What the auctions have delivered into each bay, in USDG of value spent.
@@ -903,7 +902,6 @@ export function Plate() {
       return { x: l.gridX + col * (l.cw + l.cgap), y: l.gridTop + row * (l.ch + l.cgap) };
     }
 
-
     /* ═════════════════════════════════════════════════════ the build ═══════
        Every d3-shape call on the plate is inside this function, which runs
        from step() and from resize() — never from a frame's paint. */
@@ -1015,7 +1013,6 @@ export function Plate() {
     }
 
     function build(l: Layout): void {
-
       /* the live gauge, and a round unit for its scale bar */
       /* the widest band the mine can ever draw is `room`; it is a third of the
          plate so a payment at the top of the board's own dollar axis still has
@@ -1075,8 +1072,7 @@ export function Plate() {
           /* clamped to the box: the window eases and the series does not, so a
              riser can briefly outrun its own frame. It flattens against the
              edge for those few frames rather than drawing outside the cell. */
-          const yOf = (v: number) =>
-            Math.max(y0, Math.min(y1, y1 - ((v - lo) / (hi - lo)) * (y1 - y0)));
+          const yOf = (v: number) => Math.max(y0, Math.min(y1, y1 - ((v - lo) / (hi - lo)) * (y1 - y0)));
           const line = new Path2D();
           const area = new Path2D();
           /* THE LINE ENTERS THE BOX AT THE LEVEL THE WINDOW OPENS AT — the
@@ -1316,10 +1312,7 @@ export function Plate() {
             x: cx0 + cumB * l.gFlow,
             /* the model's own `moved × emph`: full for the scripted signal, a
                fraction of it for a holder drifting on their own clock */
-            glow: Math.max(
-              (av?.moved ?? 0) * (av?.emph ?? 0),
-              (bv?.moved ?? 0) * (bv?.emph ?? 0),
-            ),
+            glow: Math.max((av?.moved ?? 0) * (av?.emph ?? 0), (bv?.moved ?? 0) * (bv?.emph ?? 0)),
           });
         }
       } else {
@@ -1422,7 +1415,6 @@ export function Plate() {
         const r = run('burn', l.gGbx, l.supplyY + 11, l.burnY1, head - F.burnW / 2, q);
         F.burnNeutral = { band: ribbonPath(r) };
       }
-
     }
 
     /**
@@ -1779,11 +1771,7 @@ export function Plate() {
                   .map((ch) => ch + ch)
                   .join('')
               : h;
-          return [
-            parseInt(f.slice(0, 2), 16) || 0,
-            parseInt(f.slice(2, 4), 16) || 0,
-            parseInt(f.slice(4, 6), 16) || 0,
-          ];
+          return [parseInt(f.slice(0, 2), 16) || 0, parseInt(f.slice(2, 4), 16) || 0, parseInt(f.slice(4, 6), 16) || 0];
         }
         const m = v.match(/-?\d+(\.\d+)?/g);
         return [Number(m?.[0] ?? 0), Number(m?.[1] ?? 0), Number(m?.[2] ?? 0)];
@@ -1842,7 +1830,6 @@ export function Plate() {
 
     /* --------------------------------------------------------------- mine */
     function paintMine(l: Layout): void {
-
       /* THE TAKE'S OWN STREAM, drawn FIRST so the opaque cards cover it. A
          payment leaves the card that made it and runs down into the Router;
          inside the board it shows only in the gutters between the rows it
@@ -2074,7 +2061,6 @@ export function Plate() {
           label(elapsed(F.emisSpan) + ' window', sx + sw - ip, fy, fSize, ink.faint, 'right');
         }
       }
-
     }
 
     /* ------------------------------------------------------------- router */
@@ -2091,16 +2077,7 @@ export function Plate() {
        decays with. Money landing is an event; money sitting is a level; they
        are drawn as two different things because they are two different
        things. */
-    function tank(
-      l: Layout,
-      x: number,
-      y: number,
-      w: number,
-      h: number,
-      level: number,
-      fill: string,
-      flash = 0,
-    ): void {
+    function tank(l: Layout, x: number, y: number, w: number, h: number, level: number, fill: string, flash = 0): void {
       ctx.fillStyle = ink.raised;
       ctx.fillRect(x, y, w, h);
       const lv = Math.max(0, Math.min(1, level));
@@ -2137,20 +2114,8 @@ export function Plate() {
          same frame and over the same envelope. So the wash is the arrival
          itself, and what the reader watches during it is the level actually
          moving. NO FIGURES: the level is the reading. */
-      tank(
-        l,
-        vx,
-        vy,
-        vw,
-        vh,
-        level.shown / Math.max(1e-6, router.capShown),
-        USDG,
-        takeAlpha(dripAge),
-      );
-
+      tank(l, vx, vy, vw, vh, level.shown / Math.max(1e-6, router.capShown), USDG, takeAlpha(dripAge));
     }
-
-
 
     /* ------------------------------------------------------------- stream */
     function paintStream(l: Layout): void {
@@ -2201,8 +2166,7 @@ export function Plate() {
            where somebody had to call the function — and it is drawn as what it
            is: a closed face, broken open to the width of the load while it is
            passing. Shut almost always, because nobody is obliged to open it. */
-        const open =
-          router.open > 0 ? ease(Math.min(1, (ROUTE_OPEN - router.open) / (ROUTE_OPEN * 0.55))) : 0;
+        const open = router.open > 0 ? ease(Math.min(1, (ROUTE_OPEN - router.open) / (ROUTE_OPEN * 0.55))) : 0;
         const gap = Math.max(2, Math.min(F.comb.x1 - F.comb.x0, widthOf(F.gStock, router.lastRouted))) * open;
         ctx.save();
         ctx.setLineDash([]);
@@ -2406,7 +2370,6 @@ export function Plate() {
           ctx.setLineDash([]);
         }
       });
-
     }
 
     /* THE FUND'S READINGS ARE PAINTED AFTER STATION 06'S BANDS.

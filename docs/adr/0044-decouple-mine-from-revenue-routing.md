@@ -1,10 +1,15 @@
 # ADR 0044: Decouple Mine handoffs from revenue routing
 
-- Status: accepted for development; not audited, deployed, or approved for user funds
+- Status: accepted for development; its canonical-USDG balance-delta checks are superseded by ADR 0049; not audited,
+  deployed, or approved for user funds
 - Date: 2026-08-22
 - Supersedes: ADR 0024's synchronous Mine-to-Resonance routing behavior and ADR 0029's implication that a Mine handoff
   attempts `ResonanceRouter.route()`
-- Preserves: ADR 0022's atomic LiquidityPosition fee-routing behavior
+- Preserves historically: ADR 0022's atomic LiquidityPosition fee-routing behavior, later removed by ADR 0050
+
+[ADR 0049](0049-trust-canonical-token-transfers.md) later removes Mine's sender/receiver balance-delta verification
+while preserving the nominal payment split, terminal ResonanceRouter deposit, event distinction, and asynchronous
+routing boundary below. The decision body records the ADR-0044 transfer checks historically.
 
 ## Context
 

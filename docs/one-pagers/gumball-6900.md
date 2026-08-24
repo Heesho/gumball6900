@@ -4,7 +4,7 @@ version: 2.0.0
 date: 2026-08-23
 source_commit: uncommitted-working-tree
 base_commit: d80b92da5e60c0daa54dbae29653898dde514053
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0048; not approved for user funds.
+protocol_status: Uncommitted development candidate implementing ADRs through ADR 0050; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
 internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
 independent_audit_status: No independent external audit has been performed.
@@ -27,9 +27,8 @@ owner at all. What gets bought is decided by stake; what you can withdraw is dec
 
 ## GBX
 
-**GBX** is the protocol's transferable token. It is created two ways only: a single 20,000,000-token allocation at
-deployment that becomes permanent market liquidity, and continuous issuance to miners after that. Mint authority is
-handed to one contract exactly once and can never be changed, revoked, or duplicated. There is no supply cap;
+**GBX** is the protocol's transferable token. It starts at zero supply and is issued only by Mine. Mint authority is
+handed to that one contract exactly once and can never be changed, revoked, or duplicated. There is no supply cap;
 the prospective issuance rate halves at fixed deployment-time intervals down to a permanent, strictly positive floor.
 
 Holding GBX gives two rights: **signal with it** to direct the protocol, or **burn it** to redeem treasury assets.
@@ -49,20 +48,21 @@ retroactively redirects money. A move is one atomic source removal plus destinat
 
 ## Revenue, acquisition, and redemption
 
-Revenue arrives in USDG from two sources. **Mining:** the mine is a permanent grid of **sixteen slots**, each running
+Protocol revenue arrives in USDG from **mining**: the mine is a permanent grid of **sixteen slots**, each running
 its own hourly descending-price auction. GBX is issued continuously to whoever occupies each slot, and taking a slot
 means paying that slot's current price — 80% goes to the miner you displaced, while Mine deposits 20% into
 ResonanceRouter; an empty slot deposits 100%. Mine does not call `route()`. Your issuance rate is fixed the moment you
 take a slot and never changes while you hold it. There is no
-team fee. **Liquidity fees:** the permanent GBX/USDG Uniswap v4 position earns fees that anyone can harvest, with the
-USDG becoming revenue, the GBX burned, and the underlying liquidity never moving.
+team fee.
 
 Anyone may later call the Router to move a qualifying balance into **Resonance**, which releases it as a rolling
 seven-day stream split by live signal weights. There is no routing role or bounty, so Mine revenue may wait indefinitely
-without a manual, frontend, volunteer-keeper, or cron caller. Liquidity fee harvesting keeps its atomic route attempt.
-Each Strategy
+without a manual, frontend, volunteer-keeper, or cron caller. Each Strategy
 accumulates USDG and sells all of it in a descending-price auction, asking to be paid in the asset it acquires. No
 oracle is consulted — the auction is the price discovery.
+
+A reviewed external fungible USDG-GBX Uniswap V2 LP token may be one bootstrap Strategy target. It is acquired and
+settled exactly like any other asset. The core has no liquidity-creation, custody, pricing, swap, harvest, or guarantee.
 
 Every acquired payment is classified at one bounded global rate. The automatic Bribe share **defaults to 10% and may
 be set prospectively from 0% through 20%**; Fund receives the 100%-minus-Bribe complement, so its share defaults to
@@ -93,12 +93,11 @@ pull signal toward it, up to sixteen reward tokens per Strategy including the as
 flowchart LR
   M[Mine<br/>16 slot auctions] -->|20% / 100% deposit| RR[ResonanceRouter]
   M -->|80%| DM[Displaced miner]
-  LP[LiquidityPosition<br/>Uniswap v4 fees] -->|USDG| RR
-  LP -->|GBX| BURN[Burned]
   RR -->|permissionless route of qualifying balance| R[Resonance<br/>7-day USDG stream]
   SG[sGBX signal weights] -.->|directs| R
   R -->|signal-weighted| S[Strategies]
   S -->|descending-price auction| A[Acquired asset]
+  LP[External USDG-GBX<br/>UniV2 LP token] -.->|may be a reviewed target| A
   A -->|Fund complement: 80–100%| F[Fund]
   A -->|Bribe share: 0–20%, 10% default| SIG[Signalers]
   B[Anyone] -->|extra Bribe rewards| SIG
@@ -107,17 +106,16 @@ flowchart LR
 
 ## Protocol components
 
-| Contract            | Role                                                                                  |
-| ------------------- | ------------------------------------------------------------------------------------- |
-| `GBX`               | The token. One permanent minter, no supply cap, exact minted-minus-burned accounting. |
-| `Mine`              | Issues GBX to slot occupants; sixteen hourly slot auctions produce USDG revenue.      |
-| `SignalGBX`         | Non-transferable signal token; sole coordinator. No idle state.                       |
-| `Resonance`         | Holds revenue in a seven-day stream and allocates it by signal weight.                |
-| `Strategy`          | Descending-price auction trading accumulated USDG for a target asset.                 |
-| `BribeRouter`       | Buffers one Strategy's Bribe share for permissionless distribution.                   |
-| `Bribe`             | Synthetix-shaped streams for up to sixteen tokens over virtual signal balances.       |
-| `Fund`              | Ownerless treasury; redemption and GBX burning are its only exits.                    |
-| `LiquidityPosition` | Permanently holds the GBX/USDG v4 position; fees harvestable by anyone.               |
+| Contract      | Role                                                                                  |
+| ------------- | ------------------------------------------------------------------------------------- |
+| `GBX`         | The token. One permanent minter, no supply cap, exact minted-minus-burned accounting. |
+| `Mine`        | Issues GBX to slot occupants; sixteen hourly slot auctions produce USDG revenue.      |
+| `SignalGBX`   | Non-transferable signal token; sole coordinator. No idle state.                       |
+| `Resonance`   | Holds revenue in a seven-day stream and allocates it by signal weight.                |
+| `Strategy`    | Descending-price auction trading accumulated USDG for a target asset.                 |
+| `BribeRouter` | Buffers one Strategy's Bribe share for permissionless distribution.                   |
+| `Bribe`       | Synthetix-shaped streams for up to sixteen tokens over virtual signal balances.       |
+| `Fund`        | Ownerless treasury; redemption and GBX burning are its only exits.                    |
 
 ## What can be changed, and by whom
 
@@ -133,7 +131,7 @@ proposal rules, no quorum, and no execution delay. sGBX does record vote checkpo
 system could read, but nothing in the protocol reads them today. Until that choice is made and reviewed, the honest
 statement is that the protocol's decision-making layer is unfinished — see the risks below.
 
-Nothing can touch mining rates, mint authority, Fund assets, liquidity custody, the auction mechanism, or the fixed
+Nothing can touch mining rates, mint authority, Fund assets, the auction mechanism, or the fixed
 sixteen-slot count. The reward share moves only inside its coded 0–20% band, and a change applies to later purchases
 only — it can never reclassify an amount already settled. No contract has an upgrade path, pause switch, or sweep.
 
@@ -150,8 +148,8 @@ only — it can never reclassify an amount already settled. No contract has an u
 - **Accepted dust and abandonment.** Rounding residue and revenue streamed while nobody signals accumulate in
   Resonance permanently. If the last signaler exits a retired Strategy's reward pool, remaining rewards there are
   abandoned — an amount not bounded to dust.
-- **External dependencies.** USDG, Uniswap v4, and every payment and reward token carry their own freeze, upgrade, and
-  solvency risk.
+- **External dependencies.** USDG and every payment and reward token carry their own freeze, upgrade, and solvency
+  risk. A registered external LP token also carries the risks of its pair and venue.
 - **Miner rollover risk.** The 80% handoff arrives only if someone later replaces the miner at a nonzero price; after
   an hour the price is zero.
 - **Economic review remains open.** The Mine's initial rate, provisional 69-day halving period, tail rate, and
@@ -162,7 +160,7 @@ only — it can never reclassify an amount already settled. No contract has an u
 | Field                        | Status                                                                                                                                                                                                                                                                                                                                                                            |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Protocol status**          | Uncommitted development candidate based on `e3ebdd7`; not a commit-pinned review artifact and not approved for user funds.                                                                                                                                                                                                                                                        |
-| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG / Uniswap v4 addresses are unresolved candidates.                                                                                                                                                                                                                              |
+| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG address are unresolved candidates; any bootstrap LP token address remains a reviewed deployment input.                                                                                                                                                                         |
 | **Internal review status**   | The full deterministic ADR 0044 workspace matrix passes locally: Foundry 356/356 default and 19/19 integration, Hardhat 4/4, SDK 50/50, both simulation implementations, subgraph, web/E2E, documentation, ABI, formatting, lint, typecheck, and build gates. Static analysis, mutation testing, and external fuzzing remain historical; no independent audit has been performed. |
 | **Open release gates**       | Fixed Mine economics require independent review (M-04); signed deployment manifest and dependency verification outstanding (M-03); external governance system unselected and unreviewed (G-01, G-03).                                                                                                                                                                             |
 | **Independent audit status** | None. No independent external audit, compatible symbolic analysis, or release review has been completed.                                                                                                                                                                                                                                                                          |

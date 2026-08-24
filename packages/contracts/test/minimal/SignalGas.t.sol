@@ -90,10 +90,10 @@ contract SignalGasTest is ProtocolFixture {
 
         console.log("composed move gas with MAX_REWARD_TOKENS on both Bribes", moveGas);
         assertLt(moveGas, 3_000_000, "composed move must retain at least 10x headroom under a 30M block");
-        assertEq(targetBribe.balanceOf(ALICE), 0);
-        assertEq(gbxBribe.balanceOf(ALICE), 100 ether);
-        assertEq(resonance.strategySignalWeight(address(targetStrategy)), 0);
-        assertEq(resonance.strategySignalWeight(address(gbxStrategy)), 200 ether);
+        assertEq(targetBribe.signalWeightOf(ALICE), 0);
+        assertEq(gbxBribe.signalWeightOf(ALICE), 100 ether);
+        assertEq(_strategySignalWeight(address(targetStrategy)), 0);
+        assertEq(_strategySignalWeight(address(gbxStrategy)), 200 ether);
         assertEq(resonance.totalSignalWeight(), 200 ether);
         assertEq(signalGBX.totalSupply(), receiptSupplyBefore);
         assertEq(signalGBX.getVotes(ALICE), aliceVotesBefore);
@@ -105,13 +105,13 @@ contract SignalGasTest is ProtocolFixture {
 
         MockERC20 sixteenth = new MockERC20("Sixteenth Reward", "SIXTEENTH", 18);
         uint256 gasBefore = gasleft();
-        resonance.addBribeReward(address(targetStrategy), address(sixteenth));
+        resonance.addBribeRewardToken(address(targetStrategy), address(sixteenth));
         uint256 addSixteenthGas = gasBefore - gasleft();
 
         MockERC20 seventeenth = new MockERC20("Seventeenth Reward", "SEVENTEENTH", 18);
         gasBefore = gasleft();
         (bool seventeenthSucceeded,) = address(resonance)
-            .call(abi.encodeCall(resonance.addBribeReward, (address(targetStrategy), address(seventeenth))));
+            .call(abi.encodeCall(resonance.addBribeRewardToken, (address(targetStrategy), address(seventeenth))));
         uint256 rejectSeventeenthGas = gasBefore - gasleft();
         assertFalse(seventeenthSucceeded);
 
@@ -125,14 +125,14 @@ contract SignalGasTest is ProtocolFixture {
 
         BribeRouter router = targetRouter;
         gasBefore = gasleft();
-        router.distribute();
+        router.route();
         uint256 bufferDistributionGas = gasBefore - gasleft();
 
         gasBefore = gasleft();
         resonance.killStrategy(address(targetStrategy));
         uint256 killGas = gasBefore - gasleft();
 
-        console.log("addBribeReward token sixteen gas", addSixteenthGas);
+        console.log("addBribeRewardToken token sixteen gas", addSixteenthGas);
         console.log("rejected token seventeen gas", rejectSeventeenthGas);
         console.log("buffered Bribe distribution gas", bufferDistributionGas);
         console.log("killStrategy gas", killGas);
@@ -242,7 +242,7 @@ contract SignalGasTest is ProtocolFixture {
     function _addRewardTokens(address strategy, uint256 count) private {
         for (uint256 i; i < count; ++i) {
             MockERC20 extra = new MockERC20("Extra Reward", "XTRA", 18);
-            resonance.addBribeReward(strategy, address(extra));
+            resonance.addBribeRewardToken(strategy, address(extra));
         }
     }
 
@@ -260,7 +260,7 @@ contract SignalGasTest is ProtocolFixture {
                 token.mint(address(this), STREAM_AMOUNT);
             }
             token.approve(address(bribe), STREAM_AMOUNT);
-            bribe.notifyRewardAmount(address(token), STREAM_AMOUNT);
+            bribe.notifyReward(address(token), STREAM_AMOUNT);
         }
     }
 }

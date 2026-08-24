@@ -14,7 +14,6 @@ const contracts = [
   'BribeRouter',
   'Fund',
   'GBX',
-  'LiquidityPosition',
   'Mine',
   'SignalGBX',
   'Strategy',

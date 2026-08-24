@@ -5,7 +5,6 @@ export const metadata: Metadata = { title: 'Governance-minimized development des
 const contracts = [
   'GBX',
   'Mine',
-  'LiquidityPosition',
   'SignalGBX (sGBX)',
   'ResonanceRouter',
   'Resonance',
@@ -18,7 +17,6 @@ const contracts = [
 ] as const;
 
 const deploymentInputs = [
-  'USDG, Uniswap v4, genesis price, and single-sided range inputs',
   'Exact external governance release, plugins, permissions, voting parameters, and execution semantics',
   'Independent economic review of the hard-coded Mine multiplier, USDG floor, 64 GBX/second initial rate, 69-day periods, and 1 GBX/second tail',
   'Initial Strategy payment tokens and bounded auction parameters',
@@ -43,14 +41,14 @@ export default function HomePage() {
           without an asset registry.
         </p>
         <div className="mt-8 grid gap-3 sm:grid-cols-3">
-          <Metric label="Genesis GBX supply" value="20,000,000 GBX" />
+          <Metric label="GBX premint" value="0 GBX" />
           <Metric label="Automatic Bribe share" value="10% default · 0–20%" />
           <Metric label="Signal withdrawal lock" value="None" />
         </div>
       </section>
 
       <section className="grid gap-5 lg:grid-cols-[1.1fr_.9fr]">
-        <Panel eyebrow="Architecture" title="Twelve direct, non-upgradeable contracts">
+        <Panel eyebrow="Architecture" title="Eleven direct, non-upgradeable contracts">
           <div className="grid gap-2 sm:grid-cols-2">
             {contracts.map((contract, index) => (
               <div
@@ -67,7 +65,7 @@ export default function HomePage() {
         <Panel eyebrow="Core economics" title="Simple, explicit value flows">
           <dl className="space-y-5">
             <Definition label="Mining revenue" value="20% Router deposit · 80% displaced miner" />
-            <Definition label="v4 position fees" value="USDG → Resonance · GBX → Fund burn · principal fixed" />
+            <Definition label="LP exposure" value="Ordinary ERC-20 Strategy target" />
             <Definition label="Strategy payment" value="80–100% Fund · 0–20% paired Bribe" />
             <Definition label="GBX payment" value="Fund receipt · optional later burn" />
             <Definition label="Signal" value="Replaceable at any time" />
@@ -81,7 +79,7 @@ export default function HomePage() {
       <section className="grid gap-5 lg:grid-cols-2">
         <Panel eyebrow="Target guarantees" title="What the final contract code must keep narrow">
           <ul className="space-y-3 text-sm leading-6 text-[#a8b5b4]">
-            <li>GBX starts at 20M and permanently assigns future issuance to one immutable Mine.</li>
+            <li>GBX starts at zero and permanently assigns issuance to one immutable Mine.</li>
             <li>An occupied slot keeps its assigned TPS until replacement, including across halvings.</li>
             <li>Redemption uses minted plus pending pre-burn supply and caller-selected Fund balances.</li>
             <li>Fund has no asset registry or protocol-wide token loop.</li>
@@ -92,7 +90,7 @@ export default function HomePage() {
             <li>Mine deposits revenue into ResonanceRouter; later routing is a separate permissionless action.</li>
             <li>A 0% automatic Bribe rate leaves signaling, movement, withdrawal, and independent rewards live.</li>
             <li>The deployed core has no proxy, upgrade path, treasury recovery, or successor migration.</li>
-            <li>Supported token movements fail closed unless sender debit and receiver credit are both exact.</li>
+            <li>Core transfers use SafeERC20 under the supported standard-token model.</li>
           </ul>
         </Panel>
 
@@ -114,12 +112,12 @@ export default function HomePage() {
       <Panel eyebrow="Settlement observability" title="Streams, balances, and claims stay visible">
         <p className="max-w-4xl text-sm leading-6 text-[#a8b5b4]">
           A blocked Strategy or reward token cannot strand signal movement or withdrawal. Strategy pays Fund inline,
-          while each BribeRouter buffers only its Bribe share for permissionless distribution. Reward holders can claim
-          one token to isolate a broken asset or claim every registered token in one call.
+          while each BribeRouter buffers only its Bribe share for permissionless routing. Reward holders can claim one
+          token to isolate a broken asset or claim every registered token in one call.
         </p>
         <dl className="mt-5 grid gap-4 sm:grid-cols-3">
-          <Definition label="Revenue stream" value="left() · distribute(strategy)" />
-          <Definition label="Acquisition state" value="Strategy → Fund · Strategy → BribeRouter → distribute()" />
+          <Definition label="Revenue stream" value="remainingRevenue() · distributeRevenue(strategy)" />
+          <Definition label="Acquisition state" value="Strategy → Fund · Strategy → BribeRouter → route()" />
           <Definition label="Reward claims" value="claimReward(account, token) · claimRewards(account)" />
         </dl>
       </Panel>

@@ -30,19 +30,6 @@
   },
   {
     "type": "function",
-    "name": "distribute",
-    "inputs": [],
-    "outputs": [
-      {
-        "name": "distributed",
-        "type": "uint256",
-        "internalType": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "paymentToken",
     "inputs": [],
     "outputs": [
@@ -55,8 +42,21 @@
     "stateMutability": "view"
   },
   {
+    "type": "function",
+    "name": "route",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "amount",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable"
+  },
+  {
     "type": "event",
-    "name": "RewardsDistributed",
+    "name": "RewardRouted",
     "inputs": [
       {
         "name": "bribe",

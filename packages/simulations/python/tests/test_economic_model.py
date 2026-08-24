@@ -70,7 +70,10 @@ def test_synchronized_supply_is_explicit_and_exact() -> None:
     period = 69 * 24 * 3_600
     suite = compute()
     synchronized = suite["mining"]["synchronizedSupply"]
-    assert suite["schemaVersion"] == 14
+    assert suite["schemaVersion"] == 15
+    assert suite["assumptions"]["initialSupplyGBXRaw"] == 0
+    assert suite["assumptions"]["externalLpUsesOrdinaryStrategySettlement"] is True
+    assert suite["assumptions"]["liquiditySpecificCoreLogic"] is False
     assert synchronized["referenceCase"] == "synchronized-full-refresh-no-burn"
     assert synchronized["modelAssumption"] == (
         "Synchronized full-refresh, no-burn reference: all sixteen slots are occupied from deployment, "
@@ -80,27 +83,27 @@ def test_synchronized_supply_is_explicit_and_exact() -> None:
     assert synchronized["tailBoundaryCount"] == 6
     assert synchronized["tailStartsAtSeconds"] == 6 * period == 35_769_600
     assert synchronized_mining_emission(6 * period) == 751_161_600 * 10**18
-    assert synchronized["grossSupplyAtTail"] == 771_161_600 * 10**18
-    assert synchronized["minedBpsOfGrossSupplyAtTail"] == 9_740
-    assert synchronized["annualTailInflationPpmAtTail"] == 40_894
+    assert synchronized["grossSupplyAtTail"] == 751_161_600 * 10**18
+    assert synchronized["minedBpsOfGrossSupplyAtTail"] == 10_000
+    assert synchronized["annualTailInflationPpmAtTail"] == 41_982
     assert [
         (point["boundaryIndex"], point["globalTps"], point["grossSupply"])
         for point in synchronized["boundaryPoints"]
     ] == [
-        (0, 64 * 10**18, 20_000_000 * 10**18),
-        (1, 32 * 10**18, 401_542_400 * 10**18),
-        (2, 16 * 10**18, 592_313_600 * 10**18),
-        (3, 8 * 10**18, 687_699_200 * 10**18),
-        (4, 4 * 10**18, 735_392_000 * 10**18),
-        (5, 2 * 10**18, 759_238_400 * 10**18),
-        (6, 10**18, 771_161_600 * 10**18),
+        (0, 64 * 10**18, 0),
+        (1, 32 * 10**18, 381_542_400 * 10**18),
+        (2, 16 * 10**18, 572_313_600 * 10**18),
+        (3, 8 * 10**18, 667_699_200 * 10**18),
+        (4, 4 * 10**18, 715_392_000 * 10**18),
+        (5, 2 * 10**18, 739_238_400 * 10**18),
+        (6, 10**18, 751_161_600 * 10**18),
     ]
     assert {point["years"]: point["grossSupply"] for point in synchronized["horizonPoints"]} == {
-        1: 762_694_400 * 10**18,
-        3: 830_000_000 * 10**18,
-        5: 893_072_000 * 10**18,
-        10: 1_050_752_000 * 10**18,
-        40: 1_996_832_000 * 10**18,
+        1: 742_694_400 * 10**18,
+        3: 810_000_000 * 10**18,
+        5: 873_072_000 * 10**18,
+        10: 1_030_752_000 * 10**18,
+        40: 1_976_832_000 * 10**18,
     }
     assert {
         point["yearsAfterTail"]: (
@@ -109,10 +112,10 @@ def test_synchronized_supply_is_explicit_and_exact() -> None:
         )
         for point in synchronized["tailRelativeHorizonPoints"]
     } == {
-        1: (802_697_600 * 10**18, 39_287),
-        2: (834_233_600 * 10**18, 37_802),
-        5: (928_841_600 * 10**18, 33_951),
-        10: (1_086_521_600 * 10**18, 29_024),
+        1: (782_697_600 * 10**18, 40_291),
+        2: (814_233_600 * 10**18, 38_730),
+        5: (908_841_600 * 10**18, 34_699),
+        10: (1_066_521_600 * 10**18, 29_569),
     }
 
 

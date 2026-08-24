@@ -58,11 +58,7 @@ function configuredEvidence() {
     blockNumber: '123456',
     chainId: 46630,
     dependencies: {
-      permit2: { address: address(1), runtimeBytecodeHash: hash('1') },
-      poolManager: { address: address(2), runtimeBytecodeHash: hash('2') },
-      positionManager: { address: address(3), runtimeBytecodeHash: hash('3') },
-      usdG: { address: address(4), runtimeBytecodeHash: hash('4') },
-      weth: { address: address(5), runtimeBytecodeHash: hash('5') },
+      usdG: { address: address(1), runtimeBytecodeHash: hash('1') },
     },
     expiresAt: '2026-08-01T13:00:00Z',
     kind: 'gumball-6900-robinhood-testnet-fork-evidence',
@@ -88,20 +84,20 @@ describe('build-bound Robinhood testnet fork evidence', () => {
     );
   });
 
-  it('rejects zero blocks, zero hashes, and aliased dependency addresses', () => {
+  it('rejects zero blocks, zero hashes, and unexpected dependencies', () => {
     expect(() => parseRobinhoodTestnetForkEvidence({ ...configuredEvidence(), blockNumber: '0' })).toThrow();
     expect(() => parseRobinhoodTestnetForkEvidence({ ...configuredEvidence(), blockHash: hash('0') })).toThrow();
     expect(() => parseRobinhoodTestnetForkEvidence({ ...configuredEvidence(), parentBlockHash: hash('0') })).toThrow();
-    const duplicate = configuredEvidence();
+    const configured = configuredEvidence();
     expect(() =>
       parseRobinhoodTestnetForkEvidence({
-        ...duplicate,
+        ...configured,
         dependencies: {
-          ...duplicate.dependencies,
-          weth: { ...duplicate.dependencies.weth, address: duplicate.dependencies.usdG.address },
+          ...configured.dependencies,
+          unexpectedDependency: { address: address(2), runtimeBytecodeHash: hash('2') },
         },
       }),
-    ).toThrow(/unique/);
+    ).toThrow();
   });
 
   it('rejects expired, future-dated, and overlong evidence at the release boundary', () => {

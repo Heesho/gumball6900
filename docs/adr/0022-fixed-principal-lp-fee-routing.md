@@ -1,8 +1,13 @@
 # ADR 0022: Fixed-principal LP fee routing
 
-- Status: accepted for development; not approved for deployment or user funds
+- Status: superseded by ADR 0050; its earlier canonical-token balance-delta checks were superseded by ADR 0049; not
+  approved for deployment or user funds
 - Date: 2026-08-09
 - Supersedes: ADR 0018 and all clauses requiring LP fee compounding or excluding LP fees from protocol revenue
+
+[ADR 0049](0049-trust-canonical-token-transfers.md) later removes the sender/receiver balance-delta verification from
+the canonical GBX and USDG transfers while preserving the fixed destinations and complete atomic harvest described
+below. The decision body records the ADR-0022 transfer wording historically.
 
 ## Context
 

@@ -7,7 +7,8 @@ composition, same-Strategy validation, restoration of the removed Resonance hook
 
 This is a focused development score, not a protocol-wide mutation score, formal proof, independent audit, deployment
 approval, or release evidence. Historical 94.1% raw / 100% equivalent-adjusted figures apply only to their pinned
-earlier tree. The complete post-ADR-0048 deterministic and workspace matrices still require a rerun, and the
+earlier tree. ADRs 0049 and 0050 later change the canonical transfer paths and issuance graph, so the complete
+post-ADR-0050 deterministic and workspace matrices still require a rerun, and the
 independent-audit, pinned external-fuzzer, symbolic-execution, and formal-verification gates remain open.
 
 Before release, preserve the focused mutant manifest and output under `audit/reports`, independently review the

@@ -9,7 +9,6 @@ export function getProtocol(event: ethereum.Event): ProtocolState {
     protocol = new ProtocolState(CHAIN_ID_TEXT);
     protocol.chainId = CHAIN_ID;
     protocol.bribeBps = DEFAULT_BRIBE_BPS;
-    protocol.initialSupplyRaw = ZERO;
     protocol.lifetimeMintedRaw = ZERO;
     protocol.lifetimeBurnedRaw = ZERO;
     protocol.totalSupplyRaw = ZERO;
@@ -18,10 +17,6 @@ export function getProtocol(event: ethereum.Event): ProtocolState {
     protocol.previousMinerPaymentsRaw = ZERO;
     protocol.miningRevenueDepositedRaw = ZERO;
     protocol.miningSlotCount = BigInt.fromI32(16);
-    protocol.liquidityPrincipalRaw = ZERO;
-    protocol.liquidityFeeHarvestCount = ZERO;
-    protocol.liquidityUSDGRoutedRaw = ZERO;
-    protocol.liquidityGBXBurnedRaw = ZERO;
     protocol.routedRevenueRaw = ZERO;
     protocol.notifiedRevenueRaw = ZERO;
     protocol.revenueNotificationCount = ZERO;
@@ -45,7 +40,6 @@ export function getAccount(address: Address, event: ethereum.Event): Account {
   if (account == null) {
     account = new Account(id);
     account.address = address;
-    account.gbxInitialAllocationRaw = ZERO;
     account.gbxMinedRaw = ZERO;
     account.gbxBurnedRaw = ZERO;
     account.miningPaymentAccruedRaw = ZERO;
@@ -97,7 +91,7 @@ export function getStrategy(address: Address, event: ethereum.Event): Strategy {
     strategy.distributedRevenueRaw = ZERO;
     strategy.notifiedRewardRaw = ZERO;
     strategy.paidRewardRaw = ZERO;
-    strategy.routerRewardsDistributedRaw = ZERO;
+    strategy.routerRewardsRoutedRaw = ZERO;
     strategy.createdBlockNumber = event.block.number;
   }
   strategy.lastBlockNumber = event.block.number;
