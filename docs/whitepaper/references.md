@@ -7,12 +7,10 @@ this list; the claim-by-claim mapping lives in `FACT-CHECK.md`.
 
 - Current implementation evidence: `packages/contracts/src/core` in the working tree. It is not release-pinned and a
   green local build remains engineering evidence only.
-- Internal audit record: `packages/contracts/audit/` (AUDIT-BASELINE,
-  INDEPENDENT-SPECIFICATION, INTERNAL-AUDIT, FINDINGS, TEST-CAMPAIGN, STATIC-ANALYSIS,
-  MUTATION-TESTING, FORMAL-CHECKS, FORK-VALIDATION, EXTERNAL_FUZZING,
-  RESIDUAL-RISKS, RELEASE-CHECKLIST). The recorded register candidate
-  `54e3f2c3ce1de25aea4da2f21fab27804a3bfa84` is historical and predates the current architecture; no current
-  review candidate is pinned.
+- Audit records: `packages/contracts/audit/` (`FINDINGS`, `INDEPENDENT-SPECIFICATION`, `MUTATION-TESTING`,
+  `FORMAL-CHECKS`, `FORK-VALIDATION`, `RESIDUAL-RISKS`, and `RELEASE-CHECKLIST`). The current disposition register and
+  byte-for-byte V12 export target `3ae171b997254b56602298d873b3918d1575b3c7`. The export is external review evidence,
+  not a complete assurance package or release authorization; prior historical records remain recoverable from Git.
 - Independent models and fixtures: `packages/simulations/` (TypeScript and Python,
   cross-checked at build time via `src/protocol-facts.mjs`).
 - Design history: `docs/adr/0013` through `docs/adr/0050`, especially ADR 0019

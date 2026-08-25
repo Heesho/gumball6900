@@ -15,7 +15,8 @@ success.
 The prior hardening pass performed non-mutating JSON-RPC reads against Robinhood Chain ID 4663 at block `32,035,314`,
 block hash `0xe13569d3a71001227e35d660dfbcfed1e7660d10b74c0c639e4bc0eab1555aea`. It recorded code hashes for the
 documented PoolManager, PositionManager, and Permit2 addresses and successfully executed `TSTORE`/`TLOAD` in an
-`eth_call`. Exact addresses and hashes are in `UNISWAP-V4-REVIEW.md`.
+`eth_call`. The deleted historical `UNISWAP-V4-REVIEW.md` record remains recoverable from Git at commit
+`3ae171b997254b56602298d873b3918d1575b3c7`; it is not current-core evidence.
 
 That evidence establishes Cancun/EIP-1153 availability and observed dependency code at one historical block. It does
 not instantiate this undeployed protocol, verify a deployment manifest, prove current code at a later block, or test

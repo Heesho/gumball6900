@@ -18,7 +18,7 @@ deployment-authorized.
       LP ERC-20 uses the ordinary Strategy path.
 - [x] Fund uses constant-time effective supply, including all pending mining, for the redemption denominator.
 - [x] Current source, focused tests, audit records, and architecture references reconciled through ADR 0050.
-- [x] Current uncommitted post-ADR-0050 contract matrix passes 293/293 default Foundry tests, all 27 invariant entries
+- [x] The post-ADR-0050 contract source at `3ae171b` passes 293/293 default Foundry tests, all 27 invariant entries
       at 1,000 runs of depth 500 with zero handler reverts, 10/10 integration tests, 4/4 Hardhat tests including parity,
       and contract lint, ordering, formatting, build, size, generated-documentation, and SDK ABI checks.
 - [ ] Final post-ADR-0050 SDK-test, simulation, subgraph, frontend, wider workspace, artifact, full lint/typecheck, and
@@ -63,6 +63,14 @@ deployment-authorized.
 - [ ] Fixed-tenure excess issuance modeled under staggered, frequent-turnover, slow-turnover, and permanent-no-turnover
       scenarios.
 - [ ] Rollover, zero-price replacement, MEV, demand collapse, and thin-liquidity scenarios reviewed.
+- [x] V12 finding export for `3ae171b997254b56602298d873b3918d1575b3c7` received, hash-pinned, and independently
+      dispositioned in `FINDINGS.md`.
+- [x] V12 249695 accepted as a theoretical risk under the canonical six-decimal USDG identity and supply assumption; no
+      source change selected. Reopen if the supported revenue-token model changes.
+- [ ] V12 249702 deployment evidence proves every slot remained untouched through binding; any contaminated candidate
+      is abandoned and redeployed before exposure.
+- [ ] V12 249705 resolved by selecting beneficiary-only or permissionless claims, then updating disclosure and adding
+      independent low-decimal/checkpoint regression coverage for the selected behavior.
 - [ ] Independent external audit complete; all material findings resolved.
 - [ ] donut-miner, give.fun, Liquid Signal, Euler, Solidly, Synthetix, and dependency provenance cleared by counsel.
 - [ ] Repository license, SPDX identifiers, attribution, and notices approved.

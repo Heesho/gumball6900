@@ -33,6 +33,9 @@
 - Bribes use `1e36` reward precision, so a raw reward unit advances the global index at any realistic signal supply.
   Rate, global-index, and account division floors remain unallocated Bribe surplus. A fully exiting account's
   sub-token floor is not transferred to Fund or reallocated to remaining signalers.
+- Third-party beneficiary claims can force an account checkpoint before sub-raw-unit Bribe accrual combines into one
+  payable unit. V12-249705 remains open pending a decision between beneficiary-only claims and the current permissionless
+  keeper/relayer convenience; no source remediation has been selected.
 - The fixed Bribe reward-token bound is sixteen. This keeps mandatory loops finite but raises maximum work: current
   focused measurements are 1,129,059 gas for withdrawal, 1,471,439 for an all-token claim, and 1,890,938 for a
   composed move with sixteen active streams on both Bribes. Chain-specific headroom still requires deployment review.
@@ -79,8 +82,12 @@ evidence must prove the exact integration and that no temporary setup authority 
 
 ## Evidence gaps
 
-No independent audit, compatible symbolic proof, exact external-governance integration review, legal clearance, or
-signed deployment manifest exists. The pinned Echidna and Medusa campaigns and the recorded full 43-mutant
+The 2026-08-25 V12 export covers commit `3ae171b997254b56602298d873b3918d1575b3c7`, but it is not a complete
+assurance package: it has no explicit scope, methodology, named auditor, date, signature, or report-level rationale,
+and independent review confirmed three behaviors. V12-249695 is an accepted theoretical risk, V12-249702 remains a
+pre-exposure deployment-evidence requirement, and V12-249705 remains open. No complete external-audit closure,
+compatible symbolic proof, exact external-governance integration review, legal clearance, or signed deployment
+manifest exists. The pinned Echidna and Medusa campaigns and the recorded full 43-mutant
 SignalGBX/Resonance/BribeRouter campaign predate ADRs 0034–0036 and are internal engineering evidence, not independent
 review. A later narrow 49-mutant campaign passed with no survivors against the ADR 0036/0037 tree, but it predates ADR
 0047 and remains historical internal engineering evidence. The focused ADR-0048 migration passed 104/104 and killed

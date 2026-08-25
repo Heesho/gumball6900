@@ -1,20 +1,21 @@
 ---
 title: 'GumBall6900: Technical Whitepaper'
 version: 2.0.1
-date: 2026-08-24
-source_commit: uncommitted-working-tree
-base_commit: 5e4dc23849dec01ccce5e49c0e55120a9f7dcac0
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0050; not approved for user funds.
+date: 2026-08-25
+source_commit: 3ae171b997254b56602298d873b3918d1575b3c7
+base_commit: 3ae171b997254b56602298d873b3918d1575b3c7
+protocol_status: Development candidate implementing ADRs through ADR 0050; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: The uncommitted post-ADR-0050 tree passes the current contract matrix: Foundry 293/293, 27 invariant entries at 1,000 runs × 500 calls with zero handler reverts, integration 10/10, and Hardhat 4/4 including parity. Broader workspace, static-analysis, external-fuzzing, format, and release gates remain open. This is local engineering evidence, not an audit or deployment approval.
-independent_audit_status: No independent external audit has been performed.
+internal_review_status: The post-ADR-0050 source at 3ae171b is the V12 review target. Independent dispositions are in packages/contracts/audit/FINDINGS.md; broader workspace, analyzer, governance, deployment, and release gates remain open.
+independent_audit_status: V12 export received for the pinned commit; incomplete assurance package, three behaviors confirmed, no release approval.
 ---
 
 # GumBall6900: Technical Whitepaper
 
-> **Safety status.** The protocol is **not deployed, not independently audited, and not approved for user funds.**
-> This edition describes an uncommitted development tree based on `5e4dc23`; it is not a commit-pinned review artifact.
-> Local green checks are engineering evidence, never a safety, audit, or release claim.
+> **Safety status.** The protocol is **not deployed or approved for user funds.** A V12 finding export targets the
+> exact source at `3ae171b`, but it is incomplete and not release-authorizing; independent disposition confirmed three
+> behaviors requiring treatment. Local green checks and the export remain bounded evidence, never a safety or release
+> claim.
 
 > **Governance is unselected.** The core contains no `ProtocolGovernor`, `TimelockController`, generic executor, or
 > provider-specific governance adapter; [ADR 0034](../../adr/0034-external-governance-ownership.md) removed them.
@@ -2406,8 +2407,10 @@ them.
 **Mitigation.** Small upstream-shaped reward and settlement surface, immutability, `SafeERC20`, reentrancy guards,
 and focused ADR-0048 regressions and mutation coverage recorded in §40. The broader deterministic, fuzz, invariant,
 and workspace matrix currently recorded there predates ADR 0048 and must be rerun.
-**Residual.** **No independent audit has been performed.** A discovered bug cannot be patched, paused, or worked
-around. This is the single largest unmitigated risk in the system.
+**Residual.** V12 supplied a finding export for source commit `3ae171b`, but it lacks an explicit scope, methodology,
+named auditor, date, signature, and final assurance statement. Independent disposition accepted the theoretical
+index-overflow condition, retained a pre-exposure deployment check, and left reward-claim authorization open. A
+discovered bug cannot be patched, paused, or worked around.
 
 ### 38.2 The `Resonance` owner (findings G-01, G-03, open)
 
@@ -2553,10 +2556,12 @@ while the repository declares BUSL-1.1 at the root and MIT per file.
 
 Risks that remain after all implemented mitigations, in descending severity.
 
-### 39.1 No independent audit
+### 39.1 External review remains incomplete
 
-No third party has reviewed this code at any version. Internal testing (§40) is engineering evidence and is not a
-substitute. **Open.**
+V12 supplied 22 Low candidate findings for commit `3ae171b997254b56602298d873b3918d1575b3c7`. The independently
+reviewed register confirms 249695, 249702, and 249705, rejects 249689's arithmetic premise, and retains the dependency
+cluster as deployment evidence rather than a canonical runtime exploit. The export is not a complete assurance package
+or substitute for remediation, retesting, and release review. **Open.**
 
 ### 39.2 Unrepairable defects
 
@@ -2641,7 +2646,7 @@ adapter, or recovery path. **Accepted design constraint; deployment review gate.
 
 ## 40. Testing and verification evidence
 
-> **Current uncommitted post-ADR-0050 contract evidence:** default Foundry passes 293/293; all 27 invariant entries
+> **Post-ADR-0050 contract evidence for source `3ae171b`:** default Foundry passes 293/293; all 27 invariant entries
 > pass at 1,000 runs of depth 500 with zero handler reverts; integration passes 10/10; and Hardhat passes 4/4,
 > including bytecode parity. Broader workspace, static-analysis, and external-fuzzing reruns remain incomplete. The
 > earlier ADR-0048 and ADR-0047 results below are retained as historical evidence. **None of this constitutes formal
@@ -2649,7 +2654,7 @@ adapter, or recovery path. **Accepted design constraint; deployment review gate.
 
 ### 40.1 Current contract matrix and historical focused evidence
 
-The uncommitted post-ADR-0050 tree passes **293/293 default Foundry tests**, all **27 invariant entries** at 1,000 runs
+The post-ADR-0050 source at `3ae171b` passes **293/293 default Foundry tests**, all **27 invariant entries** at 1,000 runs
 of depth 500 with zero handler reverts, **10/10 integration tests**, and **4/4 Hardhat tests**, including bytecode
 parity. This is current local contract engineering evidence, not a commit-pinned audit or release result.
 
@@ -2810,10 +2815,11 @@ the then-current ADR 0044 working tree.
 
 ### 40.5 Earlier historical evidence — explicitly not current
 
-`packages/contracts/audit/AUDIT-BASELINE.md` and `packages/contracts/audit/TEST-CAMPAIGN.md` both carry
-"Historical evidence only" banners. They review commit **`54e3f2c3ce1de25aea4da2f21fab27804a3bfa84`** (2026-08-09),
-which **predates** the ADR 0024 Mine redesign and the ADR 0029/0030/0031/0032 changes. Their reported figures —
-including **340 default Foundry tests** — describe a superseded contract graph and must not be read as current.
+The former `AUDIT-BASELINE.md` and `TEST-CAMPAIGN.md` records reviewed commit
+**`54e3f2c3ce1de25aea4da2f21fab27804a3bfa84`** (2026-08-09), before the ADR 0024 Mine redesign and the
+ADR 0029/0030/0031/0032 changes. They were removed from the current audit directory on 2026-08-25 and remain
+recoverable from Git history. Their reported figures, including **340 default Foundry tests**, describe a superseded
+contract graph and must not be read as current.
 
 For contrast, the immediately preceding ADR 0042 uncommitted tree also passed **356** default and **19** integration
 tests. Those counts are retained as dated local engineering history. The later ADR 0044 working tree independently
@@ -2831,25 +2837,25 @@ these campaigns covers the complete working tree described by this edition.
 
 ### 40.6 Current verification status and absent methods
 
-| Method                                         | Status in the current development tree                                                                  |
-| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Independent external audit                     | **Not performed**                                                                                       |
-| Focused migration tests after ADR 0048         | **104/104 passed** (§40.1)                                                                              |
-| Current post-ADR-0050 contract matrix          | **293/293 Foundry; 27 invariant entries; 10/10 integration; 4/4 Hardhat including parity** (§40.1)      |
-| Complete workspace-wide matrix                 | **Incomplete** beyond the current contract checks; ADR-0047 workspace counts are historical             |
-| Static analysis after ADR 0048                 | **Not re-run** (§40.5)                                                                                  |
-| External fuzzing after ADR 0048                | **Not re-run** (§40.5)                                                                                  |
-| Focused mutation testing after ADR 0048        | **47/47 mutants killed** (§40.1)                                                                        |
-| Repository-wide format gate                    | **Open:** 7 unrelated files — 6 landing files plus `pnpm-lock.yaml` — fail Prettier                     |
-| Symbolic execution                             | Not performed (Mythril incompatible with this runtime)                                                  |
-| Formal verification                            | Not performed                                                                                           |
-| Second external-fuzzer seed                    | Not performed                                                                                           |
-| Current-graph fork execution                   | Not completed; historical read-only evidence is pinned at Robinhood block 32,035,314 (`0xe13569…55aea`) |
-| Monitored testnet rehearsal                    | Not performed                                                                                           |
-| Independent review of selected Mine parameters | Not performed; ADR 0042/0043 constants are modelled but remain provisional                              |
-| Remaining production/deployment parameters     | Not fully selected                                                                                      |
-| Release review                                 | Not performed                                                                                           |
-| Signed deployment manifest                     | Does not exist                                                                                          |
+| Method                                         | Status in the current development tree                                                                     |
+| ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| External review                                | **V12 export received for `3ae171b`; independently dispositioned; incomplete and not release-authorizing** |
+| Focused migration tests after ADR 0048         | **104/104 passed** (§40.1)                                                                                 |
+| Current post-ADR-0050 contract matrix          | **293/293 Foundry; 27 invariant entries; 10/10 integration; 4/4 Hardhat including parity** (§40.1)         |
+| Complete workspace-wide matrix                 | **Incomplete** beyond the current contract checks; ADR-0047 workspace counts are historical                |
+| Static analysis after ADR 0048                 | **Not re-run** (§40.5)                                                                                     |
+| External fuzzing after ADR 0048                | **Not re-run** (§40.5)                                                                                     |
+| Focused mutation testing after ADR 0048        | **47/47 mutants killed** (§40.1)                                                                           |
+| Repository-wide format gate                    | **Open:** 7 unrelated files — 6 landing files plus `pnpm-lock.yaml` — fail Prettier                        |
+| Symbolic execution                             | Not performed (Mythril incompatible with this runtime)                                                     |
+| Formal verification                            | Not performed                                                                                              |
+| Second external-fuzzer seed                    | Not performed                                                                                              |
+| Current-graph fork execution                   | Not completed; historical read-only evidence is pinned at Robinhood block 32,035,314 (`0xe13569…55aea`)    |
+| Monitored testnet rehearsal                    | Not performed                                                                                              |
+| Independent review of selected Mine parameters | Not performed; ADR 0042/0043 constants are modelled but remain provisional                                 |
+| Remaining production/deployment parameters     | Not fully selected                                                                                         |
+| Release review                                 | Not performed                                                                                              |
+| Signed deployment manifest                     | Does not exist                                                                                             |
 
 > A skipped fork run is not a pass. Fork results count only when the exact RPC capability and block pin are recorded.
 
@@ -2867,19 +2873,21 @@ authorization," and no script in the repository is authorized to broadcast it.
 
 ### 41.2 Review
 
-Internal engineering review only. Current dispositions are recorded in `packages/contracts/audit/FINDINGS.md`
-(reconciled 2026-08-24 through ADR 0050); `packages/contracts/audit/SIGNAL-RESONANCE-FINDINGS.md` is a pre-ADR-0047
-historical campaign ledger.
+Current V12 dispositions are recorded in `packages/contracts/audit/FINDINGS.md` for commit `3ae171b`. The raw export
+is retained under `packages/contracts/audit/reports`; the prior pre-ADR-0047 campaign ledger was removed from the
+current audit directory and remains available through Git history.
 
 ### 41.3 Open release gates
 
-| Finding  | Severity | Gate                                                                                                                                              |
-| -------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **M-03** | High     | Immutable bindings cannot detect a malicious lookalike. Requires signed manifest, exact runtime code hashes, constructor arguments, and receipts. |
-| **M-04** | High     | Mine economics are selected, hard-coded, and modelled, but still require independent economic review before deployment.                           |
-| **G-03** | High     | The external governance system that will own `Resonance` is unselected; its voting, delegation, permission, and delay semantics are unreviewed.   |
-| **G-01** | High     | sGBX checkpoints survive withdrawal; the selected external system's snapshot-to-vote spacing requires independent review of the capture model.    |
-| **E-02** | High     | Materially reduced by binding checks and post-deployment Mine/Router verification, but codehash, parameter, and manifest review remains external. |
+| Finding        | Severity | Gate                                                                                                                                              |
+| -------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **M-03**       | High     | Immutable bindings cannot detect a malicious lookalike. Requires signed manifest, exact runtime code hashes, constructor arguments, and receipts. |
+| **M-04**       | High     | Mine economics are selected, hard-coded, and modelled, but still require independent economic review before deployment.                           |
+| **G-03**       | High     | The external governance system that will own `Resonance` is unselected; its voting, delegation, permission, and delay semantics are unreviewed.   |
+| **G-01**       | High     | sGBX checkpoints survive withdrawal; the selected external system's snapshot-to-vote spacing requires independent review of the capture model.    |
+| **E-02**       | High     | Materially reduced by binding checks and post-deployment Mine/Router verification, but codehash, parameter, and manifest review remains external. |
+| **V12-249702** | Low      | An empty Mine slot can be captured before the GBX handoff; inspect every slot and abandon/redeploy a touched candidate before exposure.           |
+| **V12-249705** | Low      | Permissionless claims can force another account's sub-unit Bribe floors; claim authorization remains open and no remediation has been selected.   |
 
 ### 41.4 Accepted findings (not gates)
 
@@ -2887,7 +2895,9 @@ historical campaign ledger.
 ADR 0028's queue-created **BR-1** terminal state are superseded; §20.4 records the remaining zero-supply abandonment
 risk. **M-01**, **M-02** remain accepted by ADR 0024. **G-02** was superseded by governance removal. **A-08** retains
 its bounded sixteen-token loop under ADR 0048. **SR-001** was fixed by ADR 0031. **SR-002**'s 100%-Fund rule was fixed by ADR 0032, but
-its later frequency-independent split machinery is intentionally removed by ADR 0047 (§22.3).
+its later frequency-independent split machinery is intentionally removed by ADR 0047 (§22.3). **V12-249695** is an
+accepted theoretical risk under the canonical six-decimal USDG identity and supply assumption; no source change was
+selected.
 
 ### 41.5 Legal and provenance
 
@@ -3026,14 +3036,14 @@ property of the intended USDG, never as a contract guarantee. See §33.3.
 either the current source tree or generated artifact trees. _Resolution:_ retain references only where explicitly
 labeled as historical context; never present a Fundraiser as part of the current protocol.
 
-**D-4 — Test-count drift.** `TEST-CAMPAIGN.md` reports 340 at commit `54e3f2c3` (2026-08-09);
-`FINDINGS.md` reported 322 at `281e601` while the actual figure there was 339; the pre-ADR-0034 campaign recorded 335
+**D-4 — Test-count drift.** The deleted historical `TEST-CAMPAIGN.md` reported 340 at commit `54e3f2c3`
+(2026-08-09); the earlier finding register reported 322 at `281e601` while the actual figure there was 339; the pre-ADR-0034 campaign recorded 335
 default and 17 integration; and the later `dc67d7c` tree recorded 329 default and 18 integration. The immediately
 preceding ADR 0042 tree recorded 356 default and 19 integration; the later ADR 0044 working tree independently passed
 the same totals. _Resolution:_ all of those counts are historical. The later ADR-0047 tree separately passed 312/312
 Foundry tests across 23 suites, all 29 invariant entries at 1,000 runs of depth 500 with zero handler reverts, and
 21/21 integration tests; those figures also predate ADR 0048. Focused ADR-0048 evidence is 104/104 migration tests and
-47/47 killed targeted mutants. The current uncommitted post-ADR-0050 contract matrix passes 293/293 default Foundry,
+47/47 killed targeted mutants. The post-ADR-0050 contract source at `3ae171b` passes 293/293 default Foundry,
 all 27 invariant entries at 1,000 runs of depth 500 with zero handler reverts, 10/10 integration, and 4/4 Hardhat
 including parity. The broader workspace matrix remains incomplete. These are unpinned development results, and the
 repository-wide format gate remains open because 7 unrelated files — six landing files plus `pnpm-lock.yaml` — fail
@@ -3098,5 +3108,5 @@ protocol supplies no index methodology: no weights, rebalancing, drift correctio
 
 ---
 
-_Uncommitted development tree based on `5e4dc23849dec01ccce5e49c0e55120a9f7dcac0`; no reviewed candidate commit is
-pinned. Not deployed. Not independently audited. Not approved for user funds._
+_Protocol source review target `3ae171b997254b56602298d873b3918d1575b3c7`. V12 export received but incomplete and
+not release-authorizing. Not deployed. Not approved for user funds._

@@ -198,6 +198,6 @@ export const reasons = {
  * and dropping it would let the sheet read as a live product.
  */
 export const status = {
-  note: 'Experimental software. Not deployed, pending independent review; Robinhood Chain is the intended target, not a commitment.',
+  note: 'Experimental software. Not deployed; V12 export received, but review and release gates remain open. Robinhood Chain is an intended target, not a commitment.',
   more: 'Full detail: docs/WHITEPAPER.md',
 };

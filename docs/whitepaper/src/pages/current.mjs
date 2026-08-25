@@ -58,14 +58,16 @@ export const currentPages = [
           <div class="spread stack-1">
             <div class="col-main">
               <p style="color:${palette.onDeep}">
-                GumBall6900 is experimental software. It is not deployed, has not received an independent external
-                audit, and is not authorized for user funds. Independent review of Mine's fixed economics, target-chain
-                dependencies, legal provenance, and a signed deployment manifest remain unresolved.
+                GumBall6900 is experimental software. It is not deployed or authorized for user funds. V12 supplied a
+                finding export for the exact source target, but the package is incomplete. Independent disposition
+                accepted one theoretical risk, retained one deployment control, and left claim authorization open. Mine
+                economics, target-chain dependencies, legal provenance, and a signed deployment manifest remain
+                unresolved.
               </p>
               <p style="color:${palette.onDeepMuted}">
-                This edition describes the uncommitted development tree implementing ADRs 0031, 0033-0047, 0049, and
-                0050. There is no commit-pinned review candidate. External governance remains unselected. A local green
-                build is engineering evidence, never a safety, audit, or release claim.
+                This edition describes commit 3ae171b, implementing ADRs 0031, 0033-0047, 0049, and 0050. External
+                governance remains unselected. A local green build and the received export are bounded evidence, never a
+                safety or release claim.
               </p>
             </div>
             <div class="col-side">
@@ -314,7 +316,7 @@ export const currentPages = [
               ${note({
                 label: 'Release status',
                 kind: 'asset',
-                body: 'External governance selection, independent audit, parameter review, provenance clearance, and signed deployment evidence are still required.',
+                body: 'Finding treatment, complete external assurance, governance selection, parameter review, provenance clearance, and signed deployment evidence are still required.',
               })}
             </div>
           </div>`,

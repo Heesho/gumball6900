@@ -1,13 +1,13 @@
 ---
 title: GumBall6900 at a Glance
 version: 2.0.0
-date: 2026-08-24
-source_commit: uncommitted-working-tree
-base_commit: 5e4dc23849dec01ccce5e49c0e55120a9f7dcac0
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0050; not approved for user funds.
+date: 2026-08-25
+source_commit: 3ae171b997254b56602298d873b3918d1575b3c7
+base_commit: 3ae171b997254b56602298d873b3918d1575b3c7
+protocol_status: Development candidate implementing ADRs through ADR 0050; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
-independent_audit_status: No independent external audit has been performed.
+internal_review_status: V12 findings and independent dispositions are pinned to 3ae171b997254b56602298d873b3918d1575b3c7; release gates remain open.
+independent_audit_status: V12 export received for the pinned commit; incomplete assurance package, three behaviors confirmed, no release approval.
 ---
 
 # GumBall6900 at a Glance
@@ -137,7 +137,9 @@ only — it can never reclassify an amount already settled. No contract has an u
 
 ## Key risks
 
-- **No independent audit.** No third party has reviewed this code. Internal testing is not a security guarantee.
+- **External review is incomplete.** A V12 export targets the exact source commit, but it omits an explicit scope,
+  methodology, named auditor, date, signature, and report-level rationale. Independent disposition confirmed three
+  behaviors requiring treatment; the export is not a security guarantee or release approval.
 - **Immutability cuts both ways.** A bug cannot be patched; a deployment mistake cannot be corrected.
 - **Governance is unfinished.** The external system that will own `Resonance` is unselected, so its voting rules,
   permissions, upgrade model, and emergency powers are all unknown quantities today. Whoever holds that address can
@@ -157,15 +159,15 @@ only — it can never reclassify an amount already settled. No contract has an u
 
 ## Status
 
-| Field                        | Status                                                                                                                                                                                                                               |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Protocol status**          | Uncommitted development candidate based on `5e4dc23`; not a commit-pinned review artifact and not approved for user funds.                                                                                                           |
-| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG address are unresolved candidates; any bootstrap LP token address remains a reviewed deployment input.                            |
-| **Internal review status**   | Recorded deterministic, mutation, static-analysis, and external-fuzzing results predate parts of the current architecture. A complete commit-pinned post-ADR-0050 review matrix is pending; no independent audit has been performed. |
-| **Open release gates**       | Fixed Mine economics require independent review (M-04); signed deployment manifest and dependency verification outstanding (M-03); external governance system unselected and unreviewed (G-01, G-03).                                |
-| **Independent audit status** | None. No independent external audit, compatible symbolic analysis, or release review has been completed.                                                                                                                             |
-| **Legal status**             | Upstream code provenance and license reconciliation are unresolved release blockers.                                                                                                                                                 |
-| **Source state**             | Uncommitted working tree based on `5e4dc23849dec01ccce5e49c0e55120a9f7dcac0`; no reviewed candidate commit is pinned.                                                                                                                |
+| Field                        | Status                                                                                                                                                                                                       |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Protocol status**          | Development candidate at review target `3ae171b`; not approved for user funds.                                                                                                                               |
+| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG address are unresolved candidates; any bootstrap LP token address remains a reviewed deployment input.    |
+| **Internal review status**   | V12's 22 findings were independently dispositioned at `3ae171b`; 249695 is an accepted theoretical risk, 249702 remains a deployment control, and 249705 is open. A complete release matrix remains pending. |
+| **Open release gates**       | Claim authorization for V12-249705 remains unresolved; fixed Mine economics, dependency evidence, and the exact external governance system also remain open.                                                 |
+| **Independent audit status** | V12 export received for `3ae171b`; incomplete assurance package and not release-authorizing. Compatible symbolic analysis and final release review remain incomplete.                                        |
+| **Legal status**             | Upstream code provenance and license reconciliation are unresolved release blockers.                                                                                                                         |
+| **Source state**             | Protocol source reviewed at `3ae171b997254b56602298d873b3918d1575b3c7`; the audit intake changes documentation and records, not protocol source.                                                             |
 
 ---
 

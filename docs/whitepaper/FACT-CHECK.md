@@ -32,7 +32,7 @@ row is an independent audit or deployment claim.
 | Mine reports total pending emission in constant time                                                         | `aggregateTps`, `pendingEmission()`        | Differentially tested against all sixteen slots                 |
 | Redemption uses a common effective pre-burn supply snapshot                                                  | `Fund.redeem`, `Mine.effectiveTotalSupply` | Enforced without mutating Mine                                  |
 | No governance path can reprice outgoing tenures                                                              | Ownerless Mine plus immutable slot logic   | Enforced; deployment remains unauthorized                       |
-| No deployment or independent audit exists                                                                    | repository release records                 | Current status; not a safety claim                              |
+| No deployment exists; the received V12 export is incomplete and not release-authorizing                      | repository release and audit records       | Current status; not a safety claim                              |
 | donut-miner provenance is cleared                                                                            | `NOTICE`, legal blocker                    | Not cleared; deployment and distribution blocker                |
 
 The build gate rechecks the numeric rows against `economic-scenarios.json`. It intentionally does not repeat obsolete

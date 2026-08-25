@@ -12,7 +12,7 @@ export const meta = {
     'A plain-English whitepaper for a signal-directed onchain fund with hourly multislot GBX mining, tenure-locked rates, oracleless acquisitions, selective in-kind redemption, and an immutable core',
   version: status.editionVersion,
   date: status.editionDate,
-  status: 'Internal review only · not audited · not deployed · not authorized for user funds',
+  status: 'V12 export received · incomplete review · not deployed · not authorized for user funds',
   contractsCommit: status.contractsCommit,
   auditCandidateCommit: status.auditCandidateCommit,
   keywords: [

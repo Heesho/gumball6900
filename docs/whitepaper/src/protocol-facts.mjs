@@ -60,16 +60,16 @@ export const contractConstants = {
 
 export const status = {
   editionVersion: 'v0.9',
-  editionDate: '24 August 2026',
-  contractsCommit: 'uncommitted working tree based on 5e4dc23849dec01ccce5e49c0e55120a9f7dcac0',
-  contractsCommitShort: 'uncommitted',
-  auditCandidateCommit: 'none for the current architecture',
-  auditCandidateCommitShort: 'none',
+  editionDate: '25 August 2026',
+  contractsCommit: '3ae171b997254b56602298d873b3918d1575b3c7',
+  contractsCommitShort: '3ae171b',
+  auditCandidateCommit: '3ae171b997254b56602298d873b3918d1575b3c7',
+  auditCandidateCommitShort: '3ae171b',
   deployment: 'Not deployed and not authorized for user funds',
-  externalAudit: 'Independent external audit not completed',
+  externalAudit: 'V12 export received; complete assurance and release closure pending',
   licensing: 'donut-miner, give.fun, Liquid Signal, and transitive lineage remain unresolved release blockers',
   architectureImplementation:
-    'ADRs 0031 and 0033-0050 implemented in the development tree; the provisional Mine emission schedule and external governance owner remain under review',
+    'ADRs 0031 and 0033-0050 implemented at the V12 source target; the confirmed findings, provisional Mine emission schedule, and external governance owner remain under review',
 };
 
 export function verifyProtocolFacts() {

@@ -1,20 +1,20 @@
 ---
 title: How GumBall6900 Turns Community Conviction Into an Onchain Portfolio
 version: 2.0.0
-date: 2026-08-24
-source_commit: uncommitted-working-tree
-base_commit: 5e4dc23849dec01ccce5e49c0e55120a9f7dcac0
-protocol_status: Uncommitted development candidate implementing ADRs through ADR 0050; not approved for user funds.
+date: 2026-08-25
+source_commit: 3ae171b997254b56602298d873b3918d1575b3c7
+base_commit: 3ae171b997254b56602298d873b3918d1575b3c7
+protocol_status: Development candidate implementing ADRs through ADR 0050; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: Local working-tree engineering checks are recorded in packages/contracts/audit/FINDINGS.md; no commit-pinned review candidate exists and release gates remain open.
-independent_audit_status: No independent external audit has been performed.
+internal_review_status: V12 findings and independent dispositions are pinned to 3ae171b997254b56602298d873b3918d1575b3c7; release gates remain open.
+independent_audit_status: V12 export received for the pinned commit; incomplete assurance package, three behaviors confirmed, no release approval.
 ---
 
 # How GumBall6900 Turns Community Conviction Into an Onchain Portfolio
 
-> **Before you read on:** this protocol is not deployed, not audited, and not approved for user funds. This article
-> describes the current uncommitted development tree based on `5e4dc23`, not a live product or commit-pinned review
-> artifact. Nothing here is investment advice.
+> **Before you read on:** this protocol is not deployed or approved for user funds. A V12 finding export targets
+> `3ae171b`, but it is incomplete and not release-authorizing; independent disposition confirmed three behaviors
+> requiring treatment. This is not a live product, and nothing here is investment advice.
 
 ## 1. The central idea
 
@@ -523,28 +523,30 @@ Read this section twice.
 
 ## 16. Major risks, summarized
 
-| Risk                   | What it means                                                                                              |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
-| No independent audit   | No third party has reviewed this code. The single largest unknown.                                         |
-| Immutability           | No patch, no pause, no rescue. A bug or deployment error is permanent.                                     |
-| Deployment correctness | Parameters, reviewed Strategy inputs, and role setup must be right the first time, forever.                |
-| Unresolved economics   | The provisional 64 GBX/s, 69-day, 1 GBX/s Mine schedule and other fixed economics lack independent review. |
-| Unfinished governance  | The external owner of Resonance is unselected; today one address holds all four powers outright.           |
-| Miner rollover         | The 80% replacement claim exists only if a later replacement pays. It can be zero.                         |
-| Abandoned rewards      | A retired Strategy's last signaler can strand an unbounded amount of rewards.                              |
-| Accepted dust          | Rounding and zero-signal intervals accumulate unrecoverable USDG in Resonance.                             |
-| Third-party tokens     | USDG and every acquired asset carry independent freeze, upgrade, and solvency risk.                        |
-| Legal and provenance   | Upstream code lineage and license reconciliation are unresolved release blockers.                          |
+| Risk                       | What it means                                                                                                                        |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Incomplete external review | V12 supplied a commit-pinned finding export; two reproduced behaviors are accepted constraints and claim authorization remains open. |
+| Immutability               | No patch, no pause, no rescue. A bug or deployment error is permanent.                                                               |
+| Deployment correctness     | Parameters, reviewed Strategy inputs, and role setup must be right the first time, forever.                                          |
+| Unresolved economics       | The provisional 64 GBX/s, 69-day, 1 GBX/s Mine schedule and other fixed economics lack independent review.                           |
+| Unfinished governance      | The external owner of Resonance is unselected; today one address holds all four powers outright.                                     |
+| Miner rollover             | The 80% replacement claim exists only if a later replacement pays. It can be zero.                                                   |
+| Abandoned rewards          | A retired Strategy's last signaler can strand an unbounded amount of rewards.                                                        |
+| Accepted dust              | Rounding and zero-signal intervals accumulate unrecoverable USDG in Resonance.                                                       |
+| Third-party tokens         | USDG and every acquired asset carry independent freeze, upgrade, and solvency risk.                                                  |
+| Legal and provenance       | Upstream code lineage and license reconciliation are unresolved release blockers.                                                    |
 
 ## 17. Current project status
 
-To be exact about the current uncommitted development tree:
+To be exact about the current development candidate and V12 review target:
 
 - **Not deployed.** No contract is live on any network. No signed deployment manifest exists. The intended target
   chain and the canonical USDG address remain unresolved candidates. Any bootstrap LP token address is a reviewed
   deployment input, not a hard-coded protocol address.
-- **Not audited.** No independent external audit has been performed, and symbolic analysis and formal verification
-  have not been completed.
+- **External review remains incomplete.** V12 supplied 22 Low candidate findings for reviewed source commit `3ae171b`. Our
+  independent disposition confirmed 249695, 249702, and 249705, while the export lacks a full scope, methodology,
+  named auditor, date, signature, and final assurance statement. Symbolic analysis and formal verification also remain
+  incomplete.
 - **The full deterministic workspace matrix passed locally before ADR 0045.** The uncommitted ADR 0044 tree passed 356/356
   default Foundry tests across 25 suites, 19/19 integration tests across two suites, Hardhat 4/4, SDK 50/50,
   TypeScript simulations 39/39, Python environment-policy checks 5/5 and simulations 25/25, subgraph specification

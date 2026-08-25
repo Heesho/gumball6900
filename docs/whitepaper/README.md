@@ -38,8 +38,8 @@ bounded global acquired-asset Bribe share, scalar Resonance accounting, ordinary
 all-token plus scalar Bribe claims, direct Fund settlement, BribeRouter-only buffering, a fixed sixteen-token Bribe
 limit, atomic moves composed from Resonance's retained remove/add hooks, zero-premint GBX, and no liquidity-specific
 core surface. The typeset edition therefore describes
-implemented behaviour rather than target architecture. That is not a conformance proof: the current edition reflects
-an uncommitted development tree rather than a pinned review candidate, and a local green build remains engineering
-evidence, never a safety, audit, or release claim.
+implemented behaviour rather than target architecture. That is not a conformance proof: the current edition targets
+the V12 source commit `3ae171b997254b56602298d873b3918d1575b3c7`, whose finding export is incomplete and
+not release-authorizing. A local green build remains engineering evidence, never a safety or release claim.
 
 The output remains development documentation. Building it does not authorize distribution, deployment, or user funds.

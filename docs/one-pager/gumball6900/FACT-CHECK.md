@@ -2,8 +2,8 @@
 
 Sheet: `output/pdf/GumBall6900-one-pager.pdf`, built from `docs/one-pager/gumball6900/`.
 
-Evidence target: current uncommitted development working tree on 2026-08-24, based on commit `5e4dc23`. It is not release-pinned, deployed, independently
-audited, or authorized for user funds. The source-of-truth order is production Solidity, executable tests, generated
+Evidence target: V12 review commit `3ae171b997254b56602298d873b3918d1575b3c7` on 2026-08-25. The received export is
+incomplete and not release-authorizing; the protocol is not deployed or authorized for user funds. The source-of-truth order is production Solidity, executable tests, generated
 ABIs, independent TypeScript/Python models, accepted ADRs, audit records, then prose.
 
 ## Status legend

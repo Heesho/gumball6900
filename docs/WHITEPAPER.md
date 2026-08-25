@@ -4,11 +4,11 @@
 
 Whitepaper v0.8 — 24 August 2026 — by Heesho
 
-> Development status: experimental, not deployed, not independently audited, and not authorized for user funds.
-> Independent review of the fixed mining economics, deployment parameters, third-party provenance, and security remain
-> open release gates. ADRs 0031 and 0033-0050 are authoritative development decisions; ADRs 0042 and 0043 record the
-> current provisional Mine rates and period. Governance execution and the production Resonance owner remain an unselected
-> external integration, so deployment is blocked.
+> Development status: experimental, not deployed, and not authorized for user funds. A V12 finding export was received
+> for commit `3ae171b997254b56602298d873b3918d1575b3c7`, but it is not a complete assurance package or release approval;
+> independent disposition confirmed three behaviors: one accepted theoretical risk, one pre-exposure deployment
+> control, and one open claim-authorization issue. Review of the fixed mining economics,
+> deployment parameters, third-party provenance, governance integration, and remaining security gates is still open.
 
 ## Abstract
 
@@ -254,11 +254,13 @@ external governance executor and removing the temporary setup authority.
 - An exhausted Bribe lifetime notification cap permanently rejects that token's later notifications in the old pool;
   replacement requires a new Strategy and paired Bribe rather than a reset or rescue.
 - Fund assets omitted from redemption remain permanently for the post-redemption supply.
-- The protocol has not received an independent audit, and donut-miner/give.fun/Liquid Signal provenance remains legally
-  unresolved.
+- The received V12 export lacks an explicit scope, methodology, named auditor, date, signature, and report-level
+  rationale. The independently reviewed register accepts the theoretical index-overflow condition, retains a
+  pre-exposure deployment check, and leaves claim authorization open; it does not clear release.
+  Donut-miner/give.fun/Liquid Signal provenance also remains legally unresolved.
 
 ## 10. Status
 
 This repository contains development contracts, independent TypeScript/Python economic models, Foundry and Hardhat
-tests, an SDK, a subgraph, and a read-only interface. Local passing checks are engineering evidence only. They are not
-evidence of deployment, audit, legal clearance, or production readiness.
+tests, an SDK, a subgraph, and a read-only interface. Local passing checks and the received finding export are bounded
+engineering/review evidence only. They are not evidence of deployment, legal clearance, or production readiness.
