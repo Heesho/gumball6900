@@ -153,7 +153,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                 uint256 amount = _accountSignalWeight(actor, allStrategies[j]);
                 if (amount == 0) continue;
                 vm.prank(actor);
-                signalGBX.withdrawSignal(allStrategies[j], amount);
+                signalGBX.removeSignal(allStrategies[j], amount);
             }
 
             for (uint256 j; j < allStrategies.length; ++j) {
@@ -363,7 +363,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @dev Invariants are also evaluated once before the first call, so this cannot assert nonzero counts.
     ///      `test_EveryHandlerActionIsReachable` carries that assertion instead.
     function invariant_CallSummary() external view {
-        string[18] memory actions = _actionNames();
+        string[17] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             console.log(actions[i], handler.ghostCalls(bytes32(bytes(actions[i]))));
         }
@@ -386,7 +386,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         address actor = handler.actors(0);
         assertTrue(resonance.isStrategyLive(addedStrategy));
 
-        handler.signal(0, addedIndex, 100 ether);
+        handler.addSignal(0, addedIndex, 100 ether);
         assertEq(_accountSignalWeight(actor, addedStrategy), 100 ether);
 
         handler.notifyTinyReward(addedIndex, 0);
@@ -396,7 +396,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.killStrategy(addedIndex);
         assertFalse(resonance.isStrategyLive(addedStrategy));
 
-        workflowHandler.withdrawSignal(0, addedIndex, 100 ether);
+        workflowHandler.removeSignal(0, addedIndex, 100 ether);
         assertEq(_accountSignalWeight(actor, addedStrategy), 0);
         assertEq(signalGBX.balanceOf(actor), 0);
     }
@@ -405,14 +405,13 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @dev Without this, every invariant above could pass vacuously against a handler that never does anything.
     function test_EveryHandlerActionIsReachable() external {
         handler.signalDefault(0, 1_000 ether);
-        workflowHandler.signal(1, 0, 100 ether);
-        handler.signal(0, 0, 100 ether);
-        handler.signalWithPermit(2, 0, 100 ether);
-        handler.signalMany(0, 2);
-        workflowHandler.moveSignal(0, 0, 1, 1 ether);
-        workflowHandler.withdrawSignal(1, 0, 1 ether);
-        handler.withdrawSignal(0, 0, 1 ether);
-        handler.withdrawSignalMany(0, 1);
+        workflowHandler.addSignal(1, 0, 100 ether);
+        handler.addSignal(0, 0, 100 ether);
+        handler.addSignalMany(0, 2);
+        workflowHandler.reallocateSignal(0, 0, 1, 1 ether);
+        workflowHandler.removeSignal(1, 0, 1 ether);
+        handler.removeSignal(0, 0, 1 ether);
+        handler.removeSignalMany(0, 1);
         handler.mine(0, 0);
         vm.warp(block.timestamp + 30 minutes);
         handler.mine(1, 0);
@@ -440,7 +439,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.killStrategy(0);
         handler.withdrawDefault(0, type(uint256).max);
 
-        string[18] memory actions = _actionNames();
+        string[17] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             assertGt(
                 handler.ghostCalls(bytes32(bytes(actions[i]))),
@@ -458,15 +457,14 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         }
     }
 
-    function _actionNames() private pure returns (string[18] memory actions) {
+    function _actionNames() private pure returns (string[17] memory actions) {
         return [
             "signalDefault",
             "withdrawDefault",
-            "signal",
-            "signalWithPermit",
-            "withdrawSignal",
-            "signalMany",
-            "withdrawSignalMany",
+            "addSignal",
+            "removeSignal",
+            "addSignalMany",
+            "removeSignalMany",
             "mine",
             "donateRevenue",
             "donateDirectRevenue",
@@ -483,9 +481,9 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
     function _workflowActionNames() private pure returns (string[8] memory actions) {
         return [
-            "signal",
-            "moveSignal",
-            "withdrawSignal",
+            "addSignal",
+            "reallocateSignal",
+            "removeSignal",
             "claimRewards",
             "claimSelectiveReward",
             "addStrategy",

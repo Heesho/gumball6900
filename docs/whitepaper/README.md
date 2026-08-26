@@ -14,10 +14,12 @@ positive infinite tail, and Fund's constant-time effective-supply denominator. I
 non-transferable sGBX voting checkpoints and ADR 0034's external-governance ownership boundary, ADR 0031's mandatory
 signal-backed receipt, ADR 0036's bounded global Bribe rate, ADR 0037's high-precision Bribe reward index, ADR 0046's
 scalar USDG-only Resonance state, ADR 0047's Synthetix-shaped rewards and direct Strategy settlement, and ADR 0048's
-sixteen-token Bribe bound and composed signal moves. ADR 0049 removes balance-delta snapshots from canonical GBX/USDG
+sixteen-token Bribe bound and removal of the Resonance move hook. ADR 0049 removes balance-delta snapshots from canonical GBX/USDG
 paths while preserving Fund's arbitrary-asset redemption guards. ADR 0050 removes the canonical liquidity contract and
 premint; a reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token may instead be registered as an
-ordinary bootstrap Strategy asset.
+ordinary bootstrap Strategy asset. ADR 0051 adds scalar and batched add/remove signal entrypoints, removes the public
+permit/move paths, and confines read convenience to the stateless Lens/subgraph and write composition to direct-call
+SDK helpers.
 
 ADR 0044 makes ResonanceRouter deposit Mine's terminal revenue action. Under ADR 0049 Mine requests the nominal amount
 through `SafeERC20` without inspecting balance deltas. Mine emits `RevenueDeposited` but never
@@ -33,13 +35,14 @@ ADR 0037 raises each paired Bribe's reward index to `1e36` without reading token
 notification cap to that scale. This prevents economically material six-decimal rewards from remaining below index
 resolution at realistic sGBX supply while retaining the cumulative-overflow proof.
 
-The ADR 0031 and ADRs 0036-0050 implementations have landed: mandatory signal-backed sGBX with no idle receipts, the
+The ADR 0031 and ADRs 0036-0051 implementations have landed: mandatory signal-backed sGBX with no idle receipts, the
 bounded global acquired-asset Bribe share, scalar Resonance accounting, ordinary leftover rollover and floor surplus,
 all-token plus scalar Bribe claims, direct Fund settlement, BribeRouter-only buffering, a fixed sixteen-token Bribe
-limit, atomic moves composed from Resonance's retained remove/add hooks, zero-premint GBX, and no liquidity-specific
-core surface. The typeset edition therefore describes
-implemented behaviour rather than target architecture. That is not a conformance proof: the current edition targets
-the V12 source commit `3ae171b997254b56602298d873b3918d1575b3c7`, whose finding export is incomplete and
-not release-authorizing. A local green build remains engineering evidence, never a safety or release claim.
+limit, scalar and batched SignalGBX additions/removals, zero-premint GBX, and no liquidity-specific core surface. The
+typeset edition therefore describes implemented behaviour rather than target architecture. That is not a conformance
+proof. V12 reviewed source commit `3ae171b997254b56602298d873b3918d1575b3c7`; it did not cover ADR 0051's new
+selectors, batch loops, aggregate custody transitions, read periphery, SDK composition, or subgraph position index.
+The current edition spans that unaudited post-V12 delta, and a local green build remains engineering evidence, never a
+safety or release claim.
 
 The output remains development documentation. Building it does not authorize distribution, deployment, or user funds.

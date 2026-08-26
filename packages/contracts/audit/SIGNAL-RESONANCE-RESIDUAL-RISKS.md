@@ -3,9 +3,10 @@
 This local campaign is not an independent audit or proof of safety. Its recorded native-fuzzer results predate ADR
 0034's removal of the local Governor and Timelock, ADR 0036's governed global Bribe share, ADR 0037's high-precision
 Bribe index, ADR 0047's reward and Strategy-settlement simplification, and ADR 0048's sixteen-token and composed-move
-change. The following residuals were reconciled through ADR 0050 on 2026-08-24; the recorded native campaign results
+change. The following residuals were reconciled through ADR 0051 on 2026-08-26; the recorded native campaign results
 remain historical. Focused ADR-0048 suites passed 104/104 and its revised mutation campaign killed 47/47 targeted
-mutants, but both results predate ADRs 0049 and 0050.
+mutants, but both results predate ADRs 0049-0051. ADR 0051's batch loops and periphery are outside V12's `3ae171b`
+scope and require fresh review.
 
 1. ADR 0028 accepts that a killed Strategy's final signal exit can leave the remaining active Bribe stream and later
    zero-supply notifications permanently unclaimable. Reward time continues rather than pausing, and there is no
@@ -40,7 +41,7 @@ mutants, but both results predate ADRs 0049 and 0050.
    verification. Fee, surcharge, rebasing, shared-ledger, callback, or sticky-allowance behavior may revert, underfund
    accounting, consume surplus, or make that market unusable. Fund redemption retains local exact payout and basket
    checks because its selected tokens are arbitrary.
-10. SignalGBX historical voting power survives movement or withdrawal after a checkpoint. No local Governor now bounds
+10. SignalGBX historical voting power survives removal after a checkpoint. No local Governor now bounds
     that property: proposal snapshots, delay, period, threshold, quorum, execution scope, and cancellation are all
     unselected external-integration decisions. Voting-power rental risk must be reviewed against the exact system.
 11. No exact external-governance release, permission/admin graph, execution policy, ownership handoff, mainnet fork,
@@ -58,8 +59,9 @@ mutants, but both results predate ADRs 0049 and 0050.
     materially change future Fund backing and signaler incentives around pending auctions. The external integration
     must define delay, cancellation, batching, monitoring, and emergency behavior for this lever; the current core
     supplies none.
-14. Each Bribe may register sixteen reward tokens. The loop remains fixed, but maximum work is higher than the former
-    eight-token design: a composed move with sixteen active streams on both Bribes measured 1,890,938 gas in the
-    focused suite. Deployment review must preserve sufficient chain-specific headroom.
-15. SignalGBX composes source removal then destination addition. Atomic rollback preserves state when the destination
-    fails, but the failed transaction may spend the source checkpoint work before reverting.
+14. Each Bribe may register sixteen reward tokens. ADR 0051's signal batches multiply that bounded per-Strategy work
+    across caller-selected allocations. Historical composed-move gas does not establish batch headroom; current tests
+    and deployment review must measure realistic and worst-case arrays while preserving scalar exit.
+15. A stale, dead addition, insufficient position, or other invalid allocation reverts the complete batch after any
+    earlier checkpoint work. Atomic rollback preserves state but not gas. SDK discovery must refresh onchain and split
+    batches when simulation or gas estimation requires it.

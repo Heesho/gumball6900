@@ -1,13 +1,17 @@
 # ADR 0048: Expand Bribe rewards and compose signal moves
 
-- Status: accepted for development; not audited, deployed, or approved for user funds
+- Status: accepted for the sixteen-token bound and absence of `Resonance.moveSignalFor`; ADR 0051 supersedes its
+  preservation of public `SignalGBX.moveSignal`; not audited, deployed, or approved for user funds
 - Date: 2026-08-23
 - Supersedes: ADR 0016, ADR 0019, ADR 0037, and ADR 0047 only where they fix the Bribe reward-token limit at eight;
   ADR 0030 only where it requires a dedicated `Resonance.moveSignalFor` hook
-- Preserves: the fixed append-only Bribe registry, bounded mandatory reward loops, the `1e36` reward index, the
+- Preserved at acceptance: the fixed append-only Bribe registry, bounded mandatory reward loops, the `1e36` reward index, the
   lifetime-notification cap, SignalGBX's public `moveSignal` operation, atomic movement, checkpoint-before-weight-change
   ordering, killed-Strategy exits, and the rule that signal movement changes neither GBX custody, sGBX supply, nor
   voting units
+
+ADR 0051 later removes public `SignalGBX.moveSignal`; the composed-move body below remains historical evidence for the
+now-superseded surface. The retained Resonance add/remove hooks and checkpoint ordering remain active.
 
 ## Context
 

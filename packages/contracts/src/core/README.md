@@ -46,10 +46,17 @@ checkpoints; governance power is the SignalGBX minted when GBX is escrowed and a
 deployment process verifies GBX's permanent reciprocal Mine binding; Mine does not re-read that immutable fact on
 every replacement, while GBX itself continues to enforce it on every mint.
 
-SignalGBX is the only external signaling entrypoint. Every mint atomically deposits GBX and adds the same amount of
-signal to one live Strategy; every burn atomically removes signal and returns the same GBX. Paired Bribes own
-account-by-Strategy balances and per-Strategy supply, while Resonance owns only the active live-Strategy total.
-Signal may move between Strategies without minting or burning, and no idle sGBX state is reachable.
+SignalGBX is the only external signaling entrypoint. `addSignal` and `removeSignal` retain bounded one-Strategy paths;
+`addSignalMany` and `removeSignalMany` optionally apply caller-supplied arrays while transferring/minting or
+burning/returning the checked aggregate once. Every raw sGBX unit remains atomically backed by the same GBX amount and
+assigned to one Strategy. Paired Bribes own account-by-Strategy balances and per-Strategy supply, while Resonance owns
+only the active live-Strategy total. There is no public move, permit-consuming signal path, shared write Router, or
+reachable idle sGBX state.
+
+The stateless optional `SignalPortfolioLens` batches caller-selected account and Strategy reads but owns no registry,
+role, custody, or write path. Subgraph positions are discovery-only. Transaction construction must refresh canonical
+Bribe and Strategy state onchain; SDK write helpers encode direct SignalGBX calls rather than routing ownership through
+periphery.
 
 Before interacting with a payment token, Strategy snapshots Resonance's global `bribeBps`, which defaults to 10% and
 is bounded from 0% through 20%. For each purchase it floors the Bribe share independently, transfers the complement
@@ -81,7 +88,7 @@ remain unallocated token surplus rather than Fund or carry accounting.
 Each Bribe uses a `1e36` reward-per-signal index. For each reward token, it accepts at most
 `floor(type(uint256).max / 1e36)` raw units across its complete lifetime.
 The monotonic total has no reset, setter, or escape hatch. An excess notification reverts before checkpointing or token
-transfer, so existing claims, signal moves, and withdrawals remain usable. At this cap a later automatic Bribe share
+transfer, so existing claims and signal removals remain usable. At this cap a later automatic Bribe share
 stays buffered in BribeRouter, while the Fund complement already transferred during each purchase. A governance
 replacement is a newly deployed Strategy, Bribe, and BribeRouter graph; killing the old Strategy leaves its Bribe
 closed to new signal but still permissionlessly fundable while lifetime headroom remains.

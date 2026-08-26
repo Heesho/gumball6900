@@ -20,7 +20,7 @@ contract ArchitectureReconciliationRegressionTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), amount);
-        signalGBX.signal(address(targetStrategy), amount);
+        signalGBX.addSignal(address(targetStrategy), amount);
         vm.stopPrank();
 
         assertEq(gbx.balanceOf(ALICE), 900 ether);
@@ -35,7 +35,7 @@ contract ArchitectureReconciliationRegressionTest is ProtocolFixture {
         assertEq(resonance.totalSignalWeight(), amount);
     }
 
-    function test_RemovedIdleReceiptSelectorsAreAbsentFromRuntime() external view {
+    function test_OnlyTheTypedSignalSurfaceIsPresentAtRuntime() external view {
         assertFalse(_hasPush4Selector(address(signalGBX), bytes4(keccak256("stake(uint256)"))));
         assertFalse(_hasPush4Selector(address(signalGBX), bytes4(keccak256("unstake(uint256)"))));
         assertFalse(_hasPush4Selector(address(signalGBX), bytes4(keccak256("stakeAndSignal(address,uint256)"))));
@@ -45,8 +45,19 @@ contract ArchitectureReconciliationRegressionTest is ProtocolFixture {
                 bytes4(keccak256("stakeAndSignalWithPermit(address,uint256,uint256,uint8,bytes32,bytes32)"))
             )
         );
-        assertFalse(_hasPush4Selector(address(signalGBX), bytes4(keccak256("removeSignal(address,uint256)"))));
         assertFalse(_hasPush4Selector(address(signalGBX), bytes4(keccak256("removeSignalAndUnstake(address,uint256)"))));
+        assertFalse(_hasPush4Selector(address(signalGBX), bytes4(keccak256("signal(address,uint256)"))));
+        assertFalse(
+            _hasPush4Selector(
+                address(signalGBX), bytes4(keccak256("signalWithPermit(address,uint256,uint256,uint8,bytes32,bytes32)"))
+            )
+        );
+        assertFalse(_hasPush4Selector(address(signalGBX), bytes4(keccak256("moveSignal(address,address,uint256)"))));
+        assertFalse(_hasPush4Selector(address(signalGBX), bytes4(keccak256("withdrawSignal(address,uint256)"))));
+        assertTrue(_hasPush4Selector(address(signalGBX), bytes4(keccak256("addSignal(address,uint256)"))));
+        assertTrue(_hasPush4Selector(address(signalGBX), bytes4(keccak256("addSignalMany((address,uint256)[])"))));
+        assertTrue(_hasPush4Selector(address(signalGBX), bytes4(keccak256("removeSignal(address,uint256)"))));
+        assertTrue(_hasPush4Selector(address(signalGBX), bytes4(keccak256("removeSignalMany((address,uint256)[])"))));
     }
 
     function test_RemovedMultiTokenResonanceSelectorsAreAbsentFromRuntime() external view {
@@ -69,7 +80,6 @@ contract ArchitectureReconciliationRegressionTest is ProtocolFixture {
         assertFalse(
             _hasPush4Selector(address(resonance), bytes4(keccak256("moveSignalFor(address,address,address,uint256)")))
         );
-        assertTrue(_hasPush4Selector(address(signalGBX), bytes4(keccak256("moveSignal(address,address,uint256)"))));
     }
 
     function test_KillingTheFinalLiveStrategyRevertsAfterBootstrap() external {

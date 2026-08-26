@@ -2,13 +2,13 @@
 
 ---
 
-[GUM BALL 6900 TypeScript SDK](../README.md) / buildSignal
+[GUM BALL 6900 TypeScript SDK](../README.md) / buildAddSignal
 
-# Function: buildSignal()
+# Function: buildAddSignal()
 
-> **buildSignal**(`signalGBX`, `strategy`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
+> **buildAddSignal**(`signalGBX`, `strategy`, `amount`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Atomically deposits GBX, mints non-transferable sGBX, and signals the same amount to one live Strategy.
+Atomically deposits GBX, mints non-transferable sGBX, and adds the same signal to one live Strategy.
 
 ## Parameters
 

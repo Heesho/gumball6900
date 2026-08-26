@@ -9,7 +9,11 @@ const packageDirectory = path.resolve(scriptDirectory, '..');
 
 export const REQUIRED_ENTITIES = Object.freeze(['ProtocolState', 'Account', 'MiningSlot', 'Strategy', 'ProtocolEvent']);
 
-export const REVIEWED_EXTENSION_ENTITIES = Object.freeze([]);
+export const REVIEWED_EXTENSION_ENTITIES = Object.freeze(['SignalPosition']);
+
+export const REQUIRED_MAPPING_ENTITIES = Object.freeze({
+  './src/resonance.ts': Object.freeze(['ProtocolState', 'Account', 'Strategy', 'SignalPosition', 'ProtocolEvent']),
+});
 
 export const REQUIRED_HANDLERS = Object.freeze([
   'handleBribeBpsSet',
@@ -68,11 +72,26 @@ function setErrors(actual, expected, label) {
   return errors;
 }
 
+function manifestMappingEntities(manifest) {
+  const mappings = new Map();
+  const mappingExpression = /^ {4}mapping:[ \t]*\n([\s\S]*?)^ {6}file:[ \t]+(\S+)[ \t]*$/gmu;
+  for (const match of manifest.matchAll(mappingExpression)) {
+    const entitySection = match[1].match(/^ {6}entities:[ \t]*\n([\s\S]*?)^ {6}abis:/mu)?.[1] ?? '';
+    mappings.set(match[2], matches(entitySection, /^ {8}-[ \t]+([A-Za-z][A-Za-z0-9]*)[ \t]*$/gmu));
+  }
+  return mappings;
+}
+
 export function evaluateSpecCoverage({ mappings, manifest, schema }) {
   const errors = [];
   const expectedEntities = [...REQUIRED_ENTITIES, ...REVIEWED_EXTENSION_ENTITIES];
   const entities = matches(schema, /^type\s+([A-Za-z][A-Za-z0-9]*)\s+@entity\b/gmu);
   errors.push(...setErrors(entities, expectedEntities, 'Schema entity set'));
+
+  const mappingEntities = manifestMappingEntities(manifest);
+  for (const [mapping, expected] of Object.entries(REQUIRED_MAPPING_ENTITIES)) {
+    errors.push(...setErrors(mappingEntities.get(mapping) ?? [], expected, `Manifest ${mapping} entity set`));
+  }
 
   const eventCount = matches(manifest, /^\s*-\s+event:/gmu, 0).length;
   const manifestHandlers = matches(manifest, /^\s+handler:\s+(handle[A-Za-z0-9]+)\s*$/gmu);

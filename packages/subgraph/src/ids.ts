@@ -12,3 +12,7 @@ export function addressId(address: Address): string {
 export function slotId(mine: Address, index: BigInt): string {
   return addressId(mine) + '-slot-' + index.toString();
 }
+
+export function signalPositionId(account: Address, strategy: Address): string {
+  return addressId(account) + '-strategy-' + strategy.toHexString();
+}

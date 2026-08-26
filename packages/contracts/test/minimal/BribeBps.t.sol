@@ -167,14 +167,16 @@ contract BribeBpsTransitionTest is ProtocolFixture {
         assertEq(target.balanceOf(address(fund)), 24 ether);
     }
 
-    function test_ZeroShareDoesNotBrickSignalMoveOrWithdrawal() external {
+    function test_ZeroShareDoesNotBrickSignalReallocationOrRemoval() external {
         resonance.setBribeBps(0);
         _signalDefault(ALICE, 100 ether);
 
         vm.startPrank(ALICE);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
-        signalGBX.withdrawSignal(address(targetStrategy), 10 ether);
-        signalGBX.withdrawSignal(address(gbxStrategy), 15 ether);
+        signalGBX.removeSignal(address(targetStrategy), 40 ether);
+        gbx.approve(address(signalGBX), 40 ether);
+        signalGBX.addSignal(address(gbxStrategy), 40 ether);
+        signalGBX.removeSignal(address(targetStrategy), 10 ether);
+        signalGBX.removeSignal(address(gbxStrategy), 15 ether);
         vm.stopPrank();
 
         assertEq(signalGBX.balanceOf(ALICE), 75 ether);
@@ -192,15 +194,17 @@ contract BribeBpsTransitionTest is ProtocolFixture {
         assertEq(resonance.totalSignalWeight(), 0);
     }
 
-    function test_ZeroSharePreservesMoveAndWithdrawalFromAKilledStrategy() external {
+    function test_ZeroSharePreservesRemoveAndReaddFromAKilledStrategy() external {
         resonance.setBribeBps(0);
         _signalDefault(ALICE, 100 ether);
         resonance.killStrategy(address(targetStrategy));
 
         vm.startPrank(ALICE);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
-        signalGBX.withdrawSignal(address(targetStrategy), 60 ether);
-        signalGBX.withdrawSignal(address(gbxStrategy), 40 ether);
+        signalGBX.removeSignal(address(targetStrategy), 40 ether);
+        gbx.approve(address(signalGBX), 40 ether);
+        signalGBX.addSignal(address(gbxStrategy), 40 ether);
+        signalGBX.removeSignal(address(targetStrategy), 60 ether);
+        signalGBX.removeSignal(address(gbxStrategy), 40 ether);
         vm.stopPrank();
 
         assertFalse(resonance.isStrategyLive(address(targetStrategy)));

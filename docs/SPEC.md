@@ -20,15 +20,15 @@ The required behavior is:
 5. Global rates used for future tenures halve at immutable intervals measured from Mine deployment and continue at a positive
    immutable tail. GBX therefore has no protocol-defined economic maximum. It retains ERC-2612 permit but has no
    ERC20Votes checkpoints.
-6. SignalGBX accepts `signal` or underlying-GBX-permit `signalWithPermit` only after reciprocal Resonance binding and
-   only for a registered live Strategy. Each call atomically requests the GBX deposit through `SafeERC20`, mints the same non-transferable
-   ERC20Votes sGBX amount, adds the same Strategy signal, and mirrors it into the paired Bribe. Idle sGBX and standalone
-   staking or unstaking do not exist. `moveSignal` atomically calls `Resonance.removeSignalFor` for the source and then
-   `Resonance.addSignalFor` for the live destination; failure of the addition rolls back the removal. Resonance has no
-   dedicated move hook. A successful move changes allocation but not GBX custody, sGBX supply, or voting units.
-   Canonical GBX transfers trust standard token semantics and do not inspect sender or receiver balance deltas.
-   `withdrawSignal` atomically removes the selected Strategy and Bribe position, burns the same sGBX, and returns the
-   same GBX. SignalGBX has no ERC-2612 approval permit or withdrawal lock.
+6. After reciprocal Resonance binding, SignalGBX accepts scalar `addSignal` and `removeSignal` plus optional
+   `addSignalMany` and `removeSignalMany` arrays. Additions target registered live Strategies and atomically request GBX
+   through `SafeERC20`, mint the same non-transferable ERC20Votes sGBX amount, and mirror every allocation into its
+   paired Bribe. Removals work for live or killed Strategies, remove every named position, burn the same sGBX aggregate,
+   and return the same GBX. Empty and zero-valued batches revert; duplicates execute sequentially; any failure reverts
+   the complete transaction. Idle sGBX and standalone staking or unstaking do not exist. Canonical GBX transfers trust
+   standard token semantics and do not inspect sender or receiver balance deltas. SignalGBX has no permit-consuming
+   signal path, public move, shared write Router, ERC-2612 approval permit, or withdrawal lock. Smart accounts may
+   atomically compose approval and direct SignalGBX calls.
 7. Resonance uses one scalar seven-day USDG schedule. ResonanceRouter buffers until its balance is at least both
    `REWARD_DURATION` raw units and `remainingRevenue()`. A qualifying call checkpoints and restarts seven days using
    ordinary Synthetix leftover rollover. Rate, index, and Strategy floors, zero-active-signal emission, and direct
@@ -41,7 +41,7 @@ The required behavior is:
    directly to Fund. The rate defaults to 1,000 basis points, is owner-settable from 0 through 2,000, and has no
    per-Strategy override or cumulative split carry. BribeRouter only buffers and exposes permissionless `route()` into the paired
    Bribe. Bribes use Synthetix rollover and floor semantics with fixed token and lifetime caps. At 0%, new payments go
-   entirely to Fund while signaling, moving, withdrawal, existing rewards, and independent funding remain live.
+   entirely to Fund while signal additions, removals, existing rewards, and independent funding remain live.
 8. Fund reads Mine's constant-time effective supply before every redemption denominator snapshot, then performs registry-free,
    caller-selected in-kind redemption atomically with the GBX burn.
 9. One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 is registered during bootstrap as an
@@ -62,10 +62,9 @@ The required behavior is:
 11. Each Bribe has at most sixteen append-only reward tokens and uses a `1e36` reward-per-signal index. For each token, its
     monotonic lifetime accepted-notification total cannot exceed `floor(type(uint256).max / 1e36)` raw units and has no reset, setter, or escape hatch. The cap is
     checked before checkpointing or transfer; reaching it stops later notifications for only that token and Bribe, not
-    claims, signal movement, or withdrawal. Streams continue at zero `totalSignalWeight`; notifications are not queued; and rate,
+    claims or scalar/batched signal removal. Streams continue at zero `totalSignalWeight`; notifications are not queued; and rate,
     index, and account floors remain unallocated Bribe surplus rather than carry or Fund liabilities. Bribe exposes an
-    all-token claim plus an independent scalar-token claim, while broken payout tokens do not block signal movement or
-    withdrawal.
+    all-token claim plus an independent scalar-token claim, while broken payout tokens do not block signal removal.
 12. `SignalGBX.balanceOf(account)` is the canonical account aggregate signal, each paired Bribe owns canonical
     `signalWeightOf(account)` and `totalSignalWeight`, and Resonance owns only the active total across live Strategies.
     SignalGBX maintains no separate `allocatedBalance` duplicate. SignalGBX supply equals the sum of every paired

@@ -5,6 +5,7 @@ import { console } from "forge-std/console.sol";
 
 import { Bribe } from "../../src/core/Bribe.sol";
 import { BribeRouter } from "../../src/core/BribeRouter.sol";
+import { SignalGBX } from "../../src/core/SignalGBX.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 import { MockERC20 } from "./utils/Tokens.sol";
 
@@ -17,7 +18,7 @@ contract SignalGasTest is ProtocolFixture {
         (uint256 addGas, uint256 removeGas) = _measureAddAndRemove(0);
 
         console.log("addSignal gas, one reward token", addGas);
-        console.log("withdrawSignal gas, one reward token", removeGas);
+        console.log("removeSignal gas, one reward token", removeGas);
         assertLt(addGas, 400_000, "atomic custody-and-signal entry gas changed materially");
         assertLt(removeGas, 300_000, "scalar exit gas changed materially");
         assertLe(removeGas, addGas + 75_000, "exit overhead changed materially");
@@ -30,7 +31,7 @@ contract SignalGasTest is ProtocolFixture {
         uint256 addSlope = (addFour - addOne) / 3;
         uint256 removeSlope = (removeFour - removeOne) / 3;
         console.log("addSignal gas per additional reward token", addSlope);
-        console.log("withdrawSignal gas per additional reward token", removeSlope);
+        console.log("removeSignal gas per additional reward token", removeSlope);
 
         assertGt(addSlope, 10_000, "the measurement must keep observing the reward-token loop");
         assertLt(addSlope, 35_000, "entry slope changed materially");
@@ -47,7 +48,7 @@ contract SignalGasTest is ProtocolFixture {
         uint256 buyGas = _measureMaximumBuy();
 
         console.log("addSignal gas at MAX_REWARD_TOKENS", addGas);
-        console.log("withdrawSignal gas at MAX_REWARD_TOKENS", removeGas);
+        console.log("removeSignal gas at MAX_REWARD_TOKENS", removeGas);
         console.log("claimReward gas with MAX_REWARD_TOKENS registered", scalarClaimGas);
         console.log("sequential scalar claimReward gas at MAX_REWARD_TOKENS", allScalarClaimsGas);
         console.log("claimRewards gas at MAX_REWARD_TOKENS", claimGas);
@@ -65,11 +66,11 @@ contract SignalGasTest is ProtocolFixture {
         assertLt(buyGas, 3_000_000, "settlement must retain at least 10x headroom under a 30M block");
     }
 
-    function test_ComposedMoveAtMaximumRewardTokensOnBothBribesStaysFarBelowABlock() external {
+    function test_TwoStrategyBatchesAtMaximumRewardTokensStayFarBelowABlock() external {
         _deployProtocol();
-        _signalDefault(ALICE, 100 ether);
         _signalDefault(BOB, 100 ether);
         _signalOne(BOB, address(gbxStrategy));
+        _mintTestGBX(ALICE, 200 ether);
 
         _addRewardTokens(address(targetStrategy), targetBribe.MAX_REWARD_TOKENS() - 1);
         _addRewardTokens(address(gbxStrategy), gbxBribe.MAX_REWARD_TOKENS() - 1);
@@ -80,23 +81,31 @@ contract SignalGasTest is ProtocolFixture {
         _startEveryRewardStream(gbxBribe);
         vm.warp(block.timestamp + 1 days);
 
-        uint256 receiptSupplyBefore = signalGBX.totalSupply();
-        uint256 aliceVotesBefore = signalGBX.getVotes(ALICE);
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](2);
+        allocations[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 100 ether });
+        allocations[1] = SignalGBX.Allocation({ strategy: address(gbxStrategy), amount: 100 ether });
+
         vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 200 ether);
         uint256 gasBefore = gasleft();
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 100 ether);
-        uint256 moveGas = gasBefore - gasleft();
+        signalGBX.addSignalMany(allocations);
+        uint256 addManyGas = gasBefore - gasleft();
+        gasBefore = gasleft();
+        signalGBX.removeSignalMany(allocations);
+        uint256 removeManyGas = gasBefore - gasleft();
         vm.stopPrank();
 
-        console.log("composed move gas with MAX_REWARD_TOKENS on both Bribes", moveGas);
-        assertLt(moveGas, 3_000_000, "composed move must retain at least 10x headroom under a 30M block");
+        console.log("two-Strategy addSignalMany gas at MAX_REWARD_TOKENS", addManyGas);
+        console.log("two-Strategy removeSignalMany gas at MAX_REWARD_TOKENS", removeManyGas);
+        assertLt(addManyGas, 6_000_000, "batch add must retain at least 5x headroom under a 30M block");
+        assertLt(removeManyGas, 6_000_000, "batch removal must retain at least 5x headroom under a 30M block");
         assertEq(targetBribe.signalWeightOf(ALICE), 0);
-        assertEq(gbxBribe.signalWeightOf(ALICE), 100 ether);
+        assertEq(gbxBribe.signalWeightOf(ALICE), 0);
         assertEq(_strategySignalWeight(address(targetStrategy)), 0);
-        assertEq(_strategySignalWeight(address(gbxStrategy)), 200 ether);
-        assertEq(resonance.totalSignalWeight(), 200 ether);
-        assertEq(signalGBX.totalSupply(), receiptSupplyBefore);
-        assertEq(signalGBX.getVotes(ALICE), aliceVotesBefore);
+        assertEq(_strategySignalWeight(address(gbxStrategy)), 100 ether);
+        assertEq(resonance.totalSignalWeight(), 100 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 0);
+        assertEq(signalGBX.getVotes(ALICE), 0);
     }
 
     function test_BufferDistributionAndGovernanceGasIsRecorded() external {
@@ -146,7 +155,7 @@ contract SignalGasTest is ProtocolFixture {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
         uint256 gasBefore = gasleft();
-        signalGBX.signal(address(targetStrategy), 100 ether);
+        signalGBX.addSignal(address(targetStrategy), 100 ether);
         addGas = gasBefore - gasleft();
         vm.stopPrank();
 
@@ -155,7 +164,7 @@ contract SignalGasTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         gasBefore = gasleft();
-        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         removeGas = gasBefore - gasleft();
         vm.stopPrank();
     }
@@ -170,7 +179,7 @@ contract SignalGasTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         uint256 gasBefore = gasleft();
-        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         gasUsed = gasBefore - gasleft();
         vm.stopPrank();
     }
@@ -183,7 +192,7 @@ contract SignalGasTest is ProtocolFixture {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
         uint256 gasBefore = gasleft();
-        signalGBX.signal(address(targetStrategy), 100 ether);
+        signalGBX.addSignal(address(targetStrategy), 100 ether);
         gasUsed = gasBefore - gasleft();
         vm.stopPrank();
     }

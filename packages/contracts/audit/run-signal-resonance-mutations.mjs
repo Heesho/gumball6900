@@ -8,69 +8,69 @@ import { fileURLToPath } from 'node:url';
 const auditDirectory = dirname(fileURLToPath(import.meta.url));
 const contractsDirectory = resolve(auditDirectory, '..');
 const packagesDirectory = resolve(contractsDirectory, '..');
-const reportPath = resolve(auditDirectory, 'reports/signal-resonance-mutation-latest.json');
 const requestedPattern = process.argv.find((argument) => argument.startsWith('--match='))?.slice('--match='.length);
 const listOnly = process.argv.includes('--list');
+const reportPath = resolve(auditDirectory, 'reports/signal-resonance-mutation-latest.json');
+const reportLabel = (requestedPattern ?? 'all')
+  .replace(/[^A-Za-z0-9]+/g, '-')
+  .replace(/^-|-$/g, '')
+  .toLowerCase();
+const selectedReportPath = resolve(auditDirectory, `reports/signal-resonance-mutation-${reportLabel}.json`);
 
 const mutants = [
   {
     id: 'SGBX-00-restore-idle-stake',
     file: 'src/core/SignalGBX.sol',
-    from: '    /// @notice Atomically deposits GBX, mints the same sGBX amount, and assigns it to one live Strategy.',
+    from: '    /// @notice Deposits GBX, mints equal sGBX, and assigns equal signal weight to one live Strategy atomically.',
     to: `    function stake(uint256 amount) external nonReentrant {
         _requireAmount(amount);
         _configuredResonance();
         _depositAndMint(msg.sender, amount);
     }
 
-    /// @notice Atomically deposits GBX, mints the same sGBX amount, and assigns it to one live Strategy.`,
-    test: ['test/minimal/ArchitectureReconciliation.t.sol', 'test_RemovedIdleReceiptSelectorsAreAbsentFromRuntime'],
+    /// @notice Deposits GBX, mints equal sGBX, and assigns equal signal weight to one live Strategy atomically.`,
+    test: ['test/minimal/ArchitectureReconciliation.t.sol', 'test_OnlyTheTypedSignalSurfaceIsPresentAtRuntime'],
   },
   {
     id: 'SGBX-00-restore-idle-unstake',
     file: 'src/core/SignalGBX.sol',
-    from: '    /// @notice Atomically deposits GBX, mints the same sGBX amount, and assigns it to one live Strategy.',
+    from: '    /// @notice Deposits GBX, mints equal sGBX, and assigns equal signal weight to one live Strategy atomically.',
     to: `    function unstake(uint256 amount) external nonReentrant {
         _requireAmount(amount);
         _configuredResonance();
         _burnAndWithdraw(msg.sender, amount);
     }
 
-    /// @notice Atomically deposits GBX, mints the same sGBX amount, and assigns it to one live Strategy.`,
-    test: ['test/minimal/ArchitectureReconciliation.t.sol', 'test_RemovedIdleReceiptSelectorsAreAbsentFromRuntime'],
+    /// @notice Deposits GBX, mints equal sGBX, and assigns equal signal weight to one live Strategy atomically.`,
+    test: ['test/minimal/ArchitectureReconciliation.t.sol', 'test_OnlyTheTypedSignalSurfaceIsPresentAtRuntime'],
   },
   {
     id: 'SGBX-01-omit-mint',
     file: 'src/core/SignalGBX.sol',
     from: '        _mint(account, amount);',
     to: '        // MUTANT: receipt mint omitted',
-    test: ['test/minimal/SignalGBX.t.sol', 'test_SignalAtomicallyCustodiesMintsDelegatesAndMirrors'],
+    test: ['test/minimal/SignalGBX.t.sol', 'test_AddSignalAtomicallyCustodiesMintsDelegatesAndMirrors'],
   },
   {
-    id: 'SGBX-02-omit-signal-hook',
+    id: 'SGBX-02-omit-scalar-custody-and-mint',
     file: 'src/core/SignalGBX.sol',
-    from: '        ICoreResonance(configuredResonance).addSignalFor(msg.sender, strategy, amount);',
-    to: '        // MUTANT: Resonance signal hook omitted',
-    occurrence: 0,
-    test: [
-      'test/minimal/ArchitectureReconciliation.t.sol',
-      'test_SignalAtomicallyCustodiesMintsVotesAndMirrorsThePairedBribe',
-    ],
+    from: '        _depositAndMint(msg.sender, amount);',
+    to: '        // MUTANT: scalar custody and receipt mint omitted',
+    test: ['test/minimal/SignalGBX.t.sol', 'test_AddSignalAtomicallyCustodiesMintsDelegatesAndMirrors'],
   },
   {
-    id: 'SGBX-03-omit-permit-signal-hook',
+    id: 'SGBX-03-omit-add-hook',
     file: 'src/core/SignalGBX.sol',
-    from: '        ICoreResonance(configuredResonance).addSignalFor(msg.sender, strategy, amount);',
-    to: '        // MUTANT: permit path Resonance hook omitted',
-    occurrence: 1,
-    test: ['test/minimal/SignalGBX.t.sol', 'test_SignalWithPermitNeedsNoApprovalAndToleratesPreConsumedSignature'],
+    from: '        configuredResonance.addSignalFor(account, strategy, amount);',
+    to: '        // MUTANT: canonical Resonance addition omitted',
+    test: ['test/minimal/SignalGBX.t.sol', 'test_AddSignalAtomicallyCustodiesMintsDelegatesAndMirrors'],
   },
   {
     id: 'SGBX-04-omit-burn',
     file: 'src/core/SignalGBX.sol',
     from: '        _burn(account, amount);',
     to: '        // MUTANT: receipt burn omitted',
-    test: ['test/minimal/SignalGBX.t.sol', 'test_WithdrawSignalAtomicallyRemovesBurnsUndelegatesAndReturnsUnderlying'],
+    test: ['test/minimal/SignalGBX.t.sol', 'test_RemoveSignalAtomicallyRemovesBurnsUndelegatesAndReturnsUnderlying'],
   },
   {
     id: 'SGBX-05-enable-transfers',
@@ -80,57 +80,78 @@ const mutants = [
     test: ['test/minimal/SignalGBX.t.sol', 'test_TransfersRemainPermanentlyDisabled'],
   },
   {
-    id: 'SGBX-06-move-mints',
+    id: 'SGBX-06-batch-add-only-first-allocation',
     file: 'src/core/SignalGBX.sol',
-    from: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
-        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);`,
-    to: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
-        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);
-        _mint(msg.sender, amount);`,
+    from: '            _addSignal(configuredResonance, msg.sender, allocation.strategy, allocation.amount);',
+    to: '            if (i == 0) _addSignal(configuredResonance, msg.sender, allocation.strategy, allocation.amount);',
+    test: ['test/minimal/SignalGBX.t.sol', 'test_AddSignalManyCustodiesAndMintsAggregateWhileMirroringEveryAllocation'],
+  },
+  {
+    id: 'SGBX-07-batch-add-custodies-only-first-amount',
+    file: 'src/core/SignalGBX.sol',
+    from: '        _depositAndMint(msg.sender, totalAmount);',
+    to: '        _depositAndMint(msg.sender, allocations[0].amount);',
+    test: ['test/minimal/SignalGBX.t.sol', 'test_AddSignalManyCustodiesAndMintsAggregateWhileMirroringEveryAllocation'],
+  },
+  {
+    id: 'SGBX-08-swallow-add-hook-failure',
+    file: 'src/core/SignalGBX.sol',
+    from: '        configuredResonance.addSignalFor(account, strategy, amount);',
+    to: '        try configuredResonance.addSignalFor(account, strategy, amount) { } catch { }',
     test: [
       'test/minimal/SignalGBX.t.sol',
-      'test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal',
+      'test_AddSignalManyRollsBackCustodySupplyVotesAndEarlierAllocationWhenLaterAdditionFails',
     ],
   },
   {
-    id: 'SGBX-07-burn-before-signal-removal',
+    id: 'SGBX-09-burn-before-scalar-removal',
     file: 'src/core/SignalGBX.sol',
-    from: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, strategy, amount);
+    from: `        _removeSignal(configuredResonance, msg.sender, strategy, amount);
         _burnAndWithdraw(msg.sender, amount);`,
     to: `        _burnAndWithdraw(msg.sender, amount);
-        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, strategy, amount);`,
-    test: ['test/minimal/SignalGBX.t.sol', 'test_WithdrawSignalRejectsZeroAndMoreThanTheSelectedPosition'],
+        _removeSignal(configuredResonance, msg.sender, strategy, amount);`,
+    test: ['test/minimal/SignalGBX.t.sol', 'test_RemoveSignalRejectsZeroAndMoreThanTheSelectedPosition'],
   },
   {
-    id: 'SGBX-08-omit-move-removal',
+    id: 'SGBX-10-omit-remove-hook',
     file: 'src/core/SignalGBX.sol',
-    from: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
-        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);`,
-    to: `        // MUTANT: source removal omitted
-        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);`,
+    from: '        configuredResonance.removeSignalFor(account, strategy, amount);',
+    to: '        // MUTANT: canonical Resonance removal omitted',
+    test: ['test/minimal/SignalGBX.t.sol', 'test_RemoveSignalAtomicallyRemovesBurnsUndelegatesAndReturnsUnderlying'],
+  },
+  {
+    id: 'SGBX-11-batch-remove-only-first-allocation',
+    file: 'src/core/SignalGBX.sol',
+    from: '            _removeSignal(configuredResonance, msg.sender, allocation.strategy, allocation.amount);',
+    to: '            if (i == 0) _removeSignal(configuredResonance, msg.sender, allocation.strategy, allocation.amount);',
     test: [
       'test/minimal/SignalGBX.t.sol',
-      'test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal',
+      'test_RemoveSignalManyBurnsAndReturnsAggregateIncludingKilledStrategyPositions',
     ],
   },
   {
-    id: 'SGBX-09-omit-move-addition',
+    id: 'SGBX-12-batch-remove-burns-only-first-amount',
     file: 'src/core/SignalGBX.sol',
-    from: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
-        ICoreResonance(configuredResonance).addSignalFor(msg.sender, toStrategy, amount);`,
-    to: `        ICoreResonance(configuredResonance).removeSignalFor(msg.sender, fromStrategy, amount);
-        // MUTANT: destination addition omitted`,
+    from: '        _burnAndWithdraw(msg.sender, totalAmount);',
+    to: '        _burnAndWithdraw(msg.sender, allocations[0].amount);',
     test: [
       'test/minimal/SignalGBX.t.sol',
-      'test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal',
+      'test_RemoveSignalManyBurnsAndReturnsAggregateIncludingKilledStrategyPositions',
     ],
   },
   {
-    id: 'SGBX-10-allow-same-strategy-move',
+    id: 'SGBX-13-swallow-remove-hook-failure',
     file: 'src/core/SignalGBX.sol',
-    from: '        if (fromStrategy == toStrategy) revert SameStrategy(fromStrategy);',
-    to: '        if (false && fromStrategy == toStrategy) revert SameStrategy(fromStrategy);',
-    test: ['test/minimal/SignalGBX.t.sol', 'test_MoveSignalRejectsZeroSameStrategyAndInsufficientSource'],
+    from: '        configuredResonance.removeSignalFor(account, strategy, amount);',
+    to: '        try configuredResonance.removeSignalFor(account, strategy, amount) { } catch { }',
+    test: ['test/minimal/SignalGBX.t.sol', 'test_RemoveSignalManyRollsBackEarlierRemovalWhenLaterRemovalFails'],
+  },
+  {
+    id: 'SGBX-14-allow-empty-batch',
+    file: 'src/core/SignalGBX.sol',
+    from: '        if (length == 0) revert ZeroAmount();',
+    to: '        if (false && length == 0) revert ZeroAmount();',
+    test: ['test/minimal/SignalGBX.t.sol', 'test_AddSignalManyRejectsEmptyAndZeroAllocationsBeforeCustodyChanges'],
   },
   {
     id: 'RES-01-omit-bribe-deposit',
@@ -140,7 +161,7 @@ const mutants = [
     test: ['test/minimal/Resonance.t.sol', 'test_AddSignalIsIncrementalAndMirrorsTheBribe'],
   },
   {
-    id: 'RES-02-omit-bribe-withdraw',
+    id: 'RES-02-omit-bribe-removal',
     file: 'src/core/Resonance.sol',
     from: '        bribe.removeSignalWeight(account, amount);',
     to: '        // MUTANT: paired Bribe signal-weight removal omitted',
@@ -165,10 +186,10 @@ const mutants = [
   {
     id: 'RES-05-restore-move-hook',
     file: 'src/core/Resonance.sol',
-    from: '    /// @notice Pulls qualifying USDG from ResonanceRouter and restarts the seven-day revenue period.',
+    from: '    /// @notice Pulls newly routed USDG and restarts the global seven-day revenue stream.',
     to: `    function moveSignalFor(address, address, address, uint256) external { }
 
-    /// @notice Pulls qualifying USDG from ResonanceRouter and restarts the seven-day revenue period.`,
+    /// @notice Pulls newly routed USDG and restarts the global seven-day revenue stream.`,
     test: ['test/minimal/ArchitectureReconciliation.t.sol', 'test_RemovedResonanceMoveHookIsAbsentFromRuntime'],
   },
   {
@@ -235,11 +256,11 @@ const mutants = [
     test: ['test/minimal/ArchitectureReconciliation.t.sol', 'test_KillingTheFinalLiveStrategyRevertsAfterBootstrap'],
   },
   {
-    id: 'RES-18-block-killed-strategy-withdrawal',
+    id: 'RES-18-block-killed-strategy-removal',
     file: 'src/core/Resonance.sol',
     from: '        if (!isStrategyRegistered[strategy]) revert StrategyNotFound(strategy);\n        if (amount == 0) revert ZeroAmount();',
     to: '        if (!isStrategyRegistered[strategy]) revert StrategyNotFound(strategy);\n        if (!isStrategyLive[strategy]) revert StrategyAlreadyDead(strategy);\n        if (amount == 0) revert ZeroAmount();',
-    test: ['test/minimal/SignalGBX.t.sol', 'test_WithdrawFromKilledStrategyDoesNotDecrementActiveWeightTwice'],
+    test: ['test/minimal/SignalGBX.t.sol', 'test_RemoveFromKilledStrategyDoesNotDecrementActiveWeightTwice'],
   },
   {
     id: 'RES-19-allow-dead-signal-destination',
@@ -247,14 +268,14 @@ const mutants = [
     from: '        if (!isStrategyLive[strategy]) revert StrategyAlreadyDead(strategy);',
     to: '        if (false && !isStrategyLive[strategy]) revert StrategyAlreadyDead(strategy);',
     occurrence: 0,
-    test: ['test/minimal/SignalGBX.t.sol', 'test_MoveSignalDestinationFailureRollsBackSourceRemoval'],
+    test: ['test/minimal/Resonance.t.sol', 'test_KillStrategyIsOwnerOnlyPermanentAndBlocksNewSignal'],
   },
   {
     id: 'RES-20-remove-killed-weight-twice',
     file: 'src/core/Resonance.sol',
     from: '        if (isStrategyLive[strategy]) totalSignalWeight -= amount;',
     to: '        totalSignalWeight -= amount;',
-    test: ['test/minimal/SignalGBX.t.sol', 'test_WithdrawFromKilledStrategyDoesNotDecrementActiveWeightTwice'],
+    test: ['test/minimal/SignalGBX.t.sol', 'test_RemoveFromKilledStrategyDoesNotDecrementActiveWeightTwice'],
   },
   {
     id: 'ROUTER-01-route-only-after-strictly-greater',
@@ -490,8 +511,10 @@ try {
     results,
   };
   writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+  writeFileSync(selectedReportPath, `${JSON.stringify(report, null, 2)}\n`);
   console.log(`score     ${killed}/${results.length} killed (${report.rawScorePercent}%)`);
-  console.log(`report    ${reportPath}`);
+  console.log(`latest    ${reportPath}`);
+  console.log(`selected  ${selectedReportPath}`);
   if (killed !== results.length) process.exitCode = 1;
 } finally {
   if (workDirectory.startsWith(safePrefix)) rmSync(workDirectory, { recursive: true, force: true });

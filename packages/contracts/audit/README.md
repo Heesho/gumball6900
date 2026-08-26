@@ -1,6 +1,7 @@
 # Audit records and tooling
 
-The current external-audit intake targets commit `3ae171b997254b56602298d873b3918d1575b3c7`.
+The current external-audit intake targets commit `3ae171b997254b56602298d873b3918d1575b3c7`. ADR 0051 and its signal
+batching/read-periphery changes are later development work and are explicitly outside that V12 scope.
 
 - `FINDINGS.md` is the tracked independent disposition register for the 22 findings received from V12 on 2026-08-25.
 - `reports/v12-2026-08-25-3ae171b-export.md` is the byte-for-byte received export. Raw reports remain ignored by Git;

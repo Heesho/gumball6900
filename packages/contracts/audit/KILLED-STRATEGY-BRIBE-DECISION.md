@@ -56,7 +56,8 @@ bound raw units per token/Bribe pair, but the protocol does not bound their econ
 ADR 0035/0037 fix the separate cumulative-index liveness risk without changing this ownership decision. ADR 0047
 removes the queue, pause, carry, and Fund-reward accounting without adding a recovery beneficiary. A killed Strategy
 is not needed to escape the overflow condition: the lifetime cap keeps every admitted checkpoint representable, so
-existing positions can still move or withdraw after notification capacity is exhausted.
+existing positions can still be removed after notification capacity is exhausted. Smart accounts may reallocate by
+composing direct removal from the killed Strategy with addition to a live Strategy.
 
 Reopen this decision only through an explicit replacement ADR that defines reward ownership at retirement and accepts
 the resulting trust-model change. Do not patch the expected regression or add an authority as an operational fix.

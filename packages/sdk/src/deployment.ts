@@ -31,6 +31,23 @@ export const protocolAddressesSchema = z
 
 export type ProtocolAddresses = z.infer<typeof protocolAddressesSchema>;
 
+/** Replaceable helper deployments kept separate from the invariant-critical core address graph. */
+export const protocolPeripheryAddressesSchema = z
+  .object({
+    signalPortfolioLens: addressSchema,
+  })
+  .strict()
+  .superRefine((addresses, context) => {
+    if (/^0x0{40}$/u.test(addresses.signalPortfolioLens.toLowerCase())) {
+      context.addIssue({
+        code: 'custom',
+        message: 'Periphery addresses cannot be zero',
+        path: ['signalPortfolioLens'],
+      });
+    }
+  });
+export type ProtocolPeripheryAddresses = z.infer<typeof protocolPeripheryAddressesSchema>;
+
 export const protocolDeploymentSchema = z
   .object({
     addresses: protocolAddressesSchema,

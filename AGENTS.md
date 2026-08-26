@@ -13,9 +13,11 @@ authorized for user funds. A green local build is engineering evidence, never a 
   non-upgradeable deployments. `StrategyFactory` and `BribeFactory` are allowed only as Resonance-controlled factories;
   do not add generic public factories, arbitrary vault calls, NAV/price oracles, or governance implementation contracts
   inside the core. Governance is a separately selected and reviewed external integration.
-- Keep the core protocol surface limited to invariant-, custody-, and accounting-critical actions. Frontend convenience,
-  transaction batching, and cron/keeper automation belong in optional periphery and must not become a correctness or
-  liveness dependency of a core action. A future helper may compose `Mine.mine()` with
+- Keep the core protocol surface limited to invariant-, custody-, and accounting-critical actions. Generic frontend
+  composition, wallet-level transaction batching, reads, and cron/keeper automation belong in optional periphery and
+  must not become a correctness or liveness dependency of a core action. SignalGBX's typed add/remove batches are the
+  narrow exception because its custody and caller identity cannot be preserved by a shared write-through Router. A
+  future helper may compose `Mine.mine()` with
   `ResonanceRouter.route()`, but no such helper is required now and Mine must remain complete if routing fails.
 
 ## Revenue, signaling, and acquisitions
@@ -60,17 +62,20 @@ authorized for user funds. A green local build is engineering evidence, never a 
 - `SignalGBX` is the non-transferable, one-for-one GBX escrow receipt, the ERC20Votes governance token on the default
   block-number clock, and the sole public signal coordinator. Idle sGBX is forbidden: every successful raw-unit mint
   must atomically deposit the same GBX amount, assign the same amount to one live Strategy through Resonance, and give
-  the account the same virtual balance in the paired Bribe. The public user operations are `signal`,
-  underlying-GBX-permit `signalWithPermit`, `moveSignal`, and `withdrawSignal`. A signal made while the holder has no
-  current delegate self-delegates. `withdrawSignal` performs the exact inverse of `signal`: it removes the paired
-  Strategy and Bribe balance, burns the same sGBX amount, and returns the same GBX amount atomically. `moveSignal`
-  atomically calls `Resonance.removeSignalFor` for the source and then `Resonance.addSignalFor` for the destination;
-  if the addition fails, the complete move including the removal reverts. The two hooks checkpoint both Strategies
-  under their prior weights, while the completed move changes neither GBX custody, sGBX supply, nor governance voting
-  units. Do not add a dedicated `Resonance.moveSignalFor` hook. SignalGBX has no ERC-2612 approval permit, staking
-  withdrawal lock, signal cooldown, epoch restriction, or once-per-period allocation rule. Standalone
-  `stake`/`unstake`, allocation from an idle receipt, removal into an idle receipt, and the redundant `stakeAndSignal`,
-  `stakeAndSignalWithPermit`, and `removeSignalAndUnstake` workflows are not permitted.
+  the account the same virtual balance in the paired Bribe. The public user operations are scalar `addSignal` and
+  `removeSignal` plus struct-array `addSignalMany` and `removeSignalMany`, where each `Allocation` contains one Strategy
+  and raw amount. A signal made while the holder has no current delegate self-delegates. Each scalar removal performs
+  the exact inverse of one scalar addition. A batch addition transfers and mints its checked aggregate once before
+  applying every allocation; a batch removal applies every allocation before burning and returning its checked
+  aggregate once. An empty batch or any zero amount reverts. Duplicate Strategies are allowed and execute
+  sequentially, with the existing per-allocation SignalGBX and Resonance events emitted for each entry. Batch length is
+  caller-controlled and scalar removals remain the bounded liveness fallback. Do not add `signalWithPermit`,
+  `moveSignal`, a dedicated `Resonance.moveSignalFor` hook, a shared write-through signal Router, operator approvals,
+  or signed periphery intents. Smart accounts may atomically batch a GBX approval with direct SignalGBX calls while
+  remaining `msg.sender`. SignalGBX has no ERC-2612 approval permit, staking withdrawal lock, signal cooldown, epoch
+  restriction, or once-per-period allocation rule. Standalone `stake`/`unstake`, allocation from an idle receipt,
+  removal into an idle receipt, and the redundant `stakeAndSignal`, `stakeAndSignalWithPermit`, and
+  `removeSignalAndUnstake` workflows are not permitted.
 - `Resonance` holds received USDG in one global seven-day Bribe-style stream and allocates each elapsed interval among
   live Strategies according to the SignalGBX weights active during that interval. Every signal change checkpoints
   elapsed revenue before changing weights, and every Strategy purchase checkpoints and pulls that Strategy's released
@@ -91,20 +96,22 @@ authorized for user funds. A green local build is engineering evidence, never a 
   each Strategy's paired Bribe stores `signalWeightOf(account)` and its complete `totalSignalWeight`, and Resonance
   stores only the active live-Strategy total. Do not maintain a separate `SignalGBX.allocatedBalance` value that must
   duplicate `balanceOf`. Resonance's `addSignalFor` and `removeSignalFor` hooks are callable only by SignalGBX; do not
-  restore a dedicated move hook, direct user signaling on Resonance, or duplicate these ledgers.
+  restore a dedicated move hook, direct user signaling on Resonance, a shared write-through Router, or duplicate these
+  ledgers. Subgraph positions and read-only Lens/SDK results are replaceable discovery aids; state-sensitive writes must
+  refresh canonical Bribe and Strategy state onchain.
 - Killing a Strategy is irreversible. The kill checkpoints and preserves its accrued Resonance claim, excludes its
   complete weight from active revenue allocation, rejects later signal additions, and lets existing signalers remove their
   allocations without subtracting the excluded weight again. The killed Strategy earns no later Resonance revenue.
   Resonance tracks `liveStrategyCount`: before bootstrap it may be zero, but after the first Strategy is registered,
   `killStrategy` must not remove the final live Strategy. Governance replaces the final Strategy by atomically batching
   an addition before the old Strategy's kill. Do not add a fake abstain Strategy. Killed-Strategy positions must remain
-  movable to a live Strategy and withdrawable.
+  removable through either scalar or batch exit even after the Strategy is killed.
 - Each Bribe may register at most sixteen append-only reward tokens. The cap is fixed in code and is not governable.
 - Each Bribe uses a `1e36` reward-per-signal index so low-decimal rewards remain useful over 18-decimal signal weight.
   For each reward token in each Bribe, cumulative accepted notifications must never exceed
   `floor(type(uint256).max / 1e36)` raw units. Track this lifetime amount monotonically; it has no reset, setter, or
   escape hatch. Reject an over-cap notification before checkpointing or token transfer so cap exhaustion cannot block
-  claims, signal movement, or withdrawal. Direct token donations do not consume notification capacity.
+  claims or scalar/batched signal removal. Direct token donations do not consume notification capacity.
 - Bribes use the Synthetix schedule and ordinary floor semantics. A permissionless notification must be at least
   `REWARD_DURATION` raw token units and at least the stream's current `remainingReward` amount; it combines with
   `remainingSeconds * rewardRate` and restarts the seven-day period. Streams do not pause at zero signal supply and

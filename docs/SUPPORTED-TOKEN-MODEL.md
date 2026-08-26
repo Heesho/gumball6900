@@ -40,11 +40,12 @@ does not approve BribeRouter: it transfers the Bribe share directly to the Route
 zero approval can therefore work when the initial nonzero approval succeeds and is fully consumed; a token whose
 allowance behavior leaves a sticky residue is unsupported.
 
-GBX supports ERC-2612 permit approvals, including the permit attempted by SignalGBX's atomic `signalWithPermit`
-workflow. That workflow uses the underlying permit as authorization; the subsequent `SafeERC20.safeTransferFrom`
-remains the authoritative allowance and call-success check without inspecting balance deltas. SignalGBX deliberately
-has no ERC-2612 approval permit because it is non-transferable; its signature-based delegation belongs to ERC20Votes
-governance rather than token spending.
+GBX supports ERC-2612 permit approvals for general integrations, but SignalGBX does not consume permit signatures.
+Signal additions rely on the caller's existing allowance and `SafeERC20.safeTransferFrom` without inspecting balance
+deltas. A smart account may atomically batch GBX approval with direct `addSignal` or `addSignalMany`; a plain externally
+owned account without account-level batching establishes allowance separately. SignalGBX deliberately has no ERC-2612
+approval permit because it is non-transferable; its signature-based delegation belongs to ERC20Votes governance rather
+than token spending.
 
 ## Reward precision, floors, and notification limits
 
@@ -70,7 +71,7 @@ Each reward token also has a per-Bribe lifetime notification budget of
 balance or direct donations, and claims never restore capacity. A standard 18-decimal token would need about
 `1.158e23` whole tokens to exhaust the budget; high-decimal, unusually mintable, or upgradeable tokens can reach the
 raw-unit limit with materially less economic value. The cap is checked before checkpointing and token transfer, so an
-over-cap attempt leaves the existing stream unchanged and does not prevent claims, signal movement, or withdrawal.
+over-cap attempt leaves the existing stream unchanged and does not prevent claims or scalar/batched signal removal.
 
 ## Settlement and failure isolation
 
@@ -99,8 +100,8 @@ call and preserves the accrued amount for retry. Bribe offers two claim shapes:
 - `claimReward(account, token)` isolates one registered token from failures in the others.
 
 There is no caller-selected batch claim. Both functions can be called by anyone but always pay the entitled account.
-`withdrawSignal` does not claim Bribe rewards, distribute Resonance revenue, or settle Router balances, so failures in
-those token paths do not block signal movement or withdrawal.
+`removeSignal` and `removeSignalMany` do not claim Bribe rewards, distribute Resonance revenue, or settle Router
+balances, so failures in those token paths do not block signal removal.
 
 ## Fund and Mine special cases
 

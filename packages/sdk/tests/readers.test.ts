@@ -1,4 +1,4 @@
-import { type Address, type Hex, type PublicClient } from 'viem';
+import { getAddress, type Address, type Hex, type PublicClient } from 'viem';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
@@ -7,6 +7,7 @@ import {
   readMineSlotView,
   readResonanceView,
   readSignalView,
+  readSignalPortfolio,
   readStrategyView,
 } from '../src/index.js';
 
@@ -229,5 +230,126 @@ describe('SignalGBX reads', () => {
       signalBalance: 100n,
     });
     for (const [request] of readContract.mock.calls) expect(request.blockNumber).toBe(BLOCK_NUMBER);
+  });
+
+  it('reads a caller-selected portfolio through the stateless Lens at one canonical block', async () => {
+    const accountView = [100n, address(2), 90n] as const;
+    const positions = [
+      [
+        address(4),
+        true,
+        true,
+        address(5),
+        address(6),
+        address(7),
+        12n,
+        3n,
+        20n,
+        40n,
+        100n,
+        9n,
+        [address(7), address(8)],
+        [2n, 3n],
+      ],
+    ] as const;
+    const readContract = vi.fn(async () => [accountView, positions] as const);
+    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
+    const client = { getBlock, readContract } as unknown as PublicClient;
+
+    await expect(
+      readSignalPortfolio(client, address(1), { signalGBX: address(9), resonance: address(10) }, address(2), [
+        address(4),
+      ]),
+    ).resolves.toEqual({
+      account: address(2),
+      accountView: { totalSignal: 100n, delegate: address(2), currentVotes: 90n },
+      blockNumber: BLOCK_NUMBER,
+      lens: address(1),
+      positions: [
+        {
+          accountSignal: 40n,
+          availableRevenue: 20n,
+          bribe: address(5),
+          bribeRouter: address(6),
+          claimableRewards: [2n, 3n],
+          currentPrice: 12n,
+          earnedRevenue: 9n,
+          epochId: 3n,
+          live: true,
+          paymentToken: address(7),
+          registered: true,
+          rewardTokens: [address(7), address(8)],
+          strategy: address(4),
+          totalSignal: 100n,
+        },
+      ],
+      resonance: getAddress(address(10)),
+      signalGBX: address(9),
+    });
+    expect(readContract).toHaveBeenCalledWith(
+      expect.objectContaining({
+        address: address(1),
+        blockNumber: BLOCK_NUMBER,
+        functionName: 'portfolio',
+        args: [address(9), getAddress(address(10)), address(2), [address(4)]],
+      }),
+    );
+    expect(getBlock).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects incoherent Lens reward arrays', async () => {
+    const position = [
+      address(4),
+      true,
+      true,
+      address(5),
+      address(6),
+      address(7),
+      12n,
+      3n,
+      20n,
+      40n,
+      100n,
+      9n,
+      [address(7)],
+      [],
+    ] as const;
+    const readContract = vi.fn(async () => [[100n, address(2), 90n], [position]] as const);
+    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
+    const client = { getBlock, readContract } as unknown as PublicClient;
+
+    await expect(
+      readSignalPortfolio(client, address(1), { signalGBX: address(9), resonance: address(10) }, address(2), [
+        address(4),
+      ]),
+    ).rejects.toThrow();
+  });
+
+  it('rejects Lens rows that do not match the requested Strategy order', async () => {
+    const position = [
+      address(5),
+      false,
+      false,
+      address(0),
+      address(0),
+      address(0),
+      0n,
+      0n,
+      0n,
+      0n,
+      0n,
+      0n,
+      [],
+      [],
+    ] as const;
+    const readContract = vi.fn(async () => [[0n, address(0), 0n], [position]] as const);
+    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
+    const client = { getBlock, readContract } as unknown as PublicClient;
+
+    await expect(
+      readSignalPortfolio(client, address(1), { signalGBX: address(9), resonance: address(10) }, address(2), [
+        address(4),
+      ]),
+    ).rejects.toThrow(/unexpected Strategy/u);
   });
 });

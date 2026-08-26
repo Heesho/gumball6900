@@ -39,6 +39,7 @@ type Account @entity(immutable: false) {
   currentDelegate: Bytes!
   delegatedVotesRaw: BigInt!
   redeemedGBXRaw: BigInt!
+  signalPositions: [SignalPosition!]! @derivedFrom(field: "account")
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
 }
@@ -72,7 +73,25 @@ type Strategy @entity(immutable: false) {
   notifiedRewardRaw: BigInt!
   paidRewardRaw: BigInt!
   routerRewardsRoutedRaw: BigInt!
+  signalPositions: [SignalPosition!]! @derivedFrom(field: "strategy")
   createdBlockNumber: BigInt!
+  lastBlockNumber: BigInt!
+  lastTimestamp: BigInt!
+}
+
+"""
+Current event-observed signal owned by one account in one Strategy.
+
+This discovery index is removed when its amount reaches zero. It is not authoritative for transaction construction;
+clients must refresh the paired Bribe balance onchain before submitting a write.
+"""
+type SignalPosition @entity(immutable: false) {
+  id: ID!
+  account: Account!
+  strategy: Strategy!
+  accountAddress: Bytes!
+  strategyAddress: Bytes!
+  amountRaw: BigInt!
   lastBlockNumber: BigInt!
   lastTimestamp: BigInt!
 }

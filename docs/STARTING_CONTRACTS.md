@@ -91,11 +91,11 @@ core creates, owns, prices, harvests, swaps, or guarantees no liquidity.
   inventory. No lock, cooldown, or epoch is added.
 - `SignalGBX.balanceOf(account)` is each account's aggregate signal, each paired Bribe stores
   `signalWeightOf(account)` and `totalSignalWeight`, and Resonance stores only the active live-Strategy total.
-- `signal`, `signalWithPermit`, `moveSignal`, and `withdrawSignal` are the only public SignalGBX position workflows.
-  Minting and initial allocation are one transition; withdrawal is its exact inverse. The permit variant uses GBX's
-  ERC-2612 permit; SignalGBX has no approval permit.
-- `moveSignal` atomically composes Resonance's retained `removeSignalFor` and `addSignalFor` hooks. Resonance has no
-  dedicated move hook, and any destination failure rolls the source removal back with the complete transaction.
+- `addSignal`, `addSignalMany`, `removeSignal`, and `removeSignalMany` are the only public SignalGBX position
+  workflows. Addition deposits and mints; removal is its exact burn-and-return inverse. Batch variants aggregate GBX
+  custody while preserving one incremental event per allocation. SignalGBX consumes no permit signature.
+- Resonance retains only `addSignalFor` and `removeSignalFor`. There is no public move, dedicated Resonance move hook,
+  or shared write-through signal Router. Smart accounts may atomically compose approval and direct SignalGBX calls.
 - `ResonanceRouter.route()` is permissionless. A manual caller, frontend, volunteer keeper, or cron process may call;
   there is no role, bounty, or protocol liveness guarantee. During an active schedule the Router can hold any balance
   until called. If the balance is at least `max(REWARD_DURATION, remainingRevenue())`, Resonance checkpoints and
@@ -106,14 +106,14 @@ core creates, owns, prices, harvests, swaps, or guarantees no liquidity.
 - Killing a Strategy is irreversible: the kill checkpoints and preserves its accrued claim, excludes its complete
   weight from active revenue allocation, rejects additions, and lets existing signalers remove without subtracting that weight
   from the active total a second time. After bootstrap the final live Strategy cannot be killed until a replacement is
-  added; killed positions remain movable to a live Strategy or withdrawable.
+  added; killed positions remain removable through either scalar or batch exit.
 - SignalGBX supply equals aggregate signal across live and killed paired Bribes; idle sGBX is unreachable.
 - Every Strategy snapshots Resonance's global `bribeBps` before payment-token interaction. It defaults to 10%, is
   governance-settable from 0% through 20%, and has no per-Strategy override. Strategy sends the floored Bribe share to
   BribeRouter and the complement directly to Fund. There is no cumulative split carry or deferred Fund settlement.
 - At 0%, new payments go entirely to Fund. The paired Bribe remains active for signal accounting, existing and
-  independent rewards, moves, and withdrawals. Raising the rate later resumes automatic rewards without replacing the
-  Strategy graph.
+  independent rewards, and scalar or batched additions and removals. Raising the rate later resumes automatic rewards
+  without replacing the Strategy graph.
 - A GBX Strategy payment is not burned at settlement. Once the dynamically Fund-classified share reaches Fund, anyone
   may burn it with `Fund.burnGBX`; any nonzero Bribe share funds the paired Bribe.
 - Bribes use a `1e36` reward-per-signal index, receive the acquired payment asset automatically, and may receive

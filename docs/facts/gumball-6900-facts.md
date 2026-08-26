@@ -4,17 +4,18 @@
 > technical whitepaper. It is engineering evidence only: it is not an audit, a deployment authorization, a legal
 > conclusion, or a claim that the protocol is safe for user funds.
 
-- **Reviewed source state:** V12 review target `3ae171b997254b56602298d873b3918d1575b3c7`; the audit intake changes no protocol source
+- **Reviewed source state:** post-V12 ADR 0051 development tree; V12 covers only
+  `3ae171b997254b56602298d873b3918d1575b3c7` and does not cover the later batching/periphery delta
 - **Historical fact baseline:** `dc67d7c4d634097fa6e285fa33ce964d591d2bd2`
 - **Audit revision:** 2026-08-25 tracked intake and independent disposition for the commit-pinned protocol source
-- **Registry revision date:** 2026-08-25
+- **Registry revision date:** 2026-08-26
 
 > **Revision note.** Earlier drafts of this registry and its three public documents were written against commits
 > `281e601` and then `95ed60e`. Two later changes superseded them. ADR 0033 fixed the Mine at sixteen permanent slots
 > with constant-time pending emission, removing capacity governance and the all-slot checkpoint. ADR 0034 deleted
 > `ProtocolGovernor` and the protocol `TimelockController` entirely, leaving `Resonance` owned by an external
 > governance system that has not been selected; ADR 0035 added the Bribe lifetime reward cap. Those historical
-> revisions were re-derived against `dc67d7c`. ADRs 0036-0050 and the current Mine work were subsequently checked
+> revisions were re-derived against `dc67d7c`. ADRs 0036-0051 and the current Mine work were subsequently checked
 > against successive development trees; V12's export and the current independent disposition target `3ae171b`. Facts
 > carrying older commit stamps identify the tree where that unchanged claim was originally verified; later development
 > facts retain their explicit development or historical stamp. **Section E was rewritten in full: every
@@ -40,8 +41,8 @@
 > back into Strategy, and reduces BribeRouter to a Bribe-only buffer. Bribes remain bounded multi-token rewarders.
 
 > **Bribe-cap and move-composition revision.** ADR 0048 raises the fixed append-only Bribe reward-token limit from
-> eight to sixteen. It also removes `Resonance.moveSignalFor`; `SignalGBX.moveSignal` now atomically composes
-> `removeSignalFor` followed by `addSignalFor`, with complete rollback if the destination addition fails.
+> eight to sixteen. It also removed `Resonance.moveSignalFor` and, at the time, composed the public SignalGBX move from
+> the retained hooks. ADR 0051 later removes that public move while preserving the absence of a Resonance move hook.
 
 > **Canonical-transfer revision.** ADR 0049 removes sender/receiver balance-delta checks from canonical GBX/USDG
 > transfers in Mine and SignalGBX. Those paths use `SafeERC20` under the standard-token assumption.
@@ -51,6 +52,11 @@
 > with zero supply and Mine is its sole lifetime issuer. A reviewed, externally created fungible Uniswap v2-style
 > USDG/GBX LP token may
 > be registered as an ordinary bootstrap Strategy asset; the core has no liquidity-specific logic or guarantee.
+
+> **Signal-batch and read-periphery revision.** ADR 0051 replaces `signal`, `signalWithPermit`, `moveSignal`, and
+> `withdrawSignal` with scalar and batched `addSignal`/`removeSignal` entrypoints. Batches aggregate custody but preserve
+> per-allocation events and scalar exit. `SignalPortfolioLens`, SDK helpers, and subgraph positions are replaceable read
+> and composition aids; there is no shared write-through signal Router. This delta is outside V12's `3ae171b` scope.
 
 - **Solidity source tree:** `packages/contracts/src`
 - **Compiler:** Solidity `0.8.26`, Cancun target (EIP-1153 transient storage is required)
@@ -86,7 +92,7 @@ the accepted part is authoritative and the superseded part must not be presented
 | ADR 0028 | Closed Bribe pools after Strategy death                      | Strategy-death and incumbent-exit consequences remain. Its queue/pause-created terminal-lock analysis is superseded by ADR 0047's continuously advancing stream.                                                                                                                                          |
 | ADR 0029 | Bribe-based Resonance reward stream                          | Global Resonance streaming, `1e36` index, and accepted surplus remain. Signal entrypoints/state ownership, final-Strategy kill, ownership, Mine routing, and exact raw scheduling are superseded by later ADRs, most recently ADR 0047.                                                                   |
 | ADR 0030 | SignalGBX coordination and selector-bounded token governance | Non-transferable ERC20Votes sGBX only. Its ProtocolGovernor, Timelock, selector-filter, and cancellation decisions are superseded by ADR 0034; its idle-sGBX and `allocatedBalance` decisions by ADR 0031; its dedicated Resonance move hook by ADR 0048.                                                 |
-| ADR 0031 | Mandatory signal-backed SignalGBX                            | No idle sGBX; atomic signal/withdraw; `balanceOf` is the aggregate; final live Strategy cannot be killed. Its retention of the Governor and Timelock is superseded by ADR 0034, and canonical-GBX balance-delta checks by ADR 0049.                                                                       |
+| ADR 0031 | Mandatory signal-backed SignalGBX                            | No idle sGBX; atomic add/remove backing; `balanceOf` is the aggregate; final live Strategy cannot be killed. Its exact public surface is superseded by ADR 0051, governance dependencies by ADR 0034, and canonical-GBX balance-delta checks by ADR 0049.                                                 |
 | ADR 0033 | Fixed Mine slots and constant-time pending emission          | Sixteen permanent slots, no capacity governance, no owner, no all-slot checkpoint; constant-time pending emission and the `effectiveTotalSupply` redemption denominator. Its cumulative-mining rate-selection rule is superseded by ADR 0041 and its genesis supply offset by ADR 0050.                   |
 | ADR 0034 | External governance ownership                                | **New.** No core Governor, Timelock, executor, or adapter. `Resonance` is the only contract with continuing custom owner authority; its external owner is unselected, the three setup-only Ownable shells must be renounced, and deployment is blocked until a later ADR pins the governance integration. |
 | ADR 0035 | Bribe lifetime reward cap                                    | Monotonic per-token `lifetimeRewardNotified` counter; its original `1e18` precision and numeric cap are superseded by ADR 0037.                                                                                                                                                                           |
@@ -102,9 +108,10 @@ the accepted part is authoritative and the superseded part must not be presented
 | ADR 0045 | Defer Mine-to-Router token verification to deployment        | Mine stores supplied dependencies without calling the Router; pinned post-deployment evidence must prove the Mine/Router USDG pairing before permanent binding or exposure.                                                                                                                               |
 | ADR 0046 | Specialize Resonance to USDG-only accounting                 | Scalar USDG-only state and tokenless reward views remain. Its preservation of exact raw scheduling is superseded by ADR 0047.                                                                                                                                                                             |
 | ADR 0047 | Restore Synthetix-shaped rewards and Strategy settlement     | Ordinary leftover rollover and floor surplus; continuously advancing Bribe streams; all-token plus scalar claims; direct per-purchase Strategy split; BribeRouter-only buffering; standard-token SafeERC20 model. Its preservation of the eight-token bound is superseded by ADR 0048.                    |
-| ADR 0048 | Expand Bribe rewards and compose signal moves                | Fixed sixteen-token append-only Bribe registry; no dedicated Resonance move hook; SignalGBX moves atomically compose source removal and live-destination addition.                                                                                                                                        |
+| ADR 0048 | Expand Bribe rewards and compose signal moves                | Fixed sixteen-token append-only Bribe registry and no dedicated Resonance move hook remain. Its preserved public SignalGBX move is superseded by ADR 0051.                                                                                                                                                |
 | ADR 0049 | Trust canonical token transfers                              | Mine and SignalGBX use `SafeERC20` for canonical GBX/USDG without sender/receiver balance snapshots. Fund's exact selected-token payout and basket guards remain.                                                                                                                                         |
 | ADR 0050 | Zero premint and external LP Strategy                        | GBX begins at zero supply and Mine is its sole lifetime issuer. No canonical liquidity contract exists; a reviewed external Uniswap v2-style USDG/GBX LP token may be an ordinary bootstrap Strategy asset.                                                                                               |
+| ADR 0051 | Scalar and batched signal entrypoints                        | Scalar and optional batched `addSignal`/`removeSignal`, aggregate batch custody, no permit/move/write Router, direct smart-wallet composition, and discovery-only read periphery.                                                                                                                         |
 
 ### Historical context only — partially superseded
 
@@ -163,8 +170,8 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
 
 ### FACT-GBX-01 — GBX is a plain transferable ERC-20 with permit and no vote checkpoints
 
-- **Plain-English claim:** GBX is an ordinary transferable token. It can be moved, staked, and burned, and it supports
-  gasless approvals, but holding GBX alone gives no governance vote.
+- **Plain-English claim:** GBX is an ordinary transferable token. It can be moved, escrowed through a signal addition,
+  and burned, and it supports gasless approvals, but holding GBX alone gives no governance vote.
 - **Technical formulation:** `contract GBX is ERC20, ERC20Permit`. Name `"GumBall6900"`, symbol `"GBX"`, 18 decimals
   (inherited default). `ERC20Votes` is **not** inherited, so there are no vote checkpoints and no `delegate` surface.
 - **Source:** `packages/contracts/src/core/GBX.sol`
@@ -174,7 +181,7 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
   `test_ConstructorStartsWithZeroSupply`
 - **Status:** `implemented`
 - **Commit:** `281e601`
-- **Caveats:** Governance weight exists only after GBX is staked into SignalGBX (FACT-SGBX-01).
+- **Caveats:** Governance weight exists only after GBX is escrowed through SignalGBX (FACT-SGBX-01).
 
 ### FACT-GBX-02 — GBX starts with zero supply
 
@@ -477,24 +484,25 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
 ### FACT-SGBX-01 — sGBX is non-transferable and minted only as part of an atomic signal
 
 - **Plain-English claim:** You cannot stake GBX on its own. Depositing GBX, minting sGBX, and committing that sGBX to
-  one Strategy happen together in a single indivisible step. sGBX can never be sent to anyone.
+  one or more Strategies happen together in a single indivisible step. sGBX can never be sent to anyone.
 - **Technical formulation:** `contract SignalGBX is ERC20, ERC20Votes, ReentrancyGuard, Ownable`; name
   `"SignalGumBall6900"`, symbol `"sGBX"`, 18 decimals. `_update` reverts `TransferDisabled` whenever both `from`
-  and `to` are nonzero, permitting only mint and burn. Minting occurs only inside `_depositAndMint`, which is reachable
-  only from `signal` and `signalWithPermit`, each of which immediately calls `Resonance.addSignalFor` for the same
-  amount. Burning occurs only inside `_burnAndWithdraw`, reachable only from `withdrawSignal` after
-  `Resonance.removeSignalFor` has succeeded for the same amount. Both directions use `SafeERC20` and trust canonical
-  GBX without inspecting sender or receiver balance deltas.
+  and `to` are nonzero, permitting only mint and burn. Minting occurs only inside `_depositAndMint`, reached by
+  `addSignal` and `addSignalMany`; every minted unit is matched by an immediate `Resonance.addSignalFor` allocation.
+  Burning occurs only inside `_burnAndWithdraw`, reached by `removeSignal` and `removeSignalMany` after all matching
+  `Resonance.removeSignalFor` calls succeed. Both directions use `SafeERC20` and trust canonical GBX without inspecting
+  sender or receiver balance deltas.
 - **Source:** `packages/contracts/src/core/SignalGBX.sol`
-- **Functions/state:** `signal`, `signalWithPermit`, `withdrawSignal`, `_depositAndMint`, `_burnAndWithdraw`, `_update`
-- **ADR:** ADR 0031 (supersedes ADR 0030's standalone staking) as modified by ADR 0049
-- **Tests:** `test_SignalAtomicallyCustodiesMintsVotesAndMirrorsThePairedBribe`,
-  `test_SignalAtomicallyCustodiesMintsDelegatesAndMirrors`,
-  `test_WithdrawSignalAtomicallyRemovesBurnsUndelegatesAndReturnsUnderlying`,
-  `test_TransfersRemainPermanentlyDisabled`, `testFuzz_SignalMoveWithdrawRoundTripIsLossless`,
-  `invariant_SignalReceiptIsFullyCollateralized`
+- **Functions/state:** `addSignal`, `addSignalMany`, `removeSignal`, `removeSignalMany`, `_depositAndMint`,
+  `_burnAndWithdraw`, `_update`
+- **ADR:** ADR 0031 (mandatory backing) as modified by ADRs 0049 and 0051
+- **Tests:** `test_AddSignalAtomicallyCustodiesMintsDelegatesAndMirrors`,
+  `test_AddSignalManyCustodiesAndMintsAggregateWhileMirroringEveryAllocation`,
+  `test_RemoveSignalAtomicallyRemovesBurnsUndelegatesAndReturnsUnderlying`,
+  `test_RemoveSignalManyBurnsAndReturnsAggregateIncludingKilledStrategyPositions`,
+  `test_TransfersRemainPermanentlyDisabled`, `invariant_SignalReceiptIsFullyCollateralized`
 - **Status:** `implemented`
-- **Commit:** uncommitted ADR 0049 development candidate (2026-08-24)
+- **Commit:** uncommitted ADR 0051 development candidate (2026-08-26)
 - **Caveats:** GBX sent directly to the SignalGBX contract is stranded surplus: it mints no receipt, no signal, no
   withdrawal entitlement, and no votes
   (`test_DirectDonationIsSurplusAndCreatesNoSignalVotesOrWithdrawalEntitlement`).
@@ -511,49 +519,46 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
 - **ADR:** ADR 0030 (voting-token decisions), ADR 0031
 - **Tests:** `test_LaterSignalPreservesExplicitDelegateAndSelfDelegatesAgainAfterZeroDelegation`,
   `test_DelegateBySigWorksButReceiptHasNoPermitEntrypoint`,
-  `test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal`
+  `test_AddSignalManyCustodiesAndMintsAggregateWhileMirroringEveryAllocation`
 - **Status:** `implemented`
 - **Commit:** `95ed60e`
 - **Caveats:** Self-delegation happens only when the account currently has _no_ delegate. An account that explicitly
   delegates to the zero address re-self-delegates on its next signal; an account delegating elsewhere keeps that
   delegate.
 
-### FACT-SGBX-03 — sGBX has no ERC-2612 permit; `signalWithPermit` permits the underlying GBX instead
+### FACT-SGBX-03 — SignalGBX consumes no permit; smart wallets may compose approval with direct calls
 
-- **Plain-English claim:** sGBX has no gasless-approval function because it cannot be transferred anyway. The
-  one-transaction signal path uses a permit on GBX.
-- **Technical formulation:** `SignalGBX` does not inherit `ERC20Permit`; it inherits `EIP712` only for `ERC20Votes`
-  delegation signatures. `signalWithPermit` wraps `IERC20Permit(gbx).permit(...)` in `try/catch` and relies on the
-  subsequent `SafeERC20.safeTransferFrom` in `_depositAndMint` as the allowance and call-success check. ADR 0049
-  deliberately removes balance-delta verification.
+- **Plain-English claim:** Adding signal uses an existing GBX allowance. A smart wallet can bundle approval and signal
+  in one account transaction; a plain wallet may approve first.
+- **Technical formulation:** `SignalGBX` does not inherit `ERC20Permit` and exposes no permit-consuming entrypoint. It
+  inherits `EIP712` only for ERC20Votes delegation signatures. `_depositAndMint` relies on the caller's current GBX
+  allowance and `SafeERC20.safeTransferFrom`. Because direct smart-wallet calls preserve the wallet as `msg.sender`, an
+  account-level batch may call `GBX.approve` followed by `addSignal` or `addSignalMany` without a shared Router.
 - **Source:** `packages/contracts/src/core/SignalGBX.sol`
-- **Functions/state:** `signalWithPermit`
-- **ADR:** ADR 0031 as modified by ADR 0049
-- **Tests:** `test_DelegateBySigWorksButReceiptHasNoPermitEntrypoint`,
-  `test_SignalWithPermitNeedsNoApprovalAndToleratesPreConsumedSignature`,
-  `test_SignalWithPermitRollsBackPermitWhenStrategyMutationFails`
+- **Functions/state:** `addSignal`, `addSignalMany`, `_depositAndMint`
+- **ADR:** ADR 0051
+- **Tests:** `test_DelegateBySigWorksButReceiptHasNoPermitEntrypoint`, `test_AddSignalRejectsZeroAndMissingAllowance`
 - **Status:** `implemented`
-- **Commit:** uncommitted ADR 0049 development candidate (2026-08-24)
-- **Caveats:** The swallowed `catch` is deliberate: a front-runner may consume the permit signature, which is harmless
-  because the transfer still requires real allowance. A failed or pre-consumed permit cannot create an unbacked
-  receipt or a partial signal.
+- **Commit:** uncommitted ADR 0051 development candidate (2026-08-26)
+- **Caveats:** GBX itself still supports ERC-2612 for other integrations. A plain externally owned account without
+  account-level batching needs an earlier approval transaction.
 
 ### FACT-SGBX-04 — There is no lock, cooldown, or epoch restriction
 
-- **Plain-English claim:** You can signal, move, and withdraw at any time. Nothing forces you to wait.
-- **Technical formulation:** No timestamp, epoch, or cooldown state exists in `SignalGBX.sol`. `withdrawSignal` is
+- **Plain-English claim:** You can add or remove signal at any time. Nothing forces you to wait.
+- **Technical formulation:** No timestamp, epoch, or cooldown state exists in `SignalGBX.sol`. `removeSignal` is
   bounded only by the caller's recorded position in the selected Strategy's Bribe, enforced by
   `Resonance.removeSignalFor` (`InsufficientSignal`).
 - **Source:** `packages/contracts/src/core/SignalGBX.sol`
-- **Functions/state:** `withdrawSignal`, `moveSignal`
-- **ADR:** ADR 0031, ADR 0019
-- **Tests:** `test_WithdrawSignalRejectsZeroAndMoreThanTheSelectedPosition`,
+- **Functions/state:** `addSignal`, `addSignalMany`, `removeSignal`, `removeSignalMany`
+- **ADR:** ADR 0031, ADR 0051
+- **Tests:** `test_RemoveSignalRejectsZeroAndMoreThanTheSelectedPosition`,
   `invariant_EveryActorCanFullyWithdrawSignals`
 - **Status:** `implemented`
 - **Commit:** `95ed60e`
 - **Caveats:** This is the mechanism behind governance finding **G-01**: because voting uses historical block
-  snapshots and withdrawal is unrestricted, an account can signal across a snapshot, vote with that weight, and
-  withdraw immediately afterwards.
+  snapshots and removal is unrestricted, an account can signal across a snapshot, vote with that weight, and remove
+  immediately afterwards.
 
 ### FACT-SGBX-05 — Mandatory signal-backing: there is no idle sGBX and no separate allocation ledger
 
@@ -601,11 +606,11 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
 
 - **Plain-English claim:** All signaling flows through one contract. There is no second user-facing entry point.
 - **Technical formulation:** `Resonance.addSignalFor` and `removeSignalFor` carry the `onlySignalGBX` modifier, which
-  reverts `UnauthorizedSignalSource` unless `msg.sender == address(signalGBX)`. Resonance exposes no move-only hook;
-  `SignalGBX.moveSignal` composes the retained hooks.
+  reverts `UnauthorizedSignalSource` unless `msg.sender == address(signalGBX)`. Resonance exposes no move-only hook and
+  SignalGBX exposes no public move or shared write-through Router.
 - **Source:** `packages/contracts/src/core/Resonance.sol`; `packages/contracts/src/core/SignalGBX.sol`
-- **Functions/state:** `onlySignalGBX`, `addSignalFor`, `removeSignalFor`, `moveSignal`
-- **ADR:** ADR 0030 (supersedes ADR 0019's direct Resonance entry points), ADR 0048
+- **Functions/state:** `onlySignalGBX`, `addSignalFor`, `removeSignalFor`
+- **ADR:** ADR 0030 (supersedes ADR 0019's direct Resonance entry points), ADRs 0048 and 0051
 - **Tests:** `test_OnlySignalGBXCanMutateAnotherAccountsSignal`, `test_AnAttackerCannotRemoveAnotherAccountsSignal`,
   `test_HostileSignalInputsCannotCreateOrDestroyWeight`, `test_RemovedResonanceMoveHookIsAbsentFromRuntime`
 - **Status:** `implemented`
@@ -615,25 +620,24 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
 
 - **Plain-English claim:** You allocate specific amounts to specific Strategies and adjust them by adding or removing
   amounts. There is no percentage-weight system and no forced whole-account reset.
-- **Technical formulation:** The complete user surface is exactly four functions:
-  `signal(strategy, amount)`, `signalWithPermit(strategy, amount, deadline, v, r, s)`,
-  `moveSignal(fromStrategy, toStrategy, amount)`, and `withdrawSignal(strategy, amount)`. Each takes a scalar raw sGBX
-  amount. No batch or array entry point exists, and no percentage-weight system exists.
+- **Technical formulation:** The complete user surface is exactly four functions: scalar
+  `addSignal(strategy, amount)` and `removeSignal(strategy, amount)`, plus
+  `addSignalMany(Allocation[])` and `removeSignalMany(Allocation[])`. Every allocation is an absolute raw sGBX delta.
+  Batch adds deposit/mint the aggregate once; batch removals burn/return the aggregate once. Empty or zero-valued
+  batches revert, duplicates execute sequentially, and any failed entry reverts the complete batch.
 - **Source:** `packages/contracts/src/core/SignalGBX.sol`
-- **Functions/state:** `signal`, `signalWithPermit`, `moveSignal`, `withdrawSignal`
-- **ADR:** ADR 0019, **ADR 0031**, ADR 0048
-- **Tests:** `test_SignalAtomicallyCustodiesMintsVotesAndMirrorsThePairedBribe`,
-  `test_WithdrawSignalAtomicallyRemovesBurnsUndelegatesAndReturnsUnderlying`,
-  `test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal`,
-  `test_MoveSignalRejectsZeroSameStrategyAndInsufficientSource`,
-  `test_MoveSignalDestinationFailureRollsBackSourceRemoval`,
-  `test_SignalRejectsZeroAndMissingAllowance`, `test_WithdrawSignalRejectsZeroAndMoreThanTheSelectedPosition`
+- **Functions/state:** `Allocation`, `addSignal`, `addSignalMany`, `removeSignal`, `removeSignalMany`
+- **ADR:** ADR 0019, ADR 0031, **ADR 0051**
+- **Tests:** `test_AddSignalAtomicallyCustodiesMintsDelegatesAndMirrors`,
+  `test_RemoveSignalAtomicallyRemovesBurnsUndelegatesAndReturnsUnderlying`,
+  `test_AddSignalManyRollsBackCustodySupplyVotesAndEarlierAllocationWhenLaterAdditionFails`,
+  `test_RemoveSignalManyRollsBackEarlierRemovalWhenLaterRemovalFails`,
+  `test_AddSignalManyAllowsDuplicateStrategiesAsSequentialAllocations`
 - **Status:** `implemented`
-- **Commit:** `95ed60e`
-- **Caveats:** ADR 0031 **removed** `stake`, `unstake`, `stakeAndSignal`, `stakeAndSignalWithPermit`, `removeSignal`,
-  and `removeSignalAndUnstake`. This is a breaking interface change; the repository has no production deployment, so
-  no compatibility shim was introduced. `test_RemovedIdleReceiptSelectorsAreAbsentFromRuntime` asserts the removed
-  selectors are absent from deployed runtime.
+- **Commit:** uncommitted ADR 0051 development candidate (2026-08-26)
+- **Caveats:** Batch length is caller-controlled, so interfaces must simulate and split arrays that do not fit current
+  block gas. Scalar removal remains the liveness fallback. Reallocating is removal plus addition; smart wallets may
+  compose the direct calls atomically.
 
 ### FACT-SIG-03 — Signal state has exactly one canonical owner at each level
 
@@ -669,18 +673,16 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
 - **Plain-English claim:** Changing your signal never retroactively redirects revenue that accrued under the old
   weights.
 - **Technical formulation:** `addSignalFor` and `removeSignalFor` call `_updateRevenue(strategy)` before their respective
-  `totalSignalWeight` and Bribe mutations. `SignalGBX.moveSignal` calls source removal and then destination addition in
-  one transaction. The source is checkpointed before removal; the destination is checkpointed before addition. No
-  time elapses between calls, so both old positions receive the stored pre-move index and the moved amount earns only
-  later flow. `_updateRevenue` advances `revenuePerSignalStored` and `lastUpdateTime`, then settles
+  `totalSignalWeight` and Bribe mutations. Scalar and batch SignalGBX paths use only those hooks. The first batch entry
+  advances the global timestamp; later entries in the same transaction observe no elapsed time, so no prior interval
+  is reassigned. `_updateRevenue` advances `revenuePerSignalStored` and `lastUpdateTime`, then settles
   `strategyRevenue[strategy]`.
 - **Source:** `packages/contracts/src/core/Resonance.sol`; `packages/contracts/src/core/SignalGBX.sol`
 - **Functions/state:** `_updateRevenue`, `revenuePerSignal`, `earnedRevenue`
-- **ADR:** ADR 0029, ADR 0046, ADR 0048
+- **ADR:** ADR 0029, ADR 0046, ADR 0051
 - **Tests:** `test_FlashSignalWeightCannotRedirectANewNotification`,
   `test_StrategyAddedAfterAccrualCannotClaimHistoricRevenue` (named in FINDINGS.md as the A-11 regression),
-  `test_NewStrategyWeightReceivesOnlyPostEntryRevenue`,
-  `test_ComposedMoveCheckpointsBothStrategiesBeforeChangingTheirWeights`
+  `test_NewStrategyWeightReceivesOnlyPostEntryRevenue`, batch rollback and accounting tests
 - **Status:** `implemented`
 - **Commit:** `281e601`
 - **Caveats:** This prevents _same-transaction_ capture only. A signal held over real elapsed time legitimately earns
@@ -800,17 +802,17 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
 - **Status:** `implemented`
 - **Commit:** `dc67d7c`
 
-### FACT-GOV-06 — Voting checkpoints survive signal withdrawal
+### FACT-GOV-06 — Voting checkpoints survive signal removal
 
 - **Plain-English claim:** Once a block has passed, the record of what you held at that block is permanent, even if
-  you have since withdrawn everything.
-- **Technical formulation:** `withdrawSignal` burns sGBX and writes a new checkpoint, but earlier checkpoints are
-  immutable. An account may acquire or borrow GBX, signal it, allow a block to pass, withdraw, and retain its
+  you have since removed everything.
+- **Technical formulation:** `removeSignal` burns sGBX and writes a new checkpoint, but earlier checkpoints are
+  immutable. An account may acquire or borrow GBX, signal it, allow a block to pass, remove, and retain its
   recorded weight at that past block. `SignalGBX` has no lock, cooldown, or epoch.
 - **Source:** `packages/contracts/src/core/SignalGBX.sol`
-- **Functions/state:** `withdrawSignal`, `_burnAndWithdraw`, `getPastVotes`
+- **Functions/state:** `removeSignal`, `removeSignalMany`, `_burnAndWithdraw`, `getPastVotes`
 - **ADR:** ADR 0034 (§ Consequences), finding G-01
-- **Tests:** `test_HistoricalVotingCheckpointsSurviveImmediateSignalWithdrawal`
+- **Tests:** `test_HistoricalVotingCheckpointsSurviveImmediateSignalRemoval`
 - **Status:** `implemented` / `accepted-limitation`
 - **Commit:** `dc67d7c`
 - **Caveats:** Not exploitable in the core, which reads no checkpoints. It becomes exploitable exactly when an
@@ -1122,17 +1124,17 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
   `totalSignalWeight`, `earnedRevenue`
 - **ADR:** ADR 0028; **ADR 0031** (final-live-Strategy guard, superseding ADR 0029's permission to kill it)
 - **Tests:** `test_KillingTheFinalLiveStrategyRevertsAfterBootstrap`,
-  `test_WithdrawFromKilledStrategyDoesNotDecrementActiveWeightTwice`,
-  `test_MoveFromKilledStrategyReentersLiveWeightExactlyOnce`,
+  `test_RemoveFromKilledStrategyDoesNotDecrementActiveWeightTwice`,
+  `test_RemoveSignalManyBurnsAndReturnsAggregateIncludingKilledStrategyPositions`,
   `invariant_DeadStrategiesAreExcludedFromActiveWeight`
 - **Status:** `implemented`
 - **Commit:** `95ed60e`
 - **Caveats:** **At least one live Strategy always exists**, so there is always a valid signal destination. The owner
   replaces the final Strategy by calling `addStrategy(replacement)` before `killStrategy(previous)`; whether those two
   calls can be atomically batched is a property of the external governance system, not of the core.
-  This does **not** eliminate the zero-active-weight condition of FACT-RES-06 — every signaler withdrawing still
-  drives `totalSignalWeight` to zero. A composed move from a dead Strategy first removes without decrementing the
-  already excluded weight, then adds the amount **back** into `totalSignalWeight` at the live destination.
+  This does **not** eliminate the zero-active-weight condition of FACT-RES-06: every signaler removing still drives
+  `totalSignalWeight` to zero. A smart-wallet reallocation from a dead Strategy removes without decrementing the already
+  excluded weight, then a direct addition adds the amount back into the live denominator.
 
 ### FACT-STR-06 — A killed Strategy's Bribe becomes a closed reward pool, and a final exit can permanently abandon rewards
 
@@ -1284,8 +1286,8 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
 - **Commit:** `uncommitted`
 - **Caveats:** The cap is what keeps every mandatory signal-entry, signal-exit, and settlement loop bounded (finding
   **A-08**). The higher bound accepts more worst-case gas for fifteen independent incentives after the automatic
-  payment token. Measured maxima include signal addition 491,494, withdrawal 1,129,059, all-token claim 1,471,439,
-  and a composed move with sixteen active streams on both Bribes 1,890,938 gas.
+  payment token. Historical scalar-addition, withdrawal, and composed-move measurements predate ADR 0051. The new
+  caller-selected batch loops require current maximum-bound measurements; scalar removal remains available.
 
 ### FACT-BRIBE-02 — Bribes have two funding sources: the bounded automatic acquisition share and open external funding
 
@@ -1391,20 +1393,20 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
 - **Status:** `implemented`
 - **Commit:** `uncommitted`
 
-### FACT-BRIBE-07 — Signal removal and unstaking never transfer a reward, payment, or revenue token
+### FACT-BRIBE-07 — Signal removal never transfers a reward, payment, or revenue token
 
-- **Plain-English claim:** You can always get your stake back. Leaving a Strategy is pure accounting — it never
+- **Plain-English claim:** You can always get your escrowed GBX back. Leaving a Strategy is pure accounting — it never
   depends on a token transfer that could fail.
 - **Technical formulation:** `Bribe.removeSignalWeight` checkpoints every registered reward under the old account and
   total signal weights, then decrements `totalSignalWeight` and `signalWeightOf`. It contains no token transfer.
-  `SignalGBX.withdrawSignal`
+  `SignalGBX.removeSignal` or `removeSignalMany`
   then burns the receipt and returns only the account's escrowed GBX. Reward claims remain separate.
 - **Source:** `packages/contracts/src/core/Bribe.sol`; `packages/contracts/src/core/SignalGBX.sol`
 - **Functions/state:** `removeSignalWeight`, `totalSignalWeight`, `signalWeightOf`
 - **ADR:** ADR 0020 (finding **A-04**) as simplified by ADR 0047
 - **Tests:** `invariant_EveryActorCanFullyWithdrawSignals`,
   `test_AHostileRewardTokenCannotReenterSignalChanges`,
-  `test_ZeroSharePreservesMoveAndWithdrawalFromAKilledStrategy`,
+  `test_ZeroShareDoesNotBrickSignalReallocationOrRemoval`,
   `test_KilledStrategySignalCanExitAndCannotEarnAfterExit`,
   `test_AFrozenFundCannotBlockKilledStrategyExitOrItsPreservedClaim`
 - **Status:** `implemented`
@@ -1577,12 +1579,12 @@ superseded by ADR 0024 and may appear only in material explicitly labeled as des
 
 - **Plain-English claim:** Signaling is impossible until the protocol graph is fully wired, so nobody can deposit GBX
   into a half-built signal system.
-- **Technical formulation:** Every public signal deposit, move, and withdrawal path calls `_configuredResonance()`,
+- **Technical formulation:** Every public scalar or batched add/remove path calls `_configuredResonance()`,
   which reverts `ResonanceNotSet` while `resonance == address(0)`.
 - **Source:** `packages/contracts/src/core/SignalGBX.sol`
 - **Functions/state:** `_configuredResonance`, `resonance`, `ResonanceNotSet`
 - **ADR:** ADR 0030
-- **Tests:** `test_SignalRequiresBoundResonance`
+- **Tests:** `test_AddSignalRequiresBoundResonance`
 - **Status:** `implemented`
 - **Commit:** `281e601`
 
@@ -1782,13 +1784,16 @@ Optional frontend or cron automation belongs in periphery and cannot be treated 
   `packages/contracts/audit/reports` with SHA-256 recorded in the register.
 - **Status:** received and dispositioned on 2026-08-25; remediation and release gates open
 
-### FACT-STATUS-03 — Current post-ADR-0050 internal engineering evidence status
+### FACT-STATUS-03 — Current post-ADR-0051 internal engineering evidence status
 
 - **Claim:** Extensive local test campaigns exist. They are engineering evidence, not proof and not an audit.
 - **Contract evidence for source `3ae171b`, reverified locally on 2026-08-25:** default Foundry passes **293/293**;
   all **27 invariant entries** pass at 1,000 runs of depth 500 with zero handler reverts; integration passes **10/10**;
   and Hardhat passes **4/4**, including bytecode parity. These are local engineering results, not an audit, formal
   proof, deployment approval, or release evidence.
+- **ADR-0051 scope boundary:** the renamed scalar selectors, batch loops, aggregate custody, Lens, SDK, and subgraph
+  position index are later than `3ae171b`; the V12 export and the results above do not cover them. Current evidence must
+  be recorded after the complete coordinated gate run.
 - **Earlier focused evidence, verified locally on 2026-08-23 before ADR 0049:** the ADR-0048 migration suites pass **104/104** and the
   focused mutation campaign kills **47/47** targeted mutants. The maximum-bound regressions measure a composed move
   with sixteen active streams on both Bribes at 1,890,938 gas against a 3,000,000 ceiling, all-token claim at
@@ -1817,7 +1822,7 @@ Optional frontend or cron automation belongs in periphery and cannot be treated 
 | M-03       | High     | Immutable bindings cannot detect a malicious lookalike; requires signed manifest, runtime code hashes, constructor arguments, receipts.                    |
 | M-04       | High     | Mine economics are selected, hard-coded, and modelled, but still require independent economic review before deployment.                                    |
 | G-03       | High     | The external governance system that will own `Resonance` is unselected; its voting, delegation, permission, and delay semantics are unreviewed.            |
-| G-01       | High     | sGBX checkpoints survive withdrawal; the selected external system's snapshot-to-vote spacing requires independent review of the capture model.             |
+| G-01       | High     | sGBX checkpoints survive removal; the selected external system's snapshot-to-vote spacing requires independent review of the capture model.                |
 | E-02       | High     | Reduced but not eliminated; codehash, parameter, and manifest review remains external.                                                                     |
 | V12-249702 | Low      | Mine can accept an empty-slot occupation before the GBX handoff; inspect every slot and abandon/redeploy a touched candidate before exposure.              |
 | V12-249705 | Low      | Permissionless claims can force another account's sub-unit Bribe floors; claim authorization remains an open design decision with no remediation selected. |
@@ -1825,7 +1830,7 @@ Optional frontend or cron automation belongs in periphery and cannot be treated 
 V12-249695 is recorded as an accepted theoretical risk rather than an open release gate. Its disposition depends on the
 canonical six-decimal USDG identity and supply assumption and must be reopened if that supported model changes.
 
-Additionally open in the current post-ADR-0050 source state: complete external-audit closure and retesting, current-tree regeneration of the
+Additionally open in the current post-ADR-0051 source state: complete external-audit closure and retesting, current-tree regeneration of the
 static-analysis and external-fuzzing gates, a second external-fuzzer seed, legal clearance, reviewed production
 parameters, exact external-governance integration review, monitored testnet rehearsal, a signed deployment manifest,
 the complete post-ADR-0050 workspace matrix beyond the current contract checks, and the repository-wide format gate.

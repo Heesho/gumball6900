@@ -42,7 +42,7 @@ structure.
 
 3. **How signaling works** - the section that closes the loop, and the reason anyone signals at
    all: deposit GBX into voting sGBX signals for assets you want the fund to own, and what it buys backs your GBX.
-   Every sGBX unit remains assigned until moved or withdrawn. Two rows share one label gutter so the chain reads down the left edge -
+   Every sGBX unit remains assigned until removed. Two rows share one label gutter so the chain reads down the left edge -
    this round's pooled signal, then what a run of rounds accumulates into. Signalling and the
    basket chart used to be separate sections; splitting them hid that they are one mechanism,
    and left the sheet stating that signalling happens without ever saying what a signaler gets

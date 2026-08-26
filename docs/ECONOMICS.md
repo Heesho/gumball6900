@@ -77,12 +77,14 @@ Mining replacements deposit their protocol USDG share into ResonanceRouter witho
 `route()` call moves the complete balance once it is at least both seven days of raw units and the scheduled revenue
 remaining; the duration threshold prevents a zero whole-unit rate. There is no caller bounty or liveness guarantee,
 so deposit and stream entry may be separated indefinitely. Each elapsed interval follows the SignalGBX
-weights active during that interval; moving a signal checkpoints the old interval first and affects only later flow.
+weights active during that interval; every addition or removal checkpoints the old interval first and affects only
+later flow.
 A holder mints sGBX only by atomically assigning the same amount to a live Strategy. SignalGBX coordinates every
 change; its account balance is the aggregate signal, paired Bribes store per-Strategy positions and
 `totalSignalWeight`, and
-Resonance stores only the active total across live Strategies. Moving signal changes no custody or votes; withdrawal
-removes the position, burns sGBX, and returns GBX atomically.
+Resonance stores only the active total across live Strategies. Removal deletes the selected position, burns the same
+sGBX, and returns GBX atomically. Reallocation is a direct removal plus addition; smart accounts may compose those
+calls atomically without a protocol move selector.
 A Strategy purchase atomically pulls all revenue released to it through that timestamp, then sells its complete USDG
 balance through a reverse Dutch auction. Before interacting with the payment token, Strategy snapshots Resonance's
 global `bribeBps`. The rate defaults to 10%, governance may set it from 0% through 20%, and there is no per-Strategy
@@ -105,7 +107,7 @@ raw unit per stream second and at least `remainingReward`; this prevents a zero-
 standard leftover rollover. Compatible direct donations join the next notification, and a failed notification leaves
 the tokens buffered without reversing the completed purchase. If the payment asset is GBX, the Fund share may be
 burned permissionlessly after the purchase while the buffered share rewards signalers. A 0% automatic share does not
-disable the paired Bribe: signal, move, withdrawal, existing rewards, and independently funded rewards continue
+disable the paired Bribe: signal additions, removals, existing rewards, and independently funded rewards continue
 normally.
 
 Streaming is lazy accounting: no keeper transaction is required each second. A later signal change, distribution,

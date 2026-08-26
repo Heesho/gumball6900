@@ -63,24 +63,24 @@ contract SignalGBXTest is ProtocolFixture {
         new SignalGBX(IERC20(ALICE), address(this));
     }
 
-    function test_SignalRejectsZeroAndMissingAllowance() external {
+    function test_AddSignalRejectsZeroAndMissingAllowance() external {
         vm.startPrank(ALICE);
         vm.expectRevert(SignalGBX.ZeroAmount.selector);
-        signalGBX.signal(address(targetStrategy), 0);
+        signalGBX.addSignal(address(targetStrategy), 0);
 
         vm.expectRevert(
             abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(signalGBX), 0, 1 ether)
         );
-        signalGBX.signal(address(targetStrategy), 1 ether);
+        signalGBX.addSignal(address(targetStrategy), 1 ether);
         vm.stopPrank();
     }
 
-    function test_SignalAtomicallyCustodiesMintsDelegatesAndMirrors() external {
+    function test_AddSignalAtomicallyCustodiesMintsDelegatesAndMirrors() external {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
         vm.expectEmit(true, true, false, true);
         emit Signaled(ALICE, address(targetStrategy), 100 ether);
-        signalGBX.signal(address(targetStrategy), 100 ether);
+        signalGBX.addSignal(address(targetStrategy), 100 ether);
         vm.stopPrank();
 
         assertEq(gbx.balanceOf(ALICE), 900 ether);
@@ -96,13 +96,13 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(resonance.totalSignalWeight(), 100 ether);
     }
 
-    function test_HistoricalVotingCheckpointsSurviveImmediateSignalWithdrawal() external {
+    function test_HistoricalVotingCheckpointsSurviveImmediateSignalRemoval() external {
         _signalDefault(ALICE, 100 ether);
         uint256 signalBlock = block.number;
 
         vm.roll(signalBlock + 1);
         vm.prank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         vm.roll(signalBlock + 2);
 
         assertEq(signalGBX.getVotes(ALICE), 0);
@@ -111,11 +111,11 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(signalGBX.getPastTotalSupply(signalBlock), 100 ether);
     }
 
-    function test_SignalRollsBackCustodySupplyVotesAndAllowanceConsumptionForInvalidStrategy() external {
+    function test_AddSignalRollsBackCustodySupplyVotesAndAllowanceConsumptionForInvalidStrategy() external {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, BOB));
-        signalGBX.signal(BOB, 100 ether);
+        signalGBX.addSignal(BOB, 100 ether);
         vm.stopPrank();
 
         assertEq(gbx.balanceOf(ALICE), 1_000 ether);
@@ -132,7 +132,7 @@ contract SignalGBXTest is ProtocolFixture {
 
         _signalDefault(BOB, 100 ether);
         vm.prank(BOB);
-        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
 
         assertEq(signalGBX.totalSupply(), 0);
         assertEq(signalGBX.balanceOf(BOB), 0);
@@ -147,7 +147,7 @@ contract SignalGBXTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 50 ether);
-        signalGBX.signal(address(gbxStrategy), 50 ether);
+        signalGBX.addSignal(address(gbxStrategy), 50 ether);
         vm.stopPrank();
         assertEq(signalGBX.delegates(ALICE), BOB);
         assertEq(signalGBX.getVotes(BOB), 150 ether);
@@ -156,7 +156,7 @@ contract SignalGBXTest is ProtocolFixture {
         signalGBX.delegate(address(0));
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 10 ether);
-        signalGBX.signal(address(gbxStrategy), 10 ether);
+        signalGBX.addSignal(address(gbxStrategy), 10 ether);
         vm.stopPrank();
         assertEq(signalGBX.delegates(ALICE), ALICE);
         assertEq(signalGBX.getVotes(ALICE), 160 ether);
@@ -180,77 +180,13 @@ contract SignalGBXTest is ProtocolFixture {
         signalGBX.transfer(ALICE, 0);
     }
 
-    function test_MoveSignalComposesRemoveAndAddWhilePreservingCustodySupplyVotesAndAggregateSignal() external {
-        _signalDefault(ALICE, 100 ether);
-
-        vm.prank(ALICE);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
-
-        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 60 ether);
-        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 40 ether);
-        assertEq(targetBribe.signalWeightOf(ALICE), 60 ether);
-        assertEq(gbxBribe.signalWeightOf(ALICE), 40 ether);
-        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
-        assertEq(signalGBX.totalSupply(), 100 ether);
-        assertEq(gbx.balanceOf(address(signalGBX)), 100 ether);
-        assertEq(signalGBX.getVotes(ALICE), 100 ether);
-        assertEq(resonance.totalSignalWeight(), 100 ether);
-    }
-
-    function test_MoveSignalRejectsZeroSameStrategyAndInsufficientSource() external {
-        _signalDefault(ALICE, 100 ether);
-
-        vm.startPrank(ALICE);
-        vm.expectRevert(SignalGBX.ZeroAmount.selector);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 0);
-        vm.expectRevert(abi.encodeWithSelector(SignalGBX.SameStrategy.selector, address(targetStrategy)));
-        signalGBX.moveSignal(address(targetStrategy), address(targetStrategy), 1);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                Resonance.InsufficientSignal.selector, address(targetStrategy), uint256(100 ether), uint256(101 ether)
-            )
-        );
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 101 ether);
-        vm.stopPrank();
-    }
-
-    function test_MoveSignalDestinationFailureRollsBackSourceRemoval() external {
-        _signalDefault(ALICE, 100 ether);
-        resonance.killStrategy(address(gbxStrategy));
-
-        vm.prank(ALICE);
-        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(gbxStrategy)));
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
-
-        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 100 ether);
-        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 0);
-        assertEq(targetBribe.signalWeightOf(ALICE), 100 ether);
-        assertEq(gbxBribe.signalWeightOf(ALICE), 0);
-        assertEq(resonance.totalSignalWeight(), 100 ether);
-        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
-    }
-
-    function test_MoveFromKilledStrategyReentersLiveWeightExactlyOnce() external {
-        _signalDefault(ALICE, 100 ether);
-        resonance.killStrategy(address(targetStrategy));
-        assertEq(resonance.totalSignalWeight(), 0);
-
-        vm.prank(ALICE);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 100 ether);
-
-        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 0);
-        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 100 ether);
-        assertEq(resonance.totalSignalWeight(), 100 ether);
-        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
-    }
-
-    function test_WithdrawSignalAtomicallyRemovesBurnsUndelegatesAndReturnsUnderlying() external {
+    function test_RemoveSignalAtomicallyRemovesBurnsUndelegatesAndReturnsUnderlying() external {
         _signalDefault(ALICE, 100 ether);
 
         vm.prank(ALICE);
         vm.expectEmit(true, true, false, true);
         emit SignalWithdrawn(ALICE, address(targetStrategy), 40 ether);
-        signalGBX.withdrawSignal(address(targetStrategy), 40 ether);
+        signalGBX.removeSignal(address(targetStrategy), 40 ether);
 
         assertEq(gbx.balanceOf(ALICE), 940 ether);
         assertEq(gbx.balanceOf(address(signalGBX)), 60 ether);
@@ -262,29 +198,30 @@ contract SignalGBXTest is ProtocolFixture {
         assertEq(resonance.totalSignalWeight(), 60 ether);
     }
 
-    function test_WithdrawSignalRejectsZeroAndMoreThanTheSelectedPosition() external {
+    function test_RemoveSignalRejectsZeroAndMoreThanTheSelectedPosition() external {
         _signalDefault(ALICE, 10 ether);
 
         vm.startPrank(ALICE);
         vm.expectRevert(SignalGBX.ZeroAmount.selector);
-        signalGBX.withdrawSignal(address(targetStrategy), 0);
+        signalGBX.removeSignal(address(targetStrategy), 0);
         vm.expectRevert(
             abi.encodeWithSelector(Resonance.InsufficientSignal.selector, address(targetStrategy), 10 ether, 11 ether)
         );
-        signalGBX.withdrawSignal(address(targetStrategy), 11 ether);
+        signalGBX.removeSignal(address(targetStrategy), 11 ether);
         vm.stopPrank();
     }
 
-    function test_WithdrawFromKilledStrategyDoesNotDecrementActiveWeightTwice() external {
+    function test_RemoveFromKilledStrategyDoesNotDecrementActiveWeightTwice() external {
         _signalDefault(ALICE, 100 ether);
-        _signalDefault(BOB, 50 ether);
-        vm.prank(BOB);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 50 ether);
+        vm.startPrank(BOB);
+        gbx.approve(address(signalGBX), 50 ether);
+        signalGBX.addSignal(address(gbxStrategy), 50 ether);
+        vm.stopPrank();
 
         resonance.killStrategy(address(targetStrategy));
         assertEq(resonance.totalSignalWeight(), 50 ether);
         vm.prank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
 
         assertEq(resonance.totalSignalWeight(), 50 ether);
         assertEq(signalGBX.balanceOf(ALICE), 0);
@@ -306,19 +243,19 @@ contract SignalGBXTest is ProtocolFixture {
 
         resonance.killStrategy(address(targetStrategy));
         vm.prank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 1);
+        signalGBX.removeSignal(address(targetStrategy), 1);
 
         assertEq(signalGBX.balanceOf(ALICE), 0);
         assertEq(targetBribe.signalWeightOf(ALICE), 0);
         assertEq(gbx.balanceOf(ALICE), 1_000 ether);
     }
 
-    function test_SignalRequiresBoundResonance() external {
+    function test_AddSignalRequiresBoundResonance() external {
         SignalGBX unbound = new SignalGBX(IERC20(address(gbx)), address(this));
         vm.startPrank(ALICE);
         gbx.approve(address(unbound), 10 ether);
         vm.expectRevert(SignalGBX.ResonanceNotSet.selector);
-        unbound.signal(address(targetStrategy), 10 ether);
+        unbound.addSignal(address(targetStrategy), 10 ether);
         vm.stopPrank();
     }
 
@@ -350,7 +287,7 @@ contract SignalGBXTest is ProtocolFixture {
         _mintTestGBX(owner, 10 ether);
         vm.startPrank(owner);
         gbx.approve(address(signalGBX), 10 ether);
-        signalGBX.signal(address(targetStrategy), 10 ether);
+        signalGBX.addSignal(address(targetStrategy), 10 ether);
         vm.stopPrank();
 
         uint256 expiry = block.timestamp + 1 hours;
@@ -393,85 +330,218 @@ contract SignalGBXTest is ProtocolFixture {
         assertFalse(success);
     }
 
-    function test_SignalWithPermitNeedsNoApprovalAndToleratesPreConsumedSignature() external {
-        (address owner, uint256 ownerKey) = makeAddrAndKey("underlying-permit-owner");
-        _mintTestGBX(owner, 20 ether);
-        uint256 deadline = block.timestamp + 1 hours;
-
-        (uint8 v0, bytes32 r0, bytes32 s0) = _signUnderlyingPermit(ownerKey, owner, 10 ether, 0, deadline);
-        vm.prank(owner);
-        signalGBX.signalWithPermit(address(targetStrategy), 10 ether, deadline, v0, r0, s0);
-
-        (uint8 v1, bytes32 r1, bytes32 s1) = _signUnderlyingPermit(ownerKey, owner, 10 ether, 1, deadline);
-        vm.prank(CAROL);
-        gbx.permit(owner, address(signalGBX), 10 ether, deadline, v1, r1, s1);
-        vm.prank(owner);
-        signalGBX.signalWithPermit(address(gbxStrategy), 10 ether, deadline, v1, r1, s1);
-
-        assertEq(gbx.nonces(owner), 2);
-        assertEq(gbx.allowance(owner, address(signalGBX)), 0);
-        assertEq(signalGBX.balanceOf(owner), 20 ether);
-        assertEq(_accountSignalWeight(owner, address(targetStrategy)), 10 ether);
-        assertEq(_accountSignalWeight(owner, address(gbxStrategy)), 10 ether);
-        assertEq(signalGBX.getVotes(owner), 20 ether);
-    }
-
-    function test_SignalWithPermitRollsBackPermitWhenStrategyMutationFails() external {
-        (address owner, uint256 ownerKey) = makeAddrAndKey("reverting-underlying-permit-owner");
-        _mintTestGBX(owner, 10 ether);
-        uint256 deadline = block.timestamp + 1 hours;
-        (uint8 v, bytes32 r, bytes32 s) = _signUnderlyingPermit(ownerKey, owner, 10 ether, 0, deadline);
-
-        vm.prank(owner);
-        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, BOB));
-        signalGBX.signalWithPermit(BOB, 10 ether, deadline, v, r, s);
-
-        assertEq(gbx.nonces(owner), 0);
-        assertEq(gbx.allowance(owner, address(signalGBX)), 0);
-        assertEq(gbx.balanceOf(owner), 10 ether);
-        assertEq(signalGBX.totalSupply(), 0);
-    }
-
-    function testFuzz_SignalMoveWithdrawRoundTripIsLossless(uint256 amount, uint256 moved) external {
-        uint256 deposited = bound(amount, 1, 1_000 ether);
-        uint256 movedAmount = bound(moved, 0, deposited);
-        uint256 balanceBefore = gbx.balanceOf(ALICE);
-
-        _signalDefault(ALICE, deposited);
-        if (movedAmount != 0) {
-            vm.prank(ALICE);
-            signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), movedAmount);
-        }
+    function test_AddSignalManyCustodiesAndMintsAggregateWhileMirroringEveryAllocation() external {
+        SignalGBX.Allocation[] memory allocations = _twoAllocations(40 ether, 60 ether);
 
         vm.startPrank(ALICE);
-        if (deposited != movedAmount) {
-            signalGBX.withdrawSignal(address(targetStrategy), deposited - movedAmount);
-        }
-        if (movedAmount != 0) signalGBX.withdrawSignal(address(gbxStrategy), movedAmount);
+        gbx.approve(address(signalGBX), 100 ether);
+        vm.expectEmit(true, true, false, true);
+        emit Signaled(ALICE, address(targetStrategy), 40 ether);
+        vm.expectEmit(true, true, false, true);
+        emit Signaled(ALICE, address(gbxStrategy), 60 ether);
+        signalGBX.addSignalMany(allocations);
         vm.stopPrank();
 
-        assertEq(gbx.balanceOf(ALICE), balanceBefore);
-        assertEq(signalGBX.balanceOf(ALICE), 0);
-        assertEq(signalGBX.totalSupply(), 0);
-        assertEq(signalGBX.balanceOf(ALICE), 0);
+        assertEq(gbx.balanceOf(ALICE), 900 ether);
+        assertEq(gbx.balanceOf(address(signalGBX)), 100 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
+        assertEq(signalGBX.totalSupply(), 100 ether);
+        assertEq(signalGBX.delegates(ALICE), ALICE);
+        assertEq(signalGBX.getVotes(ALICE), 100 ether);
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 40 ether);
+        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 60 ether);
+        assertEq(resonance.totalSignalWeight(), 100 ether);
     }
 
-    function _signUnderlyingPermit(uint256 ownerKey, address owner, uint256 amount, uint256 nonce, uint256 deadline)
-        private
-        view
-        returns (uint8 v, bytes32 r, bytes32 s)
-    {
-        bytes32 structHash = keccak256(
-            abi.encode(
-                keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
-                owner,
-                address(signalGBX),
-                amount,
-                nonce,
-                deadline
+    function test_AddSignalManyRejectsEmptyAndZeroAllocationsBeforeCustodyChanges() external {
+        SignalGBX.Allocation[] memory empty = new SignalGBX.Allocation[](0);
+        vm.prank(ALICE);
+        vm.expectRevert(SignalGBX.ZeroAmount.selector);
+        signalGBX.addSignalMany(empty);
+
+        SignalGBX.Allocation[] memory allocations = _twoAllocations(40 ether, 0);
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 40 ether);
+        vm.expectRevert(SignalGBX.ZeroAmount.selector);
+        signalGBX.addSignalMany(allocations);
+        vm.stopPrank();
+
+        assertEq(gbx.balanceOf(ALICE), 1_000 ether);
+        assertEq(gbx.balanceOf(address(signalGBX)), 0);
+        assertEq(signalGBX.totalSupply(), 0);
+    }
+
+    function test_AddSignalManyRollsBackCustodySupplyVotesAndEarlierAllocationWhenLaterAdditionFails() external {
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](2);
+        allocations[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 40 ether });
+        allocations[1] = SignalGBX.Allocation({ strategy: BOB, amount: 60 ether });
+
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, BOB));
+        signalGBX.addSignalMany(allocations);
+        vm.stopPrank();
+
+        assertEq(gbx.balanceOf(ALICE), 1_000 ether);
+        assertEq(gbx.balanceOf(address(signalGBX)), 0);
+        assertEq(gbx.allowance(ALICE, address(signalGBX)), 100 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 0);
+        assertEq(signalGBX.totalSupply(), 0);
+        assertEq(signalGBX.getVotes(ALICE), 0);
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 0);
+        assertEq(resonance.totalSignalWeight(), 0);
+    }
+
+    function test_AddSignalManyAllowsDuplicateStrategiesAsSequentialAllocations() external {
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](2);
+        allocations[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 40 ether });
+        allocations[1] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 60 ether });
+
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.addSignalMany(allocations);
+        vm.stopPrank();
+
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 100 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
+        assertEq(resonance.totalSignalWeight(), 100 ether);
+    }
+
+    function test_OneElementAddSignalManyMatchesScalarAddSignal() external {
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](1);
+        allocations[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 100 ether });
+
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.addSignal(address(targetStrategy), 100 ether);
+        vm.stopPrank();
+        vm.startPrank(BOB);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.addSignalMany(allocations);
+        vm.stopPrank();
+
+        assertEq(gbx.balanceOf(ALICE), gbx.balanceOf(BOB));
+        assertEq(signalGBX.balanceOf(ALICE), signalGBX.balanceOf(BOB));
+        assertEq(signalGBX.getVotes(ALICE), signalGBX.getVotes(BOB));
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 100 ether);
+        assertEq(_accountSignalWeight(BOB, address(targetStrategy)), 100 ether);
+    }
+
+    function test_RemoveSignalManyBurnsAndReturnsAggregateIncludingKilledStrategyPositions() external {
+        SignalGBX.Allocation[] memory allocations = _twoAllocations(40 ether, 60 ether);
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.addSignalMany(allocations);
+        vm.stopPrank();
+
+        resonance.killStrategy(address(targetStrategy));
+        assertEq(resonance.totalSignalWeight(), 60 ether);
+
+        vm.startPrank(ALICE);
+        vm.expectEmit(true, true, false, true);
+        emit SignalWithdrawn(ALICE, address(targetStrategy), 40 ether);
+        vm.expectEmit(true, true, false, true);
+        emit SignalWithdrawn(ALICE, address(gbxStrategy), 60 ether);
+        signalGBX.removeSignalMany(allocations);
+        vm.stopPrank();
+
+        assertEq(gbx.balanceOf(ALICE), 1_000 ether);
+        assertEq(gbx.balanceOf(address(signalGBX)), 0);
+        assertEq(signalGBX.balanceOf(ALICE), 0);
+        assertEq(signalGBX.totalSupply(), 0);
+        assertEq(signalGBX.getVotes(ALICE), 0);
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 0);
+        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 0);
+        assertEq(resonance.totalSignalWeight(), 0);
+    }
+
+    function test_RemoveSignalManyRejectsEmptyAndZeroAllocationsBeforeHooks() external {
+        _signalDefault(ALICE, 100 ether);
+
+        SignalGBX.Allocation[] memory empty = new SignalGBX.Allocation[](0);
+        vm.prank(ALICE);
+        vm.expectRevert(SignalGBX.ZeroAmount.selector);
+        signalGBX.removeSignalMany(empty);
+
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](2);
+        allocations[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 40 ether });
+        allocations[1] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 0 });
+        vm.prank(ALICE);
+        vm.expectRevert(SignalGBX.ZeroAmount.selector);
+        signalGBX.removeSignalMany(allocations);
+
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 100 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
+        assertEq(gbx.balanceOf(ALICE), 900 ether);
+    }
+
+    function test_RemoveSignalManyRollsBackEarlierRemovalWhenLaterRemovalFails() external {
+        _signalDefault(ALICE, 100 ether);
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](2);
+        allocations[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 40 ether });
+        allocations[1] = SignalGBX.Allocation({ strategy: address(gbxStrategy), amount: 1 ether });
+
+        vm.prank(ALICE);
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                Resonance.InsufficientSignal.selector, address(gbxStrategy), uint256(0), uint256(1 ether)
             )
         );
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", gbx.DOMAIN_SEPARATOR(), structHash));
-        return vm.sign(ownerKey, digest);
+        signalGBX.removeSignalMany(allocations);
+
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 100 ether);
+        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 0);
+        assertEq(signalGBX.balanceOf(ALICE), 100 ether);
+        assertEq(signalGBX.totalSupply(), 100 ether);
+        assertEq(signalGBX.getVotes(ALICE), 100 ether);
+        assertEq(gbx.balanceOf(ALICE), 900 ether);
+        assertEq(gbx.balanceOf(address(signalGBX)), 100 ether);
+    }
+
+    function test_OneElementRemoveSignalManyMatchesScalarRemoveSignal() external {
+        _signalDefault(ALICE, 100 ether);
+        _signalDefault(BOB, 100 ether);
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](1);
+        allocations[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 40 ether });
+
+        vm.prank(ALICE);
+        signalGBX.removeSignal(address(targetStrategy), 40 ether);
+        vm.prank(BOB);
+        signalGBX.removeSignalMany(allocations);
+
+        assertEq(gbx.balanceOf(ALICE), gbx.balanceOf(BOB));
+        assertEq(signalGBX.balanceOf(ALICE), signalGBX.balanceOf(BOB));
+        assertEq(signalGBX.getVotes(ALICE), signalGBX.getVotes(BOB));
+        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 60 ether);
+        assertEq(_accountSignalWeight(BOB, address(targetStrategy)), 60 ether);
+    }
+
+    function testFuzz_AddAndRemoveManyRoundTripIsLossless(uint256 first, uint256 second) external {
+        uint256 firstAmount = bound(first, 1, 500 ether);
+        uint256 secondAmount = bound(second, 1, 500 ether);
+        SignalGBX.Allocation[] memory allocations = _twoAllocations(firstAmount, secondAmount);
+        uint256 deposited = firstAmount + secondAmount;
+
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), deposited);
+        signalGBX.addSignalMany(allocations);
+        signalGBX.removeSignalMany(allocations);
+        vm.stopPrank();
+
+        assertEq(gbx.balanceOf(ALICE), 1_000 ether);
+        assertEq(gbx.balanceOf(address(signalGBX)), 0);
+        assertEq(signalGBX.balanceOf(ALICE), 0);
+        assertEq(signalGBX.totalSupply(), 0);
+        assertEq(signalGBX.getVotes(ALICE), 0);
+    }
+
+    function _twoAllocations(uint256 targetAmount, uint256 gbxAmount)
+        private
+        view
+        returns (SignalGBX.Allocation[] memory allocations)
+    {
+        allocations = new SignalGBX.Allocation[](2);
+        allocations[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: targetAmount });
+        allocations[1] = SignalGBX.Allocation({ strategy: address(gbxStrategy), amount: gbxAmount });
     }
 }

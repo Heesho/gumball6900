@@ -1,12 +1,12 @@
 ---
 title: How GumBall6900 Turns Community Conviction Into an Onchain Portfolio
-version: 2.0.0
-date: 2026-08-25
-source_commit: 3ae171b997254b56602298d873b3918d1575b3c7
+version: 2.1.0
+date: 2026-08-26
+source_commit: uncommitted-post-adr-0051
 base_commit: 3ae171b997254b56602298d873b3918d1575b3c7
-protocol_status: Development candidate implementing ADRs through ADR 0050; not approved for user funds.
+protocol_status: Development candidate implementing ADRs through ADR 0051; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: V12 findings and independent dispositions are pinned to 3ae171b997254b56602298d873b3918d1575b3c7; release gates remain open.
+internal_review_status: V12 findings and independent dispositions are pinned to 3ae171b997254b56602298d873b3918d1575b3c7. The current ADR 0051 batching and periphery delta is outside that review; release gates remain open.
 independent_audit_status: V12 export received for the pinned commit; incomplete assurance package, three behaviors confirmed, no release approval.
 ---
 
@@ -14,7 +14,8 @@ independent_audit_status: V12 export received for the pinned commit; incomplete 
 
 > **Before you read on:** this protocol is not deployed or approved for user funds. A V12 finding export targets
 > `3ae171b`, but it is incomplete and not release-authorizing; independent disposition confirmed three behaviors
-> requiring treatment. This is not a live product, and nothing here is investment advice.
+> requiring treatment. The current ADR 0051 batching and periphery changes are later and not covered by V12. This is
+> not a live product, and nothing here is investment advice.
 
 ## 1. The central idea
 
@@ -102,18 +103,19 @@ You can spread your position across Strategies by signaling each one separately 
 
 Three properties matter:
 
-- **There is no lock-up, cooldown, or epoch.** You can signal, move, and withdraw in consecutive blocks.
-- **You can always withdraw.** Withdrawal is bounded only by what you actually have committed to the Strategy you're
-  withdrawing from.
-- **Every signal change first settles the revenue that accrued under the old weights.** Moving your signal never
-  claws back or redirects money that already accrued to someone else. It only affects flow from that moment on.
+- **There is no lock-up, cooldown, or epoch.** You can add or remove signal in consecutive blocks or in one smart-wallet
+  transaction.
+- **You can always remove your signal.** Removal is bounded only by what you actually have committed to the selected
+  Strategy.
+- **Every signal change first settles the revenue that accrued under the old weights.** Reallocating never claws back
+  or redirects money that already accrued to someone else. It only affects flow from that moment on.
 
-Under the hood, moving is one atomic source removal followed by one destination addition. If the destination is not a
-live Strategy, the addition fails and the complete transaction rolls the removal back; Resonance does not need a
+Reallocation is a direct source removal followed by a destination addition. A smart account may compose both direct
+SignalGBX calls atomically, so an invalid destination rolls the complete wallet batch back; Resonance does not expose a
 separate move-only hook.
 
-The complete user surface is four functions: signal, signal using a gasless approval on the underlying GBX, move
-signal between Strategies, and withdraw signal.
+The complete user surface is four functions: scalar `addSignal` and `removeSignal`, plus optional struct-array
+`addSignalMany` and `removeSignalMany`. SignalGBX consumes no permit signature.
 
 ## 5. What sGBX is, and what it is not
 
@@ -238,9 +240,9 @@ Notice the total: **0.000002 USDG short**. That residue is the floor of the inte
 anyone, does not go to the treasury, and stays in Resonance permanently. This is a deliberate, documented trade-off —
 section 15 returns to it.
 
-**Day 2.** Ben decides staked ETH is the wrong bet and moves his entire 3,000 signal from Strategy B to Strategy A.
-Crucially, this settles Day 1 first — Ben's move does **not** claw back the 56,347.826086 USDG that already accrued to
-Strategy B. From now on:
+**Day 2.** Ben decides staked ETH is the wrong bet and reallocates his entire 3,000 signal from Strategy B to Strategy
+A through a removal and addition. Crucially, those calls settle Day 1 first — Ben's reallocation does **not** claw back
+the 56,347.826086 USDG that already accrued to Strategy B. From now on:
 
 | Strategy | Weight | Share | Day 2 USDG    |
 | -------- | ------ | ----- | ------------- |
@@ -547,6 +549,9 @@ To be exact about the current development candidate and V12 review target:
   independent disposition confirmed 249695, 249702, and 249705, while the export lacks a full scope, methodology,
   named auditor, date, signature, and final assurance statement. Symbolic analysis and formal verification also remain
   incomplete.
+- **ADR 0051 is outside that review.** Its renamed scalar selectors, batch loops, aggregate custody transitions,
+  stateless portfolio Lens, direct-call SDK composition, and subgraph position index are later development work and
+  require fresh independent review.
 - **The full deterministic workspace matrix passed locally before ADR 0045.** The uncommitted ADR 0044 tree passed 356/356
   default Foundry tests across 25 suites, 19/19 integration tests across two suites, Hardhat 4/4, SDK 50/50,
   TypeScript simulations 39/39, Python environment-policy checks 5/5 and simulations 25/25, subgraph specification

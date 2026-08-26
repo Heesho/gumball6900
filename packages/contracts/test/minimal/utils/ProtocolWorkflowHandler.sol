@@ -47,7 +47,7 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
         strategyRegistry = strategyRegistry_;
     }
 
-    function signal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
+    function addSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
         address strategy = _liveStrategy(strategySeed, address(0));
         if (strategy == address(0)) return;
 
@@ -61,13 +61,13 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
 
         vm.startPrank(actor);
         gbx.approve(address(signalGBX), requested);
-        signalGBX.signal(strategy, requested);
+        signalGBX.addSignal(strategy, requested);
         vm.stopPrank();
 
-        ghostCalls["signal"] += 1;
+        ghostCalls["addSignal"] += 1;
     }
 
-    function moveSignal(uint256 actorSeed, uint256 fromSeed, uint256 toSeed, uint256 amount) external {
+    function reallocateSignal(uint256 actorSeed, uint256 fromSeed, uint256 toSeed, uint256 amount) external {
         address actor = _actor(actorSeed);
         address fromStrategy = _allocatedStrategy(actor, fromSeed);
         if (fromStrategy == address(0)) return;
@@ -76,22 +76,26 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
         if (toStrategy == address(0)) return;
 
         uint256 held = _accountSignalWeight(actor, fromStrategy);
-        vm.prank(actor);
-        signalGBX.moveSignal(fromStrategy, toStrategy, _bound(amount, 1, held));
+        uint256 requested = _bound(amount, 1, held);
+        vm.startPrank(actor);
+        signalGBX.removeSignal(fromStrategy, requested);
+        gbx.approve(address(signalGBX), requested);
+        signalGBX.addSignal(toStrategy, requested);
+        vm.stopPrank();
 
-        ghostCalls["moveSignal"] += 1;
+        ghostCalls["reallocateSignal"] += 1;
     }
 
-    function withdrawSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
+    function removeSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
         address actor = _actor(actorSeed);
         address strategy = _allocatedStrategy(actor, strategySeed);
         if (strategy == address(0)) return;
 
         uint256 held = _accountSignalWeight(actor, strategy);
         vm.prank(actor);
-        signalGBX.withdrawSignal(strategy, _bound(amount, 1, held));
+        signalGBX.removeSignal(strategy, _bound(amount, 1, held));
 
-        ghostCalls["withdrawSignal"] += 1;
+        ghostCalls["removeSignal"] += 1;
     }
 
     function claimRewards(uint256 actorSeed, uint256 strategySeed) external {

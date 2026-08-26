@@ -129,6 +129,7 @@ dataSources:
         - ProtocolState
         - Account
         - Strategy
+        - SignalPosition
         - ProtocolEvent
       abis:
         - name: Resonance

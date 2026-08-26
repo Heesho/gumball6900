@@ -55,8 +55,10 @@
   Rate, index, and Strategy floors, zero-active-signal emission, and direct donations are accepted surplus.
 - Every signal mutation checkpoints elapsed stream revenue before changing weights, and every Strategy purchase
   checkpoints and pulls released revenue before reading inventory.
-- `SignalGBX.moveSignal` atomically composes source `removeSignalFor` then destination `addSignalFor`; the destination
-  must be live, a failed addition rolls back the removal, and Resonance exposes no dedicated move hook.
+- `addSignalMany` and `removeSignalMany` are atomic across their caller-supplied arrays, use one aggregate custody
+  transition, and emit the same per-allocation events as scalar calls. Scalar removal remains independently callable.
+- SignalGBX exposes no public move and Resonance exposes no dedicated move hook; smart wallets may compose direct
+  remove/add calls without granting a shared Router custody or operator authority.
 - Killing a Strategy checkpoints and preserves its accrued whole Resonance revenue, excludes its complete live weight,
   blocks additions, and lets existing signalers remove without reducing active `totalSignalWeight` again.
 - Bribe streams use ordinary Synthetix rate, index, and account floors; unallocated amounts remain token surplus.
@@ -68,8 +70,8 @@
   accepted raw notification, never decreases, and excludes direct donations. A notification that would exceed the cap
   reverts before checkpointing or transfer. The previewed reward-per-signal index cannot exceed
   `lifetimeRewardNotified[token] * Bribe.REWARD_PRECISION()`.
-- `withdrawSignal` never depends on transferring a revenue, payment, or reward token other than its canonical GBX
-  return. Killed-Strategy positions remain movable out or withdrawable.
+- `removeSignal` and `removeSignalMany` never depend on transferring a revenue, payment, or reward token other than
+  their canonical GBX return. Killed-Strategy positions remain removable.
 - Only Resonance can deploy through StrategyFactory or BribeFactory or maintain Bribe virtual balances.
 
 ## Governance

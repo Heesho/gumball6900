@@ -12,7 +12,8 @@ import {
   resonanceRouterAbi,
 } from './abis.js';
 import { MINE_MAX_MESSAGE_BYTES } from './math/constants.js';
-import { assertUint, bytes32Schema, positiveBigIntSchema, unsignedBigIntSchema } from './validation.js';
+import { normalizeSignalAllocations, type SignalAllocation } from './signal-allocations.js';
+import { assertUint, positiveBigIntSchema, unsignedBigIntSchema } from './validation.js';
 
 /** Wallet-ready contract call with no native-currency transfer. */
 export interface ContractTransaction {
@@ -37,6 +38,12 @@ function positiveUint256(value: bigint, name: string): void {
     throw new RangeError(`${name} must be positive`);
   }
   assertUint(value, 256, name);
+}
+
+function nonzeroAddress(value: Address, name: string): Address {
+  const normalized = getAddress(value);
+  if (normalized === zeroAddress) throw new RangeError(`${name} cannot be the zero address`);
+  return normalized;
 }
 
 function uniqueAddresses(values: readonly Address[], name: string): Address[] {
@@ -110,75 +117,57 @@ export function buildClaimMiningPayment(mine: Address, account: Address): Contra
   );
 }
 
-/** Atomically deposits GBX, mints non-transferable sGBX, and signals the same amount to one live Strategy. */
-export function buildSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
+/** Atomically deposits GBX, mints non-transferable sGBX, and adds the same signal to one live Strategy. */
+export function buildAddSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
   positiveUint256(amount, 'amount');
   return transaction(
     signalGBX,
     encodeFunctionData({
       abi: signalGbxAbi,
-      functionName: 'signal',
-      args: [getAddress(strategy), amount],
+      functionName: 'addSignal',
+      args: [nonzeroAddress(strategy, 'strategy'), amount],
     }),
   );
 }
 
-export interface SignalWithPermitParameters {
-  readonly signalGBX: Address;
-  readonly strategy: Address;
-  readonly amount: bigint;
-  readonly deadline: bigint;
-  readonly v: number;
-  readonly r: Hex;
-  readonly s: Hex;
-}
-
-/** Uses an underlying GBX permit, then atomically deposits, mints, and signals. */
-export function buildSignalWithPermit(parameters: SignalWithPermitParameters): ContractTransaction {
-  positiveUint256(parameters.amount, 'amount');
-  uint256(parameters.deadline, 'deadline');
-  if (!Number.isInteger(parameters.v) || parameters.v < 0 || parameters.v > 255) {
-    throw new RangeError('v must fit uint8');
-  }
-  const r = bytes32Schema.parse(parameters.r) as Hex;
-  const s = bytes32Schema.parse(parameters.s) as Hex;
+/** Coalesces duplicate Strategies and encodes one aggregate-custody addition across multiple live Strategies. */
+export function buildAddSignalMany(signalGBX: Address, allocations: readonly SignalAllocation[]): ContractTransaction {
+  const normalized = normalizeSignalAllocations(allocations);
   return transaction(
-    parameters.signalGBX,
+    signalGBX,
     encodeFunctionData({
       abi: signalGbxAbi,
-      functionName: 'signalWithPermit',
-      args: [getAddress(parameters.strategy), parameters.amount, parameters.deadline, parameters.v, r, s],
+      functionName: 'addSignalMany',
+      args: [normalized.allocations],
     }),
   );
 }
 
-/** Moves an absolute signal amount between Strategies without changing GBX custody or sGBX supply. */
-export function buildMoveSignal(
+/** Atomically removes signal from one Strategy, burns the same sGBX amount, and returns underlying GBX. */
+export function buildRemoveSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
+  positiveUint256(amount, 'amount');
+  return transaction(
+    signalGBX,
+    encodeFunctionData({
+      abi: signalGbxAbi,
+      functionName: 'removeSignal',
+      args: [nonzeroAddress(strategy, 'strategy'), amount],
+    }),
+  );
+}
+
+/** Coalesces duplicate Strategies and encodes one aggregate burn and withdrawal across multiple positions. */
+export function buildRemoveSignalMany(
   signalGBX: Address,
-  fromStrategy: Address,
-  toStrategy: Address,
-  amount: bigint,
+  allocations: readonly SignalAllocation[],
 ): ContractTransaction {
-  positiveUint256(amount, 'amount');
+  const normalized = normalizeSignalAllocations(allocations);
   return transaction(
     signalGBX,
     encodeFunctionData({
       abi: signalGbxAbi,
-      functionName: 'moveSignal',
-      args: [getAddress(fromStrategy), getAddress(toStrategy), amount],
-    }),
-  );
-}
-
-/** Atomically removes signal, burns the same sGBX amount, and returns underlying GBX. */
-export function buildWithdrawSignal(signalGBX: Address, strategy: Address, amount: bigint): ContractTransaction {
-  positiveUint256(amount, 'amount');
-  return transaction(
-    signalGBX,
-    encodeFunctionData({
-      abi: signalGbxAbi,
-      functionName: 'withdrawSignal',
-      args: [getAddress(strategy), amount],
+      functionName: 'removeSignalMany',
+      args: [normalized.allocations],
     }),
   );
 }

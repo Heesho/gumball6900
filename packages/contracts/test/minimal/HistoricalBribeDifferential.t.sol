@@ -123,8 +123,7 @@ contract HistoricalBribeDifferentialTest is ProtocolFixture {
 
     function test_VirtualBalanceChangesMatchHistoricalCheckpointOrdering() external {
         _signalDefault(ALICE, 100 ether);
-        vm.prank(ALICE);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
+        _reallocateSignal(ALICE, address(targetStrategy), address(gbxStrategy), 40 ether);
 
         historical.setBalance(address(targetStrategy), 60 ether);
         historical.setBalance(address(gbxStrategy), 40 ether);
@@ -132,8 +131,7 @@ contract HistoricalBribeDifferentialTest is ProtocolFixture {
         historical.notifyRewardAmount(604_800e6);
 
         vm.warp(block.timestamp + 1 days);
-        vm.prank(ALICE);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 10 ether);
+        _reallocateSignal(ALICE, address(targetStrategy), address(gbxStrategy), 10 ether);
         historical.setBalance(address(targetStrategy), 50 ether);
         historical.setBalance(address(gbxStrategy), 50 ether);
 

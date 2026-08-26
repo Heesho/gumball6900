@@ -39,14 +39,13 @@ Fund reads Mine's constant-time effective supply before its redemption snapshot.
 denominator without minting it, iterating slots, or changing mining state.
 
 SignalGBX is a non-transferable one-for-one GBX escrow token, retains ERC20Votes checkpoints for a future external
-governance integration, and is the only external signal coordinator. Idle sGBX is invalid. `signal` and
-`signalWithPermit` atomically deposit GBX, mint the same sGBX,
-assign the same amount to one live Strategy through Resonance, and mirror it into the paired Bribe. `moveSignal`
-atomically composes the restricted `removeSignalFor` source hook and `addSignalFor` destination hook; Resonance has no
-dedicated move hook. A failed destination addition rolls back the complete move. The successful composition changes
-allocation without changing custody, supply, or votes. `withdrawSignal` removes the Strategy and Bribe position, burns
-the same sGBX, and returns the same GBX. The permit path uses underlying GBX authorization; sGBX itself has no ERC-2612
-approval permit.
+governance integration, and is the only external signal coordinator. Idle sGBX is invalid. Scalar `addSignal` and
+`removeSignal` provide bounded one-Strategy entry and exit. `addSignalMany` and `removeSignalMany` apply optional
+caller-supplied arrays while transferring/minting or burning/returning the aggregate once. Every allocation still
+passes through Resonance's restricted add/remove hook and paired Bribe, and any failure reverts the complete batch.
+There is no permit-consuming signal path, public move, dedicated Resonance move hook, or shared write-through Router.
+Smart wallets may batch approvals and direct SignalGBX calls while retaining caller identity. sGBX itself has no
+ERC-2612 approval permit.
 
 Resonance holds forwarded USDG in one scalar global seven-day stream, with no reward-token registry or token-keyed
 revenue state, and uses unrestricted absolute SignalGBX allocations for
@@ -63,6 +62,10 @@ Signal state is deliberately split rather than duplicated: `SignalGBX.balanceOf(
 signal, the paired Bribe stores `signalWeightOf(account)` and its complete `totalSignalWeight`, and Resonance stores
 the active total across live Strategies. There is no separate `allocatedBalance` duplicate.
 
+`SignalPortfolioLens` is optional stateless read periphery over an explicit Strategy list. The subgraph's nonzero
+account-by-Strategy positions help discover that list. Neither surface is authoritative for writes: clients refresh
+canonical Bribe balances and Strategy status onchain, and write helpers target SignalGBX directly.
+
 StrategyFactory and BribeFactory are bound once to Resonance. Each Strategy has a dedicated Bribe and BribeRouter.
 Resonance stores one global acquired-asset `bribeBps`, defaulting to 10% and bounded from 0% through 20%. Before token
 interaction, Strategy snapshots that rate, transfers the floored Bribe share to its BribeRouter, and pays the
@@ -77,7 +80,8 @@ before checkpointing or transfer so index overflow cannot block signal exits. Ki
 preserves its accrued Resonance claim, removes its complete weight from active revenue allocation, and leaves its Bribe as a
 closed pool for existing signalers; no new signal can enter, and a final exit can permanently abandon unfinished
 rewards. After bootstrap, the final live Strategy cannot be killed until a replacement has been added, while killed-
-Strategy positions remain movable out or withdrawable.
+Strategy positions remain removable through either scalar or batched exit. Reallocation uses direct removal followed
+by addition to a live Strategy.
 
 Fund is an ownerless raw-token treasury with caller-selected redemption arrays and no registry or migration path. One
 reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token is registered as an ordinary bootstrap

@@ -4,19 +4,19 @@ Typed ABIs, transaction builders, canonical-block readers, validation, and indep
 6900 development core.
 
 The generated ABI set covers `GBX`, `Mine`, `SignalGBX`, `ResonanceRouter`, `Resonance`, both factories, `Strategy`,
-`BribeRouter`, `Bribe`, and `Fund`.
+`BribeRouter`, `Bribe`, `Fund`, and the optional stateless `SignalPortfolioLens`.
 
 ```ts
 import {
+  planAddSignals,
   buildClaimMiningPayment,
   buildMine,
   buildRedemption,
-  buildSignal,
-  buildSignalWithPermit,
   buildStrategyBuy,
   readMineSlotView,
   readResonanceView,
   readRedemptionPreview,
+  readSignalPortfolio,
   readSupplyView,
 } from '@gumball-6900/sdk';
 
@@ -33,16 +33,24 @@ const occupy = buildMine({
   message: 'hello from the mine',
 });
 const claim = buildClaimMiningPayment(mine, outgoingMiner);
-const signal = buildSignal(signalGBX, strategy, 1_000n * 10n ** 18n);
-const signalWithPermit = buildSignalWithPermit({
+const signalPlan = planAddSignals({
+  gbx,
   signalGBX,
-  strategy,
-  amount,
-  deadline,
-  v,
-  r,
-  s,
-}); // Uses the underlying GBX permit; SignalGBX itself has no ERC-20 Permit.
+  currentAllowance,
+  allocations: [
+    { strategy: strategyA, amount: 600n * 10n ** 18n },
+    { strategy: strategyB, amount: 400n * 10n ** 18n },
+  ],
+});
+// A smart account may submit signalPlan.accountCalls atomically. Every signaling write targets SignalGBX directly;
+// signalPlan.scalarTransactions remains available if the native batch is unsuitable.
+const portfolio = await readSignalPortfolio(
+  publicClient,
+  signalPortfolioLens,
+  { signalGBX, resonance },
+  account,
+  strategyAddresses,
+);
 const redemptionPreview = await readRedemptionPreview(publicClient, { fund, mine }, gbxAmount, selectedTokens);
 const redemption = buildRedemption(fund, gbxAmount, receiver, selectedTokens);
 const purchase = buildStrategyBuy({ strategy, revenueReceiver: receiver, expectedEpochId, deadline, maximumPayment });
@@ -76,10 +84,22 @@ Resonance's USDG accounting uses revenue-specific names: `revenueData`, `revenue
 Bribe token. Bribe itself intentionally retains `rewardData`, `rewardPerSignal`, and `earned` because it handles
 independently funded rewards rather than Resonance revenue.
 
-SignalGBX is the user-facing signaling and vote-delegation boundary. `buildSignal` atomically deposits GBX, mints the
-same sGBX amount, and assigns it to one live Strategy; `buildSignalWithPermit` does the same using underlying GBX
-permit. `buildMoveSignal` reallocates existing signal, and `buildWithdrawSignal` atomically removes signal, burns sGBX,
-and returns GBX. Idle SignalGBX is unreachable, and direct SignalGBX transfers are disabled.
+SignalGBX is the user-facing signaling and vote-delegation boundary. `buildAddSignal` and `buildAddSignalMany`
+atomically deposit GBX, mint the same aggregate sGBX amount, and assign it to one or more live Strategies.
+`buildRemoveSignal` and `buildRemoveSignalMany` perform the inverse, including for killed-Strategy exits. The planners
+coalesce duplicate Strategy rows, expose the total and current allowance shortfall, prefer scalar calls for one
+allocation and native batches for multiple allocations, and retain normalized scalar transactions as a fallback.
+There is no write-through router: a smart account may atomically bundle the optional GBX approval with the direct
+SignalGBX call, while an EOA may approve separately. Idle SignalGBX is unreachable, and direct receipt transfers are
+disabled.
+
+`readSignalPortfolio` uses the optional stateless `SignalPortfolioLens` to return one account summary and a
+caller-selected set of current Strategy, signal-weight, Resonance-revenue, and paired-Bribe reward views at one pinned,
+revalidated block. The Lens has no Strategy registry and is not an authoritative deployment source. Discover the
+Strategy list from indexed `StrategyAdded` events or the subgraph, pass trusted core addresses explicitly, and chunk
+large portfolios when an RPC's gas or response-size limits require it.
+`protocolPeripheryAddressesSchema` validates its replaceable address separately rather than treating it as part of the
+fixed core deployment graph.
 
 `buildRouteRevenue` leaves a Router balance below `max(REWARD_DURATION, remainingRevenue())` in the Router; a qualifying
 complete balance restarts seven days with ordinary Synthetix leftover rollover. `buildRouteBribeRewards` performs the

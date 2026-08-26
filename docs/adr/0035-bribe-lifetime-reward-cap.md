@@ -1,7 +1,8 @@
 # ADR 0035: Cap lifetime Bribe reward notifications
 
 - Status: lifetime-cap design retained; numeric `1e18` precision and cap superseded by ADR 0037; not independently
-  audited or deployed; not approved for user funds; inherited eight-token loop references are superseded by ADR 0048
+  audited or deployed; not approved for user funds; inherited eight-token loop references are superseded by ADR 0048,
+  and signal-operation names are superseded by ADR 0051
 - Date: 2026-08-19
 - Builds on: ADR 0020's exact Bribe accounting and ADR 0027's signal-supply carry boundaries
 - Preserves: ADR 0028's closed reward-pool behavior after Strategy death
@@ -14,8 +15,8 @@ not reduce the lifetime cumulative index.
 
 A token with an extremely large raw-unit supply could therefore fill the index close to `uint256` maximum, complete
 the stream, reclaim the reward, and then notify another small stream. Its next checkpoint would overflow the cumulative
-index. Because every signal deposit, move, and withdrawal checkpoints all registered tokens, the persistent overflowing
-schedule could prevent signalers from recovering escrowed GBX.
+index. Because every signal addition and removal checkpoints all registered tokens, the persistent overflowing schedule
+could prevent signalers from recovering escrowed GBX.
 
 Ordinary 18-decimal tokens cannot practically reach the required amount. Freely mintable, upgradeable, or unusually
 high-decimal tokens make the raw-unit boundary a credible defensive concern once registered.
@@ -61,7 +62,7 @@ bound, so the selected cap is also the largest history-independent limit that is
 
 ## Consequences
 
-- Existing rewards, claims, signal moves, and withdrawals remain available after the cap is reached; only new
+- Existing rewards, claims, and scalar or batched signal removals remain available after the cap is reached; only new
   notifications for that token and Bribe are rejected.
 - At 18 decimals, the cap is approximately `1.158e41` whole tokens and is not a practical constraint for a conventional
   honest asset. The limit is intentionally measured in raw units and can constrain unusually high-decimal tokens.

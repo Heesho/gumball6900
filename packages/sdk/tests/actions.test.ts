@@ -2,6 +2,8 @@ import { decodeFunctionData, getAddress } from 'viem';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildAddSignal,
+  buildAddSignalMany,
   buildApproval,
   buildClaimAllBribeRewards,
   buildClaimBribeReward,
@@ -10,14 +12,12 @@ import {
   buildDistributeRevenue,
   buildFundBurn,
   buildMine,
-  buildMoveSignal,
+  buildRemoveSignal,
+  buildRemoveSignalMany,
   buildRedemption,
   buildRouteBribeRewards,
   buildRouteRevenue,
-  buildSignal,
-  buildSignalWithPermit,
   buildStrategyBuy,
-  buildWithdrawSignal,
   bribeAbi,
   bribeRouterAbi,
   fundAbi,
@@ -33,8 +33,6 @@ const A = '0x0000000000000000000000000000000000000001';
 const B = '0x0000000000000000000000000000000000000002';
 const C = '0x0000000000000000000000000000000000000003';
 const D = '0x0000000000000000000000000000000000000004';
-const R = `0x${'11'.repeat(32)}` as const;
-const S = `0x${'22'.repeat(32)}` as const;
 
 describe('minimal typed transaction builders', () => {
   it('encodes a standard approval and protected Mine handoff', () => {
@@ -76,40 +74,64 @@ describe('minimal typed transaction builders', () => {
     expect(() => buildMine({ ...parameters, message: '🍬'.repeat(71) })).toThrow(RangeError);
   });
 
-  it('targets SignalGBX for mandatory deposit-and-signal, permit, moves, atomic exits, and delegation', () => {
-    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildSignal(A, B, 3n).data })).toMatchObject({
+  it('targets SignalGBX for scalar and batched additions, removals, and delegation', () => {
+    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildAddSignal(A, B, 3n).data })).toMatchObject({
       args: [getAddress(B), 3n],
-      functionName: 'signal',
+      functionName: 'addSignal',
     });
     expect(
       decodeFunctionData({
         abi: signalGbxAbi,
-        data: buildSignalWithPermit({
-          amount: 6n,
-          deadline: 1_000n,
-          r: R,
-          s: S,
-          signalGBX: A,
-          strategy: B,
-          v: 27,
-        }).data,
+        data: buildAddSignalMany(A, [
+          { strategy: B, amount: 2n },
+          { strategy: C, amount: 4n },
+          { strategy: B, amount: 3n },
+        ]).data,
       }),
     ).toMatchObject({
-      args: [getAddress(B), 6n, 1_000n, 27, R, S],
-      functionName: 'signalWithPermit',
+      args: [
+        [
+          { strategy: getAddress(B), amount: 5n },
+          { strategy: getAddress(C), amount: 4n },
+        ],
+      ],
+      functionName: 'addSignalMany',
     });
-    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildMoveSignal(A, B, C, 2n).data })).toMatchObject({
-      args: [getAddress(B), getAddress(C), 2n],
-      functionName: 'moveSignal',
-    });
-    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildWithdrawSignal(A, B, 2n).data })).toMatchObject({
+    expect(decodeFunctionData({ abi: signalGbxAbi, data: buildRemoveSignal(A, B, 2n).data })).toMatchObject({
       args: [getAddress(B), 2n],
-      functionName: 'withdrawSignal',
+      functionName: 'removeSignal',
+    });
+    expect(
+      decodeFunctionData({
+        abi: signalGbxAbi,
+        data: buildRemoveSignalMany(A, [
+          { strategy: B, amount: 1n },
+          { strategy: C, amount: 2n },
+        ]).data,
+      }),
+    ).toMatchObject({
+      args: [
+        [
+          { strategy: getAddress(B), amount: 1n },
+          { strategy: getAddress(C), amount: 2n },
+        ],
+      ],
+      functionName: 'removeSignalMany',
     });
     expect(decodeFunctionData({ abi: signalGbxAbi, data: buildDelegateSignalVotes(A, D).data })).toMatchObject({
       args: [getAddress(D)],
       functionName: 'delegate',
     });
+  });
+
+  it('rejects empty, zero, and zero-Strategy batches before wallet submission', () => {
+    expect(() => buildAddSignal(A, '0x0000000000000000000000000000000000000000', 1n)).toThrow(RangeError);
+    expect(() => buildRemoveSignal(A, '0x0000000000000000000000000000000000000000', 1n)).toThrow(RangeError);
+    expect(() => buildAddSignalMany(A, [])).toThrow(RangeError);
+    expect(() => buildAddSignalMany(A, [{ strategy: B, amount: 0n }])).toThrow(RangeError);
+    expect(() =>
+      buildRemoveSignalMany(A, [{ strategy: '0x0000000000000000000000000000000000000000', amount: 1n }]),
+    ).toThrow(RangeError);
   });
 
   it('encodes Resonance routing and distribution', () => {

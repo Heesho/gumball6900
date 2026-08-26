@@ -102,16 +102,17 @@ export const story = {
  * causal chain; they are one section because they are one mechanism.
  *
  * ADR 0025 makes the routing claim time-weighted: signals decide where each released interval goes.
+ * ADR 0051 replaces move/permit/withdraw selectors with scalar and batched add/remove calls.
  *
  * The tickers are eligible assets named in `packages/config/assets/robinhood.ts`, not
  * holdings. The split and the four rounds are invented.
  */
 export const signal = {
   title: 'How signaling works',
-  lead: 'Deposit GBX as sGBX signals. Every unit points to an asset until moved or withdrawn. Fund purchases back redeemable GBX.',
+  lead: 'Deposit GBX as sGBX signal. Every unit stays assigned until removed. Fund purchases back redeemable GBX.',
   splitLabel: "This round's signal",
   splitNote:
-    'All sGBX stays signaled. Move or withdraw any time. A 0% automatic reward rate leaves signaling and independent Bribes live.',
+    'Add or remove signal from one Strategy or many per transaction. A 0% automatic reward rate leaves signaling and independent Bribes live.',
   segments: [
     { token: 'NVDA', share: 50 },
     { token: 'QQQ', share: 30 },
@@ -156,9 +157,9 @@ export const rules = {
       // promises.
       tone: 'note',
       body:
-        `Mining slots are always for sale, each price falling to zero over ${numbers.priceDecay}. ` +
-        `The buyer pays USDG and earns GBX until replaced. On a nonempty-slot replacement, ${numbers.minerShare} pays ` +
-        `the outgoing tenure miner and ${numbers.routedShare} is routed later; an empty slot routes 100%. Routing has no guaranteed caller, and nobody is promised a replacement.`,
+        `Each slot's price falls to zero over ${numbers.priceDecay}. A buyer pays USDG and earns GBX until replaced. ` +
+        `A nonempty replacement pays ${numbers.minerShare} to the outgoing miner and deposits ${numbers.routedShare} for later routing; ` +
+        `an empty slot deposits 100%. Neither routing nor replacement is guaranteed.`,
     },
   ],
 };
@@ -198,6 +199,6 @@ export const reasons = {
  * and dropping it would let the sheet read as a live product.
  */
 export const status = {
-  note: 'Experimental software. Not deployed; V12 export received, but review and release gates remain open. Robinhood Chain is an intended target, not a commitment.',
+  note: 'Experimental; not deployed. V12 excludes ADR-0051 batching and periphery. Review remains open. Robinhood Chain is intended, not committed.',
   more: 'Full detail: docs/WHITEPAPER.md',
 };

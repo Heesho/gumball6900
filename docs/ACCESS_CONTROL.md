@@ -32,7 +32,7 @@ The acquired-asset Bribe share is one global prospective parameter, defaults to 
 Bribe share, transfers the complement directly to Fund, and buffers only the Bribe share in BribeRouter. A change
 affects only later purchases; already transferred Fund amounts, buffered Bribe tokens, reward schedules, and claims do
 not change. There is no cumulative split carry, per-Strategy rate, or second Fund-share setter. At 0%, signal entry,
-movement, withdrawal, killed-Strategy exit, existing rewards, and independent Bribe funding remain permissionless and
+addition, removal, killed-Strategy exit, existing rewards, and independent Bribe funding remain permissionless and
 live.
 
 After the first Strategy is created, `killStrategy` reverts if it would remove the final live Strategy. The Resonance
@@ -50,12 +50,13 @@ GBX binds Mine once during deployment. SignalGBX, StrategyFactory, and BribeFact
 are ownerless. There are no proxies, pause switches, sweep methods, successor bindings, migrations,
 or generic executors in the core protocol contracts.
 
-Mining replacements, outgoing-tenure-miner claims, routing, `signal`, `signalWithPermit`, `moveSignal`,
-`withdrawSignal`, Strategy purchases, reward claims, buffered paired-Bribe routing, Fund GBX burning, and
-redemption are permissionless. There is no standalone staking or unstaking surface.
+Mining replacements, outgoing-tenure-miner claims, routing, `addSignal`, `addSignalMany`, `removeSignal`,
+`removeSignalMany`, Strategy purchases, reward claims, buffered paired-Bribe routing, Fund GBX burning, and redemption
+are permissionless. There is no standalone staking, unstaking, permit-consuming signal, or public move surface.
 Mine stops after a successful nominal `SafeERC20` transfer request to ResonanceRouter under the supported standard
 USDG model. The later permissionless `route()` has no keeper role, bounty, or liveness guarantee and belongs to
 optional manual, frontend, or cron execution.
-Resonance's signal hooks accept only SignalGBX, preventing a second user-facing coordinator. Permissionless
+Resonance's signal hooks accept only SignalGBX, preventing a second user-facing or write-through coordinator. Wallet
+batches must call SignalGBX directly so the wallet remains `msg.sender`. Permissionless
 `BribeRouter.route()` can notify only its immutable paired Bribe with its immutable payment token and cannot
 redirect the buffer.

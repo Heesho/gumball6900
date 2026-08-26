@@ -1,9 +1,10 @@
 # Independent adversarial specification
 
-Date: 2026-08-15. Reconciled 2026-08-24 through ADR 0050.
+Date: 2026-08-15. Reconciled 2026-08-26 through ADR 0051.
 
-This is the current review target for the unsuperseded portions of ADRs 0028, 0029, 0031, 0033-0050 in the
-development candidate. It is not an independent audit result.
+This is the current review target for the unsuperseded portions of ADRs 0028, 0029, 0031, 0033-0051 in the
+development candidate. ADR 0051 is outside the received V12 scope at `3ae171b`. This is not an independent audit
+result.
 
 ## Authority model
 
@@ -26,7 +27,7 @@ development candidate. It is not an independent audit result.
 - GBX starts with zero supply and permanently binds its only lifetime issuer to one deployed Mine whose reciprocal
   `gbx()` identity matches. Its setup minter cannot mint before that handoff.
 - Supply reconciles as `lifetimeMinted - lifetimeBurned` and has no protocol-defined economic maximum. GBX retains
-  ERC20Permit for approval-based signaling but has no voting checkpoints; SignalGBX exposes the core's only IVotes
+  ERC20Permit for general integrations but has no voting checkpoints; SignalGBX exposes the core's only IVotes
   checkpoints for a future external governance integration.
 - Mine has exactly sixteen permanent slots from construction.
 - Each slot price decays linearly to zero over one hour. Epoch ID, deadline, and maximum payment protect replacements.
@@ -47,11 +48,12 @@ development candidate. It is not an independent audit result.
 ## Signals, Strategies, and Bribes
 
 - SignalGBX mints and burns one-for-one, is non-transferable, and accepts GBX only after reciprocal Resonance binding.
-  Every mint atomically adds the same signal to one live Strategy, and every burn atomically removes signal and returns
+  Every mint atomically adds the same signal to live Strategies, and every burn atomically removes signal and returns
   the same GBX. Its supply is fully backed; unsolicited GBX is stranded surplus rather than token issuance. It retains
-  ERC20Votes but not ERC20Permit; `signalWithPermit` authorizes only the underlying GBX transfer.
-- SignalGBX is the sole user-facing signal coordinator. Its balance is each account's aggregate signal and it supports
-  atomic deposit-and-signal, live-to-live or killed-to-live moves, and remove-burn-withdraw. Idle sGBX is unreachable.
+  ERC20Votes but not ERC20Permit and consumes no underlying permit signature.
+- SignalGBX is the sole user-facing signal coordinator. Its balance is each account's aggregate signal. Scalar
+  `addSignal`/`removeSignal` remain bounded; `addSignalMany`/`removeSignalMany` optionally aggregate custody and loop
+  over caller-supplied allocations atomically. Idle sGBX is unreachable.
 - Each paired Bribe owns account-by-Strategy signal weight and total Strategy signal weight. Resonance owns only the
   active global denominator and reads the Bribe's canonical `signalWeightOf` and `totalSignalWeight` values. A killed
   Strategy is excluded immediately while its Bribe weights remain recorded for exit.
@@ -73,9 +75,9 @@ development candidate. It is not an independent audit result.
 - Killing a Strategy checkpoints and preserves its accrued claim, excludes its full weight from future Resonance
   revenue, blocks later signal additions, and leaves incumbent signalers free to exit without decrementing the active
   total twice. Its paired Bribe remains independently fundable.
-- SignalGBX moves by calling `removeSignalFor` for the source and then `addSignalFor` for the destination in one
-  transaction. Each hook checkpoints its Strategy before its own weight mutation; destination failure rolls the
-  source removal back. Resonance exposes no dedicated move hook.
+- SignalGBX exposes no public move and Resonance exposes no dedicated move hook. Each retained add/remove hook
+  checkpoints its Strategy before its own weight mutation. Smart wallets may compose direct calls atomically; a shared
+  write Router is forbidden because it would become the signal owner under `msg.sender` semantics.
 - One uniform Strategy type checkpoints and pulls released revenue before auctioning its complete USDG lot. Each
   payment snapshots Resonance's current global Bribe rate; the Fund rate is its complement and no Strategy override
   exists. For each purchase `a` at its snapshotted rate `r`, Strategy computes
@@ -88,9 +90,9 @@ development candidate. It is not an independent audit result.
   seven-day Synthetix schedule and a `1e36` index. Reward time continues at zero supply; notifications are not queued;
   and rate, index, and account floors remain unallocated Bribe surplus rather than carry or Fund liabilities.
   `claimRewards(account)` is the bounded all-token convenience path, while `claimReward(account, token)` isolates a
-  broken token. Neither signal movement nor withdrawal transfers a reward token.
+  broken token. Neither scalar nor batched signal removal transfers a reward token.
 - At a 0% automatic rate, new Strategy payments go entirely to Fund. Existing reward settlement, independent
-  notifications, signal, move, withdrawal, and killed-Strategy exit remain unchanged and callable.
+  notifications, signal additions, removals, and killed-Strategy exit remain unchanged and callable.
 - Mine, SignalGBX, Strategy, Resonance, and Bribe use `SafeERC20` under standard canonical or
   registered-token assumptions rather than checking sender and receiver deltas. Fund redemption retains exact payout
   deltas and basket guards because selected assets are arbitrary.
@@ -112,10 +114,10 @@ development candidate. It is not an independent audit result.
   no-economic-cap issuance model, effective-supply redemption, qualifying Resonance resets and surplus solvency. The
   Solidity suites cover per-purchase Strategy floors, direct Fund settlement, Router buffering, Synthetix leftover
   rollover, and Bribe surplus floors. The ADR-0048 focused suites passed 104/104 and the revised mutation campaign
-  killed 47/47 mutants before ADRs 0049 and 0050; the complete deterministic/workspace and external campaigns require
-  a post-ADR-0050 rerun.
-- Foundry separately proves coordinator rollback, move semantics, and that historical SignalGBX voting checkpoints
-  survive withdrawal. A later integration campaign must prove the selected external system's token compatibility,
+  killed 47/47 mutants before ADRs 0049-0051; the complete deterministic/workspace and external campaigns require a
+  post-ADR-0051 rerun.
+- Current review must separately prove scalar and batch rollback, aggregate custody, duplicate-entry semantics, and
+  that historical SignalGBX voting checkpoints survive removal. A later integration campaign must prove the selected external system's token compatibility,
   permissions, voting, proposal scope, delay, cancellation, execution, and ownership handoff.
 - No consumer may display pending Mine accrual as already minted supply or the 80% replacement claim as guaranteed.
 - A green local campaign does not clear independent audit, parameter, monitored testnet, manifest, licensing, or legal

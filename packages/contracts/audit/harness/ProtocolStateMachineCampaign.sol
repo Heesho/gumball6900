@@ -174,7 +174,7 @@ contract ProtocolStateMachineCampaign {
         if (alive.length == 0) revert("NO_LIVE_STRATEGY");
 
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), requested)));
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.signal, (alive[0], requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.addSignal, (alive[0], requested)));
     }
 
     function withdrawDefault(uint8 actorSeed, uint96 amount) external {
@@ -185,10 +185,10 @@ contract ProtocolStateMachineCampaign {
         address strategy = selected[0];
         uint256 requested = _clamp(amount, 1, _accountSignalWeight(account, strategy));
 
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.withdrawSignal, (strategy, requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignal, (strategy, requested)));
     }
 
-    function signal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
+    function addSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
         uint256 available = gbx.balanceOf(account);
@@ -199,10 +199,10 @@ contract ProtocolStateMachineCampaign {
         address strategy = alive[uint256(strategySeed) % alive.length];
         uint256 requested = _clamp(amount, 1, available);
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), requested)));
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.signal, (strategy, requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.addSignal, (strategy, requested)));
     }
 
-    function withdrawSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
+    function removeSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
         address[] memory selected = _accountStrategies(account);
@@ -210,11 +210,11 @@ contract ProtocolStateMachineCampaign {
 
         address strategy = selected[uint256(strategySeed) % selected.length];
         uint256 requested = _clamp(amount, 1, _accountSignalWeight(account, strategy));
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.withdrawSignal, (strategy, requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignal, (strategy, requested)));
     }
 
-    /// @notice Moves an existing position to a distinct live Strategy without changing custody or receipt supply.
-    function moveSignal(uint8 actorSeed, uint8 sourceSeed, uint8 destinationSeed, uint96 amount) external {
+    /// @notice Exercises a remove-plus-add reallocation through the canonical scalar operations.
+    function reallocateSignal(uint8 actorSeed, uint8 sourceSeed, uint8 destinationSeed, uint96 amount) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
         address[] memory current = _accountStrategies(account);
@@ -230,10 +230,12 @@ contract ProtocolStateMachineCampaign {
         if (destination == source) revert("NO_ALTERNATE_LIVE_STRATEGY");
 
         uint256 requested = _clamp(amount, 1, _accountSignalWeight(account, source));
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.moveSignal, (source, destination, requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignal, (source, requested)));
+        actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), requested)));
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.addSignal, (destination, requested)));
     }
 
-    function signalMany(uint8 actorSeed, uint8 countSeed) external {
+    function addSignalMany(uint8 actorSeed, uint8 countSeed) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
         uint256 available = gbx.balanceOf(account);
@@ -242,38 +244,31 @@ contract ProtocolStateMachineCampaign {
 
         uint256 count = (uint256(countSeed) % alive.length) + 1;
         if (available < count) return;
-        address[] memory selected = new address[](count);
-        uint256[] memory amounts = new uint256[](count);
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](count);
         uint256 share = available / count;
         for (uint256 i; i < count; ++i) {
-            selected[i] = alive[i];
-            amounts[i] = share;
+            allocations[i] = SignalGBX.Allocation({ strategy: alive[i], amount: share });
         }
-        amounts[0] += available - (share * count);
+        allocations[0].amount += available - (share * count);
 
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), available)));
-        for (uint256 i; i < count; ++i) {
-            actor.run(address(signalGBX), abi.encodeCall(SignalGBX.signal, (selected[i], amounts[i])));
-        }
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.addSignalMany, (allocations)));
     }
 
-    function withdrawSignalMany(uint8 actorSeed, uint8 countSeed) external {
+    function removeSignalMany(uint8 actorSeed, uint8 countSeed) external {
         CampaignActor actor = _actor(actorSeed);
         address account = address(actor);
         address[] memory current = _accountStrategies(account);
         if (current.length == 0) revert("NO_ACCOUNT_STRATEGY");
 
         uint256 count = (uint256(countSeed) % current.length) + 1;
-        address[] memory selected = new address[](count);
-        uint256[] memory amounts = new uint256[](count);
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](count);
         for (uint256 i; i < count; ++i) {
-            selected[i] = current[i];
-            amounts[i] = _accountSignalWeight(account, current[i]);
+            allocations[i] =
+                SignalGBX.Allocation({ strategy: current[i], amount: _accountSignalWeight(account, current[i]) });
         }
 
-        for (uint256 i; i < count; ++i) {
-            actor.run(address(signalGBX), abi.encodeCall(SignalGBX.withdrawSignal, (selected[i], amounts[i])));
-        }
+        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignalMany, (allocations)));
     }
 
     function mine(uint8 actorSeed, uint8 slotSeed) external {

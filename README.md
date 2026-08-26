@@ -25,14 +25,16 @@ burned for caller-selected Fund assets.
 > [ADR 0046](docs/adr/0046-usdg-only-resonance-accounting.md), and
 > [ADR 0047](docs/adr/0047-synthetix-shaped-rewards-and-strategy-settlement.md), and
 > [ADR 0048](docs/adr/0048-expand-bribe-rewards-and-compose-signal-moves.md),
-> [ADR 0049](docs/adr/0049-trust-canonical-token-transfers.md), and
-> [ADR 0050](docs/adr/0050-zero-premint-and-external-lp-strategy.md), are implemented in the development tree.
+> [ADR 0049](docs/adr/0049-trust-canonical-token-transfers.md),
+> [ADR 0050](docs/adr/0050-zero-premint-and-external-lp-strategy.md), and
+> [ADR 0051](docs/adr/0051-scalar-and-batched-signal-entrypoints.md), are implemented in the development tree.
 > ADR 0047 restores Synthetix-shaped reward schedules and direct per-purchase Strategy settlement; ADR 0048 raises the
 > fixed Bribe reward-token cap to sixteen and removes Resonance's dedicated move hook in favor of SignalGBX composing
 > removal and addition atomically. ADR 0049 standardizes canonical GBX/USDG paths on `SafeERC20` without balance-delta
 > snapshots while retaining Fund's arbitrary-asset redemption guards. ADR 0050 removes the GBX premint and canonical
 > liquidity contract; one reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 is instead an
-> ordinary bootstrap Strategy asset.
+> ordinary bootstrap Strategy asset. ADR 0051 replaces signal/permit/move/withdraw with scalar and optional batched
+> add/remove operations and adds stateless read periphery without a shared write-through Router.
 > Governance execution remains an unselected external integration, so deployment is
 > blocked. This is local engineering evidence only; independent review and every deployment gate remain outstanding.
 
@@ -42,10 +44,10 @@ burned for caller-selected Fund assets.
    the outgoing tenure miner and Mine deposits the 20% remainder into ResonanceRouter. An empty slot deposits 100%. A
    later permissionless `route()` call may forward the Router balance into Resonance.
 2. The slot miner continuously accrues GBX at a rate fixed for that complete tenure.
-3. GBX holders call SignalGBX (`sGBX`), the non-transferable governance token and sole signal coordinator, to deposit
-   GBX, mint the same sGBX amount, and assign every minted unit to one live Strategy atomically. They may move an
-   allocation through one atomic source removal and destination addition without changing custody or votes, or
-   withdraw it by removing signal, burning sGBX, and receiving GBX.
+3. GBX holders call SignalGBX (`sGBX`), the non-transferable governance token and sole signal coordinator, to add signal
+   to one or several live Strategies atomically. Scalar and batched removals burn the corresponding sGBX and return the
+   same GBX; scalar removal remains the bounded fallback. Smart wallets may compose approvals and direct calls, but no
+   shared Router owns or writes user signal.
 4. A Strategy buyer atomically pulls its released USDG, receives the complete Strategy balance, and pays the asset that
    Strategy acquires. Strategy snapshots Resonance's current global Bribe rate, floors that purchase's Bribe share,
    sends the 80%-to-100% complement directly to Fund, and sends the 0%-to-20% Bribe share to its minimal BribeRouter
@@ -113,7 +115,7 @@ four continuing protocol administration methods:
 - set the single global prospective automatic-Bribe share from 0% through 20%.
 
 Changing that rate never reprices an earlier payment, reward stream, or claim. At 0%, new Strategy payments go
-entirely to Fund; paired Bribes, independently funded rewards, signal movement, and withdrawal remain available.
+entirely to Fund; paired Bribes, independently funded rewards, and scalar/batched signal removal remain available.
 
 SignalGBX retains block-clock ERC20Votes checkpoints for an external governance system, but this repository does not
 select or implement that system. The exact executor, release, plugins, permissions, voting rules, upgrade model,
@@ -137,6 +139,9 @@ batching an addition before the old Strategy's kill.
 | `BribeRouter`     | Minimal buffer that permissionlessly notifies a paired Bribe with its acquired-asset share.      |
 | `Bribe`           | Synthetix-shaped automatic and independent rewards with fixed token and lifetime caps.           |
 | `Fund`            | Registry-free backing, selective redemption, and permissionless Fund-held GBX burn.              |
+
+Optional `SignalPortfolioLens` periphery batches caller-selected, stateless portfolio reads. It holds no registry,
+role, custody, or write path; SDK write builders target SignalGBX directly.
 
 The core contains no liquidity contract. One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token
 is registered during bootstrap as an ordinary Strategy payment token, using the same Fund/Bribe settlement as every
@@ -209,7 +214,8 @@ Start with [architecture](docs/ARCHITECTURE.md), [economics](docs/ECONOMICS.md),
 [ADR 0047](docs/adr/0047-synthetix-shaped-rewards-and-strategy-settlement.md), and
 [ADR 0048](docs/adr/0048-expand-bribe-rewards-and-compose-signal-moves.md), and
 [ADR 0049](docs/adr/0049-trust-canonical-token-transfers.md), and
-[ADR 0050](docs/adr/0050-zero-premint-and-external-lp-strategy.md).
+[ADR 0050](docs/adr/0050-zero-premint-and-external-lp-strategy.md), and
+[ADR 0051](docs/adr/0051-scalar-and-batched-signal-entrypoints.md).
 
 ## Provenance
 

@@ -4,16 +4,26 @@ import test from 'node:test';
 import {
   REQUIRED_ENTITIES,
   REQUIRED_HANDLERS,
+  REQUIRED_MAPPING_ENTITIES,
   REVIEWED_EXTENSION_ENTITIES,
   evaluateSpecCoverage,
 } from './check-spec-coverage.mjs';
 
 function completeFixture() {
+  const resonanceEntities = REQUIRED_MAPPING_ENTITIES['./src/resonance.ts'];
   return {
     mappings: REQUIRED_HANDLERS.map((handler) => `export function ${handler}(): void {}`).join('\n'),
-    manifest: REQUIRED_HANDLERS.map(
-      (handler, index) => `      - event: Event${index}()\n        handler: ${handler}`,
-    ).join('\n'),
+    manifest: [
+      '    mapping:',
+      '      entities:',
+      ...resonanceEntities.map((entity) => `        - ${entity}`),
+      '      abis:',
+      ...REQUIRED_HANDLERS.flatMap((handler, index) => [
+        `      - event: Event${index}()`,
+        `        handler: ${handler}`,
+      ]),
+      '      file: ./src/resonance.ts',
+    ].join('\n'),
     schema: [...REQUIRED_ENTITIES, ...REVIEWED_EXTENSION_ENTITIES]
       .map((entity) => `type ${entity} @entity(immutable: true) { id: ID! }`)
       .join('\n'),
@@ -33,6 +43,12 @@ test('rejects a missing required entity and an unreviewed schema extension', () 
     'Schema entity set is missing ProtocolState',
     'Schema entity set contains unexpected UnreviewedEntity',
   ]);
+});
+
+test('rejects a reviewed entity omitted from its mapping declaration', () => {
+  const fixture = completeFixture();
+  fixture.manifest = fixture.manifest.replace('        - SignalPosition\n', '');
+  assert.ok(evaluateSpecCoverage(fixture).includes('Manifest ./src/resonance.ts entity set is missing SignalPosition'));
 });
 
 test('rejects manifest and mapping drift independently', () => {

@@ -36,16 +36,15 @@
   effective-supply denominator without checkpointing, but ordinary
   wallet and indexer supply displays must distinguish current `totalSupply()` after burns from effective supply.
 - Mine replacements settle only the selected slot and redemptions perform no Mine mutation or slot loop.
-- Unrestricted signaling permits rapid allocation movement and wallet-splitting; it deliberately provides no
+- Unrestricted signaling permits rapid allocation changes and wallet-splitting; it deliberately provides no
   epoch-level stability or anti-churn guarantee. Elapsed revenue is checkpointed before each weight change, so a
   same-block flash signal earns no newly notified USDG, but a signal held over real time earns that interval's flow.
-- `moveSignal` atomically removes the source position and then adds the destination position through Resonance's two
-  retained hooks. A destination failure rolls the removal back, but the failed call may consume the source's complete
-  checkpoint cost before reverting. At the sixteen-token maximum on both paired Bribes, a successful composed move
-  measured 1,890,938 gas against the focused 3,000,000-gas regression ceiling; chain-specific headroom remains a
-  deployment-review obligation.
+- Batched signal changes perform linear work across allocations and each paired Bribe's registered rewards. A stale or
+  invalid entry reverts the complete batch, and a sufficiently large caller-selected array may exceed the block gas
+  limit. Scalar removal remains the bounded fallback. Current batch gas must be remeasured at the sixteen-token maximum
+  because the prior 1,890,938-gas composed-move result predates ADR 0051 and does not cover the new loops.
 - Idle sGBX is unreachable, so every current voting unit also carries a Strategy allocation. This does not prevent
-  short-duration voting power around a block snapshot because `withdrawSignal` remains immediate.
+  short-duration voting power around a block snapshot because `removeSignal` remains immediate.
 - Resonance streaming is lazy. USDG entitlement accrues with time, but token balances move to Strategies only when a
   caller triggers a signal change, notification, distribution, purchase, or other checkpointing path. Interfaces must
   preview released revenue rather than treating the Strategy's raw balance as its complete executable inventory.
@@ -73,10 +72,10 @@
   caller-selected assets.
 - A broken or blocklisting token can prevent its Strategy purchase, Bribe notification, or user payout. Strategy pays
   Fund directly, so Fund failure reverts the purchase. A later Bribe failure leaves the automatic share buffered in
-  BribeRouter. `withdrawSignal` remains available because it transfers only the escrowed GBX return.
+  BribeRouter. Scalar `removeSignal` remains available because it transfers only the escrowed GBX return.
 - Setting the automatic share to 0% is not an emergency pause and does not disable a Strategy or paired Bribe. Existing
-  Bribe rewards remain claimable, independently funded rewards remain possible, and signal entry, movement,
-  killed-Strategy exit, and withdrawal retain their ordinary paths. A zero Bribe share makes no Router transfer.
+  Bribe rewards remain claimable, independently funded rewards remain possible, and signal addition plus live or
+  killed-Strategy removal retain their ordinary paths. A zero Bribe share makes no Router transfer.
 - A malformed caller-selected token can revert that redemption, but cannot block redemptions that omit
   it.
 - Omitted redemption assets are forfeited to the remaining GBX supply.
@@ -92,7 +91,8 @@
   setter, or escape hatch, so a token cannot accumulate enough indexed precision to wrap and lock exits. For a normal
   18-decimal token this is about `1.158e23` whole tokens and is not expected to be reached; unusually high-decimal,
   mintable, or upgraded tokens can exhaust it earlier in economic terms. Reaching it permanently rejects later
-  notifications for that token in that Bribe but leaves existing claims, signal moves, and withdrawals available.
+  notifications for that token in that Bribe but leaves existing claims and scalar or batched signal removals
+  available.
 - If an automatic Strategy-payment reward reaches an exhausted cap, its buffered amount stays in BribeRouter but can
   no longer enter that old Bribe; Fund was already paid atomically with the purchase. The operational
   replacement is a new Strategy with a new Bribe, followed by killing the old Strategy (adding first when the old one

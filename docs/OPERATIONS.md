@@ -70,17 +70,19 @@ does not pause at zero `totalSignalWeight`, so rewards elapsed after the last ex
 and do not report unallocated token surplus as recoverable.
 
 Alert before a registered token approaches its Bribe's lifetime notification cap. At the cap, later notifications
-revert before checkpointing or transfer, but claims, signal moves, and withdrawals remain available. If the exhausted
-token is the Strategy payment token, later automatic Bribe shares remain buffered in BribeRouter and cannot enter that
-old Bribe; each purchase's Fund share has already transferred directly. The available administration response is to
-add a new Strategy and paired Bribe, move activity to it, and kill the old Strategy. Add the replacement first if the
-old one is the final live Strategy. Do not describe this as resetting, rescuing, or reopening the old pool.
+revert before checkpointing or transfer, but claims and scalar or batched signal removals remain available. If the
+exhausted token is the Strategy payment token, later automatic Bribe shares remain buffered in BribeRouter and cannot
+enter that old Bribe; each purchase's Fund share has already transferred directly. The available administration
+response is to add a new Strategy and paired Bribe, remove signal from the old Strategy, add it to the replacement, and
+kill the old Strategy. Add the replacement first if the old one is the final live Strategy. Do not describe this as
+resetting, rescuing, or reopening the old pool.
 
 For every Bribe-rate change, record the authorization, old and new basis points, execution block, and the first
 Strategy payments on both sides of the transition. Reconcile each purchase independently using
 `floor(payment * appliedBribeBps / 10_000)`, the direct Fund complement, and the paired Router balance. At 0%, verify
-that new payments reach Fund completely and that signal, move, partial and full withdrawal, killed-Strategy exit,
-previously buffered Bribe routing, existing reward claims, and independent reward funding remain available.
+that new payments reach Fund completely and that scalar or batched additions, partial and full removals,
+killed-Strategy exit, previously buffered Bribe routing, existing reward claims, and independent reward funding remain
+available.
 
 ## Permissionless revenue routing
 

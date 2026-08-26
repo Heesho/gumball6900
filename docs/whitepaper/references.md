@@ -10,15 +10,17 @@ this list; the claim-by-claim mapping lives in `FACT-CHECK.md`.
 - Audit records: `packages/contracts/audit/` (`FINDINGS`, `INDEPENDENT-SPECIFICATION`, `MUTATION-TESTING`,
   `FORMAL-CHECKS`, `FORK-VALIDATION`, `RESIDUAL-RISKS`, and `RELEASE-CHECKLIST`). The current disposition register and
   byte-for-byte V12 export target `3ae171b997254b56602298d873b3918d1575b3c7`. The export is external review evidence,
-  not a complete assurance package or release authorization; prior historical records remain recoverable from Git.
+  not a complete assurance package or release authorization. ADR 0051's batch API, read periphery, SDK composition,
+  and subgraph position discovery are later unaudited changes; prior historical records remain recoverable from Git.
 - Independent models and fixtures: `packages/simulations/` (TypeScript and Python,
   cross-checked at build time via `src/protocol-facts.mjs`).
-- Design history: `docs/adr/0013` through `docs/adr/0050`, especially ADR 0019
+- Design history: `docs/adr/0013` through `docs/adr/0051`, especially ADR 0019
   (incremental absolute signals and the historical eight-token cap), ADR 0021 (historical uniform 100% Fund
   settlement), ADR 0022 (fixed-principal LP fee routing), ADR 0031 (mandatory signal-backed sGBX), ADR 0036 (bounded
   global prospective Bribe share), ADR 0047 (Synthetix-shaped rewards and direct Strategy settlement), ADR 0048
   (sixteen-token Bribe bound and composed signal movement), ADR 0049 (trusted canonical GBX/USDG transfers), and ADR
-  0050 (zero premint and an external LP token treated as an ordinary Strategy asset).
+  0050 (zero premint and an external LP token treated as an ordinary Strategy asset), and ADR 0051 (scalar/batched
+  add/remove signal entrypoints, no permit/move/write Router, and discovery-only read periphery).
 - Protocol documentation: `docs/ARCHITECTURE.md`, `docs/ECONOMICS.md`, `docs/EMISSIONS.md`,
   `docs/SPEC.md`, `docs/ACCESS_CONTROL.md`, `docs/INVARIANTS.md`,
   `docs/SECURITY-INVARIANTS.md`, `docs/THREAT_MODEL.md`, `docs/TRUST_ASSUMPTIONS.md`,

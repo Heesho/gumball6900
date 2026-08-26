@@ -12,9 +12,17 @@ count, and the latest notification amount and timestamp without inventing the ca
 or finish. This is a convenience index, not authoritative protocol accounting: pending Mine accrual, retained
 ResonanceRouter balance, and current Resonance revenue state must be read live between events.
 
-Signal allocation deltas remain canonical from Resonance `SignalAdded` and `SignalRemoved` logs, including the paired
-remove/add logs produced by an atomic move. SignalGBX delegation logs separately maintain each account's selected
-delegate and latest event-observed voting power; they do not alter signal allocation totals.
+Signal allocation deltas remain canonical from Resonance `SignalAdded` and `SignalRemoved` logs. `SignalPosition` is a
+current nonzero account-by-Strategy discovery index keyed by `chain-account-strategy`; partial removals update it and a
+complete removal deletes it. Killing a Strategy does not delete incumbent positions, so accounts can still discover
+what they may remove. Scalar and batch SignalGBX calls emit the same incremental Resonance events, and duplicate batch
+entries are applied in event order. SignalGBX delegation logs separately maintain each account's selected delegate and
+latest event-observed voting power; they do not alter signal allocation totals.
+
+The position index is never authoritative transaction state. Before building `removeSignal` or `removeSignalMany`, a
+client must refresh the paired Bribe's `signalWeightOf(account)` and relevant Strategy status at one pinned onchain
+block. Likewise, a subgraph response cannot establish allowance, GBX balance, or that an addition will still succeed.
+Use the subgraph to discover candidate positions and use current RPC reads/simulation to construct writes.
 
 `networks.json` intentionally contains zero-address placeholders until a reviewed deployment resolves every address
 and start block. Production network validation therefore fails closed.

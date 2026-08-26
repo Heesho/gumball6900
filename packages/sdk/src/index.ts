@@ -6,5 +6,7 @@ export * from './chains.js';
 export * from './deployment.js';
 export * from './math/index.js';
 export * from './readers.js';
+export * from './signal-allocations.js';
+export * from './signal-planner.js';
 export * from './subgraph.js';
 export * from './validation.js';

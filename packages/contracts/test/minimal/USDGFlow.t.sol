@@ -233,7 +233,7 @@ contract USDGFlowTest is ProtocolFixture {
         _mintTestGBX(account, amount);
         vm.startPrank(account);
         gbx.approve(address(graph.receipts), amount);
-        graph.receipts.signal(strategy, amount);
+        graph.receipts.addSignal(strategy, amount);
         vm.stopPrank();
     }
 

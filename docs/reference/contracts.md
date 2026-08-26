@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 17. Documented ABI entries: 386. Documented public ABI functions: 199.
+Documented source surfaces: 18. Documented ABI entries: 387. Documented public ABI functions: 200.
 
 ## Bribe
 
@@ -2391,7 +2391,7 @@ Source: [`src/core/SignalGBX.sol`](../../packages/contracts/src/core/SignalGBX.s
 
 Artifact: `out/SignalGBX.sol/SignalGBX.json`
 
-Public ABI: 31 functions, 9 events, 29 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 31 functions, 9 events, 28 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address)`
 
@@ -2414,6 +2414,33 @@ function CLOCK_MODE() external view returns (string arg0);
 ```
 
 Machine-readable description of the clock as specified in ERC-6372.
+
+### `addSignal(address,uint256)`
+
+```solidity
+function addSignal(address strategy, uint256 amount) external;
+```
+
+Deposits GBX, mints equal sGBX, and assigns equal signal weight to one live Strategy atomically.
+Pulls GBX from the caller using its existing allowance. If the caller has no current delegate, the newly minted voting units self-delegate; an existing delegate is preserved. Resonance and the paired Bribe then checkpoint prior weights before adding the signal. Any failed transfer, mint, or Resonance hook reverts the complete transition. The function is unavailable before the one-time Resonance binding. Emits `Signaled` after the complete transition; inherited mint and delegation events and downstream signal events also apply.
+
+**Parameters**
+
+- `amount`: Nonzero raw units of GBX deposited, sGBX minted, and signal weight assigned.
+- `strategy`: Registered live Strategy receiving the complete new signal weight.
+
+### `addSignalMany((address,uint256)[])`
+
+```solidity
+function addSignalMany(struct SignalGBX.Allocation[] allocations) external;
+```
+
+Deposits GBX once, mints equal sGBX once, and assigns the total across live Strategies atomically.
+Rejects an empty array or any zero amount. Duplicate Strategies behave like sequential scalar additions. Amounts are summed with checked arithmetic before custody changes. After the aggregate deposit and mint, each allocation executes the canonical Resonance hook and emits `Signaled`; any failure reverts the entire batch, including allowance consumption, custody, supply, votes, and earlier allocations.
+
+**Parameters**
+
+- `allocations`: Nonempty list of live Strategy allocations with nonzero raw-unit amounts.
 
 ### `allowance(address,address)`
 
@@ -2527,21 +2554,6 @@ function getVotes(address account) external view returns (uint256 arg0);
 
 Returns the current amount of votes that `account` has.
 
-### `moveSignal(address,address,uint256)`
-
-```solidity
-function moveSignal(address fromStrategy, address toStrategy, uint256 amount) external;
-```
-
-Moves an account's signal weight from one Strategy to another without changing GBX custody or sGBX.
-Resonance removes source weight before adding destination weight, checkpointing both Strategies and paired Bribes under their prior weights. The source may be killed, but the destination must be live. A failed destination addition reverts the earlier removal. Supply, balances, delegation, and voting units do not change. No cooldown or epoch restriction applies. This contract emits no event, while Resonance and the two paired Bribes emit their removal and addition events.
-
-**Parameters**
-
-- `amount`: Nonzero raw signal units moved; cannot exceed the caller's source position.
-- `fromStrategy`: Strategy losing signal weight; may already be killed.
-- `toStrategy`: Registered live Strategy receiving signal weight; must differ from `fromStrategy`.
-
 ### `name()`
 
 ```solidity
@@ -2574,6 +2586,33 @@ function owner() external view returns (address arg0);
 
 Returns the address of the current owner.
 
+### `removeSignal(address,uint256)`
+
+```solidity
+function removeSignal(address strategy, uint256 amount) external;
+```
+
+Removes signal weight, burns equal sGBX, and returns equal GBX to the caller atomically.
+Resonance first checkpoints revenue and the paired Bribe checkpoints rewards under the prior weight. Exits remain available when `strategy` is killed. Burning updates ERC20Votes checkpoints before GBX is transferred; a failed hook, burn, or transfer reverts the transition. Direct GBX donations are not part of the one-for-one entitlement. No cooldown, epoch restriction, or withdrawal lock applies. Emits `SignalWithdrawn` after completion; inherited burn events and downstream removal events also apply.
+
+**Parameters**
+
+- `amount`: Nonzero raw units of signal removed, sGBX burned, and GBX returned.
+- `strategy`: Strategy losing signal weight; may already be killed.
+
+### `removeSignalMany((address,uint256)[])`
+
+```solidity
+function removeSignalMany(struct SignalGBX.Allocation[] allocations) external;
+```
+
+Removes signal from multiple Strategies, burns aggregate sGBX once, and returns aggregate GBX once.
+Rejects an empty array or any zero amount. Duplicate Strategies behave like sequential scalar removals. Amounts are summed with checked arithmetic before any hook runs. Each allocation executes the canonical Resonance removal hook, including for killed Strategies. After every removal, the aggregate receipt is burned, GBX is returned, and one `SignalWithdrawn` event is emitted per allocation. Any failure reverts the complete batch.
+
+**Parameters**
+
+- `allocations`: Nonempty list of Strategy allocations with nonzero raw-unit amounts to remove.
+
 ### `renounceOwnership()`
 
 ```solidity
@@ -2602,38 +2641,6 @@ Callable only by the current owner and only while `resonance` is zero. The candi
 **Parameters**
 
 - `resonance_`: Resonance contract address to validate and bind.
-
-### `signal(address,uint256)`
-
-```solidity
-function signal(address strategy, uint256 amount) external;
-```
-
-Deposits GBX, mints equal sGBX, and assigns equal signal weight to one live Strategy atomically.
-Pulls GBX from the caller using its existing allowance. If the caller has no current delegate, the newly minted voting units self-delegate; an existing delegate is preserved. Resonance and the paired Bribe then checkpoint prior weights before adding the signal. Any failed transfer, mint, or Resonance hook reverts the complete transition. The function is unavailable before the one-time Resonance binding. Emits `Signaled` after the complete transition; inherited mint and delegation events and downstream signal events also apply.
-
-**Parameters**
-
-- `amount`: Nonzero raw units of GBX deposited, sGBX minted, and signal weight assigned.
-- `strategy`: Registered live Strategy receiving the complete new signal weight.
-
-### `signalWithPermit(address,uint256,uint256,uint8,bytes32,bytes32)`
-
-```solidity
-function signalWithPermit(address strategy, uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external;
-```
-
-Attempts an ERC-2612 permit on GBX, then performs the same atomic transition as `signal`.
-The permit authorizes this contract to spend `amount` from the caller. Permit failure is deliberately ignored, allowing a pre-consumed signature or an existing allowance to proceed; `safeTransferFrom` remains the authoritative custody and authorization check. A successful permit is rolled back if any later step reverts. This function does not add permit support to the sGBX receipt itself. Emits `Signaled` after the complete transition; inherited mint and delegation events and downstream signal events also apply.
-
-**Parameters**
-
-- `amount`: Nonzero raw units of GBX deposited, sGBX minted, and signal weight assigned.
-- `deadline`: Unix timestamp after which the underlying GBX permit is invalid.
-- `r`: ECDSA `r` component for the GBX permit signature.
-- `s`: ECDSA `s` component for the GBX permit signature.
-- `strategy`: Registered live Strategy receiving the complete new signal weight.
-- `v`: ECDSA recovery identifier for the GBX permit signature.
 
 ### `symbol()`
 
@@ -2674,20 +2681,6 @@ function transferOwnership(address newOwner) external;
 ```
 
 Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
-
-### `withdrawSignal(address,uint256)`
-
-```solidity
-function withdrawSignal(address strategy, uint256 amount) external;
-```
-
-Removes signal weight, burns equal sGBX, and returns equal GBX to the caller atomically.
-Resonance first checkpoints revenue and the paired Bribe checkpoints rewards under the prior weight. Exits remain available when `strategy` is killed. Burning updates ERC20Votes checkpoints before GBX is transferred; a failed hook, burn, or transfer reverts the transition. Direct GBX donations are not part of the one-for-one entitlement. No cooldown, epoch restriction, or withdrawal lock applies. Emits `SignalWithdrawn` after completion; inherited burn events and downstream removal events also apply.
-
-**Parameters**
-
-- `amount`: Nonzero raw units of signal removed, sGBX burned, and GBX returned.
-- `strategy`: Strategy losing signal weight; may already be killed.
 
 ### Events
 
@@ -2945,14 +2938,6 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error SafeERC20FailedOperation(address token);
-```
-
-_No additional NatSpec notice is present in the compiled artifact._
-
-#### `SameStrategy(address)`
-
-```solidity
-error SameStrategy(address strategy);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3776,3 +3761,42 @@ Returns the immutable USDG token forwarded by the router.
 **Returns**
 
 - `token`: USDG token address.
+
+## SignalPortfolioLens
+
+Source: [`src/periphery/SignalPortfolioLens.sol`](../../packages/contracts/src/periphery/SignalPortfolioLens.sol)
+
+Artifact: `out/SignalPortfolioLens.sol/SignalPortfolioLens.json`
+
+Public ABI: 1 function, 0 events, 1 custom error, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `portfolio(address,address,address,address[])`
+
+```solidity
+function portfolio(contract SignalGBX signalGBX, contract Resonance resonance, address account, address[] strategies) external view returns (struct SignalPortfolioLens.AccountView accountView, struct SignalPortfolioLens.StrategyAccountView[] strategyViews);
+```
+
+Returns one account summary and current views for an explicit Strategy list in a single RPC call.
+Unknown Strategy addresses return a row with `registered == false` and otherwise zero-valued fields. A registered row includes claimable rewards for every append-only paired-Bribe token. `availableRevenue` is the Strategy's current USDG balance and excludes Resonance revenue that has accrued but has not yet been distributed; `earnedRevenue` reports that separately. Duplicate Strategies produce duplicate rows.
+
+**Parameters**
+
+- `account`: Account whose receipt, voting state, signal positions, and rewards are read.
+- `resonance`: Resonance whose Strategy graph is read; must match `signalGBX.resonance()`.
+- `signalGBX`: Non-transferable receipt whose account state and Resonance binding are read.
+- `strategies`: Caller-selected Strategy addresses in the desired output order.
+
+**Returns**
+
+- `accountView`: Aggregate SignalGBX receipt and voting state.
+- `strategyViews`: One row per supplied Strategy address.
+
+### Custom errors
+
+#### `InvalidSignalGraph(address,address)`
+
+```solidity
+error InvalidSignalGraph(address expected, address supplied);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._

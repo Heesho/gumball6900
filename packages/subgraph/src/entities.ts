@@ -1,7 +1,7 @@
 import { Address, BigInt, Bytes, ethereum } from '@graphprotocol/graph-ts';
-import { Account, MiningSlot, ProtocolEvent, ProtocolState, Strategy } from '../generated/schema';
+import { Account, MiningSlot, ProtocolEvent, ProtocolState, SignalPosition, Strategy } from '../generated/schema';
 import { CHAIN_ID, CHAIN_ID_TEXT, DEFAULT_BRIBE_BPS, ZERO } from './constants';
-import { addressId, eventId, slotId } from './ids';
+import { addressId, eventId, signalPositionId, slotId } from './ids';
 
 export function getProtocol(event: ethereum.Event): ProtocolState {
   let protocol = ProtocolState.load(CHAIN_ID_TEXT);
@@ -97,6 +97,22 @@ export function getStrategy(address: Address, event: ethereum.Event): Strategy {
   strategy.lastBlockNumber = event.block.number;
   strategy.lastTimestamp = event.block.timestamp;
   return strategy;
+}
+
+export function getSignalPosition(account: Address, strategy: Address, event: ethereum.Event): SignalPosition {
+  const id = signalPositionId(account, strategy);
+  let position = SignalPosition.load(id);
+  if (position == null) {
+    position = new SignalPosition(id);
+    position.account = addressId(account);
+    position.strategy = addressId(strategy);
+    position.accountAddress = account;
+    position.strategyAddress = strategy;
+    position.amountRaw = ZERO;
+  }
+  position.lastBlockNumber = event.block.number;
+  position.lastTimestamp = event.block.timestamp;
+  return position;
 }
 
 export function recordEvent(event: ethereum.Event, eventType: string): ProtocolEvent {

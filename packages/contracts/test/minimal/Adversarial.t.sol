@@ -105,7 +105,7 @@ contract AdversarialTest is ProtocolFixture {
 
         // The whale exits immediately: there is no cooldown, but zero elapsed time earns zero flow.
         vm.startPrank(WHALE);
-        signalGBX.withdrawSignal(address(gbxStrategy), 900 ether);
+        signalGBX.removeSignal(address(gbxStrategy), 900 ether);
         vm.stopPrank();
 
         _finishRevenueStream();
@@ -156,7 +156,7 @@ contract AdversarialTest is ProtocolFixture {
         _mintTestGBX(ALICE, 75 ether);
         vm.startPrank(ALICE);
         gbx.approve(address(hostileSignalGBX), 75 ether);
-        hostileSignalGBX.signal(hostileStrategy, 75 ether);
+        hostileSignalGBX.addSignal(hostileStrategy, 75 ether);
         vm.stopPrank();
 
         freezableUSDG.mint(address(hostileRouter), 100_000_000);
@@ -180,7 +180,7 @@ contract AdversarialTest is ProtocolFixture {
 
         // Removal performs accounting only and never calls the frozen token or Fund.
         vm.prank(ALICE);
-        hostileSignalGBX.withdrawSignal(hostileStrategy, 75 ether);
+        hostileSignalGBX.removeSignal(hostileStrategy, 75 ether);
         assertEq(hostileSignalGBX.balanceOf(ALICE), 0);
         assertEq(gbx.balanceOf(ALICE), 75 ether, "all GBX remains live");
 
@@ -208,7 +208,7 @@ contract AdversarialTest is ProtocolFixture {
         vm.warp(block.timestamp + 4 days);
         targetBribe.claimRewards(ALICE);
         vm.startPrank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         vm.stopPrank();
 
         assertApproxEqRel(target.balanceOf(ALICE), 1 ether, 1e12, "the full stream still pays out");
@@ -221,19 +221,25 @@ contract AdversarialTest is ProtocolFixture {
         _signalDefault(ALICE, 300 ether);
 
         vm.startPrank(ALICE);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 100 ether);
-        signalGBX.moveSignal(address(targetStrategy), third, 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.addSignal(address(gbxStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.addSignal(third, 100 ether);
 
-        // Remove the middle entry, then the entry moved into its slot.
-        signalGBX.withdrawSignal(address(gbxStrategy), 100 ether);
+        // Remove the middle entry, then the entry re-added into its slot.
+        signalGBX.removeSignal(address(gbxStrategy), 100 ether);
         assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 100 ether);
         assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 0);
         assertEq(_accountSignalWeight(ALICE, third), 100 ether);
         assertEq(signalGBX.balanceOf(ALICE), 200 ether);
 
-        signalGBX.withdrawSignal(third, 100 ether);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 100 ether);
-        signalGBX.withdrawSignal(address(gbxStrategy), 100 ether);
+        signalGBX.removeSignal(third, 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
+        gbx.approve(address(signalGBX), 100 ether);
+        signalGBX.addSignal(address(gbxStrategy), 100 ether);
+        signalGBX.removeSignal(address(gbxStrategy), 100 ether);
         vm.stopPrank();
 
         assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 0);
@@ -254,7 +260,7 @@ contract AdversarialTest is ProtocolFixture {
                 Resonance.InsufficientSignal.selector, address(targetStrategy), uint256(0), uint256(100 ether)
             )
         );
-        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
 
         assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 100 ether);
         assertEq(targetBribe.signalWeightOf(ALICE), 100 ether);
@@ -271,22 +277,22 @@ contract AdversarialTest is ProtocolFixture {
                 Resonance.InsufficientSignal.selector, address(targetStrategy), uint256(100 ether), uint256(101 ether)
             )
         );
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 101 ether);
+        signalGBX.removeSignal(address(targetStrategy), 101 ether);
 
         vm.expectRevert(
             abi.encodeWithSelector(Resonance.InsufficientSignal.selector, address(gbxStrategy), uint256(0), uint256(1))
         );
-        signalGBX.withdrawSignal(address(gbxStrategy), 1);
+        signalGBX.removeSignal(address(gbxStrategy), 1);
 
         gbx.approve(address(signalGBX), 1);
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, ATTACKER));
-        signalGBX.signal(ATTACKER, 1);
+        signalGBX.addSignal(ATTACKER, 1);
         vm.stopPrank();
 
         resonance.killStrategy(address(targetStrategy));
         vm.prank(ALICE);
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(targetStrategy)));
-        signalGBX.signal(address(targetStrategy), 1);
+        signalGBX.addSignal(address(targetStrategy), 1);
 
         assertEq(signalGBX.balanceOf(ALICE), 100 ether);
         assertEq(resonance.totalSignalWeight(), 0);
@@ -373,7 +379,7 @@ contract AdversarialTest is ProtocolFixture {
 
         _signalDefault(ALICE, 100 ether);
         vm.prank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
 
         assertEq(hostile.callCount(), 0, "signal accounting never transfers a reward token");
         assertEq(signalGBX.balanceOf(ALICE), 0);
@@ -392,7 +398,7 @@ contract AdversarialTest is ProtocolFixture {
         _mintTestGBX(ALICE, 100 ether);
         vm.startPrank(ALICE);
         gbx.approve(address(hostileSignalGBX), 100 ether);
-        hostileSignalGBX.signal(hostileStrategy, 100 ether);
+        hostileSignalGBX.addSignal(hostileStrategy, 100 ether);
         vm.stopPrank();
 
         hostileUSDG.mint(address(hostileRouter), 100_000_000);
@@ -405,7 +411,7 @@ contract AdversarialTest is ProtocolFixture {
             address(hostileResonance), abi.encodeCall(Resonance.removeSignalFor, (ALICE, hostileStrategy, uint256(1)))
         );
         vm.prank(ALICE);
-        hostileSignalGBX.withdrawSignal(hostileStrategy, 100 ether);
+        hostileSignalGBX.removeSignal(hostileStrategy, 100 ether);
 
         assertEq(hostileUSDG.callCount(), 0, "signal removal makes no USDG call");
         assertEq(hostileSignalGBX.balanceOf(ALICE), 0);

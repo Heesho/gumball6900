@@ -138,20 +138,19 @@ abstract contract ProtocolFixture is Test {
 
         vm.startPrank(account);
         gbx.approve(address(signalGBX), amount);
-        signalGBX.signal(address(targetStrategy), amount);
+        signalGBX.addSignal(address(targetStrategy), amount);
         vm.stopPrank();
     }
 
-    /// @notice Moves the account's complete default-Strategy signal to `strategy` when necessary.
+    /// @notice Removes and re-adds the account's complete default-Strategy signal to `strategy` when necessary.
     function _signalOne(address account, address strategy) internal {
         if (strategy == address(targetStrategy)) return;
         uint256 amount = _accountSignalWeight(account, address(targetStrategy));
         if (amount == 0) return;
-        vm.prank(account);
-        signalGBX.moveSignal(address(targetStrategy), strategy, amount);
+        _reallocateSignal(account, address(targetStrategy), strategy, amount);
     }
 
-    /// @notice Moves signal between two Strategies until the requested relative allocation is reached.
+    /// @notice Removes and re-adds signal until the requested relative allocation is reached.
     function _signalTwo(address account, address first, address second, uint256 firstWeight, uint256 secondWeight)
         internal
     {
@@ -163,12 +162,19 @@ abstract contract ProtocolFixture is Test {
         uint256 currentSecond = _accountSignalWeight(account, second);
 
         if (currentFirst > firstAmount) {
-            vm.prank(account);
-            signalGBX.moveSignal(first, second, currentFirst - firstAmount);
+            _reallocateSignal(account, first, second, currentFirst - firstAmount);
         } else if (currentSecond > secondAmount) {
-            vm.prank(account);
-            signalGBX.moveSignal(second, first, currentSecond - secondAmount);
+            _reallocateSignal(account, second, first, currentSecond - secondAmount);
         }
+    }
+
+    /// @notice Test-only composition of the canonical scalar remove and add operations.
+    function _reallocateSignal(address account, address fromStrategy, address toStrategy, uint256 amount) internal {
+        vm.startPrank(account);
+        signalGBX.removeSignal(fromStrategy, amount);
+        gbx.approve(address(signalGBX), amount);
+        signalGBX.addSignal(toStrategy, amount);
+        vm.stopPrank();
     }
 
     /// @notice Removes every signal assigned to either Strategy in the fixed test graph.
@@ -177,8 +183,8 @@ abstract contract ProtocolFixture is Test {
         uint256 gbxAmount = _accountSignalWeight(account, address(gbxStrategy));
 
         vm.startPrank(account);
-        if (targetAmount != 0) signalGBX.withdrawSignal(address(targetStrategy), targetAmount);
-        if (gbxAmount != 0) signalGBX.withdrawSignal(address(gbxStrategy), gbxAmount);
+        if (targetAmount != 0) signalGBX.removeSignal(address(targetStrategy), targetAmount);
+        if (gbxAmount != 0) signalGBX.removeSignal(address(gbxStrategy), gbxAmount);
         vm.stopPrank();
     }
 

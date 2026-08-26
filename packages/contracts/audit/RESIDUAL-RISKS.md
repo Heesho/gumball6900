@@ -36,11 +36,10 @@
 - Third-party beneficiary claims can force an account checkpoint before sub-raw-unit Bribe accrual combines into one
   payable unit. V12-249705 remains open pending a decision between beneficiary-only claims and the current permissionless
   keeper/relayer convenience; no source remediation has been selected.
-- The fixed Bribe reward-token bound is sixteen. This keeps mandatory loops finite but raises maximum work: current
-  focused measurements are 1,129,059 gas for withdrawal, 1,471,439 for an all-token claim, and 1,890,938 for a
-  composed move with sixteen active streams on both Bribes. Chain-specific headroom still requires deployment review.
-- Signal movement is an atomic source removal followed by destination addition. A destination failure rolls the source
-  back, but a failing move may consume source-side checkpoint gas before reverting.
+- The fixed Bribe reward-token bound is sixteen. This keeps mandatory loops finite but raises maximum work. ADR 0051's
+  caller-selected signal batches multiply per-Strategy checkpoint work by the array length; stale entries revert the
+  complete batch and sufficiently large arrays may exceed the block gas limit. Scalar removal remains available.
+  Historical withdrawal and composed-move measurements predate this API and are not current batch evidence.
 - Every reward token in every Bribe has a raw-unit lifetime-notification ceiling of
   `floor((2^256 - 1) / 1e36)`. Claims, stream completion, zero supply, and Strategy death do not reopen
   capacity. The ceiling is approximately `1.158e23` whole tokens for an 18-decimal asset, but unusually high-decimal
@@ -66,7 +65,7 @@
 
 ADR 0034 removed the local ProtocolGovernor and protocol Timelock. SignalGBX retains block-number ERC20Votes
 checkpoints, but the core assigns them no proposal, quorum, voting-period, execution-delay, or cancellation semantics.
-Historical checkpoints survive signal withdrawal, so voting-power rental and post-withdrawal voting remain properties
+Historical checkpoints survive signal removal, so voting-power rental and post-removal voting remain properties
 that the selected external governance integration must address.
 
 Resonance's owner can add/kill Strategies, register up to sixteen reward tokens per Bribe, set the global prospective
@@ -91,5 +90,7 @@ manifest exists. The pinned Echidna and Medusa campaigns and the recorded full 4
 SignalGBX/Resonance/BribeRouter campaign predate ADRs 0034–0036 and are internal engineering evidence, not independent
 review. A later narrow 49-mutant campaign passed with no survivors against the ADR 0036/0037 tree, but it predates ADR
 0047 and remains historical internal engineering evidence. The focused ADR-0048 migration passed 104/104 and killed
-47/47 targeted mutants, but it predates ADRs 0049 and 0050. No current external-fuzzer, static-analysis, symbolic, or
-complete deterministic/workspace campaign covers the complete ADR-0050 tree.
+47/47 targeted mutants, but it predates ADRs 0049-0051. The V12 export likewise does not cover ADR 0051's renamed
+selectors, batch loops, aggregate custody, Lens, SDK, or subgraph position index. No current external-fuzzer,
+static-analysis, symbolic, independent-audit, or complete deterministic/workspace campaign covers the complete
+ADR-0051 tree.

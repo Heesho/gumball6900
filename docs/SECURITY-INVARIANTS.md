@@ -4,7 +4,7 @@ This file defines the accounting identities used by the hardening tests. For Res
 `P = 1e36`.
 Quantities named `Scaled` already include their subsystem's precision unit.
 
-> ADRs 0031, 0034, 0035, 0037, and 0047-0050 make the SignalGBX, Bribe, Strategy settlement, and external-governance
+> ADRs 0031, 0034, 0035, 0037, and 0047-0051 make the SignalGBX, Bribe, Strategy settlement, and external-governance
 > boundary below authoritative. Governance execution remains unselected and contributes no production invariant until
 > separately reviewed.
 
@@ -49,17 +49,17 @@ sum_account Bribe(strategy).signalWeightOf(account) = Bribe(strategy).totalSigna
 sum_live_strategies Bribe(strategy).totalSignalWeight() = Resonance.totalSignalWeight()
 ```
 
-Every successful `signal` or `signalWithPermit` requests a GBX deposit, mints the same nominal SignalGBX amount, and
-creates the same Strategy and Bribe position atomically. Every successful `withdrawSignal` removes that position,
-burns the same SignalGBX amount, and requests the same nominal GBX return atomically. Canonical GBX transfers use
-`SafeERC20` without balance-delta enforcement. `moveSignal` changes neither escrow custody, SignalGBX supply, nor
-voting units. Excess escrow GBX is unsolicited surplus and creates no receipt, signal, or withdrawal entitlement.
+Every successful scalar or batched addition requests a GBX deposit, mints the same nominal SignalGBX amount, and
+creates the same Strategy and Bribe positions atomically. Every successful scalar or batched removal removes those
+positions, burns the same aggregate SignalGBX amount, and requests the same nominal GBX return atomically. Canonical
+GBX transfers use `SafeERC20` without balance-delta enforcement. Excess escrow GBX is unsolicited surplus and creates
+no receipt, signal, or withdrawal entitlement.
 A killed Strategy's paired-Bribe `totalSignalWeight` remains, but its balance is excluded from Resonance's active
-`totalSignalWeight` and remains movable out or withdrawable.
+`totalSignalWeight` and remains removable.
 
-SignalGBX is the only caller accepted by Resonance's `addSignalFor` and `removeSignalFor`. Its public `moveSignal`
-atomically calls removal for the source and addition for the destination; Resonance has no dedicated move hook, and a
-failed addition rolls back the removal. SignalGBX balance owns the aggregate signal; the paired Bribe owns
+SignalGBX is the only caller accepted by Resonance's `addSignalFor` and `removeSignalFor`. Resonance has no dedicated
+move hook, and SignalGBX has no public move or shared write-through Router. SignalGBX balance owns the aggregate
+signal; the paired Bribe owns
 account-by-Strategy and per-Strategy balances; Resonance owns only the active live-Strategy total. A separate
 `allocatedBalance`, standalone stake/unstake state, or intermediate idle receipt is forbidden.
 
@@ -199,8 +199,8 @@ BribeRouter's complete compatible-token balance is the next candidate notificati
 amount.
 A failed notification reverts without moving the balance; a successful notification leaves the Router empty.
 
-Signal and exit liveness is independent of `bribeBps`: `signal`, `signalWithPermit`, `moveSignal`, and
-`withdrawSignal` do not require a new automatic liability or settlement of an acquired payment token. This remains
+Signal and exit liveness is independent of `bribeBps`: `addSignal`, `addSignalMany`, `removeSignal`, and
+`removeSignalMany` do not require a new automatic liability or settlement of an acquired payment token. This remains
 true at 0% and for killed-Strategy exits.
 
 ## Fund and external liquidity

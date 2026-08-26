@@ -10,8 +10,9 @@ Resonance scheduling; ordinary Bribe leftover rollover and surplus floors; Mine 
 redemption; signal identities; reward solvency; Strategy settlement; redemption snapshots; and ordinary
 external-LP-token Strategy settlement without liquidity-specific core custody.
 Independent TypeScript and Python models reproduce the mining formulas. The focused ADR-0048 migration suites passed
-104/104 and exercised the sixteen-token bound and composed moves, but they predate ADRs 0049 and 0050 and are tests,
-not mathematical proofs. The full external/formal campaign has not been rerun after ADR 0050.
+104/104 and exercised the sixteen-token bound and now-removed composed moves, but they predate ADRs 0049-0051 and are
+tests, not mathematical proofs. The full external/formal campaign has not been rerun after ADR 0051; no formal or
+symbolic result covers the new scalar/batch surface or read periphery.
 
 Mythril 0.24.8 remains a fail-closed compatibility blocker. Sound analysis requires constructor-resolved deployed
 runtimes, while current output includes immutable references and Cancun instructions the pinned Mythril does not safely

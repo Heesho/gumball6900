@@ -1,26 +1,28 @@
 # Signal and Resonance executable specification
 
-Status: implemented locally and reconciled through ADR 0050 on 2026-08-24. The focused ADR-0048 migration suites passed 104/104,
-covering the sixteen-token bound, composed remove-then-add move, rollback, checkpoint ordering, removed Resonance
-selector, and maximum-bound gas, but those results predate ADRs 0049 and 0050. The largest focused measurement is 1,890,938 gas for a composed move with sixteen
-active streams on both Bribes. The revised focused mutation campaign killed 47/47 mutants and likewise predates ADRs
-0049 and 0050. The complete deterministic, integration, and workspace matrix recorded for ADR 0047 predates ADR 0048
-and requires rerun. This is engineering evidence only: the external governance integration is unselected, and nothing
-is independently audited, deployed, or authorized for user funds.
+Status: review target reconciled through ADR 0051 on 2026-08-26. ADR 0051's renamed scalar entrypoints, batch loops,
+aggregate custody transitions, read Lens, SDK helpers, and subgraph position index are not covered by the received V12
+export for `3ae171b`. Earlier focused ADR-0048 move and gas evidence predates this breaking change and cannot clear it.
+The complete deterministic, integration, workspace, gas, mutation, and independent-review matrix requires a current
+rerun. This is engineering evidence only: the external governance integration is unselected, and nothing is deployed
+or authorized for user funds.
 
 ## SignalGBX state machine
 
-`SignalGBX` is the only user-facing signal entry point. `signal` and `signalWithPermit` transfer an exact amount of GBX
-into custody, mint the same sGBX amount, and add the same account position to one live Strategy and its paired Bribe in
-one reverting transaction. A holder without a delegate self-delegates on mint. `moveSignal` calls
-`Resonance.removeSignalFor` for the source and then `Resonance.addSignalFor` for the destination in one transaction;
-destination failure rolls back the removal. A successful move changes the source and destination Bribe positions
-without changing custody, sGBX supply, or voting units. `withdrawSignal` removes one Strategy position, burns the same
-sGBX amount, and returns the same GBX amount atomically.
+`SignalGBX` is the only user-facing signal entry point. `addSignal` transfers GBX into custody, mints the same sGBX
+amount, and adds the same account position to one live Strategy and its paired Bribe in one reverting transaction.
+`removeSignal` removes one live or killed Strategy position, burns the same sGBX amount, and returns the same GBX
+amount atomically. A holder without a delegate self-delegates on mint.
 
-The runtime contains no `stake`, `unstake`, `stakeAndSignal`, `stakeAndSignalWithPermit`, idle-balance `signal`,
-`removeSignal`, or `removeSignalAndUnstake` selector. sGBX transfers are permanently disabled. Direct GBX donations to
-SignalGBX are surplus and create no receipt, signal, vote, or withdrawal entitlement.
+`addSignalMany` and `removeSignalMany` accept `Allocation[]`, where each entry contains `strategy` and `amount`. The add
+path checked-sums, deposits, and mints the aggregate once before applying every addition. The remove path applies every
+removal before burning and returning the aggregate once. Empty arrays and any zero amount revert; duplicates execute
+sequentially; and any failed entry reverts the complete batch. Scalar removal remains the bounded fallback.
+
+The runtime contains no `signal`, `signalWithPermit`, `moveSignal`, `withdrawSignal`, `stake`, `unstake`,
+`stakeAndSignal`, `stakeAndSignalWithPermit`, idle-balance allocation, or `removeSignalAndUnstake` selector. sGBX
+transfers are permanently disabled. Direct GBX donations to SignalGBX are surplus and create no receipt, signal, vote,
+or withdrawal entitlement.
 
 ## Canonical identities
 
@@ -43,14 +45,19 @@ The paired Bribe owns account-by-Strategy balances and Strategy supply. SignalGB
 receipt supply. Resonance owns only the live aggregate. Only SignalGBX may invoke Resonance's retained add/remove
 signal hooks; Resonance exposes no dedicated move hook.
 
+No shared write-through Router can preserve this ownership model: SignalGBX intentionally treats `msg.sender` as the
+GBX, sGBX, signal, and withdrawal account. Smart wallets may atomically bundle approval with direct SignalGBX calls.
+`SignalPortfolioLens`, SDK reads, and subgraph `SignalPosition` records are replaceable discovery periphery; clients
+must refresh canonical paired-Bribe and Strategy state onchain before constructing state-sensitive writes.
+
 ## Resonance revenue
 
 Resonance is a USDG-only, virtual-staking Bribe derivative. Its schedule and per-Strategy accounting are scalar: there
 is no reward-token registry, token-keyed revenue state, or redundant token parameter on revenue views. The canonical
 deployment assumes six-decimal USDG, but the contracts account only in raw units and neither read nor enforce token
-decimals. The period is exactly seven days, and the global revenue-per-signal index uses `1e36`. Each signal change
-checkpoints elapsed revenue under the old weights. In a move, source removal checkpoints before removal and
-destination addition checkpoints before addition; no time elapses between the calls. A Strategy purchase calls
+decimals. The period is exactly seven days, and the global revenue-per-signal index uses `1e36`. Each scalar or batch
+entry checkpoints elapsed revenue under the old weights. Later entries in one transaction observe the same timestamp,
+so no elapsed interval is reassigned between batch entries. A Strategy purchase calls
 `Resonance.distributeRevenue(strategy)` before taking its USDG inventory snapshot.
 
 The raw stream uses the ordinary Synthetix schedule. A notification during an active period combines the incoming
@@ -67,12 +74,12 @@ guarantee.
 
 ## Strategy lifecycle
 
-Only live Strategies accept new signal or a move destination. A killed Strategy is checkpointed, loses its complete
-weight from the live denominator exactly once, earns no future Resonance revenue, and remains a valid move source and
-withdrawal source. `liveStrategyCount` tracks registered live Strategies; killing the final live Strategy reverts.
+Only live Strategies accept new signal. A killed Strategy is checkpointed, loses its complete weight from the live
+denominator exactly once, earns no future Resonance revenue, and remains a valid scalar or batched removal source.
+`liveStrategyCount` tracks registered live Strategies; killing the final live Strategy reverts.
 
 The killed Strategy's paired Bribe is closed to new signal under ADR 0028, but not to reward funding. Incumbent
-signalers may stay, claim, move, or withdraw, and new rewards remain permissionlessly notifiable while the token has
+signalers may stay, claim, or remove signal, and new rewards remain permissionlessly notifiable while the token has
 lifetime headroom. If the last signaler exits during an active stream, reward time continues at zero supply and the
 later elapsed reward remains unallocated Bribe surplus. There is no queue, pause, retirement withdrawal, refund,
 rescue, sweep, migration, Fund reclassification, or killed-Strategy escape hatch.
@@ -108,7 +115,7 @@ rewardPerSignalStored[token] <= lifetimeRewardNotified[token] * P
 Before checkpointing or interacting with the reward token, `notifyReward` rejects any amount greater than the
 remaining lifetime headroom with `RewardLifetimeCapExceeded`. Because one raw signal unit is the smallest nonzero
 denominator, each admitted reward unit contributes at most `P` cumulative-index units. The limit therefore prevents a
-claimed stream from reopening index-overflow capacity. At the cap, existing claims, moves, and withdrawals remain
+claimed stream from reopening index-overflow capacity. At the cap, existing claims and signal removals remain
 available; only later notifications for that token and Bribe fail. No current-balance scale guard, reset, setter, or
 escape hatch exists.
 

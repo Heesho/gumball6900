@@ -178,19 +178,19 @@ contract ResonanceTest is ProtocolFixture {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 1);
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, BOB));
-        signalGBX.signal(BOB, 1);
+        signalGBX.addSignal(BOB, 1);
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, BOB));
-        signalGBX.withdrawSignal(BOB, 1);
+        signalGBX.removeSignal(BOB, 1);
         vm.expectRevert(SignalGBX.ZeroAmount.selector);
-        signalGBX.signal(address(targetStrategy), 0);
+        signalGBX.addSignal(address(targetStrategy), 0);
         vm.expectRevert(SignalGBX.ZeroAmount.selector);
-        signalGBX.withdrawSignal(address(targetStrategy), 0);
+        signalGBX.removeSignal(address(targetStrategy), 0);
         vm.expectRevert(
             abi.encodeWithSelector(
                 Resonance.InsufficientSignal.selector, address(targetStrategy), uint256(100 ether), uint256(101 ether)
             )
         );
-        signalGBX.withdrawSignal(address(targetStrategy), 101 ether);
+        signalGBX.removeSignal(address(targetStrategy), 101 ether);
         vm.stopPrank();
     }
 
@@ -237,8 +237,8 @@ contract ResonanceTest is ProtocolFixture {
 
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 50 ether);
-        signalGBX.signal(address(targetStrategy), 30 ether);
-        signalGBX.signal(address(targetStrategy), 20 ether);
+        signalGBX.addSignal(address(targetStrategy), 30 ether);
+        signalGBX.addSignal(address(targetStrategy), 20 ether);
         vm.stopPrank();
 
         assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 50 ether);
@@ -252,7 +252,7 @@ contract ResonanceTest is ProtocolFixture {
     function test_RemoveSignalPreservesTheExactPartialAllocation() external {
         _signalDefault(ALICE, 80 ether);
         vm.startPrank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 30 ether);
+        signalGBX.removeSignal(address(targetStrategy), 30 ether);
         vm.stopPrank();
 
         assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 50 ether);
@@ -490,13 +490,12 @@ contract ResonanceTest is ProtocolFixture {
         assertEq(resonance.distributeRevenue(address(gbxStrategy)), 259_200);
     }
 
-    function test_ComposedMoveCheckpointsBothStrategiesBeforeChangingTheirWeights() external {
+    function test_RemoveThenAddCheckpointsBothStrategiesBeforeChangingTheirWeights() external {
         _signalDefault(ALICE, 100 ether);
         _routeRevenue(604_800);
 
         vm.warp(block.timestamp + 1 days);
-        vm.prank(ALICE);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
+        _reallocateSignal(ALICE, address(targetStrategy), address(gbxStrategy), 40 ether);
 
         vm.warp(block.timestamp + 6 days);
         assertEq(resonance.distributeRevenue(address(targetStrategy)), 397_440);
@@ -566,7 +565,7 @@ contract ResonanceTest is ProtocolFixture {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 1 ether);
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(targetStrategy)));
-        signalGBX.signal(address(targetStrategy), 1 ether);
+        signalGBX.addSignal(address(targetStrategy), 1 ether);
         vm.stopPrank();
     }
 
@@ -613,10 +612,10 @@ contract ResonanceTest is ProtocolFixture {
         assertEq(targetBribe.totalSignalWeight(), 100 ether);
 
         vm.startPrank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 40 ether);
+        signalGBX.removeSignal(address(targetStrategy), 40 ether);
         assertEq(resonance.totalSignalWeight(), 0);
         assertEq(targetBribe.totalSignalWeight(), 60 ether);
-        signalGBX.withdrawSignal(address(targetStrategy), 60 ether);
+        signalGBX.removeSignal(address(targetStrategy), 60 ether);
         assertEq(resonance.totalSignalWeight(), 0);
         assertEq(targetBribe.totalSignalWeight(), 0);
         vm.stopPrank();

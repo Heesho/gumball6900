@@ -2676,6 +2676,49 @@ export const signalGbxAbi = [
   },
   {
     type: 'function',
+    name: 'addSignal',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'addSignalMany',
+    inputs: [
+      {
+        name: 'allocations',
+        type: 'tuple[]',
+        internalType: 'struct SignalGBX.Allocation[]',
+        components: [
+          {
+            name: 'strategy',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'allowance',
     inputs: [
       {
@@ -2993,29 +3036,6 @@ export const signalGbxAbi = [
   },
   {
     type: 'function',
-    name: 'moveSignal',
-    inputs: [
-      {
-        name: 'fromStrategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'toStrategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
     name: 'name',
     inputs: [],
     outputs: [
@@ -3080,6 +3100,49 @@ export const signalGbxAbi = [
   },
   {
     type: 'function',
+    name: 'removeSignal',
+    inputs: [
+      {
+        name: 'strategy',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'removeSignalMany',
+    inputs: [
+      {
+        name: 'allocations',
+        type: 'tuple[]',
+        internalType: 'struct SignalGBX.Allocation[]',
+        components: [
+          {
+            name: 'strategy',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'amount',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+        ],
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'renounceOwnership',
     inputs: [],
     outputs: [],
@@ -3106,62 +3169,6 @@ export const signalGbxAbi = [
         name: 'resonance_',
         type: 'address',
         internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'signal',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'signalWithPermit',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'deadline',
-        type: 'uint256',
-        internalType: 'uint256',
-      },
-      {
-        name: 'v',
-        type: 'uint8',
-        internalType: 'uint8',
-      },
-      {
-        name: 'r',
-        type: 'bytes32',
-        internalType: 'bytes32',
-      },
-      {
-        name: 's',
-        type: 'bytes32',
-        internalType: 'bytes32',
       },
     ],
     outputs: [],
@@ -3254,24 +3261,6 @@ export const signalGbxAbi = [
         name: 'newOwner',
         type: 'address',
         internalType: 'address',
-      },
-    ],
-    outputs: [],
-    stateMutability: 'nonpayable',
-  },
-  {
-    type: 'function',
-    name: 'withdrawSignal',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-      {
-        name: 'amount',
-        type: 'uint256',
-        internalType: 'uint256',
       },
     ],
     outputs: [],
@@ -3724,17 +3713,6 @@ export const signalGbxAbi = [
   },
   {
     type: 'error',
-    name: 'SameStrategy',
-    inputs: [
-      {
-        name: 'strategy',
-        type: 'address',
-        internalType: 'address',
-      },
-    ],
-  },
-  {
-    type: 'error',
     name: 'StringTooLong',
     inputs: [
       {
@@ -3769,6 +3747,152 @@ export const signalGbxAbi = [
     type: 'error',
     name: 'ZeroAmount',
     inputs: [],
+  },
+] as const;
+export const signalPortfolioLensAbi = [
+  {
+    type: 'function',
+    name: 'portfolio',
+    inputs: [
+      {
+        name: 'signalGBX',
+        type: 'address',
+        internalType: 'contract SignalGBX',
+      },
+      {
+        name: 'resonance',
+        type: 'address',
+        internalType: 'contract Resonance',
+      },
+      {
+        name: 'account',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'strategies',
+        type: 'address[]',
+        internalType: 'address[]',
+      },
+    ],
+    outputs: [
+      {
+        name: 'accountView',
+        type: 'tuple',
+        internalType: 'struct SignalPortfolioLens.AccountView',
+        components: [
+          {
+            name: 'totalSignal',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
+            name: 'delegate',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'currentVotes',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+        ],
+      },
+      {
+        name: 'strategyViews',
+        type: 'tuple[]',
+        internalType: 'struct SignalPortfolioLens.StrategyAccountView[]',
+        components: [
+          {
+            name: 'strategy',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'registered',
+            type: 'bool',
+            internalType: 'bool',
+          },
+          {
+            name: 'live',
+            type: 'bool',
+            internalType: 'bool',
+          },
+          {
+            name: 'bribe',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'bribeRouter',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'paymentToken',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'currentPrice',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
+            name: 'epochId',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
+            name: 'availableRevenue',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
+            name: 'accountSignal',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
+            name: 'totalSignal',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
+            name: 'earnedRevenue',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+          {
+            name: 'rewardTokens',
+            type: 'address[]',
+            internalType: 'address[]',
+          },
+          {
+            name: 'claimableRewards',
+            type: 'uint256[]',
+            internalType: 'uint256[]',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'error',
+    name: 'InvalidSignalGraph',
+    inputs: [
+      {
+        name: 'expected',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'supplied',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
   },
 ] as const;
 export const strategyAbi = [

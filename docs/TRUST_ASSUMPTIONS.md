@@ -6,7 +6,8 @@
   retains stricter checks only for caller-selected arbitrary assets.
 - Users and integrators account for each Bribe's immutable per-token lifetime notification cap of
   `floor(type(uint256).max / 1e36)` raw units. It cannot be reset or bypassed; an exhausted pool must be replaced with a
-  new Strategy and Bribe while incumbent positions remain movable or withdrawable from the old pool.
+  new Strategy and Bribe while incumbent positions remain removable from the old pool. Reallocation uses direct
+  removal from the old Strategy and addition to the replacement.
 - SignalGBX holders understand that its non-transferable ERC20Votes checkpoints and delegation remain available to a
   future external governance integration, but the core assigns them no proposal threshold, quorum, delay, cancellation,
   or execution semantics.

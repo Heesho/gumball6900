@@ -9,6 +9,8 @@ Whitepaper v0.8 — 24 August 2026 — by Heesho
 > independent disposition confirmed three behaviors: one accepted theoretical risk, one pre-exposure deployment
 > control, and one open claim-authorization issue. Review of the fixed mining economics,
 > deployment parameters, third-party provenance, governance integration, and remaining security gates is still open.
+> ADR 0051's later SignalGBX API, batch loops, read periphery, SDK composition, and subgraph position index are outside
+> that V12 review and require fresh independent review.
 
 ## Abstract
 
@@ -126,18 +128,20 @@ claim is permanently left for remaining GBX holders.
 
 ## 6. Signals and acquisitions
 
-`signal` deposits GBX and mints sGBX one-for-one only while assigning every raw unit to a live Strategy in the same
-transaction. sGBX is non-transferable, retains ERC20Votes, and is the only user-facing signal coordinator. A first
-signal made with no current delegate self-delegates voting power. `signalWithPermit` uses the underlying GBX permit and
-relies on the subsequent `SafeERC20` transfer as its allowance and call-success check; canonical GBX is trusted to move
-the requested amount without balance-delta verification. sGBX itself has no ERC-2612 approval permit. Idle sGBX and
-standalone staking or unstaking are not valid protocol states.
+`addSignal` deposits GBX and mints sGBX one-for-one only while assigning every raw unit to a live Strategy in the same
+transaction. `addSignalMany` performs that transition across a caller-supplied Strategy array while transferring and
+minting the aggregate once. sGBX is non-transferable, retains ERC20Votes, and is the only user-facing signal
+coordinator. A first addition made with no current delegate self-delegates voting power. Canonical GBX is trusted to
+move the requested amount without balance-delta verification. SignalGBX consumes no permit signature; a smart account
+may atomically batch a GBX approval with direct signal calls. Idle sGBX and standalone staking or unstaking are not
+valid protocol states.
 
-`moveSignal` atomically removes an existing position through `Resonance.removeSignalFor` and adds the same amount to a
-live destination through `Resonance.addSignalFor`. Resonance has no dedicated move hook; a failed addition rolls back
-the removal. A successful move transfers no GBX, mints or burns no sGBX, and changes no voting units. `withdrawSignal`
-removes a selected Strategy and paired-Bribe position, burns the same sGBX amount, and returns the same GBX atomically.
-Both remain immediate scalar operations with no cooldown or epoch.
+`removeSignal` removes one selected Strategy and paired-Bribe position, burns the same sGBX amount, and returns the
+same GBX atomically. `removeSignalMany` applies every requested removal before burning and returning the aggregate
+once. Batch entries use the same restricted Resonance hooks and incremental events as the scalar operations. Empty or
+zero-valued batches revert, duplicate Strategies execute sequentially, and any failed entry rolls back the complete
+batch. Scalar removal remains available when a larger batch is stale or too expensive. There is no public move or
+write-through Router; a reallocation is a removal plus an addition, which smart wallets may compose atomically.
 
 Signal state has one canonical owner at each layer. SignalGBX balance is the account's complete signaled amount. Each
 Strategy's paired Bribe stores `signalWeightOf(account)` and that Strategy's complete `totalSignalWeight`. Resonance stores
@@ -145,7 +149,7 @@ only the active total across live Strategies and accepts signal mutation hooks o
 `allocatedBalance` duplicate is not maintained.
 
 Resonance schedules forwarded USDG in one active seven-day stream. Each signal mutation first checkpoints the elapsed
-interval under the old weights, so a signal moved now affects later flow without a lock, cooldown, or voting epoch. A
+interval under the old weights, so a signal changed now affects later flow without a lock, cooldown, or voting epoch. A
 Strategy purchase checkpoints and pulls its released share before reading auction inventory. Consequently, signaling a
 thin Strategy, separately routing newly deposited mining USDG, and filling its stale cheap auction in one transaction cannot capture that new
 USDG: no stream time has elapsed.
@@ -193,8 +197,9 @@ liabilities.
 Each reward token also has a monotonic lifetime accepted-notification limit of
 `floor(type(uint256).max / 1e36)` raw units. It is checked before reward checkpointing or token transfer and cannot be
 reset, so claims can never reopen capacity. A normal 18-decimal token would require about `1.158e23` whole tokens to
-reach it. If an irregular token does reach it, existing signalers can still claim, move, or withdraw; a new Strategy
-and Bribe must replace the exhausted pool. An automatic reward amount rejected at the cap remains buffered in
+reach it. If an irregular token does reach it, existing signalers can still claim rewards or remove their positions;
+smart accounts may reallocate with direct remove/add calls. A new Strategy and Bribe must replace the exhausted pool.
+An automatic reward amount rejected at the cap remains buffered in
 BribeRouter. The old killed Bribe remains a closed reward pool without an escape hatch.
 
 ## 7. External liquidity as an ordinary Strategy

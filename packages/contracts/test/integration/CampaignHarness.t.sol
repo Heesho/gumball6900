@@ -52,7 +52,7 @@ contract CampaignHarnessTest is Test {
         campaign.signalDefault(0, 1_000 ether);
         _assertAllProperties();
 
-        campaign.signalMany(0, 2);
+        campaign.addSignalMany(0, 2);
         assertGt(campaign.resonance().totalSignalWeight(), 0, "signal must actually allocate");
         _assertAllProperties();
 
@@ -103,7 +103,7 @@ contract CampaignHarnessTest is Test {
         assertEq(_aliveCount(), 2, "a Strategy must actually be retired");
         _assertAllProperties();
 
-        campaign.withdrawSignalMany(0, 2);
+        campaign.removeSignalMany(0, 2);
         assertEq(campaign.resonance().totalSignalWeight(), 0);
         _assertAllProperties();
     }
@@ -111,7 +111,7 @@ contract CampaignHarnessTest is Test {
     /// @notice A GBX-priced Strategy sends its Fund share inline and buffers only its Bribe share.
     function test_TheGBXPaymentPathIsReachableFromTheCampaign() external {
         campaign.signalDefault(0, 1_000 ether);
-        campaign.signalMany(0, 2);
+        campaign.addSignalMany(0, 2);
         campaign.donateRevenue(500_000_000);
         vm.warp(block.timestamp + 30 minutes);
         campaign.distributeAll();
@@ -160,25 +160,25 @@ contract CampaignHarnessTest is Test {
         assertTrue(campaign.resonance().isStrategyLive(addedStrategy));
 
         uint96 fullSignalSeed = uint96(100 ether - 1);
-        campaign.signal(0, uint8(addedIndex), fullSignalSeed);
+        campaign.addSignal(0, uint8(addedIndex), fullSignalSeed);
         assertEq(Bribe(campaign.resonance().bribeFor(addedStrategy)).signalWeightOf(actor), 100 ether);
         _assertAllProperties();
 
         campaign.killStrategy(uint8(addedIndex));
         assertFalse(campaign.resonance().isStrategyLive(addedStrategy));
 
-        campaign.withdrawSignal(0, uint8(addedIndex), fullSignalSeed);
+        campaign.removeSignal(0, uint8(addedIndex), fullSignalSeed);
         assertEq(Bribe(campaign.resonance().bribeFor(addedStrategy)).signalWeightOf(actor), 0);
         assertEq(campaign.signalGBX().balanceOf(actor), 0);
         _assertAllProperties();
     }
 
     function test_RevenueIsCheckpointedBeforeMidStreamSignalEntry() external {
-        campaign.signal(0, 0, uint96(100 ether - 1));
+        campaign.addSignal(0, 0, uint96(100 ether - 1));
         campaign.donateRevenue(604_800);
 
         vm.warp(block.timestamp + 1 days);
-        campaign.signal(1, 1, uint96(100 ether - 1));
+        campaign.addSignal(1, 1, uint96(100 ether - 1));
 
         vm.warp(block.timestamp + 6 days);
         campaign.distributeOne(0);
@@ -190,12 +190,12 @@ contract CampaignHarnessTest is Test {
     }
 
     function test_RevenueIsCheckpointedBeforeMidStreamSignalExit() external {
-        campaign.signal(0, 0, uint96(100 ether - 1));
-        campaign.signal(1, 1, uint96(100 ether - 1));
+        campaign.addSignal(0, 0, uint96(100 ether - 1));
+        campaign.addSignal(1, 1, uint96(100 ether - 1));
         campaign.donateRevenue(604_800);
 
         vm.warp(block.timestamp + 1 days);
-        campaign.withdrawSignal(0, 0, uint96(50 ether - 1));
+        campaign.removeSignal(0, 0, uint96(50 ether - 1));
 
         vm.warp(block.timestamp + 6 days);
         campaign.distributeOne(0);
@@ -231,9 +231,9 @@ contract CampaignHarnessTest is Test {
                 );
 
                 uint256 receiptBefore = campaign.signalGBX().balanceOf(address(campaign.actors(0)));
-                campaign.signal(0, 1, uint96(10 ether - 1));
-                campaign.moveSignal(0, 1, 2, uint96(10 ether - 1));
-                campaign.withdrawSignal(0, 1, uint96(10 ether - 1));
+                campaign.addSignal(0, 1, uint96(10 ether - 1));
+                campaign.reallocateSignal(0, 1, 2, uint96(10 ether - 1));
+                campaign.removeSignal(0, 1, uint96(10 ether - 1));
                 assertEq(campaign.signalGBX().balanceOf(address(campaign.actors(0))), receiptBefore);
                 _assertAllProperties();
             }
@@ -252,16 +252,18 @@ contract CampaignHarnessTest is Test {
 
             // Failing actions are exactly what the fuzzer discards, so ignore them and keep exploring.
             if (seed % 13 == 0) try campaign.signalDefault(actor, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
-            if (seed % 13 == 1) try campaign.signal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
+            if (seed % 13 == 1) try campaign.addSignal(actor, seed, uint96(1e18) * (uint96(seed) + 1)) { } catch { }
             if (seed % 13 == 2) {
-                try campaign.moveSignal(actor, seed, uint8(uint256(seed) + 1), uint96(1e18) * (uint96(seed) + 1)) { }
+                try campaign.reallocateSignal(
+                    actor, seed, uint8(uint256(seed) + 1), uint96(1e18) * (uint96(seed) + 1)
+                ) { }
                     catch { }
             }
             if (seed % 13 == 3) try campaign.mine(actor, seed) { } catch { }
             if (seed % 13 == 4) try campaign.donateRevenue(uint64(seed) * 1e6 + 1) { } catch { }
             if (seed % 13 == 5) try campaign.distributeAll() { } catch { }
             if (seed % 13 == 6) try campaign.buy(actor, seed) { } catch { }
-            if (seed % 13 == 7) try campaign.withdrawSignalMany(actor, seed) { } catch { }
+            if (seed % 13 == 7) try campaign.removeSignalMany(actor, seed) { } catch { }
             if (seed % 13 == 8) try campaign.claimRewards(actor, seed) { } catch { }
             if (seed % 13 == 9) try campaign.addStrategy() { } catch { }
             if (seed % 13 == 10) try campaign.setBribeBps(uint16(seed) * 10) { } catch { }

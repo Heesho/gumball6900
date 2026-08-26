@@ -21,6 +21,14 @@ authorization. The max-price claim is factually false. The other claims describe
 unsupported tokens, standalone counterfeit contracts, setup mistakes, or already-recorded deployment and governance
 gates rather than a new post-deployment exploit of the canonical graph.
 
+## Post-audit scope boundary
+
+ADR 0051 is a later breaking change. Its `addSignal`, `addSignalMany`, `removeSignal`, and `removeSignalMany` selectors,
+batch loops, aggregate GBX custody transitions, removed permit/move paths, `SignalPortfolioLens`, SDK composition, and
+subgraph `SignalPosition` index were not present at `3ae171b` and are not covered by this V12 export or the dispositions
+below. Those dispositions remain preserved for the audited commit; they must not be cited as current-source clearance.
+The post-ADR-0051 delta requires fresh independent review.
+
 ## Independent dispositions
 
 | V12 ID | V12 label        | Independent disposition                          | Required treatment                                                                                                                                             |

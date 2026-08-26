@@ -1,19 +1,19 @@
 ---
 title: GumBall6900 at a Glance
-version: 2.0.0
-date: 2026-08-25
-source_commit: 3ae171b997254b56602298d873b3918d1575b3c7
+version: 2.1.0
+date: 2026-08-26
+source_commit: uncommitted-post-adr-0051
 base_commit: 3ae171b997254b56602298d873b3918d1575b3c7
-protocol_status: Development candidate implementing ADRs through ADR 0050; not approved for user funds.
+protocol_status: Development candidate implementing ADRs through ADR 0051; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: V12 findings and independent dispositions are pinned to 3ae171b997254b56602298d873b3918d1575b3c7; release gates remain open.
+internal_review_status: V12 findings and independent dispositions are pinned to 3ae171b997254b56602298d873b3918d1575b3c7. The current ADR 0051 batching and periphery delta is outside that review; release gates remain open.
 independent_audit_status: V12 export received for the pinned commit; incomplete assurance package, three behaviors confirmed, no release approval.
 ---
 
 # GumBall6900 at a Glance
 
-**A protocol where token holders decide, by committing stake, which assets a shared onchain treasury buys — and where
-anyone holding the token can burn it to withdraw their share of what was bought.**
+**A protocol where token holders signal with GBX which assets a shared onchain treasury buys — and where anyone holding
+the token can burn it to redeem their share of what was bought.**
 
 ## The problem
 
@@ -23,7 +23,7 @@ oracle that decides what things are worth.
 
 GumBall6900 removes the manager. In this development tree there is no upgrade path, proxy, pause switch, sweep function,
 arbitrary-call executor, migration route, price oracle, NAV calculation, or rebalancing engine. The treasury has no
-owner at all. What gets bought is decided by stake; what you can withdraw is decided by arithmetic you can verify.
+owner at all. What gets bought is directed by signal; what you can redeem is decided by arithmetic you can verify.
 
 ## GBX
 
@@ -36,15 +36,17 @@ Holding GBX gives two rights: **signal with it** to direct the protocol, or **bu
 ## Signaling
 
 Signaling is a single atomic step: you deposit GBX, receive an equal amount of **SignalGBX (sGBX)**, and commit it to
-one **Strategy** — a standing mandate to acquire one asset. Withdrawing reverses all three at once.
+one **Strategy** — a standing mandate to acquire one asset. Removing signal reverses all three at once.
 
-There is no intermediate "staked but uncommitted" state. **Every sGBX unit in existence is committed to exactly one
+There is no intermediate idle state. **Every sGBX unit in existence is committed to exactly one
 Strategy at all times**, so the amount of signal in the system and the amount actually directing money are the same
-quantity. sGBX cannot be transferred; the only way to get it is to signal, and the only way to lose it is to withdraw.
+quantity. sGBX cannot be transferred; the only way to get it is to add signal, and the only way to lose it is to remove
+signal.
 
 Revenue flows to Strategies in proportion to the signal they carry, moment by moment. There is no lock-up, cooldown, or
 voting epoch, and every signal change first settles revenue accrued under the old weights — so changing your mind never
-retroactively redirects money. A move is one atomic source removal plus destination addition; failure rolls both back.
+retroactively redirects money. Reallocation is a direct source removal plus destination addition; smart accounts may
+compose both calls atomically, and a failure rolls the complete wallet batch back.
 
 ## Revenue, acquisition, and redemption
 
@@ -159,15 +161,15 @@ only — it can never reclassify an amount already settled. No contract has an u
 
 ## Status
 
-| Field                        | Status                                                                                                                                                                                                       |
-| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Protocol status**          | Development candidate at review target `3ae171b`; not approved for user funds.                                                                                                                               |
-| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG address are unresolved candidates; any bootstrap LP token address remains a reviewed deployment input.    |
-| **Internal review status**   | V12's 22 findings were independently dispositioned at `3ae171b`; 249695 is an accepted theoretical risk, 249702 remains a deployment control, and 249705 is open. A complete release matrix remains pending. |
-| **Open release gates**       | Claim authorization for V12-249705 remains unresolved; fixed Mine economics, dependency evidence, and the exact external governance system also remain open.                                                 |
-| **Independent audit status** | V12 export received for `3ae171b`; incomplete assurance package and not release-authorizing. Compatible symbolic analysis and final release review remain incomplete.                                        |
-| **Legal status**             | Upstream code provenance and license reconciliation are unresolved release blockers.                                                                                                                         |
-| **Source state**             | Protocol source reviewed at `3ae171b997254b56602298d873b3918d1575b3c7`; the audit intake changes documentation and records, not protocol source.                                                             |
+| Field                        | Status                                                                                                                                                                                                    |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Protocol status**          | Uncommitted post-ADR-0051 development candidate; not approved for user funds.                                                                                                                             |
+| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG address are unresolved candidates; any bootstrap LP token address remains a reviewed deployment input. |
+| **Internal review status**   | V12's 22 findings were independently dispositioned at `3ae171b`; 249695 is an accepted theoretical risk, 249702 remains a deployment control, and 249705 is open. ADR 0051 requires fresh review.         |
+| **Open release gates**       | Claim authorization for V12-249705 remains unresolved; fixed Mine economics, dependency evidence, and the exact external governance system also remain open.                                              |
+| **Independent audit status** | V12 export received for `3ae171b`; incomplete assurance package and not release-authorizing. Compatible symbolic analysis and final release review remain incomplete.                                     |
+| **Legal status**             | Upstream code provenance and license reconciliation are unresolved release blockers.                                                                                                                      |
+| **Source state**             | Current source includes ADR 0051's new SignalGBX API, batching, Lens, SDK, and subgraph discovery after the V12-reviewed `3ae171b` baseline.                                                              |
 
 ---
 

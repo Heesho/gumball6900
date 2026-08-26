@@ -1,7 +1,8 @@
 # ADR 0036: Governed global acquired-asset Bribe share
 
 - Status: partially superseded by ADR 0047; the bounded global prospective rate remains, while weighted carry and
-  deferred settlement are historical; independent review and deployment approval remain pending
+  deferred settlement are historical. ADR 0051 supersedes the signal-function names below; independent review and
+  deployment approval remain pending
 - Date: 2026-08-21
 - Supersedes: ADR 0032's immutable 90% Fund / 10% paired-Bribe classification and ADR 0034's three-method continuing
   Resonance administration list
@@ -95,8 +96,8 @@ liabilities and remainder. Changing the rate between two payments intentionally 
 Setting `bribeBps` to zero disables only new automatic acquired-payment rewards. It does not disable or unregister a
 Strategy, BribeRouter, or Bribe. In particular:
 
-- `signal`, `signalWithPermit`, `moveSignal`, and `withdrawSignal` retain identical balance and checkpoint behavior;
-- killed-Strategy positions remain movable to a live Strategy and withdrawable;
+- scalar and batched `addSignal` and `removeSignal` retain identical balance and checkpoint behavior;
+- killed-Strategy positions remain removable, and smart accounts may reallocate through direct remove/add calls;
 - existing BribeRouter liabilities remain independently payable and retryable;
 - existing Bribe streams, queued rewards, accrued claims, and Fund liabilities remain claimable or settleable;
 - independently funded Bribe rewards remain permitted within the token-count and lifetime-notification caps; and

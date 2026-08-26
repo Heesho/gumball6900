@@ -3,7 +3,8 @@
 - Status: accepted for scalar signal deltas and bounded Bribe rewards; Resonance batch and account-enumeration
   convenience APIs are superseded by ADR 0029, direct Resonance signal entrypoints and aggregate state were superseded
   by ADR 0030, idle-allocation and standalone-exit provisions are superseded by ADR 0031, and the exact eight-token
-  bound is superseded by ADR 0048
+  bound is superseded by ADR 0048. ADR 0051 restores optional batches at the SignalGBX custody boundary with a different
+  struct-based ABI while preserving bounded scalar exits.
 - Date: 2026-08-09
 - Supersedes the signaling provisions of
   [ADR 0013](0013-upstream-shaped-core-starting-point.md)

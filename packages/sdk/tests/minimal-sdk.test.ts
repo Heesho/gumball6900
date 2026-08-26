@@ -1,7 +1,12 @@
 import { getAddress, type Address, type PublicClient } from 'viem';
 import { describe, expect, it, vi } from 'vitest';
 
-import { protocolAddressesSchema, readRedemptionPreview, readSupplyView } from '../src/index.js';
+import {
+  protocolAddressesSchema,
+  protocolPeripheryAddressesSchema,
+  readRedemptionPreview,
+  readSupplyView,
+} from '../src/index.js';
 
 const address = (value: number): Address => `0x${value.toString(16).padStart(40, '0')}`;
 const BLOCK_HASH = `0x${'ab'.repeat(32)}` as const;
@@ -77,5 +82,16 @@ describe('minimal SDK reads and deployment metadata', () => {
       Object.fromEntries(Object.entries(deployment).map(([key, value]) => [key, getAddress(value)])),
     );
     expect(() => protocolAddressesSchema.parse({ ...deployment, legacyVault: address(99) })).toThrow();
+  });
+
+  it('keeps replaceable periphery addresses separate from the core deployment graph', () => {
+    expect(protocolPeripheryAddressesSchema.parse({ signalPortfolioLens: address(9) })).toEqual({
+      signalPortfolioLens: getAddress(address(9)),
+    });
+    expect(() =>
+      protocolPeripheryAddressesSchema.parse({
+        signalPortfolioLens: '0x0000000000000000000000000000000000000000',
+      }),
+    ).toThrow();
   });
 });

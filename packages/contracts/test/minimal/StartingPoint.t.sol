@@ -227,16 +227,18 @@ contract StartingPointTest is Test {
         assertEq(gbx.lifetimeBurned(), 9 ether);
     }
 
-    function test_SignalsCanBeMovedAndWithdrawnWithoutTimeLock() external {
+    function test_SignalsCanBeRemovedAndReaddedWithoutTimeLock() external {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
-        signalGBX.signal(address(targetStrategy), 100 ether);
-        signalGBX.moveSignal(address(targetStrategy), address(gbxStrategy), 40 ether);
-        signalGBX.withdrawSignal(address(targetStrategy), 60 ether);
+        signalGBX.addSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 40 ether);
+        gbx.approve(address(signalGBX), 40 ether);
+        signalGBX.addSignal(address(gbxStrategy), 40 ether);
+        signalGBX.removeSignal(address(targetStrategy), 60 ether);
         assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 0);
         assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 40 ether);
 
-        signalGBX.withdrawSignal(address(gbxStrategy), 40 ether);
+        signalGBX.removeSignal(address(gbxStrategy), 40 ether);
         vm.stopPrank();
 
         assertEq(signalGBX.balanceOf(ALICE), 0);
@@ -378,12 +380,12 @@ contract StartingPointTest is Test {
     function _signalFixture() private {
         vm.startPrank(ALICE);
         gbx.approve(address(signalGBX), 100 ether);
-        signalGBX.signal(address(targetStrategy), 100 ether);
+        signalGBX.addSignal(address(targetStrategy), 100 ether);
         vm.stopPrank();
 
         vm.startPrank(BOB);
         gbx.approve(address(signalGBX), 100 ether);
-        signalGBX.signal(address(gbxStrategy), 100 ether);
+        signalGBX.addSignal(address(gbxStrategy), 100 ether);
         vm.stopPrank();
     }
 

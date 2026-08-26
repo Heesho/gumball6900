@@ -1,6 +1,6 @@
 # Release checklist
 
-Current description: **ADR 0024/0029/0031/0033-0050 development candidate;
+Current description: **ADR 0024/0029/0031/0033-0051 development candidate;
 external governance unselected and independent review required**. This is not production-ready or
 deployment-authorized.
 
@@ -17,38 +17,56 @@ deployment-authorized.
       core contains no liquidity-specific contract; a reviewed, externally created fungible Uniswap v2-style USDG/GBX
       LP ERC-20 uses the ordinary Strategy path.
 - [x] Fund uses constant-time effective supply, including all pending mining, for the redemption denominator.
-- [x] Current source, focused tests, audit records, and architecture references reconciled through ADR 0050.
-- [x] The post-ADR-0050 contract source at `3ae171b` passes 293/293 default Foundry tests, all 27 invariant entries
+- [x] Current source, focused tests, audit records, consumers, and architecture references reconciled through ADR 0051.
+- [x] Historical post-ADR-0050 contract source at `3ae171b` passed 293/293 default Foundry tests, all 27 invariant entries
       at 1,000 runs of depth 500 with zero handler reverts, 10/10 integration tests, 4/4 Hardhat tests including parity,
-      and contract lint, ordering, formatting, build, size, generated-documentation, and SDK ABI checks.
-- [ ] Final post-ADR-0050 SDK-test, simulation, subgraph, frontend, wider workspace, artifact, full lint/typecheck, and
-      mutation matrix rerun. The recorded complete ADR-0047 workspace matrix and focused ADR-0048 mutation result
-      predate later changes.
-- [x] Focused ADR-0048 migration suites pass 104/104, including the sixteen-token bound, composed move, rollback,
-      checkpoint ordering, absent Resonance move selector, and maximum-bound gas regressions.
+      and contract lint, ordering, formatting, build, size, generated-documentation, and SDK ABI checks. This evidence
+      predates and does not cover ADR 0051.
+- [x] Current ADR-0051 contract matrix passes 299/299 default Foundry tests, all 27 invariant entries at 1,000 runs of
+      depth 500 with zero handler reverts, 4/4 Hardhat tests including bytecode parity, contract lint/order/format,
+      `forge build --sizes`, generated contract documentation, and SDK ABI checks.
+- [x] Current ADR-0051 consumer matrix passes 51/51 SDK tests, SDK typecheck/build, 5/5 subgraph specification tests,
+      9/9 Matchstick tests, subgraph codegen/build/ABI checks, 28/28 TypeScript simulations, 22/22 Python simulations,
+      5/5 simulation-environment tests, 3/3 web unit tests, and repository-wide lint/typecheck/build. The root test
+      matrix passes all nine packages.
+- [ ] Final post-ADR-0051 browser E2E, repository-wide format, and full mutation rerun. The concurrent landing redesign
+      currently leaves one stale assertion failing in two browser profiles, and the focused ADR-0048 mutation result
+      predates later changes.
+- [x] Historical focused ADR-0048 migration suites passed 104/104, including the sixteen-token bound, composed move,
+      rollback, checkpoint ordering, absent Resonance move selector, and maximum-bound gas regressions. Public move was
+      later removed by ADR 0051, so those results are not current batch evidence.
 - [ ] Repository-wide format gate passes. Seven unrelated baseline files — six landing files plus `pnpm-lock.yaml` —
       still fail Prettier; this remains open even though the changed files and Solidity formatting pass.
-- [ ] Static findings regenerated and manually dispositioned for the complete ADR-0050 graph.
+- [ ] Static findings regenerated and manually dispositioned for the complete ADR-0051 graph.
 - [ ] Current-tree coverage thresholds recorded for Mine.
 - [x] Focused ADR-0048 mutation campaign killed 47/47 mutants, including the cap regression and composed-move
       omission, same-Strategy, and restored-hook mutations.
+- [x] Current ADR-0051 focused mutation smokes test-kill 16/16 SignalGBX mutants and 1/1 restored Resonance move-hook
+      mutant, with pattern-specific raw reports retained under `audit/reports`.
+- [ ] Remaining 34 post-ADR-0051 mutants and one complete 51-mutant campaign run and independently dispositioned.
 - [ ] Current-tree Medusa and pinned Echidna campaigns complete, with time-jump bounds reaching the first 69-day
       boundary and day-414 tail boundary.
 - [ ] Compatible symbolic analysis or explicit independent disposition complete.
 - [x] Resonance and Bribe use Synthetix-style leftover rollover and ordinary floors; there are no carry buckets or Fund
       reward liabilities, and entry/exit regressions prove rounded pre-change value is not inherited by later weights.
-- [x] SignalGBX coordinates atomic signal workflows, retains ERC20Votes, and omits its unused ERC20Permit surface.
+- [x] SignalGBX's scalar and batched add/remove workflows preserve aggregate custody, full rollback, per-allocation
+      events, duplicate-entry sequential semantics, killed-Strategy exit, and bounded scalar liveness at the
+      sixteen-token Bribe maximum.
+- [x] `SignalPortfolioLens`, direct-call SDK builders/planners, and subgraph `SignalPosition` discovery are synchronized;
+      transaction-sensitive writes refresh canonical state onchain and no shared write-through Router exists.
+- [x] A two-Strategy batch against two sixteen-token Bribes records 1,070,988 gas for addition and 190,321 gas for
+      removal, each below its six-million-gas regression bound.
+- [ ] A larger intended UI allocation/chunk bound selected and measured. Gas grows with both allocation count and
+      registered Bribe tokens, and scalar removal remains the bounded exit fallback.
 - [x] In-repository ProtocolGovernor and protocol Timelock removed under ADR 0034 while SignalGBX retains ERC20Votes.
 - [x] Global automatic-Bribe share is prospective, uniform, owner-only, and bounded from 0% through 20%; each Strategy
       purchase floors independently, sends the complement directly to Fund, and buffers only its Bribe share.
 - [x] Bribe reward accounting uses `1e36` precision with a precision-coupled lifetime cap, standard seven-day leftover
       rollover, uninterrupted zero-supply time, and all-token plus scalar-token claims under a standard-token model.
-- [x] Bribe reward registration is append-only and fixed at sixteen tokens. Current gas measurements remain below two
-      million for every focused maximum-bound operation, including 1,890,938 for a composed move across two full
-      Bribes.
-- [x] SignalGBX movement atomically composes `removeSignalFor` then `addSignalFor`; destination failure rolls back the
-      source, both Strategies checkpoint before their own weight mutation, and Resonance exposes no dedicated move
-      hook.
+- [x] Bribe reward registration is append-only and fixed at sixteen tokens. Scalar maximum-bound operations and the
+      current two-Strategy batch regression remain far below a 30-million-gas block; larger batches require chunking.
+- [x] Resonance exposes no dedicated move hook. ADR 0051 also removes public SignalGBX move; any wallet-level
+      reallocation composes direct remove/add calls without granting a Router custody or operator authority.
 - [ ] SignalGBX checkpoint/delegation compatibility and voting-power rental risk reviewed against the exact external
       governance release.
 - [ ] External governance permissions, proposal scope, batching, quorum/support, execution, delay, cancellation,
@@ -65,6 +83,8 @@ deployment-authorized.
 - [ ] Rollover, zero-price replacement, MEV, demand collapse, and thin-liquidity scenarios reviewed.
 - [x] V12 finding export for `3ae171b997254b56602298d873b3918d1575b3c7` received, hash-pinned, and independently
       dispositioned in `FINDINGS.md`.
+- [ ] ADR 0051's renamed selectors, scalar/batch implementations, aggregate custody loops, periphery Lens, SDK
+      composition, and subgraph position index independently reviewed. None is covered by the V12 export for `3ae171b`.
 - [x] V12 249695 accepted as a theoretical risk under the canonical six-decimal USDG identity and supply assumption; no
       source change selected. Reopen if the supported revenue-token model changes.
 - [ ] V12 249702 deployment evidence proves every slot remained untouched through binding; any contaminated candidate

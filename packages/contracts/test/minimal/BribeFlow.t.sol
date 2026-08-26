@@ -198,7 +198,7 @@ contract BribeRetirementCompatibilityTest is ProtocolFixture {
         resonance.killStrategy(address(targetStrategy));
 
         vm.prank(ALICE);
-        signalGBX.withdrawSignal(address(targetStrategy), 100 ether);
+        signalGBX.removeSignal(address(targetStrategy), 100 ether);
         assertEq(targetBribe.claimReward(ALICE, address(target)), 1 days);
         assertEq(target.balanceOf(ALICE), 1 days);
         assertEq(targetBribe.totalSignalWeight(), 0);
@@ -207,7 +207,7 @@ contract BribeRetirementCompatibilityTest is ProtocolFixture {
         vm.startPrank(BOB);
         gbx.approve(address(signalGBX), 1 ether);
         vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyAlreadyDead.selector, address(targetStrategy)));
-        signalGBX.signal(address(targetStrategy), 1 ether);
+        signalGBX.addSignal(address(targetStrategy), 1 ether);
         vm.stopPrank();
 
         vm.warp(block.timestamp + 6 days);

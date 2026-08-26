@@ -24,9 +24,6 @@ import { MockERC20 } from "./Tokens.sol";
 ///      with `fail_on_revert = true` and any revert is a genuine finding rather than an unreachable random input.
 contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
     uint256 internal constant ACTOR_COUNT = 4;
-    bytes32 private constant PERMIT_TYPEHASH =
-        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
-
     GBX public immutable gbx;
     MockERC20 public immutable usdg;
     MockERC20 public immutable target;
@@ -90,7 +87,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
         vm.startPrank(actor);
         gbx.approve(address(signalGBX), requested);
-        signalGBX.signal(alive[0], requested);
+        signalGBX.addSignal(alive[0], requested);
         vm.stopPrank();
 
         ghostCalls["signalDefault"] += 1;
@@ -104,7 +101,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         uint256 held = _accountSignalWeight(actor, strategy);
 
         vm.prank(actor);
-        signalGBX.withdrawSignal(strategy, _bound(amount, 1, held));
+        signalGBX.removeSignal(strategy, _bound(amount, 1, held));
 
         ghostCalls["withdrawDefault"] += 1;
     }
@@ -113,7 +110,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
                             SIGNAL ACTIONS
     //////////////////////////////////////////////////////////////*/
 
-    function signal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
+    function addSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
         address actor = _actor(actorSeed);
         uint256 requested = _bound(amount, 1e15, 1_000_000 ether);
         if (!_supplyGBX(actor, requested)) return;
@@ -123,34 +120,13 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         address strategy = alive[_bound(strategySeed, 0, alive.length - 1)];
         vm.startPrank(actor);
         gbx.approve(address(signalGBX), requested);
-        signalGBX.signal(strategy, requested);
+        signalGBX.addSignal(strategy, requested);
         vm.stopPrank();
 
-        ghostCalls["signal"] += 1;
+        ghostCalls["addSignal"] += 1;
     }
 
-    function signalWithPermit(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
-        uint256 actorIndex = actorSeed % ACTOR_COUNT;
-        address actor = actors[actorIndex];
-        uint256 requested = _bound(amount, 1e15, 1_000_000 ether);
-        if (!_supplyGBX(actor, requested)) return;
-        address[] memory alive = _aliveStrategies();
-        if (alive.length == 0) return;
-
-        address strategy = alive[_bound(strategySeed, 0, alive.length - 1)];
-        uint256 deadline = block.timestamp + 1 days;
-        bytes32 structHash =
-            keccak256(abi.encode(PERMIT_TYPEHASH, actor, address(signalGBX), requested, gbx.nonces(actor), deadline));
-        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", gbx.DOMAIN_SEPARATOR(), structHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(actorKeys[actorIndex], digest);
-
-        vm.prank(actor);
-        signalGBX.signalWithPermit(strategy, requested, deadline, v, r, s);
-
-        ghostCalls["signalWithPermit"] += 1;
-    }
-
-    function withdrawSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
+    function removeSignal(uint256 actorSeed, uint256 strategySeed, uint256 amount) external {
         address actor = _actor(actorSeed);
         address[] memory selected = _accountStrategies(actor);
         if (selected.length == 0) return;
@@ -158,12 +134,12 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         address strategy = selected[_bound(strategySeed, 0, selected.length - 1)];
         uint256 held = _accountSignalWeight(actor, strategy);
         vm.prank(actor);
-        signalGBX.withdrawSignal(strategy, _bound(amount, 1, held));
+        signalGBX.removeSignal(strategy, _bound(amount, 1, held));
 
-        ghostCalls["withdrawSignal"] += 1;
+        ghostCalls["removeSignal"] += 1;
     }
 
-    function signalMany(uint256 actorSeed, uint256 countSeed) external {
+    function addSignalMany(uint256 actorSeed, uint256 countSeed) external {
         address actor = _actor(actorSeed);
         address[] memory alive = _aliveStrategies();
         if (alive.length == 0) return;
@@ -172,43 +148,35 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         uint256 deposited = count * 1 ether;
         if (!_supplyGBX(actor, deposited)) return;
 
-        address[] memory selected = new address[](count);
-        uint256[] memory amounts = new uint256[](count);
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](count);
         for (uint256 i; i < count; ++i) {
-            selected[i] = alive[i];
-            amounts[i] = 1 ether;
+            allocations[i] = SignalGBX.Allocation({ strategy: alive[i], amount: 1 ether });
         }
 
         vm.startPrank(actor);
         gbx.approve(address(signalGBX), deposited);
-        for (uint256 i; i < count; ++i) {
-            signalGBX.signal(selected[i], amounts[i]);
-        }
+        signalGBX.addSignalMany(allocations);
         vm.stopPrank();
 
-        ghostCalls["signalMany"] += 1;
+        ghostCalls["addSignalMany"] += 1;
     }
 
-    function withdrawSignalMany(uint256 actorSeed, uint256 countSeed) external {
+    function removeSignalMany(uint256 actorSeed, uint256 countSeed) external {
         address actor = _actor(actorSeed);
         address[] memory current = _accountStrategies(actor);
         if (current.length == 0) return;
 
         uint256 count = _bound(countSeed, 1, current.length);
-        address[] memory selected = new address[](count);
-        uint256[] memory amounts = new uint256[](count);
+        SignalGBX.Allocation[] memory allocations = new SignalGBX.Allocation[](count);
         for (uint256 i; i < count; ++i) {
-            selected[i] = current[i];
-            amounts[i] = _accountSignalWeight(actor, current[i]);
+            allocations[i] =
+                SignalGBX.Allocation({ strategy: current[i], amount: _accountSignalWeight(actor, current[i]) });
         }
 
-        vm.startPrank(actor);
-        for (uint256 i; i < count; ++i) {
-            signalGBX.withdrawSignal(selected[i], amounts[i]);
-        }
-        vm.stopPrank();
+        vm.prank(actor);
+        signalGBX.removeSignalMany(allocations);
 
-        ghostCalls["withdrawSignalMany"] += 1;
+        ghostCalls["removeSignalMany"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -28,7 +28,7 @@ import {
 } from '../generated/Resonance/Resonance';
 import { handleRouterRewardRouted } from '../src/bribe-router';
 import { handleBurned, handleMinted } from '../src/gbx';
-import { eventId } from '../src/ids';
+import { eventId, signalPositionId } from '../src/ids';
 import {
   handleEmissionSettled,
   handleMined,
@@ -200,25 +200,43 @@ describe('core protocol mappings', () => {
     handleStrategyKilled(killed);
 
     const strategyId = '4663-' + STRATEGY.toHexString();
+    const positionId = signalPositionId(USER, STRATEGY);
     assert.fieldEquals('Strategy', strategyId, 'live', 'false');
     assert.fieldEquals('Strategy', strategyId, 'totalSignalWeightRaw', '100');
+    assert.fieldEquals('SignalPosition', positionId, 'account', '4663-' + USER.toHexString());
+    assert.fieldEquals('SignalPosition', positionId, 'strategy', strategyId);
+    assert.fieldEquals('SignalPosition', positionId, 'accountAddress', USER.toHexString());
+    assert.fieldEquals('SignalPosition', positionId, 'strategyAddress', STRATEGY.toHexString());
+    assert.fieldEquals('SignalPosition', positionId, 'amountRaw', '100');
 
     const removed = changetype<SignalRemoved>(newMockEvent());
     configureEvent(removed, CONTRACT, 4);
     removed.parameters = new Array<ethereum.EventParam>();
     removed.parameters.push(addressParam('account', USER));
     removed.parameters.push(addressParam('strategy', STRATEGY));
-    removed.parameters.push(uintParam('amount', 100));
+    removed.parameters.push(uintParam('amount', 40));
     handleSignalRemoved(removed);
+
+    assert.fieldEquals('SignalPosition', positionId, 'amountRaw', '60');
+    assert.fieldEquals('SignalPosition', positionId, 'lastBlockNumber', '104');
+
+    const finalRemoval = changetype<SignalRemoved>(newMockEvent());
+    configureEvent(finalRemoval, CONTRACT, 5);
+    finalRemoval.parameters = new Array<ethereum.EventParam>();
+    finalRemoval.parameters.push(addressParam('account', USER));
+    finalRemoval.parameters.push(addressParam('strategy', STRATEGY));
+    finalRemoval.parameters.push(uintParam('amount', 60));
+    handleSignalRemoved(finalRemoval);
 
     assert.fieldEquals('ProtocolState', '4663', 'strategyCount', '1');
     assert.fieldEquals('ProtocolState', '4663', 'liveStrategyCount', '0');
     assert.fieldEquals('Strategy', strategyId, 'paymentToken', ASSET.toHexString());
     assert.fieldEquals('Strategy', strategyId, 'totalSignalWeightRaw', '0');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'signalWeightRaw', '0');
+    assert.notInStore('SignalPosition', positionId);
   });
 
-  test('tracks atomic SignalGBX deposits and strategy-scoped withdrawals', () => {
+  test('tracks atomic SignalGBX deposits and strategy-scoped removals', () => {
     const signaled = changetype<Signaled>(newMockEvent());
     configureEvent(signaled, CONTRACT, 1);
     signaled.parameters = new Array<ethereum.EventParam>();

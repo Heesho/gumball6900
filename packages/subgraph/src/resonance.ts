@@ -1,4 +1,4 @@
-import { DataSourceContext } from '@graphprotocol/graph-ts';
+import { DataSourceContext, store } from '@graphprotocol/graph-ts';
 import {
   BribeBpsSet,
   BribeRewardTokenAdded,
@@ -11,8 +11,9 @@ import {
   ResonanceRouterSet,
 } from '../generated/Resonance/Resonance';
 import { BribeTemplate, BribeRouterTemplate } from '../generated/templates';
-import { ONE } from './constants';
-import { getAccount, getProtocol, getStrategy, recordEvent } from './entities';
+import { ONE, ZERO } from './constants';
+import { getAccount, getProtocol, getSignalPosition, getStrategy, recordEvent } from './entities';
+import { signalPositionId } from './ids';
 
 export function handleBribeBpsSet(event: BribeBpsSet): void {
   const protocol = getProtocol(event);
@@ -105,6 +106,10 @@ export function handleSignalAdded(event: SignalAdded): void {
   strategy.totalSignalWeightRaw = strategy.totalSignalWeightRaw.plus(event.params.amount);
   strategy.save();
 
+  const position = getSignalPosition(event.params.account, event.params.strategy, event);
+  position.amountRaw = position.amountRaw.plus(event.params.amount);
+  position.save();
+
   const record = recordEvent(event, 'RESONANCE_SIGNAL_ADDED');
   record.addresses = [event.params.account, event.params.strategy];
   record.values = [event.params.amount];
@@ -119,6 +124,14 @@ export function handleSignalRemoved(event: SignalRemoved): void {
   const strategy = getStrategy(event.params.strategy, event);
   strategy.totalSignalWeightRaw = strategy.totalSignalWeightRaw.minus(event.params.amount);
   strategy.save();
+
+  const position = getSignalPosition(event.params.account, event.params.strategy, event);
+  position.amountRaw = position.amountRaw.minus(event.params.amount);
+  if (position.amountRaw.equals(ZERO)) {
+    store.remove('SignalPosition', signalPositionId(event.params.account, event.params.strategy));
+  } else {
+    position.save();
+  }
 
   const record = recordEvent(event, 'RESONANCE_SIGNAL_REMOVED');
   record.addresses = [event.params.account, event.params.strategy];

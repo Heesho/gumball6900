@@ -1,7 +1,16 @@
 import { erc20Abi, getAddress, type Abi, type Address, type Hex, type PublicClient } from 'viem';
 import { z } from 'zod';
 
-import { bribeAbi, bribeRouterAbi, gbxAbi, mineAbi, signalGbxAbi, strategyAbi, resonanceAbi } from './abis.js';
+import {
+  bribeAbi,
+  bribeRouterAbi,
+  gbxAbi,
+  mineAbi,
+  signalGbxAbi,
+  signalPortfolioLensAbi,
+  strategyAbi,
+  resonanceAbi,
+} from './abis.js';
 import { pinBlockSnapshot, revalidateBlockSnapshot, type BlockSnapshot } from './block-snapshot.js';
 import { addressSchema, unsignedBigIntSchema } from './validation.js';
 
@@ -221,6 +230,120 @@ export async function readSignalView(
     delegate,
     signalBalance,
   });
+  await revalidateBlockSnapshot(client, pinned);
+  return result;
+}
+
+export const signalPortfolioAccountViewSchema = z.object({
+  currentVotes: unsignedBigIntSchema,
+  delegate: addressSchema,
+  totalSignal: unsignedBigIntSchema,
+});
+export type SignalPortfolioAccountView = z.infer<typeof signalPortfolioAccountViewSchema>;
+
+export const signalPortfolioStrategyViewSchema = z
+  .object({
+    accountSignal: unsignedBigIntSchema,
+    availableRevenue: unsignedBigIntSchema,
+    bribe: addressSchema,
+    bribeRouter: addressSchema,
+    claimableRewards: z.array(unsignedBigIntSchema),
+    currentPrice: unsignedBigIntSchema,
+    earnedRevenue: unsignedBigIntSchema,
+    epochId: unsignedBigIntSchema,
+    live: z.boolean(),
+    paymentToken: addressSchema,
+    registered: z.boolean(),
+    rewardTokens: z.array(addressSchema),
+    strategy: addressSchema,
+    totalSignal: unsignedBigIntSchema,
+  })
+  .superRefine((view, context) => {
+    if (view.rewardTokens.length !== view.claimableRewards.length) {
+      context.addIssue({ code: 'custom', message: 'rewardTokens and claimableRewards must have equal lengths' });
+    }
+  });
+export type SignalPortfolioStrategyView = z.infer<typeof signalPortfolioStrategyViewSchema>;
+
+export const signalPortfolioViewSchema = z.object({
+  account: addressSchema,
+  accountView: signalPortfolioAccountViewSchema,
+  blockNumber: unsignedBigIntSchema,
+  lens: addressSchema,
+  positions: z.array(signalPortfolioStrategyViewSchema),
+  resonance: addressSchema,
+  signalGBX: addressSchema,
+});
+export type SignalPortfolioView = z.infer<typeof signalPortfolioViewSchema>;
+
+function signalPortfolioAccountView(value: unknown): Readonly<Record<string, unknown>> {
+  if (!Array.isArray(value)) return value as Readonly<Record<string, unknown>>;
+  return { totalSignal: value[0], delegate: value[1], currentVotes: value[2] };
+}
+
+function signalPortfolioStrategyView(value: unknown): Readonly<Record<string, unknown>> {
+  if (!Array.isArray(value)) return value as Readonly<Record<string, unknown>>;
+  return {
+    strategy: value[0],
+    registered: value[1],
+    live: value[2],
+    bribe: value[3],
+    bribeRouter: value[4],
+    paymentToken: value[5],
+    currentPrice: value[6],
+    epochId: value[7],
+    availableRevenue: value[8],
+    accountSignal: value[9],
+    totalSignal: value[10],
+    earnedRevenue: value[11],
+    rewardTokens: value[12],
+    claimableRewards: value[13],
+  };
+}
+
+/**
+ * Reads current signal, Strategy, and Bribe state for a caller-supplied portfolio through the optional stateless Lens.
+ * Strategy discovery remains offchain; chunk the explicit list when RPC gas or response-size limits require it.
+ */
+export async function readSignalPortfolio(
+  client: PublicClient,
+  lens: Address,
+  contracts: Readonly<{ signalGBX: Address; resonance: Address }>,
+  account: Address,
+  strategies: readonly Address[],
+  options: ReadOptions = {},
+): Promise<SignalPortfolioView> {
+  const pinned = await snapshot(client, options);
+  const { blockNumber } = pinned;
+  const normalizedLens = getAddress(lens);
+  const normalizedSignalGBX = getAddress(contracts.signalGBX);
+  const normalizedResonance = getAddress(contracts.resonance);
+  const normalizedAccount = getAddress(account);
+  const normalizedStrategies = strategies.map((strategy) => getAddress(strategy));
+
+  const raw = (await read(client, blockNumber, normalizedLens, signalPortfolioLensAbi, 'portfolio', [
+    normalizedSignalGBX,
+    normalizedResonance,
+    normalizedAccount,
+    normalizedStrategies,
+  ])) as readonly [unknown, readonly unknown[]];
+  const result = signalPortfolioViewSchema.parse({
+    account: normalizedAccount,
+    accountView: signalPortfolioAccountView(raw[0]),
+    blockNumber,
+    lens: normalizedLens,
+    positions: raw[1].map(signalPortfolioStrategyView),
+    resonance: normalizedResonance,
+    signalGBX: normalizedSignalGBX,
+  });
+  if (result.positions.length !== normalizedStrategies.length) {
+    throw new RangeError('Lens returned a different number of Strategy rows than requested');
+  }
+  for (let i = 0; i < normalizedStrategies.length; i += 1) {
+    if (getAddress(result.positions[i]!.strategy) !== normalizedStrategies[i]) {
+      throw new RangeError(`Lens returned an unexpected Strategy at index ${i}`);
+    }
+  }
   await revalidateBlockSnapshot(client, pinned);
   return result;
 }
