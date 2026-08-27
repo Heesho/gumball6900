@@ -1,19 +1,17 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-test('minimal rebuild status renders without accessibility violations', async ({ page }) => {
+test('cinematic mechanism landing page renders without accessibility violations', async ({ page }) => {
   await page.goto('/');
-  await expect(page.getByRole('heading', { level: 1, name: 'The governance-minimized GBX protocol.' })).toBeVisible();
-  await expect(page.getByText('No deployment configured', { exact: true })).toBeVisible();
-  await expect(page.getByText('GBX premint', { exact: true })).toBeVisible();
-  await expect(page.getByText('0 GBX', { exact: true })).toBeVisible();
-  await expect(page.getByRole('heading', { level: 2, name: 'Eleven direct, non-upgradeable contracts' })).toBeVisible();
   await expect(
-    page.getByText(/does not select or implement the governance system that will own Resonance/i),
+    page.getByRole('heading', { level: 1, name: 'An onchain index fund built by its holders.' }),
   ).toBeVisible();
-  await expect(
-    page.getByText('This page exposes no wallet connection and submits no transaction.', { exact: false }),
-  ).toBeVisible();
+  await expect(page.locator('.cinematic-hero video')).toHaveAttribute('muted', '');
+  await expect(page.getByRole('heading', { level: 2, name: 'Four mechanisms. One holder-built fund.' })).toBeVisible();
+  await expect(page.getByText('16', { exact: true })).toBeVisible();
+  await expect(page.getByText('1:1', { exact: true })).toBeVisible();
+  await expect(page.getByText('80–100%', { exact: true })).toBeVisible();
+  await expect(page.getByText(/This is a development protocol with no production addresses configured/i)).toBeVisible();
 
   const accessibility = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'])
@@ -21,11 +19,31 @@ test('minimal rebuild status renders without accessibility violations', async ({
   expect(accessibility.violations).toEqual([]);
 });
 
-test('mobile layout does not overflow', async ({ page }) => {
+for (const route of [
+  { href: '/mine', heading: 'Mine', metric: '64 GBX/s' },
+  { href: '/signal', heading: 'Signal', metric: '1:1' },
+  { href: '/auction', heading: 'Auction', metric: '80–100%' },
+  { href: '/govern', heading: 'Govern', metric: 'Unresolved' },
+]) {
+  test(`${route.heading} mechanism page renders`, async ({ page }) => {
+    await page.goto(route.href);
+    await expect(page.getByRole('heading', { level: 1, name: route.heading })).toBeVisible();
+    await expect(page.getByText(route.metric, { exact: true })).toBeVisible();
+    await expect(page.getByText('Not deployed. No production addresses configured.', { exact: false })).toBeVisible();
+  });
+}
+
+test('mobile layouts do not overflow', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('/');
-  const widths = await page.evaluate(() => ({ document: document.documentElement.scrollWidth, viewport: innerWidth }));
-  expect(widths.document).toBeLessThanOrEqual(widths.viewport);
+
+  for (const route of ['/', '/mine', '/signal', '/auction', '/govern']) {
+    await page.goto(route);
+    const widths = await page.evaluate(() => ({
+      document: document.documentElement.scrollWidth,
+      viewport: innerWidth,
+    }));
+    expect(widths.document).toBeLessThanOrEqual(widths.viewport);
+  }
 });
 
 test('liveness stays distinct from protocol readiness', async ({ request }) => {
