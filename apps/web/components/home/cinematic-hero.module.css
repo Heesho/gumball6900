@@ -1,0 +1,317 @@
+/*
+ * The opening, measured from the reference at 1440×900.
+ *
+ * Two states and a transition between them — never a scrubbed position. The film clips from full
+ * bleed to inset(0 (100vw − 100svh)/2 round 72px) while scaling to 0.5035, which lands a centred
+ * square of side 0.5035 × 100svh: 453px at 1440×900, exactly the reference. The headline halves
+ * part to the gutters and recolour paper → ink as the film leaves the white ground it was covering.
+ */
+
+/*
+ * One committed gesture, not a scrub. Deliberately slower than the reference's own state changes —
+ * this is the page's opening shot and it is meant to be watched. The ease is mild rather than
+ * symmetric, so the box starts moving straight away instead of stalling for a fifth of a second
+ * the way the original curve did, then settles over a long tail.
+ */
+.hero,
+.stage {
+  --swing: 1100ms cubic-bezier(0.45, 0, 0.22, 1);
+}
+
+/*
+ * The rail is what the boxed film has to hold on to. At 125svh the pin lasted about 215px, which a
+ * single trackpad flick clears — so the first scroll landed on the composition roughly half the
+ * time and slid the headline under the navigation the rest. A full viewport of hold means the
+ * gesture always ends where it is meant to, and leaving is then a deliberate second scroll.
+ */
+.hero {
+  position: relative;
+  height: 200svh;
+}
+
+.stage {
+  position: sticky;
+  inset-block-start: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100svh;
+  background: var(--paper);
+  overflow: clip;
+  isolation: isolate;
+}
+
+/* ---------------------------------------------------------------- film */
+
+.film {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  transform: scale(1);
+  clip-path: inset(0 0 round 0);
+  transition:
+    transform var(--swing),
+    clip-path var(--swing);
+  will-change: transform, clip-path;
+}
+
+:global(html[data-opening='true']) .film {
+  transform: scale(0.5035);
+  clip-path: inset(0 calc((100vw - 100svh) / 2) round 72px);
+}
+
+.video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 46%;
+}
+
+/* The scrim carries the type while the film is full bleed, and leaves with it. */
+.scrim {
+  position: absolute;
+  inset: 0;
+  opacity: 1;
+  transition: opacity 560ms ease-out;
+  background:
+    linear-gradient(to top, rgba(12, 12, 12, 0.82) 0%, rgba(12, 12, 12, 0.46) 26%, rgba(12, 12, 12, 0) 62%),
+    linear-gradient(to bottom, rgba(12, 12, 12, 0.62) 0%, rgba(12, 12, 12, 0) 24%);
+}
+
+:global(html[data-opening='true']) .scrim {
+  opacity: 0;
+}
+
+/* ---------------------------------------------------------------- headline */
+
+/*
+ * The brand face. It ships one weight, so the weight is pinned and synthesis is off — left to
+ * itself the browser fabricates a bold here and the counters close shut.
+ *
+ * The two halves are their own blocks so the sentence can open around the picture: at rest they
+ * read as one centred paragraph, and as the film boxes the first rises above it and the second
+ * drops below.
+ */
+.title {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: min(24ch, calc(100% - (var(--gutter) * 2)));
+  margin-inline: auto;
+  margin-block: 0;
+  padding-inline: var(--gutter);
+  font-family: var(--font-brand), var(--font-sans), sans-serif;
+  font-size: clamp(1.5rem, 3.3vw, 3.5rem);
+  font-weight: 400;
+  font-synthesis: none;
+  line-height: 1.14;
+  letter-spacing: 0.012em;
+  text-align: center;
+  text-wrap: balance;
+  color: var(--paper);
+}
+
+:global(html[data-opening='true']) .title {
+  color: var(--ink);
+}
+
+.title {
+  transition: color 420ms ease-out 530ms;
+}
+
+/*
+ * How far each half travels is measured in the component: the box is a clip-path and a scale, so
+ * the layout has no idea how big it is.
+ */
+.titleLead,
+.titleTrail {
+  display: block;
+  transform: translate3d(0, 0, 0);
+  transition: transform var(--swing);
+  will-change: transform;
+}
+
+:global(html[data-opening='true']) .titleLead {
+  transform: translate3d(0, calc(-1 * var(--rise, 260px)), 0);
+}
+
+:global(html[data-opening='true']) .titleTrail {
+  transform: translate3d(0, var(--fall, 260px), 0);
+}
+
+/* ---------------------------------------------------------------- foot */
+
+.foot {
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(18px, 2.2vw, 30px);
+  opacity: 1;
+  transition: opacity 340ms ease-out;
+  pointer-events: none;
+}
+
+:global(html[data-opening='true']) .foot {
+  opacity: 0;
+}
+
+.foot a {
+  pointer-events: auto;
+}
+
+.cue {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: var(--control-radius);
+  font-size: 0.875rem;
+  letter-spacing: -0.008em;
+  color: rgba(255, 255, 255, 0.84);
+  transition: color var(--tap) var(--ease);
+}
+
+.cue:hover {
+  color: var(--paper);
+}
+
+.cue svg {
+  width: 13px;
+  height: 18px;
+  animation: nudge 2.6s var(--ease) infinite;
+}
+
+@keyframes nudge {
+  0%,
+  62%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.75;
+  }
+  30% {
+    transform: translateY(4px);
+    opacity: 1;
+  }
+}
+
+/* ---------------------------------------------------------------- ticker */
+
+.ticker {
+  width: 100%;
+  padding-block: 13px;
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 7%, #000 93%, transparent);
+}
+
+.tickerTrack {
+  display: flex;
+  width: max-content;
+  /* ~192px/s across the duplicated track, which is where the reference's own tickers sit. */
+  animation: marquee 30s linear infinite;
+}
+
+.tickerRun {
+  display: flex;
+  align-items: center;
+  gap: clamp(28px, 4vw, 56px);
+  padding-inline-end: clamp(28px, 4vw, 56px);
+}
+
+.tickerRun li {
+  font-size: 0.688rem;
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.62);
+  white-space: nowrap;
+}
+
+.tickerRun li::after {
+  content: '·';
+  margin-inline-start: clamp(28px, 4vw, 56px);
+  color: rgba(255, 255, 255, 0.3);
+}
+
+@keyframes marquee {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.ticker[data-still='true'] .tickerTrack {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tickerTrack,
+  .cue svg {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------------- responsive */
+
+/*
+ * Below the width where the sentence fits one line the halves stack and stay put; the film still
+ * clips to a square, which is the part of the gesture that survives a narrow screen.
+ */
+@media (max-width: 900px) {
+  .title {
+    font-size: clamp(1.35rem, 6.4vw, 2.1rem);
+  }
+
+  .film {
+    transform: scale(1);
+    clip-path: inset(0 0 round 0);
+  }
+
+  :global(html[data-opening='true']) .film {
+    transform: scale(0.64);
+    clip-path: inset(calc((100svh - 100vw) / 2) 0 round 60px);
+  }
+}
+
+/*
+ * The stacked composition is a column — heading, box, standfirst — so on a short or near-square
+ * screen the box has to give way or one of the other two ends up under the navigation.
+ */
+@media (max-width: 900px) and (max-height: 700px) {
+  :global(html[data-opening='true']) .film {
+    transform: scale(0.5);
+  }
+}
+
+@media (max-width: 900px) and (min-aspect-ratio: 9 / 10) {
+  :global(html[data-opening='true']) .film {
+    transform: scale(0.46);
+  }
+}
+
+@media (max-width: 900px) {
+  .video {
+    object-position: 50% 40%;
+  }
+}
+
+@media (max-height: 620px) and (orientation: landscape) {
+  .stage {
+    height: 640px;
+  }
+}
+
+/* The gesture is a single commitment either way, so reduced motion simply lands on the end state. */
+@media (prefers-reduced-motion: reduce) {
+  .hero,
+  .stage {
+    --swing: 1ms linear;
+  }
+}

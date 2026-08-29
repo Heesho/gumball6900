@@ -1,0 +1,230 @@
+/*
+ * Figure marks take --accent from the board's accent-pink / accent-blue class, so a mechanism
+ * reads in the same colour here as it does on its own page.
+ */
+
+.figure {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-width: 0;
+}
+
+.figure[data-compact='true'] {
+  gap: 7px;
+}
+
+/* SVG carries shapes only. Heights are capped so a figure never dominates its card. */
+.plotWide {
+  width: 100%;
+  max-height: 132px;
+  height: auto;
+}
+
+.plotCompact {
+  width: 100%;
+  max-height: 116px;
+  height: auto;
+}
+
+/*
+ * A panel that spans its whole row: the plot takes the width it is given and keeps its height, so
+ * the ladder reads the same at 290px as at 790px instead of shrinking with the aspect ratio.
+ */
+.plotRow {
+  width: 100%;
+  height: 110px;
+}
+
+/* ---------------------------------------------------------------- shared marks */
+
+.baseline {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.connector {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+/* ---------------------------------------------------------------- bars & blocks */
+
+.barBlue {
+  fill: var(--accent, var(--pink));
+}
+
+.barTail {
+  fill: var(--accent, var(--pink));
+  opacity: 0.3;
+}
+
+.dot {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+}
+
+.dotFilled {
+  fill: var(--accent, var(--pink));
+}
+
+.blockFree {
+  fill: var(--paper);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.blockOwned {
+  fill: var(--accent, var(--pink));
+}
+
+.trackNeutral {
+  fill: var(--ink);
+}
+
+.trackBlue {
+  fill: var(--accent, var(--pink));
+}
+
+.trackBlueSoft {
+  fill: var(--accent, var(--pink));
+  opacity: 0.4;
+}
+
+/* ---------------------------------------------------------------- type around figures */
+
+.scale,
+.flowHead {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.688rem;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.flowHead {
+  margin-bottom: 2px;
+}
+
+.flowHead span:nth-child(2) {
+  flex: 1;
+  text-align: center;
+}
+
+.flowHead[data-split='true'] span:nth-child(2) {
+  flex: none;
+  text-align: right;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.688rem;
+  line-height: 1.35;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.swatchPink,
+.swatchBlue,
+.swatchVoid {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 2px;
+  background: var(--accent, var(--pink));
+}
+
+.swatchVoid {
+  background: transparent;
+  border: 1.4px solid var(--line-strong);
+}
+
+/* ---------------------------------------------------------------- authority */
+
+.authority {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: clamp(16px, 2vw, 32px);
+}
+
+.authorityHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.688rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.authorityList {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 0.875rem;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.authorityList[data-void='true'] {
+  color: var(--muted);
+}
+
+.authorityList[data-void='true'] li {
+  text-decoration: line-through;
+  text-decoration-color: var(--muted);
+  text-decoration-thickness: 1px;
+}
+
+@media (max-width: 480px) {
+  .authority {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 20px;
+  }
+}
+
+/* ---------------------------------------------------------------- band plots */
+
+/* A band is a single strip rather than a chart, so it keeps its own height cap. */
+.plotWide[data-band='true'] {
+  max-height: 60px;
+}
+
+.plotCompact[data-band='true'] {
+  max-height: 60px;
+}
+
+/* Marks sit under the band so it stays one unbroken stream rather than seven instalments. */
+.dayTicks line {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+.callBlock {
+  fill: var(--accent-wash, var(--pink-wash));
+  stroke: var(--accent, var(--pink));
+  stroke-width: 1.5;
+}
+
+.vacancy {
+  fill: none;
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+  stroke-dasharray: 3 3;
+}
+
+.trackAccent {
+  fill: var(--accent, var(--pink));
+}

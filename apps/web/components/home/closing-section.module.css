@@ -1,0 +1,258 @@
+.section {
+  background: var(--paper);
+}
+
+/*
+ * The page resolves here, so the plaque sits closer to the footer than a mid-page section would.
+ * Doubled selector so this outranks the global .section shorthand regardless of injection order.
+ */
+.section.section {
+  padding-bottom: clamp(52px, 5.6vw, 88px);
+}
+
+.headWrap {
+  margin-bottom: clamp(32px, 3.6vw, 56px);
+}
+
+.headWrap :global(.h2) {
+  max-width: 17ch;
+}
+
+/* ---------------------------------------------------------------- mechanism cards */
+
+.frame {
+  container-type: inline-size;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--card-gap);
+}
+
+.cards > li {
+  display: flex;
+  min-width: 0;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  min-height: clamp(190px, 15vw, 230px);
+  border: 1px solid transparent;
+  transition:
+    border-color var(--tap) var(--ease),
+    transform var(--tap) var(--ease);
+}
+
+.card:hover {
+  border-color: var(--line-strong);
+  transform: translateY(-2px);
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 0.688rem;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.cardIndex {
+  color: var(--accent-deep, var(--pink-deep));
+}
+
+.cardKicker {
+  color: var(--muted);
+}
+
+.cardName {
+  margin-top: 6px;
+  font-size: clamp(1.35rem, 1.75vw, 1.72rem);
+  letter-spacing: -0.028em;
+  line-height: 1.1;
+}
+
+.cardSummary {
+  font-size: 0.813rem;
+  line-height: 1.5;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+.cardGo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex: none;
+  margin-top: auto;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  color: var(--ink);
+  transition:
+    background-color var(--tap) var(--ease),
+    border-color var(--tap) var(--ease),
+    color var(--tap) var(--ease);
+}
+
+.cardGo svg {
+  width: 15px;
+  height: 15px;
+}
+
+.card:hover .cardGo {
+  background: var(--accent, var(--pink));
+  border-color: var(--accent, var(--pink));
+  color: var(--paper);
+}
+
+/* ---------------------------------------------------------------- status plaque */
+
+.status {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  gap: clamp(28px, 3.4vw, 64px);
+  margin-top: clamp(14px, 1.6vw, 22px);
+  padding: clamp(26px, 3vw, 44px);
+
+  border-radius: var(--frame-radius);
+  background: var(--ink);
+  color: var(--paper);
+  /*
+   * An accent bar, not a border. `border-top` on a rounded box draws both corner arcs and stops
+   * mid-curve, leaving two dangling stubs; an inset bar keeps the accent inside the radius and on
+   * the site's 1.5px line weight.
+   */
+  position: relative;
+  overflow: hidden;
+}
+
+.status::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 1.5px;
+  background: var(--pink);
+  pointer-events: none;
+}
+
+.statusMain,
+.statusSide {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 1.5vw, 20px);
+  min-width: 0;
+}
+
+.statusSide {
+  padding-left: clamp(0px, 3vw, 56px);
+  border-left: 1px solid var(--ink-line);
+}
+
+.statusHeadline {
+  max-width: 17ch;
+  font-size: clamp(1.45rem, 2.35vw, 2.1rem);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  color: var(--paper);
+  text-wrap: balance;
+}
+
+.statusBody {
+  max-width: 46ch;
+  font-size: 0.938rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.statusChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+.statusNoteEmphasis {
+  color: var(--ink-muted-strong);
+}
+
+.blockers {
+  display: flex;
+  flex-direction: column;
+}
+
+.blockers li {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding-block: 11px;
+  border-top: 1px solid var(--ink-line);
+  font-size: 0.938rem;
+  line-height: 1.4;
+  color: var(--ink-muted-strong);
+}
+
+.blockers li:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.blockerIndex {
+  font-size: 0.688rem;
+  letter-spacing: 0.06em;
+  color: var(--pink);
+}
+
+.statusNote {
+  padding-top: clamp(12px, 1.4vw, 18px);
+  border-top: 1px solid var(--ink-line);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------- responsive */
+
+@container (max-width: 900px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (max-width: 460px) {
+  .cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .card {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .status {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .statusSide {
+    padding-left: 0;
+    padding-top: clamp(20px, 3vw, 28px);
+    border-left: 0;
+    border-top: 1px solid var(--ink-line);
+  }
+
+  .statusChips {
+    margin-top: 4px;
+  }
+}

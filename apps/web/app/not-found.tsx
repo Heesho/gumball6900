@@ -1,14 +1,29 @@
 import Link from 'next/link';
 
+import { MECHANISMS } from '../lib/protocol';
+import styles from './status-page.module.css';
+
 export default function NotFound() {
   return (
-    <section className="mx-auto max-w-2xl rounded-2xl border border-white/8 bg-[#111719] p-7 text-center">
-      <p className="text-[0.68rem] font-bold uppercase tracking-[0.18em] text-[#67f5e4]">404</p>
-      <h1 className="mt-3 text-2xl font-semibold tracking-[-0.04em] text-white">That protocol view does not exist</h1>
-      <p className="mt-3 text-sm text-[#849393]">No contract action was attempted.</p>
-      <Link className="mt-6 inline-flex rounded-lg bg-[#67f5e4] px-4 py-2 text-sm font-bold text-[#07100f]" href="/">
-        Return home
-      </Link>
-    </section>
+    <div className={`page-head section ${styles.page}`}>
+      <div className={`container ${styles.inner}`}>
+        <span className="eyebrow">404</span>
+        <h1 className="h1">There is no page here.</h1>
+        <p className="lede">The protocol has four mechanisms, and each one has a page. Nothing else exists yet.</p>
+        <ul className={styles.routes}>
+          {MECHANISMS.map((mechanism) => (
+            <li key={mechanism.href}>
+              <Link className="btn btn-quiet" href={mechanism.href}>
+                <span className="mono">{mechanism.index}</span>
+                {mechanism.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+        <Link className="btn btn-primary" href="/">
+          Back to the start
+        </Link>
+      </div>
+    </div>
   );
 }

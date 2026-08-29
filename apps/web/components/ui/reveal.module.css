@@ -1,0 +1,26 @@
+/*
+ * The reference has no long scroll entrances at all — its own keyframed entrances run 250–400ms.
+ * A reveal that lingers reads as a different site, so this stays short and travels a short way.
+ */
+.reveal {
+  opacity: 0;
+  transform: translate3d(0, 12px, 0);
+  transition:
+    opacity 360ms var(--ease-out),
+    transform 360ms var(--ease-out);
+  will-change: opacity, transform;
+}
+
+.reveal[data-shown='true'] {
+  opacity: 1;
+  transform: none;
+  will-change: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+}

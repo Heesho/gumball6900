@@ -52,7 +52,8 @@ export function buildContentSecurityPolicy(nonce: string, environment: { NODE_EN
     "frame-src 'none'",
     "img-src 'self' data:",
     "manifest-src 'self'",
-    "media-src 'none'",
+    // The cinematic hero is served from this origin; nothing else may load media.
+    "media-src 'self'",
     "object-src 'none'",
     `script-src ${scriptSources.join(' ')}`,
     "script-src-attr 'none'",

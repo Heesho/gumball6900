@@ -1,0 +1,110 @@
+/*
+ * The page's opening frame: one pale field holding a four-card row, which is the site's unit for
+ * "here are the four things at once". Everything below reads from the shared tokens — frame pad,
+ * card radius, card gap — so this section sits in the same grid as every other frame on the page.
+ */
+.section {
+  background: var(--paper);
+}
+
+.headWrap {
+  margin-bottom: clamp(32px, 3.6vw, 56px);
+}
+
+/*
+ * The shared head caps its title at 17ch, which is set for a three-word headline. This one turns on
+ * a comma, so it wants a wider measure or the second clause breaks four times.
+ */
+.headWrap :global(.h2) {
+  max-width: 15ch;
+}
+
+/* ---------------------------------------------------------------- card row */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--card-gap);
+  align-items: stretch;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  min-width: 0;
+  /* The accent bar is inset, so the card has to clip it to the radius. */
+  position: relative;
+  overflow: hidden;
+}
+
+/*
+ * An accent bar, not a border. `border-top` on a rounded box draws both corner arcs and stops
+ * mid-curve, leaving two dangling stubs; an inset bar keeps the accent inside the radius and on the
+ * site's 1.5px line weight.
+ */
+.card[data-accent]::before {
+  content: '';
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  height: 1.5px;
+  background: var(--accent, var(--pink));
+  pointer-events: none;
+}
+
+.index {
+  font-size: 0.688rem;
+  font-weight: 500;
+  letter-spacing: 0.09em;
+  color: var(--muted);
+}
+
+/* Text on paper never takes the raw brand hue: --accent-deep is the pair that clears 4.5:1. */
+.card[data-accent] .index,
+.card[data-accent] .cardTitle {
+  color: var(--accent-deep, var(--pink-deep));
+}
+
+.cardTitle {
+  margin-top: 2px;
+  text-wrap: pretty;
+}
+
+.cardBody {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------- note */
+
+.note {
+  max-width: 76ch;
+  margin-top: clamp(18px, 2vw, 26px);
+  padding-top: clamp(14px, 1.5vw, 20px);
+  border-top: 1px solid var(--line);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--muted);
+  text-wrap: pretty;
+}
+
+/* ---------------------------------------------------------------- responsive */
+
+@media (max-width: 1080px) {
+  .cards {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 620px) {
+  .headWrap :global(.h2) {
+    max-width: 18ch;
+  }
+
+  .cards {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
