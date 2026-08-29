@@ -12,10 +12,14 @@ export default defineConfig({
     screenshot: 'only-on-failure',
     trace: 'retain-on-failure',
   },
+  /*
+   * The suite asserts a clean console, and the dev overlay injects its own CSP violations, so the
+   * tests run against a production build — which is also the only mode where the nonce path is real.
+   */
   webServer: {
-    command: 'pnpm dev',
+    command: 'pnpm build && pnpm start --port 3000',
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 300_000,
     url: 'http://127.0.0.1:3000',
   },
   projects: [

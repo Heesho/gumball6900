@@ -1,41 +1,45 @@
-import { DetailPage, detailMetadata } from '../../components/detail-page';
-import { AuctionCurve } from '../../components/figures';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
-export const metadata = detailMetadata(
-  'Auction',
-  'Every Strategy uses the same bounded reverse Dutch mechanism to acquire one reviewed asset for the Fund.',
-);
+import { ArrowIcon, StatusChip } from '../../components/ui/primitives';
+import { MECHANISMS } from '../../lib/protocol';
+import styles from './page.module.css';
 
-export default function AuctionPage() {
+/*
+ * Auction is an interaction surface, not an explanation. How the mechanism works is told once, on
+ * the landing page; this route exists only to say plainly that the surface is not built yet.
+ */
+const mechanism = MECHANISMS.find((item) => item.slug === 'auction')!;
+
+export const metadata: Metadata = { title: mechanism.name, description: mechanism.summary };
+
+export default function Page() {
   return (
-    <DetailPage
-      active="auction"
-      cards={[
-        {
-          title: 'One acquisition shape',
-          body: 'Every Strategy is the same bounded reverse Dutch mechanism. It prices one reviewed payment asset directly, without a protocol NAV or price oracle.',
-        },
-        {
-          title: 'Settlement has two destinations',
-          body: 'A purchase snapshots the global Bribe rate, transfers 80–100% of payment directly to Fund, and sends any 0–20% Bribe share to the paired buffer.',
-        },
-        {
-          title: 'The Bribe cannot block the buy',
-          body: 'BribeRouter buffers the acquired reward asset and routes it separately when notification thresholds are met. Later Bribe failure does not revert a completed Strategy purchase.',
-        },
-      ]}
-      eyebrow="Mechanism 03"
-      figure={<AuctionCurve />}
-      figureLabel="One-hour reverse Dutch curve"
-      metrics={[
-        { label: 'To Fund', value: '80–100%' },
-        { label: 'To Bribe', value: '0–20%' },
-        { label: 'Default Bribe rate', value: '10%' },
-        { label: 'Reward-token cap', value: '16' },
-      ]}
-      next={{ href: '/govern', label: 'Govern' }}
-      summary="Signal selects demand; the Strategy turns that demand into acquisition. A successful purchase sends the payment asset to Fund and, at the bounded global rate, its paired Bribe."
-      title="Auction"
-    />
+    <div className={`page-head section ${styles.page}`}>
+      <div className={`container ${styles.inner}`}>
+        <header className={styles.head}>
+          <span className="eyebrow">{mechanism.index} · Mechanism</span>
+          <h1 className="h1">{mechanism.name}</h1>
+          <p className="lede">
+            Watching a Strategy&rsquo;s price fall and paying in the asset it acquires will happen here.
+          </p>
+        </header>
+
+        <div className={`frame ${styles.frame}`}>
+          <div className={`card ${styles.card}`}>
+            <StatusChip />
+            <p className={styles.status}>
+              The {mechanism.name} interaction surface is not built yet, and the protocol is not deployed on any
+              network, so there is nothing here to connect to.
+            </p>
+          </div>
+        </div>
+
+        <Link className="btn btn-primary" href="/#mechanisms">
+          How {mechanism.name} works
+          <ArrowIcon />
+        </Link>
+      </div>
+    </div>
   );
 }

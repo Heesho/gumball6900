@@ -1,0 +1,91 @@
+.section {
+  background: var(--paper);
+}
+
+.band {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: clamp(400px, 44vw, 600px);
+  padding: clamp(40px, 5vw, 88px) clamp(20px, 4vw, 72px);
+  border-radius: var(--frame-radius);
+  background: var(--ink);
+  color: var(--paper);
+  overflow: clip;
+  isolation: isolate;
+  text-align: center;
+}
+
+.video {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* The film is atmosphere here, not the subject, so it sits back behind the type. */
+  transform: scale(1.02);
+}
+
+/*
+ * The band carries a heading, a paragraph and two controls, so the picture is damped hard rather
+ * than lightly tinted. Measured against the film's brightest frames, not its average.
+ */
+.scrim {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    linear-gradient(to bottom, rgba(12, 12, 12, 0.68), rgba(12, 12, 12, 0.5) 48%, rgba(12, 12, 12, 0.56)),
+    rgba(12, 12, 12, 0.1);
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: clamp(12px, 1.4vw, 18px);
+  max-width: 44ch;
+}
+
+.title {
+  color: var(--paper);
+}
+
+.title :global(.quiet) {
+  color: var(--ink-muted-strong);
+}
+
+/*
+ * The ground here is a moving picture, not a flat ink panel. Measured against the film's brightest
+ * frame the composited scrim sits at sRGB 102, where paper white holds 5.7:1 but the usual 80%
+ * muted white drops to 4.35:1 — under AA for text this size. So this line stays fully opaque.
+ */
+.lede {
+  max-width: 52ch;
+  font-size: clamp(0.938rem, 1.1vw, 1.06rem);
+  line-height: 1.6;
+  color: var(--paper);
+  text-wrap: pretty;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: clamp(6px, 0.9vw, 12px);
+}
+
+@media (max-width: 520px) {
+  .actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .actions :global(.btn) {
+    justify-content: center;
+  }
+}

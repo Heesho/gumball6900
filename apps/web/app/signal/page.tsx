@@ -1,41 +1,45 @@
-import { DetailPage, detailMetadata } from '../../components/detail-page';
-import { SignalBars } from '../../components/figures';
+import type { Metadata } from 'next';
+import Link from 'next/link';
 
-export const metadata = detailMetadata(
-  'Signal',
-  'Escrow GBX one-for-one as non-transferable sGBX and allocate it immediately to live Strategies.',
-);
+import { ArrowIcon, StatusChip } from '../../components/ui/primitives';
+import { MECHANISMS } from '../../lib/protocol';
+import styles from './page.module.css';
 
-export default function SignalPage() {
+/*
+ * Signal is an interaction surface, not an explanation. How the mechanism works is told once, on
+ * the landing page; this route exists only to say plainly that the surface is not built yet.
+ */
+const mechanism = MECHANISMS.find((item) => item.slug === 'signal')!;
+
+export const metadata: Metadata = { title: mechanism.name, description: mechanism.summary };
+
+export default function Page() {
   return (
-    <DetailPage
-      active="signal"
-      cards={[
-        {
-          title: 'Escrow and allocation are atomic',
-          body: 'Every successful addition deposits GBX, mints the same raw amount of sGBX, and assigns that amount to one live Strategy. Idle sGBX is not permitted.',
-        },
-        {
-          title: 'One weight, two destinations',
-          body: 'The selected Strategy gains Resonance weight while its paired Bribe records the holder’s virtual balance. Scalar and struct-array batch operations use the same accounting path.',
-        },
-        {
-          title: 'Exit stays available',
-          body: 'Removing signal performs the inverse operation, burns sGBX, and returns GBX. Existing positions remain removable even after a Strategy is irreversibly killed.',
-        },
-      ]}
-      eyebrow="Mechanism 02"
-      figure={<SignalBars />}
-      figureLabel="Illustrative Strategy distribution"
-      metrics={[
-        { label: 'GBX to sGBX', value: '1:1' },
-        { label: 'Idle sGBX', value: '0' },
-        { label: 'Resonance stream', value: '7 days' },
-        { label: 'Operations', value: 'Scalar + batch' },
-      ]}
-      next={{ href: '/auction', label: 'Auction' }}
-      summary="Holders escrow GBX as non-transferable voting weight and allocate it immediately. Signal chooses which live Strategies share revenue and which Bribes recognize each holder."
-      title="Signal"
-    />
+    <div className={`page-head section ${styles.page}`}>
+      <div className={`container ${styles.inner}`}>
+        <header className={styles.head}>
+          <span className="eyebrow">{mechanism.index} · Mechanism</span>
+          <h1 className="h1">{mechanism.name}</h1>
+          <p className="lede">
+            Escrowing GBX, allocating weight to Strategies, and claiming the USDG stream will happen here.
+          </p>
+        </header>
+
+        <div className={`frame ${styles.frame}`}>
+          <div className={`card ${styles.card}`}>
+            <StatusChip />
+            <p className={styles.status}>
+              The {mechanism.name} interaction surface is not built yet, and the protocol is not deployed on any
+              network, so there is nothing here to connect to.
+            </p>
+          </div>
+        </div>
+
+        <Link className="btn btn-primary" href="/#mechanisms">
+          How {mechanism.name} works
+          <ArrowIcon />
+        </Link>
+      </div>
+    </div>
   );
 }

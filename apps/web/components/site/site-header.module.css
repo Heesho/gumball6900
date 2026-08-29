@@ -1,0 +1,341 @@
+.dock {
+  --swing: 1100ms cubic-bezier(0.45, 0, 0.22, 1);
+
+  position: fixed;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0;
+  pointer-events: none;
+}
+
+.dock > * {
+  pointer-events: auto;
+}
+
+/*
+ * The bar opens at the full content width and transparent, then contracts to a black pill as the
+ * film boxes. Both ends are interpolated from --opening so the two move as one gesture.
+ *
+ * A three-column grid centres the links on the bar itself rather than on whatever space the brand
+ * and the controls happen to leave between them.
+ */
+.bar {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: clamp(14px, 2.4vw, 40px);
+  width: calc(100% - (var(--gutter) * 2));
+  max-width: 792px;
+  height: 56px;
+  margin-top: 10px;
+  padding-inline: clamp(14px, 1.3vw, 18px);
+  border-radius: 20px;
+  color: var(--paper);
+  background: var(--ink);
+  /*
+   * The inner hairline is what gives the pill an edge over the page's dark sections, where an ink
+   * bar on an ink ground would otherwise leave the wordmark and links floating with no container.
+   * Over paper it reads as a highlight along the top of the pill.
+   */
+  box-shadow:
+    inset 0 0 0 1px var(--ink-line),
+    0 12px 34px -22px rgba(12, 12, 12, 0.7);
+  transition:
+    max-width var(--swing),
+    margin-top var(--swing),
+    background-color var(--swing),
+    box-shadow var(--swing);
+}
+
+/*
+ * Only a header sitting over the film opens wide and transparent, and only until the film boxes.
+ * Everywhere else the pill is the resting state, so a page with no film is correct before
+ * hydration rather than briefly rendering white type on white.
+ */
+:global(html:not([data-opening='true'])) .dock[data-over-film='true'] .bar {
+  max-width: 1352px;
+  margin-top: 18px;
+  background: rgba(12, 12, 12, 0);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0),
+    0 12px 34px -22px rgba(12, 12, 12, 0);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  min-height: 44px;
+  border-radius: 10px;
+  color: var(--paper);
+  transition: opacity var(--tap) var(--ease);
+}
+
+.brand:hover {
+  opacity: 0.72;
+}
+
+/*
+ * Set in the brand face, which is what the brand document reserves it for. Modak carries a deep
+ * descender and a tall ascent, so a flex-centred line sits visibly high in the bar; the nudge puts
+ * the letterforms on the bar's optical centre rather than their own box's.
+ */
+.wordmark {
+  display: block;
+  font-family: var(--font-brand), var(--font-sans), sans-serif;
+  font-size: 1.5rem;
+  font-weight: 400;
+  font-synthesis: none;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+  transform: translateY(0.06em);
+}
+
+.nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 1.85vw, 30px);
+}
+
+.navLink {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding-block: 6px;
+  font-size: 0.938rem;
+  font-weight: 400;
+  letter-spacing: -0.008em;
+  color: rgba(255, 255, 255, 0.76);
+  border-radius: 4px;
+  transition: color var(--tap) var(--ease);
+}
+
+.navLink::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 11px;
+  height: 1.5px;
+  background: var(--pink);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--tap) var(--ease);
+}
+
+.navLink:hover,
+.navLink[aria-current='page'] {
+  color: var(--paper);
+}
+
+.navLink:hover::after,
+.navLink[aria-current='page']::after {
+  transform: scaleX(1);
+}
+
+.tail {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cta {
+  height: 38px;
+  font-size: 0.875rem;
+}
+
+/*
+ * The control keeps the white pill. There is no wallet integration to open, so it does not respond
+ * to hover and the cursor says so — but it is the page's primary action and it is shaped like one.
+ */
+.cta:disabled {
+  cursor: not-allowed;
+}
+
+.cta:disabled:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.menuToggle {
+  display: none;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--control-radius);
+  background: rgba(255, 255, 255, 0.1);
+  cursor: pointer;
+}
+
+.menuIcon {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 17px;
+}
+
+.menuIcon i {
+  display: block;
+  height: 1.5px;
+  background: var(--paper);
+  border-radius: 2px;
+  transition: transform 260ms var(--ease);
+}
+
+.menuIcon[data-open='true'] i:first-child {
+  transform: translateY(3.25px) rotate(45deg);
+}
+
+.menuIcon[data-open='true'] i:last-child {
+  transform: translateY(-3.25px) rotate(-45deg);
+}
+
+/* ---------------------------------------------------------------- mobile panel */
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, -8px, 0);
+  }
+}
+
+/* A scrim so the page beneath the open menu reads as inactive rather than half-legible. */
+.dock[data-menu-open='true']::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: rgba(12, 12, 12, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+}
+
+.panel {
+  animation: panel-in 220ms var(--ease-out) both;
+  width: calc(100% - (var(--gutter) * 2));
+  max-width: 1180px;
+  margin-top: 8px;
+  padding: 8px 8px 16px;
+  border-radius: 20px;
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: 0 24px 60px -30px rgba(12, 12, 12, 0.9);
+}
+
+.panelNav {
+  display: flex;
+  flex-direction: column;
+}
+
+.panelLink {
+  display: flex;
+  transition: background-color var(--tap) var(--ease);
+  align-items: center;
+  gap: 14px;
+  padding: 15px 12px;
+  border-radius: 12px;
+  border-bottom: 1px solid var(--ink-line);
+  font-size: 1.15rem;
+  font-weight: 500;
+  letter-spacing: -0.024em;
+}
+
+.panelLink:last-child {
+  border-bottom: 0;
+}
+
+.panelLink:hover {
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.panelLink svg {
+  width: 17px;
+  height: 17px;
+  margin-inline-start: auto;
+  color: var(--ink-muted);
+}
+
+.panelIndex {
+  font-size: 0.688rem;
+  letter-spacing: 0.12em;
+  color: var(--accent, var(--pink));
+}
+
+.panelLabel {
+  flex: 1;
+}
+
+.panelNote {
+  margin: 14px 12px 0;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: var(--ink-muted);
+}
+
+@media (min-width: 921px) {
+  .panel {
+    display: none;
+  }
+}
+
+@media (max-width: 920px) {
+  .nav {
+    display: none;
+  }
+
+  .menuToggle {
+    display: inline-flex;
+  }
+
+  .bar,
+  :global(html[data-opening='true']) .bar {
+    grid-template-columns: auto 1fr;
+    max-width: 1352px;
+    margin-top: clamp(10px, 1vw, 14px);
+    background: var(--ink);
+    box-shadow:
+      inset 0 0 0 1px var(--ink-line),
+      0 12px 34px -22px rgba(12, 12, 12, 0.7);
+  }
+
+  .dock[data-menu-open='true'] .bar {
+    border-end-start-radius: 20px;
+    border-end-end-radius: 20px;
+  }
+}
+
+@media (max-width: 560px) {
+  .bar .cta {
+    height: 34px;
+    padding-inline: 0.7rem;
+    font-size: 0.813rem;
+  }
+
+  .wordmark {
+    font-size: 1.28rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .bar .cta {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock {
+    --swing: 1ms linear;
+  }
+
+  .panel {
+    animation: none;
+  }
+}

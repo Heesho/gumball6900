@@ -1,0 +1,188 @@
+.footer {
+  position: relative;
+  background: var(--ink);
+  color: var(--paper);
+  overflow: clip;
+}
+
+.inner {
+  padding-block: clamp(56px, 6vw, 92px) clamp(24px, 2.4vw, 34px);
+}
+
+.top {
+  display: grid;
+  /*
+   * Three content columns packed left with a trailing spacer track, the way the reference sets its
+   * own footer. Sizing them in fr stretched the identity column past its 34ch measure and opened a
+   * 247px hole between the copy and the first list.
+   */
+  grid-template-columns: minmax(0, 310px) minmax(0, 160px) minmax(0, 330px) minmax(0, 1fr);
+  gap: clamp(24px, 2.9vw, 50px);
+  padding-bottom: clamp(32px, 3.4vw, 52px);
+  border-bottom: 1px solid var(--ink-line);
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 34ch;
+}
+
+.mark {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+}
+
+.identityCopy {
+  font-size: 0.938rem;
+  line-height: 1.55;
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.column ul {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+/* Links get a 44px target; the list gap shrinks so the visual rhythm is unchanged. */
+nav.column ul {
+  gap: 0;
+}
+
+/* Matched to the link column's 44px pitch, so the two lists read on one rhythm. */
+.column ul {
+  gap: 6px;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  gap: 6px;
+  font-size: 0.938rem;
+  color: var(--ink-muted-strong);
+  border-radius: 4px;
+  transition: color var(--tap) var(--ease);
+}
+
+.link svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0;
+  transform: translate3d(-3px, 3px, 0);
+  transition:
+    opacity var(--tap) var(--ease),
+    transform var(--tap) var(--ease);
+}
+
+.link:hover {
+  color: var(--paper);
+}
+
+.link:hover svg {
+  opacity: 1;
+  transform: none;
+}
+
+.contract {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.contractName {
+  font-size: 0.938rem;
+  color: var(--ink-muted-strong);
+}
+
+.contractNote {
+  font-size: 0.813rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.56);
+}
+
+/* ---------------------------------------------------------------- disclosure */
+
+.disclosure {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+  gap: clamp(16px, 2.6vw, 56px);
+  padding-block: clamp(28px, 3vw, 44px);
+  border-bottom: 1px solid var(--ink-line);
+}
+
+.disclosureTitle {
+  margin: 0;
+  font-size: clamp(1.15rem, 1.5vw, 1.45rem);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.026em;
+  text-wrap: balance;
+}
+
+.disclosureBody {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  text-wrap: pretty;
+}
+
+.baseline {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 10px 24px;
+  padding-top: clamp(18px, 2vw, 26px);
+  font-size: 0.688rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.56);
+}
+
+/* ---------------------------------------------------------------- wordmark */
+
+/* The brand face at the largest size it appears anywhere, which is what it is drawn for. */
+.wordmark {
+  margin: 0;
+  padding-inline: var(--gutter);
+  font-family: var(--font-brand), var(--font-sans), sans-serif;
+  font-size: clamp(3rem, 12.4vw, 11rem);
+  font-weight: 400;
+  font-synthesis: none;
+  line-height: 0.86;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.09);
+  white-space: nowrap;
+  user-select: none;
+  transform: translateY(0.1em);
+}
+
+@media (max-width: 1080px) {
+  .top {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .identity {
+    grid-column: 1 / -1;
+  }
+
+  .disclosure {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .top {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

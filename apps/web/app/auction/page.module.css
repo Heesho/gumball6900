@@ -1,0 +1,51 @@
+/*
+ * The mechanism routes are dApp surfaces, not explainers, and until the surface exists each one is
+ * the same calm object: a head, one card stating the status, one way back to the explanation. This
+ * module is deliberately identical across /mine, /signal, /auction, and /govern so the four routes
+ * cannot drift apart.
+ */
+
+.page {
+  min-height: 72svh;
+  background: var(--paper);
+}
+
+/* .container already centres itself, so the column inside it stays flush to the left margin. */
+.inner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: clamp(30px, 3.6vw, 48px);
+}
+
+.head {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(14px, 1.4vw, 20px);
+  max-width: 44ch;
+}
+
+/*
+ * One frame, one card. Held to a reading measure rather than the full page width: a 1290px frame
+ * around two lines of type reads as a layout waiting for content that never arrives, where a
+ * frame the size of its own contents reads as the deliberate emptiness it is.
+ */
+.frame {
+  width: 100%;
+  max-width: 62ch;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: clamp(14px, 1.5vw, 20px);
+  min-height: clamp(148px, 15vw, 188px);
+}
+
+.status {
+  max-width: 54ch;
+  color: var(--on-surface-muted);
+  text-wrap: pretty;
+}
