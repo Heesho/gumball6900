@@ -8,13 +8,15 @@
 
 > **selectProtocolDeployment**(`deployments`, `chainId`, `options?`): `object`
 
+Selects by a caller-claimed label only; this function does not authenticate release approval.
+
 ## Parameters
 
-| Parameter     | Type                                                      |
-| ------------- | --------------------------------------------------------- |
-| `deployments` | readonly `object`[]                                       |
-| `chainId`     | `4663` \| `46630`                                         |
-| `options`     | `Readonly`\<\{ `requireReleaseApproved?`: `boolean`; \}\> |
+| Parameter     | Type                                                             |
+| ------------- | ---------------------------------------------------------------- |
+| `deployments` | readonly `object`[]                                              |
+| `chainId`     | `4663` \| `46630`                                                |
+| `options`     | `Readonly`\<\{ `requireClaimedReleaseApproved?`: `boolean`; \}\> |
 
 ## Returns
 
@@ -60,6 +62,10 @@
 
 > **chainId**: `4663` \| `46630`
 
+### claimedStatus
+
+> **claimedStatus**: `"draft"` \| `"testnet-candidate"` \| `"mainnet-candidate"` \| `"release-approved"`
+
 ### deploymentId
 
 > **deploymentId**: `string`
@@ -71,7 +77,3 @@
 ### releaseVersion
 
 > **releaseVersion**: `string`
-
-### status
-
-> **status**: `"draft"` \| `"testnet-candidate"` \| `"mainnet-candidate"` \| `"release-approved"`

@@ -141,7 +141,10 @@ export function handleSignalRemoved(event: SignalRemoved): void {
 
 export function handleResonanceRouterSet(event: ResonanceRouterSet): void {
   const protocol = getProtocol(event);
+  protocol.resonance = event.address;
   protocol.resonanceRouter = event.params.resonanceRouter;
+  protocol.mineRevenueResonance = event.address;
+  protocol.mineRevenueRouter = event.params.resonanceRouter;
   protocol.save();
 
   const record = recordEvent(event, 'RESONANCE_ROUTER_SET');

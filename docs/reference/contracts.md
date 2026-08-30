@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 18. Documented ABI entries: 387. Documented public ABI functions: 200.
+Documented source surfaces: 28. Documented ABI entries: 487. Documented public ABI functions: 262.
 
 ## Bribe
 
@@ -13,7 +13,7 @@ Source: [`src/core/Bribe.sol`](../../packages/contracts/src/core/Bribe.sol)
 
 Artifact: `out/Bribe.sol/Bribe.json`
 
-Public ABI: 22 functions, 5 events, 11 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 22 functions, 5 events, 12 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address)`
 
@@ -102,7 +102,7 @@ function claimReward(address account, address rewardToken) external returns (uin
 ```
 
 Checkpoints and pays one registered reward token earned by `account` directly to that account.
-Any caller may initiate the claim. Other reward streams are neither checkpointed nor transferred. A failed transfer reverts the checkpoint and entitlement reset, preserving the scalar claim. Emits `RewardPaid` only when a nonzero amount is transferred.
+Callable only by `account` or the immutable Resonance acting through its self-beneficiary batch entrypoint. Other reward streams are neither checkpointed nor transferred. A failed transfer reverts the checkpoint and entitlement reset, preserving the scalar claim. Emits `RewardPaid` only for a nonzero transfer.
 
 **Parameters**
 
@@ -120,7 +120,7 @@ function claimRewards(address account) external;
 ```
 
 Checkpoints and pays every registered reward token earned by `account` directly to that account.
-Any caller may initiate the claim. The function loops over at most `MAX_REWARD_TOKENS`. A failed token transfer reverts the complete all-token claim; `claimReward` provides per-token failure isolation. Emits `RewardPaid` once for each token with a nonzero payment.
+Callable only by `account` or the immutable Resonance acting through its self-beneficiary batch entrypoint. The function loops over at most `MAX_REWARD_TOKENS`. A failed token transfer reverts the complete all-token claim; `claimReward` provides per-token failure isolation. Emits `RewardPaid` once for each token with a nonzero payment.
 
 **Parameters**
 
@@ -386,6 +386,14 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error SafeERC20FailedOperation(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `UnauthorizedClaimCaller(address,address)`
+
+```solidity
+error UnauthorizedClaimCaller(address caller, address account);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1228,20 +1236,23 @@ Source: [`src/core/Mine.sol`](../../packages/contracts/src/core/Mine.sol)
 
 Artifact: `out/Mine.sol/Mine.json`
 
-Public ABI: 29 functions, 5 events, 9 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 40 functions, 9 events, 17 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
-### `constructor(address,address,address)`
+### `constructor(address,address,address,address,address,address)`
 
 ```solidity
-constructor(contract GBX gbx_, contract IERC20 usdg_, address resonanceRouter_);
+constructor(contract GBX gbx_, contract IERC20 usdg_, address fund_, address resonanceRouter_, address genesisAuthority_, address initialOwner);
 ```
 
-Creates the immutable mining market with sixteen empty slots.
-Requires all three dependencies to contain deployed code. Reciprocal GBX mint-authority binding and the Router's USDG identity are deployment-time checks performed outside this constructor.
+Creates the non-upgradeable mining market with sixteen empty slots and one governed revenue destination.
+Requires every dependency to contain deployed code and validates the Fund's reciprocal GBX identity. Reciprocal GBX mint-authority and initial Router-graph checks are completed by the canonical launcher. OpenZeppelin `Ownable` rejects a zero `initialOwner`; every later owner transfer requires acceptance.
 
 **Parameters**
 
+- `fund_`: Ownerless canonical Fund every replacement Resonance must retain.
 - `gbx_`: GBX token this Mine will mint after the one-time authority handoff.
+- `genesisAuthority_`: Temporary authority consumed by the fixed genesis mint, or zero to disable it.
+- `initialOwner`: Initial authority whose only Mine-specific action is replacing the revenue Router.
 - `resonanceRouter_`: Router that receives each nominal protocol payment share.
 - `usdg_`: Standard USDG token paid by miners in raw units.
 
@@ -1252,6 +1263,14 @@ function BPS() external view returns (uint256 arg0);
 ```
 
 Basis-point denominator used for replacement-payment allocation; 10,000 represents 100%.
+
+### `GENESIS_LIQUIDITY_GBX()`
+
+```solidity
+function GENESIS_LIQUIDITY_GBX() external view returns (uint256 arg0);
+```
+
+Fixed one-time GBX amount issued by Mine solely for the permanently locked genesis liquidity.
 
 ### `HALVING_PERIOD()`
 
@@ -1333,6 +1352,14 @@ function TAIL_TPS() external view returns (uint256 arg0);
 
 Provisional strictly positive prospective global tail rate, in raw GBX units per second.
 
+### `acceptOwnership()`
+
+```solidity
+function acceptOwnership() external;
+```
+
+The new owner accepts the ownership transfer.
+
 ### `aggregateTps()`
 
 ```solidity
@@ -1392,6 +1419,14 @@ This constant-time view does not mint GBX, settle a slot, or change an occupied 
 
 - `amount`: Economically effective GBX supply in raw units.
 
+### `fund()`
+
+```solidity
+function fund() external view returns (address arg0);
+```
+
+Ownerless canonical Fund that every accepted replacement Resonance must use.
+
 ### `gbx()`
 
 ```solidity
@@ -1399,6 +1434,22 @@ function gbx() external view returns (contract GBX arg0);
 ```
 
 Canonical GBX token this contract mints after the external one-time authority binding.
+
+### `genesisAuthority()`
+
+```solidity
+function genesisAuthority() external view returns (address arg0);
+```
+
+Narrow deployment authority allowed to select the genesis-liquidity recipient exactly once, or zero.
+
+### `genesisLiquidityMinted()`
+
+```solidity
+function genesisLiquidityMinted() external view returns (bool arg0);
+```
+
+Whether Mine has permanently consumed its fixed genesis-liquidity issuance.
 
 ### `mine(address,uint256,uint256,uint256,uint256,string)`
 
@@ -1422,6 +1473,19 @@ Permissionless and non-reentrant. The caller pays for any nonzero price, while `
 
 - `paymentAmount`: Actual raw USDG payment required at execution time.
 
+### `mintGenesisLiquidity(address)`
+
+```solidity
+function mintGenesisLiquidity(address recipient) external;
+```
+
+Issues the fixed 1,000 GBX genesis allocation to one reviewed liquidity-pair contract.
+Callable exactly once by the deployment-only `genesisAuthority`, and only after GBX has permanently bound this Mine as its sole issuer. The recipient must contain deployed code. State consumes and clears the authority before the GBX call; any failure reverts the complete transition. The canonical launcher calls this only after validating the recipient as the pristine USDG/GBX pair from the reviewed V2 factory.
+
+**Parameters**
+
+- `recipient`: Reviewed USDG/GBX pair receiving the complete fixed allocation.
+
 ### `nextGlobalTps()`
 
 ```solidity
@@ -1435,6 +1499,14 @@ The rate halves at completed `HALVING_PERIOD` boundaries after deployment and ne
 
 - `tps`: Prospective global emission rate in raw GBX units per second.
 
+### `owner()`
+
+```solidity
+function owner() external view returns (address arg0);
+```
+
+Returns the address of the current owner.
+
 ### `pendingEmission()`
 
 ```solidity
@@ -1447,6 +1519,14 @@ Combines the stored accumulator with elapsed whole-second emission at the curren
 **Returns**
 
 - `amount`: Complete accrued unminted GBX amount in raw units.
+
+### `pendingOwner()`
+
+```solidity
+function pendingOwner() external view returns (address arg0);
+```
+
+Returns the address of the pending owner.
 
 ### `pendingSlotEmission(uint256)`
 
@@ -1472,13 +1552,34 @@ function pendingUpdatedAt() external view returns (uint256 arg0);
 
 Unix timestamp through which `storedPendingEmission` incorporates `aggregateTps`.
 
+### `renounceOwnership()`
+
+```solidity
+function renounceOwnership() external;
+```
+
+Leaves the contract without owner. It will not be possible to call `onlyOwner` functions. Can only be called by the current owner. NOTE: Renouncing ownership will leave the contract without an owner, thereby disabling any functionality that is only available to the owner.
+
 ### `resonanceRouter()`
 
 ```solidity
 function resonanceRouter() external view returns (address arg0);
 ```
 
-Router receiving the nominal Resonance share of replacement payments for later routing.
+Current Router receiving the nominal protocol share of replacement payments for later routing.
+
+### `setResonanceRouter(address)`
+
+```solidity
+function setResonanceRouter(address newRouter) external;
+```
+
+Redirects only future protocol-revenue deposits to a fully reciprocal replacement Resonance graph.
+Callable only by the current owner and never reads or mutates the old Router or Resonance. The candidate Router must use the immutable USDG and report a deployed Resonance that reciprocally binds the candidate, immutable Fund, and a SignalGBX receipt for this immutable GBX. Existing Router and Resonance balances, streams, signals, Strategies, and Bribes remain in their old graph. No value moves in this call.
+
+**Parameters**
+
+- `newRouter`: Fully configured replacement Router receiving later Mine revenue.
 
 ### `slot(uint256)`
 
@@ -1528,6 +1629,14 @@ function totalMined() external view returns (uint256 arg0);
 
 Cumulative raw GBX units actually minted when individual slots were replaced.
 
+### `transferOwnership(address)`
+
+```solidity
+function transferOwnership(address newOwner) external;
+```
+
+Starts the ownership transfer of the contract to a new account. Replaces the pending transfer if there is one. Can only be called by the current owner. Setting `newOwner` to the zero address is allowed; this can be used to cancel an initiated ownership transfer.
+
 ### `usdg()`
 
 ```solidity
@@ -1542,6 +1651,14 @@ Standard, non-rebasing USDG token paid in raw units to replace mining slots.
 
 ```solidity
 event EmissionSettled(address indexed miner, uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GenesisLiquidityMinted(address,uint256)`
+
+```solidity
+event GenesisLiquidityMinted(address indexed recipient, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1570,10 +1687,34 @@ event MinerPaymentClaimed(address indexed account, uint256 amount);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
-#### `RevenueDeposited(uint256,uint256,uint256)`
+#### `OwnershipTransferStarted(address,address)`
 
 ```solidity
-event RevenueDeposited(uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount);
+event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnershipTransferred(address,address)`
+
+```solidity
+event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ResonanceRouterUpdated(address,address,address)`
+
+```solidity
+event ResonanceRouterUpdated(address indexed previousRouter, address indexed newRouter, address indexed newResonance);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RevenueDeposited(uint256,uint256,address,uint256)`
+
+```solidity
+event RevenueDeposited(uint256 indexed slotIndex, uint256 indexed epochId, address indexed resonanceRouter, uint256 amount);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1596,10 +1737,42 @@ error EpochIdMismatch(uint256 expected, uint256 actual);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `GenesisLiquidityAlreadyMinted()`
+
+```solidity
+error GenesisLiquidityAlreadyMinted();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `IndexOutOfBounds(uint256)`
 
 ```solidity
 error IndexOutOfBounds(uint256 slotIndex);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidFund(address)`
+
+```solidity
+error InvalidFund(address fund);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidMinterBinding()`
+
+```solidity
+error InvalidMinterBinding();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidResonanceRouter(address)`
+
+```solidity
+error InvalidResonanceRouter(address router);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1628,6 +1801,22 @@ error NothingToClaim(address account);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `OwnableInvalidOwner(address)`
+
+```solidity
+error OwnableInvalidOwner(address owner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnableUnauthorizedAccount(address)`
+
+```solidity
+error OwnableUnauthorizedAccount(address account);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `ReentrancyGuardReentrantCall()`
 
 ```solidity
@@ -1636,10 +1825,26 @@ error ReentrancyGuardReentrantCall();
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `ResonanceRouterUnchanged(address)`
+
+```solidity
+error ResonanceRouterUnchanged(address router);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `SafeERC20FailedOperation(address)`
 
 ```solidity
 error SafeERC20FailedOperation(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `UnauthorizedGenesisAuthority(address)`
+
+```solidity
+error UnauthorizedGenesisAuthority(address caller);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -1658,7 +1863,7 @@ Source: [`src/core/Resonance.sol`](../../packages/contracts/src/core/Resonance.s
 
 Artifact: `out/Resonance.sol/Resonance.json`
 
-Public ABI: 36 functions, 10 events, 19 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+Public ABI: 41 functions, 11 events, 21 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
 
 ### `constructor(address,address,address,address,address,address)`
 
@@ -1667,7 +1872,7 @@ constructor(contract IERC20 signalGBX_, contract IERC20 usdg_, address fund_, co
 ```
 
 Creates the allocator with immutable token, Fund, factory, and initial governance dependencies.
-Every protocol dependency except `initialOwner` must be nonzero and have deployed code. OpenZeppelin `Ownable` rejects a zero `initialOwner`. Factories and ResonanceRouter are reciprocally bound separately.
+Every protocol dependency except `initialOwner` must be nonzero and have deployed code. OpenZeppelin `Ownable` rejects a zero `initialOwner`; every later owner transfer requires acceptance. Factories and ResonanceRouter are reciprocally bound separately.
 
 **Parameters**
 
@@ -1702,6 +1907,14 @@ function MAX_BRIBE_BPS() external view returns (uint256 arg0);
 
 Maximum prospective Strategy-payment share assignable to a paired BribeRouter, in basis points.
 
+### `MAX_LIFETIME_REVENUE_AMOUNT()`
+
+```solidity
+function MAX_LIFETIME_REVENUE_AMOUNT() external view returns (uint256 arg0);
+```
+
+Maximum cumulative raw USDG units accepted over this contract's lifetime.
+
 ### `REWARD_DURATION()`
 
 ```solidity
@@ -1717,6 +1930,14 @@ function REWARD_PRECISION() external view returns (uint256 arg0);
 ```
 
 Fixed-point precision used to allocate raw USDG units across raw SignalGBX units.
+
+### `acceptOwnership()`
+
+```solidity
+function acceptOwnership() external;
+```
+
+The new owner accepts the ownership transfer.
 
 ### `addBribeRewardToken(address,address)`
 
@@ -1799,6 +2020,19 @@ function bribeRouterFor(address strategy) external view returns (address router)
 
 Bribe-only payment-token buffer paired with each registered Strategy.
 
+### `claimBribeRewards(address[])`
+
+```solidity
+function claimBribeRewards(address[] strategies) external;
+```
+
+Claims every registered reward token from each selected Strategy's canonical Bribe for the caller.
+The beneficiary is always `msg.sender`; no caller may advance another account's reward checkpoint. Each Strategy must be registered but may be live or killed. Duplicate Strategies execute sequentially. The outer array is caller-controlled and each Bribe loops over at most sixteen reward tokens, so callers must split a batch that would exceed available gas. Any failed reward-token transfer reverts the complete batch; direct scalar `Bribe.claimReward` remains the broken-token and bounded-gas fallback.
+
+**Parameters**
+
+- `strategies`: Registered Strategies whose canonical Bribes should pay the caller.
+
 ### `distributeRevenue(address)`
 
 ```solidity
@@ -1870,6 +2104,14 @@ Callable only by the current owner. Checkpoints the Strategy under its full prio
 
 - `strategy`: Live registered Strategy to kill irreversibly.
 
+### `lifetimeRevenueNotified()`
+
+```solidity
+function lifetimeRevenueNotified() external view returns (uint256 arg0);
+```
+
+Cumulative raw USDG units accepted through revenue notifications.
+
 ### `liveStrategyCount()`
 
 ```solidity
@@ -1885,7 +2127,7 @@ function notifyRevenue(uint256 amount) external;
 ```
 
 Pulls newly routed USDG and restarts the global seven-day revenue stream.
-Callable only by the permanently bound ResonanceRouter. First checkpoints global accrual through the prior period's applicable timestamp. During an active period, `amount` must be at least `remainingRevenue()`; the new schedule contains both the transferred amount and that previously scheduled remainder. Division by `REWARD_DURATION` rounds the new per-second rate down, leaving any unscheduled raw-unit remainder as contract surplus. The standard Router additionally requires at least `REWARD_DURATION` raw units so this rate is nonzero. USDG balance deltas are not measured; the schedule uses the nominal `amount` under the standard-token assumption. Reverts for zero, insufficient active-period revenue, or a failed USDG transfer. Emits `RevenueNotified` after the new schedule is stored.
+Callable only by the permanently bound ResonanceRouter. The fresh amount must fit within the precision- coupled lifetime cap and, during an active period, be at least `remainingRevenue()`; both admission checks occur before checkpointing or custody changes. The function then checkpoints global accrual through the prior period's applicable timestamp. The new schedule contains both the transferred amount and that previously scheduled remainder. Division by `REWARD_DURATION` rounds the new per-second rate down, leaving any unscheduled raw-unit remainder as contract surplus. The standard Router additionally requires at least `REWARD_DURATION` raw units so this rate is nonzero. USDG balance deltas are not measured; the schedule uses the nominal `amount` under the standard-token assumption. Reverts for zero, lifetime-cap exhaustion, insufficient active-period revenue, or a failed USDG transfer. Emits `RevenueNotified` after the new schedule is stored.
 
 **Parameters**
 
@@ -1898,6 +2140,14 @@ function owner() external view returns (address arg0);
 ```
 
 Returns the address of the current owner.
+
+### `pendingOwner()`
+
+```solidity
+function pendingOwner() external view returns (address arg0);
+```
+
+Returns the address of the pending owner.
 
 ### `remainingRevenue()`
 
@@ -2036,7 +2286,7 @@ Total raw SignalGBX weight across live Strategies currently eligible for Resonan
 function transferOwnership(address newOwner) external;
 ```
 
-Transfers ownership of the contract to a new account (`newOwner`). Can only be called by the current owner.
+Starts the ownership transfer of the contract to a new account. Replaces the pending transfer if there is one. Can only be called by the current owner. Setting `newOwner` to the zero address is allowed; this can be used to cancel an initiated ownership transfer.
 
 ### `usdg()`
 
@@ -2060,6 +2310,14 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 event BribeRewardTokenAdded(address indexed strategy, address indexed bribe, address indexed rewardToken);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnershipTransferStarted(address,address)`
+
+```solidity
+event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -2146,6 +2404,14 @@ error DuplicateStrategy(address strategy);
 
 _No additional NatSpec notice is present in the compiled artifact._
 
+#### `EmptyClaimBatch()`
+
+```solidity
+error EmptyClaimBatch();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
 #### `FinalLiveStrategy(address)`
 
 ```solidity
@@ -2222,6 +2488,14 @@ _No additional NatSpec notice is present in the compiled artifact._
 
 ```solidity
 error RevenueBelowRemaining(uint256 amount, uint256 remaining);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `RevenueLifetimeCapExceeded(uint256,uint256,uint256)`
+
+```solidity
+error RevenueLifetimeCapExceeded(uint256 notified, uint256 requested, uint256 maximum);
 ```
 
 _No additional NatSpec notice is present in the compiled artifact._
@@ -3549,7 +3823,7 @@ Source: [`src/core/interfaces/IResonance.sol`](../../packages/contracts/src/core
 
 Artifact: `out/IResonance.sol/IResonance.json`
 
-Public ABI: 8 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+Public ABI: 9 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
 
 ### `REWARD_DURATION()`
 
@@ -3607,6 +3881,19 @@ Returns the BribeRouter paired with a registered Strategy.
 
 - `router`: Paired BribeRouter, or the zero address when no graph is registered for `strategy`.
 
+### `claimBribeRewards(address[])`
+
+```solidity
+function claimBribeRewards(address[] strategies) external;
+```
+
+Claims every registered reward token from each selected Strategy's canonical Bribe for the caller.
+The beneficiary is always `msg.sender`. Strategies may be live or killed. The caller controls the batch length and must split work that would exceed available gas. A failed reward-token transfer reverts the complete batch; direct scalar Bribe claims remain the failure-isolated fallback.
+
+**Parameters**
+
+- `strategies`: Registered Strategies whose canonical Bribes should pay the caller.
+
 ### `distributeRevenue(address)`
 
 ```solidity
@@ -3631,7 +3918,7 @@ function notifyRevenue(uint256 amount) external;
 ```
 
 Pulls newly routed USDG and restarts the global seven-day revenue stream.
-Callable only by the permanently bound ResonanceRouter. During an active stream, the new amount must be at least the USDG still scheduled; the restarted schedule combines both values and rounds its whole-unit-per- second rate down. The schedule uses nominal `amount` under the standard-token assumption. Reverts for an unauthorized caller, zero amount, insufficient active-period amount, or failed USDG transfer.
+Callable only by the permanently bound ResonanceRouter. The fresh amount must fit the precision-coupled lifetime admission cap and, during an active stream, be at least the USDG still scheduled. The checks precede the global checkpoint or token interaction. The restarted schedule combines fresh and remaining values and rounds its whole-unit-per-second rate down. It uses nominal `amount` under the standard-token assumption. Reverts for an unauthorized caller, zero amount, lifetime-cap exhaustion, insufficient active-period amount, or failed USDG transfer.
 
 **Parameters**
 
@@ -3761,6 +4048,751 @@ Returns the immutable USDG token forwarded by the router.
 **Returns**
 
 - `token`: USDG token address.
+
+## IFundMigrationIdentity
+
+Source: [`src/core/interfaces/IRevenueMigration.sol`](../../packages/contracts/src/core/interfaces/IRevenueMigration.sol)
+
+Artifact: `out/IRevenueMigration.sol/IFundMigrationIdentity.json`
+
+Public ABI: 1 function, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `gbx()`
+
+```solidity
+function gbx() external view returns (address token);
+```
+
+Returns the immutable GBX token backed by the Fund.
+
+**Returns**
+
+- `token`: Canonical GBX token address.
+
+## IResonanceMigrationIdentity
+
+Source: [`src/core/interfaces/IRevenueMigration.sol`](../../packages/contracts/src/core/interfaces/IRevenueMigration.sol)
+
+Artifact: `out/IRevenueMigration.sol/IResonanceMigrationIdentity.json`
+
+Public ABI: 4 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `fund()`
+
+```solidity
+function fund() external view returns (address treasury);
+```
+
+Returns the immutable Fund receiving acquired backing assets.
+
+**Returns**
+
+- `treasury`: Canonical Fund address.
+
+### `resonanceRouter()`
+
+```solidity
+function resonanceRouter() external view returns (address router);
+```
+
+Returns the permanently bound Router allowed to notify revenue.
+
+**Returns**
+
+- `router`: Canonical ResonanceRouter address.
+
+### `signalGBX()`
+
+```solidity
+function signalGBX() external view returns (address token);
+```
+
+Returns the immutable SignalGBX receipt and signal coordinator.
+
+**Returns**
+
+- `token`: Canonical SignalGBX address.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (address token);
+```
+
+Returns the immutable USDG revenue token.
+
+**Returns**
+
+- `token`: Canonical USDG token address.
+
+## ISignalGBXMigrationIdentity
+
+Source: [`src/core/interfaces/IRevenueMigration.sol`](../../packages/contracts/src/core/interfaces/IRevenueMigration.sol)
+
+Artifact: `out/IRevenueMigration.sol/ISignalGBXMigrationIdentity.json`
+
+Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `gbx()`
+
+```solidity
+function gbx() external view returns (address token);
+```
+
+Returns the immutable GBX token escrowed by SignalGBX.
+
+**Returns**
+
+- `token`: Canonical GBX token address.
+
+### `resonance()`
+
+```solidity
+function resonance() external view returns (address allocator);
+```
+
+Returns the permanently bound Resonance signal coordinator.
+
+**Returns**
+
+- `allocator`: Canonical Resonance address.
+
+## GBXLauncher
+
+Source: [`src/launch/GBXLauncher.sol`](../../packages/contracts/src/launch/GBXLauncher.sol)
+
+Artifact: `out/GBXLauncher.sol/GBXLauncher.json`
+
+Public ABI: 21 functions, 1 event, 14 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address,address,address,address,address,address)`
+
+```solidity
+constructor(contract IERC20Metadata usdg_, address launchAuthority_, contract GBXTokenFundDeployer tokenFundDeployer_, contract GBXSignalBribeDeployer signalBribeDeployer_, contract GBXStrategyResonanceDeployer strategyResonanceDeployer_, contract GBXRouterMineDeployer routerMineDeployer_);
+```
+
+Configures one single-use GBX launcher around reviewed USDG and four stateless component deployers.
+No protocol graph is deployed in this constructor. Every dependency must already contain code, USDG must report six decimals, and `launchAuthority_` must be nonzero. Deploying this infrastructure is not a launch or authorization for user funds.
+
+**Parameters**
+
+- `launchAuthority_`: Sole account allowed to execute the atomic launch.
+- `routerMineDeployer_`: Stateless ResonanceRouter/Mine deployer.
+- `signalBribeDeployer_`: Stateless SignalGBX/BribeFactory deployer.
+- `strategyResonanceDeployer_`: Stateless StrategyFactory/Resonance deployer.
+- `tokenFundDeployer_`: Stateless GBX/Fund deployer.
+- `usdg_`: Reviewed canonical USDG token.
+
+### `EXPECTED_GENESIS_LP_SUPPLY()`
+
+```solidity
+function EXPECTED_GENESIS_LP_SUPPLY() external view returns (uint256 arg0);
+```
+
+Expected total raw LP supply after the exact six-decimal/eighteen-decimal genesis deposit.
+
+### `GBX_STRATEGY_PRICE()`
+
+```solidity
+function GBX_STRATEGY_PRICE() external view returns (uint256 arg0);
+```
+
+Fixed raw GBX starting and next-epoch floor representing $100 at the launch ratio.
+
+### `GENESIS_GBX()`
+
+```solidity
+function GENESIS_GBX() external view returns (uint256 arg0);
+```
+
+Exact raw GBX units issued by Mine into the genesis pair.
+
+### `GENESIS_USDG()`
+
+```solidity
+function GENESIS_USDG() external view returns (uint256 arg0);
+```
+
+Exact raw USDG units deposited into the genesis pair.
+
+### `LP_STRATEGY_SUPPLY_MULTIPLIER()`
+
+```solidity
+function LP_STRATEGY_SUPPLY_MULTIPLIER() external view returns (uint256 arg0);
+```
+
+Multiplier converting the $2 genesis pool supply into a $100 launch-reference LP amount.
+
+### `ROBINHOOD_CHAIN_ID()`
+
+```solidity
+function ROBINHOOD_CHAIN_ID() external view returns (uint256 arg0);
+```
+
+Robinhood Chain mainnet chain identifier.
+
+### `STRATEGY_EPOCH_DURATION()`
+
+```solidity
+function STRATEGY_EPOCH_DURATION() external view returns (uint256 arg0);
+```
+
+Duration over which each initial Strategy price decays linearly to zero.
+
+### `STRATEGY_PRICE_MULTIPLIER()`
+
+```solidity
+function STRATEGY_PRICE_MULTIPLIER() external view returns (uint256 arg0);
+```
+
+Historical Liquid Signal next-start multiplier, scaled by 1e18.
+
+### `UNISWAP_V2_FACTORY()`
+
+```solidity
+function UNISWAP_V2_FACTORY() external view returns (address arg0);
+```
+
+Official Robinhood Chain Uniswap V2 Factory deployment.
+
+### `UNISWAP_V2_MINIMUM_LIQUIDITY()`
+
+```solidity
+function UNISWAP_V2_MINIMUM_LIQUIDITY() external view returns (uint256 arg0);
+```
+
+Canonical V2 permanently locked minimum-liquidity amount in raw LP units.
+
+### `UNISWAP_V2_ROUTER()`
+
+```solidity
+function UNISWAP_V2_ROUTER() external view returns (address arg0);
+```
+
+Official Robinhood Chain Uniswap V2Router02 deployment, recorded for clients but not required to seed.
+
+### `USDG_DECIMALS()`
+
+```solidity
+function USDG_DECIMALS() external view returns (uint8 arg0);
+```
+
+Canonical USDG decimal count required by the exact raw-unit launch amounts.
+
+### `getDeployment()`
+
+```solidity
+function getDeployment() external view returns (struct GBXLauncher.Deployment arg0);
+```
+
+Returns the complete canonical deployment record, or an all-zero record before launch.
+
+### `launch(address)`
+
+```solidity
+function launch(address finalOwner) external returns (struct GBXLauncher.Deployment result);
+```
+
+Atomically deploys and configures the canonical GBX graph, pair, and two initial Strategies.
+Callable once by `launchAuthority`, which must approve exactly `GENESIS_USDG` to this launcher. The intended final owner must be a deployed governance contract and cannot be this launcher. `launched` is set before external work for checks-effects-interactions and rolls back with the full graph on any failure. Every raw genesis LP unit is minted to the zero address. Preexisting launcher USDG is forwarded into Fund before the launcher begins Mine and Resonance's two-step ownership transfers. Emits `Launched` only after reciprocal binding, custody, price, Strategy, removed setup-owner, and pending-owner checks pass. Governance must separately accept both continuing ownership transfers before deployment is finalized.
+
+**Parameters**
+
+- `finalOwner`: Reviewed external governance contract pending for Mine and Resonance administration.
+
+**Returns**
+
+- `result`: Complete canonical address record and permanently locked raw genesis liquidity amount.
+
+### `launchAuthority()`
+
+```solidity
+function launchAuthority() external view returns (address arg0);
+```
+
+Sole account authorized to consume this single-use launcher.
+
+### `launched()`
+
+```solidity
+function launched() external view returns (bool arg0);
+```
+
+Whether the one authorized launch has completed.
+
+### `routerMineDeployer()`
+
+```solidity
+function routerMineDeployer() external view returns (contract GBXRouterMineDeployer arg0);
+```
+
+Stateless deployer for ResonanceRouter and Mine.
+
+### `signalBribeDeployer()`
+
+```solidity
+function signalBribeDeployer() external view returns (contract GBXSignalBribeDeployer arg0);
+```
+
+Stateless deployer for SignalGBX and BribeFactory.
+
+### `strategyResonanceDeployer()`
+
+```solidity
+function strategyResonanceDeployer() external view returns (contract GBXStrategyResonanceDeployer arg0);
+```
+
+Stateless deployer for StrategyFactory and Resonance.
+
+### `tokenFundDeployer()`
+
+```solidity
+function tokenFundDeployer() external view returns (contract GBXTokenFundDeployer arg0);
+```
+
+Stateless deployer for GBX and Fund.
+
+### `usdg()`
+
+```solidity
+function usdg() external view returns (contract IERC20Metadata arg0);
+```
+
+Reviewed six-decimal USDG used throughout the launched graph and genesis pair.
+
+### Events
+
+#### `Launched(address,address,address,address,address,address,address,address,address,address,address,uint256)`
+
+```solidity
+event Launched(address indexed caller, address indexed finalOwner, address indexed gbx, address fund, address signalGBX, address resonance, address resonanceRouter, address mine, address pair, address gbxStrategy, address lpStrategy, uint256 genesisLiquidity);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `AlreadyLaunched()`
+
+```solidity
+error AlreadyLaunched();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidChain(uint256)`
+
+```solidity
+error InvalidChain(uint256 actual);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidDependency(address)`
+
+```solidity
+error InvalidDependency(address dependency);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidFinalOwner(address)`
+
+```solidity
+error InvalidFinalOwner(address owner);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidUSDGDecimals(uint8)`
+
+```solidity
+error InvalidUSDGDecimals(uint8 actual);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `LaunchInvariantFailed(bytes32)`
+
+```solidity
+error LaunchInvariantFailed(bytes32 invariant);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `PairAlreadyExists(address)`
+
+```solidity
+error PairAlreadyExists(address pair);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `PairFactoryMismatch(address,address)`
+
+```solidity
+error PairFactoryMismatch(address pair, address actual);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `PairLookupMismatch(address)`
+
+```solidity
+error PairLookupMismatch(address pair);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `PairTokenMismatch(address,address,address)`
+
+```solidity
+error PairTokenMismatch(address pair, address token0, address token1);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ReentrancyGuardReentrantCall()`
+
+```solidity
+error ReentrancyGuardReentrantCall();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SafeERC20FailedOperation(address)`
+
+```solidity
+error SafeERC20FailedOperation(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `UnauthorizedLaunch(address)`
+
+```solidity
+error UnauthorizedLaunch(address caller);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `UnexpectedGenesisLiquidity(uint256,uint256)`
+
+```solidity
+error UnexpectedGenesisLiquidity(uint256 liquidity, uint256 totalSupply);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## GBXRouterMineDeployer
+
+Source: [`src/launch/GBXRouterMineDeployer.sol`](../../packages/contracts/src/launch/GBXRouterMineDeployer.sol)
+
+Artifact: `out/GBXRouterMineDeployer.sol/GBXRouterMineDeployer.json`
+
+Public ABI: 1 function, 1 event, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `deploy(address,address,address,address)`
+
+```solidity
+function deploy(contract GBX gbx, contract IERC20 usdg, address fund, address resonance) external returns (contract ResonanceRouter resonanceRouter, contract Mine mine);
+```
+
+Deploys ResonanceRouter and Mine for one existing graph.
+Caller-scoped CREATE2 salts keep another public caller from consuming or shifting this caller's outputs.
+
+**Parameters**
+
+- `fund`: Ownerless canonical Fund every later replacement Resonance must retain.
+- `gbx`: Canonical GBX token that Mine will permanently issue.
+- `resonance`: Existing Resonance receiver.
+- `usdg`: Canonical USDG payment and revenue token.
+
+**Returns**
+
+- `mine`: Newly deployed Mine with `msg.sender` as its temporary owner and consumable genesis authority.
+- `resonanceRouter`: Newly deployed USDG Router.
+
+### Events
+
+#### `ComponentsDeployed(address,address,address)`
+
+```solidity
+event ComponentsDeployed(address indexed caller, address indexed resonanceRouter, address indexed mine);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## GBXSignalBribeDeployer
+
+Source: [`src/launch/GBXSignalBribeDeployer.sol`](../../packages/contracts/src/launch/GBXSignalBribeDeployer.sol)
+
+Artifact: `out/GBXSignalBribeDeployer.sol/GBXSignalBribeDeployer.json`
+
+Public ABI: 1 function, 1 event, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `deploy(address)`
+
+```solidity
+function deploy(contract IERC20 gbx) external returns (contract SignalGBX signalGBX, contract BribeFactory bribeFactory);
+```
+
+Deploys SignalGBX and BribeFactory for one existing GBX token.
+Caller-scoped CREATE2 salts keep another public caller from consuming or shifting this caller's outputs.
+
+**Parameters**
+
+- `gbx`: Canonical GBX token escrowed by the new SignalGBX receipt.
+
+**Returns**
+
+- `bribeFactory`: Newly deployed unbound BribeFactory.
+- `signalGBX`: Newly deployed SignalGBX receipt.
+
+### Events
+
+#### `ComponentsDeployed(address,address,address)`
+
+```solidity
+event ComponentsDeployed(address indexed caller, address indexed signalGBX, address indexed bribeFactory);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## GBXStrategyResonanceDeployer
+
+Source: [`src/launch/GBXStrategyResonanceDeployer.sol`](../../packages/contracts/src/launch/GBXStrategyResonanceDeployer.sol)
+
+Artifact: `out/GBXStrategyResonanceDeployer.sol/GBXStrategyResonanceDeployer.json`
+
+Public ABI: 1 function, 1 event, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `deploy(address,address,address,address)`
+
+```solidity
+function deploy(contract IERC20 signalGBX, contract IERC20 usdg, address fund, contract BribeFactory bribeFactory) external returns (contract StrategyFactory strategyFactory, contract Resonance resonance);
+```
+
+Deploys StrategyFactory and Resonance for one partially assembled core graph.
+Caller-scoped CREATE2 salts keep another public caller from consuming or shifting this caller's outputs.
+
+**Parameters**
+
+- `bribeFactory`: Already deployed BribeFactory that Resonance will bind and use.
+- `fund`: Ownerless Fund receiving Strategy payment complements.
+- `signalGBX`: Canonical non-transferable signal receipt.
+- `usdg`: Canonical six-decimal USDG revenue token.
+
+**Returns**
+
+- `resonance`: Newly deployed Resonance allocator.
+- `strategyFactory`: Newly deployed unbound StrategyFactory.
+
+### Events
+
+#### `ComponentsDeployed(address,address,address)`
+
+```solidity
+event ComponentsDeployed(address indexed caller, address indexed strategyFactory, address indexed resonance);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## GBXTokenFundDeployer
+
+Source: [`src/launch/GBXTokenFundDeployer.sol`](../../packages/contracts/src/launch/GBXTokenFundDeployer.sol)
+
+Artifact: `out/GBXTokenFundDeployer.sol/GBXTokenFundDeployer.json`
+
+Public ABI: 1 function, 1 event, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `deploy()`
+
+```solidity
+function deploy() external returns (contract GBX gbx, contract Fund fund);
+```
+
+Deploys one GBX token and its ownerless Fund.
+GBX starts with zero supply. `msg.sender` may only complete GBX's one-time Mine handoff; it cannot mint. Caller-scoped CREATE2 salts keep another public caller from consuming or shifting this caller's outputs.
+
+**Returns**
+
+- `fund`: Newly deployed ownerless Fund.
+- `gbx`: Newly deployed GBX token.
+
+### Events
+
+#### `ComponentsDeployed(address,address,address)`
+
+```solidity
+event ComponentsDeployed(address indexed caller, address indexed gbx, address indexed fund);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## IUniswapV2Factory
+
+Source: [`src/launch/interfaces/IUniswapV2Factory.sol`](../../packages/contracts/src/launch/interfaces/IUniswapV2Factory.sol)
+
+Artifact: `out/IUniswapV2Factory.sol/IUniswapV2Factory.json`
+
+Public ABI: 2 functions, 0 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `createPair(address,address)`
+
+```solidity
+function createPair(address tokenA, address tokenB) external returns (address pair);
+```
+
+Creates the unique pair for two distinct tokens.
+
+**Parameters**
+
+- `tokenA`: One pair token in arbitrary order.
+- `tokenB`: The other pair token in arbitrary order.
+
+**Returns**
+
+- `pair`: Newly deployed canonical pair.
+
+### `getPair(address,address)`
+
+```solidity
+function getPair(address tokenA, address tokenB) external view returns (address pair);
+```
+
+Returns the canonical pair registered for two tokens, or zero when none exists.
+
+**Parameters**
+
+- `tokenA`: One pair token in arbitrary order.
+- `tokenB`: The other pair token in arbitrary order.
+
+**Returns**
+
+- `pair`: Registered pair address or zero.
+
+## IUniswapV2Pair
+
+Source: [`src/launch/interfaces/IUniswapV2Pair.sol`](../../packages/contracts/src/launch/interfaces/IUniswapV2Pair.sol)
+
+Artifact: `out/IUniswapV2Pair.sol/IUniswapV2Pair.json`
+
+Public ABI: 11 functions, 2 events, 0 custom errors, 0 constructors, 0 receive entries, 0 fallback entries.
+
+### `allowance(address,address)`
+
+```solidity
+function allowance(address owner, address spender) external view returns (uint256 arg0);
+```
+
+Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner` through {transferFrom}. This is zero by default. This value changes when {approve} or {transferFrom} are called.
+
+### `approve(address,uint256)`
+
+```solidity
+function approve(address spender, uint256 value) external returns (bool arg0);
+```
+
+Sets a `value` amount of tokens as the allowance of `spender` over the caller's tokens. Returns a boolean value indicating whether the operation succeeded. IMPORTANT: Beware that changing an allowance with this method brings the risk that someone may use both the old and the new allowance by unfortunate transaction ordering. One possible solution to mitigate this race condition is to first reduce the spender's allowance to 0 and set the desired value afterwards: https://github.com/ethereum/EIPs/issues/20#issuecomment-263524729 Emits an {Approval} event.
+
+### `balanceOf(address)`
+
+```solidity
+function balanceOf(address account) external view returns (uint256 arg0);
+```
+
+Returns the value of tokens owned by `account`.
+
+### `factory()`
+
+```solidity
+function factory() external view returns (address arg0);
+```
+
+Returns the Factory that deployed this pair.
+
+### `getReserves()`
+
+```solidity
+function getReserves() external view returns (uint112 reserve0, uint112 reserve1, uint32 blockTimestampLast);
+```
+
+Returns the last synchronized reserves in token order and their timestamp accumulator input.
+
+### `mint(address)`
+
+```solidity
+function mint(address to) external returns (uint256 liquidity);
+```
+
+Mints LP units for token balances deposited since the last reserve update.
+
+**Parameters**
+
+- `to`: Account receiving the provider liquidity.
+
+**Returns**
+
+- `liquidity`: Raw LP units minted for the deposited amounts.
+
+### `token0()`
+
+```solidity
+function token0() external view returns (address arg0);
+```
+
+Returns the lower-address pair token.
+
+### `token1()`
+
+```solidity
+function token1() external view returns (address arg0);
+```
+
+Returns the higher-address pair token.
+
+### `totalSupply()`
+
+```solidity
+function totalSupply() external view returns (uint256 arg0);
+```
+
+Returns the value of tokens in existence.
+
+### `transfer(address,uint256)`
+
+```solidity
+function transfer(address to, uint256 value) external returns (bool arg0);
+```
+
+Moves a `value` amount of tokens from the caller's account to `to`. Returns a boolean value indicating whether the operation succeeded. Emits a {Transfer} event.
+
+### `transferFrom(address,address,uint256)`
+
+```solidity
+function transferFrom(address from, address to, uint256 value) external returns (bool arg0);
+```
+
+Moves a `value` amount of tokens from `from` to `to` using the allowance mechanism. `value` is then deducted from the caller's allowance. Returns a boolean value indicating whether the operation succeeded. Emits a {Transfer} event.
+
+### Events
+
+#### `Approval(address,address,uint256)`
+
+```solidity
+event Approval(address indexed owner, address indexed spender, uint256 value);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Transfer(address,address,uint256)`
+
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
 
 ## SignalPortfolioLens
 

@@ -1,0 +1,163 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { stdError } from "forge-std/StdError.sol";
+import { Test } from "forge-std/Test.sol";
+
+import { Bribe } from "../../../../src/core/Bribe.sol";
+import { GBX } from "../../../../src/core/GBX.sol";
+import { Mine } from "../../../../src/core/Mine.sol";
+import { SignalGBX } from "../../../../src/core/SignalGBX.sol";
+import { ProtocolFixture } from "../../utils/ProtocolFixture.sol";
+import { MockERC20 } from "../../utils/Tokens.sol";
+
+/// @title HistoricalExitabilityFindingsTest
+/// @notice Permanent public-function reproductions for the three factual V12 behaviors reopened by the exitability audit.
+contract HistoricalExitabilityFindingsTest is ProtocolFixture {
+    function setUp() external {
+        _deployProtocol();
+    }
+
+    /// @notice CEX-01 / V12-249695: two admitted schedules can overflow the monotonic Resonance index and freeze GBX exit.
+    /// @dev The large freely minted USDG balance models sufficient canonical-token funding; no storage mutation is used.
+    function test_Repro_CumulativeRevenueIndexOverflowFreezesSignalPrincipal() external {
+        _obtainGBXThroughPublicMining(ALICE);
+        _flushMiningRevenueWhileNoSignalIsActive();
+
+        vm.startPrank(ALICE);
+        gbx.approve(address(signalGBX), 1);
+        signalGBX.addSignal(address(targetStrategy), 1);
+        vm.stopPrank();
+
+        uint256 rate = type(uint256).max / resonance.REWARD_PRECISION() / resonance.REWARD_DURATION();
+        uint256 schedulableAmount = rate * resonance.REWARD_DURATION();
+
+        usdg.mint(address(resonanceRouter), schedulableAmount);
+        vm.prank(KEEPER);
+        assertEq(resonanceRouter.route(), schedulableAmount);
+
+        vm.warp(block.timestamp + resonance.REWARD_DURATION());
+
+        usdg.mint(address(resonanceRouter), schedulableAmount);
+        vm.prank(KEEPER);
+        assertEq(resonanceRouter.route(), schedulableAmount);
+
+        vm.warp(block.timestamp + 1);
+
+        vm.expectRevert(stdError.arithmeticError);
+        resonance.revenuePerSignal();
+
+        vm.expectRevert(stdError.arithmeticError);
+        resonance.distributeRevenue(address(targetStrategy));
+
+        uint256 gbxBefore = gbx.balanceOf(ALICE);
+        vm.prank(ALICE);
+        vm.expectRevert(stdError.arithmeticError);
+        signalGBX.removeSignal(address(targetStrategy), 1);
+
+        assertEq(signalGBX.balanceOf(ALICE), 1);
+        assertEq(targetBribe.signalWeightOf(ALICE), 1);
+        assertEq(gbx.balanceOf(ALICE), gbxBefore);
+    }
+
+    /// @notice CEX-02 / V12-249705: an unrelated caller can repeatedly force away sub-unit account reward accrual.
+    function test_Repro_ThirdPartyClaimsForceFractionalAccountCheckpoints() external {
+        MockERC20 reward = new MockERC20("Six Decimal Reward", "RWD", 6);
+        Bribe bribe = new Bribe(address(this));
+        bribe.addRewardToken(address(reward));
+        bribe.addSignalWeight(ALICE, 1);
+        bribe.addSignalWeight(BOB, 1);
+
+        uint256 duration = bribe.REWARD_DURATION();
+        reward.mint(address(this), duration);
+        reward.approve(address(bribe), duration);
+        bribe.notifyReward(address(reward), duration);
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(CAROL);
+        assertEq(bribe.claimReward(ALICE, address(reward)), 0);
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(CAROL);
+        assertEq(bribe.claimReward(ALICE, address(reward)), 0);
+
+        assertEq(bribe.claimReward(BOB, address(reward)), 1);
+        assertEq(reward.balanceOf(ALICE), 0);
+        assertEq(reward.balanceOf(BOB), 1);
+    }
+
+    /// @notice CEX-04 / V12-249702: an empty Mine slot can be captured before the irreversible minter handoff.
+    function test_Repro_PreBindingMineSlotCaptureSettlesAfterHandoff() external {
+        MockERC20 localUSDG = new MockERC20("Global Dollar", "USDG", 6);
+        MockERC20 routerSink = new MockERC20("Router Sink", "SINK", 18);
+        GBX localGBX = new GBX(address(this));
+        Mine localMine = new Mine(localGBX, IERC20(address(localUSDG)), address(routerSink));
+
+        Mine.Slot memory slotState = localMine.slot(0);
+        uint256 price = localMine.currentPrice(0);
+        localUSDG.mint(ALICE, price);
+
+        vm.startPrank(ALICE);
+        localUSDG.approve(address(localMine), price);
+        localMine.mine(ALICE, 0, slotState.epochId, block.timestamp, price, "pre-bind");
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 10);
+        localGBX.setMinter(address(localMine));
+
+        slotState = localMine.slot(0);
+        price = localMine.currentPrice(0);
+        localUSDG.mint(BOB, price);
+        vm.startPrank(BOB);
+        localUSDG.approve(address(localMine), price);
+        localMine.mine(BOB, 0, slotState.epochId, block.timestamp, price, "settle");
+        vm.stopPrank();
+
+        assertEq(localGBX.balanceOf(ALICE), 40 ether);
+    }
+
+    function _obtainGBXThroughPublicMining(address miner) private {
+        Mine.Slot memory slotState = mine.slot(0);
+        uint256 price = mine.currentPrice(0);
+        usdg.mint(miner, price);
+
+        vm.startPrank(miner);
+        usdg.approve(address(mine), price);
+        mine.mine(miner, 0, slotState.epochId, block.timestamp, price, "seed");
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 1);
+
+        slotState = mine.slot(0);
+        price = mine.currentPrice(0);
+        usdg.mint(BOB, price);
+        vm.startPrank(BOB);
+        usdg.approve(address(mine), price);
+        mine.mine(BOB, 0, slotState.epochId, block.timestamp, price, "settle");
+        vm.stopPrank();
+
+        assertGt(gbx.balanceOf(miner), 1);
+    }
+
+    function _flushMiningRevenueWhileNoSignalIsActive() private {
+        uint256 pending = usdg.balanceOf(address(resonanceRouter));
+        assertGe(pending, resonance.REWARD_DURATION());
+
+        vm.prank(KEEPER);
+        resonanceRouter.route();
+        vm.warp(block.timestamp + resonance.REWARD_DURATION());
+        assertEq(resonance.totalSignalWeight(), 0);
+    }
+}
+
+/// @title HistoricalFindingArithmeticTest
+/// @notice Pure bounds used by the permanent findings report.
+contract HistoricalFindingArithmeticTest is Test {
+    function test_ResonanceMinimumDenominatorLifetimeBoundIsPrecisionCoupled() external pure {
+        uint256 precision = 1e36;
+        uint256 maximumFreshRevenue = type(uint256).max / precision;
+        assertLe(maximumFreshRevenue * precision, type(uint256).max);
+        assertLt(type(uint256).max - maximumFreshRevenue * precision, precision);
+    }
+}

@@ -5,6 +5,7 @@ import {
   bribeRouterAbi,
   fundAbi,
   gbxAbi,
+  gbxLauncherAbi,
   mineAbi,
   signalGbxAbi,
   strategyAbi,
@@ -69,6 +70,22 @@ export function buildGBXBurn(gbx: Address, amount: bigint): ContractTransaction 
   return transaction(gbx, encodeFunctionData({ abi: gbxAbi, functionName: 'burn', args: [amount] }));
 }
 
+/**
+ * Encodes a one-shot GBX launcher call.
+ * A successful launch nominates `finalOwner` on Mine and Resonance; that account must accept both transfers later.
+ * Release tooling must independently bind both addresses to the reviewed deployment manifest.
+ */
+export function buildGBXLaunch(launcher: Address, finalOwner: Address): ContractTransaction {
+  return transaction(
+    nonzeroAddress(launcher, 'launcher'),
+    encodeFunctionData({
+      abi: gbxLauncherAbi,
+      functionName: 'launch',
+      args: [nonzeroAddress(finalOwner, 'finalOwner')],
+    }),
+  );
+}
+
 export interface MineParameters {
   readonly mine: Address;
   readonly beneficiary: Address;
@@ -114,6 +131,46 @@ export function buildClaimMiningPayment(mine: Address, account: Address): Contra
   return transaction(
     mine,
     encodeFunctionData({ abi: mineAbi, functionName: 'claimMinerPayment', args: [getAddress(account)] }),
+  );
+}
+
+/** Redirects only later Mine protocol revenue to a contract-validated replacement ResonanceRouter. */
+export function buildSetMineResonanceRouter(mine: Address, newRouter: Address): ContractTransaction {
+  return transaction(
+    nonzeroAddress(mine, 'mine'),
+    encodeFunctionData({
+      abi: mineAbi,
+      functionName: 'setResonanceRouter',
+      args: [nonzeroAddress(newRouter, 'newRouter')],
+    }),
+  );
+}
+
+/** Begins a two-step Mine or Resonance ownership transfer; the nominated owner must accept separately. */
+export function buildBeginOwnershipTransfer(contract: Address, newOwner: Address): ContractTransaction {
+  return transaction(
+    nonzeroAddress(contract, 'contract'),
+    encodeFunctionData({
+      abi: mineAbi,
+      functionName: 'transferOwnership',
+      args: [nonzeroAddress(newOwner, 'newOwner')],
+    }),
+  );
+}
+
+/** Cancels a pending two-step Mine or Resonance ownership transfer without changing the current owner. */
+export function buildCancelOwnershipTransfer(contract: Address): ContractTransaction {
+  return transaction(
+    nonzeroAddress(contract, 'contract'),
+    encodeFunctionData({ abi: mineAbi, functionName: 'transferOwnership', args: [zeroAddress] }),
+  );
+}
+
+/** Accepts a pending two-step ownership transfer on Mine or Resonance. */
+export function buildAcceptOwnership(contract: Address): ContractTransaction {
+  return transaction(
+    nonzeroAddress(contract, 'contract'),
+    encodeFunctionData({ abi: mineAbi, functionName: 'acceptOwnership' }),
   );
 }
 
@@ -180,7 +237,10 @@ export function buildDelegateSignalVotes(signalGBX: Address, delegatee: Address)
   );
 }
 
-/** Claims one registered Bribe token for a fixed entitled account without touching any other reward token. */
+/**
+ * Claims one registered Bribe token without touching any other reward token.
+ * For a direct Bribe call, `account` must be the submitting wallet; only canonical Resonance may relay a claim.
+ */
 export function buildClaimBribeReward(bribe: Address, account: Address, rewardToken: Address): ContractTransaction {
   return transaction(
     bribe,
@@ -192,11 +252,24 @@ export function buildClaimBribeReward(bribe: Address, account: Address, rewardTo
   );
 }
 
-/** Claims every registered Bribe token for a fixed entitled account. */
+/**
+ * Claims every registered token from one Bribe.
+ * For a direct Bribe call, `account` must be the submitting wallet; only canonical Resonance may relay a claim.
+ */
 export function buildClaimAllBribeRewards(bribe: Address, account: Address): ContractTransaction {
   return transaction(
     bribe,
     encodeFunctionData({ abi: bribeAbi, functionName: 'claimRewards', args: [getAddress(account)] }),
+  );
+}
+
+/** Claims every registered reward from each selected Strategy's canonical Bribe for the submitting wallet. */
+export function buildClaimBribeRewards(resonance: Address, strategies: readonly Address[]): ContractTransaction {
+  if (strategies.length === 0) throw new RangeError('strategies cannot be empty');
+  const normalized = strategies.map((strategy) => nonzeroAddress(strategy, 'strategy'));
+  return transaction(
+    resonance,
+    encodeFunctionData({ abi: resonanceAbi, functionName: 'claimBribeRewards', args: [normalized] }),
   );
 }
 

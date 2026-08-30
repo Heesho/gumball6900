@@ -90,7 +90,7 @@ const protocolLoop = `
   <text x="286" y="12" ${S.tag}>STEERED BY SIGNAL</text>
   <text x="500" y="12" ${S.tag}>VALUE OUT</text>
   ${node(8, 24, 104, 40, ['Mine', '16 slot auctions'], 'deep')}
-  ${node(8, 104, 104, 40, ['External UniV2 LP', 'ordinary target'], 'deep')}
+  ${node(8, 100, 104, 50, ['Atomic launcher', 'canonical V2 pair', 'genesis LP locked'], 'deep')}
   ${node(8, 196, 104, 34, ['Outgoing miner'])}
   ${node(154, 64, 100, 40, ['ResonanceRouter'])}
   ${node(292, 64, 100, 40, ['Resonance', '7-day USDG stream'])}
@@ -101,7 +101,7 @@ const protocolLoop = `
   ${node(536, 112, 96, 40, ['Signalers'], 'pink')}
   ${node(536, 208, 96, 40, ['GBX holders'])}
   ${edge('M 112 44 L 154 78', 'deposit', 133, 38)}
-  ${edge('M 112 124 C 220 124, 340 122, 430 98', 'optional target', 274, 116)}
+  ${edge('M 112 125 C 220 125, 340 122, 430 98', 'later LP target', 274, 116)}
   ${edge('M 60 64 L 60 196', '80%', 74, 134)}
   ${edge('M 254 84 L 292 84', 'route()', 273, 76)}
   ${edge('M 342 158 L 342 106', 'directs', 368, 136)}
@@ -115,20 +115,20 @@ const protocolLoop = `
 
 /**
  * The contract graph, for the whitepaper: eleven deployed contract types in five layers,
- * with the deployment edges that create the per-Strategy graph and the single continuing
- * custom-owner authority edge. The three setup-only Ownable shells remain explicit production
- * renunciation obligations. Resonance's owner sits outside every band on purpose — after
- * ADR 0034 it is not part of this repository, and the picture should say so before the prose does.
+ * with the deployment edges that create the per-Strategy graph and the two continuing
+ * custom-owner authority edges. The three setup-only Ownable shells remain explicit production
+ * renunciation obligations. The shared external Mine/Resonance owner sits outside every band on
+ * purpose because governance implementation is not part of this repository.
  */
 const contractGraph = `
 <svg viewBox="0 0 640 516" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Contract graph">
   ${arrowDefs}
-  <text x="8" y="12" ${S.tag}>ELEVEN DEPLOYED CONTRACT TYPES · ONE CONTINUING CUSTOM OWNER-AUTHORITY EDGE</text>
+  <text x="8" y="12" ${S.tag}>ELEVEN DEPLOYED CONTRACT TYPES · TWO CONTINUING CUSTOM OWNER-AUTHORITY EDGES</text>
   ${band(8, 22, 400, 66, 'Token layer')}
   ${node(24, 44, 116, 40, ['GBX', 'ERC20 + Permit'], 'deep')}
   ${node(188, 44, 152, 40, ['SignalGBX', 'ERC20Votes, non-transferable'], 'blue')}
   ${band(8, 116, 400, 66, 'Issuance and revenue')}
-  ${node(24, 138, 112, 40, ['Mine', '16 slots, ownerless'], 'deep')}
+  ${node(24, 138, 112, 40, ['Mine', '16 slots, Router setter'], 'deep')}
   ${node(168, 138, 108, 40, ['ResonanceRouter'])}
   ${band(8, 210, 400, 66, 'Allocation')}
   ${node(24, 232, 104, 40, ['StrategyFactory'])}
@@ -154,39 +154,41 @@ const contractGraph = `
   ${edge('M 128 346 L 188 346', '0–20% buffer', 158, 338)}
   ${edge('M 284 346 L 312 346', 'route()', 298, 338)}
   ${edge('M 76 366 L 76 386 L 230 386 L 230 418', '80–100% direct', 150, 380, true)}
-  ${edge('M 440 252 L 408 252', 'owns', 424, 244, true)}
-  <rect x="440" y="232" width="192" height="96" rx="5" fill="none" stroke="${palette.pink}" stroke-width="1.1" stroke-dasharray="4 3" />
-  <text x="452" y="252" ${S.tagPink}>RESONANCE OWNER</text>
+  ${edge('M 440 252 L 408 252', 'owns Resonance', 424, 244, true)}
+  ${edge('M 440 276 L 424 276 L 424 196 L 82 196 L 82 178', 'owns Mine', 250, 190, true)}
+  <rect x="440" y="232" width="192" height="118" rx="5" fill="none" stroke="${palette.pink}" stroke-width="1.1" stroke-dasharray="4 3" />
+  <text x="452" y="252" ${S.tagPink}>MINE + RESONANCE OWNER</text>
   <text x="452" y="268" ${S.label}>External. Not selected.</text>
   <text x="452" y="282" ${S.label}>Not in this repository.</text>
-  <text x="452" y="302" ${S.tag}>ADDSTRATEGY · KILLSTRATEGY</text>
-  <text x="452" y="314" ${S.tag}>ADDBRIBEREWARDTOKEN</text>
-  <text x="452" y="326" ${S.tag}>SETBRIBEBPS (0–20%)</text>
+  <text x="452" y="302" ${S.tag}>MINE.SETRESONANCEROUTER</text>
+  <text x="452" y="314" ${S.tag}>ADDSTRATEGY · KILLSTRATEGY</text>
+  <text x="452" y="326" ${S.tag}>ADDBRIBEREWARDTOKEN</text>
+  <text x="452" y="338" ${S.tag}>SETBRIBEBPS (0–20%)</text>
   <text x="440" y="118" ${S.tag}>IVOTES CHECKPOINTS ARE KEPT</text>
   <text x="440" y="130" ${S.tag}>BUT READ BY NOTHING IN THE CORE</text>
-  <text x="8" y="486" ${S.tag}>RESONANCE HAS THE ONLY CONTINUING CUSTOM OWNER AUTHORITY. SIGNALGBX, STRATEGYFACTORY,</text>
+  <text x="8" y="486" ${S.tag}>MINE + RESONANCE HAVE CONTINUING CUSTOM OWNER AUTHORITY. SIGNALGBX, STRATEGYFACTORY,</text>
   <text x="8" y="496" ${S.tag}>AND BRIBEFACTORY RETAIN SETUP-ONLY OWNABLE SHELLS UNTIL PRODUCTION RENOUNCES THEM.</text>
-  <text x="8" y="506" ${S.tag}>THE EXTERNAL RESONANCE OWNER IS UNSELECTED AND NOT PART OF THIS REPOSITORY.</text>
+  <text x="8" y="506" ${S.tag}>THE EXTERNAL OWNER OF BOTH IS UNSELECTED; GOVERNANCE MUST ACCEPT BOTH AFTER LAUNCH.</text>
 </svg>`;
 
 const FIGURES = [
   {
     id: 'contract-graph',
     /** Hash of the `flowchart TB` contract graph in the whitepaper. */
-    hashes: ['7d4c7ecc43f669dd'],
+    hashes: ['4f742a1a3595d389'],
     match: (src) => src.includes('StrategyFactory'),
     svg: contractGraph,
     caption:
-      'The deployed contract graph. Strategy sends Fund’s per-purchase complement directly and only the Bribe share to its qualifying buffer. Eleven contract types, one continuing custom-owner authority edge, three setup-only Ownable shells that production must explicitly renounce, and an external Resonance owner deliberately drawn outside the system because ADR 0034 removed governance implementation from this repository.',
+      'The deployed core graph. Strategy sends Fund’s per-purchase complement directly and only the Bribe share to its qualifying buffer. Mine and Resonance are the only core contracts with continuing custom owner authority, the three plain-Ownable setup shells renounce, and governance must accept both pending roles after launch.',
   },
   {
     id: 'protocol-loop',
     /** Hash of the `flowchart LR` economic loop in the one-pager. */
-    hashes: ['d614ea8b88151aff'],
+    hashes: ['ef7e11d08d444637'],
     match: (src) => src.includes('slot auctions') && !src.includes('StrategyFactory'),
     svg: protocolLoop,
     caption:
-      'The economic loop. Mine deposits revenue into ResonanceRouter for a later permissionless route, then Resonance streams forwarded USDG under live signal weights. A reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token may be an ordinary Strategy target, with no liquidity-specific core path. Strategy floors each purchase’s current 0%-to-20% Bribe share independently, sends Fund’s complement directly, and buffers only the Bribe share.',
+      'The economic loop. Mine deposits revenue into ResonanceRouter for a later permissionless route, then Resonance streams forwarded USDG under live signal weights. The one-shot launcher seeds the canonical V2 pair with 1 USDG and 1,000 Mine-issued GBX and permanently locks all genesis LP; later LP is an ordinary Strategy target and Fund redemption asset. No continuing liquidity manager or guarantee exists. Strategy floors each purchase’s current 0%-to-20% Bribe share independently, sends Fund’s complement directly, and buffers only the Bribe share.',
   },
 ];
 

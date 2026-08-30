@@ -72,8 +72,13 @@ export const AUCTION = {
 } as const;
 
 export const GOVERN = {
-  actionCount: 4,
+  actionCount: 5,
   actions: [
+    {
+      name: 'Set Mine revenue Router',
+      signature: 'setResonanceRouter(address newRouter)',
+      bound: 'Changes only future protocol revenue after replacement-graph identity checks.',
+    },
     {
       name: 'Add Strategy',
       signature: 'addStrategy(IERC20 paymentToken, Strategy.Config config)',
@@ -95,7 +100,7 @@ export const GOVERN = {
       bound: 'Bounded to 0–2000 bps. Applies to later purchases only.',
     },
   ],
-  ownerless: ['Mine', 'Fund', 'GBX', 'Strategy', 'Bribe', 'BribeRouter', 'ResonanceRouter'] as const,
+  ownerless: ['Fund', 'GBX', 'Strategy', 'Bribe', 'BribeRouter', 'ResonanceRouter'] as const,
   absent: [
     'proxy',
     'pause switch',
@@ -103,7 +108,7 @@ export const GOVERN = {
     'rescue function',
     'arbitrary-call executor',
     'emission setter',
-    'migration path',
+    'state-copy migration',
   ] as const,
 } as const;
 
@@ -176,12 +181,12 @@ export const MECHANISMS: readonly Mechanism[] = [
     name: 'Govern',
     href: '/govern',
     kicker: 'Bound',
-    summary: 'Four bounded actions, and nothing else, remain under any owner.',
+    summary: 'Five bounded actions, and nothing else, remain under continuing owners.',
     accent: 'blue',
-    headline: 'Four actions. No proxy, no pause, no rescue.',
+    headline: 'Five actions. No proxy, no pause, no rescue.',
     standfirst:
-      'Resonance holds the only continuing owner authority in the protocol, and it is limited to four ' +
-      'bounded calls. Mine and Fund have no owner at all. The external executor remains unresolved.',
+      'Mine and Resonance hold the protocol’s two continuing Ownable2Step roles: one future-revenue ' +
+      'Router setter on Mine and four bounded calls on Resonance. Fund remains ownerless. The external executor remains unresolved.',
   },
 ] as const;
 

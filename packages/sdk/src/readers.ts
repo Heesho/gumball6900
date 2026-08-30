@@ -10,6 +10,7 @@ import {
   signalPortfolioLensAbi,
   strategyAbi,
   resonanceAbi,
+  resonanceRouterAbi,
 } from './abis.js';
 import { pinBlockSnapshot, revalidateBlockSnapshot, type BlockSnapshot } from './block-snapshot.js';
 import { addressSchema, unsignedBigIntSchema } from './validation.js';
@@ -83,6 +84,9 @@ export const mineSlotViewSchema = z.object({
   currentPrice: unsignedBigIntSchema,
   effectiveTotalSupply: unsignedBigIntSchema,
   epochId: unsignedBigIntSchema,
+  genesisAuthority: addressSchema,
+  genesisLiquidityGbx: unsignedBigIntSchema,
+  genesisLiquidityMinted: z.boolean(),
   halvingPeriod: unsignedBigIntSchema,
   index: unsignedBigIntSchema,
   initialPrice: unsignedBigIntSchema,
@@ -121,6 +125,9 @@ export async function readMineSlotView(
     claimableMinerPayment,
     currentPrice,
     effectiveTotalSupply,
+    genesisAuthority,
+    genesisLiquidityGbx,
+    genesisLiquidityMinted,
     halvingPeriodRaw,
     slot,
     nextGlobalTps,
@@ -136,6 +143,9 @@ export async function readMineSlotView(
     read(client, blockNumber, mine, mineAbi, 'claimableMinerPayment', [claimant]),
     read(client, blockNumber, mine, mineAbi, 'currentPrice', [index]),
     read(client, blockNumber, mine, mineAbi, 'effectiveTotalSupply'),
+    read(client, blockNumber, mine, mineAbi, 'genesisAuthority'),
+    read(client, blockNumber, mine, mineAbi, 'GENESIS_LIQUIDITY_GBX'),
+    read(client, blockNumber, mine, mineAbi, 'genesisLiquidityMinted'),
     read(client, blockNumber, mine, mineAbi, 'HALVING_PERIOD'),
     read(client, blockNumber, mine, mineAbi, 'slot', [index]),
     read(client, blockNumber, mine, mineAbi, 'nextGlobalTps'),
@@ -179,6 +189,9 @@ export async function readMineSlotView(
     currentPrice,
     effectiveTotalSupply,
     epochId: values[0],
+    genesisAuthority,
+    genesisLiquidityGbx,
+    genesisLiquidityMinted,
     halvingPeriod,
     index,
     initialPrice: values[1],
@@ -196,6 +209,58 @@ export async function readMineSlotView(
     totalMined,
     totalPendingEmission,
     tps: values[4],
+  });
+  await revalidateBlockSnapshot(client, pinned);
+  return result;
+}
+
+export const mineRevenueDestinationViewSchema = z.object({
+  blockNumber: unsignedBigIntSchema,
+  fund: addressSchema,
+  gbx: addressSchema,
+  mine: addressSchema,
+  owner: addressSchema,
+  pendingOwner: addressSchema,
+  resonance: addressSchema,
+  resonanceRouter: addressSchema,
+  usdg: addressSchema,
+});
+export type MineRevenueDestinationView = z.infer<typeof mineRevenueDestinationViewSchema>;
+
+/** Reads Mine's immutable identities, active future-revenue Router, and two-step ownership state at one block. */
+export async function readMineRevenueDestinationView(
+  client: PublicClient,
+  mine: Address,
+  options: ReadOptions = {},
+): Promise<MineRevenueDestinationView> {
+  const pinned = await snapshot(client, options);
+  const { blockNumber } = pinned;
+  const normalizedMine = getAddress(mine);
+  const [fund, gbx, owner, pendingOwner, resonanceRouter, usdg] = await Promise.all([
+    read(client, blockNumber, normalizedMine, mineAbi, 'fund'),
+    read(client, blockNumber, normalizedMine, mineAbi, 'gbx'),
+    read(client, blockNumber, normalizedMine, mineAbi, 'owner'),
+    read(client, blockNumber, normalizedMine, mineAbi, 'pendingOwner'),
+    read(client, blockNumber, normalizedMine, mineAbi, 'resonanceRouter'),
+    read(client, blockNumber, normalizedMine, mineAbi, 'usdg'),
+  ]);
+  const resonance = await read(
+    client,
+    blockNumber,
+    getAddress(resonanceRouter as Address),
+    resonanceRouterAbi,
+    'resonance',
+  );
+  const result = mineRevenueDestinationViewSchema.parse({
+    blockNumber,
+    fund,
+    gbx,
+    mine: normalizedMine,
+    owner,
+    pendingOwner,
+    resonance,
+    resonanceRouter,
+    usdg,
   });
   await revalidateBlockSnapshot(client, pinned);
   return result;
@@ -358,6 +423,8 @@ export const resonanceViewSchema = z.object({
   lastUpdateTime: unsignedBigIntSchema,
   remainingRevenue: unsignedBigIntSchema,
   maximumBribeBasisPoints: unsignedBigIntSchema,
+  owner: addressSchema,
+  pendingOwner: addressSchema,
   periodFinish: unsignedBigIntSchema,
   resonanceRouter: addressSchema,
   revenuePerSignalStored: unsignedBigIntSchema,
@@ -384,6 +451,8 @@ export async function readResonanceView(
     defaultBribeBasisPoints,
     rewardDuration,
     maximumBribeBasisPoints,
+    owner,
+    pendingOwner,
     resonanceRouter,
     rewardPrecision,
     totalSignalWeight,
@@ -394,6 +463,8 @@ export async function readResonanceView(
     read(client, blockNumber, normalizedResonance, resonanceAbi, 'DEFAULT_BRIBE_BPS'),
     read(client, blockNumber, normalizedResonance, resonanceAbi, 'REWARD_DURATION'),
     read(client, blockNumber, normalizedResonance, resonanceAbi, 'MAX_BRIBE_BPS'),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'owner'),
+    read(client, blockNumber, normalizedResonance, resonanceAbi, 'pendingOwner'),
     read(client, blockNumber, normalizedResonance, resonanceAbi, 'resonanceRouter'),
     read(client, blockNumber, normalizedResonance, resonanceAbi, 'REWARD_PRECISION'),
     read(client, blockNumber, normalizedResonance, resonanceAbi, 'totalSignalWeight'),
@@ -424,6 +495,8 @@ export async function readResonanceView(
     lastUpdateTime: revenueDataValues[2],
     remainingRevenue,
     maximumBribeBasisPoints,
+    owner,
+    pendingOwner,
     periodFinish: revenueDataValues[0],
     resonanceRouter,
     revenuePerSignalStored: revenueDataValues[3],

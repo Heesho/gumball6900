@@ -1,9 +1,11 @@
 {
-  "schemaVersion": "11",
+  "schemaVersion": "12",
   "usdGDecimals": "6",
   "targetDecimals": "18",
   "infiniteSupply": true,
-  "initialSupply": "0",
+  "constructorSupply": "0",
+  "genesisLiquiditySupply": "1000000000000000000000",
+  "initialSupply": "1000000000000000000000",
   "miningQuotes": [
     {
       "id": "incumbent-before-halving",
@@ -15,7 +17,7 @@
       "nextGlobalTps": "64000000000000000000",
       "nextSlotTps": "4000000000000000000",
       "synchronizedMiningEmission": "0",
-      "synchronizedGrossSupply": "0"
+      "synchronizedGrossSupply": "1000000000000000000000"
     },
     {
       "id": "protected-staggered-halving",
@@ -27,7 +29,7 @@
       "nextGlobalTps": "32000000000000000000",
       "nextSlotTps": "2000000000000000000",
       "synchronizedMiningEmission": "381542400000000000000000000",
-      "synchronizedGrossSupply": "381542400000000000000000000"
+      "synchronizedGrossSupply": "381543400000000000000000000"
     },
     {
       "id": "just-before-first-time-boundary",
@@ -39,7 +41,7 @@
       "nextGlobalTps": "64000000000000000000",
       "nextSlotTps": "4000000000000000000",
       "synchronizedMiningEmission": "381542336000000000000000000",
-      "synchronizedGrossSupply": "381542336000000000000000000"
+      "synchronizedGrossSupply": "381543336000000000000000000"
     },
     {
       "id": "just-before-second-time-boundary",
@@ -51,7 +53,7 @@
       "nextGlobalTps": "32000000000000000000",
       "nextSlotTps": "2000000000000000000",
       "synchronizedMiningEmission": "572313568000000000000000000",
-      "synchronizedGrossSupply": "572313568000000000000000000"
+      "synchronizedGrossSupply": "572314568000000000000000000"
     },
     {
       "id": "at-second-time-boundary",
@@ -63,7 +65,7 @@
       "nextGlobalTps": "16000000000000000000",
       "nextSlotTps": "1000000000000000000",
       "synchronizedMiningEmission": "572313600000000000000000000",
-      "synchronizedGrossSupply": "572313600000000000000000000"
+      "synchronizedGrossSupply": "572314600000000000000000000"
     },
     {
       "id": "just-before-tail-time-boundary",
@@ -75,7 +77,7 @@
       "nextGlobalTps": "2000000000000000000",
       "nextSlotTps": "125000000000000000",
       "synchronizedMiningEmission": "751161598000000000000000000",
-      "synchronizedGrossSupply": "751161598000000000000000000"
+      "synchronizedGrossSupply": "751162598000000000000000000"
     },
     {
       "id": "at-tail-time-boundary",
@@ -87,7 +89,7 @@
       "nextGlobalTps": "1000000000000000000",
       "nextSlotTps": "62500000000000000",
       "synchronizedMiningEmission": "751161600000000000000000000",
-      "synchronizedGrossSupply": "751161600000000000000000000"
+      "synchronizedGrossSupply": "751162600000000000000000000"
     },
     {
       "id": "far-after-tail",
@@ -99,7 +101,7 @@
       "nextGlobalTps": "1000000000000000000",
       "nextSlotTps": "62500000000000000",
       "synchronizedMiningEmission": "6676992000000000000000000000",
-      "synchronizedGrossSupply": "6676992000000000000000000000"
+      "synchronizedGrossSupply": "6676993000000000000000000000"
     },
     {
       "id": "ten-years-synchronized-supply",
@@ -111,7 +113,7 @@
       "nextGlobalTps": "1000000000000000000",
       "nextSlotTps": "62500000000000000",
       "synchronizedMiningEmission": "1030752000000000000000000000",
-      "synchronizedGrossSupply": "1030752000000000000000000000"
+      "synchronizedGrossSupply": "1030753000000000000000000000"
     }
   ],
   "auctionQuotes": [

@@ -238,6 +238,7 @@ contract SignalGBXTest is ProtocolFixture {
         targetBribe.notifyReward(address(target), maximum);
         uint256 duration = targetBribe.REWARD_DURATION();
         vm.warp(block.timestamp + duration);
+        vm.prank(ALICE);
         assertEq(targetBribe.claimReward(ALICE, address(target)), maximum - (maximum % duration));
         assertEq(targetBribe.lifetimeRewardNotified(address(target)), maximum);
 

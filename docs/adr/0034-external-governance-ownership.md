@@ -2,7 +2,8 @@
 
 - Status: accepted for the development architecture; external governance remains unselected and deployment remains
   blocked; its three-method administration list is superseded by ADR 0036's addition of bounded global
-  `setBribeBps`; not independently audited or deployed; not approved for user funds
+  `setBribeBps`; ADR 0055 later adds Mine's narrow Router setter, changes Mine and Resonance to two-step ownership, and
+  supersedes the direct Resonance-only handoff; not independently audited or deployed; not approved for user funds
 - Date: 2026-08-19
 - Supersedes:
   - ADR 0030's `ProtocolGovernor`, selector filter, `TimelockController`, cancellation, and governance-deployment

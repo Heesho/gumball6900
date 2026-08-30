@@ -6,7 +6,9 @@ const DEFAULT_STRATEGY_BRIBE_BPS = 1_000n;
 const MAX_STRATEGY_BRIBE_BPS = 2_000n;
 const HOUR = 3_600n;
 const YEAR = 365n * 24n * HOUR;
-const INITIAL_SUPPLY = 0n;
+const CONSTRUCTOR_SUPPLY = 0n;
+const GENESIS_LIQUIDITY_SUPPLY = 1_000n * WAD;
+const INITIAL_SUPPLY = GENESIS_LIQUIDITY_SUPPLY;
 const MINE_PRICE_MULTIPLIER = 2n;
 const MINE_MIN_INITIAL_PRICE = 1_000_000n;
 const MINE_INITIAL_TPS = 64n * WAD;
@@ -149,10 +151,13 @@ function rawSuite() {
   const redeemGBX = 1_000_000n * WAD;
 
   return {
-    schemaVersion: 15,
+    schemaVersion: 16,
     purpose: 'Deterministic protocol mechanics; not forecasts, valuations, or investment projections.',
     assumptions: {
       initialSupplyGBXRaw: INITIAL_SUPPLY,
+      constructorSupplyGBXRaw: CONSTRUCTOR_SUPPLY,
+      genesisLiquiditySupplyGBXRaw: GENESIS_LIQUIDITY_SUPPLY,
+      genesisLpPermanentlyLocked: true,
       infiniteSupply: true,
       priceDecaySeconds: HOUR,
       previousMinerBps: 8_000n,

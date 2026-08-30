@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { console } from "forge-std/console.sol";
 
 import { Bribe } from "../../src/core/Bribe.sol";
@@ -12,6 +13,7 @@ import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 import { ProtocolHandler } from "./utils/ProtocolHandler.sol";
 import { ProtocolWorkflowHandler } from "./utils/ProtocolWorkflowHandler.sol";
 import { StrategyRegistry } from "./utils/StrategyRegistry.sol";
+import { MockERC20, RevertingToken } from "./utils/Tokens.sol";
 
 /// @title ProtocolInvariantsTest
 /// @notice Stateful invariant suite driving the whole protocol through a bounded, revert-free handler.
@@ -21,6 +23,8 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     ProtocolHandler internal handler;
     ProtocolWorkflowHandler internal workflowHandler;
     StrategyRegistry internal strategyRegistry;
+    MockERC20 internal auditHealthyFundAsset;
+    RevertingToken internal auditBrokenReward;
 
     function setUp() external {
         _deployProtocol();
@@ -38,7 +42,25 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         );
         workflowHandler = new ProtocolWorkflowHandler(gbx, target, signalGBX, resonance, mine, strategyRegistry);
 
-        resonance.transferOwnership(address(this));
+        // Keep one known-good Fund asset outside every randomized action so one-token redemption is always testable.
+        auditHealthyFundAsset = new MockERC20("Audit Healthy Fund Asset", "AHFA", 18);
+        auditHealthyFundAsset.mint(address(fund), 1e36);
+
+        // Register a reward token that behaves conventionally during prefixes but can be made to fail inside escape
+        // checks. This proves that a transfer failure in one optional reward token is not a signal-principal or
+        // healthy scalar-claim dependency.
+        auditBrokenReward = new RevertingToken(18);
+        resonance.addBribeRewardToken(address(targetStrategy), address(auditBrokenReward));
+        handler.addSignal(3, 0, 1 ether);
+
+        uint256 rewardAmount = targetBribe.REWARD_DURATION();
+        target.mint(address(this), rewardAmount);
+        target.approve(address(targetBribe), rewardAmount);
+        targetBribe.notifyReward(address(target), rewardAmount);
+        auditBrokenReward.mint(address(this), rewardAmount);
+        auditBrokenReward.approve(address(targetBribe), rewardAmount);
+        targetBribe.notifyReward(address(auditBrokenReward), rewardAmount);
+
         targetContract(address(handler));
         targetContract(address(workflowHandler));
         excludeSender(address(0));
@@ -147,6 +169,8 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         address[] memory allStrategies = strategyRegistry.all();
         uint256 snapshot = vm.snapshotState();
 
+        auditBrokenReward.setTransfersRevert(true);
+
         for (uint256 i; i < handler.actorCount(); ++i) {
             address actor = handler.actors(i);
             for (uint256 j; j < allStrategies.length; ++j) {
@@ -160,6 +184,103 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                 assertEq(_accountSignalWeight(actor, allStrategies[j]), 0);
             }
             assertEq(signalGBX.balanceOf(actor), 0);
+        }
+
+        assertTrue(vm.revertToState(snapshot));
+    }
+
+    /// @notice After every reached prefix, each liquid GBX holder can use the one-token Fund fallback.
+    function invariant_EveryGBXHolderCanRedeemOneHealthyFundAsset() external {
+        uint256 snapshot = vm.snapshotState();
+        address[] memory selected = new address[](1);
+        selected[0] = address(auditHealthyFundAsset);
+
+        for (uint256 i; i < handler.actorCount(); ++i) {
+            address actor = handler.actors(i);
+            uint256 amount = gbx.balanceOf(actor);
+            if (amount == 0) continue;
+
+            uint256 supplyBefore = mine.effectiveTotalSupply();
+            uint256 backingBefore = auditHealthyFundAsset.balanceOf(address(fund));
+            uint256 receiverBefore = auditHealthyFundAsset.balanceOf(actor);
+            uint256 expected = Math.mulDiv(backingBefore, amount, supplyBefore);
+
+            vm.startPrank(actor);
+            gbx.approve(address(fund), amount);
+            fund.redeem(amount, actor, selected);
+            vm.stopPrank();
+
+            assertEq(auditHealthyFundAsset.balanceOf(actor) - receiverBefore, expected);
+            assertEq(gbx.balanceOf(actor), 0);
+        }
+
+        assertTrue(vm.revertToState(snapshot));
+    }
+
+    /// @notice After every reached prefix, every tracked outgoing-miner claim can be paid by an unrelated caller.
+    function invariant_EveryTrackedMinerClaimCanBeSettled() external {
+        uint256 snapshot = vm.snapshotState();
+
+        for (uint256 i; i < handler.actorCount(); ++i) {
+            address actor = handler.actors(i);
+            uint256 claim = mine.claimableMinerPayment(actor);
+            if (claim == 0) continue;
+
+            uint256 beforeBalance = usdg.balanceOf(actor);
+            mine.claimMinerPayment(actor);
+            assertEq(usdg.balanceOf(actor) - beforeBalance, claim);
+            assertEq(mine.claimableMinerPayment(actor), 0);
+        }
+
+        assertTrue(vm.revertToState(snapshot));
+    }
+
+    /// @notice After every reached prefix, each occupied slot has a zero-price public settlement path after full decay.
+    function invariant_EveryOccupiedMineSlotCanSettleAtZeroPrice() external {
+        uint256 snapshot = vm.snapshotState();
+
+        for (uint256 i; i < mine.SLOT_COUNT(); ++i) {
+            Mine.Slot memory outgoing = mine.slot(i);
+            if (outgoing.miner == address(0)) continue;
+
+            uint256 zeroPriceAt = outgoing.auctionStartedAt + mine.PRICE_DECAY_PERIOD();
+            if (block.timestamp < zeroPriceAt) vm.warp(zeroPriceAt);
+            assertEq(mine.currentPrice(i), 0);
+
+            uint256 expectedEmission = (block.timestamp - outgoing.lastAccruedAt) * outgoing.tps;
+            uint256 minerBalanceBefore = gbx.balanceOf(outgoing.miner);
+            mine.mine(address(this), i, outgoing.epochId, block.timestamp, 0, "audit exit");
+
+            assertEq(gbx.balanceOf(outgoing.miner) - minerBalanceBefore, expectedEmission);
+            assertEq(mine.slot(i).miner, address(this));
+        }
+
+        assertTrue(vm.revertToState(snapshot));
+    }
+
+    /// @notice Healthy scalar Bribe claims remain callable after every prefix while another token reverts on transfer.
+    function invariant_EveryHealthyBribeRewardHasAnIsolatedScalarClaim() external {
+        uint256 snapshot = vm.snapshotState();
+        auditBrokenReward.setTransfersRevert(true);
+        address[] memory allStrategies = strategyRegistry.all();
+
+        for (uint256 i; i < handler.actorCount(); ++i) {
+            address actor = handler.actors(i);
+            for (uint256 j; j < allStrategies.length; ++j) {
+                Bribe bribe = Bribe(resonance.bribeFor(allStrategies[j]));
+                address[] memory rewardTokens = bribe.rewardTokens();
+                for (uint256 k; k < rewardTokens.length; ++k) {
+                    address rewardToken = rewardTokens[k];
+                    if (rewardToken == address(auditBrokenReward)) continue;
+
+                    uint256 expected = bribe.earned(actor, rewardToken);
+                    uint256 balanceBefore = IERC20(rewardToken).balanceOf(actor);
+                    vm.prank(actor);
+                    bribe.claimReward(actor, rewardToken);
+                    assertEq(IERC20(rewardToken).balanceOf(actor) - balanceBefore, expected);
+                    assertEq(bribe.earned(actor, rewardToken), 0);
+                }
+            }
         }
 
         assertTrue(vm.revertToState(snapshot));
@@ -230,6 +351,14 @@ contract ProtocolInvariantsTest is ProtocolFixture {
     /// @notice The revenue index only ever moves forward.
     function invariant_RevenueIndexIsMonotonic() external view {
         assertGe(resonance.revenuePerSignal(), handler.ghostHighestRevenueIndex());
+    }
+
+    /// @notice Fresh revenue admission permanently bounds even the one-raw-signal worst-case cumulative index.
+    function invariant_RevenueLifetimeAdmissionBoundsTheIndex() external view {
+        uint256 notified = resonance.lifetimeRevenueNotified();
+        uint256 maximum = resonance.MAX_LIFETIME_REVENUE_AMOUNT();
+        assertLe(notified, maximum);
+        assertLe(resonance.revenuePerSignal(), notified * resonance.REWARD_PRECISION());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -356,14 +485,16 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         uint256 expectedGlobalTps = mine.INITIAL_TPS() >> elapsedHalvings;
         if (expectedGlobalTps < mine.TAIL_TPS()) expectedGlobalTps = mine.TAIL_TPS();
         assertEq(mine.nextGlobalTps(), expectedGlobalTps);
-        assertLe(mine.totalMined(), gbx.lifetimeMinted());
+        uint256 genesisIssuance = mine.genesisLiquidityMinted() ? mine.GENESIS_LIQUIDITY_GBX() : 0;
+        uint256 syntheticFixtureIssuance = handler.ghostGBXMinted() + workflowHandler.ghostGBXMinted();
+        assertEq(gbx.lifetimeMinted(), mine.totalMined() + genesisIssuance + syntheticFixtureIssuance);
     }
 
     /// @notice Prints how often each action actually executed, so silently dead branches are visible under `-vv`.
     /// @dev Invariants are also evaluated once before the first call, so this cannot assert nonzero counts.
     ///      `test_EveryHandlerActionIsReachable` carries that assertion instead.
     function invariant_CallSummary() external view {
-        string[17] memory actions = _actionNames();
+        string[22] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             console.log(actions[i], handler.ghostCalls(bytes32(bytes(actions[i]))));
         }
@@ -422,6 +553,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         handler.distributeAll();
         handler.buy(1, 1);
         handler.notifyTinyReward(0, 1);
+        handler.addBribeRewardToken(1, 0);
         workflowHandler.advanceTime(type(uint256).max);
 
         workflowHandler.claimRewards(0, 0);
@@ -432,14 +564,18 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         vm.prank(handler.actors(0));
         gbx.transfer(address(fund), 1 ether);
         handler.burnFundGBX(1 ether);
+        handler.donateFund(1 ether, false);
 
         handler.redeem(0, 1 ether, true);
         workflowHandler.delegate(0, 1, false);
         workflowHandler.addStrategy();
+        handler.setBribeBps(2_000);
+        handler.transferOwnership(1);
         handler.killStrategy(0);
         handler.withdrawDefault(0, type(uint256).max);
+        handler.renounceOwnership();
 
-        string[17] memory actions = _actionNames();
+        string[22] memory actions = _actionNames();
         for (uint256 i; i < actions.length; ++i) {
             assertGt(
                 handler.ghostCalls(bytes32(bytes(actions[i]))),
@@ -457,7 +593,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
         }
     }
 
-    function _actionNames() private pure returns (string[17] memory actions) {
+    function _actionNames() private pure returns (string[22] memory actions) {
         return [
             "signalDefault",
             "withdrawDefault",
@@ -471,11 +607,16 @@ contract ProtocolInvariantsTest is ProtocolFixture {
             "distributeAll",
             "buy",
             "notifyTinyReward",
+            "addBribeRewardToken",
             "routeBribeRewards",
             "claimMinerPayment",
             "redeem",
             "burnFundGBX",
-            "killStrategy"
+            "donateFund",
+            "killStrategy",
+            "setBribeBps",
+            "transferOwnership",
+            "renounceOwnership"
         ];
     }
 

@@ -11,14 +11,17 @@ import {
 import { Burned, Minted } from '../generated/GBX/GBX';
 import {
   EmissionSettled,
+  GenesisLiquidityMinted,
   Mined,
   MinerPaymentAccrued,
   MinerPaymentClaimed,
+  ResonanceRouterUpdated,
   RevenueDeposited,
 } from '../generated/Mine/Mine';
 import { RewardRouted } from '../generated/templates/BribeRouterTemplate/BribeRouter';
 import {
   BribeBpsSet,
+  ResonanceRouterSet,
   RevenueDistributed,
   RevenueNotified,
   SignalAdded,
@@ -31,15 +34,18 @@ import { handleBurned, handleMinted } from '../src/gbx';
 import { eventId, signalPositionId } from '../src/ids';
 import {
   handleEmissionSettled,
+  handleGenesisLiquidityMinted,
   handleMined,
   handleMinerPaymentAccrued,
   handleMinerPaymentClaimed,
   handleMiningRevenueDeposited,
+  handleResonanceRouterUpdated,
 } from '../src/mine';
 import {
   handleBribeBpsSet,
   handleRevenueDistributed,
   handleRevenueNotified,
+  handleResonanceRouterSet,
   handleSignalAdded,
   handleSignalRemoved,
   handleStrategyAdded,
@@ -64,13 +70,16 @@ export {
   handleBribeBpsSet,
   handleBurned,
   handleEmissionSettled,
+  handleGenesisLiquidityMinted,
   handleMined,
   handleMinerPaymentAccrued,
   handleMinerPaymentClaimed,
   handleMiningRevenueDeposited,
+  handleResonanceRouterUpdated,
   handleMinted,
   handleRevenueDistributed,
   handleRevenueNotified,
+  handleResonanceRouterSet,
   handleRouterRewardRouted,
   handleSignaled,
   handleSignalWithdrawn,
@@ -106,6 +115,20 @@ describe('core protocol mappings', () => {
     assert.fieldEquals('Account', '4663-' + USER_TWO.toHexString(), 'gbxBurnedRaw', '25');
     assert.fieldEquals('ProtocolEvent', eventId(miningMint), 'eventType', 'GBX_MINTED');
     assert.fieldEquals('ProtocolEvent', eventId(burned), 'eventType', 'GBX_BURNED');
+  });
+
+  test('tracks the fixed Mine-issued genesis liquidity allocation separately from slot emission', () => {
+    const genesis = changetype<GenesisLiquidityMinted>(newMockEvent());
+    configureEvent(genesis, CONTRACT, 1);
+    genesis.parameters = new Array<ethereum.EventParam>();
+    genesis.parameters.push(addressParam('recipient', ASSET));
+    genesis.parameters.push(uintParam('amount', 1_000));
+    handleGenesisLiquidityMinted(genesis);
+
+    assert.fieldEquals('ProtocolState', '4663', 'genesisLiquidityGBXRaw', '1000');
+    assert.fieldEquals('ProtocolState', '4663', 'genesisPair', ASSET.toHexString());
+    assert.fieldEquals('ProtocolState', '4663', 'minedGBXRaw', '0');
+    assert.fieldEquals('ProtocolEvent', eventId(genesis), 'eventType', 'MINE_GENESIS_LIQUIDITY_MINTED');
   });
 
   test('tracks Mine slot handoffs and displaced-miner USDG claims', () => {
@@ -144,6 +167,7 @@ describe('core protocol mappings', () => {
     deposited.parameters = new Array<ethereum.EventParam>();
     deposited.parameters.push(uintParam('slotIndex', 0));
     deposited.parameters.push(uintParam('epochId', 7));
+    deposited.parameters.push(addressParam('resonanceRouter', REWARDS));
     deposited.parameters.push(uintParam('amount', 10));
     handleMiningRevenueDeposited(deposited);
 
@@ -154,9 +178,39 @@ describe('core protocol mappings', () => {
     assert.fieldEquals('MiningSlot', slotId, 'tpsRaw', '4');
     assert.fieldEquals('ProtocolState', '4663', 'miningPaymentsRaw', '50');
     assert.fieldEquals('ProtocolState', '4663', 'miningRevenueDepositedRaw', '10');
+    assert.fieldEquals('ProtocolState', '4663', 'mineRevenueRouter', REWARDS.toHexString());
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'miningPaymentAccruedRaw', '40');
     assert.fieldEquals('Account', '4663-' + USER.toHexString(), 'miningUSDGClaimedRaw', '40');
     assert.fieldEquals('ProtocolEvent', eventId(deposited), 'eventType', 'MINE_REVENUE_DEPOSITED');
+    assert.fieldEquals('ProtocolEvent', eventId(deposited), 'addresses', `[${REWARDS.toHexString()}]`);
+  });
+
+  test('tracks Mine future-revenue Router migration without replacing the indexed Resonance graph', () => {
+    const initial = changetype<ResonanceRouterSet>(newMockEvent());
+    configureEvent(initial, CONTRACT, 1);
+    initial.parameters = new Array<ethereum.EventParam>();
+    initial.parameters.push(addressParam('resonanceRouter', USER));
+    handleResonanceRouterSet(initial);
+
+    const updated = changetype<ResonanceRouterUpdated>(newMockEvent());
+    configureEvent(updated, CONTRACT, 2);
+    updated.parameters = new Array<ethereum.EventParam>();
+    updated.parameters.push(addressParam('previousRouter', USER));
+    updated.parameters.push(addressParam('newRouter', USER_TWO));
+    updated.parameters.push(addressParam('newResonance', REWARDS));
+    handleResonanceRouterUpdated(updated);
+
+    assert.fieldEquals('ProtocolState', '4663', 'mineRevenueResonance', REWARDS.toHexString());
+    assert.fieldEquals('ProtocolState', '4663', 'mineRevenueRouter', USER_TWO.toHexString());
+    assert.fieldEquals('ProtocolState', '4663', 'resonance', CONTRACT.toHexString());
+    assert.fieldEquals('ProtocolState', '4663', 'resonanceRouter', USER.toHexString());
+    assert.fieldEquals('ProtocolEvent', eventId(updated), 'eventType', 'MINE_RESONANCE_ROUTER_UPDATED');
+    assert.fieldEquals(
+      'ProtocolEvent',
+      eventId(updated),
+      'addresses',
+      `[${USER.toHexString()}, ${USER_TWO.toHexString()}, ${REWARDS.toHexString()}]`,
+    );
   });
 
   test('tracks target-slot mining settlement', () => {

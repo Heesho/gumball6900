@@ -5,6 +5,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 import { BribeFactory } from "../../src/core/BribeFactory.sol";
 import { BribeRouter } from "../../src/core/BribeRouter.sol";
+import { Fund } from "../../src/core/Fund.sol";
 import { GBX } from "../../src/core/GBX.sol";
 import { Mine } from "../../src/core/Mine.sol";
 import { Resonance } from "../../src/core/Resonance.sol";
@@ -74,7 +75,15 @@ contract USDGFlowTest is ProtocolFixture {
     function test_BlockedRevenueIngressDoesNotBlockMineAndRemainsPermissionlesslyRetryable() external {
         HostileRevenueGraph memory graph = _deployHostileRevenueGraph();
         GBX isolatedGBX = new GBX(address(this));
-        Mine isolatedMine = new Mine(isolatedGBX, IERC20(address(graph.revenue)), address(graph.router));
+        Fund isolatedFund = new Fund(isolatedGBX);
+        Mine isolatedMine = new Mine(
+            isolatedGBX,
+            IERC20(address(graph.revenue)),
+            address(isolatedFund),
+            address(graph.router),
+            address(0),
+            address(this)
+        );
         isolatedGBX.setMinter(address(isolatedMine));
 
         Mine.Slot memory initialSlot = isolatedMine.slot(0);

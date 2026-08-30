@@ -87,7 +87,7 @@ abstract contract ProtocolFixture is Test {
         resonanceRouter = new ResonanceRouter(IERC20(address(usdg)), address(resonance));
         resonance.setResonanceRouter(address(resonanceRouter));
 
-        mine = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter));
+        mine = new Mine(gbx, IERC20(address(usdg)), address(fund), address(resonanceRouter), address(0), address(this));
         gbx.setMinter(address(mine));
 
         (address targetStrategyAddress, address targetBribeAddress, address targetRouterAddress) =

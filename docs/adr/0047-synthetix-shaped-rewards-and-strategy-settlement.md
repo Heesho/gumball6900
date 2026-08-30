@@ -1,7 +1,8 @@
 # ADR 0047: Restore Synthetix-shaped rewards and Strategy settlement
 
-- Status: accepted for development and partially superseded by ADR 0048 where it preserves the historical eight-token
-  Bribe cap; not audited, deployed, or approved for user funds
+- Status: accepted for development and partially superseded by ADR 0048 where this ADR preserves the historical
+  eight-token Bribe cap, and by ADR 0053, which supersedes this ADR's requirement that caller-selected cross-Bribe
+  claims remain outside core; not audited, deployed, or approved for user funds
 - Date: 2026-08-23
 - Supersedes: ADR 0020's Bribe exact-carry, queue, pause, Fund-liability, and selected-batch-claim decisions; ADR 0021's
   deferred Strategy-to-Fund settlement; ADR 0026's exact raw-unit successor scheduling; ADR 0027; ADR 0028's
@@ -73,7 +74,8 @@ Each Bribe follows the Liquid Signal/Synthetix cumulative-index engine:
 - The `1e36` index and monotonic lifetime raw-notification cap remain to support low-decimal rewards without allowing
   cumulative index overflow to block mandatory signal checkpoints.
 - The normal all-token claim remains. One scalar-token claim is retained so a failed token transfer need not block an
-  unrelated reward. Caller-selected batch claims are periphery, not core.
+  unrelated reward. ADR 0053 later authorizes claims for the beneficiary/immutable Resonance and adds a narrow
+  caller-owned cross-Bribe batch to Resonance.
 
 ### Strategy payment settlement
 

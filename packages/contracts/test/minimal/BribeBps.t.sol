@@ -49,6 +49,10 @@ contract BribeBpsCallbackGovernor is IBribeBpsCallbackGovernor {
         paymentToken = paymentToken_;
     }
 
+    function acceptResonanceOwnership() external {
+        resonance.acceptOwnership();
+    }
+
     function setBribeBpsFromPaymentToken(uint256 newBribeBps) external {
         require(msg.sender == paymentToken, "NOT_PAYMENT_TOKEN");
         resonance.setBribeBps(newBribeBps);
@@ -162,6 +166,7 @@ contract BribeBpsTransitionTest is ProtocolFixture {
 
         vm.warp(block.timestamp + 6 days);
         uint256 scheduled = targetBribe.REWARD_DURATION() * (uint256(1 ether) / targetBribe.REWARD_DURATION());
+        vm.prank(ALICE);
         assertEq(targetBribe.claimReward(ALICE, address(target)), scheduled);
         assertEq(target.balanceOf(ALICE), scheduled);
         assertEq(target.balanceOf(address(fund)), 24 ether);
@@ -235,6 +240,7 @@ contract BribeBpsTransitionTest is ProtocolFixture {
 
         vm.warp(block.timestamp + targetBribe.REWARD_DURATION());
         uint256 scheduled = targetBribe.REWARD_DURATION() * (uint256(7 ether) / targetBribe.REWARD_DURATION());
+        vm.prank(ALICE);
         assertEq(targetBribe.claimReward(ALICE, address(secondAsset)), scheduled);
         assertEq(secondAsset.balanceOf(ALICE), scheduled);
     }
@@ -247,6 +253,7 @@ contract BribeBpsTransitionTest is ProtocolFixture {
 
         BribeBpsCallbackGovernor callbackGovernor = new BribeBpsCallbackGovernor(resonance, address(callbackToken));
         resonance.transferOwnership(address(callbackGovernor));
+        callbackGovernor.acceptResonanceOwnership();
         callbackToken.armCallback(callbackGovernor, strategyAddress, 2_000);
 
         uint256 firstPayment = _buyCallbackPayment(callbackToken, callbackStrategy, ALICE);

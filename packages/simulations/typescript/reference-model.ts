@@ -16,7 +16,9 @@ import {
 } from '@gumball-6900/sdk';
 
 type StringRecord = Record<string, unknown>;
-const INITIAL_SUPPLY = 0n;
+const CONSTRUCTOR_SUPPLY = 0n;
+const GENESIS_LIQUIDITY_SUPPLY = 1_000n * 10n ** 18n;
+const INITIAL_SUPPLY = GENESIS_LIQUIDITY_SUPPLY;
 
 export interface ReferenceScenarios extends StringRecord {
   schemaVersion: string;
@@ -207,6 +209,8 @@ export function computeReferenceResults(scenarios: ReferenceScenarios) {
     usdGDecimals: scenarios.usdGDecimals,
     targetDecimals: scenarios.targetDecimals,
     infiniteSupply: true,
+    constructorSupply: CONSTRUCTOR_SUPPLY.toString(),
+    genesisLiquiditySupply: GENESIS_LIQUIDITY_SUPPLY.toString(),
     initialSupply: INITIAL_SUPPLY.toString(),
     miningQuotes,
     auctionQuotes,

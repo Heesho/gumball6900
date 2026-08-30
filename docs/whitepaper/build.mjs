@@ -44,8 +44,6 @@ const STALE_PHRASES = [
   'withdraw the LP NFT',
   'liquidityposition',
   'uniswap v4',
-  'genesis issuance',
-  'genesis gbx',
   'compoundRequirement',
   'compound the position',
   'fees are not protocol revenue',
@@ -389,7 +387,7 @@ async function main() {
 
   const facts = verifyProtocolFacts();
   console.log(
-    `facts     ${facts.checks} cross-checks pass · ${facts.initialSupplyTokens.toLocaleString('en-US')} initial GBX · ${facts.slotCount} fixed slots`,
+    `facts     ${facts.checks} cross-checks pass · ${facts.constructorSupplyTokens.toLocaleString('en-US')} constructor GBX / ${facts.canonicalLaunchSupplyTokens.toLocaleString('en-US')} canonical launch GBX · ${facts.slotCount} fixed slots`,
   );
 
   const contrast = assertContrast();

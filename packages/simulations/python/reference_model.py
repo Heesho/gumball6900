@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any
 
 WAD = 10**18
-INITIAL_SUPPLY = 0
+CONSTRUCTOR_SUPPLY = 0
+GENESIS_LIQUIDITY_SUPPLY = 1_000 * WAD
+INITIAL_SUPPLY = GENESIS_LIQUIDITY_SUPPLY
 
 
 def mul_div(a: int, b: int, denominator: int) -> int:
@@ -171,6 +173,8 @@ def compute(scenarios: dict[str, Any]) -> dict[str, Any]:
         "usdGDecimals": scenarios["usdGDecimals"],
         "targetDecimals": scenarios["targetDecimals"],
         "infiniteSupply": True,
+        "constructorSupply": str(CONSTRUCTOR_SUPPLY),
+        "genesisLiquiditySupply": str(GENESIS_LIQUIDITY_SUPPLY),
         "initialSupply": str(INITIAL_SUPPLY),
         "miningQuotes": mining_quotes,
         "auctionQuotes": auction_quotes,

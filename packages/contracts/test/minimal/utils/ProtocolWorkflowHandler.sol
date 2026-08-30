@@ -28,6 +28,8 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
 
     bool private addedStrategy;
 
+    /// @notice Test-only GBX minted by Mine impersonation instead of the production issuance paths.
+    uint256 public ghostGBXMinted;
     /// @notice Number of times each workflow actually executed rather than short-circuiting.
     mapping(bytes32 action => uint256 count) public ghostCalls;
 
@@ -55,8 +57,10 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
         uint256 requested = _bound(amount, 1e15, 1_000_000 ether);
         uint256 balance = gbx.balanceOf(actor);
         if (balance < requested) {
+            uint256 shortfall = requested - balance;
             vm.prank(address(mineContract));
-            gbx.mint(actor, requested - balance);
+            gbx.mint(actor, shortfall);
+            ghostGBXMinted += shortfall;
         }
 
         vm.startPrank(actor);
@@ -104,7 +108,10 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
 
         address actor = _actor(actorSeed);
         address strategy = strategyRegistry.at(_bound(strategySeed, 0, strategyCount - 1));
-        Bribe(resonance.bribeFor(strategy)).claimRewards(actor);
+        address[] memory strategies = new address[](1);
+        strategies[0] = strategy;
+        vm.prank(actor);
+        resonance.claimBribeRewards(strategies);
 
         ghostCalls["claimRewards"] += 1;
     }
@@ -128,7 +135,10 @@ contract ProtocolWorkflowHandler is CommonBase, StdCheats, StdUtils {
     function addStrategy() external {
         if (addedStrategy) return;
 
-        vm.prank(resonance.owner());
+        address owner = resonance.owner();
+        if (owner == address(0)) return;
+
+        vm.prank(owner);
         (address strategy,,) = resonance.addStrategy(
             target,
             Strategy.Config({

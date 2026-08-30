@@ -80,12 +80,13 @@ Colour meaning (from the whitepaper's diagram grammar — keep it): **blue = USD
   way: a holder burns GBX and takes their share.
 - **Redemption.** Burn any amount at any time and receive that same proportion of every holding,
   in the tokens themselves, in one transaction.
-- **Authority.** Resonance has the only continuing custom owner powers: add a Strategy, retire a
-  Strategy, register a reward token, and set the signaler share within its bound. SignalGBX,
-  StrategyFactory, and BribeFactory retain setup-only Ownable shells whose temporary owners must be
-  removed after binding. Mine, Fund, GBX, Strategies, Bribes, and both Router types have no owner
-  authority. Resonance can never retire the last Strategy. **Who ultimately holds its owner address
-  has not been decided.**
+- **Authority.** Mine and Resonance have the only continuing custom owner powers. Mine can redirect
+  only future mining revenue to a validated replacement Resonance graph. Resonance can add or retire
+  a Strategy, register a reward token, and set the signaler share within its bound. Both use
+  Ownable2Step. SignalGBX, StrategyFactory, and BribeFactory retain setup-only Ownable shells whose
+  temporary owners must be removed after binding. Fund, GBX, Strategies, Bribes, and both Router
+  types have no continuing owner authority. Resonance can never retire the last Strategy. **Who
+  ultimately holds the two continuing owner roles has not been decided.**
 - **What it can hold.** Any ERC-20: blue-chip crypto (WBTC, WETH), tokenized equities (AAPL,
   NVDA, TSLA, QQQ, SPCX), long-tail ecosystem tokens, LP positions that are themselves ERC-20s.
 

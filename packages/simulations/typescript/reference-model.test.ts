@@ -20,7 +20,10 @@ describe('Mine reference model', () => {
   it('pins rate protection, 80/20 payment, hourly zero, and effective supply', () => {
     const results = loadTypeScriptResults();
     expect(results.infiniteSupply).toBe(true);
-    expect(results.initialSupply).toBe('0');
+    expect(results.schemaVersion).toBe('12');
+    expect(results.constructorSupply).toBe('0');
+    expect(results.genesisLiquiditySupply).toBe('1000000000000000000000');
+    expect(results.initialSupply).toBe('1000000000000000000000');
     expect(results.miningQuotes[0]).toMatchObject({
       price: '1000000',
       previousMinerAmount: '800000',
@@ -51,11 +54,11 @@ describe('Mine reference model', () => {
     const quotes = Object.fromEntries(loadTypeScriptResults().miningQuotes.map((quote) => [quote.id, quote]));
     expect(quotes['at-tail-time-boundary']).toMatchObject({
       synchronizedMiningEmission: '751161600000000000000000000',
-      synchronizedGrossSupply: '751161600000000000000000000',
+      synchronizedGrossSupply: '751162600000000000000000000',
     });
     expect(quotes['ten-years-synchronized-supply']).toMatchObject({
       synchronizedMiningEmission: '1030752000000000000000000000',
-      synchronizedGrossSupply: '1030752000000000000000000000',
+      synchronizedGrossSupply: '1030753000000000000000000000',
     });
   });
 

@@ -41,7 +41,16 @@ describe('GBX mining authority integrity', function () {
 
     const router = await ethers.deployContract('ResonanceRouter', [tokenAddress, tokenAddress]);
     await router.waitForDeployment();
-    const mine = await ethers.deployContract('Mine', [tokenAddress, tokenAddress, await router.getAddress()]);
+    const fund = await ethers.deployContract('Fund', [tokenAddress]);
+    await fund.waitForDeployment();
+    const mine = await ethers.deployContract('Mine', [
+      tokenAddress,
+      tokenAddress,
+      await fund.getAddress(),
+      await router.getAddress(),
+      ethers.ZeroAddress,
+      deployer.address,
+    ]);
     await mine.waitForDeployment();
 
     const mineAddress = await mine.getAddress();
@@ -60,7 +69,16 @@ describe('GBX mining authority integrity', function () {
     const tokenAddress = await token.getAddress();
     const router = await ethers.deployContract('ResonanceRouter', [tokenAddress, tokenAddress]);
     await router.waitForDeployment();
-    const mine = await ethers.deployContract('Mine', [tokenAddress, tokenAddress, await router.getAddress()]);
+    const fund = await ethers.deployContract('Fund', [tokenAddress]);
+    await fund.waitForDeployment();
+    const mine = await ethers.deployContract('Mine', [
+      tokenAddress,
+      tokenAddress,
+      await fund.getAddress(),
+      await router.getAddress(),
+      ethers.ZeroAddress,
+      deployer.address,
+    ]);
     await mine.waitForDeployment();
 
     const startTime = (await mine.getFunction('startTime')()) as bigint;

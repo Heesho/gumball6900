@@ -234,13 +234,31 @@ contract BribeTest is Test {
         bribe.notifyReward(address(secondReward), secondAmount);
 
         vm.warp(block.timestamp + WEEK);
-        vm.prank(OUTSIDER);
+        vm.prank(ALICE);
         bribe.claimRewards(ALICE);
 
         assertEq(reward.balanceOf(ALICE), 3 * WEEK);
         assertEq(secondReward.balanceOf(ALICE), secondAmount);
         assertEq(reward.balanceOf(OUTSIDER), 0);
         assertEq(secondReward.balanceOf(OUTSIDER), 0);
+    }
+
+    function test_OnlyTheBeneficiaryOrResonanceCanInitiateAClaim() external {
+        bribe.addSignalWeight(ALICE, 1);
+        _notify(WEEK);
+        vm.warp(block.timestamp + WEEK);
+
+        vm.startPrank(OUTSIDER);
+        vm.expectRevert(abi.encodeWithSelector(Bribe.UnauthorizedClaimCaller.selector, OUTSIDER, ALICE));
+        bribe.claimRewards(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(Bribe.UnauthorizedClaimCaller.selector, OUTSIDER, ALICE));
+        bribe.claimReward(ALICE, address(reward));
+        vm.stopPrank();
+
+        assertEq(bribe.earned(ALICE, address(reward)), WEEK);
+
+        vm.prank(ALICE);
+        assertEq(bribe.claimReward(ALICE, address(reward)), WEEK);
     }
 
     function test_ClaimValidationAndEmptyClaimAreHarmless() external {

@@ -12,6 +12,8 @@ export function getProtocol(event: ethereum.Event): ProtocolState {
     protocol.lifetimeMintedRaw = ZERO;
     protocol.lifetimeBurnedRaw = ZERO;
     protocol.totalSupplyRaw = ZERO;
+    protocol.genesisLiquidityGBXRaw = ZERO;
+    protocol.genesisPair = Address.zero();
     protocol.minedGBXRaw = ZERO;
     protocol.miningPaymentsRaw = ZERO;
     protocol.previousMinerPaymentsRaw = ZERO;

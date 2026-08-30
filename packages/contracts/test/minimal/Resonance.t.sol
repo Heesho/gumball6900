@@ -12,7 +12,18 @@ import { SignalGBX } from "../../src/core/SignalGBX.sol";
 import { Strategy } from "../../src/core/Strategy.sol";
 import { StrategyFactory } from "../../src/core/StrategyFactory.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
-import { MockERC20 } from "./utils/Tokens.sol";
+import { MockERC20, RevertingToken } from "./utils/Tokens.sol";
+
+/// @dev Minimal contract-wallet surface used to prove claims preserve the wallet as `msg.sender` and beneficiary.
+contract BribeClaimWallet {
+    function claimReward(Bribe bribe, address rewardToken) external returns (uint256 amount) {
+        amount = bribe.claimReward(address(this), rewardToken);
+    }
+
+    function claimBribeRewards(Resonance resonance, address[] calldata strategies) external {
+        resonance.claimBribeRewards(strategies);
+    }
+}
 
 /// @title ResonanceTest
 /// @notice Focused coverage of the Bribe-shaped USDG stream, scalar signals, and irreversible Strategy death.
@@ -288,6 +299,142 @@ contract ResonanceTest is ProtocolFixture {
         assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 500 ether);
         assertEq(resonance.totalSignalWeight(), 500 ether);
         assertEq(signalGBX.balanceOf(ALICE), 500 ether);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                         BRIBE REWARD CLAIMS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_DirectBribeClaimsAreBeneficiaryAuthorized() external {
+        _signalDefault(ALICE, 1 ether);
+        uint256 amount = targetBribe.REWARD_DURATION();
+        target.mint(address(this), amount);
+        target.approve(address(targetBribe), amount);
+        targetBribe.notifyReward(address(target), amount);
+        vm.warp(block.timestamp + targetBribe.REWARD_DURATION());
+
+        vm.prank(CAROL);
+        vm.expectRevert(abi.encodeWithSelector(Bribe.UnauthorizedClaimCaller.selector, CAROL, ALICE));
+        targetBribe.claimReward(ALICE, address(target));
+        assertEq(targetBribe.earned(ALICE, address(target)), amount);
+
+        vm.prank(ALICE);
+        assertEq(targetBribe.claimReward(ALICE, address(target)), amount);
+        assertEq(target.balanceOf(ALICE), amount);
+    }
+
+    function test_BatchClaimsCanonicalLiveKilledAndDuplicateStrategyBribesForTheCaller() external {
+        _signalDefault(ALICE, 2 ether);
+        _signalTwo(ALICE, address(targetStrategy), address(gbxStrategy), 1, 1);
+
+        uint256 amount = targetBribe.REWARD_DURATION();
+        target.mint(address(this), amount);
+        target.approve(address(targetBribe), amount);
+        targetBribe.notifyReward(address(target), amount);
+        _mintTestGBX(address(this), amount);
+        gbx.approve(address(gbxBribe), amount);
+        gbxBribe.notifyReward(address(gbx), amount);
+
+        vm.warp(block.timestamp + amount);
+        resonance.killStrategy(address(targetStrategy));
+
+        address[] memory strategies = new address[](3);
+        strategies[0] = address(targetStrategy);
+        strategies[1] = address(targetStrategy);
+        strategies[2] = address(gbxStrategy);
+        vm.prank(ALICE);
+        resonance.claimBribeRewards(strategies);
+
+        assertEq(target.balanceOf(ALICE), amount);
+        assertEq(gbx.balanceOf(ALICE), amount);
+        assertEq(targetBribe.earned(ALICE, address(target)), 0);
+        assertEq(gbxBribe.earned(ALICE, address(gbx)), 0);
+    }
+
+    function test_ContractWalletCanSelfClaimDirectlyAndThroughTheBatchEntrypoint() external {
+        BribeClaimWallet wallet = new BribeClaimWallet();
+        _signalDefault(address(wallet), 2 ether);
+        _signalTwo(address(wallet), address(targetStrategy), address(gbxStrategy), 1, 1);
+
+        uint256 amount = targetBribe.REWARD_DURATION();
+        target.mint(address(this), amount);
+        target.approve(address(targetBribe), amount);
+        targetBribe.notifyReward(address(target), amount);
+        _mintTestGBX(address(this), amount);
+        gbx.approve(address(gbxBribe), amount);
+        gbxBribe.notifyReward(address(gbx), amount);
+        vm.warp(block.timestamp + amount);
+
+        assertEq(wallet.claimReward(targetBribe, address(target)), amount);
+        wallet.claimBribeRewards(resonance, _addresses(address(gbxStrategy)));
+
+        assertEq(target.balanceOf(address(wallet)), amount);
+        assertEq(gbx.balanceOf(address(wallet)), amount);
+    }
+
+    function test_BatchAlwaysClaimsForTheCallerAndValidatesEveryStrategyAtomically() external {
+        _signalDefault(ALICE, 1 ether);
+        uint256 amount = targetBribe.REWARD_DURATION();
+        target.mint(address(this), amount);
+        target.approve(address(targetBribe), amount);
+        targetBribe.notifyReward(address(target), amount);
+        vm.warp(block.timestamp + amount);
+
+        vm.prank(CAROL);
+        resonance.claimBribeRewards(_addresses(address(targetStrategy)));
+        assertEq(target.balanceOf(CAROL), 0);
+        assertEq(targetBribe.earned(ALICE, address(target)), amount);
+
+        address[] memory invalid = new address[](2);
+        invalid[0] = address(targetStrategy);
+        invalid[1] = CAROL;
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(Resonance.StrategyNotFound.selector, CAROL));
+        resonance.claimBribeRewards(invalid);
+        assertEq(target.balanceOf(ALICE), 0);
+        assertEq(targetBribe.earned(ALICE, address(target)), amount);
+
+        vm.prank(ALICE);
+        vm.expectRevert(Resonance.EmptyClaimBatch.selector);
+        resonance.claimBribeRewards(new address[](0));
+    }
+
+    function test_BrokenTokenRevertsTheBatchWhileDirectScalarClaimsRemainAvailable() external {
+        _signalDefault(ALICE, 2 ether);
+        _signalTwo(ALICE, address(targetStrategy), address(gbxStrategy), 1, 1);
+
+        RevertingToken broken = new RevertingToken(18);
+        resonance.addBribeRewardToken(address(targetStrategy), address(broken));
+
+        uint256 amount = targetBribe.REWARD_DURATION();
+        target.mint(address(this), amount);
+        target.approve(address(targetBribe), amount);
+        targetBribe.notifyReward(address(target), amount);
+        broken.mint(address(this), amount);
+        broken.approve(address(targetBribe), amount);
+        targetBribe.notifyReward(address(broken), amount);
+        _mintTestGBX(address(this), amount);
+        gbx.approve(address(gbxBribe), amount);
+        gbxBribe.notifyReward(address(gbx), amount);
+        vm.warp(block.timestamp + amount);
+
+        broken.setBlocked(ALICE, true);
+        address[] memory strategies = new address[](2);
+        strategies[0] = address(gbxStrategy);
+        strategies[1] = address(targetStrategy);
+        vm.prank(ALICE);
+        vm.expectRevert("BLOCKED");
+        resonance.claimBribeRewards(strategies);
+
+        assertEq(gbx.balanceOf(ALICE), 0);
+        assertEq(target.balanceOf(ALICE), 0);
+        assertEq(gbxBribe.earned(ALICE, address(gbx)), amount);
+        assertEq(targetBribe.earned(ALICE, address(target)), amount);
+
+        vm.startPrank(ALICE);
+        assertEq(gbxBribe.claimReward(ALICE, address(gbx)), amount);
+        assertEq(targetBribe.claimReward(ALICE, address(target)), amount);
+        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -1,17 +1,22 @@
 # Economics
 
-> Target-development economics: ADRs 0031, 0037, and 0047 are authoritative development decisions.
+> Target-development economics: ADRs 0031, 0037, 0047, and 0054 are authoritative development decisions.
 > These mechanics remain unaudited and are not authorized for user funds.
 
 ## Supply
 
-GBX starts with zero supply and permanently assigns its only lifetime mint authority to Mine before minting can begin. There is no
-protocol-defined economic maximum supply. GBX supports ERC-2612 approvals but has no voting checkpoints; governance
-power is minted one-for-one only when GBX is deposited into a Strategy signal through SignalGBX. Supply is exact
-cumulative accounting:
+GBX's constructor starts with zero supply and permanently assigns its only lifetime mint authority to Mine before
+minting can begin. The canonical atomic launch then uses Mine's fixed one-time issuance to place exactly `1,000 ether`
+GBX into the USDG/GBX Pair. That is genesis liquidity, not settled slot emission; Mine's setup authority cannot choose
+the amount or mint for any other continuing purpose. There is no protocol-defined economic maximum supply. GBX
+supports ERC-2612 approvals but has no voting checkpoints; governance power is minted one-for-one only when GBX is
+deposited into a Strategy signal through SignalGBX. Supply is exact cumulative accounting:
 
 ```text
 totalSupply = lifetimeMinted - lifetimeBurned
+
+lifetimeMinted = Mine.totalMined
+               + (Mine.genesisLiquidityMinted ? 1,000 GBX : 0)
 ```
 
 The positive tail rate allows mining revenue, signaling participation, and asset acquisition to continue indefinitely.
@@ -52,24 +57,25 @@ tenure begins. The schedule remains subject to independent economic review even 
 alternative after deployment.
 
 In the synchronized reference path—every slot occupied, refreshed and settled at each boundary, with no burns—the
-sixth boundary at day 414 follows 751,161,600 GBX of mining and gives the same 751,161,600 GBX gross supply.
-The 31,536,000 GBX annual tail flow is initially about 4.198% of that reference supply and declines as supply grows.
+sixth boundary at day 414 follows 751,161,600 GBX of mining and gives 751,162,600 GBX gross supply after including the
+fixed 1,000-GBX genesis issue. The 31,536,000 GBX annual tail flow is initially about 4.198% of that reference supply
+and declines as supply grows.
 This is not a cap, forecast, or guaranteed inflation rate: empty slots reduce issuance, legacy tenures can keep higher
 rates indefinitely and exceed this path, and burns change the live denominator.
 
 | Boundary | Day | Fresh global TPS | Synchronized no-burn gross supply |
 | -------- | --- | ---------------- | --------------------------------- |
-| Launch   | 0   | 64               | 0                                 |
-| 1        | 69  | 32               | 381,542,400                       |
-| 2        | 138 | 16               | 572,313,600                       |
-| 3        | 207 | 8                | 667,699,200                       |
-| 4        | 276 | 4                | 715,392,000                       |
-| 5        | 345 | 2                | 739,238,400                       |
-| 6 (tail) | 414 | 1                | 751,161,600                       |
+| Launch   | 0   | 64               | 1,000                             |
+| 1        | 69  | 32               | 381,543,400                       |
+| 2        | 138 | 16               | 572,314,600                       |
+| 3        | 207 | 8                | 667,700,200                       |
+| 4        | 276 | 4                | 715,393,000                       |
+| 5        | 345 | 2                | 739,239,400                       |
+| 6 (tail) | 414 | 1                | 751,162,600                       |
 
-After the tail, that same synchronized no-burn reference reaches 782,697,600 GBX after one year, 814,233,600 after
-two years, 908,841,600 after five years, and 1,066,521,600 after ten years. These are measured from the day-414 tail,
-not from Mine deployment.
+After the tail, that same synchronized no-burn reference reaches 782,698,600 GBX after one year, 814,234,600 after
+two years, 908,842,600 after five years, and 1,066,522,600 after ten years. These are measured from the day-414 tail,
+not from Mine deployment. Subtract 1,000 GBX from each gross-supply value to recover the mining-only reference.
 
 ## Revenue, acquisitions, and redemption
 
@@ -135,7 +141,14 @@ Omitted assets remain for the post-redemption supply. A basket also reverts if o
 another selected address below its own snapshot less payout, preventing shared-ledger double counting. Pending
 Fund-held GBX should be burned before quoting redemption.
 
-One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 is an ordinary bootstrap Strategy
-payment token. Its purchases use
-the same global Fund/Bribe split described above; there is no liquidity-specific accounting, fee route, valuation, or
-guarantee in the core.
+The atomic launcher seeds the pinned Robinhood Chain Uniswap V2 Pair with exactly one six-decimal USDG and 1,000 GBX.
+The expected total supply is `31,622,776,601,683` raw LP units, all permanently minted to `address(0)`. This implies a
+launch ratio of `0.001 USDG` per GBX and about two USDG of nominal gross reserve value, but it is not an oracle, peg, or
+liquidity guarantee.
+
+The launcher registers GBX and the actual seeded LP as the two initial Strategy payment tokens. GBX's initial and
+next-epoch minimum price are `100,000 ether`; the LP values are both `50 * pair.totalSupply()`, or
+`1,581,138,830,084,150` raw LP at genesis. Both use a 24-hour epoch and `1.2e18` multiplier. The minimum is the next
+epoch's starting price rather than a fill floor, so delayed first inventory can be bought for zero after the first
+epoch fully decays. Later LP purchases use the same global Fund/Bribe split described above. LP acquired by Fund is an
+ordinary caller-selectable redemption asset; only the genesis LP is locked.

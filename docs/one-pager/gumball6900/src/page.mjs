@@ -221,8 +221,9 @@ export const meta = {
   author: 'Heesho',
   subject:
     'A one-page, plain-English explainer for GumBall6900: an index fund whose holders decide what goes in it. ' +
-    'Miners pay a dollar-denominated token for continuously reselling mining slots, which is how new GBX is ' +
-    'issued and how the fund is supplied; GBX holders deposit into signals that direct which tokenized assets the fund acquires ' +
+    'After a fixed 1,000 GBX genesis-liquidity issue, miners pay a dollar-denominated token for continuously reselling ' +
+    'mining slots, which is how ongoing GBX is issued and how the fund is supplied; GBX holders deposit into signals ' +
+    'that direct which tokenized assets the fund acquires ' +
     'next, and burn GBX to redeem a selected in-kind share of an ownerless treasury. Written for a reader with ' +
     'no crypto background.',
   keywords: [

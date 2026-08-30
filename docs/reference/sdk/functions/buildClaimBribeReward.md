@@ -8,7 +8,8 @@
 
 > **buildClaimBribeReward**(`bribe`, `account`, `rewardToken`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Claims one registered Bribe token for a fixed entitled account without touching any other reward token.
+Claims one registered Bribe token without touching any other reward token.
+For a direct Bribe call, `account` must be the submitting wallet; only canonical Resonance may relay a claim.
 
 ## Parameters
 

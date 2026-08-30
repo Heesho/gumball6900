@@ -1,12 +1,26 @@
 import {
   EmissionSettled,
+  GenesisLiquidityMinted,
   Mined,
   MinerPaymentAccrued,
   MinerPaymentClaimed,
+  ResonanceRouterUpdated,
   RevenueDeposited,
 } from '../generated/Mine/Mine';
 import { BigInt } from '@graphprotocol/graph-ts';
 import { getAccount, getMiningSlot, getProtocol, recordEvent } from './entities';
+
+export function handleGenesisLiquidityMinted(event: GenesisLiquidityMinted): void {
+  const protocol = getProtocol(event);
+  protocol.genesisLiquidityGBXRaw = event.params.amount;
+  protocol.genesisPair = event.params.recipient;
+  protocol.save();
+
+  const record = recordEvent(event, 'MINE_GENESIS_LIQUIDITY_MINTED');
+  record.addresses = [event.params.recipient];
+  record.values = [event.params.amount];
+  record.save();
+}
 
 export function handleMined(event: Mined): void {
   const protocol = getProtocol(event);
@@ -84,9 +98,22 @@ export function handleMinerPaymentClaimed(event: MinerPaymentClaimed): void {
 export function handleMiningRevenueDeposited(event: RevenueDeposited): void {
   const protocol = getProtocol(event);
   protocol.miningRevenueDepositedRaw = protocol.miningRevenueDepositedRaw.plus(event.params.amount);
+  protocol.mineRevenueRouter = event.params.resonanceRouter;
   protocol.save();
 
   const record = recordEvent(event, 'MINE_REVENUE_DEPOSITED');
+  record.addresses = [event.params.resonanceRouter];
   record.values = [event.params.slotIndex, event.params.epochId, event.params.amount];
+  record.save();
+}
+
+export function handleResonanceRouterUpdated(event: ResonanceRouterUpdated): void {
+  const protocol = getProtocol(event);
+  protocol.mineRevenueResonance = event.params.newResonance;
+  protocol.mineRevenueRouter = event.params.newRouter;
+  protocol.save();
+
+  const record = recordEvent(event, 'MINE_RESONANCE_ROUTER_UPDATED');
+  record.addresses = [event.params.previousRouter, event.params.newRouter, event.params.newResonance];
   record.save();
 }

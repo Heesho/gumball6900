@@ -1,12 +1,12 @@
 ---
 title: GumBall6900 at a Glance
-version: 2.1.0
-date: 2026-08-26
-source_commit: uncommitted-post-adr-0051
+version: 2.2.0
+date: 2026-08-30
+source_commit: uncommitted-post-adr-0055
 base_commit: 3ae171b997254b56602298d873b3918d1575b3c7
-protocol_status: Development candidate implementing ADRs through ADR 0051; not approved for user funds.
+protocol_status: Development candidate implementing ADRs through ADR 0055; not approved for user funds.
 deployment_status: Not deployed on any network. No signed deployment manifest exists.
-internal_review_status: V12 findings and independent dispositions are pinned to 3ae171b997254b56602298d873b3918d1575b3c7. The current ADR 0051 batching and periphery delta is outside that review; release gates remain open.
+internal_review_status: V12 findings and independent dispositions are pinned to 3ae171b997254b56602298d873b3918d1575b3c7. ADRs 0051-0055 remain outside V12; ADR 0055 also postdates the recorded launcher evidence, and release gates remain open.
 independent_audit_status: V12 export received for the pinned commit; incomplete assurance package, three behaviors confirmed, no release approval.
 ---
 
@@ -21,15 +21,16 @@ Pooled investment vehicles ask you to trust a manager. Onchain versions often ke
 admin key that changes holdings, an upgradeable contract that changes rules, a pause switch that stops withdrawals, an
 oracle that decides what things are worth.
 
-GumBall6900 removes the manager. In this development tree there is no upgrade path, proxy, pause switch, sweep function,
-arbitrary-call executor, migration route, price oracle, NAV calculation, or rebalancing engine. The treasury has no
-owner at all. What gets bought is directed by signal; what you can redeem is decided by arithmetic you can verify.
+GumBall6900 removes treasury-manager custody. There is no upgrade path, proxy, pause, sweep, arbitrary-call executor,
+balance/state migration, oracle, NAV calculation, or rebalancing engine. The treasury has no owner. Narrow governance
+can change four Resonance decisions and only Mine's future revenue Router; redemption remains arithmetic.
 
 ## GBX
 
-**GBX** is the protocol's transferable token. It starts at zero supply and is issued only by Mine. Mint authority is
-handed to that one contract exactly once and can never be changed, revoked, or duplicated. There is no supply cap;
-the prospective issuance rate halves at fixed deployment-time intervals down to a permanent, strictly positive floor.
+**GBX** is the protocol's transferable token. Its constructor starts at zero supply. After the permanent Mine binding,
+the canonical launcher directs one fixed **1,000 GBX** issuance solely into the genesis pair; later issuance comes
+from mining slots. There is no team, presale, treasury, or discretionary allocation. Mint authority can never be
+changed, revoked, or duplicated, and there is no supply cap.
 
 Holding GBX gives two rights: **signal with it** to direct the protocol, or **burn it** to redeem treasury assets.
 
@@ -63,8 +64,10 @@ without a manual, frontend, volunteer-keeper, or cron caller. Each Strategy
 accumulates USDG and sells all of it in a descending-price auction, asking to be paid in the asset it acquires. No
 oracle is consulted — the auction is the price discovery.
 
-A reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token may be one bootstrap Strategy target. It is acquired and
-settled exactly like any other asset. The core has no liquidity-creation, custody, pricing, swap, harvest, or guarantee.
+The GBX-only atomic launcher seeds a pristine Robinhood Chain Uniswap V2 USDG/GBX pair with exactly **1 USDG and 1,000
+GBX**, permanently locks every genesis LP unit at the zero address, and registers GBX and the actual LP token as the
+two initial Strategies. Later LP is an ordinary redeemable asset if Fund acquires it. There is no continuing liquidity
+manager, pricing, rebalance, swap, harvest, or liquidity guarantee.
 
 Every acquired payment is classified at one bounded global rate. The automatic Bribe share **defaults to 10% and may
 be set prospectively from 0% through 20%**; Fund receives the 100%-minus-Bribe complement, so its share defaults to
@@ -88,6 +91,10 @@ choice that stops one broken token from freezing everyone else's redemption.
 Two stacked incentives: the bounded automatic share of everything their Strategy acquires — 10% by default, adjustable
 prospectively from 0% through 20% — and **Bribes**, which anyone may permissionlessly stream into a Strategy's pool to
 pull signal toward it, up to sixteen reward tokens per Strategy including the asset that Strategy buys.
+Direct Bribe claims are authorized only for the beneficiary or the Bribe's immutable Resonance. A caller may also ask
+Resonance to claim all tokens across a caller-selected array of registered live or killed Strategy Bribes for itself;
+duplicates execute sequentially and the complete batch is atomic. Direct scalar-token claiming remains the gas and
+broken-token fallback.
 
 ## The loop
 
@@ -99,7 +106,8 @@ flowchart LR
   SG[sGBX signal weights] -.->|directs| R
   R -->|signal-weighted| S[Strategies]
   S -->|descending-price auction| A[Acquired asset]
-  LP[External USDG-GBX<br/>UniV2 LP token] -.->|may be a reviewed target| A
+  L[Atomic launch] -->|1 USDG + 1,000 GBX;<br/>genesis LP to zero| LP[Canonical USDG-GBX<br/>UniV2 pair]
+  LP -.->|later LP is an initial target| A
   A -->|Fund complement: 80–100%| F[Fund]
   A -->|Bribe share: 0–20%, 10% default| SIG[Signalers]
   B[Anyone] -->|extra Bribe rewards| SIG
@@ -118,42 +126,41 @@ flowchart LR
 | `BribeRouter` | Buffers one Strategy's Bribe share for permissionless distribution.                   |
 | `Bribe`       | Synthetix-shaped streams for up to sixteen tokens over virtual signal balances.       |
 | `Fund`        | Ownerless treasury; redemption and GBX burning are its only exits.                    |
+| `GBXLauncher` | One-shot deployment infrastructure; seeds and locks genesis LP, then retains no role. |
 
 ## What can be changed, and by whom
 
-**Four things**, all on one contract: add a Strategy, retire a Strategy, register a Bribe reward token, and set the
-signaler reward share within its 0–20% bound. Resonance is the only contract with continuing custom owner authority;
-SignalGBX, StrategyFactory, and BribeFactory retain setup-only Ownable shells that production must explicitly
-renounce after their one-time bindings are consumed. The **final live Strategy cannot be retired** — a replacement
-must be added first — so a valid signal destination always exists.
+**Five continuing actions** across two contracts: Resonance may add or retire a Strategy, register a Bribe reward
+token, and set the signaler reward share within 0–20%. Mine may only change where **future** protocol revenue goes,
+after checking that the replacement graph shares the same GBX, USDG, and Fund. The **final live Strategy cannot be
+retired** — a replacement must be added first.
 
-Those four actions sit behind a single owner address on `Resonance`. That address is intended to be an external
-governance system, and **that system has not been chosen yet.** The protocol itself contains no voting contract, no
-proposal rules, no quorum, and no execution delay. sGBX does record vote checkpoints in the standard format such a
-system could read, but nothing in the protocol reads them today. Until that choice is made and reviewed, the honest
-statement is that the protocol's decision-making layer is unfinished — see the risks below.
+Mine and Resonance use two-step ownership. The atomic launcher makes the supplied governance contract pending owner of
+both; that contract must accept both roles after launch. SignalGBX and both factories renounce their setup owners. The
+external governance system has not been chosen, and the core defines no proposal rules, quorum, or execution delay.
 
-Nothing can touch mining rates, mint authority, Fund assets, the auction mechanism, or the fixed
-sixteen-slot count. The reward share moves only inside its coded 0–20% band, and a change applies to later purchases
-only — it can never reclassify an amount already settled. No contract has an upgrade path, pause switch, or sweep.
+The Mine setter cannot touch mining rates, mint authority, Fund assets, old graph balances or positions, the auction
+mechanism, or the fixed sixteen-slot count. Fund remains ownerless. The reward share moves only inside its coded 0–20%
+band and applies to later purchases only. No contract has an upgrade path, pause switch, or sweep.
 
 ## Key risks
 
 - **External review is incomplete.** A V12 export targets the exact source commit, but it omits an explicit scope,
   methodology, named auditor, date, signature, and report-level rationale. Independent disposition confirmed three
   behaviors requiring treatment; the export is not a security guarantee or release approval.
-- **Immutability cuts both ways.** A bug cannot be patched; a deployment mistake cannot be corrected.
-- **Governance is unfinished.** The external system that will own `Resonance` is unselected, so its voting rules,
-  permissions, upgrade model, and emergency powers are all unknown quantities today. Whoever holds that address can
-  add or retire Strategies, register reward tokens, hand ownership on, or discard it. sGBX vote checkpoints survive a
-  withdrawal, so an external system that reads them naively could let borrowed GBX vote.
+- **Immutability cuts both ways.** Code and old graph state cannot be patched. Only future Mine revenue can be switched
+  to a validated replacement graph; old balances and positions stay behind.
+- **Governance is unfinished.** The external system that must accept Mine and Resonance ownership is unselected, so its
+  voting rules, permissions, upgrade model, and emergency powers are unknown. Whoever holds those roles can add or
+  retire Strategies, register rewards, adjust the bounded Bribe share, redirect future Mine revenue, hand ownership on,
+  or discard it. sGBX vote checkpoints survive withdrawal, so an external system must address borrowed voting weight.
 - **Value is not guaranteed.** Nothing guarantees appreciation, auction liquidity, sound signal choices, or safe
   acquired tokens. The Fund accepts any ERC-20 sent to it, reviewed or not.
 - **Accepted dust and abandonment.** Rounding residue and revenue streamed while nobody signals accumulate in
   Resonance permanently. If the last signaler exits a retired Strategy's reward pool, remaining rewards there are
   abandoned — an amount not bounded to dust.
 - **External dependencies.** USDG and every payment and reward token carry their own freeze, upgrade, and solvency
-  risk. A registered external LP token also carries the risks of its pair and venue.
+  risk. The canonical LP also carries the risks of its pair, venue, and underlying tokens.
 - **Miner rollover risk.** The 80% replacement claim exists only if a later replacement clears at a nonzero price;
   after an hour the price is zero, and self-replacement is permitted.
 - **Economic review remains open.** The Mine's initial rate, provisional 69-day halving period, tail rate, and
@@ -161,15 +168,15 @@ only — it can never reclassify an amount already settled. No contract has an u
 
 ## Status
 
-| Field                        | Status                                                                                                                                                                                                    |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Protocol status**          | Uncommitted post-ADR-0051 development candidate; not approved for user funds.                                                                                                                             |
-| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. Target chain and canonical USDG address are unresolved candidates; any bootstrap LP token address remains a reviewed deployment input. |
-| **Internal review status**   | V12's 22 findings were independently dispositioned at `3ae171b`; 249695 is an accepted theoretical risk, 249702 remains a deployment control, and 249705 is open. ADR 0051 requires fresh review.         |
-| **Open release gates**       | Claim authorization for V12-249705 remains unresolved; fixed Mine economics, dependency evidence, and the exact external governance system also remain open.                                              |
-| **Independent audit status** | V12 export received for `3ae171b`; incomplete assurance package and not release-authorizing. Compatible symbolic analysis and final release review remain incomplete.                                     |
-| **Legal status**             | Upstream code provenance and license reconciliation are unresolved release blockers.                                                                                                                      |
-| **Source state**             | Current source includes ADR 0051's new SignalGBX API, batching, Lens, SDK, and subgraph discovery after the V12-reviewed `3ae171b` baseline.                                                              |
+| Field                        | Status                                                                                                                                                                                                                                        |
+| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Protocol status**          | Uncommitted post-ADR-0055 development candidate; not approved for user funds.                                                                                                                                                                 |
+| **Deployment status**        | Not deployed on any network. No signed deployment manifest exists. The launcher pins Robinhood Chain and its reviewed Uniswap V2 Factory; exact USDG/governance provenance, code hashes, simulation, receipts, and authorization remain open. |
+| **Internal review status**   | V12's 22 findings were internally revalidated against `f991253`; ADRs 0052-0054 are later remediations, while ADR 0055 adds Mine Router migration and two-step ownership. None is covered by V12.                                             |
+| **Open release gates**       | ADR 0055 Mine/Resonance/launcher review, fixed Mine economics, dependencies, exact governance, both ownership acceptances, deterministic rehearsal, and independent closure remain open.                                                      |
+| **Independent audit status** | V12 export received for `3ae171b`; incomplete assurance package and not release-authorizing. Compatible symbolic analysis and final release review remain incomplete.                                                                         |
+| **Legal status**             | Upstream code provenance and license reconciliation are unresolved release blockers.                                                                                                                                                          |
+| **Source state**             | Current source includes ADRs 0051-0055 after V12's `3ae171b` baseline, including the launcher plus Mine Router migration and two-step ownership.                                                                                              |
 
 ---
 

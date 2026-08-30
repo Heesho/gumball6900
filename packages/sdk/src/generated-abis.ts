@@ -619,6 +619,22 @@ export const bribeAbi = [
   },
   {
     type: 'error',
+    name: 'UnauthorizedClaimCaller',
+    inputs: [
+      {
+        name: 'caller',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'account',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'ZeroAddress',
     inputs: [],
   },
@@ -1893,6 +1909,728 @@ export const gbxAbi = [
     inputs: [],
   },
 ] as const;
+export const gbxLauncherAbi = [
+  {
+    type: 'constructor',
+    inputs: [
+      {
+        name: 'usdg_',
+        type: 'address',
+        internalType: 'contract IERC20Metadata',
+      },
+      {
+        name: 'launchAuthority_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'tokenFundDeployer_',
+        type: 'address',
+        internalType: 'contract GBXTokenFundDeployer',
+      },
+      {
+        name: 'signalBribeDeployer_',
+        type: 'address',
+        internalType: 'contract GBXSignalBribeDeployer',
+      },
+      {
+        name: 'strategyResonanceDeployer_',
+        type: 'address',
+        internalType: 'contract GBXStrategyResonanceDeployer',
+      },
+      {
+        name: 'routerMineDeployer_',
+        type: 'address',
+        internalType: 'contract GBXRouterMineDeployer',
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'EXPECTED_GENESIS_LP_SUPPLY',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'GBX_STRATEGY_PRICE',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'GENESIS_GBX',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'GENESIS_USDG',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'LP_STRATEGY_SUPPLY_MULTIPLIER',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'ROBINHOOD_CHAIN_ID',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'STRATEGY_EPOCH_DURATION',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'STRATEGY_PRICE_MULTIPLIER',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'UNISWAP_V2_FACTORY',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'UNISWAP_V2_MINIMUM_LIQUIDITY',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'UNISWAP_V2_ROUTER',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'USDG_DECIMALS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint8',
+        internalType: 'uint8',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'getDeployment',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'tuple',
+        internalType: 'struct GBXLauncher.Deployment',
+        components: [
+          {
+            name: 'gbx',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'fund',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'signalGBX',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'bribeFactory',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'strategyFactory',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'resonance',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'resonanceRouter',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'mine',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'pair',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'gbxStrategy',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'gbxBribe',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'gbxBribeRouter',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'lpStrategy',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'lpBribe',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'lpBribeRouter',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'genesisLiquidity',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'launch',
+    inputs: [
+      {
+        name: 'finalOwner',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [
+      {
+        name: 'result',
+        type: 'tuple',
+        internalType: 'struct GBXLauncher.Deployment',
+        components: [
+          {
+            name: 'gbx',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'fund',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'signalGBX',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'bribeFactory',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'strategyFactory',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'resonance',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'resonanceRouter',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'mine',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'pair',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'gbxStrategy',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'gbxBribe',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'gbxBribeRouter',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'lpStrategy',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'lpBribe',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'lpBribeRouter',
+            type: 'address',
+            internalType: 'address',
+          },
+          {
+            name: 'genesisLiquidity',
+            type: 'uint256',
+            internalType: 'uint256',
+          },
+        ],
+      },
+    ],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
+    name: 'launchAuthority',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'launched',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'bool',
+        internalType: 'bool',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'routerMineDeployer',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'contract GBXRouterMineDeployer',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'signalBribeDeployer',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'contract GBXSignalBribeDeployer',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'strategyResonanceDeployer',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'contract GBXStrategyResonanceDeployer',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'tokenFundDeployer',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'contract GBXTokenFundDeployer',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'usdg',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'contract IERC20Metadata',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'event',
+    name: 'Launched',
+    inputs: [
+      {
+        name: 'caller',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'finalOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'gbx',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'fund',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'signalGBX',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'resonance',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'resonanceRouter',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'mine',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'pair',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'gbxStrategy',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'lpStrategy',
+        type: 'address',
+        indexed: false,
+        internalType: 'address',
+      },
+      {
+        name: 'genesisLiquidity',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'error',
+    name: 'AlreadyLaunched',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'InvalidChain',
+    inputs: [
+      {
+        name: 'actual',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'InvalidDependency',
+    inputs: [
+      {
+        name: 'dependency',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'InvalidFinalOwner',
+    inputs: [
+      {
+        name: 'owner',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'InvalidUSDGDecimals',
+    inputs: [
+      {
+        name: 'actual',
+        type: 'uint8',
+        internalType: 'uint8',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'LaunchInvariantFailed',
+    inputs: [
+      {
+        name: 'invariant',
+        type: 'bytes32',
+        internalType: 'bytes32',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'PairAlreadyExists',
+    inputs: [
+      {
+        name: 'pair',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'PairFactoryMismatch',
+    inputs: [
+      {
+        name: 'pair',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'actual',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'PairLookupMismatch',
+    inputs: [
+      {
+        name: 'pair',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'PairTokenMismatch',
+    inputs: [
+      {
+        name: 'pair',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'token0',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'token1',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'ReentrancyGuardReentrantCall',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'SafeERC20FailedOperation',
+    inputs: [
+      {
+        name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'UnauthorizedLaunch',
+    inputs: [
+      {
+        name: 'caller',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'UnexpectedGenesisLiquidity',
+    inputs: [
+      {
+        name: 'liquidity',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'totalSupply',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+  },
+] as const;
 export const mineAbi = [
   {
     type: 'constructor',
@@ -1908,7 +2646,22 @@ export const mineAbi = [
         internalType: 'contract IERC20',
       },
       {
+        name: 'fund_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
         name: 'resonanceRouter_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'genesisAuthority_',
+        type: 'address',
+        internalType: 'address',
+      },
+      {
+        name: 'initialOwner',
         type: 'address',
         internalType: 'address',
       },
@@ -1918,6 +2671,19 @@ export const mineAbi = [
   {
     type: 'function',
     name: 'BPS',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'GENESIS_LIQUIDITY_GBX',
     inputs: [],
     outputs: [
       {
@@ -2060,6 +2826,13 @@ export const mineAbi = [
   },
   {
     type: 'function',
+    name: 'acceptOwnership',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'aggregateTps',
     inputs: [],
     outputs: [
@@ -2137,6 +2910,19 @@ export const mineAbi = [
   },
   {
     type: 'function',
+    name: 'fund',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'gbx',
     inputs: [],
     outputs: [
@@ -2144,6 +2930,32 @@ export const mineAbi = [
         name: '',
         type: 'address',
         internalType: 'contract GBX',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'genesisAuthority',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'genesisLiquidityMinted',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'bool',
+        internalType: 'bool',
       },
     ],
     stateMutability: 'view',
@@ -2194,6 +3006,19 @@ export const mineAbi = [
   },
   {
     type: 'function',
+    name: 'mintGenesisLiquidity',
+    inputs: [
+      {
+        name: 'recipient',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'nextGlobalTps',
     inputs: [],
     outputs: [
@@ -2207,6 +3032,19 @@ export const mineAbi = [
   },
   {
     type: 'function',
+    name: 'owner',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'pendingEmission',
     inputs: [],
     outputs: [
@@ -2214,6 +3052,19 @@ export const mineAbi = [
         name: 'amount',
         type: 'uint256',
         internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'pendingOwner',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
       },
     ],
     stateMutability: 'view',
@@ -2252,6 +3103,13 @@ export const mineAbi = [
   },
   {
     type: 'function',
+    name: 'renounceOwnership',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'resonanceRouter',
     inputs: [],
     outputs: [
@@ -2262,6 +3120,19 @@ export const mineAbi = [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'setResonanceRouter',
+    inputs: [
+      {
+        name: 'newRouter',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -2368,6 +3239,19 @@ export const mineAbi = [
   },
   {
     type: 'function',
+    name: 'transferOwnership',
+    inputs: [
+      {
+        name: 'newOwner',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'usdg',
     inputs: [],
     outputs: [
@@ -2400,6 +3284,25 @@ export const mineAbi = [
         type: 'uint256',
         indexed: true,
         internalType: 'uint256',
+      },
+      {
+        name: 'amount',
+        type: 'uint256',
+        indexed: false,
+        internalType: 'uint256',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'GenesisLiquidityMinted',
+    inputs: [
+      {
+        name: 'recipient',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
       },
       {
         name: 'amount',
@@ -2523,6 +3426,69 @@ export const mineAbi = [
   },
   {
     type: 'event',
+    name: 'OwnershipTransferStarted',
+    inputs: [
+      {
+        name: 'previousOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'newOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'OwnershipTransferred',
+    inputs: [
+      {
+        name: 'previousOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'newOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
+    name: 'ResonanceRouterUpdated',
+    inputs: [
+      {
+        name: 'previousRouter',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'newRouter',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'newResonance',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'RevenueDeposited',
     inputs: [
       {
@@ -2536,6 +3502,12 @@ export const mineAbi = [
         type: 'uint256',
         indexed: true,
         internalType: 'uint256',
+      },
+      {
+        name: 'resonanceRouter',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
       },
       {
         name: 'amount',
@@ -2575,12 +3547,44 @@ export const mineAbi = [
   },
   {
     type: 'error',
+    name: 'GenesisLiquidityAlreadyMinted',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'IndexOutOfBounds',
     inputs: [
       {
         name: 'slotIndex',
         type: 'uint256',
         internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'InvalidFund',
+    inputs: [
+      {
+        name: 'fund',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'InvalidMinterBinding',
+    inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'InvalidResonanceRouter',
+    inputs: [
+      {
+        name: 'router',
+        type: 'address',
+        internalType: 'address',
       },
     ],
   },
@@ -2624,8 +3628,41 @@ export const mineAbi = [
   },
   {
     type: 'error',
+    name: 'OwnableInvalidOwner',
+    inputs: [
+      {
+        name: 'owner',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'OwnableUnauthorizedAccount',
+    inputs: [
+      {
+        name: 'account',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
     name: 'ReentrancyGuardReentrantCall',
     inputs: [],
+  },
+  {
+    type: 'error',
+    name: 'ResonanceRouterUnchanged',
+    inputs: [
+      {
+        name: 'router',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
   },
   {
     type: 'error',
@@ -2633,6 +3670,17 @@ export const mineAbi = [
     inputs: [
       {
         name: 'token',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'UnauthorizedGenesisAuthority',
+    inputs: [
+      {
+        name: 'caller',
         type: 'address',
         internalType: 'address',
       },
@@ -4714,6 +5762,19 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'MAX_LIFETIME_REVENUE_AMOUNT',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'REWARD_DURATION',
     inputs: [],
     outputs: [
@@ -4737,6 +5798,13 @@ export const resonanceAbi = [
       },
     ],
     stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'acceptOwnership',
+    inputs: [],
+    outputs: [],
+    stateMutability: 'nonpayable',
   },
   {
     type: 'function',
@@ -4901,6 +5969,19 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'claimBribeRewards',
+    inputs: [
+      {
+        name: 'strategies',
+        type: 'address[]',
+        internalType: 'address[]',
+      },
+    ],
+    outputs: [],
+    stateMutability: 'nonpayable',
+  },
+  {
+    type: 'function',
     name: 'distributeRevenue',
     inputs: [
       {
@@ -5003,6 +6084,19 @@ export const resonanceAbi = [
   },
   {
     type: 'function',
+    name: 'lifetimeRevenueNotified',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
     name: 'liveStrategyCount',
     inputs: [],
     outputs: [
@@ -5030,6 +6124,19 @@ export const resonanceAbi = [
   {
     type: 'function',
     name: 'owner',
+    inputs: [],
+    outputs: [
+      {
+        name: '',
+        type: 'address',
+        internalType: 'address',
+      },
+    ],
+    stateMutability: 'view',
+  },
+  {
+    type: 'function',
+    name: 'pendingOwner',
     inputs: [],
     outputs: [
       {
@@ -5312,6 +6419,25 @@ export const resonanceAbi = [
   },
   {
     type: 'event',
+    name: 'OwnershipTransferStarted',
+    inputs: [
+      {
+        name: 'previousOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+      {
+        name: 'newOwner',
+        type: 'address',
+        indexed: true,
+        internalType: 'address',
+      },
+    ],
+    anonymous: false,
+  },
+  {
+    type: 'event',
     name: 'OwnershipTransferred',
     inputs: [
       {
@@ -5504,6 +6630,11 @@ export const resonanceAbi = [
   },
   {
     type: 'error',
+    name: 'EmptyClaimBatch',
+    inputs: [],
+  },
+  {
+    type: 'error',
     name: 'FinalLiveStrategy',
     inputs: [
       {
@@ -5616,6 +6747,27 @@ export const resonanceAbi = [
       },
       {
         name: 'remaining',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+    ],
+  },
+  {
+    type: 'error',
+    name: 'RevenueLifetimeCapExceeded',
+    inputs: [
+      {
+        name: 'notified',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'requested',
+        type: 'uint256',
+        internalType: 'uint256',
+      },
+      {
+        name: 'maximum',
         type: 'uint256',
         internalType: 'uint256',
       },

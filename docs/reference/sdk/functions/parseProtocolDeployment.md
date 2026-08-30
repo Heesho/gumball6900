@@ -8,6 +8,8 @@
 
 > **parseProtocolDeployment**(`value`): `object`
 
+Parses syntax and caller claims without authenticating deployment provenance or live contract state.
+
 ## Parameters
 
 | Parameter | Type      |
@@ -58,6 +60,10 @@
 
 > **chainId**: `4663` \| `46630`
 
+### claimedStatus
+
+> **claimedStatus**: `"draft"` \| `"testnet-candidate"` \| `"mainnet-candidate"` \| `"release-approved"`
+
 ### deploymentId
 
 > **deploymentId**: `string`
@@ -69,7 +75,3 @@
 ### releaseVersion
 
 > **releaseVersion**: `string`
-
-### status
-
-> **status**: `"draft"` \| `"testnet-candidate"` \| `"mainnet-candidate"` \| `"release-approved"`

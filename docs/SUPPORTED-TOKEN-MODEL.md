@@ -1,6 +1,6 @@
 # Supported token model
 
-> ADRs 0031, 0035, 0036, 0037, 0047, 0049, and 0050 define the current token interactions below.
+> ADRs 0031, 0035, 0036, 0037, 0047, 0049, 0050, and 0054 define the current token interactions below.
 
 ## Canonical and registered tokens
 
@@ -21,6 +21,11 @@ residual allowance, or make a market unusable.
 SignalGBX is explicitly forbidden as either a Strategy payment token or a Bribe reward token because its transfers are
 permanently disabled.
 
+The canonical launcher additionally requires its immutable USDG input to contain code and report exactly six decimals,
+then checks decimals again at launch. Mine, Resonance, Router, and Strategy still account in raw units and do not
+normalize decimals. The check is a launch-configuration constraint, not a general token adapter or proof that USDG's
+code, transfer behavior, value, or administration is safe.
+
 ## Transfer-check boundary
 
 The core deliberately uses two transfer-check shapes:
@@ -33,6 +38,13 @@ The core deliberately uses two transfer-check shapes:
   downstream `transferFrom`. They do not compare post-call balances or normalize a residual allowance.
 - Caller-selected Fund redemption transfers retain explicit debit/credit checks plus pre-transfer and basket-wide
   retained-balance guards. Fund accepts arbitrary token addresses, so it cannot rely on canonical deployment review.
+
+The launcher transfers exactly `1e6` raw USDG from its authority directly to the newly created Pair and checks the Pair's
+raw USDG and GBX balances, reserves, and expected LP supply. It also forwards its complete preexisting USDG balance to
+Fund so predictable-address prefunding cannot veto launch. Prefunding at the future ResonanceRouter or Resonance address
+retains ordinary direct-donation semantics and does not initialize schedule accounting. These paths do not support
+transfer fees, rebases, callbacks, balance aliases, or noncanonical V2 mint math. An unsupported USDG or Pair should
+revert the complete launch rather than produce a partially seeded graph.
 
 Router approvals are exact-sized and immediately followed by notification. With an ordinary token, the downstream
 pull consumes the allowance completely. The Routers do not clear or inspect the allowance afterward. `Strategy`
@@ -99,7 +111,11 @@ call and preserves the accrued amount for retry. Bribe offers two claim shapes:
 - `claimRewards(account)` checkpoints and pays all registered reward tokens atomically; and
 - `claimReward(account, token)` isolates one registered token from failures in the others.
 
-There is no caller-selected batch claim. Both functions can be called by anyone but always pay the entitled account.
+Both direct functions authorize only the beneficiary `account` or the Bribe's immutable Resonance and always pay
+`account`. `Resonance.claimBribeRewards(strategies)` is the narrow caller-owned cross-Bribe all-token batch: it always
+claims for `msg.sender`, accepts only registered live or killed Strategies, permits duplicates that execute
+sequentially, and reverts on an empty array. The complete batch is atomic, so an invalid Strategy or failed reward-token
+transfer rolls back every earlier entry. Direct scalar `claimReward` remains the bounded gas and broken-token fallback.
 `removeSignal` and `removeSignalMany` do not claim Bribe rewards, distribute Resonance revenue, or settle Router
 balances, so failures in those token paths do not block signal removal.
 
@@ -118,6 +134,17 @@ blocked transfer into the Router reverts the paid replacement, but later Router 
 transaction and cannot roll it back. A blocked claim recipient does not redirect the claim or block another miner's
 claim.
 
+Mine's fixed genesis mint is an issuance exception, not an ERC-20 transfer exception. After reciprocal GBX binding,
+the canonical launcher directs exactly `1,000 ether` GBX once to the validated Pair. Mine clears its authority before
+calling GBX, and a failed mint rolls back the complete launch. `Mine.totalMined()` remains slot-emission accounting and
+does not include this fixed amount.
+
+The launcher always calls Factory `createPair`, never adopts an existing Pair, and never calls Pair `skim`. A
+preexisting Pair makes the launcher revert with `PairAlreadyExists`. USDG sent to the not-yet-created deterministic
+Pair leaves the lookup zero and instead fails `PAIR_USDG_DEPOSIT` after creation. The operator may abandon the unused launcher and deploy a fresh one whose
+caller-scoped CREATE2 outputs yield a different GBX and Pair. All genesis LP is minted to `address(0)`; LP minted later
+is an ordinary ERC-20, including when acquired by Fund and selected in redemption.
+
 ## Offchain presentation
 
 Official protocol membership comes from Strategies registered in Resonance, not from Fund balances. Frontends and
@@ -128,5 +155,10 @@ indexers must:
 - show the fixed sixteen-token Bribe cap and each token's remaining lifetime notification capacity;
 - show BribeRouter and ResonanceRouter balances as buffered, not scheduled or claimable;
 - apply the live Router threshold before presenting a route as available;
-- offer both all-token and scalar Bribe claims, with a warning that the all-token call is atomic; and
+- distinguish the fixed Mine-issued 1,000-GBX genesis amount from `Mine.totalMined`, and distinguish permanently locked
+  genesis LP from ordinary later LP;
+- display the exact Pair/Factory identities and seed reserves without implying price stability, useful depth, or a
+  liquidity guarantee;
+- offer beneficiary-authorized direct all-token and scalar Bribe claims plus Resonance's caller-owned Strategy-array
+  batch, warning that each all-token path is atomic and that direct scalar claims isolate broken tokens; and
 - never present a seventeenth reward token, an over-cap notification, or an unsupported token behavior as valid.

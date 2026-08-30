@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="840" height="500" viewBox="0 0 840 500" role="img">
   <rect width="840" height="500" rx="18" fill="#0b0d12"/>
   <text x="42" y="46" fill="#f4f7fb" font-family="ui-sans-serif,system-ui" font-size="24" font-weight="700">Synchronized Mine supply path</text>
-  <text x="42" y="72" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="13">Full-refresh, no-burn reference: 751,161,600 GBX at day 414; actual issuance depends on turnover</text>
+  <text x="42" y="72" fill="#9aa4b2" font-family="ui-sans-serif,system-ui" font-size="13">Full-refresh, no-burn reference: 751,162,600 GBX at day 414; actual issuance depends on turnover</text>
   <line x1="78" y1="410" x2="798" y2="410" stroke="#394150"/>
   <polyline points="78,410 198,268 318,197 438,162 558,144 678,135 798,130" fill="none" stroke="#f7c948" stroke-width="4"/>
   <circle cx="78" cy="410" r="5" fill="#f7c948"/>

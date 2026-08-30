@@ -205,6 +205,7 @@ contract SignalGasTest is ProtocolFixture {
         vm.warp(block.timestamp + 1 days);
 
         address[] memory tokens = targetBribe.rewardTokens();
+        vm.startPrank(ALICE);
         uint256 gasBefore = gasleft();
         if (allTokens) {
             for (uint256 i; i < tokens.length; ++i) {
@@ -214,6 +215,7 @@ contract SignalGasTest is ProtocolFixture {
             targetBribe.claimReward(ALICE, tokens[0]);
         }
         gasUsed = gasBefore - gasleft();
+        vm.stopPrank();
     }
 
     function _measureMaximumClaim() private returns (uint256 gasUsed) {
@@ -223,9 +225,11 @@ contract SignalGasTest is ProtocolFixture {
         _startEveryRewardStream();
         vm.warp(block.timestamp + 1 days);
 
+        vm.startPrank(ALICE);
         uint256 gasBefore = gasleft();
         targetBribe.claimRewards(ALICE);
         gasUsed = gasBefore - gasleft();
+        vm.stopPrank();
     }
 
     function _measureMaximumBuy() private returns (uint256 gasUsed) {

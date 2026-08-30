@@ -1,12 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 import { GBX } from "./GBX.sol";
+import {
+    IFundMigrationIdentity,
+    IResonanceMigrationIdentity,
+    ISignalGBXMigrationIdentity
+} from "./interfaces/IRevenueMigration.sol";
+import { IResonanceRouterIdentity } from "./interfaces/IResonanceRouter.sol";
 
 /// @title GumBall6900 Fixed-Slot Mine
 /// @author heesho
@@ -14,8 +22,12 @@ import { GBX } from "./GBX.sol";
 /// @dev Each slot has its own hourly reverse Dutch auction and tenure-locked GBX emission rate. Replacing an occupied
 ///      tenure settles its accrued GBX and credits 80% of the USDG price to its miner. The remainder is deposited into
 ///      ResonanceRouter. The first occupation of an empty slot deposits the complete payment into the Router.
-///      Token calculations use raw units, and integer divisions round down unless stated otherwise.
-contract Mine is ReentrancyGuard {
+///      During atomic deployment, one narrow setup authority may direct a fixed 1,000 GBX mint into the reviewed
+///      genesis-liquidity pair exactly once. The authority is cleared by that mint and has no mining or later issuance
+///      power. Governance may redirect only future protocol revenue to a fully reciprocal replacement Resonance graph;
+///      it cannot alter emission, slot, miner-claim, genesis, or Fund accounting. Token calculations use raw units, and
+///      integer divisions round down unless stated otherwise.
+contract Mine is ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
 
     /// @notice State for one independently replaceable mining tenure.
@@ -60,15 +72,25 @@ contract Mine is ReentrancyGuard {
     uint256 public constant TAIL_TPS = 1 ether;
     /// @notice Maximum raw byte length of the event-only message attached to a mining replacement.
     uint256 public constant MAX_MESSAGE_BYTES = 280;
+    /// @notice Fixed one-time GBX amount issued by Mine solely for the permanently locked genesis liquidity.
+    uint256 public constant GENESIS_LIQUIDITY_GBX = 1_000 ether;
 
     /// @notice Canonical GBX token this contract mints after the external one-time authority binding.
     GBX public immutable gbx;
     /// @notice Standard, non-rebasing USDG token paid in raw units to replace mining slots.
     IERC20 public immutable usdg;
-    /// @notice Router receiving the nominal Resonance share of replacement payments for later routing.
-    address public immutable resonanceRouter;
+    /// @notice Ownerless canonical Fund that every accepted replacement Resonance must use.
+    address public immutable fund;
     /// @notice Unix timestamp anchoring the immutable time-based halving schedule.
     uint256 public immutable startTime;
+    /// @notice Current Router receiving the nominal protocol share of replacement payments for later routing.
+    address public resonanceRouter;
+    /// @notice Narrow deployment authority allowed to select the genesis-liquidity recipient exactly once, or zero.
+    /// @dev A zero value permanently disables genesis issuance. Otherwise it is cleared before the fixed mint executes;
+    ///      it has no mining, configuration, or later issuance power.
+    address public genesisAuthority;
+    /// @notice Whether Mine has permanently consumed its fixed genesis-liquidity issuance.
+    bool public genesisLiquidityMinted;
     /// @notice Sum of all occupied slots' tenure-locked rates, in raw GBX units per second.
     /// @dev May exceed the current prospective global rate while legacy tenures retain higher pre-halving rates.
     uint256 public aggregateTps;
@@ -90,6 +112,10 @@ contract Mine is ReentrancyGuard {
     /// @param account Outgoing tenure miner that received the payment, regardless of who initiated the claim.
     /// @param amount Raw USDG amount paid.
     event MinerPaymentClaimed(address indexed account, uint256 amount);
+    /// @notice Emitted after Mine issues the fixed genesis-liquidity allocation and clears its setup authority.
+    /// @param recipient Reviewed USDG/GBX pair that received the complete fixed allocation.
+    /// @param amount Fixed raw GBX amount minted for permanently locked genesis liquidity.
+    event GenesisLiquidityMinted(address indexed recipient, uint256 amount);
     /// @notice Emitted after one outgoing miner's complete tenure emission is minted.
     /// @param miner Outgoing miner that received the minted GBX.
     /// @param slotIndex Zero-based index of the settled slot.
@@ -125,17 +151,30 @@ contract Mine is ReentrancyGuard {
     event MinerPaymentAccrued(
         address indexed miner, uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount
     );
-    /// @notice Emitted after the nominal protocol share is transferred to ResonanceRouter for later routing.
+    /// @notice Emitted after the nominal protocol share is transferred to the current ResonanceRouter for later
+    ///         routing.
     /// @dev Under the supported standard USDG model, a successful `SafeERC20` transfer delivers `amount` to the Router.
     ///      The event does not assert that the Router subsequently forwarded the USDG to Resonance.
     /// @param slotIndex Zero-based index of the replaced slot.
     /// @param epochId Slot epoch identifier consumed by the replacement.
+    /// @param resonanceRouter Router that received this specific deposit.
     /// @param amount Raw USDG amount transferred to ResonanceRouter.
-    event RevenueDeposited(uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount);
+    event RevenueDeposited(
+        uint256 indexed slotIndex, uint256 indexed epochId, address indexed resonanceRouter, uint256 amount
+    );
+    /// @notice Emitted after governance redirects only later Mine revenue to a fully bound replacement graph.
+    /// @param previousRouter Router retained by the prior Resonance graph.
+    /// @param newRouter Router receiving later Mine revenue.
+    /// @param newResonance Replacement Resonance permanently bound to `newRouter`.
+    event ResonanceRouterUpdated(
+        address indexed previousRouter, address indexed newRouter, address indexed newResonance
+    );
 
     /// @notice The caller-supplied mining deadline has passed.
     /// @param deadline Latest Unix timestamp at which execution was permitted.
     error DeadlinePassed(uint256 deadline);
+    /// @notice The fixed genesis-liquidity issuance has already been consumed.
+    error GenesisLiquidityAlreadyMinted();
     /// @notice The caller's expected slot epoch differs from current state.
     /// @param expected Epoch identifier supplied by the caller.
     /// @param actual Current epoch identifier stored for the slot.
@@ -143,6 +182,14 @@ contract Mine is ReentrancyGuard {
     /// @notice A slot index is outside the immutable sixteen-slot range.
     /// @param slotIndex Invalid zero-based slot index supplied by the caller.
     error IndexOutOfBounds(uint256 slotIndex);
+    /// @notice GBX has not permanently selected this Mine as its sole issuer.
+    error InvalidMinterBinding();
+    /// @notice The immutable Fund is zero, has no code, or reports another GBX token.
+    /// @param fund Invalid Fund candidate.
+    error InvalidFund(address fund);
+    /// @notice A replacement Router or its new Resonance graph has a missing or mismatched identity.
+    /// @param router Invalid Router candidate.
+    error InvalidResonanceRouter(address router);
     /// @notice The current replacement payment exceeds the caller's slippage ceiling.
     /// @param paymentAmount Raw USDG price required at execution time.
     /// @param maximumPayment Maximum raw USDG amount authorized by the caller.
@@ -153,31 +200,90 @@ contract Mine is ReentrancyGuard {
     /// @notice An account has no accumulated replacement payment to claim.
     /// @param account Account whose claimable USDG balance is zero.
     error NothingToClaim(address account);
+    /// @notice Governance attempted to set the already active Router.
+    /// @param router Current Router supplied again.
+    error ResonanceRouterUnchanged(address router);
+    /// @notice A caller other than the narrow deployment authority requested the fixed genesis-liquidity issuance.
+    /// @param caller Unauthorized caller.
+    error UnauthorizedGenesisAuthority(address caller);
     /// @notice A required deployment dependency lacks a deployed contract or a required account is the zero address.
     error ZeroAddress();
 
-    /// @notice Creates the immutable mining market with sixteen empty slots.
-    /// @dev Requires all three dependencies to contain deployed code. Reciprocal GBX mint-authority binding and the
-    ///      Router's USDG identity are deployment-time checks performed outside this constructor.
+    /// @notice Creates the non-upgradeable mining market with sixteen empty slots and one governed revenue destination.
+    /// @dev Requires every dependency to contain deployed code and validates the Fund's reciprocal GBX identity.
+    ///      Reciprocal GBX mint-authority and initial Router-graph checks are completed by the canonical launcher.
+    ///      OpenZeppelin `Ownable` rejects a zero `initialOwner`; every later owner transfer requires acceptance.
     /// @param gbx_ GBX token this Mine will mint after the one-time authority handoff.
     /// @param usdg_ Standard USDG token paid by miners in raw units.
+    /// @param fund_ Ownerless canonical Fund every replacement Resonance must retain.
     /// @param resonanceRouter_ Router that receives each nominal protocol payment share.
-    constructor(GBX gbx_, IERC20 usdg_, address resonanceRouter_) {
+    /// @param genesisAuthority_ Temporary authority consumed by the fixed genesis mint, or zero to disable it.
+    /// @param initialOwner Initial authority whose only Mine-specific action is replacing the revenue Router.
+    constructor(
+        GBX gbx_,
+        IERC20 usdg_,
+        address fund_,
+        address resonanceRouter_,
+        address genesisAuthority_,
+        address initialOwner
+    ) Ownable(initialOwner) {
         if (
-            address(gbx_) == address(0) || address(usdg_) == address(0) || resonanceRouter_ == address(0)
-                || address(gbx_).code.length == 0 || address(usdg_).code.length == 0
-                || resonanceRouter_.code.length == 0
+            address(gbx_) == address(0) || address(usdg_) == address(0) || fund_ == address(0)
+                || resonanceRouter_ == address(0) || address(gbx_).code.length == 0 || address(usdg_).code.length == 0
+                || fund_.code.length == 0 || resonanceRouter_.code.length == 0
         ) revert ZeroAddress();
+        try IFundMigrationIdentity(fund_).gbx() returns (address fundGBX) {
+            if (fundGBX != address(gbx_)) revert InvalidFund(fund_);
+        } catch {
+            revert InvalidFund(fund_);
+        }
 
         gbx = gbx_;
         usdg = usdg_;
-        resonanceRouter = resonanceRouter_;
+        fund = fund_;
         startTime = block.timestamp;
+        resonanceRouter = resonanceRouter_;
+        genesisAuthority = genesisAuthority_;
         pendingUpdatedAt = block.timestamp;
 
         for (uint256 i; i < SLOT_COUNT; ++i) {
             _slots[i] = _emptySlot();
         }
+    }
+
+    /// @notice Issues the fixed 1,000 GBX genesis allocation to one reviewed liquidity-pair contract.
+    /// @dev Callable exactly once by the deployment-only `genesisAuthority`, and only after GBX has permanently bound
+    ///      this Mine as its sole issuer. The recipient must contain deployed code. State consumes and clears the
+    ///      authority before the GBX call; any failure reverts the complete transition. The canonical launcher calls
+    ///      this only after validating the recipient as the pristine USDG/GBX pair from the reviewed V2 factory.
+    /// @param recipient Reviewed USDG/GBX pair receiving the complete fixed allocation.
+    function mintGenesisLiquidity(address recipient) external nonReentrant {
+        if (genesisLiquidityMinted) revert GenesisLiquidityAlreadyMinted();
+        if (msg.sender != genesisAuthority) revert UnauthorizedGenesisAuthority(msg.sender);
+        if (recipient == address(0) || recipient.code.length == 0) revert ZeroAddress();
+        if (!gbx.minterLocked() || gbx.minter() != address(this)) revert InvalidMinterBinding();
+
+        genesisLiquidityMinted = true;
+        genesisAuthority = address(0);
+        gbx.mint(recipient, GENESIS_LIQUIDITY_GBX);
+
+        emit GenesisLiquidityMinted(recipient, GENESIS_LIQUIDITY_GBX);
+    }
+
+    /// @notice Redirects only future protocol-revenue deposits to a fully reciprocal replacement Resonance graph.
+    /// @dev Callable only by the current owner and never reads or mutates the old Router or Resonance. The candidate
+    ///      Router must use the immutable USDG and report a deployed Resonance that reciprocally binds the candidate,
+    ///      immutable Fund, and a SignalGBX receipt for this immutable GBX. Existing Router and Resonance balances,
+    ///      streams, signals, Strategies, and Bribes remain in their old graph. No value moves in this call.
+    /// @param newRouter Fully configured replacement Router receiving later Mine revenue.
+    function setResonanceRouter(address newRouter) external onlyOwner nonReentrant {
+        address previousRouter = resonanceRouter;
+        if (newRouter == previousRouter) revert ResonanceRouterUnchanged(newRouter);
+
+        address newResonance = _validateResonanceRouter(newRouter);
+        resonanceRouter = newRouter;
+
+        emit ResonanceRouterUpdated(previousRouter, newRouter, newResonance);
     }
 
     /// @notice Starts a new tenure in one slot at its current linearly decaying USDG price.
@@ -375,10 +481,67 @@ contract Mine is ReentrancyGuard {
         uint256 paymentAmount,
         uint256 revenueAmount
     ) private {
+        address configuredRouter = resonanceRouter;
         usdg.safeTransferFrom(payer, address(this), paymentAmount);
-        usdg.safeTransfer(resonanceRouter, revenueAmount);
+        usdg.safeTransfer(configuredRouter, revenueAmount);
 
-        emit RevenueDeposited(slotIndex, epochId, revenueAmount);
+        emit RevenueDeposited(slotIndex, epochId, configuredRouter, revenueAmount);
+    }
+
+    /// @dev Fails closed unless `candidate` identifies a complete replacement graph sharing this Mine's permanent
+    ///      GBX, USDG, and Fund. The old graph is deliberately never called during validation.
+    function _validateResonanceRouter(address candidate) private view returns (address configuredResonance) {
+        if (candidate == address(0) || candidate.code.length == 0) revert InvalidResonanceRouter(candidate);
+
+        IResonanceRouterIdentity router = IResonanceRouterIdentity(candidate);
+        try router.usdg() returns (address configuredUSDG) {
+            if (configuredUSDG != address(usdg)) revert InvalidResonanceRouter(candidate);
+        } catch {
+            revert InvalidResonanceRouter(candidate);
+        }
+        try router.resonance() returns (address resonance_) {
+            configuredResonance = resonance_;
+        } catch {
+            revert InvalidResonanceRouter(candidate);
+        }
+        if (configuredResonance.code.length == 0) revert InvalidResonanceRouter(candidate);
+
+        IResonanceMigrationIdentity resonance = IResonanceMigrationIdentity(configuredResonance);
+        try resonance.usdg() returns (address configuredUSDG) {
+            if (configuredUSDG != address(usdg)) revert InvalidResonanceRouter(candidate);
+        } catch {
+            revert InvalidResonanceRouter(candidate);
+        }
+        try resonance.fund() returns (address configuredFund) {
+            if (configuredFund != fund) revert InvalidResonanceRouter(candidate);
+        } catch {
+            revert InvalidResonanceRouter(candidate);
+        }
+        try resonance.resonanceRouter() returns (address configuredRouter) {
+            if (configuredRouter != candidate) revert InvalidResonanceRouter(candidate);
+        } catch {
+            revert InvalidResonanceRouter(candidate);
+        }
+
+        address configuredSignalGBX;
+        try resonance.signalGBX() returns (address signalGBX_) {
+            configuredSignalGBX = signalGBX_;
+        } catch {
+            revert InvalidResonanceRouter(candidate);
+        }
+        if (configuredSignalGBX.code.length == 0) revert InvalidResonanceRouter(candidate);
+
+        ISignalGBXMigrationIdentity signalGBX = ISignalGBXMigrationIdentity(configuredSignalGBX);
+        try signalGBX.gbx() returns (address configuredGBX) {
+            if (configuredGBX != address(gbx)) revert InvalidResonanceRouter(candidate);
+        } catch {
+            revert InvalidResonanceRouter(candidate);
+        }
+        try signalGBX.resonance() returns (address signalResonance) {
+            if (signalResonance != configuredResonance) revert InvalidResonanceRouter(candidate);
+        } catch {
+            revert InvalidResonanceRouter(candidate);
+        }
     }
 
     /// @dev Multiplies a paid price by `PRICE_MULTIPLIER`, then clamps it inclusively between the configured raw-USDG

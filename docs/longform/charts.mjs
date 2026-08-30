@@ -532,7 +532,7 @@ const mineGrid = () => {
     gridBottom + 58,
     [
       txt(x0, 16, `${slotCount} PERMANENT SLOTS`, { size: 9, fill: faint, tracking: 0.6, weight: 600 }),
-      txt(W - 8, 16, 'fixed at construction · no owner · no capacity setter', {
+      txt(W - 8, 16, 'fixed at construction · no slot or rate setter', {
         size: 9,
         fill: faint,
         anchor: 'end',
@@ -628,14 +628,13 @@ const tenureLock = () => {
 /* ----------------------------------------------------- 11. authority map ---- */
 
 /**
- * The governance answer as a picture. With ADR 0034 the interesting fact is negative
- * space: only Resonance retains continuing custom owner authority, and that custom protocol
- * reach stops at four calls besides inherited ownership transfer and renunciation. The chart
- * also preserves the production obligation to renounce the three setup-only Ownable shells.
+ * The governance answer as a picture. ADR 0055 leaves five continuing custom actions across
+ * Mine and Resonance while preserving immutable mining parameters and ownerless Fund custody.
+ * The chart also preserves the production obligation to renounce the three setup-only Ownable
+ * shells and complete both two-step ownership handoffs.
  */
 const authorityMap = () => {
   const noContinuingCustomAuthority = [
-    ['Mine', 'sixteen slots, fixed'],
     ['Fund', 'the treasury itself'],
     ['GBX', 'minter locked once'],
     ['Strategy', 'auction parameters fixed'],
@@ -657,10 +656,16 @@ const authorityMap = () => {
     ];
   });
 
-  const actions = ['add a Strategy', 'retire a Strategy', 'register a reward token', 'set Bribe share (0–20%)'];
+  const actions = [
+    'Mine: set future revenue Router',
+    'Resonance: add a Strategy',
+    'Resonance: retire a Strategy',
+    'Resonance: register reward token',
+    'Resonance: set Bribe share (0–20%)',
+  ];
   const right = actions.flatMap((a, i) => [txt(rx + 14, top + 32 + i * 16, `— ${a}`, { size: 9.5, fill: ink })]);
 
-  const bottom = top + noContinuingCustomAuthority.length * rowH;
+  const bottom = top + 150;
 
   return svg(
     bottom + 90,
@@ -680,24 +685,24 @@ const authorityMap = () => {
         tracking: 0.35,
         weight: 600,
       }),
-      txt(rx, 30, 'Resonance — four custom protocol calls:', { size: 8.8, fill: muted }),
-      rect(rx, top + 12, rightW, 76, palette.paperTint, { rx: 3 }),
-      rect(rx, top + 12, 3, 76, pink, { rx: 0 }),
+      txt(rx, 30, 'Mine + Resonance — five custom calls:', { size: 8.8, fill: muted }),
+      rect(rx, top + 12, rightW, 92, palette.paperTint, { rx: 3 }),
+      rect(rx, top + 12, 3, 92, pink, { rx: 0 }),
       ...right,
-      txt(rx, top + 100, 'The holder of that address is', { size: 9.5, fill: ink }),
-      txt(rx, top + 113, 'not yet chosen.', { size: 9.5, fill: pink, weight: 600 }),
+      txt(rx, top + 122, 'The external owner of both is', { size: 9.5, fill: ink }),
+      txt(rx, top + 135, 'not yet chosen.', { size: 9.5, fill: pink, weight: 600 }),
 
       line(x0, bottom + 22, W - 8, bottom + 22, { stroke: palette.rule, width: 0.6 }),
       txt(
         x0,
         bottom + 40,
-        'There is no upgrade path, pause switch, sweep, or migration route anywhere in the protocol —',
+        'There is no upgrade path, pause switch, sweep, or balance/state migration in the protocol —',
         {
           size: 9.5,
           fill: ink,
         },
       ),
-      txt(x0, bottom + 53, 'so this map is the complete authority surface, not a summary of it.', {
+      txt(x0, bottom + 53, 'Mine’s setter changes future routing only; old graph state and Fund stay fixed.', {
         size: 9.5,
         fill: muted,
       }),
@@ -707,7 +712,7 @@ const authorityMap = () => {
         'SignalGBX, StrategyFactory, and BribeFactory retain setup-only Ownable shells until production',
         { size: 8.5, fill: muted },
       ),
-      txt(x0, bottom + 80, 'explicitly renounces them; after binding, those owners have no custom protocol call.', {
+      txt(x0, bottom + 80, 'renounces them; governance must then accept Mine and Resonance ownership separately.', {
         size: 8.5,
         fill: muted,
       }),
@@ -912,7 +917,7 @@ const CHARTS = {
   'authority-map': {
     svg: authorityMap,
     caption:
-      'The complete custom protocol authority surface: four bounded calls on Resonance, with no local administration on the contracts at left. Inherited ownership transfer and renunciation remain; who holds that owner address is the largest open question.',
+      'The complete custom protocol authority surface: Mine has one future-revenue Router setter and Resonance has four bounded calls. Fund remains ownerless, mining parameters stay immutable, and the external owner of both contracts is unselected.',
   },
   'pending-emission': {
     svg: pendingEmission,

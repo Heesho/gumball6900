@@ -182,7 +182,7 @@ export function RewardCapFigure() {
 
 /** Govern — the whole continuing authority surface, drawn against what is absent. */
 export function AuthorityFigure() {
-  const present = ['Add Strategy', 'Kill Strategy', 'Add Bribe token', 'Set Bribe rate'];
+  const present = ['Set Mine Router', 'Add Strategy', 'Kill Strategy', 'Add Bribe token', 'Set Bribe rate'];
   const absent = ['proxy', 'pause', 'upgrade', 'rescue', 'executor', 'emission setter'];
 
   return (
@@ -190,7 +190,7 @@ export function AuthorityFigure() {
       <div className={styles.authority}>
         <div>
           <p className={styles.authorityHead}>
-            <span className={styles.swatchPink} />4 bounded actions
+            <span className={styles.swatchPink} />5 bounded actions
           </p>
           <ul className={styles.authorityList}>
             {present.map((item) => (
@@ -222,12 +222,12 @@ export function OwnershipFigure() {
   return (
     <figure className={styles.figure} data-compact="true">
       <Plot
-        label="Seven core contracts are ownerless; Resonance is the only one with continuing owner authority."
+        label="Six core contracts are ownerless; Mine and Resonance have continuing Ownable2Step authority."
         variant="compact"
       >
         {Array.from({ length: 8 }, (_, index) => (
           <rect
-            className={index === 7 ? styles.blockOwned : styles.blockFree}
+            className={index >= 6 ? styles.blockOwned : styles.blockFree}
             height={h - 16}
             key={index}
             rx="4"
@@ -239,12 +239,12 @@ export function OwnershipFigure() {
         ))}
         <line className={styles.baseline} vectorEffect="non-scaling-stroke" x1="0" x2={w} y1={h} y2={h} />
       </Plot>
-      <Scale from="7 ownerless" to="1 owner" />
+      <Scale from="6 ownerless" to="2 owners" />
     </figure>
   );
 }
 
-/** Govern — the four bounded calls, and the empty place where an executor is not yet chosen. */
+/** Govern — the five bounded calls, and the empty place where an executor is not yet chosen. */
 export function UnresolvedExecutorFigure() {
   const w = COMPACT.width;
 
@@ -252,18 +252,18 @@ export function UnresolvedExecutorFigure() {
     <figure className={styles.figure} data-compact="true">
       <Plot
         band
-        label="Four bounded calls exist; the executor that would sit in front of them has not been selected."
+        label="Five bounded calls exist; the executor that would sit in front of them has not been selected."
         variant="compact"
       >
-        {[0, 1, 2, 3].map((index) => (
+        {[0, 1, 2, 3, 4].map((index) => (
           <rect
             className={styles.callBlock}
             height="26"
             key={index}
             rx="3"
             vectorEffect="non-scaling-stroke"
-            width="18"
-            x={1 + index * 24}
+            width="15"
+            x={1 + index * 19}
             y="12"
           />
         ))}
@@ -278,7 +278,7 @@ export function UnresolvedExecutorFigure() {
           y="12"
         />
       </Plot>
-      <Scale from="4 calls" to="no executor" />
+      <Scale from="5 calls" to="no executor" />
     </figure>
   );
 }

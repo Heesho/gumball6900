@@ -157,7 +157,7 @@ export const rules = {
       // promises.
       tone: 'note',
       body:
-        `Each slot's price falls to zero over ${numbers.priceDecay}. A buyer pays USDG and earns GBX until replaced. ` +
+        `Launch seeds 1 USDG and 1,000 Mine-issued GBX, then locks the genesis LP. Each slot's price falls to zero over ${numbers.priceDecay}. A buyer pays USDG and earns GBX until replaced. ` +
         `A nonempty replacement pays ${numbers.minerShare} to the outgoing miner and deposits ${numbers.routedShare} for later routing; ` +
         `an empty slot deposits 100%. Neither routing nor replacement is guaranteed.`,
     },
@@ -172,9 +172,9 @@ export const rules = {
  * what a reader actually gets, and the three zeros are the ones a financially literate
  * reader recognises instantly: no fee, no insiders, no gate on the way out.
  *
- * The fifth figure used to be a lifetime supply ceiling. ADR 0024 removed the cap, and ADR
- * 0050 removed the genesis premint. The honest replacement is therefore the initial supply:
- * zero GBX exists until Mine issues it.
+ * The fifth figure used to be a lifetime supply ceiling. ADR 0024 removed the cap. ADR 0054
+ * now fixes the canonical launch amount: after GBX constructs with zero supply and binds to
+ * Mine, Mine issues exactly 1,000 GBX solely into the permanently locked genesis pair.
  *
  * Values come from `facts.mjs` where they are derived; only the labels are written here.
  */
@@ -185,7 +185,7 @@ export const reasons = {
     { value: '0', label: 'Team or presale tokens' },
     { value: '0', label: 'Lockup or notice period' },
     { value: numbers.minimumFundShare, label: 'Minimum payment share to Fund' },
-    { value: numbers.initialSupply, label: 'Preminted GBX' },
+    { value: numbers.canonicalLaunchSupply, label: 'Genesis LP GBX' },
   ],
 };
 
@@ -199,6 +199,6 @@ export const reasons = {
  * and dropping it would let the sheet read as a live product.
  */
 export const status = {
-  note: 'Experimental; not deployed. V12 excludes ADR-0051 batching and periphery. Review remains open. Robinhood Chain is intended, not committed.',
+  note: 'Experimental; not deployed. V12 excludes ADRs 0051-0055, including launch, routing migration, and two-step ownership. Review and signed deployment evidence remain open.',
   more: 'Full detail: docs/WHITEPAPER.md',
 };

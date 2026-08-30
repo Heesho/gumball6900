@@ -8,11 +8,12 @@ import { IMine } from "./interfaces/IMine.sol";
 
 /// @title GumBall6900 Mining and Redemption Token
 /// @author heesho
-/// @notice Transferable token issued through mining and used for SignalGBX signaling and Fund redemption.
+/// @notice Transferable token issued by Mine for fixed genesis liquidity and mining, signaling, and Fund redemption.
 /// @dev Starts with zero supply. Deployment permanently hands mint authority to one Mine exactly once; no caller can
-///      mint before that handoff or replace the Mine afterward. Burns never reopen or alter mint authority. GBX uses
-///      18 decimals inherited from ERC20 and supports ERC-2612 approvals through ERC20Permit. There is no
-///      protocol-defined economic supply cap; supply always reconciles as
+///      mint before that handoff or replace the Mine afterward. The canonical launcher then consumes Mine's fixed
+///      one-time 1,000 GBX genesis-liquidity issue; every later mint is settled slot emission. Burns never reopen or
+///      alter mint authority. GBX uses 18 decimals inherited from ERC20 and supports ERC-2612 approvals through
+///      ERC20Permit. There is no protocol-defined economic supply cap; supply always reconciles as
 ///      `totalSupply() == lifetimeMinted - lifetimeBurned`.
 contract GBX is ERC20, ERC20Permit {
     /// @notice Current setup authority before locking and sole mint caller after the one-time Mine handoff.

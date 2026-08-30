@@ -1,6 +1,7 @@
 # ADR 0045: Defer Mine-to-Router token verification to deployment
 
-- Status: accepted for development; not audited, deployed, or approved for user funds
+- Status: accepted for the initial constructor boundary; ADR 0055 later makes the Router mutable and requires full
+  reciprocal candidate-graph validation on each governed change; not audited, deployed, or approved for user funds
 - Date: 2026-08-22
 - Supersedes: Mine's constructor-time Router USDG identity check
 

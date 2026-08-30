@@ -154,6 +154,19 @@ const mutants = [
     test: ['test/minimal/SignalGBX.t.sol', 'test_AddSignalManyRejectsEmptyAndZeroAllocationsBeforeCustodyChanges'],
   },
   {
+    id: 'SGBX-15-disable-scalar-exit',
+    file: 'src/core/SignalGBX.sol',
+    from: `    function removeSignal(address strategy, uint256 amount) external nonReentrant {
+        _requireAmount(amount);`,
+    to: `    function removeSignal(address strategy, uint256 amount) external nonReentrant {
+        if (true) revert ZeroAmount();
+        _requireAmount(amount);`,
+    test: [
+      'test/minimal/audit-exitability/ExitabilityBlastRadius.t.sol',
+      'test_DuplicateBatchFailureRollsBackAndScalarFallbackFullyExits',
+    ],
+  },
+  {
     id: 'RES-01-omit-bribe-deposit',
     file: 'src/core/Resonance.sol',
     from: '        Bribe(bribeFor[strategy]).addSignalWeight(account, amount);',
@@ -278,6 +291,151 @@ const mutants = [
     test: ['test/minimal/SignalGBX.t.sol', 'test_RemoveFromKilledStrategyDoesNotDecrementActiveWeightTwice'],
   },
   {
+    id: 'RES-21-disable-lifetime-revenue-cap',
+    file: 'src/core/Resonance.sol',
+    from: '        if (amount > maximum - notified) {',
+    to: '        if (false && amount > maximum - notified) {',
+    test: [
+      'test/minimal/audit-exitability/ExitabilityBlastRadius.t.sol',
+      'test_ResonanceLifetimeCapRejectsOneAboveMaximumBeforeCustody',
+    ],
+  },
+  {
+    id: 'RES-22-enumerate-all-strategies-on-scalar-exit',
+    file: 'src/core/Resonance.sol',
+    from: `        _updateRevenue(strategy);
+
+        if (isStrategyLive[strategy]) totalSignalWeight -= amount;`,
+    to: `        // MUTANT: scalar exit work grows with the global live Strategy count.
+        for (uint256 i; i < liveStrategyCount; ++i) _strategySignalWeight(strategy);
+        _updateRevenue(strategy);
+
+        if (isStrategyLive[strategy]) totalSignalWeight -= amount;`,
+    test: [
+      'test/minimal/audit-exitability/ExitabilityBlastRadius.t.sol',
+      'test_ScalarSignalExitDoesNotEnumerateGlobalStrategies',
+    ],
+  },
+  {
+    id: 'RES-23-batch-claim-for-resonance-instead-of-caller',
+    file: 'src/core/Resonance.sol',
+    from: '            Bribe(bribeFor[strategy]).claimRewards(msg.sender);',
+    to: '            Bribe(bribeFor[strategy]).claimRewards(address(this));',
+    test: ['test/minimal/Resonance.t.sol', 'test_BatchClaimsCanonicalLiveKilledAndDuplicateStrategyBribesForTheCaller'],
+  },
+  {
+    id: 'RES-24-disable-batch-registration-check',
+    file: 'src/core/Resonance.sol',
+    from: '            if (!isStrategyRegistered[strategy]) revert StrategyNotFound(strategy);',
+    to: '            if (false && !isStrategyRegistered[strategy]) revert StrategyNotFound(strategy);',
+    test: ['test/minimal/Resonance.t.sol', 'test_BatchAlwaysClaimsForTheCallerAndValidatesEveryStrategyAtomically'],
+  },
+  {
+    id: 'RES-25-require-live-batch-strategy',
+    file: 'src/core/Resonance.sol',
+    from: `            if (!isStrategyRegistered[strategy]) revert StrategyNotFound(strategy);
+            Bribe(bribeFor[strategy]).claimRewards(msg.sender);`,
+    to: `            if (!isStrategyRegistered[strategy]) revert StrategyNotFound(strategy);
+            if (!isStrategyLive[strategy]) revert StrategyAlreadyDead(strategy);
+            Bribe(bribeFor[strategy]).claimRewards(msg.sender);`,
+    test: ['test/minimal/Resonance.t.sol', 'test_BatchClaimsCanonicalLiveKilledAndDuplicateStrategyBribesForTheCaller'],
+  },
+  {
+    id: 'RES-26-allow-empty-claim-batch',
+    file: 'src/core/Resonance.sol',
+    from: '        if (count == 0) revert EmptyClaimBatch();',
+    to: '        if (false && count == 0) revert EmptyClaimBatch();',
+    test: ['test/minimal/Resonance.t.sol', 'test_BatchAlwaysClaimsForTheCallerAndValidatesEveryStrategyAtomically'],
+  },
+  {
+    id: 'RES-27-batch-claims-only-first-strategy',
+    file: 'src/core/Resonance.sol',
+    from: '            Bribe(bribeFor[strategy]).claimRewards(msg.sender);',
+    to: '            if (i == 0) Bribe(bribeFor[strategy]).claimRewards(msg.sender);',
+    test: ['test/minimal/Resonance.t.sol', 'test_BatchClaimsCanonicalLiveKilledAndDuplicateStrategyBribesForTheCaller'],
+  },
+  {
+    id: 'RES-28-remove-claim-batch-reentrancy-guard',
+    file: 'src/core/Resonance.sol',
+    from: '    function claimBribeRewards(address[] calldata strategies) external nonReentrant {',
+    to: '    function claimBribeRewards(address[] calldata strategies) external {',
+    test: ['test/minimal/Adversarial.t.sol', 'test_AHostileRewardTokenCannotReenterResonanceBatchClaims'],
+  },
+  {
+    id: 'RES-29-swallow-batch-claim-failure',
+    file: 'src/core/Resonance.sol',
+    from: '            Bribe(bribeFor[strategy]).claimRewards(msg.sender);',
+    to: '            try Bribe(bribeFor[strategy]).claimRewards(msg.sender) { } catch { }',
+    test: ['test/minimal/Resonance.t.sol', 'test_BrokenTokenRevertsTheBatchWhileDirectScalarClaimsRemainAvailable'],
+  },
+  {
+    id: 'MINE-01-require-router-during-replacement',
+    file: 'src/core/Mine.sol',
+    from: `        usdg.safeTransfer(configuredRouter, revenueAmount);
+
+        emit RevenueDeposited(slotIndex, epochId, configuredRouter, revenueAmount);`,
+    to: `        usdg.safeTransfer(configuredRouter, revenueAmount);
+        // MUTANT: a paid replacement now depends on immediate successful Router execution.
+        (bool routed,) = configuredRouter.call(abi.encodeWithSignature("route()"));
+        require(routed);
+
+        emit RevenueDeposited(slotIndex, epochId, configuredRouter, revenueAmount);`,
+    test: ['test/minimal/Mine.t.sol', 'test_FirstMinerDepositsCompletePaymentAndReceivesOneSixteenthGlobalTps'],
+  },
+  {
+    id: 'MINE-02-remove-router-migration-owner-check',
+    file: 'src/core/Mine.sol',
+    from: '    function setResonanceRouter(address newRouter) external onlyOwner nonReentrant {',
+    to: '    function setResonanceRouter(address newRouter) external nonReentrant {',
+    test: ['test/minimal/Mine.t.sol', 'test_SetResonanceRouterIsOwnerOnlyAndRejectsIncompleteOrMismatchedGraphs'],
+  },
+  {
+    id: 'MINE-03-do-not-store-replacement-router',
+    file: 'src/core/Mine.sol',
+    from: '        resonanceRouter = newRouter;',
+    to: '        // MUTANT: validated replacement Router is never activated',
+    test: [
+      'test/minimal/Mine.t.sol',
+      'test_SetResonanceRouterRedirectsOnlyFutureRevenueAndPreservesOldGraphAndMinerClaims',
+    ],
+  },
+  {
+    id: 'MINE-04-validate-old-router-during-migration',
+    file: 'src/core/Mine.sol',
+    from: '        address newResonance = _validateResonanceRouter(newRouter);',
+    to: '        address newResonance = _validateResonanceRouter(previousRouter);',
+    test: ['test/minimal/Mine.t.sol', 'test_MigrationDoesNotReadBrokenOldRouterAndOldSignalRewardExitRemainsUsable'],
+  },
+  {
+    id: 'MINE-05-skip-replacement-fund-identity',
+    file: 'src/core/Mine.sol',
+    from: '            if (configuredFund != fund) revert InvalidResonanceRouter(candidate);',
+    to: '            if (false && configuredFund != fund) revert InvalidResonanceRouter(candidate);',
+    test: ['test/minimal/Mine.t.sol', 'test_SetResonanceRouterIsOwnerOnlyAndRejectsIncompleteOrMismatchedGraphs'],
+  },
+  {
+    id: 'MINE-06-skip-replacement-gbx-identity',
+    file: 'src/core/Mine.sol',
+    from: '            if (configuredGBX != address(gbx)) revert InvalidResonanceRouter(candidate);',
+    to: '            if (false && configuredGBX != address(gbx)) revert InvalidResonanceRouter(candidate);',
+    test: ['test/minimal/Mine.t.sol', 'test_SetResonanceRouterIsOwnerOnlyAndRejectsIncompleteOrMismatchedGraphs'],
+  },
+  {
+    id: 'MINE-07-skip-replacement-resonance-usdg-identity',
+    file: 'src/core/Mine.sol',
+    from: '            if (configuredUSDG != address(usdg)) revert InvalidResonanceRouter(candidate);',
+    to: '            if (false && configuredUSDG != address(usdg)) revert InvalidResonanceRouter(candidate);',
+    occurrence: 1,
+    test: ['test/minimal/Mine.t.sol', 'test_SetResonanceRouterRejectsReplacementResonanceUSDGMismatch'],
+  },
+  {
+    id: 'MINE-08-skip-replacement-signal-resonance-identity',
+    file: 'src/core/Mine.sol',
+    from: '            if (signalResonance != configuredResonance) revert InvalidResonanceRouter(candidate);',
+    to: '            if (false && signalResonance != configuredResonance) revert InvalidResonanceRouter(candidate);',
+    test: ['test/minimal/Mine.t.sol', 'test_SetResonanceRouterRejectsCrossedSignalGBXResonanceBinding'],
+  },
+  {
     id: 'ROUTER-01-route-only-after-strictly-greater',
     file: 'src/core/ResonanceRouter.sol',
     from: '        if (pending < minimum) {',
@@ -377,7 +535,7 @@ const mutants = [
     file: 'src/core/Bribe.sol',
     from: '        IERC20(rewardToken).safeTransfer(account, amount);',
     to: '        IERC20(rewardToken).safeTransfer(msg.sender, amount);',
-    test: ['test/minimal/Bribe.t.sol', 'test_AllTokenClaimPaysEachRegisteredRewardToTheEntitledAccount'],
+    test: ['test/minimal/Resonance.t.sol', 'test_BatchClaimsCanonicalLiveKilledAndDuplicateStrategyBribesForTheCaller'],
   },
   {
     id: 'BRIBE-06-reduce-index-precision',
@@ -413,6 +571,72 @@ const mutants = [
     from: '    uint256 public constant MAX_REWARD_TOKENS = 16;',
     to: '    uint256 public constant MAX_REWARD_TOKENS = 8;',
     test: ['test/minimal/Bribe.t.sol', 'test_RewardTokenCountIsPermanentlyCappedAtSixteen'],
+  },
+  {
+    id: 'BRIBE-11-claim-broken-reward-during-signal-removal',
+    file: 'src/core/Bribe.sol',
+    from: `        _updateAllRewards(account);
+        totalSignalWeight -= amount;`,
+    to: `        _updateAllRewards(account);
+        // MUTANT: principal removal now calls the last registered reward token.
+        _claim(account, _rewardTokens[_rewardTokens.length - 1]);
+        totalSignalWeight -= amount;`,
+    test: [
+      'test/minimal/audit-exitability/ExitabilityBlastRadius.t.sol',
+      'test_LiveSixteenRewardStrategyReturnsPrincipalWithBrokenRewardToken',
+    ],
+  },
+  {
+    id: 'BRIBE-12-disable-beneficiary-claim-authorization',
+    file: 'src/core/Bribe.sol',
+    from: '        if (msg.sender != account && msg.sender != resonance) {',
+    to: '        if (false && msg.sender != account && msg.sender != resonance) {',
+    test: ['test/minimal/Bribe.t.sol', 'test_OnlyTheBeneficiaryOrResonanceCanInitiateAClaim'],
+  },
+  {
+    id: 'BRIBE-13-omit-all-token-claim-authorization',
+    file: 'src/core/Bribe.sol',
+    from: '        _requireClaimAuthorization(account);',
+    to: '        // MUTANT: all-token beneficiary authorization omitted',
+    occurrence: 0,
+    test: ['test/minimal/Bribe.t.sol', 'test_OnlyTheBeneficiaryOrResonanceCanInitiateAClaim'],
+  },
+  {
+    id: 'BRIBE-14-omit-scalar-claim-authorization',
+    file: 'src/core/Bribe.sol',
+    from: '        _requireClaimAuthorization(account);',
+    to: '        // MUTANT: scalar beneficiary authorization omitted',
+    occurrence: 1,
+    test: ['test/minimal/Bribe.t.sol', 'test_OnlyTheBeneficiaryOrResonanceCanInitiateAClaim'],
+  },
+  {
+    id: 'BRIBE-15-remove-immutable-resonance-claim-authorization',
+    file: 'src/core/Bribe.sol',
+    from: '        if (msg.sender != account && msg.sender != resonance) {',
+    to: '        if (msg.sender != account) {',
+    test: ['test/minimal/Resonance.t.sol', 'test_BatchClaimsCanonicalLiveKilledAndDuplicateStrategyBribesForTheCaller'],
+  },
+  {
+    id: 'FUND-01-exclude-pending-emission-from-denominator',
+    file: 'src/core/Fund.sol',
+    from: '        uint256 supplyBeforeBurn = IMine(mine).effectiveTotalSupply();',
+    to: '        uint256 supplyBeforeBurn = gbx.totalSupply();',
+    test: ['test/minimal/Mine.t.sol', 'test_RedemptionUsesEffectiveSupplyWithoutSettlingAnyMiner'],
+  },
+  {
+    id: 'FUND-02-remove-final-selected-balance-pass',
+    file: 'src/core/Fund.sol',
+    from: '        for (uint256 i; i < tokenCount; ++i) {',
+    to: '        for (uint256 i = tokenCount; i < tokenCount; ++i) {',
+    occurrence: 2,
+    test: ['test/minimal/Fund.t.sol', 'test_RedeemFinalPassRejectsAnAsymmetricAliasSideEffect'],
+  },
+  {
+    id: 'FUND-03-retain-transient-duplicate-marks',
+    file: 'src/core/Fund.sol',
+    from: '            _clearToken(token);',
+    to: '            // MUTANT: transient duplicate mark retained for the outer transaction',
+    test: ['test/minimal/Fund.t.sol', 'test_TransientDuplicateMarksAreClearedBetweenCallsInOneTransaction'],
   },
 ];
 

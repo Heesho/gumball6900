@@ -1,0 +1,43 @@
+// SPDX-License-Identifier: MIT
+pragma solidity 0.8.26;
+
+import { Test } from "forge-std/Test.sol";
+
+import { Bribe } from "../../../../src/core/Bribe.sol";
+import { MockERC20 } from "../../utils/Tokens.sol";
+
+/// @title CEX02OriginalF991253Reproduction
+/// @notice Original-source reproduction preserved outside the active compiler target.
+/// @dev Copy this file into a detached `f991253` checkout and restore the `.t.sol` suffix. It passes against the
+///      original permissionless claim selectors and fails against the beneficiary-authorized remediation.
+contract CEX02OriginalF991253Reproduction is Test {
+    address private constant ALICE = address(0xA11CE);
+    address private constant BOB = address(0xB0B);
+    address private constant CAROL = address(0xCA401);
+
+    function test_ThirdPartyClaimsForceFractionalAccountCheckpoints() external {
+        vm.warp(365 days);
+        MockERC20 reward = new MockERC20("Six Decimal Reward", "RWD", 6);
+        Bribe bribe = new Bribe(address(this));
+        bribe.addRewardToken(address(reward));
+        bribe.addSignalWeight(ALICE, 1);
+        bribe.addSignalWeight(BOB, 1);
+
+        uint256 duration = bribe.REWARD_DURATION();
+        reward.mint(address(this), duration);
+        reward.approve(address(bribe), duration);
+        bribe.notifyReward(address(reward), duration);
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(CAROL);
+        assertEq(bribe.claimReward(ALICE, address(reward)), 0);
+
+        vm.warp(block.timestamp + 1);
+        vm.prank(CAROL);
+        assertEq(bribe.claimReward(ALICE, address(reward)), 0);
+
+        assertEq(bribe.claimReward(BOB, address(reward)), 1);
+        assertEq(reward.balanceOf(ALICE), 0);
+        assertEq(reward.balanceOf(BOB), 1);
+    }
+}

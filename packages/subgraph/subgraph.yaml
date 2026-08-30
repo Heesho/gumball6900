@@ -50,6 +50,8 @@ dataSources:
         - name: Mine
           file: ./abis/Mine.json
       eventHandlers:
+        - event: GenesisLiquidityMinted(indexed address,uint256)
+          handler: handleGenesisLiquidityMinted
         - event: MinerPaymentClaimed(indexed address,uint256)
           handler: handleMinerPaymentClaimed
         - event: EmissionSettled(indexed address,indexed uint256,indexed uint256,uint256)
@@ -60,8 +62,10 @@ dataSources:
         - event: MinerPaymentAccrued(indexed address,indexed uint256,indexed
             uint256,uint256)
           handler: handleMinerPaymentAccrued
-        - event: RevenueDeposited(indexed uint256,indexed uint256,uint256)
+        - event: RevenueDeposited(indexed uint256,indexed uint256,indexed address,uint256)
           handler: handleMiningRevenueDeposited
+        - event: ResonanceRouterUpdated(indexed address,indexed address,indexed address)
+          handler: handleResonanceRouterUpdated
       file: ./src/mine.ts
   - kind: ethereum/contract
     name: SignalGBX

@@ -1,0 +1,2024 @@
+{
+  "schemaVersion": "1.0.0",
+  "report": {
+    "reportId": "codex-exitability-2026-08-29-f991253",
+    "title": "GumBall6900 liveness and exitability review",
+    "repository": "Heesho/gumball6900",
+    "reviewDate": "2026-08-29",
+    "artifactDate": "2026-08-30",
+    "reviewType": "internal adversarial engineering evidence",
+    "releaseStatus": "blocked",
+    "authoritativeStartingRevision": {
+      "branch": "main",
+      "commit": "f9912533e999454f1a3fd49276558bd85e1390da"
+    },
+    "workingTreeRevision": {
+      "baseCommit": "f9912533e999454f1a3fd49276558bd85e1390da",
+      "dirty": true,
+      "label": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+      "materialDelta": "ADR 0052 Resonance lifetime-revenue admission cap plus ADR 0053 beneficiary-authorized Bribe claims and caller-owned Resonance batching"
+    },
+    "priorAuditRevision": "3ae171b997254b56602298d873b3918d1575b3c7",
+    "findingIdNamespace": "CEX",
+    "findingCount": 8,
+    "recordCount": 9,
+    "rejectedCandidateCount": 1,
+    "severityCounts": {
+      "critical": 0,
+      "high": 0,
+      "medium": 4,
+      "low": 3,
+      "informational": 1
+    },
+    "severityMethod": "Counts include only records classified confirmed-finding. Overall severity combines impact and likelihood; impact and likelihood remain separately authoritative. Rejected candidates retain counterfactual impact only as explanatory evidence.",
+    "scope": [
+      "all first-party Solidity contracts and interfaces",
+      "SignalPortfolioLens",
+      "constructors and one-time bindings",
+      "deployment, configuration, release gates, and release-facing protocol claims",
+      "SDK transaction, read, and deployment helpers",
+      "subgraph position tracking",
+      "audit harnesses, mutations, dependencies, and the V12-to-current diff"
+    ],
+    "evidenceBoundary": [
+      "This is internal engineering evidence, not an independent audit or deployment authorization.",
+      "ADR 0053/CEX-02 is remediated and internally verified in the working tree; independent closure, deployment authorization, and user-fund authorization remain pending.",
+      "No mainnet transaction was broadcast and no production deployment, funding, verification, or ownership transfer was performed.",
+      "The working-tree remediation does not retroactively repair immutable contracts deployed from the starting revision.",
+      "Release remains blocked independently by the absence of a signed current manifest, selected reviewed governance executor, exact deployed-bytecode record, and ownership receipt."
+    ],
+    "canonicalHumanReadableArtifact": "packages/contracts/audit/codex-exitability-2026-08-29-f991253/FINDINGS.md"
+  },
+  "sourceIntakes": [
+    {
+      "sourceId": "chatgpt-direct-security-audit-2026-08-29-f991253",
+      "title": "GumBall6900 Direct Smart-Contract Security and Exitability Review",
+      "sourceReviewDate": "2026-08-29",
+      "intakeDate": "2026-08-30",
+      "reviewedCommit": "f9912533e999454f1a3fd49276558bd85e1390da",
+      "preservedRawFile": "packages/contracts/audit/reports/chatgpt-direct-security-audit-2026-08-29-f991253.md",
+      "sha256": "c4628c164d743b137919bf24914ab9d3efc4bc911130cb636fa2f0477c16defd",
+      "treatment": "Supplied candidate-finding source, not instructions, clearance, or deployment authorization. Duplicate labels do not increase counts.",
+      "limitations": [
+        "The source states that it did not execute a local Foundry campaign.",
+        "The source states that it is not a full independent professional audit or deployment authorization.",
+        "Its CI and target-evidence statements are historical and are dispositioned against later current-tree evidence."
+      ],
+      "dispositions": [
+        {
+          "sourceItem": "GPT-M-01",
+          "status": "confirmed-duplicate",
+          "mapsTo": ["CEX-01", "V12-249695"],
+          "countEffect": 0
+        },
+        {
+          "sourceItem": "GPT-M-02",
+          "status": "confirmed-distinct-release-claim-mismatch",
+          "mapsTo": ["CEX-09"],
+          "countEffect": 1
+        },
+        {
+          "sourceItem": "GPT-M-03",
+          "status": "confirmed-duplicate",
+          "mapsTo": ["CEX-04", "V12-249702"],
+          "countEffect": 0
+        },
+        {
+          "sourceItem": "GPT-L-01",
+          "status": "confirmed-duplicate",
+          "mapsTo": ["CEX-02", "V12-249705"],
+          "countEffect": 0
+        },
+        { "sourceItem": "GPT-L-02", "status": "confirmed-distinct", "mapsTo": ["CEX-08"], "countEffect": 1 },
+        { "sourceItem": "GPT-L-03", "status": "confirmed-documented-residual", "mapsTo": [], "countEffect": 0 },
+        { "sourceItem": "GPT-D-01", "status": "existing-deployment-blocker", "mapsTo": [], "countEffect": 0 },
+        {
+          "sourceItem": "GPT-D-02",
+          "status": "existing-conditional-external-token-risk",
+          "mapsTo": [],
+          "countEffect": 0
+        },
+        {
+          "sourceItem": "GPT-D-03",
+          "status": "historical-result-superseded-workflow-concern-retained",
+          "mapsTo": [],
+          "countEffect": 0
+        },
+        {
+          "sourceItem": "GPT-D-04",
+          "status": "partially-superseded-exact-artifact-gate-open",
+          "mapsTo": [],
+          "countEffect": 0
+        }
+      ],
+      "humanDispositionArtifact": "packages/contracts/audit/codex-exitability-2026-08-29-f991253/CHATGPT-DIRECT-AUDIT-INTAKE.md"
+    }
+  ],
+  "completionGate": {
+    "auditWorkStatus": "starting-review-and-post-adr-0053-internal-verification-complete; independent-closure-pending",
+    "releaseStatus": "blocked",
+    "requirements": {
+      "lineByLineInScopeReview": "complete",
+      "publicStateChangingFunctionMatrix": "complete",
+      "positionAndExitMatrix": "complete",
+      "executableExitEvidence": "complete, including explicit falsification evidence for CEX-03 discovery",
+      "arbitraryPrefixScalarSignalExit": "pass for every tracked known Strategy key",
+      "arbitraryPrefixHealthyFundRedemption": "pass for a known healthy caller-selected asset with permanent omission forfeiture; complete-basket realization and claims fail CEX-09",
+      "arbitraryPrefixMineSettlementAndClaims": "pass",
+      "healthyScalarBribeClaimWithBrokenPeer": "post-ADR-0053 internal pass; direct scalar fallback remains available when an all-token or cross-Bribe batch encounters a broken peer",
+      "bribeClaimAuthorizationAndBatch": "post-ADR-0053 internal pass; independent closure pending",
+      "liveAndKilledStrategyExit": "pass for known Strategy keys within the explicit clock horizon",
+      "worstCaseBoundedLoopGas": "measured post-ADR-0053: scalar 101450; direct sixteen-token all-claim 1531568; two-Strategy by sixteen-token batch 2595616; the 32-Strategy 32000000-capped attempt used 32001055 and reverted atomically before split success",
+      "resonanceAccumulator": "starting revision reproduced as globally bricking; working-tree cap regression and boundaries pass",
+      "v12ToCurrentDiff": "reviewed",
+      "priorFindings": "internally revalidated; independent closure remains pending",
+      "targetEip1153": "live pinned mainnet/testnet opcode support proven; exact current Fund artifact fork remains deployment-blocking",
+      "criticalAndHighOverallFindingPocs": "not applicable because overall Critical and High counts are zero; Critical-impact CEX-01 has public PoCs",
+      "productionChangeBeforeAfterRegression": "complete for CEX-01 and CEX-02",
+      "assumptionsAndEvidenceGaps": "recorded",
+      "absoluteSafetyClaim": "not made"
+    },
+    "definitiveTestResult": {
+      "scopeNote": "The current post-ADR-0053 internal Foundry and component receipts are complete as recorded below. The final root pnpm test rerun passed 9/9 Turbo tasks in 27m2.477s, including 367/367 Foundry tests across 29 suites.",
+      "currentPostAdr0053": {
+        "foundry": {
+          "suites": 29,
+          "passed": 367,
+          "failed": 0,
+          "skipped": 0,
+          "wallSeconds": 1806.0
+        },
+        "protocolInvariantsTest": {
+          "testsPassed": 32,
+          "testsTotal": 32,
+          "invariantProperties": {
+            "passed": 30,
+            "total": 30,
+            "runsPerProperty": 1000,
+            "depth": 500,
+            "handlerCallsPerProperty": 500000,
+            "handlerReverts": 0,
+            "discards": 0,
+            "selectorsReached": 31,
+            "selectorsTotal": 31
+          },
+          "deterministicReachabilityTests": { "passed": 2, "total": 2 }
+        },
+        "hardhat": { "passed": 4, "total": 4, "bytecodeParity": "pass" },
+        "integration": { "passed": 10, "total": 10, "fuzzRuns": 256 },
+        "mutation": {
+          "testKilled": 70,
+          "total": 70,
+          "survivors": 0,
+          "errors": 0,
+          "wallSeconds": 315.62
+        },
+        "claimGas": {
+          "bribeScalar": 101450,
+          "bribeDirectSixteenTokenAllClaim": 1531568,
+          "resonanceTwoStrategyBySixteenTokenBatch": 2595616,
+          "thirtyTwoStrategyCappedAttempt": {
+            "gasCap": 32000000,
+            "gasUsed": 32001055,
+            "result": "atomic-revert-before-split-success"
+          }
+        },
+        "components": {
+          "sdk": "52/52 plus typecheck, pack, and ABI checks pass",
+          "subgraph": "ABI and build checks plus 9/9 Matchstick pass",
+          "documentation": "generate and check pass",
+          "simulations": "TypeScript 28/28, Python 22/22, environment 5/5, fixtures and charts pass",
+          "webE2e": "36/36 pass",
+          "root": "lint, typecheck, and build pass",
+          "forge": "fmt and build sizes pass; Bribe 5864 bytes, Resonance 10417 bytes"
+        },
+        "unclaimedMethods": [
+          "post-ADR-0053 Medusa",
+          "post-ADR-0053 Echidna",
+          "post-ADR-0053 static analysis",
+          "symbolic execution",
+          "formal verification",
+          "independent review"
+        ],
+        "rootPnpmTest": "pass-9-of-9-turbo-tasks-27m2.477s-foundry-367-of-367-across-29-suites",
+        "repositoryFormat": "blocked-only-by-eight-unrelated-pre-existing-files; scoped-files-and-forge-clean"
+      },
+      "historicalPreAdr0053": {
+        "command": "PATH=/Users/hishamel-husseini/.nvm/versions/node/v22.23.1/bin:/Users/hishamel-husseini/.foundry/bin:$PATH GUMBALL_PYTHON=/private/tmp/gumball6900-python311.dL0PjJ/bin/python FOUNDRY_FUZZ_SEED=0x6900 pnpm test",
+        "exitCode": 0,
+        "turboTasks": { "passed": 9, "total": 9, "cached": 8, "wall": "14m1.028s" },
+        "foundry": {
+          "suites": 29,
+          "passed": 358,
+          "failed": 0,
+          "skipped": 0,
+          "wallSeconds": 839.58,
+          "cpuSeconds": 3520.12
+        },
+        "invariants": {
+          "properties": 30,
+          "harnessTests": 2,
+          "runsPerProperty": 1000,
+          "callsPerProperty": 500000,
+          "aggregateCalls": 15000000,
+          "handlerReverts": 0,
+          "discards": 0,
+          "selectorsReached": 31,
+          "selectorsTotal": 31,
+          "selectorCallsMinimum": 15877,
+          "selectorCallsMaximum": 16429,
+          "suiteWallSeconds": 839.57,
+          "suiteCpuSeconds": 5528.89
+        }
+      }
+    },
+    "unresolvedPrincipalExitBlockers": [
+      {
+        "id": "CEX-03",
+        "scope": "unknown Strategy-position key discovery",
+        "qualification": "Every known-key scalar exit passed; production current state has no state-growth-independent bounded membership enumeration."
+      }
+    ],
+    "unresolvedProductClaimBlockers": [
+      {
+        "id": "CEX-09",
+        "scope": "complete Fund-basket redemption and guaranteed-arbitrage language",
+        "qualification": "The selective caller-chosen redemption path passes, but current tracked release-facing claims promise every holding and guaranteed gap closure that the implementation cannot guarantee."
+      }
+    ],
+    "releaseAndEvidenceBlockers": [
+      "CEX-03 bounded current-state position discovery",
+      "CEX-09 complete-basket and guaranteed-arbitrage claims in tracked release-facing material",
+      "signed current deployment manifest and exact runtime/immutable evidence",
+      "selected and independently reviewed external governance executor and ownership receipt",
+      "exact current Fund artifact non-broadcast target fork/deployment evidence",
+      "expired/incomplete static-analyzer disposition register",
+      "valid pinned Echidna campaign and compatible symbolic/formal closure",
+      "ADR 0052 and ADR 0053 independent closure",
+      "independent audit, economic review, legal clearance, and monitored testnet rehearsal"
+    ],
+    "strongestPermissibleConclusionUsed": false,
+    "strongestPermissibleConclusionReason": "CEX-03 leaves a principal-exit requirement unresolved when every Strategy key is unknown, and CEX-09 blocks any complete-Fund-basket or guaranteed-price-support claim."
+  },
+  "artifactIdentity": {
+    "status": "post-ADR-0053 internal verification sealed against this uncommitted working tree; independent closure and release gates remain pending",
+    "capturedAtUtc": "2026-08-30T12:25:34Z",
+    "branch": "main",
+    "head": "f9912533e999454f1a3fd49276558bd85e1390da",
+    "originMain": "f9912533e999454f1a3fd49276558bd85e1390da",
+    "remoteParityAtCapture": true,
+    "workingTreeDirty": true,
+    "trackedBinaryPatchSha256": "66349c1882fdae98e02915759d4c2ca79b8b0eae31c881ace9c00bd020ce8c92",
+    "untrackedAdrAndAuditTestsManifestSha256": "daf4d8bb1115a89a004d07dcf10947f4d2ab651206a916ad81bc94f37961a668",
+    "nonSelfReferentialReportManifestSha256": "1c5ff2684b5d5390df9ab0f262e53c9cdb8cc14c40e3c6689cd9126f3bbfb5ee",
+    "mutationReportsSha256": "b3fde58750ab76d66a67f0e8f2bf8db473fd3ca5b351d34f24da29e892a0ec0a",
+    "reportHashExclusions": [
+      "packages/contracts/audit/codex-exitability-2026-08-29-f991253/findings.json",
+      "packages/contracts/audit/codex-exitability-2026-08-29-f991253/commands.log"
+    ],
+    "reportHashExclusionReason": "These two files record the hashes and are excluded to avoid self-reference.",
+    "preservedUnrelatedUntracked": [
+      "apps/web/public/media/gumball6900-cinematic-80s.mp4",
+      "apps/web/public/media/gumball6900-cinematic-poster.jpg",
+      "tmp/"
+    ]
+  },
+  "findings": [
+    {
+      "id": "CEX-01",
+      "classification": "confirmed-finding",
+      "historicalIds": ["V12-249695"],
+      "title": "Unbounded Resonance index can globally freeze signal principal",
+      "summary": "The starting revision admitted an unbounded lifetime sequence of fresh Resonance revenue notifications. At one raw unit of active signal, two exact public schedules can make the monotonic 1e36 revenue-per-signal index overflow before SignalGBX removal burns sGBX and returns GBX.",
+      "severity": {
+        "overall": "Medium",
+        "impact": "Critical",
+        "likelihood": "Negligible",
+        "likelihoodDetail": "Negligible but finite and publicly reachable in the EVM model; the required canonical six-decimal USDG throughput is fantastically beyond a plausible real-world supply."
+      },
+      "liveness": {
+        "class": "global permanent principal-exit lock",
+        "scope": "global",
+        "permanence": "permanent in an affected immutable starting-revision deployment",
+        "principalBlocked": true,
+        "rewardEntitlementAffected": true,
+        "notes": "Live and killed Strategy exits both checkpoint the same global index before receipt burn and GBX return."
+      },
+      "confidence": {
+        "level": "High",
+        "basis": "Reproduced through public functions on the canonical Mine, Router, Resonance, SignalGBX, Strategy, and Bribe graph without storage mutation, then exercised with a source-compatible before/after regression."
+      },
+      "status": {
+        "state": "remediated-in-working-tree",
+        "closure": "internal-verification-complete-independent-closure-pending",
+        "deploymentDisposition": "Fresh deployments must use the remediated bytecode and regenerated consumers; release remains blocked.",
+        "existingImmutableDeployments": "not repairable; replacement is required"
+      },
+      "violatedInvariants": [
+        { "id": "L-01" },
+        { "id": "L-04" },
+        { "id": "L-05" },
+        { "id": "L-11" },
+        { "id": "L-15" },
+        { "id": "L-18" }
+      ],
+      "affected": {
+        "users": [
+          "every sGBX holder when the terminal index state is reached",
+          "signalers in live Strategies",
+          "signalers in killed Strategies"
+        ],
+        "assets": [
+          "all GBX escrowed behind outstanding sGBX",
+          "accrued Resonance USDG entitlements whose checkpoint requires the overflowing index"
+        ],
+        "unaffectedPaths": [
+          "direct Bribe reward claims",
+          "ordinary GBX transfers",
+          "Fund redemption by liquid GBX holders",
+          "Mine replacement and mining issuance"
+        ]
+      },
+      "codeLocations": [
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 255,
+          "endLine": 270,
+          "function": "removeSignalFor",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "starting-revision exit path checkpoints before removing weight"
+        },
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 282,
+          "endLine": 297,
+          "function": "notifyRevenue",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "starting-revision unbounded fresh-revenue admission"
+        },
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 442,
+          "endLine": 453,
+          "function": "revenuePerSignal",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "starting-revision checked addition of the scaled index increment"
+        },
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 482,
+          "endLine": 495,
+          "function": "_updateRevenue",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "starting-revision mandatory checkpoint reached by exit and other state transitions"
+        },
+        {
+          "file": "packages/contracts/src/core/SignalGBX.sol",
+          "startLine": 135,
+          "endLine": 143,
+          "function": "removeSignal",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "scalar principal exit reaches Resonance before receipt burn and GBX return"
+        },
+        {
+          "file": "packages/contracts/src/core/SignalGBX.sol",
+          "startLine": 152,
+          "endLine": 168,
+          "function": "removeSignalMany",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "batched principal exit reaches Resonance before aggregate receipt burn and GBX return"
+        },
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 48,
+          "endLine": 50,
+          "function": "MAX_LIFETIME_REVENUE_AMOUNT",
+          "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "precision-coupled remediation bound"
+        },
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 70,
+          "endLine": 72,
+          "function": "lifetimeRevenueNotified",
+          "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "monotonic fresh-admission counter"
+        },
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 169,
+          "endLine": 173,
+          "function": "RevenueLifetimeCapExceeded",
+          "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "remediation error"
+        },
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 295,
+          "endLine": 317,
+          "function": "notifyRevenue",
+          "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "remediation rejects excess before checkpointing and token interaction"
+        }
+      ],
+      "prerequisites": [
+        "A canonical public protocol graph on the starting revision.",
+        "Exactly one raw unit of active signal, or an equivalent minimum reachable denominator.",
+        "Standard USDG revenue sufficient for the two exact schedules.",
+        "Seven days after the first schedule and one second after the second schedule."
+      ],
+      "reachableSequence": [
+        {
+          "step": 1,
+          "action": "Acquire GBX through public Mine settlement and add exactly one raw signal unit to a live Strategy."
+        },
+        { "step": 2, "action": "Fund the canonical ResonanceRouter with S raw USDG and call route()." },
+        { "step": 3, "action": "Advance time by the seven-day reward duration." },
+        { "step": 4, "action": "Fund and route a second S raw USDG schedule." },
+        { "step": 5, "action": "Advance time by one second." },
+        { "step": 6, "action": "Call revenuePerSignal(), distributeRevenue(), or scalar removeSignal()." }
+      ],
+      "arithmetic": {
+        "uint256Maximum": "115792089237316195423570985008687907853269984665640564039457584007913129639935",
+        "precision": "1000000000000000000000000000000000000",
+        "rewardDurationSeconds": "604800",
+        "maximumFreshLifetimeRevenueRaw": "115792089237316195423570985008687907853269",
+        "maximumFreshLifetimeRevenueRemainderModuloDuration": "582869",
+        "completedScheduleSRaw": "115792089237316195423570985008687907270400",
+        "finiteReuseCycleCount": "191455174003499000369661020186322599"
+      },
+      "proof": {
+        "poc": [
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/reproductions/CEX-01-original-f991253.t.sol.disabled",
+            "startLine": 24,
+            "endLine": 62,
+            "function": "test_Repro_CumulativeRevenueIndexOverflowFreezesSignalPrincipal",
+            "revision": "evidence-for-f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": false,
+            "result": "retained as noncompiled vulnerability-style evidence; the source-compatible cross-version regression fails on the starting revision"
+          },
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/CEX01CrossVersionRegression.t.sol",
+            "startLine": 17,
+            "endLine": 42,
+            "function": "test_OriginalOverflowSequenceMustLeaveSignalPrincipalRemovable",
+            "revision": "cross-version: f9912533e999454f1a3fd49276558bd85e1390da and working tree",
+            "compiledByDefault": true,
+            "result": "the same executable test fails on f991253 with arithmetic panic during removal and passes on the remediated tree with gas 592018"
+          }
+        ],
+        "tests": [
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/CEX01CrossVersionRegression.t.sol",
+            "startLine": 17,
+            "endLine": 42,
+            "function": "test_OriginalOverflowSequenceMustLeaveSignalPrincipalRemovable",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "fails on f991253 with arithmetic panic during removal; passes on the remediated tree with gas 592018"
+          },
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/HistoricalFindings.t.sol",
+            "startLine": 25,
+            "endLine": 79,
+            "function": "test_Regression_LifetimeCapPreservesSignalExitAndBuffersRejectedRevenue",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "passes; exact remaining headroom is accepted, excess remains in the Router, and one raw GBX exits"
+          },
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/ExitabilityBlastRadius.t.sol",
+            "startLine": 277,
+            "endLine": 392,
+            "function": "Resonance lifetime-cap boundary and rollover tests",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "passes exact maximum, maximum-plus-one rejection, active rollover, and direct-donation exclusion"
+          },
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/ExitabilityBlastRadius.t.sol",
+            "startLine": 277,
+            "endLine": 291,
+            "function": "live/killed one/sixteen-reward saturated lifetime-cap exits",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "passes canonical live and killed scalar principal exits at exact Resonance and Bribe lifetime caps, including a broken sixteenth reward token"
+          },
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/DifferentialModels.t.sol",
+            "startLine": 248,
+            "endLine": 270,
+            "function": "testFuzz_ResonanceLifetimeAdmissionMatchesIndependentModel",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "passes differential fresh-admission model"
+          },
+          {
+            "file": "packages/contracts/test/minimal/Invariants.t.sol",
+            "startLine": 357,
+            "endLine": 362,
+            "function": "invariant_RevenueLifetimeAdmissionBoundsTheIndex",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "passes stateful lifetime-admission and index bound"
+          }
+        ],
+        "observedResult": "On f991253, revenuePerSignal(), distributeRevenue(), and removeSignal() revert with checked arithmetic panic 0x11; the victim retains one sGBX and paired-Bribe weight and receives no GBX. On the remediated tree, the excess schedule reverts before checkpointing or custody change and principal removal succeeds."
+      },
+      "whyExistingTestsMissed": "Ordinary-scale handlers never reached the one-raw-unit denominator and cumulative 1e36 precision boundary; the prior disposition relied on an unenforced offchain USDG-supply assumption.",
+      "assetDisposition": {
+        "stolen": "none",
+        "diluted": "none",
+        "frozen": "all GBX escrowed behind outstanding sGBX after the terminal state",
+        "delayed": "superseded by permanent freeze",
+        "permanentlyTrapped": "all GBX escrowed behind outstanding sGBX in the affected immutable original deployment",
+        "description": "No asset transfers to an attacker; principal and associated Resonance entitlement become globally inaccessible."
+      },
+      "maximumDamage": {
+        "scope": "global",
+        "description": "All outstanding sGBX principal can become permanently non-exitable. Signal mutations, Strategy kills, notifications, distributions, and revenue-backed Strategy purchases also halt at the shared checkpoint."
+      },
+      "recovery": {
+        "beforeExposure": "Abandon the unremediated candidate and deploy reviewed remediated bytecode.",
+        "afterTerminalState": "No recovery exists in the immutable starting-revision contract.",
+        "workingTreeBehavior": "The cap prevents the terminal index state in a fresh deployment; it does not repair an existing deployment."
+      },
+      "remediation": {
+        "decision": "implemented-in-working-tree",
+        "adr": "docs/adr/0052-resonance-lifetime-revenue-cap.md",
+        "implementedChanges": [
+          "Set MAX_LIFETIME_REVENUE_AMOUNT to floor(type(uint256).max / REWARD_PRECISION).",
+          "Track lifetimeRevenueNotified monotonically with no reset or setter.",
+          "Reject an over-cap fresh notification before checkpointing or USDG interaction."
+        ],
+        "tradeoffs": [
+          "After permanent cap exhaustion, later Router revenue remains buffered and cannot be scheduled.",
+          "Fresh deployment bytecode, ABI regeneration, consumer synchronization, and independent review are required.",
+          "Existing immutable deployments cannot be upgraded in place."
+        ],
+        "rejectedAlternatives": [
+          "saturating or wrapping the index",
+          "resetting the lifetime counter or index",
+          "skipping the failing checkpoint",
+          "discarding or reassigning already scheduled revenue"
+        ],
+        "regressionStatus": "The original/current before-and-after regression, exact boundaries, live/killed one/sixteen-reward saturated-cap exits, full stateful suite, mutation campaign, ABI consumers, and workspace gates pass. Independent closure remains pending."
+      }
+    },
+    {
+      "id": "CEX-02",
+      "classification": "confirmed-finding",
+      "historicalIds": ["V12-249705"],
+      "title": "Third parties can force away fractional Bribe rewards",
+      "summary": "In the starting revision, permissionless beneficiary claims let an outsider choose another account's checkpoint cadence. Each checkpoint floors sub-unit accrual and advances the paid index even when zero is credited, so repeated calls can destroy otherwise combinable reward fractions. ADR 0053 remediates that caller authority in the working tree.",
+      "severity": {
+        "overall": "Medium",
+        "impact": "Medium",
+        "likelihood": "Medium",
+        "likelihoodDetail": "Economically plausible for a sufficiently valuable low-decimal reward, although repeated transaction cost can dominate the destroyed value.",
+        "historicalV12Label": "Low / Invalid",
+        "reratingRationale": "The combined audit internally re-rates CEX-02 Medium because both impact and likelihood are Medium under the sufficiently valuable low-decimal reward precondition."
+      },
+      "liveness": {
+        "class": "repeatable reward-entitlement destruction per account and token",
+        "scope": "one beneficiary and one Bribe reward token per attack cadence",
+        "permanence": "each floored entitlement is permanently lost; future uncheckpointed rewards can still accrue",
+        "principalBlocked": false,
+        "rewardEntitlementAffected": true
+      },
+      "confidence": {
+        "level": "High",
+        "basis": "A public-function reproduction with two equal raw-unit signalers and a one-raw-unit-per-second stream deterministically demonstrates the loss."
+      },
+      "status": {
+        "state": "remediated-and-internally-verified-in-working-tree",
+        "closure": "internal-verification-complete-independent-closure-pending",
+        "deploymentDisposition": "Remediated and internally verified in the working tree; independent closure, deployment authorization, and user-fund authorization remain pending."
+      },
+      "violatedInvariants": [{ "id": "L-10" }],
+      "affected": {
+        "users": ["any Bribe beneficiary whose per-checkpoint entitlement is below one raw reward unit"],
+        "assets": ["otherwise payable Bribe reward tokens"],
+        "unaffectedPaths": [
+          "GBX principal",
+          "sGBX principal removal",
+          "other reward tokens when scalar claims are used"
+        ]
+      },
+      "codeLocations": [
+        {
+          "file": "packages/contracts/src/core/Bribe.sol",
+          "startLine": 138,
+          "endLine": 146,
+          "function": "claimRewards",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "any caller can checkpoint every token for an arbitrary beneficiary"
+        },
+        {
+          "file": "packages/contracts/src/core/Bribe.sol",
+          "startLine": 155,
+          "endLine": 160,
+          "function": "claimReward",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "any caller can checkpoint one token for an arbitrary beneficiary"
+        },
+        {
+          "file": "packages/contracts/src/core/Bribe.sol",
+          "startLine": 289,
+          "endLine": 294,
+          "function": "_updateAllRewards",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "bounded all-token checkpoint dispatch"
+        },
+        {
+          "file": "packages/contracts/src/core/Bribe.sol",
+          "startLine": 301,
+          "endLine": 312,
+          "function": "_updateReward",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "floors account accrual and advances the paid index even when credit is zero"
+        }
+      ],
+      "prerequisites": [
+        "At least two signalers share one Bribe reward stream.",
+        "The victim's entitlement during each forced checkpoint interval is below one raw reward-token unit.",
+        "An outsider repeatedly calls claimReward or claimRewards for the victim before fractions combine."
+      ],
+      "reachableSequence": [
+        { "step": 1, "action": "Alice and Bob each receive one raw signal unit in the same Bribe." },
+        { "step": 2, "action": "Fund a standard reward stream at one raw unit per second." },
+        {
+          "step": 3,
+          "action": "After one second, Carol calls claimReward(ALICE, token); Alice receives zero and her paid index advances."
+        },
+        { "step": 4, "action": "After a second additional second, Carol repeats; Alice again receives zero." },
+        {
+          "step": 5,
+          "action": "Bob claims after both seconds and receives one raw unit because his fractions combined before checkpointing."
+        }
+      ],
+      "lossFormula": "floor(weight * sum(deltaIndex[i]) / 1e36) - sum(floor(weight * deltaIndex[i] / 1e36))",
+      "proof": {
+        "poc": [
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/reproductions/CEX-02-original-f991253.t.sol.disabled",
+            "startLine": 18,
+            "endLine": 42,
+            "function": "test_ThirdPartyClaimsForceFractionalAccountCheckpoints",
+            "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": false,
+            "result": "preserved original-source reproduction; passes only when restored in the starting revision"
+          }
+        ],
+        "tests": [
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/HistoricalFindings.t.sol",
+            "startLine": 110,
+            "endLine": 138,
+            "function": "test_Regression_ThirdPartyClaimsCannotForceFractionalAccountCheckpoints",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; unrelated callers revert before checkpoint mutation and the beneficiary later combines the same whole-unit entitlement"
+          },
+          {
+            "file": "packages/contracts/test/minimal/Bribe.t.sol",
+            "startLine": 246,
+            "endLine": 262,
+            "function": "test_OnlyTheBeneficiaryOrResonanceCanInitiateAClaim",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; only the beneficiary or immutable Resonance can initiate either direct claim selector"
+          },
+          {
+            "file": "packages/contracts/test/minimal/Resonance.t.sol",
+            "startLine": 308,
+            "endLine": 324,
+            "function": "test_DirectBribeClaimsAreBeneficiaryAuthorized",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; an outsider cannot claim and the beneficiary can claim directly"
+          },
+          {
+            "file": "packages/contracts/test/minimal/Resonance.t.sol",
+            "startLine": 326,
+            "endLine": 352,
+            "function": "test_BatchClaimsCanonicalLiveKilledAndDuplicateStrategyBribesForTheCaller",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; canonical live and killed Strategy Bribes claim for the caller, duplicate entries are accepted, and the later distinct entry executes; sequential repeated invocation is source-loop behavior without an independent dedup mutation"
+          },
+          {
+            "file": "packages/contracts/test/minimal/Resonance.t.sol",
+            "startLine": 354,
+            "endLine": 373,
+            "function": "test_ContractWalletCanSelfClaimDirectlyAndThroughTheBatchEntrypoint",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; a contract wallet self-claims directly and through Resonance while preserving its own beneficiary identity"
+          },
+          {
+            "file": "packages/contracts/test/minimal/Resonance.t.sol",
+            "startLine": 375,
+            "endLine": 400,
+            "function": "test_BatchAlwaysClaimsForTheCallerAndValidatesEveryStrategyAtomically",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; the batch cannot claim for another beneficiary and invalid or empty batches revert atomically"
+          },
+          {
+            "file": "packages/contracts/test/minimal/Resonance.t.sol",
+            "startLine": 402,
+            "endLine": 438,
+            "function": "test_BrokenTokenRevertsTheBatchWhileDirectScalarClaimsRemainAvailable",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; a broken token reverts the complete batch while healthy scalar claims remain available"
+          },
+          {
+            "file": "packages/contracts/test/minimal/Adversarial.t.sol",
+            "startLine": 439,
+            "endLine": 466,
+            "function": "test_AHostileRewardTokenCannotReenterResonanceBatchClaims",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; a hostile reward-token callback cannot reenter the caller-bound Resonance batch"
+          },
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/AuditGas.t.sol",
+            "startLine": 187,
+            "endLine": 195,
+            "function": "test_Gas_BribeScalarAndAllTokenClaimsAtMaximumRegistry",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; scalar claim used 101450 gas and direct sixteen-token all-claim used 1531568 gas"
+          },
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/AuditGas.t.sol",
+            "startLine": 197,
+            "endLine": 214,
+            "function": "test_Gas_ResonanceTwoStrategyBatchAtMaximumRewardRegistries",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; a two-Strategy batch with sixteen rewards in each Bribe used 2595616 gas"
+          },
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/AuditGas.t.sol",
+            "startLine": 216,
+            "endLine": 253,
+            "function": "test_Gas_ThirtyTwoStrategyClaimBatchRollsBackThenSucceedsWhenSplit",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; the 32000000-capped 32-Strategy attempt used 32001055 gas and reverted atomically before split batches succeeded"
+          }
+        ],
+        "observedResult": "The starting revision lets Carol force two zero-credit Alice checkpoints while Bob combines one raw unit. ADR 0053's internally verified working tree rejects both Carol calls before checkpoint mutation and lets Alice later combine the same entitlement."
+      },
+      "whyExistingTestsMissed": "Tests checked ordinary flooring and permissionless claim convenience separately, but never let an unrelated account adversarially control another beneficiary's checkpoint cadence.",
+      "assetDisposition": {
+        "stolen": "none",
+        "diluted": "none",
+        "frozen": "none",
+        "delayed": "none",
+        "permanentlyTrapped": "none",
+        "destroyedEntitlement": "otherwise payable Bribe reward fractions become unallocated surplus",
+        "description": "Signal principal remains fully removable; only the victim's reward entitlement is destroyed."
+      },
+      "maximumDamage": {
+        "scope": "per beneficiary and reward token",
+        "description": "The attacker can destroy 100 percent of a victim's otherwise payable whole-unit reward over the forced cadence. The PoC executes two one-second forced claims; mathematically repeating that exact equal-weight pattern once per second for seven days erases up to 302400 raw units of Alice's share."
+      },
+      "recovery": {
+        "alreadyLost": "No recovery; rounded-away entitlement remains surplus.",
+        "futureAccrual": "Stopping outsider checkpoints lets later sub-unit increments combine normally.",
+        "principal": "Signal principal remains removable throughout."
+      },
+      "remediation": {
+        "decision": "remediated-and-internally-verified-in-working-tree",
+        "adr": "docs/adr/0053-beneficiary-authorized-bribe-claims.md",
+        "implementedChanges": [
+          "Require msg.sender == account or msg.sender == immutable resonance for both Bribe claim selectors.",
+          "Reject other claim callers before beneficiary checkpoint mutation with UnauthorizedClaimCaller.",
+          "Add Resonance.claimBribeRewards(strategies), which always claims canonical paired Bribes for msg.sender and supports registered live or killed Strategies.",
+          "Reject empty claim batches, validate every Strategy, allow sequential duplicates, and preserve direct scalar-token claiming."
+        ],
+        "tradeoffs": [
+          "Beneficiary-authorized claims preserve ordinary EOA, Safe, and ERC-4337 wallet-native execution.",
+          "Direct keeper and relayer claims for another beneficiary would be removed.",
+          "Resonance batches across caller-selected registered live or killed Strategies, but the atomic call may exceed gas or revert on one broken reward token.",
+          "Direct scalar-token Bribe claims remain the bounded healthy-token and gas fallback.",
+          "A scaled per-account remainder could preserve permissionless claims but adds storage, gas, and carry accounting contrary to the current accepted-floor architecture."
+        ],
+        "requiredRegressions": [
+          "third-party scalar and all-token calls revert before paid indexes change",
+          "self-claims work for EOAs and contract wallets",
+          "deferred sub-unit accrual equals a single later whole-unit claim",
+          "Resonance batches canonical live and killed Strategies and always claims for msg.sender",
+          "empty and unregistered Strategy batches revert, duplicates execute sequentially, and failures roll back atomically",
+          "broken-token scalar isolation remains intact"
+        ],
+        "regressionStatus": "The original PoC is preserved. The focused, contract-wallet, adversarial, atomicity, scalar-fallback, and gas regressions pass in the post-ADR-0053 internal campaign; independent closure remains pending."
+      }
+    },
+    {
+      "id": "CEX-03",
+      "classification": "confirmed-finding",
+      "historicalIds": [],
+      "title": "Unknown signal positions are not discoverable from bounded current state",
+      "summary": "SignalGBX exposes an account's aggregate sGBX balance but the core exposes neither an enumerable Strategy registry nor a per-account current membership set. A scalar exit is finite once a Strategy address is known. Factory-nonce CREATE derivation can recover a finite global candidate set, but its work grows with all Strategy creations and is not a state-growth-independent bounded fallback.",
+      "severity": {
+        "overall": "Medium",
+        "impact": "High",
+        "likelihood": "Low",
+        "likelihoodDetail": "Historical logs, wallet records, and normal indexers usually preserve keys, but the review explicitly requires an exit not to depend on those external discovery aids."
+      },
+      "liveness": {
+        "class": "principal exit has no state-growth-independent bounded discovery path",
+        "scope": "per account and per unknown position set",
+        "permanence": "principal is recoverable if the missing Strategy addresses are later recovered",
+        "principalBlocked": true,
+        "rewardEntitlementAffected": false,
+        "notes": "This is a discovery blocker, not a canonical balance mismatch or failure of known-key scalar removal."
+      },
+      "confidence": {
+        "level": "High",
+        "qualification": "High on the current-state surface; Medium on the practical loss scenario.",
+        "basis": "The production core mappings are non-enumerable, while Lens, SDK, subgraph, and invariant harnesses all explicitly assume caller-supplied or test-maintained Strategy keys. StrategyFactory CREATE outputs can be derived from its current nonce, but the scan grows with total global factory history."
+      },
+      "status": {
+        "state": "open-architectural-decision",
+        "closure": "unresolved",
+        "deploymentDisposition": "Open principal-exit requirement: deployment remains blocked under this review until bounded current per-account membership exists. Durable history and factory-nonce scans are mitigations, not closure."
+      },
+      "violatedInvariants": [
+        { "id": "L-02" },
+        { "id": "L-13" },
+        {
+          "id": "EXIT-DISCOVERY",
+          "description": "The only principal exit must not depend on an indexer or historical data."
+        }
+      ],
+      "affected": {
+        "users": [
+          "an sGBX holder who loses all transaction, log, wallet, and indexer records for one or more positions"
+        ],
+        "assets": ["up to the account's complete escrowed GBX"],
+        "unaffectedPaths": [
+          "scalar removal for every known Strategy address",
+          "scalar removal from killed Strategies when their addresses are known",
+          "other users' known positions"
+        ]
+      },
+      "codeLocations": [
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 83,
+          "endLine": 90,
+          "function": "isStrategyRegistered, isStrategyLive, bribeFor, bribeRouterFor mappings",
+          "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "canonical Strategy state is address-keyed and non-enumerable"
+        },
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 388,
+          "endLine": 418,
+          "function": "addStrategy",
+          "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "registers mappings but no global or per-account enumerable membership"
+        },
+        {
+          "file": "packages/contracts/src/core/SignalGBX.sol",
+          "startLine": 135,
+          "endLine": 143,
+          "function": "removeSignal",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "bounded exit requires a caller-supplied Strategy key"
+        },
+        {
+          "file": "packages/contracts/src/core/SignalGBX.sol",
+          "startLine": 152,
+          "endLine": 168,
+          "function": "removeSignalMany",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "batched exit also requires caller-supplied Strategy keys"
+        },
+        {
+          "file": "packages/contracts/src/core/StrategyFactory.sol",
+          "startLine": 81,
+          "endLine": 95,
+          "function": "createStrategy",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "two ordinary CREATE operations per Strategy graph permit finite nonce-based reconstruction whose cost grows with total factory history"
+        },
+        {
+          "file": "packages/contracts/src/periphery/SignalPortfolioLens.sol",
+          "startLine": 9,
+          "endLine": 15,
+          "function": "contract documentation",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "documents that Strategy discovery remains external"
+        },
+        {
+          "file": "packages/contracts/src/periphery/SignalPortfolioLens.sol",
+          "startLine": 58,
+          "endLine": 79,
+          "function": "portfolio",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "reads only an explicit caller-selected Strategy list"
+        },
+        {
+          "file": "packages/sdk/src/readers.ts",
+          "startLine": 308,
+          "endLine": 349,
+          "function": "readSignalPortfolio",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "requires and validates an explicit offchain Strategy list"
+        },
+        {
+          "file": "packages/subgraph/schema.graphql",
+          "startLine": 82,
+          "endLine": 97,
+          "function": "SignalPosition entity",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "replaceable event-observed discovery index is explicitly non-authoritative"
+        },
+        {
+          "file": "packages/subgraph/src/resonance.ts",
+          "startLine": 100,
+          "endLine": 140,
+          "function": "handleSignalAdded and handleSignalRemoved",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "maintains discovery from historical events rather than canonical current-state enumeration"
+        }
+      ],
+      "prerequisites": [
+        "The account has a positive sGBX balance allocated across one or more Strategies.",
+        "The account no longer knows one or more Strategy addresses.",
+        "Transaction history, logs, wallet records, and replaceable indexes are unavailable or incomplete, or the caller requires a fallback whose work does not grow with global Strategy history."
+      ],
+      "reachableSequence": [
+        { "step": 1, "action": "A user adds signal to one or more valid Strategies." },
+        {
+          "step": 2,
+          "action": "The user's Strategy-address records and all historical or indexed discovery aids become unavailable."
+        },
+        { "step": 3, "action": "The user reads a positive aggregate SignalGBX balance from current state." },
+        {
+          "step": 4,
+          "action": "No per-account bounded current-state query identifies the paired Strategy keys needed by removeSignal()."
+        },
+        {
+          "step": 5,
+          "action": "A client can derive the factory's finite CREATE outputs from its current nonce, but must scan O(total factory creations); this globally growing recovery violates L-13 and the review's bounded-exit requirement."
+        }
+      ],
+      "proof": {
+        "poc": [
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/HistoricalFindings.t.sol",
+            "startLine": 136,
+            "endLine": 147,
+            "function": "test_Repro_LensCannotDiscoverSignalWithoutCallerStrategyKey",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; aggregate sGBX and canonical Bribe weight are positive while an empty caller-supplied Strategy list returns no position row"
+          }
+        ],
+        "tests": [
+          {
+            "file": "packages/contracts/test/minimal/SignalPortfolioLens.t.sol",
+            "startLine": 22,
+            "endLine": 71,
+            "function": "caller-supplied portfolio tests",
+            "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "passes only with explicit Strategy arrays"
+          },
+          {
+            "file": "packages/contracts/test/minimal/SignalPortfolioLens.t.sol",
+            "startLine": 83,
+            "endLine": 97,
+            "function": "killed-Strategy portfolio test",
+            "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "a killed position is readable when its Strategy address is supplied"
+          },
+          {
+            "file": "packages/contracts/test/minimal/Invariants.t.sol",
+            "startLine": 168,
+            "endLine": 190,
+            "function": "strategyRegistry-backed exit invariant setup",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "the harness proves execution while assuming discovery through a test-only registry"
+          },
+          {
+            "file": "packages/sdk/tests/readers.test.ts",
+            "startLine": 235,
+            "endLine": 298,
+            "function": "readSignalPortfolio tests",
+            "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "passes with an explicit Strategy list"
+          }
+        ],
+        "observedResult": "Known-key scalar removal is finite and sound, including after Strategy kill. Aggregate current state shows that signal exists but cannot enumerate unknown allocation keys. Factory-nonce derivation avoids full address-space scanning but requires work proportional to all factory creations."
+      },
+      "whyExistingTestsMissed": "Lens and SDK tests supplied Strategy keys, while invariant harnesses maintained a test-only Strategy registry; they proved known-key execution while assuming discovery.",
+      "assetDisposition": {
+        "stolen": "none",
+        "diluted": "none",
+        "frozen": "unknown-position GBX escrow until the missing keys are recovered",
+        "delayed": "unbounded when durable records are unavailable and global factory history continues growing",
+        "permanentlyTrapped": "possible if keys are never recovered; canonical balances remain intact",
+        "description": "The problem is exit construction and discovery, not a balance mismatch or attacker transfer."
+      },
+      "maximumDamage": {
+        "scope": "per affected account",
+        "description": "Up to the account's complete escrowed GBX can remain unreachable under the review's no-history and no-indexer exit requirement."
+      },
+      "recovery": {
+        "available": "Recover the missing Strategy addresses from durable history, wallet records, logs, or an index and use scalar removals. Alternatively derive all factory CREATE outputs from the current factory nonce and filter candidates through Resonance.",
+        "currentStateOnly": "The deterministic nonce scan is finite but O(total factory creations); no state-growth-independent per-account bounded recovery exists in the reviewed architecture."
+      },
+      "remediation": {
+        "decision": "open-architectural-decision",
+        "recommendedChange": "Maintain a paginated current per-account Strategy membership set at canonical Resonance zero-to-nonzero and nonzero-to-zero Bribe transitions, while continuing to read amounts from the canonical Bribe.",
+        "tradeoffs": [
+          "Adds invariant-critical storage and transition gas.",
+          "Requires duplicate-batch, partial-removal, killed-Strategy, and rollback correctness.",
+          "Requires migration analysis, gas measurement, an ADR, and independent review.",
+          "A global append-only Strategy array is insufficient because an existing user's fallback cost grows without bound."
+        ],
+        "regressionStatus": "No production-current-state discovery regression can exist until an enumerable membership design is implemented."
+      }
+    },
+    {
+      "id": "CEX-04",
+      "classification": "confirmed-finding",
+      "historicalIds": ["V12-249702"],
+      "title": "Mine accepts pre-binding tenures that survive canonicalization",
+      "summary": "An empty Mine slot can be occupied before GBX permanently binds mint authority because the first occupation has no outgoing tenure to settle and therefore does not mint. After handoff, a later replacement mints the complete preserved pre-binding tenure to the attacker.",
+      "severity": {
+        "overall": "Low",
+        "impact": "Medium",
+        "likelihood": "Low",
+        "likelihoodDetail": "Permissionless on a publicly visible unbound candidate, but controllable by atomic or private setup and mandatory abandonment of any touched candidate before exposure."
+      },
+      "liveness": {
+        "class": "pre-exposure immutable graph contamination",
+        "scope": "one or all sixteen Mine slots on an unbound candidate",
+        "permanence": "permanent after the contaminated candidate is bound and exposed",
+        "principalBlocked": false,
+        "rewardEntitlementAffected": false,
+        "notes": "This is dilution and deployment contamination, not post-launch theft of an existing holder's principal."
+      },
+      "confidence": {
+        "level": "High",
+        "basis": "A public-function reproduction occupies a real Mine slot before handoff and receives the exact preserved tenure emission after handoff."
+      },
+      "status": {
+        "state": "accepted-deployment-blocker",
+        "closure": "source-hardening-not-selected",
+        "deploymentDisposition": "Every slot must be proven untouched after binding; any contaminated candidate must be abandoned before funding or user exposure."
+      },
+      "violatedInvariants": [
+        {
+          "id": "L-08",
+          "qualification": "The finite Mine settlement guarantee assumes a clean, correctly bound candidate."
+        },
+        {
+          "id": "L-14",
+          "qualification": "An exposed pre-binding candidate can retain attacker-selected tenure state across canonicalization."
+        }
+      ],
+      "affected": {
+        "users": [
+          "later GBX holders diluted by preserved pre-binding issuance",
+          "deployment operators who bind a contaminated candidate"
+        ],
+        "assets": ["future GBX issuance from up to all sixteen initial tenures"],
+        "unaffectedPaths": ["existing user principal transfers", "a fresh candidate abandoned before exposure"]
+      },
+      "codeLocations": [
+        {
+          "file": "packages/contracts/src/core/Mine.sol",
+          "startLine": 197,
+          "endLine": 249,
+          "function": "mine",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "empty-slot occupation does not require GBX minter handoff"
+        },
+        {
+          "file": "packages/contracts/src/core/Mine.sol",
+          "startLine": 329,
+          "endLine": 339,
+          "function": "_settleSlot",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "later replacement mints complete preserved tenure after handoff"
+        },
+        {
+          "file": "packages/contracts/src/core/GBX.sol",
+          "startLine": 69,
+          "endLine": 90,
+          "function": "setMinter",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "irreversible handoff canonicalizes a Mine without checking untouched slot state"
+        }
+      ],
+      "prerequisites": [
+        "A Mine candidate is publicly callable before GBX permanently binds it.",
+        "The attacker pays the current empty-slot auction price and occupies one or more slots.",
+        "Setup later calls GBX.setMinter on the same Mine.",
+        "A later replacement settles the preserved outgoing tenure."
+      ],
+      "reachableSequence": [
+        {
+          "step": 1,
+          "action": "Deploy GBX and Mine but leave GBX minter authority unlocked and pointing at the setup minter."
+        },
+        {
+          "step": 2,
+          "action": "An attacker calls mine() for an empty slot; _settleSlot returns without minting because the prior miner is zero."
+        },
+        { "step": 3, "action": "Time advances while the attacker's tenure accrues." },
+        { "step": 4, "action": "The setup minter calls GBX.setMinter(Mine)." },
+        {
+          "step": 5,
+          "action": "A later caller replaces the slot and Mine mints the full pre-binding tenure to the attacker."
+        }
+      ],
+      "proof": {
+        "poc": [
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/HistoricalFindings.t.sol",
+            "startLine": 150,
+            "endLine": 177,
+            "function": "test_Repro_PreBindingMineSlotCaptureSettlesAfterHandoff",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes as a deterministic public-function reproduction"
+          },
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/HistoricalFindings.t.sol",
+            "startLine": 181,
+            "endLine": 221,
+            "function": "test_Repro_PreBindingOccupiedMineCannotSettleAfterGBXBindsDifferentMine",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; settlement rolls back while unbound and remains permanently impossible after GBX locks to a different Mine"
+          }
+        ],
+        "tests": [],
+        "observedResult": "One slot occupied before handoff and replaced ten seconds after handoff pays exactly 40 ether GBX to the pre-binding miner."
+      },
+      "whyExistingTestsMissed": "Ordinary fixtures bound GBX to Mine immediately and never exercised permissionless empty-slot occupation before the one-time minter handoff.",
+      "assetDisposition": {
+        "stolen": "none from existing holders",
+        "diluted": "later GBX holders through attacker-controlled pre-binding issuance",
+        "frozen": "none",
+        "delayed": "none",
+        "permanentlyTrapped": "none",
+        "description": "The attacker receives newly issued GBX for preserved tenure; known user positions and exits remain live."
+      },
+      "maximumDamage": {
+        "scope": "deployment-wide dilution",
+        "description": "An attacker can preoccupy all sixteen initial slots and preserve aggregate initial issuance of 64 GBX per second for the entire pre-binding interval. No existing holder's tokens are directly transferred."
+      },
+      "recovery": {
+        "beforeExposure": "Inspect all sixteen slots and abandon and redeploy any touched candidate.",
+        "afterBindingAndExposure": "No clawback, tenure deletion, owner action, or migration path exists."
+      },
+      "remediation": {
+        "decision": "deployment-control-selected; source-hardening-open",
+        "sourceOption": "Gate only empty-slot occupation on gbx.minterLocked() and gbx.minter() == address(this).",
+        "operationalOption": "Use an atomic or private deploy-and-bind sequence and record an all-sixteen-slots-untouched receipt immediately after binding.",
+        "tradeoffs": [
+          "Source gating adds reads of permanent setup facts and changes the intentionally simple Mine behavior.",
+          "Operational control remains fallible if a publicly touched candidate is not detected and abandoned.",
+          "Contract addresses are observable even when omitted from a frontend."
+        ],
+        "regressionStatus": "The reproduction passes and source remains unchanged; the deployment-abandonment gate remains mandatory."
+      }
+    },
+    {
+      "id": "CEX-05",
+      "classification": "confirmed-finding",
+      "historicalIds": [],
+      "title": "SDK release status is self-declared rather than authenticated",
+      "summary": "The SDK parses caller-supplied deployment data containing status release-approved and selects it without authenticating a signature, artifact hash, immutable arguments, reciprocal graph, or onchain ownership and minter state.",
+      "severity": {
+        "overall": "Low",
+        "impact": "High",
+        "impactDetail": "High if a consumer mistakes syntactic selection for deployment authentication.",
+        "likelihood": "Low",
+        "likelihoodDetail": "No current production consumer or current release manifest was found, and current repository release selection fails closed."
+      },
+      "liveness": {
+        "class": "counterfeit integration or unsafe call construction",
+        "scope": "any consumer that mistakes syntactic selection for deployment authentication",
+        "permanence": "asset-specific after a wallet approves or calls a counterfeit graph",
+        "principalBlocked": true,
+        "rewardEntitlementAffected": true,
+        "notes": "This is a latent SDK trust-boundary hazard, not a demonstrated exploit of a current production consumer."
+      },
+      "confidence": {
+        "level": "High",
+        "qualification": "High on the API behavior; Medium on exploitation because no current consumer was found.",
+        "basis": "Source inspection proves the parser and selector authenticate only syntax and the caller-provided status label; no current production consumer was found to misuse it."
+      },
+      "status": {
+        "state": "semantic-hardening-implemented",
+        "closure": "claimed-status-rename-internally-verified",
+        "deploymentDisposition": "Current configuration correctly blocks release tooling; caller-claimed SDK metadata still must not be treated as authenticated evidence."
+      },
+      "violatedInvariants": [
+        {
+          "id": "L-14",
+          "qualification": "Selection alone cannot prove the exact immutable graph required before exposure."
+        }
+      ],
+      "affected": {
+        "users": ["wallet or integration users of a consumer that accepts untrusted deployment JSON"],
+        "assets": [
+          "any approval, payment, GBX, sGBX, USDG, or reward-token interaction directed by the counterfeit graph"
+        ],
+        "unaffectedPaths": [
+          "current repository release tooling, which fails closed",
+          "consumers that separately verify the signed manifest and live graph"
+        ]
+      },
+      "codeLocations": [
+        {
+          "file": "packages/sdk/src/deployment.ts",
+          "startLine": 8,
+          "endLine": 30,
+          "function": "protocolAddressesSchema",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "checks zero and duplicate addresses but not code or graph authenticity"
+        },
+        {
+          "file": "packages/sdk/src/deployment.ts",
+          "startLine": 51,
+          "endLine": 69,
+          "function": "protocolDeploymentSchema",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "accepts caller-declared release-approved status and manifest hash"
+        },
+        {
+          "file": "packages/sdk/src/deployment.ts",
+          "startLine": 71,
+          "endLine": 73,
+          "function": "parseProtocolDeployment",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "performs syntactic schema parsing only"
+        },
+        {
+          "file": "packages/sdk/src/deployment.ts",
+          "startLine": 75,
+          "endLine": 90,
+          "function": "selectProtocolDeployment",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "filters on caller-supplied status without cryptographic or onchain verification"
+        }
+      ],
+      "prerequisites": [
+        "An integration accepts attacker-supplied or operator-supplied deployment JSON.",
+        "The integration treats parsed or selected release-approved status as authentication.",
+        "The integration does not separately verify signed current-schema manifest evidence and the live immutable graph."
+      ],
+      "reachableSequence": [
+        {
+          "step": 1,
+          "action": "Construct a syntactically valid deployment object with arbitrary unique nonzero addresses, a bytes32 manifestPayloadHash, and status release-approved."
+        },
+        { "step": 2, "action": "Pass the object to parseProtocolDeployment() or selectProtocolDeployment()." },
+        {
+          "step": 3,
+          "action": "The SDK returns the object because the status is caller-declared and the schema does not authenticate the graph."
+        },
+        { "step": 4, "action": "A misconfigured consumer builds approvals or calls against the counterfeit addresses." }
+      ],
+      "proof": {
+        "poc": [
+          {
+            "file": "packages/sdk/tests/minimal-sdk.test.ts",
+            "startLine": 100,
+            "endLine": 140,
+            "function": "labels unauthenticated release metadata as caller-claimed and rejects the legacy status key",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; caller-authored claimedStatus metadata remains explicitly unauthenticated, legacy status input is rejected, and draft selection requires requireClaimedReleaseApproved false"
+          }
+        ],
+        "tests": [],
+        "observedResult": "The current SDK explicitly labels syntactically valid but unauthenticated deployment metadata as claimedStatus and rejects the ambiguous legacy status key. No current production consumer exploit was reproduced because none was found."
+      },
+      "whyExistingTestsMissed": "Schema tests treated status as syntax and selection metadata; no authentication implementation or current production consumer existed to require a provenance assertion.",
+      "assetDisposition": {
+        "stolen": "consumer-dependent if a wallet approves a malicious selected graph",
+        "diluted": "consumer-dependent",
+        "frozen": "consumer-dependent",
+        "delayed": "consumer-dependent",
+        "permanentlyTrapped": "consumer-dependent on counterfeit contract behavior",
+        "description": "The SDK behavior alone moves no funds; downstream damage arises only if a consumer misuses selection as authentication."
+      },
+      "maximumDamage": {
+        "scope": "consumer-dependent",
+        "description": "If a consumer misuses the returned object as verified, loss is bounded only by the approvals and funds its wallet gives the counterfeit or cross-wired graph."
+      },
+      "recovery": {
+        "beforeInteraction": "Reject or independently verify the object before any approval or call.",
+        "afterInteraction": "Recovery depends on the counterfeit contracts and the asset-specific transaction; the GumBall6900 core supplies no recovery path."
+      },
+      "remediation": {
+        "decision": "explicit-naming-implemented-authentication-open",
+        "recommendedChanges": [
+          "Retain claimedStatus and requireClaimedReleaseApproved so parsing and selection cannot be confused with authentication.",
+          "Return a branded VerifiedProtocolDeployment only from a verifier bound to a signed current-schema manifest.",
+          "Verify artifact hashes, immutable arguments, reciprocal graph identities, runtime code, ownership removal, and the minter chain against live evidence."
+        ],
+        "tradeoffs": [
+          "A verifier requires signature handling, RPC or onchain reads, artifact provenance, and explicit trust-root management.",
+          "Branding or renaming is an SDK API change for future consumers."
+        ],
+        "regressionStatus": "The claimedStatus rename, legacy-key rejection, claimed-only selector option, SDK 55/55, typecheck, build, package dry-run, and generated documentation checks pass. No positive verifier/authentication regression exists because authentication remains a separate release gate; current configuration remains fail closed."
+      }
+    },
+    {
+      "id": "CEX-06",
+      "classification": "rejected-candidate",
+      "historicalIds": [],
+      "title": "Rejected: Mine and Fund uint256 horizon requires a timestamp beyond the target client",
+      "summary": "Foundry can model a timestamp at which Mine arithmetic overflows, but the pinned Robinhood/Nitro client stores header time as uint64. Canonical public issuance is bounded by 64 ether per second, so target-representable time cannot approach the uint256 boundary.",
+      "severity": {
+        "overall": null,
+        "impact": "Critical",
+        "impactDetail": "Counterfactual Critical impact only on an EVM host that admits timestamps larger than the target client can encode; severity is not counted because the candidate is rejected.",
+        "likelihood": "Unreachable",
+        "likelihoodDetail": "The pinned target client's block-header timestamp is uint64, while the modeled overflow requires approximately 1.809e57 elapsed seconds."
+      },
+      "liveness": {
+        "class": "counterfactual host-model arithmetic boundary",
+        "scope": "not target-reachable",
+        "permanence": "not applicable on the pinned target execution model",
+        "principalBlocked": false,
+        "rewardEntitlementAffected": false,
+        "notes": "The defensive Foundry boundary is retained, but it does not falsify target-chain exitability."
+      },
+      "confidence": {
+        "level": "High",
+        "basis": "Pinned target-client source uses Header.Time uint64 and TIMESTAMP SetUint64. Source review bounds each slot at 4 ether TPS and aggregateTps at 64 ether; the defensive test proves target-maximum uint64 time remains safe before modeling the host-only boundary."
+      },
+      "status": {
+        "state": "rejected-target-unreachable",
+        "closure": "rejected-with-defensive-test-retained",
+        "deploymentDisposition": "Not a deployment blocker. Preserve the target timestamp proof and do not present host-only vm.warp behavior as reachable."
+      },
+      "rejectionReason": "The required timestamp exceeds uint64, but the pinned target execution client stores block-header time as uint64 and pushes only that value into TIMESTAMP. With aggregateTps <= 64 ether and GBX minting locked to Mine, effective supply remains at most (2^64 - 1) * 64 ether, roughly 9.8e37 below uint256 maximum.",
+      "targetExecutionEvidence": {
+        "officialNodeGuide": "https://docs.robinhood.com/chain/run-a-full-node/",
+        "nitroImage": "offchainlabs/nitro-node:v3.11.2-3599aca",
+        "nitroCommit": "3599acae1ad2fab4059fc46453c9cd3294126641",
+        "gethCommit": "f3a977ddf30b138da2fe673ac5cbff2bc6dd4c88",
+        "headerTime": "https://github.com/OffchainLabs/go-ethereum/blob/f3a977ddf30b138da2fe673ac5cbff2bc6dd4c88/core/types/block.go#L74-L87",
+        "timestampOpcode": "https://github.com/OffchainLabs/go-ethereum/blob/f3a977ddf30b138da2fe673ac5cbff2bc6dd4c88/core/vm/instructions.go#L473-L475"
+      },
+      "violatedInvariants": [],
+      "affected": {
+        "users": [
+          "counterfactual Mine slot occupants on a host admitting timestamps beyond uint64",
+          "counterfactual GBX redeemers on that host"
+        ],
+        "assets": ["unminted GBX emission", "caller-selected Fund backing reachable only through redemption"],
+        "unaffectedPaths": [
+          "all target-representable Mine settlement and effective-supply arithmetic with respect to this candidate",
+          "ordinary transfers of already minted GBX",
+          "previously accrued USDG miner claims"
+        ]
+      },
+      "codeLocations": [
+        {
+          "file": "packages/contracts/src/core/Mine.sol",
+          "startLine": 288,
+          "endLine": 293,
+          "function": "pendingSlotEmission",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "elapsed time multiplied by slot TPS"
+        },
+        {
+          "file": "packages/contracts/src/core/Mine.sol",
+          "startLine": 298,
+          "endLine": 300,
+          "function": "pendingEmission",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "elapsed time multiplied by aggregate TPS and added to stored pending emission"
+        },
+        {
+          "file": "packages/contracts/src/core/Mine.sol",
+          "startLine": 305,
+          "endLine": 307,
+          "function": "effectiveTotalSupply",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "adds pending emission to total supply"
+        },
+        {
+          "file": "packages/contracts/src/core/Mine.sol",
+          "startLine": 320,
+          "endLine": 323,
+          "function": "_accruePendingEmission",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "Mine replacement checkpoints the overflowing pending-emission expression"
+        },
+        {
+          "file": "packages/contracts/src/core/Mine.sol",
+          "startLine": 329,
+          "endLine": 339,
+          "function": "_settleSlot",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "settlement arithmetic and monotonic issuance counters share finite ceilings"
+        },
+        {
+          "file": "packages/contracts/src/core/GBX.sol",
+          "startLine": 97,
+          "endLine": 106,
+          "function": "mint",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "lifetimeMinted and total supply are finite monotonic uint256 quantities"
+        },
+        {
+          "file": "packages/contracts/src/core/Fund.sol",
+          "startLine": 102,
+          "endLine": 157,
+          "function": "redeem",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "redemption must read Mine.effectiveTotalSupply before burning or paying assets"
+        }
+      ],
+      "prerequisites": [
+        "One or more occupied Mine slots maintain a positive aggregate TPS.",
+        "An EVM host admits a block timestamp larger than uint64 and advances far enough that elapsed seconds multiplied by aggregate TPS exceeds uint256 headroom.",
+        "This precondition is not reachable on the pinned target client without changing the execution model."
+      ],
+      "reachableSequence": [],
+      "reachabilityReason": "No reachable target sequence exists: pinned Nitro stores the timestamp as uint64, while the first failing timestamp is approximately 1.8e57 seconds.",
+      "counterfactualSequence": [
+        {
+          "step": 1,
+          "action": "Occupy all sixteen slots at the initial aggregate rate of 64 ether raw GBX per second."
+        },
+        {
+          "step": 2,
+          "action": "On Foundry's host-only model, advance beyond uint64 to the last second at which total supply plus pending emission fits uint256; effectiveTotalSupply succeeds."
+        },
+        { "step": 3, "action": "Advance one more second; effectiveTotalSupply reverts with arithmetic panic." },
+        { "step": 4, "action": "Fund.redeem reverts when it reads the denominator." },
+        {
+          "step": 5,
+          "action": "Advance to pendingEmission's first-invalid second; pendingEmission and Mine replacement revert with arithmetic panic."
+        }
+      ],
+      "arithmetic": {
+        "initialAggregateTpsRawPerSecond": "64000000000000000000",
+        "targetMaximumTimestamp": "18446744073709551615",
+        "maximumTargetIntegratedEmissionRaw": "1180591620717411303360000000000000000000",
+        "targetSafetyFactorBelowUint256": "approximately 9.8079714615e37",
+        "lastSafePendingEmissionSecondsAtInitialRate": "1809251394333065553493296640760748560207343510400633813116",
+        "approximateYears": "5.733e49",
+        "effectiveSupplyQualification": "Any nonzero GBX total supply makes effectiveTotalSupply overflow slightly before pendingEmission reaches its standalone bound."
+      },
+      "proof": {
+        "poc": [],
+        "tests": [
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/ExitabilityBlastRadius.t.sol",
+            "startLine": 395,
+            "endLine": 450,
+            "function": "test_DefensiveModel_MineAndFundUint256OverflowRequiresTimestampBeyondTargetUint64",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "passes; target-maximum uint64 timestamp is in range, then the explicitly host-only Foundry model records exact last-valid and first-invalid uint256 boundaries"
+          }
+        ],
+        "observedResult": "At type(uint64).max timestamp, pending emission and effective supply remain in range. Foundry can then warp beyond the target representation: at that counterfactual last effective-supply second the view succeeds, and one second later it and Fund redemption revert."
+      },
+      "whyExistingTestsMissed": "Not applicable: this record is rejected. The initial audit model failed to constrain Foundry's timestamp to the target client's uint64 header representation.",
+      "assetDisposition": {
+        "stolen": "none",
+        "diluted": "none from this rejected candidate",
+        "frozen": "none on the pinned target execution model",
+        "delayed": "none on the pinned target execution model",
+        "permanentlyTrapped": "none on the pinned target execution model",
+        "description": "Only a counterfactual host model beyond target uint64 time exhibits the arithmetic failure."
+      },
+      "maximumDamage": {
+        "scope": "counterfactual only",
+        "description": "If the target execution model changed to admit the required timestamp, later Mine replacement and Fund redemption would fail. No such target-reachable damage was demonstrated."
+      },
+      "recovery": {
+        "afterHorizon": "Not applicable on the pinned target client.",
+        "practicalAssessment": "The candidate is rejected on target reachability, not merely assigned a low likelihood."
+      },
+      "remediation": {
+        "decision": "no-source-change-recommended",
+        "recommendedTreatment": "Retain the defensive test and target uint64 proof; do not change source for a state the target cannot encode.",
+        "tradeoffs": [
+          "Saturation would silently change pending-supply accounting.",
+          "An emission halt would change protocol economics.",
+          "Modular arithmetic would be unsafe.",
+          "Upgrade or migration authority would violate the intended immutable architecture."
+        ],
+        "regressionStatus": "The renamed defensive regression passes and explicitly separates target-safe uint64 time from Foundry's host-only model."
+      }
+    },
+    {
+      "id": "CEX-07",
+      "classification": "confirmed-finding",
+      "historicalIds": [],
+      "title": "Signal exits have a finite ERC-5805 block-clock horizon",
+      "summary": "OpenZeppelin Votes uses a uint48 default block-number clock. Every SignalGBX burn updates voting checkpoints, so once block.number exceeds type(uint48).max, scalar and batched signal removal revert before sGBX burn and GBX return can complete.",
+      "severity": {
+        "overall": "Informational",
+        "impact": "Critical",
+        "impactDetail": "Critical only after the explicit physically non-actionable ERC-5805 clock horizon because all SignalGBX principal becomes globally unremovable.",
+        "likelihood": "Negligible",
+        "likelihoodDetail": "Physically non-actionable; exact Nitro returns the parent-chain number as uint64, so the uint48 boundary is target-representable but approximately 107 million years away at a 12-second parent-block cadence."
+      },
+      "liveness": {
+        "class": "eventual global sGBX burn and signal-exit lock",
+        "scope": "global after the ERC-5805 block-clock horizon",
+        "permanence": "permanent after the chain block number exceeds uint48",
+        "principalBlocked": true,
+        "rewardEntitlementAffected": false,
+        "notes": "The separate uint208 safe-supply ceiling blocks excessive new minting but does not trap already valid balances before the block-clock horizon."
+      },
+      "confidence": {
+        "level": "High",
+        "basis": "An exact boundary test removes signal at type(uint48).max and observes the expected SafeCast revert at the next block while balances and weights roll back atomically. Exact target source proves NUMBER returns a uint64 parent-chain number and has no lower uint48 guard."
+      },
+      "status": {
+        "state": "accepted-explicit-horizon",
+        "closure": "no-source-change-recommended",
+        "deploymentDisposition": "Document the finite clock horizon and avoid unqualified claims that signal exits work forever."
+      },
+      "targetExecutionEvidence": {
+        "officialNodeGuide": "https://docs.robinhood.com/chain/run-a-full-node/",
+        "nitroImage": "offchainlabs/nitro-node:v3.11.2-3599aca",
+        "nitroCommit": "3599acae1ad2fab4059fc46453c9cd3294126641",
+        "gethCommit": "f3a977ddf30b138da2fe673ac5cbff2bc6dd4c88",
+        "arbosHookInstallation": "https://github.com/OffchainLabs/nitro/blob/3599acae1ad2fab4059fc46453c9cd3294126641/gethhook/geth-hook.go#L63-L67",
+        "incomingParentNumber": "https://github.com/OffchainLabs/nitro/blob/3599acae1ad2fab4059fc46453c9cd3294126641/arbos/arbostypes/incomingmessage.go#L51-L68",
+        "parentNumberStorage": "https://github.com/OffchainLabs/nitro/blob/3599acae1ad2fab4059fc46453c9cd3294126641/arbos/blockhash/blockhash.go#L16-L30",
+        "transactionProcessorHook": "https://github.com/OffchainLabs/nitro/blob/3599acae1ad2fab4059fc46453c9cd3294126641/arbos/tx_processor.go#L915-L929",
+        "numberHook": "https://github.com/OffchainLabs/go-ethereum/blob/f3a977ddf30b138da2fe673ac5cbff2bc6dd4c88/core/vm/instructions.go#L478-L485",
+        "numberWidth": "uint64; type(uint48).max + 1 is representable",
+        "liveProbes": {
+          "mainnet": {
+            "chainId": 4663,
+            "l2BlockNumber": 49544677,
+            "l2BlockHash": "0x05ef4668a2bf11d25fad69f96151c63f16f9ccd66efc1fcbee2da75bcbe06a9c",
+            "numberOpcodeResult": 25864185,
+            "arbSysBlockNumberResult": 49544677
+          },
+          "testnet": {
+            "chainId": 46630,
+            "l2BlockNumber": 109611117,
+            "l2BlockHash": "0xa95bb03bff687dfb99d992f39e2336e678fc72aa8e574c08c04de2bd75f26de2",
+            "numberOpcodeResult": 11595007,
+            "arbSysBlockNumberResult": 109611117
+          },
+          "creationCode": "0x435f5260205ff3",
+          "interpretation": "NUMBER returns the parent-chain block counter; ArbSys.arbBlockNumber returns the distinct L2 header number."
+        }
+      },
+      "violatedInvariants": [
+        {
+          "id": "L-01",
+          "qualification": "violated only after the explicitly accepted physically non-actionable ERC-5805 clock horizon"
+        },
+        {
+          "id": "L-18",
+          "qualification": "The uint48 block clock eventually stops every receipt burn and therefore every signal exit."
+        }
+      ],
+      "affected": {
+        "users": ["every sGBX holder after the clock horizon"],
+        "assets": ["all GBX escrowed behind outstanding sGBX after the clock horizon"],
+        "unaffectedPaths": [
+          "ordinary liquid GBX transfers",
+          "Fund redemption by liquid GBX holders",
+          "non-voting protocol paths that do not mint or burn SignalGBX"
+        ]
+      },
+      "codeLocations": [
+        {
+          "file": "packages/contracts/src/core/SignalGBX.sol",
+          "startLine": 135,
+          "endLine": 168,
+          "function": "removeSignal and removeSignalMany",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "all principal exits eventually burn SignalGBX"
+        },
+        {
+          "file": "packages/contracts/src/core/SignalGBX.sol",
+          "startLine": 217,
+          "endLine": 220,
+          "function": "_burnAndWithdraw",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "receipt burn precedes GBX return atomically"
+        },
+        {
+          "file": "packages/contracts/src/core/SignalGBX.sol",
+          "startLine": 228,
+          "endLine": 231,
+          "function": "_update",
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "delegates mint and burn accounting to ERC20Votes"
+        },
+        {
+          "file": "packages/contracts/node_modules/@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol",
+          "startLine": 39,
+          "endLine": 58,
+          "function": "_maxSupply and _update",
+          "revision": "@openzeppelin/contracts@5.6.1",
+          "role": "every mint or burn transfers voting units and enforces the separate uint208 supply ceiling"
+        },
+        {
+          "file": "packages/contracts/node_modules/@openzeppelin/contracts/governance/utils/Votes.sol",
+          "startLine": 59,
+          "endLine": 61,
+          "function": "clock",
+          "revision": "@openzeppelin/contracts@5.6.1",
+          "role": "uses Time.blockNumber as the default uint48 clock"
+        },
+        {
+          "file": "packages/contracts/node_modules/@openzeppelin/contracts/governance/utils/Votes.sol",
+          "startLine": 182,
+          "endLine": 190,
+          "function": "_transferVotingUnits",
+          "revision": "@openzeppelin/contracts@5.6.1",
+          "role": "burns push total-supply checkpoints"
+        },
+        {
+          "file": "packages/contracts/node_modules/@openzeppelin/contracts/governance/utils/Votes.sol",
+          "startLine": 233,
+          "endLine": 239,
+          "function": "_push",
+          "revision": "@openzeppelin/contracts@5.6.1",
+          "role": "checkpoint writes call the uint48 clock"
+        },
+        {
+          "file": "packages/contracts/node_modules/@openzeppelin/contracts/utils/types/Time.sol",
+          "startLine": 30,
+          "endLine": 35,
+          "function": "blockNumber",
+          "revision": "@openzeppelin/contracts@5.6.1",
+          "role": "downcasts block.number to uint48"
+        },
+        {
+          "file": "packages/contracts/node_modules/@openzeppelin/contracts/utils/math/SafeCast.sol",
+          "startLine": 475,
+          "endLine": 480,
+          "function": "toUint48",
+          "revision": "@openzeppelin/contracts@5.6.1",
+          "role": "reverts once block.number is greater than type(uint48).max"
+        }
+      ],
+      "prerequisites": [
+        "At least one valid SignalGBX position exists.",
+        "The target parent-chain block number returned by Nitro's NUMBER hook advances above 281474976710655, which is type(uint48).max."
+      ],
+      "reachableSequence": [
+        { "step": 1, "action": "A user holds one valid SignalGBX unit allocated to a Strategy." },
+        { "step": 2, "action": "At block type(uint48).max, removeSignal succeeds and returns GBX." },
+        { "step": 3, "action": "Create another valid one-unit position before crossing the bound." },
+        { "step": 4, "action": "Advance to block type(uint48).max + 1." },
+        {
+          "step": 5,
+          "action": "removeSignal reaches ERC20Votes checkpointing; Time.blockNumber downcast reverts and the entire removal rolls back."
+        }
+      ],
+      "arithmetic": {
+        "lastValidBlockNumber": "281474976710655",
+        "firstInvalidBlockNumber": "281474976710656",
+        "approximateYearsAtTwelveSecondParentBlocks": "1.07e8",
+        "targetNumberWidth": "uint64"
+      },
+      "proof": {
+        "poc": [
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/ExitabilityBlastRadius.t.sol",
+            "startLine": 452,
+            "endLine": 478,
+            "function": "test_SignalExitWorksAtLastERC5805BlockAndFailsBeyondTheClockHorizon",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; last-valid block exits and first-invalid block reverts with SafeCastOverflowedUintDowncast while principal state rolls back"
+          }
+        ],
+        "tests": [],
+        "observedResult": "Removal at the last uint48 block succeeds. At the next block it reverts with the expected SafeCast error; the user retains one sGBX and the paired Bribe retains one signal-weight unit."
+      },
+      "whyExistingTestsMissed": "Ordinary tests never advanced block.number to the exact uint48 clock boundary and therefore did not exercise the inherited ERC20Votes downcast during the removal burn.",
+      "assetDisposition": {
+        "stolen": "none",
+        "diluted": "none",
+        "frozen": "all GBX escrowed behind outstanding sGBX after the clock horizon",
+        "delayed": "superseded by permanent freeze",
+        "permanentlyTrapped": "all GBX escrowed behind outstanding sGBX after the clock horizon",
+        "description": "No asset transfers to an attacker; all SignalGBX principal becomes globally unremovable."
+      },
+      "maximumDamage": {
+        "scope": "global after the horizon",
+        "description": "Every sGBX burn and therefore every scalar or batched signal-principal exit fails, leaving all outstanding escrowed GBX inaccessible through SignalGBX."
+      },
+      "recovery": {
+        "afterHorizon": "No recovery exists in the immutable deployment absent chain replacement or a separately deployed successor, neither of which is provided by the protocol.",
+        "practicalAssessment": "The horizon is approximately 107 million years away at a 12-second parent-block cadence, but it remains representable inside the target's uint64 NUMBER path."
+      },
+      "remediation": {
+        "decision": "no-source-change-recommended",
+        "recommendedTreatment": "Retain the exact boundary regression, document the finite clock horizon, and avoid unqualified perpetuity language.",
+        "tradeoffs": [
+          "Changing the Votes clock or checkpoint architecture is a major compatibility and governance design change.",
+          "An already deployed immutable SignalGBX cannot change its clock behavior.",
+          "Adding upgrade or migration authority would conflict with the intended immutable core."
+        ],
+        "regressionStatus": "The last-valid and first-invalid block regression passes and the horizon remains explicitly accepted."
+      }
+    },
+    {
+      "id": "CEX-08",
+      "classification": "confirmed-finding",
+      "historicalIds": ["GPT-L-02"],
+      "title": "Permissionless Strategy checkpoints maximize accepted floor loss",
+      "summary": "Any caller can checkpoint one Strategy's Resonance revenue. The checkpoint floors its scaled USDG accrual to whole raw units and advances the paid index even when zero is credited, so attacker-selected cadence can destroy otherwise combinable fractional Strategy entitlement.",
+      "severity": {
+        "overall": "Low",
+        "impact": "Low",
+        "impactDetail": "Protocol USDG yield is destroyed as ownerless Resonance surplus; no signal principal is blocked and no value is transferred to the caller.",
+        "likelihood": "Low",
+        "likelihoodDetail": "Publicly feasible but generally uneconomic under intended six-decimal USDG because each effective target checkpoint destroys less than one raw unit."
+      },
+      "liveness": {
+        "class": "per-Strategy protocol-yield destruction",
+        "scope": "one attacker-selected Strategy per checkpoint",
+        "permanence": "each floored fractional entitlement is permanently lost; future uncheckpointed intervals can still accrue",
+        "principalBlocked": false,
+        "rewardEntitlementAffected": true,
+        "notes": "The PoC makes global division exact and isolates the per-Strategy conversion floor."
+      },
+      "confidence": {
+        "level": "High",
+        "basis": "Reproduced through canonical SignalGBX, Bribe, ResonanceRouter, and permissionless Resonance public functions without storage mutation."
+      },
+      "status": {
+        "state": "accepted-design-risk",
+        "closure": "confirmed-and-documented-no-source-change-under-current-architecture",
+        "deploymentDisposition": "Retain the Low residual and ordinary-floor disclosure. Any scaled-carry remediation requires an ADR, differential accounting proofs, and fresh review."
+      },
+      "violatedInvariants": [],
+      "affected": {
+        "users": ["No account principal is affected; Strategy acquisition inventory may receive less Resonance USDG."],
+        "assets": ["fractional USDG otherwise combinable into the target Strategy's whole-unit entitlement"],
+        "unaffectedPaths": [
+          "SignalGBX principal removal",
+          "Bribe reward claims",
+          "Fund redemption",
+          "Mine settlement and miner claims"
+        ]
+      },
+      "codeLocations": [
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 326,
+          "endLine": 337,
+          "function": "distributeRevenue",
+          "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "permissionless entry point that checkpoints one caller-selected Strategy"
+        },
+        {
+          "file": "packages/contracts/src/core/Resonance.sol",
+          "startLine": 502,
+          "endLine": 515,
+          "function": "_updateRevenue",
+          "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "floors Strategy accrual and advances its paid index even when the credited whole amount is zero"
+        }
+      ],
+      "prerequisites": [
+        "At least two live Strategies have nonzero active weight.",
+        "A Resonance USDG stream is active.",
+        "The target Strategy's entitlement during each chosen interval is below one raw USDG unit."
+      ],
+      "reachableSequence": [
+        { "step": 1, "action": "Give two live Strategies one raw signal unit each." },
+        {
+          "step": 2,
+          "action": "Schedule one raw USDG unit per second; the exact global index increment is 0.5e36 per second."
+        },
+        {
+          "step": 3,
+          "action": "After one second, an unrelated caller distributes the target; zero is credited and its paid index advances."
+        },
+        { "step": 4, "action": "After a second second, repeat; another half raw unit is floored to zero." },
+        {
+          "step": 5,
+          "action": "Distribute the uncheckpointed control Strategy; its two halves combine into one raw USDG unit."
+        }
+      ],
+      "arithmetic": {
+        "lossFormula": "floor(weight * sum(deltaIndex[i]) / 1e36) - sum(floor(weight * deltaIndex[i] / 1e36))",
+        "perCheckpointBound": "strictly less than one raw USDG unit per effective target checkpoint",
+        "exampleSevenDayTargetLossRaw": 302400,
+        "exampleSevenDayTargetLossSixDecimalUSDG": "0.3024",
+        "qualification": "The example is not a universal maximum; cumulative loss is below the number of effective forced target checkpoints in raw units."
+      },
+      "proof": {
+        "poc": [
+          {
+            "file": "packages/contracts/test/minimal/audit-exitability/HistoricalFindings.t.sol",
+            "startLine": 135,
+            "endLine": 154,
+            "function": "test_Repro_ThirdPartyDistributionForcesFractionalStrategyCheckpoints",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "compiledByDefault": true,
+            "result": "passes; two forced target checkpoints pay zero and the uncheckpointed control receives one raw USDG"
+          }
+        ],
+        "tests": [],
+        "observedResult": "The global division is exact, the target receives zero after each attacker-selected half-unit interval, and the control receives one raw unit after two seconds."
+      },
+      "whyExistingTestsMissed": "Existing tests documented ordinary per-Strategy flooring and permissionless distribution separately, but did not let an unrelated caller adversarially choose a target Strategy's fractional checkpoint cadence.",
+      "assetDisposition": {
+        "stolen": "none",
+        "diluted": "none",
+        "frozen": "none",
+        "delayed": "none; the affected fractions are destroyed rather than deferred",
+        "permanentlyTrapped": "the rounded USDG remains ownerless Resonance surplus with no Strategy claim",
+        "description": "No value is paid to the attacker. Only the target Strategy's otherwise combinable fractional USDG entitlement is lost."
+      },
+      "maximumDamage": {
+        "scope": "one target Strategy per attacker-selected checkpoint",
+        "description": "Less than one raw USDG unit per effective checkpoint, but up to 100% of the target's otherwise combinable fractional accrual over those intervals."
+      },
+      "recovery": {
+        "afterLoss": "Already floored entitlement is unrecoverable and remains surplus.",
+        "futureAccrual": "Stopping forced fractional checkpoints allows later intervals to combine into whole raw units."
+      },
+      "remediation": {
+        "decision": "no-source-change-under-current-accepted-floor-architecture",
+        "recommendedTreatment": "Document the cadence risk. If the protocol later rejects it, introduce scaled per-Strategy carry only through a new ADR and independently reviewed differential accounting change.",
+        "tradeoffs": [
+          "Restricting only distributeRevenue is incomplete because signal additions and removals also checkpoint the Strategy.",
+          "Scaled carry adds accounting state and changes the expressly accepted no-carry floor semantics.",
+          "No remediation is needed to preserve signal principal because this path does not enter or block principal return."
+        ],
+        "regressionStatus": "The public-function reproduction passes in the focused audit suite."
+      }
+    },
+    {
+      "id": "CEX-09",
+      "classification": "confirmed-finding",
+      "historicalIds": ["GPT-M-02"],
+      "title": "Public complete-basket claims exceed selective Fund redemption",
+      "summary": "Tracked landing, deck, and web material promises every Fund holding in one transaction, while Fund intentionally pays only caller-selected token addresses and permanently forfeits omitted shares. The deck also presents discount redemption as guaranteed profitable gap closure, which the protocol does not guarantee.",
+      "severity": {
+        "overall": "Medium",
+        "impact": "Medium",
+        "impactDetail": "A holder relying on the broad claim can burn GBX and permanently forfeit the complete original pro-rata share of omitted assets; release materials also overstate price-support certainty.",
+        "likelihood": "High",
+        "likelihoodDetail": "The contradictory claims are repeated in tracked release-facing landing, deck, brief, and web material, although this review did not establish that any surface is published."
+      },
+      "liveness": {
+        "class": "release-claim mismatch and unbounded complete-basket realization",
+        "scope": "redeemers relying on the complete-basket claim and every omitted Fund asset",
+        "permanence": "each omitted share is permanently forfeited after the selected redemption succeeds",
+        "principalBlocked": false,
+        "rewardEntitlementAffected": false,
+        "notes": "The bounded one-known-token exit remains available. The finding is that release-facing claims exceed that intentional selective path."
+      },
+      "confidence": {
+        "level": "High",
+        "basis": "Fund source, permanent omission tests, the supplied arithmetic argument, and repeated tracked product claims directly establish the mismatch."
+      },
+      "status": {
+        "state": "open-release-copy-remediation",
+        "closure": "unresolved",
+        "deploymentDisposition": "Release remains blocked until the claims are aligned with caller-selected redemption and non-guaranteed arbitrage support, or Fund is redesigned under a separately reviewed ADR."
+      },
+      "violatedInvariants": [],
+      "affected": {
+        "users": ["GBX holders who rely on the complete-basket or guaranteed-arbitrage claim when redeeming"],
+        "assets": ["the holder's original pro-rata share of every omitted Fund token"],
+        "unaffectedPaths": [
+          "caller-selected redemption of known healthy assets",
+          "signal principal removal",
+          "Mine settlement and miner claims",
+          "Bribe claims"
+        ]
+      },
+      "codeLocations": [
+        {
+          "file": "packages/contracts/src/core/Fund.sol",
+          "startLine": 90,
+          "endLine": 102,
+          "function": "redeem",
+          "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "defines caller-selected token redemption and permanent forfeiture of omitted shares"
+        },
+        {
+          "file": "apps/landing/components/sections/Hero.tsx",
+          "startLine": 92,
+          "endLine": 95,
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "promises that a holder walks away with a share of everything inside"
+        },
+        {
+          "file": "apps/landing/components/sections/Why.tsx",
+          "startLine": 48,
+          "endLine": 58,
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "promises every holding in one transaction, including illiquid assets"
+        },
+        {
+          "file": "apps/landing/components/sections/Fund.tsx",
+          "startLine": 1863,
+          "endLine": 1869,
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "promises the same proportion of every holding in one transaction"
+        },
+        {
+          "file": "docs/deck/gumball6900-deck.html",
+          "startLine": 1029,
+          "endLine": 1031,
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "promises everything, always-available redemption, guaranteed profitability, and gap closure"
+        },
+        {
+          "file": "apps/web/components/home/mechanism-dashboard.tsx",
+          "startLine": 129,
+          "endLine": 133,
+          "revision": "f9912533e999454f1a3fd49276558bd85e1390da",
+          "role": "uses a complete-basket title beside a note that correctly limits payout to named assets"
+        }
+      ],
+      "prerequisites": [
+        "A holder relies on the tracked complete-basket or guaranteed-arbitrage language.",
+        "The holder cannot identify or include every desired Fund asset in one successful transaction, or intentionally omits one without understanding the forfeiture.",
+        "The selected redemption succeeds and burns GBX."
+      ],
+      "reachableSequence": [
+        { "step": 1, "action": "Fund holds at least two non-GBX assets and the holder owns fraction f of GBX supply." },
+        { "step": 2, "action": "The holder burns fraction x while selecting only one asset." },
+        {
+          "step": 3,
+          "action": "Fund pays the selected asset and retains every omitted asset; the successful burn is final."
+        },
+        {
+          "step": 4,
+          "action": "The holder's remaining fraction for omitted assets is (f - x) / (1 - x), which is strictly less than f."
+        }
+      ],
+      "arithmetic": {
+        "remainingFractionAfterSelectiveBurn": "(f - x) / (1 - x)",
+        "qualification": "For 0 < x < f < 1, the remaining fraction is strictly below f, so disjoint later burns cannot reproduce the original complete-basket share."
+      },
+      "proof": {
+        "poc": [],
+        "tests": [
+          {
+            "file": "packages/contracts/test/minimal/Fund.t.sol",
+            "startLine": 312,
+            "endLine": 332,
+            "function": "test_OmittedTokensArePermanentlyForfeitedForThatRedeemer",
+            "revision": "working-tree@f9912533e999454f1a3fd49276558bd85e1390da",
+            "result": "passes; the omitted asset remains entirely in Fund and a later holder redeems against the reduced post-burn supply"
+          }
+        ],
+        "observedResult": "Fund behavior and its regression are consistent with the selective specification; the tracked product claims are not."
+      },
+      "whyExistingTestsMissed": "Contract tests correctly asserted selective redemption and omission forfeiture, but the initial disposition did not independently compare every release-facing claim to those mechanics.",
+      "assetDisposition": {
+        "stolen": "none",
+        "diluted": "the redeemer's residual fraction of omitted assets is reduced by the successful burn",
+        "frozen": "none for a known healthy selected token",
+        "delayed": "none",
+        "permanentlyTrapped": "if the final GBX supply is burned while assets are omitted, those balances can remain in ownerless Fund with no redemption supply",
+        "description": "Omitted assets stay in Fund for the post-redemption supply; no attacker receives them, but the redeemer permanently gives up the omitted original share."
+      },
+      "maximumDamage": {
+        "scope": "one redeemer's omitted Fund-asset claims",
+        "description": "Up to the redeemer's complete original pro-rata share of every omitted asset, potentially all omitted backing if the complete remaining GBX supply is burned without selecting it."
+      },
+      "recovery": {
+        "beforeRedemption": "Present accurate caller-selected and forfeiture language and require interfaces to enumerate or deliberately acknowledge selected assets.",
+        "afterRedemption": "No path restores the burned holder's original omitted fraction.",
+        "release": "Correct all tracked claims before publication or redesign Fund under a new independently reviewed ADR."
+      },
+      "remediation": {
+        "decision": "open-release-copy-remediation",
+        "recommendedChanges": [
+          "State that holders redeem a pro-rata share of the Fund assets they select and permanently give up omitted shares.",
+          "Describe discount arbitrage as possible support, never guaranteed profit or guaranteed convergence.",
+          "Add a release-copy gate against unqualified complete-basket, NAV, guaranteed-profit, and guaranteed-gap-closure claims."
+        ],
+        "architectureAlternative": "If complete-basket redemption is intended, stop and create a new ADR for a bounded registry, pagination, or redemption-receipt design, then re-audit it.",
+        "tradeoffs": [
+          "Copy correction preserves the current registry-free and selective-redemption architecture.",
+          "A complete-basket redesign adds state, gas, discovery, migration, and accounting risk."
+        ],
+        "regressionStatus": "The contract behavior is covered and the full suite passes; no automated release-copy gate exists yet."
+      }
+    }
+  ]
+}

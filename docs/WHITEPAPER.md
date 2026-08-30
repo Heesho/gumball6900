@@ -2,15 +2,18 @@
 
 ## The index fund that chooses itself
 
-Whitepaper v0.8 — 24 August 2026 — by Heesho
+Whitepaper v0.11 — 30 August 2026 — by Heesho
 
 > Development status: experimental, not deployed, and not authorized for user funds. A V12 finding export was received
 > for commit `3ae171b997254b56602298d873b3918d1575b3c7`, but it is not a complete assurance package or release approval;
-> independent disposition confirmed three behaviors: one accepted theoretical risk, one pre-exposure deployment
-> control, and one open claim-authorization issue. Review of the fixed mining economics,
+> the current internal exitability review reconfirmed three historical behaviors. Its working-tree ADR 0052 patch adds
+> an onchain bound for the prior Resonance overflow, and ADR 0053's internally verified remediation adds
+> beneficiary-authorized Bribe claims plus a caller-owned Resonance claim batch. ADR 0054's one-transaction launch
+> structurally removes the prior pre-handoff Mine exposure window for the canonical graph. ADR 0055 later adds Mine's
+> future-revenue Router cutover and two-step Mine/Resonance ownership. Fresh independent closure remains open. Review of the fixed mining economics,
 > deployment parameters, third-party provenance, governance integration, and remaining security gates is still open.
-> ADR 0051's later SignalGBX API, batch loops, read periphery, SDK composition, and subgraph position index are outside
-> that V12 review and require fresh independent review.
+> ADR 0051's SignalGBX API and periphery, ADR 0052's cap, ADR 0053's authorization/batch changes, ADR 0054's launcher,
+> and ADR 0055's migration/ownership surface remain outside V12 and require fresh independent review.
 
 ## Abstract
 
@@ -47,7 +50,7 @@ nonempty slot replacement -> 80% outgoing tenure miner claim
 empty-slot payment -> Mine --100% deposit--> ResonanceRouter
 
 GBX -> sGBX -> live signals ------------------------------^
-           \-> IVotes checkpoints -> external governance (unselected) -> Resonance owner actions
+           \-> IVotes checkpoints -> external governance (unselected) -> Mine + Resonance owner actions
 GBX burn -> selected Fund assets -> redeemer
 ```
 
@@ -58,8 +61,10 @@ management, or protocol fee in mining.
 
 ## 2. GBX supply and issuance
 
-GBX starts with zero supply and zero lifetime minted. A temporary deployment minter cannot mint and permanently
-assigns the only lifetime mint authority to one deployed Mine. This handoff cannot be replaced or reopened.
+GBX's constructor starts with zero supply and zero lifetime minted. A temporary deployment minter cannot mint and
+permanently assigns the only lifetime mint authority to one deployed Mine. During the canonical atomic launch, Mine
+then issues exactly 1,000 GBX solely into the validated USDG/GBX genesis pair. There is no team, presale, treasury, or
+discretionary allocation. The handoff and fixed genesis issuance cannot be replaced or reopened.
 
 There is no protocol-defined economic maximum GBX supply. The global issuance rate used for future tenures halves at
 fixed intervals measured from Mine deployment and eventually reaches a strictly positive tail. The tail allows mining—and
@@ -72,6 +77,9 @@ The supply identity is simple:
 ```text
 total GBX supply = lifetime GBX minted - lifetime GBX burned
 ```
+
+`Mine.totalMined` counts settled slot emission only. `GBX.lifetimeMinted` also includes the fixed 1,000 GBX genesis
+amount once Mine consumes that one-time path.
 
 ## 3. The mining market
 
@@ -156,7 +164,9 @@ USDG: no stream time has elapsed.
 
 The schedule follows the ordinary Synthetix whole-unit rate and leftover rollover. Elapsed release is
 `seconds * revenueRate`; division residue is unallocated USDG surplus. Its global revenue-per-signal index uses `1e36`
-precision. ResonanceRouter waits until someone calls `route()`. It holds a balance smaller than seven days in raw
+precision. A monotonic lifetime counter admits at most `floor(type(uint256).max / 1e36)` fresh raw USDG and rejects
+excess before checkpointing or token interaction, keeping signal exits representable at the minimum one-raw-unit
+denominator. ResonanceRouter waits until someone calls `route()`. It holds a balance smaller than seven days in raw
 units, which would create a zero rate, and during an active period also holds a balance smaller than the scheduled
 amount remaining. A qualifying notification checkpoints elapsed revenue and restarts seven days with
 `new revenue + remaining revenue`.
@@ -194,6 +204,9 @@ four-field stream per registered token, ordinary leftover rollover, and an all-t
 so one broken reward token need not block another. Reward time does not pause at zero `totalSignalWeight`, notifications are
 not queued, and rate/index/account division floors remain unallocated token surplus rather than explicit carry or Fund
 liabilities.
+Direct Bribe claims authorize only the beneficiary or the Bribe's immutable Resonance. Resonance can batch all-token
+claims across caller-selected registered live or killed Strategies, but always for `msg.sender`; direct scalar claims
+remain the broken-token and gas fallback.
 Each reward token also has a monotonic lifetime accepted-notification limit of
 `floor(type(uint256).max / 1e36)` raw units. It is checked before reward checkpointing or token transfer and cannot be
 reset, so claims can never reopen capacity. A normal 18-decimal token would require about `1.158e23` whole tokens to
@@ -202,46 +215,56 @@ smart accounts may reallocate with direct remove/add calls. A new Strategy and B
 An automatic reward amount rejected at the cap remains buffered in
 BribeRouter. The old killed Bribe remains a closed reward pool without an escape hatch.
 
-## 7. External liquidity as an ordinary Strategy
+## 7. Permanently locked genesis liquidity and an ordinary LP Strategy
 
-One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 is registered during bootstrap as an ordinary
-Strategy payment token. Its exact token address and auction configuration remain deployment inputs. Acquisitions use
-the same global Fund/Bribe split as every other Strategy, and LP tokens reaching Fund are ordinary redemption assets.
+The single-use GBX launcher calls the pinned Robinhood Chain Uniswap V2 Factory to create a new USDG/GBX pair, seeds
+exactly 1 USDG and Mine's fixed 1,000 GBX genesis issuance, and mints the complete genesis LP supply to the zero address.
+It never adopts or skims an existing Pair. If the Pair already exists for that launcher's deterministic GBX, the launch
+reverts and a fresh launcher produces a different GBX and Pair through caller-scoped CREATE2 outputs. No LP holder can
+burn those units to remove the seed as liquidity, although swaps can still change the pair's reserves. In the same atomic transaction, the launcher
+registers GBX and the actual LP token as the two initial Strategy payment assets, removes every temporary setup owner,
+and makes the reviewed external governance contract pending owner of Mine and Resonance. That contract must accept both
+roles after launch.
 
-The core has no liquidity-specific contract. It does not create, seed, own, price, rebalance, compound, harvest, swap,
-or guarantee liquidity. Pool reserves, initial liquidity, and market availability remain external facts.
+Only the genesis LP is locked. LP tokens minted later remain ordinary fungible assets: Strategy applies the same
+global Fund/Bribe split, and any LP reaching Fund is caller-selectable redemption backing. Neither the launcher nor
+the core manages, prices, rebalances, compounds, harvests, swaps, or guarantees liquidity after launch.
 
 ## 8. Governance and immutability
 
 The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. SignalGBX retains
 non-transferable ERC20Votes checkpoints on the block-number clock, but the core assigns them no proposal, quorum,
-delay, cancellation, or execution semantics. Resonance is the only core contract with continuing custom owner
-authority. Its protocol administration methods are:
+delay, cancellation, or execution semantics. Mine and Resonance are the only core contracts with continuing custom
+owner authority. Resonance's protocol administration methods are:
 
 - add a Strategy;
 - permanently kill a Strategy;
 - register a Bribe reward token, subject to the immutable sixteen-token cap;
 - set the global prospective automatic-Bribe rate from 0% through 20%.
 
-The Resonance owner can also transfer or renounce ownership. SignalGBX, StrategyFactory, and BribeFactory retain
-setup-only inherited ownership shells after their one-time Resonance bindings, with no remaining custom owner action.
-Production must renounce those consumed shells and transfer Resonance to the selected external executor. That owner
+Mine's sole custom owner action is a structurally validated change to the Router that receives future protocol revenue.
+It cannot change slots, prices, emissions, mint authority, Fund assets, old graph state, or user positions.
+
+Mine and Resonance use `Ownable2Step`; their owners can transfer or immediately renounce ownership. SignalGBX,
+StrategyFactory, and BribeFactory retain setup-only inherited ownership shells after their one-time Resonance bindings,
+with no remaining custom owner action. Production must renounce those consumed shells. The launcher makes the selected
+external executor pending owner of both Mine and Resonance, and that executor must accept both roles after launch. It
 remains unselected. A later ADR must pin and review the external governance provider, exact release and deployed code,
 plugins, SignalGBX compatibility, permissions and administrators, upgrade model, proposal rules, batching, delay,
-cancellation, and ownership handoff. Until then the protocol makes no claim that administration is selector-filtered,
-delayed, permissionlessly executable, or cancellable, and deployment is blocked.
+cancellation, and both ownership handoffs. Until then deployment is blocked.
 
-Mine has exactly sixteen slots, no owner, and no path to reprice an existing tenure. Fund is ownerless. No
-core contract has a proxy, general executor, pause switch, rescue function, emission setter, successor, or migration
-path. Deployment must bootstrap reviewed initial Strategies before transferring Resonance directly to the selected
-external governance executor and removing the temporary setup authority.
+Mine has exactly sixteen slots and no owner path to change slot capacity, reprice a tenure, or alter emissions. Fund is
+ownerless. No core contract has a proxy, general executor, pause switch, rescue function, emission setter, successor,
+or state-migration path. Deployment must bootstrap reviewed initial Strategies and remove temporary setup authority
+before beginning both two-step ownership handoffs.
 
 ## 9. Important risks
 
 - GBX price, liquidity, mining profitability, replacement frequency, Strategy fills, and Fund value are uncertain.
 - A mining tenure can be replaced at any time and is not guaranteed a nonzero 80% replacement claim.
 - Legacy tenures can keep aggregate issuance above the prospective global rate indefinitely if they never turn over.
-- A bad immutable deployment or token dependency cannot be repaired by governance.
+- A bad immutable dependency or contract bug cannot be patched. Governance can redirect only future Mine revenue to a
+  validated graph; old balances and positions remain.
 - SignalGBX checkpoints do not lock withdrawals. If the selected external governance system uses historical snapshots,
   a holder may withdraw after the snapshot and retain that proposal's weight. Its delegation, quorum, capture, and
   liveness properties require separate review.
@@ -260,8 +283,9 @@ external governance executor and removing the temporary setup authority.
   replacement requires a new Strategy and paired Bribe rather than a reset or rescue.
 - Fund assets omitted from redemption remain permanently for the post-redemption supply.
 - The received V12 export lacks an explicit scope, methodology, named auditor, date, signature, and report-level
-  rationale. The independently reviewed register accepts the theoretical index-overflow condition, retains a
-  pre-exposure deployment check, and leaves claim authorization open; it does not clear release.
+  rationale. The internally revalidated register accepts the theoretical index-overflow condition, retains a
+  pre-exposure deployment check, and records ADR 0053's internally verified but independently unreviewed working-tree
+  claim-authorization remediation; it does not clear release.
   Donut-miner/give.fun/Liquid Signal provenance also remains legally unresolved.
 
 ## 10. Status

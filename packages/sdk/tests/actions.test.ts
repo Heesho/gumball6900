@@ -2,26 +2,33 @@ import { decodeFunctionData, getAddress } from 'viem';
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildAcceptOwnership,
   buildAddSignal,
   buildAddSignalMany,
   buildApproval,
+  buildBeginOwnershipTransfer,
+  buildCancelOwnershipTransfer,
   buildClaimAllBribeRewards,
   buildClaimBribeReward,
+  buildClaimBribeRewards,
   buildClaimMiningPayment,
   buildDelegateSignalVotes,
   buildDistributeRevenue,
   buildFundBurn,
+  buildGBXLaunch,
   buildMine,
   buildRemoveSignal,
   buildRemoveSignalMany,
   buildRedemption,
   buildRouteBribeRewards,
   buildRouteRevenue,
+  buildSetMineResonanceRouter,
   buildStrategyBuy,
   bribeAbi,
   bribeRouterAbi,
   fundAbi,
   gbxAbi,
+  gbxLauncherAbi,
   mineAbi,
   resonanceAbi,
   resonanceRouterAbi,
@@ -57,6 +64,15 @@ describe('minimal typed transaction builders', () => {
       args: [B, 2n, 7n, 1_000n, 50n, 'hello from the mine'],
       functionName: 'mine',
     });
+  });
+
+  it('encodes the one-shot GBX launch with a nonzero final owner', () => {
+    expect(decodeFunctionData({ abi: gbxLauncherAbi, data: buildGBXLaunch(A, B).data })).toMatchObject({
+      args: [B],
+      functionName: 'launch',
+    });
+    expect(() => buildGBXLaunch('0x0000000000000000000000000000000000000000', B)).toThrow(RangeError);
+    expect(() => buildGBXLaunch(A, '0x0000000000000000000000000000000000000000')).toThrow(RangeError);
   });
 
   it('rejects Mine messages above 280 UTF-8 bytes', () => {
@@ -132,6 +148,8 @@ describe('minimal typed transaction builders', () => {
     expect(() =>
       buildRemoveSignalMany(A, [{ strategy: '0x0000000000000000000000000000000000000000', amount: 1n }]),
     ).toThrow(RangeError);
+    expect(() => buildClaimBribeRewards(A, [])).toThrow(RangeError);
+    expect(() => buildClaimBribeRewards(A, ['0x0000000000000000000000000000000000000000'])).toThrow(RangeError);
   });
 
   it('encodes Resonance routing and distribution', () => {
@@ -139,6 +157,10 @@ describe('minimal typed transaction builders', () => {
     expect(decodeFunctionData({ abi: resonanceAbi, data: buildDistributeRevenue(A, B).data })).toMatchObject({
       args: [getAddress(B)],
       functionName: 'distributeRevenue',
+    });
+    expect(decodeFunctionData({ abi: resonanceAbi, data: buildClaimBribeRewards(A, [B, C, B]).data })).toMatchObject({
+      args: [[getAddress(B), getAddress(C), getAddress(B)]],
+      functionName: 'claimBribeRewards',
     });
   });
 
@@ -170,6 +192,30 @@ describe('minimal typed transaction builders', () => {
       args: [B],
       functionName: 'claimMinerPayment',
     });
+  });
+
+  it('encodes governed Mine revenue migration and two-step Mine or Resonance ownership', () => {
+    expect(decodeFunctionData({ abi: mineAbi, data: buildSetMineResonanceRouter(A, B).data })).toMatchObject({
+      args: [B],
+      functionName: 'setResonanceRouter',
+    });
+    expect(decodeFunctionData({ abi: resonanceAbi, data: buildBeginOwnershipTransfer(A, C).data })).toMatchObject({
+      args: [C],
+      functionName: 'transferOwnership',
+    });
+    expect(decodeFunctionData({ abi: resonanceAbi, data: buildCancelOwnershipTransfer(A).data })).toMatchObject({
+      args: ['0x0000000000000000000000000000000000000000'],
+      functionName: 'transferOwnership',
+    });
+    expect(decodeFunctionData({ abi: resonanceAbi, data: buildAcceptOwnership(A).data })).toMatchObject({
+      functionName: 'acceptOwnership',
+    });
+
+    const zero = '0x0000000000000000000000000000000000000000';
+    expect(() => buildSetMineResonanceRouter(A, zero)).toThrow(RangeError);
+    expect(() => buildBeginOwnershipTransfer(A, zero)).toThrow(RangeError);
+    expect(() => buildCancelOwnershipTransfer(zero)).toThrow(RangeError);
+    expect(() => buildAcceptOwnership(zero)).toThrow(RangeError);
   });
 
   it('encodes scalar and all-token Bribe claims plus buffered reward distribution', () => {

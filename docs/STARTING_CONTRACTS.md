@@ -1,6 +1,6 @@
 # Canonical contract starting point
 
-> This is the target development architecture under ADRs 0031 and 0033-0050 in whole or in their recorded
+> This is the target development architecture under ADRs 0031 and 0033-0055 in whole or in their recorded
 > unsuperseded parts, not a claim of current Solidity
 > conformance, deployment, audit, or authorization for user funds. Implementation gaps are listed in
 > [ARCHITECTURE-IMPLEMENTATION-GAP.md](ARCHITECTURE-IMPLEMENTATION-GAP.md).
@@ -16,10 +16,13 @@ empty-slot payment -------------> Mine -> 100% deposit -> ResonanceRouter
                                       |                             \--global 0%-20%--> BribeRouter --> paired Bribe
                                       +-> additional Bribe rewards -> signalers
 
-external Uniswap v2-style USDG/GBX LP ERC-20 -> ordinary bootstrap Strategy -> Fund / paired Bribe
+seeded Uniswap V2 USDG/GBX LP ERC-20 -> ordinary bootstrap Strategy -> Fund / paired Bribe
+
+GBXLauncher --fixed Mine issue + 1 USDG--> USDG/GBX Pair --all genesis LP--> address(0)
+            \--register Strategies; remove setup owners; begin Mine + Resonance handoffs--> external governance
 
 GBX -> SignalGBX -> signals -> Resonance
-                  -> IVotes checkpoints -> external governance (unselected) -> Resonance ownership
+                  -> IVotes checkpoints -> external governance (unselected) -> Mine + Resonance ownership
 ```
 
 Resonance's revenue stream is permanently USDG-only and uses a scalar schedule and per-Strategy revenue state. Bribes
@@ -32,38 +35,44 @@ and is the sole user-facing signal coordinator; an idle receipt state is not per
 
 ## Contract responsibilities
 
-| Contract          | Responsibility and important boundaries                                                                                                                                                                                                  |
-| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GBX`             | Starts with zero supply, permanently hands its only lifetime mint authority to Mine before minting can begin, and supports ERC-2612 permit. It has no voting checkpoints.                                                                |
-| `Mine`            | Runs exactly sixteen independently replaceable hourly reverse-Dutch slots, checkpoints continuous GBX accrual, splits nonempty-slot replacement payments 80%/20%, and deposits protocol revenue into ResonanceRouter without calling it. |
-| `SignalGBX`       | Holds GBX, mints only signal-backed non-transferable ERC20Votes sGBX, and coordinates every signal and withdrawal. It has no approval permit or idle state.                                                                              |
-| `ResonanceRouter` | Buffers USDG until its balance can sustain a nonzero stream and cover the active amount left, then forwards it permissionlessly.                                                                                                         |
-| `Resonance`       | Maintains the active signal total and one Bribe-shaped seven-day USDG schedule, and creates the fixed Strategy/Bribe graph.                                                                                                              |
-| `StrategyFactory` | Bound once to Resonance; only that Resonance may deploy Strategies and their BribeRouters.                                                                                                                                               |
-| `Strategy`        | Sells its complete USDG balance, pays the floored Bribe share to its Router, and pays the complement directly to Fund.                                                                                                                   |
-| `BribeFactory`    | Bound once to Resonance; only that Resonance may deploy Bribes.                                                                                                                                                                          |
-| `BribeRouter`     | Minimal acquired-asset buffer that permissionlessly notifies its paired Bribe once simple stream gates are met.                                                                                                                          |
-| `Bribe`           | Streams the automatic acquired-asset share and additional rewards over virtual signal balances, within fixed token-count and lifetime-notification caps.                                                                                 |
-| `Fund`            | Ownerless raw-token treasury, permissionless GBX burn boundary, and caller-selected pro-rata redemption mechanism.                                                                                                                       |
+| Contract          | Responsibility and important boundaries                                                                                                                              |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GBX`             | Constructs with zero supply, permanently hands its only lifetime mint authority to Mine before issuance, and supports ERC-2612 permit. It has no voting checkpoints. |
+| `Mine`            | Makes one fixed genesis issue, runs sixteen immutable hourly slots, splits payments 80%/20%, and exposes one governed validated Router pointer for future revenue.   |
+| `SignalGBX`       | Holds GBX, mints only signal-backed non-transferable ERC20Votes sGBX, and coordinates every signal and withdrawal. It has no approval permit or idle state.          |
+| `ResonanceRouter` | Buffers USDG until its balance can sustain a nonzero stream and cover the active amount left, then forwards it permissionlessly.                                     |
+| `Resonance`       | Maintains the active signal total and one Bribe-shaped seven-day USDG schedule, and creates the fixed Strategy/Bribe graph.                                          |
+| `StrategyFactory` | Bound once to Resonance; only that Resonance may deploy Strategies and their BribeRouters.                                                                           |
+| `Strategy`        | Sells its complete USDG balance, pays the floored Bribe share to its Router, and pays the complement directly to Fund.                                               |
+| `BribeFactory`    | Bound once to Resonance; only that Resonance may deploy Bribes.                                                                                                      |
+| `BribeRouter`     | Minimal acquired-asset buffer that permissionlessly notifies its paired Bribe once simple stream gates are met.                                                      |
+| `Bribe`           | Streams the automatic acquired-asset share and additional rewards over virtual signal balances, within fixed token-count and lifetime-notification caps.             |
+| `Fund`            | Ownerless raw-token treasury, permissionless GBX burn boundary, and caller-selected pro-rata redemption mechanism.                                                   |
 
 ## Supply and mining
 
-GBX starts with zero supply and zero lifetime minted. Its temporary deployment minter may call `setMinter` exactly
-once, and only with a deployed contract; it cannot call `mint` before that binding is locked. Mine then becomes the
-only lifetime issuer. The
-supply identity is:
+GBX starts construction with zero supply and zero lifetime minted. Its temporary deployment minter may call
+`setMinter` exactly once, and only with a deployed contract; it cannot call `mint` before that binding is locked. Mine
+then becomes the only lifetime issuer. The canonical launcher gives Mine one temporary `genesisAuthority`, which Mine
+consumes and clears when it issues the fixed `1,000 ether` GBX directly to the validated Pair. The amount is not slot
+emission and cannot be changed or repeated. The supply identities are:
 
 ```text
 GBX total supply = GBX lifetime minted - GBX lifetime burned
+
+GBX lifetime minted = Mine totalMined
+                    + (genesisLiquidityMinted ? 1,000 GBX : 0)
 ```
 
-Mine starts with exactly sixteen permanent slots and has no owner or capacity control. Each slot may
+Mine starts with exactly sixteen permanent slots and has no capacity control. Each slot may
 be replaced at any time. Its quoted USDG price falls linearly from `initialPrice` to zero over one hour. A nonempty-slot
 replacement makes 80% of the price claimable by the outgoing tenure miner and deposits the 20% remainder into
 ResonanceRouter. An empty slot deposits 100% because there is no outgoing tenure miner. Mine uses `SafeERC20` and trusts the
 canonical USDG's standard transfer semantics without balance-delta checks. Mine's `RevenueDeposited` event records the
 requested nominal deposit; under that supported-token assumption it reached the Router, but the event does not mean
-Resonance received a notification in the same transaction. Each replacement may attach up
+Resonance received a notification in the same transaction. Mine's `Ownable2Step` owner cannot change slots, emissions,
+prices, claims, GBX, USDG, or Fund. Its only custom authority may set a different Router for future deposits after
+validating a reciprocally bound replacement graph. Each replacement may attach up
 to 280 raw bytes of event-only message metadata; empty messages are allowed and Mine never stores the message.
 
 Each newly opened tenure receives `current global TPS / 16`. That assigned rate is locked for the entire tenure.
@@ -73,19 +82,34 @@ total pending emission in constant time, and Fund reads effective supply without
 
 The global rate used for future tenures begins at 64 GBX per second, halves on a hard-coded 69-day schedule measured
 from Mine deployment, and reaches a 1 GBX-per-second tail at day 414. These values are provisional pending independent
-economic review. There is no protocol-defined economic maximum GBX supply, rate setter, oracle, migration, or team fee.
+economic review. There is no protocol-defined economic maximum GBX supply, rate setter, oracle, balance or position
+migration, or team fee.
 
-## External liquidity Strategy
+## Atomic launch and external liquidity Strategy
 
-One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 is registered during bootstrap as an ordinary
-Strategy payment token. Its exact address and Strategy configuration remain deployment inputs. Its purchases use the
-same global Fund/Bribe split as every other Strategy, and Fund holds its share as an ordinary redemption asset. The
-core creates, owns, prices, harvests, swaps, or guarantees no liquidity.
+The continuing core owns or manages no liquidity, but the development-only `GBXLauncher` is a narrow deployment
+exception under ADR 0054. It is callable once by one immutable authority on Robinhood Chain mainnet and uses the pinned
+Uniswap V2 Factory directly. Four predeployed component modules split CREATE work but retain no state or authority.
+The launcher deploys and binds the complete graph, creates a new USDG/GBX Pair, transfers
+exactly `1e6` raw six-decimal USDG plus the Mine-issued 1,000 GBX, and mints every genesis LP unit to `address(0)`.
+
+The fixed seed must produce `31,622,776,601,683` raw total LP supply, all permanently locked. The launcher never adopts
+or skims an existing Pair. If the Factory lookup is already nonzero for that launcher's deterministic GBX, the
+transaction reverts with `PairAlreadyExists` and an unused launcher can be replaced with a fresh launcher whose caller-scoped CREATE2 outputs produce a
+different GBX and Pair. The V2 Router is recorded but is not called during genesis.
+
+Before removing setup authority, the launcher registers exactly two ordinary Strategies: GBX at initial/minimum price
+`100,000 ether`, then the actual Pair at initial/minimum price `50 * pair.totalSupply()`. Both have a 24-hour epoch and
+`1.2e18` multiplier. Each first epoch can decay to zero before inventory arrives because `minimumPrice` controls the
+next epoch's start. Later LP follows the same global Fund/Bribe split as every supported payment asset, and Fund-held
+LP remains caller-selectable redemption backing. The launcher adds no continuing liquidity custody, price, harvest,
+swap, rebalance, or guarantee.
 
 ## Revenue and acquisition rules
 
 - Resonance uses one scalar seven-day Synthetix-style USDG schedule. Ordinary rate division may leave surplus; its
-  global revenue-per-signal index uses `1e36` precision.
+  global revenue-per-signal index uses `1e36` precision. Its monotonic fresh-notification total cannot exceed
+  `floor(type(uint256).max / 1e36)`, preserving index representability at the minimum positive signal denominator.
 - SignalGBX is the only external signal entrypoint. Its signal changes checkpoint elapsed revenue under the prior
   weights before changing them. A Strategy purchase checkpoints and transfers its released allocation before reading
   inventory. No lock, cooldown, or epoch is added.
@@ -123,6 +147,11 @@ core creates, owns, prices, harvests, swaps, or guarantees no liquidity.
 - Bribes use standard leftover rollover; a notification must be at least `REWARD_DURATION` raw units and at least the
   current amount left. Streams do not pause at zero `totalSignalWeight`, notifications do not queue, and rate/index/account floors
   remain unallocated surplus. If notification fails, the automatic reward share remains buffered in BribeRouter.
+- Direct Bribe claims authorize only the beneficiary or the Bribe's immutable Resonance. Resonance exposes one optional
+  caller-selected Strategy-array batch that always claims each canonical paired Bribe for `msg.sender`, including for
+  registered killed Strategies. Empty arrays and unregistered Strategies revert, duplicates execute sequentially, and
+  the complete caller-controlled batch is atomic. The beneficiary's direct scalar-token claim remains available to
+  isolate a broken reward token or split unaffordable batch work.
 
 ## Fund redemption
 
@@ -139,31 +168,43 @@ asset registry. Omitted assets remain for the post-redemption supply.
 
 ## Governance
 
-There is no migration or upgrade path. Fund and Mine are ownerless. The core includes no Governor,
-Timelock, generic executor, or provider-specific governance adapter. Resonance is the only core contract with
-continuing custom owner authority, and its protocol administration surface is:
+There is no balance migration or upgrade path. Fund is ownerless. The core includes no Governor, Timelock, generic
+executor, or provider-specific governance adapter. Mine and Resonance use `Ownable2Step`. Mine's only custom owner
+method is `setResonanceRouter`, which changes only future revenue after validating the candidate against Mine's
+immutable GBX, USDG, and Fund. Resonance's protocol administration surface is:
 
 - `Resonance.addStrategy`;
 - `Resonance.killStrategy`;
 - `Resonance.addBribeRewardToken`, subject to the immutable sixteen-token cap; and
 - `Resonance.setBribeBps`, globally bounded from 0 through 2,000 basis points.
 
+Resonance's separate setup-only `setResonanceRouter` action is consumed by the launcher before handoff. It binds the
+sole notifying Router exactly once and cannot replace or clear it later.
+
 SignalGBX retains block-number ERC20Votes checkpoints, but the core assigns them no proposal, quorum, delay,
-cancellation, or execution semantics. Resonance's owner may also transfer or renounce ownership. SignalGBX,
-StrategyFactory, and BribeFactory retain inherited ownership shells after their one-time Resonance bindings, but no
-remaining custom owner action. Every reviewed initial Strategy must be bootstrapped before Resonance ownership moves
-directly to the exact external governance executor selected by a later ADR, and the consumed setup-only shells must be
-renounced so the temporary authority is removed everywhere. The integration's exact release, code, plugins,
+cancellation, or execution semantics. Mine and Resonance owners may begin two-step transfer or immediately renounce.
+SignalGBX, StrategyFactory, and BribeFactory retain plain-`Ownable` shells after their one-time Resonance bindings, but
+no remaining custom owner action. Every reviewed initial Strategy must be bootstrapped before the canonical launcher
+makes the exact external governance executor pending owner of Mine and Resonance. The launcher renounces the consumed
+setup-only shells and clears Mine's genesis authority in the atomic launch; governance accepts both continuing
+ownerships afterward. The integration's exact
+release, code, plugins,
 permissions, voting rules, administrators, upgrade model, batching, delay, and cancellation semantics remain
 unselected, so deployment is blocked.
+
+The Mine Router setter is a prospective cutover, not a state migration. Governance deploys and binds the complete new
+graph first and switches Mine last. Old Router and Resonance balances, Strategy claims, Bribe rewards, and signal
+positions remain in the old graph; users claim and unsignal there before optionally signaling returned GBX in the new
+graph.
 
 ## Deliberate scope
 
 - Deployment broadcasting is intentionally absent.
-- The external governance integration and production Resonance owner remain unresolved release inputs.
+- The external governance integration and production Mine/Resonance owner remain unresolved release inputs.
 - Mine replacement-price constants are fixed by ADR 0038, its time-based schedule by ADR 0041, and the current
-  provisional rates and period by ADRs 0042 and 0043; independent review remains required. The external LP token
-  address and Strategy configuration remain reviewed deployment inputs.
+  provisional rates and period by ADRs 0042 and 0043; independent review remains required. ADR 0054 fixes the launch
+  chain, Factory, seed amounts, genesis LP math, and initial Strategy parameters, all of which require independent
+  target-state and economic review.
 - Independent security review and production deployment evidence remain required.
 - donut-miner provenance and licensing clearance remain a release blocker recorded in `NOTICE`.
 

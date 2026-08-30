@@ -15,6 +15,7 @@ const contracts = [
   ['bribeRouterAbi', 'BribeRouter.sol/BribeRouter.json'],
   ['fundAbi', 'Fund.sol/Fund.json'],
   ['gbxAbi', 'GBX.sol/GBX.json'],
+  ['gbxLauncherAbi', 'GBXLauncher.sol/GBXLauncher.json'],
   ['mineAbi', 'Mine.sol/Mine.json'],
   ['signalGbxAbi', 'SignalGBX.sol/SignalGBX.json'],
   ['signalPortfolioLensAbi', 'SignalPortfolioLens.sol/SignalPortfolioLens.json'],

@@ -1,16 +1,21 @@
 # Core invariants
 
-> These are development invariants under ADRs 0031, 0034-0037, and 0047-0050. Governance execution remains an
+> These are development invariants under ADRs 0031, 0034-0037, and 0047-0055. Governance execution remains an
 > unselected external integration and contributes no production invariant until separately reviewed.
 
 ## GBX and Mine
 
-- GBX starts with zero supply and zero lifetime minted, has no protocol-defined economic maximum, supports ERC-2612
-  permit approvals, and carries no ERC20Votes checkpoints.
+- GBX starts with zero supply and zero lifetime minted when its constructor returns, has no protocol-defined economic
+  maximum, supports ERC-2612 permit approvals, and carries no ERC20Votes checkpoints.
 - `GBX.totalSupply() == GBX.lifetimeMinted() - GBX.lifetimeBurned()`.
 - The temporary minter cannot mint and may permanently hand authority to one deployed Mine exactly once. After the
   handoff, neither the minter nor the lock can change, and Mine is the sole lifetime issuer.
-- Mine has exactly sixteen immutable, ownerless slots.
+- A Mine constructed with `genesisAuthority == address(0)` can never mint genesis liquidity. Otherwise only that
+  authority may consume the path, only once, only after permanent GBX binding, only to a deployed recipient, and only
+  for `Mine.GENESIS_LIQUIDITY_GBX() == 1,000 ether`. A successful call sets `genesisLiquidityMinted == true` and clears
+  `genesisAuthority` before minting.
+- `GBX.lifetimeMinted() == Mine.totalMined() + (Mine.genesisLiquidityMinted() ? 1,000 ether : 0)`.
+- Mine has exactly sixteen immutable slots; owner authority cannot alter their count or accounting.
 - Every occupied slot accrues `elapsedSeconds * slot.tps`. Its `tps` is fixed from occupation until replacement.
 - Time-based halving boundaries and redemptions never reprice an occupied slot.
 - Each newly opened tenure receives `globalTps(now - startTime) / 16`; floor remainder is unissued.
@@ -26,6 +31,9 @@
 - Under the supported USDG model and absent unsolicited donations, Mine USDG balance equals total outstanding pull
   claims; claim execution reduces both by the same nominal amount.
 - Every Fund redemption uses Mine's constant-time effective supply without checkpointing or mutating Mine.
+- Mine's Router may change only through `setResonanceRouter`; the candidate differs from the current Router and
+  reciprocally identifies Mine's immutable USDG and Fund through a deployed Resonance whose SignalGBX identifies Mine's
+  immutable GBX. A successful update changes no prior Mine claim, Router balance, Resonance state, or signal position.
 
 ## Signals, revenue, and Bribes
 
@@ -79,14 +87,22 @@
 - The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter.
 - SignalGBX retains ERC20Votes checkpoints on its default block-number clock, but the core assigns them no proposal
   threshold, quorum, voting period, cancellation, delay, or execution semantics.
-- Resonance is the only core contract with continuing custom owner authority after its one-time router binding. Those
-  methods are `addStrategy`, `killStrategy`, `addBribeRewardToken`, and bounded global `setBribeBps`; inherited ownership
-  transfer and renunciation remain. SignalGBX, StrategyFactory, and BribeFactory retain setup-only inherited ownership
-  shells after their one-time bindings, with no remaining custom owner action.
+- Mine and Resonance are the only core contracts with continuing custom owner authority. Mine retains only
+  `setResonanceRouter`; Resonance retains `addStrategy`, `killStrategy`, `addBribeRewardToken`, and bounded global
+  `setBribeBps`. Both use two-step ownership transfer and immediate renunciation. SignalGBX, StrategyFactory, and
+  BribeFactory retain setup-only plain-`Ownable` shells after their one-time bindings, with no remaining custom owner
+  action. Resonance's own setup-only `setResonanceRouter` binding is consumed before handoff and cannot be replaced or
+  cleared.
 - `0 <= Resonance.bribeBps() <= 2_000`, its deployment default is 1,000, and Fund's classification rate is always
   `10_000 - bribeBps`. There is no per-Strategy rate or separately configurable Fund rate.
-- The external Resonance owner is unselected. No production ownership, voting, permission, upgrade, batching, delay, or
+- The external Mine/Resonance owner is unselected. No production ownership, voting, permission, upgrade, batching, delay, or
   cancellation invariant exists until a later ADR selects the exact external integration, so deployment is blocked.
+- A successful canonical launch ends with SignalGBX, StrategyFactory, and BribeFactory owners equal to `address(0)`,
+  Mine and Resonance owned by the launcher, and their pending owners equal to the passed deployed governance contract.
+  After separate acceptance receipts, both owners equal governance and both pending owners are zero. The single-use
+  launcher and four stateless component deployers have no callable continuing protocol action.
+- Every component deployer's CREATE2 salt is caller-scoped as `keccak256(abi.encode(caller, contractDomain))`. An
+  unrelated caller therefore cannot consume or shift the canonical launcher caller's component output addresses.
 
 ## Strategies, Fund, and external liquidity
 
@@ -102,8 +118,18 @@
 - Fund redemption uses one effective pre-burn supply snapshot for every selected token and is atomic with the
   GBX burn and every selected transfer.
 - Redemption rejects GBX, the zero address, and duplicates. Fund has no asset registry or administrative withdrawal.
-- One reviewed, externally created fungible Uniswap v2-style USDG/GBX LP ERC-20 is an ordinary bootstrap Strategy
-  payment token and follows the same
-  Fund/Bribe split as every other Strategy.
-- The core has no liquidity-specific contract, custody, pricing, swap, harvest, or guarantee.
-- Fund is ownerless; external LP tokens held by Fund are ordinary caller-selectable redemption assets.
+- The single-use canonical launcher is fixed to Robinhood Chain mainnet, the reviewed Uniswap V2 Factory, one
+  six-decimal USDG, `1e6` raw USDG, and `1,000 ether` GBX. The seed creates exactly `31,622,776,601,683` raw LP supply,
+  all held by `address(0)`; neither the launcher nor any other account receives genesis LP.
+- The launcher always calls the pinned Factory to create a new Pair and verifies the exact Factory and USDG/GBX
+  identities. It never adopts or skims an existing Pair. A preexisting Pair reverts the complete launch; a fresh
+  launcher receives a different deterministic GBX and Pair from the modules' caller-scoped CREATE2 salts. Exact seed
+  balances and LP output must still hold. Failure of any launch step reverts the complete protocol graph and token
+  movement.
+- Canonical bootstrap registers exactly two Strategies in order: GBX at initial and minimum `100,000 ether`, then the
+  actual LP at initial and minimum `50 * pair.totalSupply()`. Both use 24-hour epochs and `1.2e18` multipliers.
+- A Strategy's initial epoch begins at deployment and its live price may decay to zero. `minimumPrice` is the next
+  epoch's starting minimum, not a fill-time floor; delayed first nonempty inventory may therefore be bought for zero.
+- Only genesis LP is permanently locked. LP minted later follows the same Fund/Bribe split as every other Strategy
+  payment token, and later LP held by ownerless Fund is an ordinary caller-selectable redemption asset.
+- The continuing core has no liquidity-management custody, pricing, swap, harvest, or guarantee.

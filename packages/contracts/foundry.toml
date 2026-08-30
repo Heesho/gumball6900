@@ -42,6 +42,11 @@ cbor_metadata = true
 test = "test/integration"
 fuzz = { runs = 256 }
 
+# Opt-in, non-broadcast validation of the atomic launcher against a caller-supplied pinned Robinhood Chain fork.
+# Run with `FOUNDRY_PROFILE=launcher_fork forge test --fork-url <reviewed-rpc> --fork-block-number <pin>`.
+[profile.launcher_fork]
+test = "test/fork"
+
 [fmt]
 line_length = 120
 tab_width = 4

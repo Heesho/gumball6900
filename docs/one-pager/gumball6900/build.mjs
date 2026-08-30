@@ -125,8 +125,6 @@ const STALE_PHRASES = [
   'withdraw the lp nft',
   'liquidityposition',
   'uniswap v4',
-  'genesis issuance',
-  'genesis gbx',
   'withdrawable lp',
   'compoundRequirement',
   'compound the position',
@@ -340,11 +338,12 @@ function assertNoProtocolFee() {
       ['exhaustive two-way split', /revenueAmount = paymentAmount - previousMinerAmount;/],
       [
         'RevenueDeposited event',
-        /event RevenueDeposited\(uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount\);/,
+        /event RevenueDeposited\(\s*uint256 indexed slotIndex,\s*uint256 indexed epochId,\s*address indexed resonanceRouter,\s*uint256 amount\s*\);/,
       ],
+      ['snapshot of current Router', /address configuredRouter = resonanceRouter;/],
       [
         'nominal SafeERC20 transfer request to ResonanceRouter',
-        /usdg\.safeTransfer\(resonanceRouter, revenueAmount\);/,
+        /usdg\.safeTransfer\(configuredRouter, revenueAmount\);/,
       ],
     ];
     for (const [label, pattern] of pins) {

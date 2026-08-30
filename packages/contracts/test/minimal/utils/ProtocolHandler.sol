@@ -39,6 +39,8 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
 
     /// @notice Total USDG the handler has ever created, used as the conservation reference.
     uint256 public ghostUSDGMinted;
+    /// @notice Test-only GBX minted by Mine impersonation instead of the production issuance paths.
+    uint256 public ghostGBXMinted;
     /// @notice Highest revenue index observed, used to prove monotonicity across the whole run.
     uint256 public ghostHighestRevenueIndex;
     /// @notice Number of times each action actually executed rather than short-circuiting.
@@ -289,6 +291,32 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         ghostCalls["notifyTinyReward"] += 1;
     }
 
+    function addBribeRewardToken(uint256 strategySeed, uint256 tokenSeed) external {
+        address owner = resonance.owner();
+        if (owner == address(0)) return;
+
+        address[] memory strategies = strategyRegistry.all();
+        if (strategies.length == 0) return;
+        address strategy = strategies[_bound(strategySeed, 0, strategies.length - 1)];
+        Bribe bribe = Bribe(resonance.bribeFor(strategy));
+        if (bribe.rewardTokens().length == bribe.MAX_REWARD_TOKENS()) return;
+
+        address candidate;
+        uint256 selected = tokenSeed % 3;
+        if (selected == 0) candidate = address(target);
+        else if (selected == 1) candidate = address(usdg);
+        else candidate = address(gbx);
+
+        address[] memory registered = bribe.rewardTokens();
+        for (uint256 i; i < registered.length; ++i) {
+            if (registered[i] == candidate) return;
+        }
+
+        vm.prank(owner);
+        resonance.addBribeRewardToken(strategy, candidate);
+        ghostCalls["addBribeRewardToken"] += 1;
+    }
+
     function routeBribeRewards() external {
         address[] memory strategies = strategyRegistry.all();
         for (uint256 i; i < strategies.length; ++i) {
@@ -344,21 +372,65 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         ghostCalls["burnFundGBX"] += 1;
     }
 
+    function donateFund(uint256 amount, bool useUSDG) external {
+        uint256 donation = _bound(amount, 1, 1_000_000e18);
+        if (useUSDG) {
+            _mintUSDG(address(fund), donation);
+        } else {
+            target.mint(address(fund), donation);
+        }
+        ghostCalls["donateFund"] += 1;
+    }
+
     /*//////////////////////////////////////////////////////////////
                           GOVERNANCE AND TIME
     //////////////////////////////////////////////////////////////*/
 
     function killStrategy(uint256 strategySeed) external {
+        address owner = resonance.owner();
+        if (owner == address(0)) return;
         address[] memory alive = _aliveStrategies();
         // Never retire the final Strategy: an all-dead registry is a separate, already unit-tested state.
         if (alive.length < 2) return;
 
         address victim = alive[_bound(strategySeed, 0, alive.length - 1)];
 
-        vm.prank(resonance.owner());
+        vm.prank(owner);
         resonance.killStrategy(victim);
 
         ghostCalls["killStrategy"] += 1;
+    }
+
+    function setBribeBps(uint256 bpsSeed) external {
+        address owner = resonance.owner();
+        if (owner == address(0)) return;
+        uint256 newBribeBps = _bound(bpsSeed, 0, resonance.MAX_BRIBE_BPS());
+
+        vm.prank(owner);
+        resonance.setBribeBps(newBribeBps);
+        ghostCalls["setBribeBps"] += 1;
+    }
+
+    function transferOwnership(uint256 actorSeed) external {
+        address owner = resonance.owner();
+        if (owner == address(0)) return;
+
+        address nextOwner = _actor(actorSeed);
+        if (nextOwner == owner) nextOwner = _actor(actorSeed ^ 1);
+        vm.prank(owner);
+        resonance.transferOwnership(nextOwner);
+        vm.prank(nextOwner);
+        resonance.acceptOwnership();
+        ghostCalls["transferOwnership"] += 1;
+    }
+
+    function renounceOwnership() external {
+        address owner = resonance.owner();
+        if (owner == address(0)) return;
+
+        vm.prank(owner);
+        resonance.renounceOwnership();
+        ghostCalls["renounceOwnership"] += 1;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -425,6 +497,7 @@ contract ProtocolHandler is CommonBase, StdCheats, StdUtils {
         uint256 shortfall = amount - balance;
         vm.prank(address(mineContract));
         gbx.mint(account, shortfall);
+        ghostGBXMinted += shortfall;
         return true;
     }
 

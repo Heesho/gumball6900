@@ -14,8 +14,9 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 ///      Rate, index, and account calculations round down; the resulting tokens remain unallocated contract surplus.
 ///      Time still elapses when total signal weight is zero, so rewards emitted during that interval are likewise
 ///      unclaimable. Killing the paired Strategy does not stop Bribe streams or remove its recorded weights: existing
-///      positions keep earning until moved or withdrawn, claims and notifications remain permissionless, and Resonance
-///      may still register rewards. Reward transfers assume standard, non-rebasing ERC-20 behavior.
+///      positions keep earning until moved or withdrawn. Claims are authorized for the beneficiary or immutable
+///      Resonance, notifications remain permissionless, and Resonance may still register rewards. Reward transfers
+///      assume standard, non-rebasing ERC-20 behavior.
 contract Bribe is ReentrancyGuard {
     using SafeERC20 for IERC20;
 
@@ -110,6 +111,10 @@ contract Bribe is ReentrancyGuard {
     /// @notice Raised when Resonance attempts to append a token that is already registered.
     /// @param token Already-registered reward token.
     error RewardAlreadyAdded(address token);
+    /// @notice Raised when a caller other than the beneficiary or immutable Resonance attempts to claim rewards.
+    /// @param caller Unauthorized claim initiator.
+    /// @param account Beneficiary whose rewards the caller attempted to checkpoint and claim.
+    error UnauthorizedClaimCaller(address caller, address account);
     /// @notice Raised for a zero account or for a zero or code-less contract dependency or reward token.
     error ZeroAddress();
     /// @notice Raised when Resonance attempts to add or remove zero signal weight.
@@ -131,12 +136,14 @@ contract Bribe is ReentrancyGuard {
     }
 
     /// @notice Checkpoints and pays every registered reward token earned by `account` directly to that account.
-    /// @dev Any caller may initiate the claim. The function loops over at most `MAX_REWARD_TOKENS`. A failed token
-    ///      transfer reverts the complete all-token claim; `claimReward` provides per-token failure isolation. Emits
-    ///      `RewardPaid` once for each token with a nonzero payment.
+    /// @dev Callable only by `account` or the immutable Resonance acting through its self-beneficiary batch entrypoint.
+    ///      The function loops over at most `MAX_REWARD_TOKENS`. A failed token transfer reverts the complete all-token
+    ///      claim; `claimReward` provides per-token failure isolation. Emits `RewardPaid` once for each token with a
+    ///      nonzero payment.
     /// @param account Account whose accrued raw-token rewards are checkpointed and paid; cannot be zero.
     function claimRewards(address account) external nonReentrant {
         if (account == address(0)) revert ZeroAddress();
+        _requireClaimAuthorization(account);
         _updateAllRewards(account);
 
         uint256 count = _rewardTokens.length;
@@ -146,14 +153,15 @@ contract Bribe is ReentrancyGuard {
     }
 
     /// @notice Checkpoints and pays one registered reward token earned by `account` directly to that account.
-    /// @dev Any caller may initiate the claim. Other reward streams are neither checkpointed nor transferred. A failed
-    ///      transfer reverts the checkpoint and entitlement reset, preserving the scalar claim. Emits `RewardPaid` only
-    ///      when a nonzero amount is transferred.
+    /// @dev Callable only by `account` or the immutable Resonance acting through its self-beneficiary batch entrypoint.
+    ///      Other reward streams are neither checkpointed nor transferred. A failed transfer reverts the checkpoint
+    ///      and entitlement reset, preserving the scalar claim. Emits `RewardPaid` only for a nonzero transfer.
     /// @param account Account whose reward is checkpointed and paid; cannot be zero.
     /// @param rewardToken Registered token to checkpoint and pay.
     /// @return amount Raw token units transferred, or zero when the account has no whole-unit reward.
     function claimReward(address account, address rewardToken) external nonReentrant returns (uint256 amount) {
         if (account == address(0)) revert ZeroAddress();
+        _requireClaimAuthorization(account);
         _requireRewardToken(rewardToken);
         _updateReward(account, rewardToken);
         amount = _claim(account, rewardToken);
@@ -323,6 +331,14 @@ contract Bribe is ReentrancyGuard {
         IERC20(rewardToken).safeTransfer(account, amount);
 
         emit RewardPaid(account, rewardToken, amount);
+    }
+
+    /// @dev Reverts unless the caller is `account` or this Bribe's immutable Resonance.
+    /// @param account Reward beneficiary whose checkpoint may be advanced.
+    function _requireClaimAuthorization(address account) private view {
+        if (msg.sender != account && msg.sender != resonance) {
+            revert UnauthorizedClaimCaller(msg.sender, account);
+        }
     }
 
     /// @dev Reverts with `NotRewardToken` unless `rewardToken` is in the append-only registry.

@@ -10,7 +10,9 @@ DEFAULT_STRATEGY_BRIBE_BPS = 1_000
 MAX_STRATEGY_BRIBE_BPS = 2_000
 HOUR = 3_600
 YEAR = 365 * 24 * HOUR
-INITIAL_SUPPLY = 0
+CONSTRUCTOR_SUPPLY = 0
+GENESIS_LIQUIDITY_SUPPLY = 1_000 * WAD
+INITIAL_SUPPLY = GENESIS_LIQUIDITY_SUPPLY
 MINE_PRICE_MULTIPLIER = 2
 MINE_MIN_INITIAL_PRICE = 1_000_000
 MINE_INITIAL_TPS = 64 * WAD
@@ -159,10 +161,13 @@ def compute() -> dict[str, object]:
     fund_usdg = 50_000_000 * 10**6
     redeem = 1_000_000 * WAD
     return {
-        "schemaVersion": 15,
+        "schemaVersion": 16,
         "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
         "assumptions": {
             "initialSupplyGBXRaw": INITIAL_SUPPLY,
+            "constructorSupplyGBXRaw": CONSTRUCTOR_SUPPLY,
+            "genesisLiquiditySupplyGBXRaw": GENESIS_LIQUIDITY_SUPPLY,
+            "genesisLpPermanentlyLocked": True,
             "infiniteSupply": True,
             "priceDecaySeconds": HOUR,
             "previousMinerBps": 8_000,

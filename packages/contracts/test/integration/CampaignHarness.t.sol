@@ -41,7 +41,10 @@ contract CampaignHarnessTest is Test {
         assertEq(campaign.bribeFactory().resonance(), address(campaign.resonance()));
         assertEq(campaign.strategyFactory().resonance(), address(campaign.resonance()));
         assertGt(campaign.gbx().totalSupply(), 0);
-        assertEq(campaign.gbx().lifetimeMinted(), campaign.mineContract().totalMined());
+        uint256 genesisIssuance = campaign.mineContract().genesisLiquidityMinted()
+            ? campaign.mineContract().GENESIS_LIQUIDITY_GBX()
+            : 0;
+        assertEq(campaign.gbx().lifetimeMinted(), campaign.mineContract().totalMined() + genesisIssuance);
     }
 
     function test_EveryPropertyHoldsOnTheMinedBootstrapState() external view {

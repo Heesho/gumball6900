@@ -6,6 +6,7 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
 
 import { Bribe } from "../../src/core/Bribe.sol";
 import { BribeFactory } from "../../src/core/BribeFactory.sol";
+import { BribeRouter } from "../../src/core/BribeRouter.sol";
 import { Fund } from "../../src/core/Fund.sol";
 import { Resonance } from "../../src/core/Resonance.sol";
 import { ResonanceRouter } from "../../src/core/ResonanceRouter.sol";
@@ -132,10 +133,12 @@ contract AdversarialTest is ProtocolFixture {
         _signalDefault(ATTACKER, 1_000 ether);
         _signalOne(ATTACKER, address(targetStrategy));
 
+        vm.prank(ATTACKER);
         targetBribe.claimRewards(ATTACKER);
 
         assertEq(target.balanceOf(ATTACKER), 0, "zero elapsed time means zero accrual");
 
+        vm.prank(ALICE);
         targetBribe.claimRewards(ALICE);
         assertApproxEqRel(target.balanceOf(ALICE), (uint256(1 ether) * 6) / 7, 1e15, "Alice keeps her six days");
     }
@@ -206,6 +209,7 @@ contract AdversarialTest is ProtocolFixture {
         resonance.killStrategy(address(targetStrategy));
 
         vm.warp(block.timestamp + 4 days);
+        vm.prank(ALICE);
         targetBribe.claimRewards(ALICE);
         vm.startPrank(ALICE);
         signalGBX.removeSignal(address(targetStrategy), 100 ether);
@@ -308,6 +312,52 @@ contract AdversarialTest is ProtocolFixture {
                        CROSS-CONTRACT REENTRANCY
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice A payment-token transfer callback cannot recursively route the same Bribe buffer.
+    /// @dev The Router itself has no mutable accounting, while the already-active Bribe notification rejects the
+    ///      recursive call. The outer notification still completes exactly once and leaves no residual allowance.
+    function test_AHostilePaymentTokenCannotReenterBribeRouterRoute() external {
+        ReentrantToken hostile = new ReentrantToken(18);
+        (, address hostileBribeAddress, address hostileRouterAddress) =
+            resonance.addStrategy(IERC20(address(hostile)), defaultConfig());
+        Bribe hostileBribe = Bribe(hostileBribeAddress);
+        BribeRouter hostileRouter = BribeRouter(hostileRouterAddress);
+        uint256 amount = hostileBribe.REWARD_DURATION();
+
+        hostile.mint(address(hostileRouter), amount);
+        hostile.arm(address(hostileRouter), abi.encodeCall(BribeRouter.route, ()));
+
+        assertEq(hostileRouter.route(), amount);
+
+        assertEq(hostile.callCount(), 1, "the transfer callback must execute");
+        assertFalse(hostile.lastCallSucceeded(), "the recursive route must fail inside the active Bribe call");
+        assertEq(_selectorOf(hostile.lastReturnData()), ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
+        assertEq(hostileBribe.lifetimeRewardNotified(address(hostile)), amount, "funding is counted exactly once");
+        assertEq(hostile.balanceOf(address(hostileRouter)), 0);
+        assertEq(hostile.balanceOf(address(hostileBribe)), amount);
+        assertEq(hostile.allowance(address(hostileRouter), address(hostileBribe)), 0);
+    }
+
+    /// @notice A USDG transfer callback cannot recursively route the same ResonanceRouter balance.
+    /// @dev ResonanceRouter's guard rejects the callback while the outer route completes exactly once.
+    function test_AHostileRevenueTokenCannotReenterResonanceRouterRoute() external {
+        ReentrantToken hostileUSDG = new ReentrantToken(6);
+        (Resonance hostileResonance, ResonanceRouter hostileRouter,,) = _deployWith(hostileUSDG);
+        uint256 amount = hostileResonance.REWARD_DURATION();
+
+        hostileUSDG.mint(address(hostileRouter), amount);
+        hostileUSDG.arm(address(hostileRouter), abi.encodeCall(ResonanceRouter.route, ()));
+
+        assertEq(hostileRouter.route(), amount);
+
+        assertEq(hostileUSDG.callCount(), 1, "the transfer callback must execute");
+        assertFalse(hostileUSDG.lastCallSucceeded(), "the Router guard must reject the recursive route");
+        assertEq(_selectorOf(hostileUSDG.lastReturnData()), ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
+        assertEq(hostileResonance.lifetimeRevenueNotified(), amount, "revenue is counted exactly once");
+        assertEq(hostileUSDG.balanceOf(address(hostileRouter)), 0);
+        assertEq(hostileUSDG.balanceOf(address(hostileResonance)), amount);
+        assertEq(hostileUSDG.allowance(address(hostileRouter), address(hostileResonance)), 0);
+    }
+
     /// @notice A hostile payment token cannot corrupt settlement by re-entering Resonance mid-purchase.
     /// @dev `Strategy.buy` checkpoints before its inventory snapshot. A payment-token callback cannot make a
     ///      same-block stream release appear after that snapshot.
@@ -385,6 +435,36 @@ contract AdversarialTest is ProtocolFixture {
         assertEq(signalGBX.balanceOf(ALICE), 0);
     }
 
+    /// @notice A reward-token callback cannot recursively enter the caller-bound Resonance claim batch.
+    function test_AHostileRewardTokenCannotReenterResonanceBatchClaims() external {
+        ReentrantToken hostile = new ReentrantToken(18);
+        resonance.addBribeRewardToken(address(targetStrategy), address(hostile));
+        resonance.addBribeRewardToken(address(gbxStrategy), address(hostile));
+        _signalDefault(ALICE, 1 ether);
+        _signalDefault(address(hostile), 1 ether);
+        _signalOne(address(hostile), address(gbxStrategy));
+
+        uint256 amount = targetBribe.REWARD_DURATION();
+        hostile.mint(address(this), 2 * amount);
+        hostile.approve(address(targetBribe), amount);
+        targetBribe.notifyReward(address(hostile), amount);
+        hostile.approve(address(gbxBribe), amount);
+        gbxBribe.notifyReward(address(hostile), amount);
+        vm.warp(block.timestamp + amount);
+
+        address[] memory callbackStrategies = _addresses(address(gbxStrategy));
+        hostile.arm(address(resonance), abi.encodeCall(Resonance.claimBribeRewards, (callbackStrategies)));
+        vm.prank(ALICE);
+        resonance.claimBribeRewards(_addresses(address(targetStrategy)));
+
+        assertEq(hostile.callCount(), 1, "the reward transfer callback must execute");
+        assertFalse(hostile.lastCallSucceeded());
+        assertEq(_selectorOf(hostile.lastReturnData()), ReentrancyGuard.ReentrancyGuardReentrantCall.selector);
+        assertEq(hostile.balanceOf(ALICE), amount, "the outer batch pays exactly once");
+        assertEq(targetBribe.earned(ALICE, address(hostile)), 0);
+        assertEq(gbxBribe.earned(address(hostile), address(hostile)), amount, "the nested entitlement remains unpaid");
+    }
+
     /// @notice A hostile revenue token cannot reenter the one signal-removal path that transfers a token.
     function test_AHostileRevenueTokenCannotReenterRemoveSignal() external {
         ReentrantToken hostileUSDG = new ReentrantToken(6);
@@ -447,6 +527,7 @@ contract AdversarialTest is ProtocolFixture {
         target.mint(address(targetBribe), 1_000 ether);
         vm.warp(block.timestamp + 30 days);
 
+        vm.prank(ALICE);
         targetBribe.claimRewards(ALICE);
 
         assertEq(target.balanceOf(ALICE), 0, "no stream exists to accrue against");

@@ -27,8 +27,8 @@ export const currentPages = [
             <div class="rule" style="background:${palette.deepRule}"></div>
             <div class="kpi-row">
               <div>
-                <div class="kpi__value">0</div>
-                <div class="kpi__label">Preminted GBX</div>
+                <div class="kpi__value">1,000</div>
+                <div class="kpi__label">Genesis LP GBX</div>
               </div>
               <div>
                 <div class="kpi__value">16</div>
@@ -60,14 +60,17 @@ export const currentPages = [
               <p style="color:${palette.onDeep}">
                 GumBall6900 is experimental software. It is not deployed or authorized for user funds. V12 supplied a
                 finding export for the exact source target, but the package is incomplete. Independent disposition
-                accepted one theoretical risk, retained one deployment control, and left claim authorization open. Mine
-                economics, target-chain dependencies, legal provenance, and a signed deployment manifest remain
-                unresolved.
+                confirmed three historical behaviors. ADR 0053's claim-authorization remediation was internally verified
+                before ADR 0054 added the Mine genesis issuance and atomic launcher, which also removes the canonical
+                graph's prior multi-transaction pre-handoff exposure window. ADR 0055 then added Mine's validated
+                future-revenue Router migration and two-step Mine and Resonance handoffs. Fresh independent closure
+                remains open. Mine economics, target-chain dependencies, legal provenance, and a signed deployment
+                manifest remain unresolved.
               </p>
               <p style="color:${palette.onDeepMuted}">
-                This edition describes commit 3ae171b, implementing ADRs 0031, 0033-0047, 0049, and 0050. External
-                governance remains unselected. A local green build and the received export are bounded evidence, never a
-                safety or release claim.
+                This edition describes the uncommitted development tree based on f991253 and reconciled through ADR
+                0055; V12 remains pinned to 3ae171b. External governance remains unselected. Internal verification and
+                the received export are bounded evidence, never a safety or release claim.
               </p>
             </div>
             <div class="col-side">
@@ -81,7 +84,8 @@ export const currentPages = [
           <div class="stack-2">
             ${table({
               rows: [
-                ['Initial supply', 'Zero; GBX creates no tokens at deployment'],
+                ['GBX constructor supply', 'Zero; the temporary setup minter cannot mint'],
+                ['Canonical launch supply', '1,000 GBX, issued by Mine only into permanently locked genesis liquidity'],
                 ['Lifetime issuer', 'One permanently bound immutable Mine'],
                 ['Supply limit', 'No economic cap; GBX has no voting checkpoints'],
                 ['Governance', 'External Resonance owner unselected; sGBX IVotes retained'],
@@ -123,7 +127,8 @@ export const currentPages = [
                 'Twenty percent of a nonempty-slot replacement is deposited into ResonanceRouter; eighty percent becomes an outgoing-tenure miner claim.',
                 'Mine stops after deposit. A later permissionless route of a qualifying balance restarts seven days with new USDG plus the remainder.',
                 'Strategies pull released USDG; each acquired-asset payment uses the current global 0%-to-20% Bribe rate and its Fund complement, with 1e36 reward-index precision.',
-                'A reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token may be a bootstrap Strategy asset; it receives no special core treatment.',
+                'Before market use, the one-shot launcher seeds 1 USDG plus 1,000 Mine-issued GBX into the canonical V2 pair and locks every genesis LP unit at zero.',
+                'GBX and the actual LP token are the two initial Strategies; later Fund-held LP remains ordinary caller-selectable redemption backing.',
                 'A GBX holder may burn GBX for a selected pro-rata basket of raw Fund assets.',
               ])}
             </div>
@@ -243,11 +248,15 @@ export const currentPages = [
           <div class="spread">
             <div class="col-main">
               <p>
-                GBX begins with ${Number(contractConstants.gbx.initialSupplyTokens).toLocaleString('en-US')} tokens:
-                deployment creates no GBX. Its sole lifetime issuer is the permanently bound Mine. Global rates offered
-                to future occupants halve every 69 days measured from Mine deployment and reach a 1 GBX-per-second tail
-                at day 414. That schedule is provisional pending independent economic review. GBX supports permit
-                approvals but has no governance checkpoints; votes begin only after signaling into sGBX.
+                GBX's constructor begins with
+                ${Number(contractConstants.gbx.constructorSupplyTokens).toLocaleString('en-US')} tokens. After the
+                permanent Mine binding, the canonical launcher directs Mine's fixed
+                ${Number(contractConstants.gbx.canonicalLaunchSupplyTokens).toLocaleString('en-US')} GBX issuance only
+                into the 1 USDG genesis pair and permanently locks the resulting LP. There is no team, presale,
+                treasury, or discretionary allocation. Global rates offered to future occupants halve every 69 days
+                measured from Mine deployment and reach a 1 GBX-per-second tail at day 414. That schedule is provisional
+                pending independent economic review. GBX supports permit approvals but has no governance checkpoints;
+                votes begin only after signaling into sGBX.
               </p>
               <p>
                 Mining emission accrues continuously but each slot mints only when its current tenure is replaced. Fund
@@ -283,11 +292,12 @@ export const currentPages = [
             eyebrow: 'Part V',
             number: '05',
             title: 'Immutable by design',
-            deck: 'The core exposes four Resonance administration methods; external execution rules remain unselected.',
+            deck: 'Five bounded actions span Mine and Resonance; external execution rules remain unselected.',
           })}
           ${ledger({
-            yesHead: 'Resonance owner actions',
+            yesHead: 'Continuing owner actions',
             yesItems: [
+              "Set Mine's validated future-revenue Router",
               'Add a Strategy',
               'Permanently kill a Strategy',
               'Register a Bribe reward token, up to sixteen',
@@ -295,10 +305,10 @@ export const currentPages = [
             ],
             noHead: 'Absent powers',
             noItems: [
-              'No Mine administration or outgoing-tenure repricing',
+              'No Mine slot, price, emission, or outgoing-tenure repricing',
               'No emission setter or replacement authority',
               'No core Governor, Timelock, or generic executor',
-              'No Fund withdrawal or liquidity-specific core custody',
+              'No Fund withdrawal or continuing liquidity manager',
             ],
           })}
           <div class="spread stack-2">

@@ -8,7 +8,8 @@ const repoRoot = resolve(here, '../../..');
 export const contractConstants = {
   gbx: {
     source: 'packages/contracts/src/core/GBX.sol',
-    initialSupplyTokens: 0,
+    constructorSupplyTokens: 0,
+    canonicalLaunchSupplyTokens: 1_000,
     unlimitedSupply: true,
     supportsPermit: true,
     supportsVotes: false,
@@ -32,6 +33,7 @@ export const contractConstants = {
     initialTps: 64n * 10n ** 18n,
     halvingPeriodSeconds: 69n * 86_400n,
     tailTps: 1n * 10n ** 18n,
+    genesisLiquidityGbx: 1_000n * 10n ** 18n,
     tenureRatesLocked: true,
     constantTimePendingEmission: true,
   },
@@ -56,20 +58,29 @@ export const contractConstants = {
     source: 'packages/contracts/src/core/BribeRouter.sol',
     buffersBribeShareOnly: true,
   },
+  launcher: {
+    source: 'packages/contracts/src/launch/GBXLauncher.sol',
+    robinhoodChainId: 4_663,
+    uniswapV2Factory: '0x8bcEaA40B9AcdfAedF85AdF4FF01F5Ad6517937f',
+    uniswapV2Router: '0x89e5DB8B5aA49aA85AC63f691524311AEB649eba',
+    genesisUsdgRaw: 1_000_000n,
+    expectedGenesisLpSupplyRaw: 31_622_776_601_683n,
+    genesisLpPermanentlyLocked: true,
+  },
 };
 
 export const status = {
-  editionVersion: 'v0.9',
-  editionDate: '25 August 2026',
-  contractsCommit: '3ae171b997254b56602298d873b3918d1575b3c7',
-  contractsCommitShort: '3ae171b',
+  editionVersion: 'v0.11',
+  editionDate: '30 August 2026',
+  contractsCommit: 'f9912533e999454f1a3fd49276558bd85e1390da',
+  contractsCommitShort: 'f991253',
   auditCandidateCommit: '3ae171b997254b56602298d873b3918d1575b3c7',
   auditCandidateCommitShort: '3ae171b',
   deployment: 'Not deployed and not authorized for user funds',
   externalAudit: 'V12 export received; complete assurance and release closure pending',
   licensing: 'donut-miner, give.fun, Liquid Signal, and transitive lineage remain unresolved release blockers',
   architectureImplementation:
-    'ADRs 0031 and 0033-0050 implemented at the V12 source target; the confirmed findings, provisional Mine emission schedule, and external governance owner remain under review',
+    'Uncommitted development tree based on f991253 and reconciled through ADR 0055; V12 remains pinned to 3ae171b, and independent remediation and launcher review, provisional Mine economics, and the external governance owner remain open',
 };
 
 export function verifyProtocolFacts() {
@@ -81,8 +92,15 @@ export function verifyProtocolFacts() {
   const strategySource = readFileSync(resolve(repoRoot, contractConstants.strategy.source), 'utf8');
   const routerSource = readFileSync(resolve(repoRoot, contractConstants.bribeRouter.source), 'utf8');
   const bribeSource = readFileSync(resolve(repoRoot, contractConstants.bribe.source), 'utf8');
+  const launcherSource = readFileSync(resolve(repoRoot, contractConstants.launcher.source), 'utf8');
   const checks = [
-    ['initial supply', BigInt(fixture.assumptions.initialSupplyGBXRaw), 0n],
+    ['constructor supply', BigInt(fixture.assumptions.constructorSupplyGBXRaw), 0n],
+    [
+      'genesis liquidity supply',
+      BigInt(fixture.assumptions.genesisLiquiditySupplyGBXRaw),
+      expected.genesisLiquidityGbx,
+    ],
+    ['canonical launch supply', BigInt(fixture.assumptions.initialSupplyGBXRaw), expected.genesisLiquidityGbx],
     ['price decay', BigInt(fixture.assumptions.priceDecaySeconds), BigInt(expected.priceDecaySeconds)],
     ['previous miner bps', BigInt(fixture.assumptions.previousMinerBps), BigInt(expected.previousMinerBps)],
     ['resonance bps', BigInt(fixture.assumptions.resonanceRevenueBps), BigInt(expected.resonanceBps)],
@@ -120,6 +138,7 @@ export function verifyProtocolFacts() {
     !fixture.assumptions.redemptionsUseConstantTimeEffectiveSupply ||
     !fixture.assumptions.strategyFundBpsIsDerived ||
     !fixture.assumptions.externalLpUsesOrdinaryStrategySettlement ||
+    !fixture.assumptions.genesisLpPermanentlyLocked ||
     fixture.assumptions.liquiditySpecificCoreLogic ||
     fixture.assumptions.checkpointAllExists
   ) {
@@ -141,6 +160,7 @@ export function verifyProtocolFacts() {
     ['Mine initial TPS source', /uint256 public constant INITIAL_TPS = 64 ether;/],
     ['Mine halving period source', /uint256 public constant HALVING_PERIOD = 69 days;/],
     ['Mine tail TPS source', /uint256 public constant TAIL_TPS = 1 ether;/],
+    ['Mine fixed genesis liquidity source', /uint256 public constant GENESIS_LIQUIDITY_GBX = 1_000 ether;/],
     ['Mine start time declaration', /uint256 public immutable startTime;/],
     ['Mine start time assignment', /startTime = block\.timestamp;/],
     ['Mine elapsed-time era calculation', /uint256 halvings = \(block\.timestamp - startTime\) \/ HALVING_PERIOD;/],
@@ -148,9 +168,10 @@ export function verifyProtocolFacts() {
     ['Mine tail clamp', /if \(tps < TAIL_TPS\) tps = TAIL_TPS;/],
     [
       'Mine Router-deposit event',
-      /event RevenueDeposited\(uint256 indexed slotIndex, uint256 indexed epochId, uint256 amount\);/,
+      /event RevenueDeposited\(\s*uint256 indexed slotIndex,\s*uint256 indexed epochId,\s*address indexed resonanceRouter,\s*uint256 amount\s*\);/,
     ],
-    ['Mine nominal Router transfer', /usdg\.safeTransfer\(resonanceRouter, revenueAmount\);/],
+    ['Mine Router snapshot', /address configuredRouter = resonanceRouter;/],
+    ['Mine nominal Router transfer', /usdg\.safeTransfer\(configuredRouter, revenueAmount\);/],
   ];
   for (const [name, pattern] of minePins) {
     if (!pattern.test(mineSource)) failures.push([name, false, true]);
@@ -198,6 +219,21 @@ export function verifyProtocolFacts() {
   for (const [name, pattern] of bribePins) {
     if (!pattern.test(bribeSource)) failures.push([name, false, true]);
   }
+  const launcherPins = [
+    ['Robinhood chain', /uint256 public constant ROBINHOOD_CHAIN_ID = 4_663;/],
+    [
+      'Robinhood V2 Factory',
+      /address public constant UNISWAP_V2_FACTORY = 0x8bcEaA40B9AcdfAedF85AdF4FF01F5Ad6517937f;/,
+    ],
+    ['Robinhood V2 Router', /address public constant UNISWAP_V2_ROUTER = 0x89e5DB8B5aA49aA85AC63f691524311AEB649eba;/],
+    ['genesis USDG', /uint256 public constant GENESIS_USDG = 1e6;/],
+    ['genesis GBX', /uint256 public constant GENESIS_GBX = 1_000 ether;/],
+    ['genesis LP supply', /uint256 public constant EXPECTED_GENESIS_LP_SUPPLY = 31_622_776_601_683;/],
+    ['permanent genesis LP lock', /pair\.mint\(address\(0\)\)/],
+  ];
+  for (const [name, pattern] of launcherPins) {
+    if (!pattern.test(launcherSource)) failures.push([name, false, true]);
+  }
   if (failures.length)
     throw new Error(
       `Protocol fact check failed:\n${failures.map(([name, a, e]) => `  ${name}: ${a} != ${e}`).join('\n')}`,
@@ -211,8 +247,10 @@ export function verifyProtocolFacts() {
       removedMinePins.length +
       strategyPins.length +
       routerPins.length +
-      bribePins.length,
-    initialSupplyTokens: contractConstants.gbx.initialSupplyTokens,
+      bribePins.length +
+      launcherPins.length,
+    constructorSupplyTokens: contractConstants.gbx.constructorSupplyTokens,
+    canonicalLaunchSupplyTokens: contractConstants.gbx.canonicalLaunchSupplyTokens,
     slotCount: expected.slotCount,
   };
 }

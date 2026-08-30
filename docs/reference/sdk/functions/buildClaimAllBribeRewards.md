@@ -8,7 +8,8 @@
 
 > **buildClaimAllBribeRewards**(`bribe`, `account`): [`ContractTransaction`](../interfaces/ContractTransaction.md)
 
-Claims every registered Bribe token for a fixed entitled account.
+Claims every registered token from one Bribe.
+For a direct Bribe call, `account` must be the submitting wallet; only canonical Resonance may relay a claim.
 
 ## Parameters
 

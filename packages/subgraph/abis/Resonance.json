@@ -76,6 +76,19 @@
   },
   {
     "type": "function",
+    "name": "MAX_LIFETIME_REVENUE_AMOUNT",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "REWARD_DURATION",
     "inputs": [],
     "outputs": [
@@ -99,6 +112,13 @@
       }
     ],
     "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "acceptOwnership",
+    "inputs": [],
+    "outputs": [],
+    "stateMutability": "nonpayable"
   },
   {
     "type": "function",
@@ -263,6 +283,19 @@
   },
   {
     "type": "function",
+    "name": "claimBribeRewards",
+    "inputs": [
+      {
+        "name": "strategies",
+        "type": "address[]",
+        "internalType": "address[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "distributeRevenue",
     "inputs": [
       {
@@ -365,6 +398,19 @@
   },
   {
     "type": "function",
+    "name": "lifetimeRevenueNotified",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "liveStrategyCount",
     "inputs": [],
     "outputs": [
@@ -392,6 +438,19 @@
   {
     "type": "function",
     "name": "owner",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
+    "name": "pendingOwner",
     "inputs": [],
     "outputs": [
       {
@@ -674,6 +733,25 @@
   },
   {
     "type": "event",
+    "name": "OwnershipTransferStarted",
+    "inputs": [
+      {
+        "name": "previousOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "newOwner",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "OwnershipTransferred",
     "inputs": [
       {
@@ -866,6 +944,11 @@
   },
   {
     "type": "error",
+    "name": "EmptyClaimBatch",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "FinalLiveStrategy",
     "inputs": [
       {
@@ -978,6 +1061,27 @@
       },
       {
         "name": "remaining",
+        "type": "uint256",
+        "internalType": "uint256"
+      }
+    ]
+  },
+  {
+    "type": "error",
+    "name": "RevenueLifetimeCapExceeded",
+    "inputs": [
+      {
+        "name": "notified",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "requested",
+        "type": "uint256",
+        "internalType": "uint256"
+      },
+      {
+        "name": "maximum",
         "type": "uint256",
         "internalType": "uint256"
       }

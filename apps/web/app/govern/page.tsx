@@ -21,7 +21,7 @@ export default function Page() {
           <span className="eyebrow">{mechanism.index} · Mechanism</span>
           <h1 className="h1">{mechanism.name}</h1>
           <p className="lede">
-            Reading the four bounded actions and the record of every call to them will happen here.
+            Reading the five bounded actions and the record of every call to them will happen here.
           </p>
         </header>
 

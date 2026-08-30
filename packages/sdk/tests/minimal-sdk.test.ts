@@ -2,10 +2,12 @@ import { getAddress, type Address, type PublicClient } from 'viem';
 import { describe, expect, it, vi } from 'vitest';
 
 import {
+  parseProtocolDeployment,
   protocolAddressesSchema,
   protocolPeripheryAddressesSchema,
   readRedemptionPreview,
   readSupplyView,
+  selectProtocolDeployment,
 } from '../src/index.js';
 
 const address = (value: number): Address => `0x${value.toString(16).padStart(40, '0')}`;
@@ -93,5 +95,46 @@ describe('minimal SDK reads and deployment metadata', () => {
         signalPortfolioLens: '0x0000000000000000000000000000000000000000',
       }),
     ).toThrow();
+  });
+
+  it('labels unauthenticated release metadata as caller-claimed and rejects the legacy status key', () => {
+    const metadata = {
+      addresses: {
+        bribeFactory: address(1),
+        fund: address(2),
+        gbx: address(3),
+        mine: address(4),
+        signalGBX: address(5),
+        strategyFactory: address(6),
+        resonance: address(7),
+        resonanceRouter: address(8),
+      },
+      chainId: 4663,
+      deploymentId: 'self-declared-without-attestation',
+      manifestPayloadHash: `0x${'11'.repeat(32)}`,
+      releaseVersion: 'v9.9.9',
+    } as const;
+    const parseUntrusted = (value: unknown) => parseProtocolDeployment(JSON.parse(JSON.stringify(value)) as unknown);
+
+    const approved = parseUntrusted({ ...metadata, claimedStatus: 'release-approved' });
+    expect(selectProtocolDeployment([approved], 4663)).toEqual(approved);
+    expect(approved.claimedStatus).toBe('release-approved');
+    expect(approved).not.toHaveProperty('status');
+    expect(approved).not.toHaveProperty('attestation');
+    expect(approved).not.toHaveProperty('signature');
+
+    expect(() => parseUntrusted({ ...metadata, status: 'release-approved' })).toThrow();
+    expect(() =>
+      parseUntrusted({ ...metadata, claimedStatus: 'release-approved', status: 'release-approved' }),
+    ).toThrow();
+
+    const draft = parseUntrusted({ ...metadata, claimedStatus: 'draft' });
+    expect(() => selectProtocolDeployment([draft], 4663)).toThrow(/received 0/u);
+    expect(selectProtocolDeployment([draft], 4663, { requireClaimedReleaseApproved: false })).toEqual(draft);
+
+    if (false) {
+      // @ts-expect-error The legacy option implied authentication and is intentionally unsupported.
+      selectProtocolDeployment([approved], 4663, { requireReleaseApproved: false });
+    }
   });
 });

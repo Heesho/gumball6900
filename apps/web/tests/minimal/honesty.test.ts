@@ -120,10 +120,11 @@ describe('protocol constants track the contracts', () => {
     expect(AUCTION.bribeShare).toBe('0–20%');
   });
 
-  it('keeps the governance surface at exactly four bounded actions', () => {
-    expect(GOVERN.actionCount).toBe(4);
-    expect(GOVERN.actions).toHaveLength(4);
+  it('keeps the governance surface at exactly five bounded actions', () => {
+    expect(GOVERN.actionCount).toBe(5);
+    expect(GOVERN.actions).toHaveLength(5);
     expect(GOVERN.actions.map((action) => action.name)).toEqual([
+      'Set Mine revenue Router',
       'Add Strategy',
       'Kill Strategy',
       'Add Bribe reward token',

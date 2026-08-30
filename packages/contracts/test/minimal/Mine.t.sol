@@ -1,11 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.26;
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
+import { BribeFactory } from "../../src/core/BribeFactory.sol";
+import { Fund } from "../../src/core/Fund.sol";
 import { GBX } from "../../src/core/GBX.sol";
 import { Mine } from "../../src/core/Mine.sol";
+import { Resonance } from "../../src/core/Resonance.sol";
+import { ResonanceRouter } from "../../src/core/ResonanceRouter.sol";
+import { SignalGBX } from "../../src/core/SignalGBX.sol";
+import { StrategyFactory } from "../../src/core/StrategyFactory.sol";
 import { ProtocolFixture } from "./utils/ProtocolFixture.sol";
 import { MockERC20 } from "./utils/Tokens.sol";
 
@@ -32,7 +39,13 @@ contract MineTest is ProtocolFixture {
         uint256 tps,
         string message
     );
-    event RevenueDeposited(uint256 indexed index, uint256 indexed epochId, uint256 amount);
+    event RevenueDeposited(
+        uint256 indexed index, uint256 indexed epochId, address indexed resonanceRouter, uint256 amount
+    );
+    event ResonanceRouterUpdated(
+        address indexed previousRouter, address indexed newRouter, address indexed newResonance
+    );
+    event GenesisLiquidityMinted(address indexed recipient, uint256 amount);
 
     function setUp() external {
         _deployProtocol();
@@ -53,6 +66,13 @@ contract MineTest is ProtocolFixture {
         assertEq(gbx.totalSupply(), 0);
         assertEq(gbx.minter(), address(mine));
         assertTrue(gbx.minterLocked());
+        assertEq(mine.fund(), address(fund));
+        assertEq(mine.resonanceRouter(), address(resonanceRouter));
+        assertEq(mine.owner(), address(this));
+        assertEq(mine.pendingOwner(), address(0));
+        assertEq(mine.GENESIS_LIQUIDITY_GBX(), 1_000 ether);
+        assertEq(mine.genesisAuthority(), address(0));
+        assertFalse(mine.genesisLiquidityMinted());
 
         for (uint256 i; i < mine.SLOT_COUNT(); ++i) {
             Mine.Slot memory slot = mine.slot(i);
@@ -65,19 +85,310 @@ contract MineTest is ProtocolFixture {
 
     function test_ConstructorRejectsInvalidDependenciesAndDefersRouterTokenVerification() external {
         vm.expectRevert(Mine.ZeroAddress.selector);
-        new Mine(GBX(address(0)), IERC20(address(usdg)), address(resonanceRouter));
+        new Mine(
+            GBX(address(0)),
+            IERC20(address(usdg)),
+            address(fund),
+            address(resonanceRouter),
+            address(this),
+            address(this)
+        );
 
         vm.expectRevert(Mine.ZeroAddress.selector);
-        new Mine(gbx, IERC20(address(0)), address(resonanceRouter));
+        new Mine(gbx, IERC20(address(0)), address(fund), address(resonanceRouter), address(this), address(this));
 
         vm.expectRevert(Mine.ZeroAddress.selector);
-        new Mine(gbx, IERC20(address(usdg)), address(0));
+        new Mine(gbx, IERC20(address(usdg)), address(0), address(resonanceRouter), address(this), address(this));
+
+        vm.expectRevert(Mine.ZeroAddress.selector);
+        new Mine(gbx, IERC20(address(usdg)), address(fund), address(0), address(this), address(this));
+
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableInvalidOwner.selector, address(0)));
+        new Mine(gbx, IERC20(address(usdg)), address(fund), address(resonanceRouter), address(this), address(0));
+
+        GBX wrongFundGBX = new GBX(address(this));
+        Fund wrongFund = new Fund(wrongFundGBX);
+        vm.expectRevert(abi.encodeWithSelector(Mine.InvalidFund.selector, address(wrongFund)));
+        new Mine(gbx, IERC20(address(usdg)), address(wrongFund), address(resonanceRouter), address(this), address(this));
 
         MineRouterIdentityHarness wrongRouter = new MineRouterIdentityHarness(IERC20(address(target)));
-        Mine mismatchedMine = new Mine(gbx, IERC20(address(usdg)), address(wrongRouter));
+        Mine mismatchedMine =
+            new Mine(gbx, IERC20(address(usdg)), address(fund), address(wrongRouter), address(0), address(this));
         assertEq(address(mismatchedMine.usdg()), address(usdg));
+        assertEq(mismatchedMine.fund(), address(fund));
         assertEq(mismatchedMine.resonanceRouter(), address(wrongRouter));
         assertEq(address(wrongRouter.usdg()), address(target));
+        assertEq(mismatchedMine.genesisAuthority(), address(0));
+    }
+
+    function test_OwnershipTransferRequiresPendingOwnerAcceptanceAndRenunciationClearsIt() external {
+        mine.transferOwnership(ALICE);
+
+        assertEq(mine.owner(), address(this));
+        assertEq(mine.pendingOwner(), ALICE);
+
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, ALICE));
+        mine.setResonanceRouter(address(target));
+
+        vm.prank(BOB);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, BOB));
+        mine.acceptOwnership();
+
+        vm.prank(ALICE);
+        mine.acceptOwnership();
+        assertEq(mine.owner(), ALICE);
+        assertEq(mine.pendingOwner(), address(0));
+
+        vm.prank(ALICE);
+        mine.transferOwnership(BOB);
+        assertEq(mine.owner(), ALICE);
+        assertEq(mine.pendingOwner(), BOB);
+
+        vm.prank(ALICE);
+        mine.transferOwnership(address(0));
+        assertEq(mine.owner(), ALICE);
+        assertEq(mine.pendingOwner(), address(0));
+
+        vm.prank(ALICE);
+        mine.transferOwnership(BOB);
+        vm.prank(ALICE);
+        mine.renounceOwnership();
+        assertEq(mine.owner(), address(0));
+        assertEq(mine.pendingOwner(), address(0));
+    }
+
+    function test_SetResonanceRouterIsOwnerOnlyAndRejectsIncompleteOrMismatchedGraphs() external {
+        address originalRouter = address(resonanceRouter);
+
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, ALICE));
+        mine.setResonanceRouter(address(target));
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.ResonanceRouterUnchanged.selector, originalRouter));
+        mine.setResonanceRouter(originalRouter);
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.InvalidResonanceRouter.selector, address(0)));
+        mine.setResonanceRouter(address(0));
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.InvalidResonanceRouter.selector, ALICE));
+        mine.setResonanceRouter(ALICE);
+
+        vm.expectRevert(abi.encodeWithSelector(Mine.InvalidResonanceRouter.selector, address(target)));
+        mine.setResonanceRouter(address(target));
+
+        ResonanceRouter wrongTokenRouter = new ResonanceRouter(IERC20(address(target)), address(resonance));
+        vm.expectRevert(abi.encodeWithSelector(Mine.InvalidResonanceRouter.selector, address(wrongTokenRouter)));
+        mine.setResonanceRouter(address(wrongTokenRouter));
+
+        ResonanceRouter nonReciprocalRouter = new ResonanceRouter(IERC20(address(usdg)), address(resonance));
+        vm.expectRevert(abi.encodeWithSelector(Mine.InvalidResonanceRouter.selector, address(nonReciprocalRouter)));
+        mine.setResonanceRouter(address(nonReciprocalRouter));
+
+        Fund wrongFund = new Fund(gbx);
+        (, ResonanceRouter wrongFundRouter) =
+            _deployReplacementRevenueGraph(IERC20(address(gbx)), address(wrongFund), IERC20(address(usdg)));
+        vm.expectRevert(abi.encodeWithSelector(Mine.InvalidResonanceRouter.selector, address(wrongFundRouter)));
+        mine.setResonanceRouter(address(wrongFundRouter));
+
+        GBX wrongGBX = new GBX(address(this));
+        (, ResonanceRouter wrongGBXRouter) =
+            _deployReplacementRevenueGraph(IERC20(address(wrongGBX)), address(fund), IERC20(address(usdg)));
+        vm.expectRevert(abi.encodeWithSelector(Mine.InvalidResonanceRouter.selector, address(wrongGBXRouter)));
+        mine.setResonanceRouter(address(wrongGBXRouter));
+
+        assertEq(mine.resonanceRouter(), originalRouter);
+    }
+
+    function test_SetResonanceRouterRejectsReplacementResonanceUSDGMismatch() external {
+        address originalRouter = address(resonanceRouter);
+        (Resonance replacementResonance, ResonanceRouter replacementRouter) =
+            _deployReplacementRevenueGraph(IERC20(address(gbx)), address(fund), IERC20(address(usdg)));
+
+        vm.mockCall(address(replacementResonance), abi.encodeWithSignature("usdg()"), abi.encode(address(target)));
+        vm.expectRevert(abi.encodeWithSelector(Mine.InvalidResonanceRouter.selector, address(replacementRouter)));
+        mine.setResonanceRouter(address(replacementRouter));
+
+        assertEq(mine.resonanceRouter(), originalRouter);
+        vm.clearMockedCalls();
+    }
+
+    function test_SetResonanceRouterRejectsCrossedSignalGBXResonanceBinding() external {
+        address originalRouter = address(resonanceRouter);
+        SignalGBX crossedSignalGBX = new SignalGBX(IERC20(address(gbx)), address(this));
+        BribeFactory replacementBribeFactory = new BribeFactory(address(this));
+        StrategyFactory replacementStrategyFactory = new StrategyFactory(address(this));
+        Resonance replacementResonance = new Resonance(
+            IERC20(address(crossedSignalGBX)),
+            IERC20(address(usdg)),
+            address(fund),
+            replacementBribeFactory,
+            replacementStrategyFactory,
+            address(this)
+        );
+        Resonance otherResonance = new Resonance(
+            IERC20(address(crossedSignalGBX)),
+            IERC20(address(usdg)),
+            address(fund),
+            replacementBribeFactory,
+            replacementStrategyFactory,
+            address(this)
+        );
+        crossedSignalGBX.setResonance(address(otherResonance));
+        ResonanceRouter replacementRouter = new ResonanceRouter(IERC20(address(usdg)), address(replacementResonance));
+        replacementResonance.setResonanceRouter(address(replacementRouter));
+
+        assertEq(address(replacementResonance.signalGBX()), address(crossedSignalGBX));
+        assertEq(crossedSignalGBX.resonance(), address(otherResonance));
+        vm.expectRevert(abi.encodeWithSelector(Mine.InvalidResonanceRouter.selector, address(replacementRouter)));
+        mine.setResonanceRouter(address(replacementRouter));
+
+        assertEq(mine.resonanceRouter(), originalRouter);
+    }
+
+    function test_SetResonanceRouterRedirectsOnlyFutureRevenueAndPreservesOldGraphAndMinerClaims() external {
+        uint256 firstPayment = _mine(ALICE, 0);
+        uint256 oldRouterBalance = usdg.balanceOf(address(resonanceRouter));
+        Mine.Slot memory slotBefore = mine.slot(0);
+        uint256 totalMinedBefore = mine.totalMined();
+        uint256 pendingBefore = mine.pendingEmission();
+
+        (Resonance replacementResonance, ResonanceRouter replacementRouter) =
+            _deployReplacementRevenueGraph(IERC20(address(gbx)), address(fund), IERC20(address(usdg)));
+
+        vm.expectEmit(true, true, true, true, address(mine));
+        emit ResonanceRouterUpdated(address(resonanceRouter), address(replacementRouter), address(replacementResonance));
+        mine.setResonanceRouter(address(replacementRouter));
+
+        Mine.Slot memory slotAfter = mine.slot(0);
+        assertEq(mine.resonanceRouter(), address(replacementRouter));
+        assertEq(usdg.balanceOf(address(resonanceRouter)), oldRouterBalance);
+        assertEq(usdg.balanceOf(address(replacementRouter)), 0);
+        assertEq(slotAfter.epochId, slotBefore.epochId);
+        assertEq(slotAfter.initialPrice, slotBefore.initialPrice);
+        assertEq(slotAfter.auctionStartedAt, slotBefore.auctionStartedAt);
+        assertEq(slotAfter.lastAccruedAt, slotBefore.lastAccruedAt);
+        assertEq(slotAfter.tps, slotBefore.tps);
+        assertEq(slotAfter.miner, slotBefore.miner);
+        assertEq(mine.totalMined(), totalMinedBefore);
+        assertEq(mine.pendingEmission(), pendingBefore);
+        assertEq(mine.totalClaimableMinerPayments(), 0);
+
+        vm.warp(block.timestamp + 30 minutes);
+        uint256 replacementPayment = _mine(BOB, 0);
+        uint256 outgoingMinerClaim = replacementPayment * mine.PREVIOUS_MINER_BPS() / mine.BPS();
+        uint256 redirectedRevenue = replacementPayment - outgoingMinerClaim;
+
+        assertEq(firstPayment, oldRouterBalance);
+        assertEq(usdg.balanceOf(address(resonanceRouter)), oldRouterBalance, "the old buffer is untouched");
+        assertEq(usdg.balanceOf(address(replacementRouter)), redirectedRevenue);
+        assertEq(mine.claimableMinerPayment(ALICE), outgoingMinerClaim);
+        assertEq(mine.totalClaimableMinerPayments(), outgoingMinerClaim);
+        assertEq(usdg.balanceOf(address(mine)), outgoingMinerClaim);
+    }
+
+    function test_MigrationDoesNotReadBrokenOldRouterAndOldSignalRewardExitRemainsUsable() external {
+        _mine(ALICE, 0);
+        _signalDefault(ALICE, 10 ether);
+
+        uint256 rewardAmount = 7 ether;
+        target.mint(address(this), rewardAmount);
+        target.approve(address(targetBribe), rewardAmount);
+        targetBribe.notifyReward(address(target), rewardAmount);
+
+        (Resonance replacementResonance, ResonanceRouter replacementRouter) =
+            _deployReplacementRevenueGraph(IERC20(address(gbx)), address(fund), IERC20(address(usdg)));
+        (address replacementStrategy,,) = replacementResonance.addStrategy(IERC20(address(target)), defaultConfig());
+        SignalGBX replacementSignalGBX = SignalGBX(address(replacementResonance.signalGBX()));
+
+        vm.etch(address(resonanceRouter), hex"fe");
+        mine.setResonanceRouter(address(replacementRouter));
+
+        vm.warp(block.timestamp + 30 minutes);
+        uint256 replacementPayment = _mine(BOB, 0);
+        uint256 redirectedRevenue = replacementPayment - replacementPayment * mine.PREVIOUS_MINER_BPS() / mine.BPS();
+        assertEq(usdg.balanceOf(address(replacementRouter)), redirectedRevenue);
+        assertEq(replacementResonance.resonanceRouter(), address(replacementRouter));
+
+        _mine(BOB, 1);
+        uint256 routedRevenue = usdg.balanceOf(address(replacementRouter));
+        assertEq(replacementRouter.route(), routedRevenue);
+
+        uint256 rewardBefore = target.balanceOf(ALICE);
+        vm.prank(ALICE);
+        uint256 claimed = targetBribe.claimReward(ALICE, address(target));
+        assertGt(claimed, 0);
+        assertEq(target.balanceOf(ALICE), rewardBefore + claimed);
+
+        uint256 gbxBeforeExit = gbx.balanceOf(ALICE);
+        vm.prank(ALICE);
+        signalGBX.removeSignal(address(targetStrategy), 10 ether);
+        assertEq(signalGBX.balanceOf(ALICE), 0);
+        assertEq(gbx.balanceOf(ALICE), gbxBeforeExit + 10 ether);
+
+        vm.startPrank(ALICE);
+        gbx.approve(address(replacementSignalGBX), 10 ether);
+        replacementSignalGBX.addSignal(replacementStrategy, 10 ether);
+        vm.stopPrank();
+        assertEq(replacementSignalGBX.balanceOf(ALICE), 10 ether);
+        assertEq(replacementResonance.totalSignalWeight(), 10 ether);
+
+        vm.warp(block.timestamp + 1 days);
+        assertGt(replacementResonance.distributeRevenue(replacementStrategy), 0);
+        assertGt(usdg.balanceOf(replacementStrategy), 0);
+    }
+
+    function test_GenesisLiquidityMintRequiresBindingAuthorityAndContractRecipient() external {
+        MockERC20 payment = new MockERC20("Payment", "PAY", 6);
+        (GBX isolatedGBX, Mine isolatedMine, MineRouterIdentityHarness router) = _deployIsolatedMine(payment);
+
+        vm.expectRevert(Mine.InvalidMinterBinding.selector);
+        isolatedMine.mintGenesisLiquidity(address(router));
+
+        isolatedGBX.setMinter(address(isolatedMine));
+
+        vm.prank(ALICE);
+        vm.expectRevert(abi.encodeWithSelector(Mine.UnauthorizedGenesisAuthority.selector, ALICE));
+        isolatedMine.mintGenesisLiquidity(address(router));
+
+        vm.expectRevert(Mine.ZeroAddress.selector);
+        isolatedMine.mintGenesisLiquidity(address(0));
+
+        vm.expectRevert(Mine.ZeroAddress.selector);
+        isolatedMine.mintGenesisLiquidity(ALICE);
+    }
+
+    function test_GenesisLiquidityMintIsFixedOneTimeAndClearsAuthority() external {
+        MockERC20 payment = new MockERC20("Payment", "PAY", 6);
+        (GBX isolatedGBX, Mine isolatedMine, MineRouterIdentityHarness router) = _deployIsolatedMine(payment);
+        isolatedGBX.setMinter(address(isolatedMine));
+        uint256 fixedAmount = isolatedMine.GENESIS_LIQUIDITY_GBX();
+
+        vm.expectEmit(true, false, false, true, address(isolatedMine));
+        emit GenesisLiquidityMinted(address(router), fixedAmount);
+        isolatedMine.mintGenesisLiquidity(address(router));
+
+        assertTrue(isolatedMine.genesisLiquidityMinted());
+        assertEq(isolatedMine.genesisAuthority(), address(0));
+        assertEq(isolatedGBX.balanceOf(address(router)), fixedAmount);
+        assertEq(isolatedGBX.totalSupply(), fixedAmount);
+        assertEq(isolatedGBX.lifetimeMinted(), fixedAmount);
+        assertEq(isolatedGBX.lifetimeBurned(), 0);
+        assertEq(isolatedMine.totalMined(), 0);
+        assertEq(isolatedMine.pendingEmission(), 0);
+        assertEq(isolatedMine.effectiveTotalSupply(), fixedAmount);
+
+        vm.expectRevert(Mine.GenesisLiquidityAlreadyMinted.selector);
+        isolatedMine.mintGenesisLiquidity(address(router));
+    }
+
+    function test_ZeroGenesisAuthorityPermanentlyDisablesTheFixedMint() external {
+        vm.expectRevert(abi.encodeWithSelector(Mine.UnauthorizedGenesisAuthority.selector, address(this)));
+        mine.mintGenesisLiquidity(address(resonanceRouter));
+
+        assertFalse(mine.genesisLiquidityMinted());
+        assertEq(mine.genesisAuthority(), address(0));
+        assertEq(gbx.lifetimeMinted(), 0);
     }
 
     function test_MineAndSlotViewsRejectInvalidInputs() external {
@@ -119,6 +430,21 @@ contract MineTest is ProtocolFixture {
         }
 
         assertEq(cappedMine.slot(0).initialPrice, cappedMine.MAX_INITIAL_PRICE());
+
+        uint256 claimBeforeMaximumFill = cappedMine.claimableMinerPayment(ALICE);
+        _mineIsolated(cappedMine, payment, ALICE, 0);
+        uint256 maximumSingleTenureClaim =
+            Math.mulDiv(cappedMine.MAX_INITIAL_PRICE(), cappedMine.PREVIOUS_MINER_BPS(), cappedMine.BPS());
+        assertEq(
+            cappedMine.claimableMinerPayment(ALICE) - claimBeforeMaximumFill,
+            maximumSingleTenureClaim,
+            "the maximum-priced tenure credits its exact supported claim"
+        );
+
+        uint256 completeClaim = cappedMine.claimableMinerPayment(ALICE);
+        cappedMine.claimMinerPayment(ALICE);
+        assertEq(payment.balanceOf(ALICE), completeClaim, "the complete accumulated maximum-boundary claim is payable");
+        assertEq(cappedMine.totalClaimableMinerPayments(), 0);
     }
 
     function test_GlobalRateEventuallyUsesTheFixedTail() external {
@@ -185,7 +511,7 @@ contract MineTest is ProtocolFixture {
         vm.expectEmit(true, true, false, true, address(usdg));
         emit Transfer(address(mine), address(resonanceRouter), paid);
         vm.expectEmit(true, true, false, true, address(mine));
-        emit RevenueDeposited(0, 1, 1e6);
+        emit RevenueDeposited(0, 1, address(resonanceRouter), 1e6);
         mine.mine(ALICE, 0, emptySlot.epochId, block.timestamp, paid, "");
         vm.stopPrank();
 
@@ -481,13 +807,39 @@ contract MineTest is ProtocolFixture {
         vm.stopPrank();
     }
 
+    function _deployReplacementRevenueGraph(IERC20 signalUnderlying, address graphFund, IERC20 graphUSDG)
+        private
+        returns (Resonance replacementResonance, ResonanceRouter replacementRouter)
+    {
+        SignalGBX replacementSignalGBX = new SignalGBX(signalUnderlying, address(this));
+        BribeFactory replacementBribeFactory = new BribeFactory(address(this));
+        StrategyFactory replacementStrategyFactory = new StrategyFactory(address(this));
+        replacementResonance = new Resonance(
+            IERC20(address(replacementSignalGBX)),
+            graphUSDG,
+            graphFund,
+            replacementBribeFactory,
+            replacementStrategyFactory,
+            address(this)
+        );
+
+        replacementBribeFactory.setResonance(address(replacementResonance));
+        replacementStrategyFactory.setResonance(address(replacementResonance));
+        replacementSignalGBX.setResonance(address(replacementResonance));
+        replacementRouter = new ResonanceRouter(graphUSDG, address(replacementResonance));
+        replacementResonance.setResonanceRouter(address(replacementRouter));
+    }
+
     function _deployIsolatedMine(MockERC20 payment)
         private
         returns (GBX isolatedGBX, Mine isolatedMine, MineRouterIdentityHarness router)
     {
         isolatedGBX = new GBX(address(this));
         router = new MineRouterIdentityHarness(IERC20(address(payment)));
-        isolatedMine = new Mine(isolatedGBX, IERC20(address(payment)), address(router));
+        Fund isolatedFund = new Fund(isolatedGBX);
+        isolatedMine = new Mine(
+            isolatedGBX, IERC20(address(payment)), address(isolatedFund), address(router), address(this), address(this)
+        );
     }
 
     function _mineIsolated(Mine isolatedMine, MockERC20 payment, address account, uint256 index)

@@ -6,7 +6,7 @@
 
 # Function: readResonanceView()
 
-> **readResonanceView**(`client`, `resonance`, `options?`): `Promise`\<\{ `basisPoints`: `bigint`; `blockNumber`: `bigint`; `bribeBasisPoints`: `bigint`; `defaultBribeBasisPoints`: `bigint`; `fundBasisPoints`: `bigint`; `lastUpdateTime`: `bigint`; `maximumBribeBasisPoints`: `bigint`; `periodFinish`: `bigint`; `remainingRevenue`: `bigint`; `resonanceRouter`: `` `0x${string}` ``; `revenuePerSignalStored`: `bigint`; `revenueRate`: `bigint`; `rewardDuration`: `bigint`; `rewardPrecision`: `bigint`; `totalSignalWeight`: `bigint`; `usdg`: `` `0x${string}` ``; `usdgBalance`: `bigint`; \}\>
+> **readResonanceView**(`client`, `resonance`, `options?`): `Promise`\<\{ `basisPoints`: `bigint`; `blockNumber`: `bigint`; `bribeBasisPoints`: `bigint`; `defaultBribeBasisPoints`: `bigint`; `fundBasisPoints`: `bigint`; `lastUpdateTime`: `bigint`; `maximumBribeBasisPoints`: `bigint`; `owner`: `` `0x${string}` ``; `pendingOwner`: `` `0x${string}` ``; `periodFinish`: `bigint`; `remainingRevenue`: `bigint`; `resonanceRouter`: `` `0x${string}` ``; `revenuePerSignalStored`: `bigint`; `revenueRate`: `bigint`; `rewardDuration`: `bigint`; `rewardPrecision`: `bigint`; `totalSignalWeight`: `bigint`; `usdg`: `` `0x${string}` ``; `usdgBalance`: `bigint`; \}\>
 
 Reads Resonance's global allocation and revenue state.
 
@@ -20,4 +20,4 @@ Reads Resonance's global allocation and revenue state.
 
 ## Returns
 
-`Promise`\<\{ `basisPoints`: `bigint`; `blockNumber`: `bigint`; `bribeBasisPoints`: `bigint`; `defaultBribeBasisPoints`: `bigint`; `fundBasisPoints`: `bigint`; `lastUpdateTime`: `bigint`; `maximumBribeBasisPoints`: `bigint`; `periodFinish`: `bigint`; `remainingRevenue`: `bigint`; `resonanceRouter`: `` `0x${string}` ``; `revenuePerSignalStored`: `bigint`; `revenueRate`: `bigint`; `rewardDuration`: `bigint`; `rewardPrecision`: `bigint`; `totalSignalWeight`: `bigint`; `usdg`: `` `0x${string}` ``; `usdgBalance`: `bigint`; \}\>
+`Promise`\<\{ `basisPoints`: `bigint`; `blockNumber`: `bigint`; `bribeBasisPoints`: `bigint`; `defaultBribeBasisPoints`: `bigint`; `fundBasisPoints`: `bigint`; `lastUpdateTime`: `bigint`; `maximumBribeBasisPoints`: `bigint`; `owner`: `` `0x${string}` ``; `pendingOwner`: `` `0x${string}` ``; `periodFinish`: `bigint`; `remainingRevenue`: `bigint`; `resonanceRouter`: `` `0x${string}` ``; `revenuePerSignalStored`: `bigint`; `revenueRate`: `bigint`; `rewardDuration`: `bigint`; `rewardPrecision`: `bigint`; `totalSignalWeight`: `bigint`; `usdg`: `` `0x${string}` ``; `usdgBalance`: `bigint`; \}\>

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   readBribeRewardView,
   readBribeRouterView,
+  readMineRevenueDestinationView,
   readMineSlotView,
   readResonanceView,
   readSignalView,
@@ -66,6 +67,9 @@ describe('Mine reads', () => {
       claimableMinerPayment: 80n,
       currentPrice: 50n,
       effectiveTotalSupply: 1_020n,
+      genesisAuthority: address(0),
+      GENESIS_LIQUIDITY_GBX: 1_000_000_000_000_000_000_000n,
+      genesisLiquidityMinted: true,
       slot: [7n, 100n, 1_000n, 1_500n, 4n, address(2)],
       nextGlobalTps: 2n,
       pendingEmission: 20n,
@@ -90,6 +94,9 @@ describe('Mine reads', () => {
       currentPrice: 50n,
       effectiveTotalSupply: 1_020n,
       epochId: 7n,
+      genesisAuthority: address(0),
+      genesisLiquidityGbx: 1_000_000_000_000_000_000_000n,
+      genesisLiquidityMinted: true,
       halvingPeriod: 1_000n,
       index: 0n,
       initialPrice: 100n,
@@ -109,6 +116,37 @@ describe('Mine reads', () => {
       tps: 4n,
     });
   });
+
+  it('reads the active future-revenue destination and two-step Mine owner state', async () => {
+    const values: Readonly<Record<string, unknown>> = {
+      fund: address(2),
+      gbx: address(3),
+      owner: address(4),
+      pendingOwner: address(5),
+      resonance: address(8),
+      resonanceRouter: address(6),
+      usdg: address(7),
+    };
+    const readContract = vi.fn(
+      async ({ functionName }: { blockNumber: bigint; functionName: string }) => values[functionName],
+    );
+    const getBlock = vi.fn(async () => ({ hash: BLOCK_HASH, number: BLOCK_NUMBER, timestamp: 2_000n }));
+    const client = { getBlock, readContract } as unknown as PublicClient;
+
+    await expect(readMineRevenueDestinationView(client, address(1))).resolves.toEqual({
+      blockNumber: BLOCK_NUMBER,
+      fund: address(2),
+      gbx: address(3),
+      mine: address(1),
+      owner: address(4),
+      pendingOwner: address(5),
+      resonance: address(8),
+      resonanceRouter: address(6),
+      usdg: address(7),
+    });
+    expect(getBlock).toHaveBeenCalledTimes(2);
+    for (const [request] of readContract.mock.calls) expect(request.blockNumber).toBe(BLOCK_NUMBER);
+  });
 });
 
 describe('Resonance reads', () => {
@@ -121,6 +159,8 @@ describe('Resonance reads', () => {
       remainingRevenue: 600n,
       REWARD_DURATION: 604_800n,
       MAX_BRIBE_BPS: 2_000n,
+      owner: address(4),
+      pendingOwner: address(5),
       REWARD_PRECISION: 10n ** 36n,
       resonanceRouter: address(2),
       revenueData: [2_600n, 7n, 2_000n, 5n],
@@ -143,6 +183,8 @@ describe('Resonance reads', () => {
       lastUpdateTime: 2_000n,
       remainingRevenue: 600n,
       maximumBribeBasisPoints: 2_000n,
+      owner: address(4),
+      pendingOwner: address(5),
       periodFinish: 2_600n,
       resonanceRouter: address(2),
       revenuePerSignalStored: 5n,

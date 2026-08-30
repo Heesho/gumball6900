@@ -13,7 +13,6 @@ import { MissingReturnToken, MockERC20, ReentrantToken, RevertingToken } from ".
 /// @notice Covers bounded accounting and failure isolation without extending the core reward model.
 contract BribeRewardFlowTest is Test {
     address private constant ALICE = address(0xA11CE);
-    address private constant OUTSIDER = address(0x0075);
 
     uint256 private constant WEEK = 7 days;
 
@@ -48,7 +47,7 @@ contract BribeRewardFlowTest is Test {
         assertEq(bribe.earned(ALICE, address(reward)), healthyAmount);
         assertEq(bribe.earned(ALICE, address(broken)), brokenAmount);
 
-        vm.prank(OUTSIDER);
+        vm.prank(ALICE);
         assertEq(bribe.claimReward(ALICE, address(reward)), healthyAmount);
         assertEq(reward.balanceOf(ALICE), healthyAmount);
 
@@ -154,7 +153,7 @@ contract BribeRewardFlowTest is Test {
         vm.warp(block.timestamp + WEEK);
 
         hostile.arm(address(bribe), abi.encodeCall(Bribe.claimReward, (ALICE, address(hostile))));
-        vm.prank(OUTSIDER);
+        vm.prank(ALICE);
         assertEq(bribe.claimReward(ALICE, address(hostile)), amount);
 
         assertEq(hostile.callCount(), 1);
@@ -199,6 +198,7 @@ contract BribeRetirementCompatibilityTest is ProtocolFixture {
 
         vm.prank(ALICE);
         signalGBX.removeSignal(address(targetStrategy), 100 ether);
+        vm.prank(ALICE);
         assertEq(targetBribe.claimReward(ALICE, address(target)), 1 days);
         assertEq(target.balanceOf(ALICE), 1 days);
         assertEq(targetBribe.totalSignalWeight(), 0);
@@ -211,6 +211,7 @@ contract BribeRetirementCompatibilityTest is ProtocolFixture {
         vm.stopPrank();
 
         vm.warp(block.timestamp + 6 days);
+        vm.prank(ALICE);
         assertEq(targetBribe.claimReward(ALICE, address(target)), 0);
         assertEq(target.balanceOf(address(targetBribe)), streamed - 1 days);
     }

@@ -1,8 +1,11 @@
 {
-  "schemaVersion": "15",
+  "schemaVersion": "16",
   "purpose": "Deterministic protocol mechanics; not forecasts, valuations, or investment projections.",
   "assumptions": {
-    "initialSupplyGBXRaw": "0",
+    "initialSupplyGBXRaw": "1000000000000000000000",
+    "constructorSupplyGBXRaw": "0",
+    "genesisLiquiditySupplyGBXRaw": "1000000000000000000000",
+    "genesisLpPermanentlyLocked": true,
     "infiniteSupply": true,
     "priceDecaySeconds": "3600",
     "previousMinerBps": "8000",
@@ -110,49 +113,49 @@
           "elapsedSinceStart": "0",
           "globalTps": "64000000000000000000",
           "miningEmission": "0",
-          "grossSupply": "0"
+          "grossSupply": "1000000000000000000000"
         },
         {
           "boundaryIndex": "1",
           "elapsedSinceStart": "5961600",
           "globalTps": "32000000000000000000",
           "miningEmission": "381542400000000000000000000",
-          "grossSupply": "381542400000000000000000000"
+          "grossSupply": "381543400000000000000000000"
         },
         {
           "boundaryIndex": "2",
           "elapsedSinceStart": "11923200",
           "globalTps": "16000000000000000000",
           "miningEmission": "572313600000000000000000000",
-          "grossSupply": "572313600000000000000000000"
+          "grossSupply": "572314600000000000000000000"
         },
         {
           "boundaryIndex": "3",
           "elapsedSinceStart": "17884800",
           "globalTps": "8000000000000000000",
           "miningEmission": "667699200000000000000000000",
-          "grossSupply": "667699200000000000000000000"
+          "grossSupply": "667700200000000000000000000"
         },
         {
           "boundaryIndex": "4",
           "elapsedSinceStart": "23846400",
           "globalTps": "4000000000000000000",
           "miningEmission": "715392000000000000000000000",
-          "grossSupply": "715392000000000000000000000"
+          "grossSupply": "715393000000000000000000000"
         },
         {
           "boundaryIndex": "5",
           "elapsedSinceStart": "29808000",
           "globalTps": "2000000000000000000",
           "miningEmission": "739238400000000000000000000",
-          "grossSupply": "739238400000000000000000000"
+          "grossSupply": "739239400000000000000000000"
         },
         {
           "boundaryIndex": "6",
           "elapsedSinceStart": "35769600",
           "globalTps": "1000000000000000000",
           "miningEmission": "751161600000000000000000000",
-          "grossSupply": "751161600000000000000000000"
+          "grossSupply": "751162600000000000000000000"
         }
       ],
       "horizonPoints": [
@@ -160,31 +163,31 @@
           "years": "1",
           "elapsedSinceStart": "31536000",
           "miningEmission": "742694400000000000000000000",
-          "grossSupply": "742694400000000000000000000"
+          "grossSupply": "742695400000000000000000000"
         },
         {
           "years": "3",
           "elapsedSinceStart": "94608000",
           "miningEmission": "810000000000000000000000000",
-          "grossSupply": "810000000000000000000000000"
+          "grossSupply": "810001000000000000000000000"
         },
         {
           "years": "5",
           "elapsedSinceStart": "157680000",
           "miningEmission": "873072000000000000000000000",
-          "grossSupply": "873072000000000000000000000"
+          "grossSupply": "873073000000000000000000000"
         },
         {
           "years": "10",
           "elapsedSinceStart": "315360000",
           "miningEmission": "1030752000000000000000000000",
-          "grossSupply": "1030752000000000000000000000"
+          "grossSupply": "1030753000000000000000000000"
         },
         {
           "years": "40",
           "elapsedSinceStart": "1261440000",
           "miningEmission": "1976832000000000000000000000",
-          "grossSupply": "1976832000000000000000000000"
+          "grossSupply": "1976833000000000000000000000"
         }
       ],
       "tailRelativeHorizonPoints": [
@@ -193,7 +196,7 @@
           "elapsedSinceTail": "31536000",
           "elapsedSinceStart": "67305600",
           "miningEmission": "782697600000000000000000000",
-          "grossSupply": "782697600000000000000000000",
+          "grossSupply": "782698600000000000000000000",
           "annualTailInflationPpm": "40291"
         },
         {
@@ -201,7 +204,7 @@
           "elapsedSinceTail": "63072000",
           "elapsedSinceStart": "98841600",
           "miningEmission": "814233600000000000000000000",
-          "grossSupply": "814233600000000000000000000",
+          "grossSupply": "814234600000000000000000000",
           "annualTailInflationPpm": "38730"
         },
         {
@@ -209,7 +212,7 @@
           "elapsedSinceTail": "157680000",
           "elapsedSinceStart": "193449600",
           "miningEmission": "908841600000000000000000000",
-          "grossSupply": "908841600000000000000000000",
+          "grossSupply": "908842600000000000000000000",
           "annualTailInflationPpm": "34699"
         },
         {
@@ -217,15 +220,15 @@
           "elapsedSinceTail": "315360000",
           "elapsedSinceStart": "351129600",
           "miningEmission": "1066521600000000000000000000",
-          "grossSupply": "1066521600000000000000000000",
-          "annualTailInflationPpm": "29569"
+          "grossSupply": "1066522600000000000000000000",
+          "annualTailInflationPpm": "29568"
         }
       ],
       "tailBoundaryCount": "6",
       "tailStartsAtSeconds": "35769600",
       "miningEmissionAtTail": "751161600000000000000000000",
-      "grossSupplyAtTail": "751161600000000000000000000",
-      "minedBpsOfGrossSupplyAtTail": "10000",
+      "grossSupplyAtTail": "751162600000000000000000000",
+      "minedBpsOfGrossSupplyAtTail": "9999",
       "annualTailInflationPpmAtTail": "41982"
     },
     "priceCurve": [

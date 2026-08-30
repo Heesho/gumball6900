@@ -130,7 +130,8 @@ contract ProtocolStateMachineCampaign {
         resonanceRouter = new ResonanceRouter(IERC20(address(usdg)), address(resonance));
         resonance.setResonanceRouter(address(resonanceRouter));
 
-        mineContract = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter));
+        mineContract =
+            new Mine(gbx, IERC20(address(usdg)), address(fund), address(resonanceRouter), address(0), address(this));
         gbx.setMinter(address(mineContract));
 
         Strategy.Config memory config = Strategy.Config({
@@ -357,7 +358,9 @@ contract ProtocolStateMachineCampaign {
 
     function claimRewards(uint8 actorSeed, uint8 strategySeed) external {
         CampaignActor actor = _actor(actorSeed);
-        Bribe(resonance.bribeFor(_strategy(strategySeed))).claimRewards(address(actor));
+        address[] memory selected = new address[](1);
+        selected[0] = _strategy(strategySeed);
+        actor.run(address(resonance), abi.encodeCall(Resonance.claimBribeRewards, (selected)));
     }
 
     function notifySupplementalReward(uint8 actorSeed, uint8 tokenSeed, uint64 amount) external {
@@ -383,7 +386,7 @@ contract ProtocolStateMachineCampaign {
         Bribe bribe = Bribe(resonance.bribeFor(_strategy(strategySeed)));
         address[] memory tokens = bribe.rewardTokens();
         address token = tokens[uint256(tokenSeed) % tokens.length];
-        bribe.claimReward(address(actor), token);
+        actor.run(address(bribe), abi.encodeCall(Bribe.claimReward, (address(actor), token)));
     }
 
     function routeBribeRewards() external {
@@ -474,9 +477,10 @@ contract ProtocolStateMachineCampaign {
         return gbx.totalSupply() == gbx.lifetimeMinted() - gbx.lifetimeBurned();
     }
 
-    /// @notice Every lifetime-minted GBX unit came through Mine; GBX has no premint or second issuer.
+    /// @notice Every lifetime-minted GBX unit came through Mine as settled emission or its fixed genesis issuance.
     function echidna_mineIsTheOnlyLifetimeIssuer() public view returns (bool holds) {
-        return gbx.lifetimeMinted() == mineContract.totalMined();
+        uint256 genesisIssuance = mineContract.genesisLiquidityMinted() ? mineContract.GENESIS_LIQUIDITY_GBX() : 0;
+        return gbx.lifetimeMinted() == mineContract.totalMined() + genesisIssuance;
     }
 
     /// @notice The one-time minter binding remains permanently attached to Mine.

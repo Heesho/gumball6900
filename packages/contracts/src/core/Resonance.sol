@@ -2,6 +2,7 @@
 pragma solidity 0.8.26;
 
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -26,7 +27,7 @@ import { IResonanceRouterIdentity } from "./interfaces/IResonanceRouter.sol";
 ///      units and does not read or enforce either token's decimals. USDG is assumed to be a standard, non-rebasing
 ///      ERC-20; transfers use SafeERC20 but do not verify sender or receiver balance deltas. Rate, index, and Strategy-
 ///      level divisions round down, and the resulting undistributed USDG remains in this contract as surplus.
-contract Resonance is ReentrancyGuard, Ownable {
+contract Resonance is ReentrancyGuard, Ownable2Step {
     using SafeERC20 for IERC20;
 
     /// @notice Stores the single global USDG streaming schedule and its cumulative allocation index.
@@ -45,6 +46,9 @@ contract Resonance is ReentrancyGuard, Ownable {
     uint256 public constant REWARD_DURATION = 7 days;
     /// @notice Fixed-point precision used to allocate raw USDG units across raw SignalGBX units.
     uint256 public constant REWARD_PRECISION = 1e36;
+    /// @notice Maximum cumulative raw USDG units accepted over this contract's lifetime.
+    /// @dev Coupled to `REWARD_PRECISION` so the cumulative revenue-per-signal index remains representable.
+    uint256 public constant MAX_LIFETIME_REVENUE_AMOUNT = type(uint256).max / REWARD_PRECISION;
     /// @notice Basis-point denominator used to split each Strategy payment between Fund and its paired BribeRouter.
     uint256 public constant BPS = 10_000;
     /// @notice Initial prospective Strategy-payment share assigned to the paired BribeRouter, in basis points.
@@ -64,6 +68,9 @@ contract Resonance is ReentrancyGuard, Ownable {
 
     /// @notice Current global stream timestamps, whole-unit rate, and checkpointed revenue-per-signal index.
     RevenueData public revenueData;
+    /// @notice Cumulative raw USDG units accepted through revenue notifications.
+    /// @dev Monotonic, never reset, and excludes direct donations and rolled-over remaining revenue.
+    uint256 public lifetimeRevenueNotified;
     /// @notice Per-Strategy checkpoint of the scaled global revenue-per-signal index already incorporated into accrual.
     mapping(address strategy => uint256 paid) public strategyRevenuePerSignalPaid;
     /// @notice Stored whole raw USDG units accrued and not yet transferred to each registered Strategy.
@@ -136,6 +143,8 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @notice Thrown when a newly created Strategy address is already registered.
     /// @param strategy Duplicate Strategy address.
     error DuplicateStrategy(address strategy);
+    /// @notice Thrown when the caller supplies no Strategies to a Bribe-reward claim batch.
+    error EmptyClaimBatch();
     /// @notice Thrown when killing a Strategy would remove the final live Strategy after protocol bootstrap.
     /// @param strategy Final live Strategy that governance attempted to kill.
     error FinalLiveStrategy(address strategy);
@@ -160,6 +169,11 @@ contract Resonance is ReentrancyGuard, Ownable {
     /// @param amount Newly proposed raw USDG amount.
     /// @param remaining Raw USDG units still scheduled at the prior whole-unit rate.
     error RevenueBelowRemaining(uint256 amount, uint256 remaining);
+    /// @notice Thrown before a notification would exceed the lifetime revenue admission cap.
+    /// @param notified Cumulative raw USDG units previously accepted.
+    /// @param requested Fresh raw USDG units requested in this notification.
+    /// @param maximum Maximum cumulative raw USDG units Resonance may accept.
+    error RevenueLifetimeCapExceeded(uint256 notified, uint256 requested, uint256 maximum);
     /// @notice Thrown when a killed Strategy is targeted by another kill or a signal addition.
     /// @param strategy Permanently killed Strategy.
     error StrategyAlreadyDead(address strategy);
@@ -191,7 +205,8 @@ contract Resonance is ReentrancyGuard, Ownable {
 
     /// @notice Creates the allocator with immutable token, Fund, factory, and initial governance dependencies.
     /// @dev Every protocol dependency except `initialOwner` must be nonzero and have deployed code. OpenZeppelin
-    ///      `Ownable` rejects a zero `initialOwner`. Factories and ResonanceRouter are reciprocally bound separately.
+    ///      `Ownable` rejects a zero `initialOwner`; every later owner transfer requires acceptance. Factories and
+    ///      ResonanceRouter are reciprocally bound separately.
     /// @param signalGBX_ Non-transferable signal receipt and sole signal coordinator.
     /// @param usdg_ ERC-20 revenue token; canonical deployments use USDG with six decimals, which is not enforced.
     /// @param fund_ Treasury receiving the non-Bribe share of Strategy payments.
@@ -269,29 +284,56 @@ contract Resonance is ReentrancyGuard, Ownable {
         emit SignalRemoved(account, strategy, amount);
     }
 
+    /// @notice Claims every registered reward token from each selected Strategy's canonical Bribe for the caller.
+    /// @dev The beneficiary is always `msg.sender`; no caller may advance another account's reward checkpoint. Each
+    ///      Strategy must be registered but may be live or killed. Duplicate Strategies execute sequentially. The outer
+    ///      array is caller-controlled and each Bribe loops over at most sixteen reward tokens, so callers must split a
+    ///      batch that would exceed available gas. Any failed reward-token transfer reverts the complete batch; direct
+    ///      scalar `Bribe.claimReward` remains the broken-token and bounded-gas fallback.
+    /// @param strategies Registered Strategies whose canonical Bribes should pay the caller.
+    function claimBribeRewards(address[] calldata strategies) external nonReentrant {
+        uint256 count = strategies.length;
+        if (count == 0) revert EmptyClaimBatch();
+
+        for (uint256 i; i < count; ++i) {
+            address strategy = strategies[i];
+            if (!isStrategyRegistered[strategy]) revert StrategyNotFound(strategy);
+            Bribe(bribeFor[strategy]).claimRewards(msg.sender);
+        }
+    }
+
     /// @notice Pulls newly routed USDG and restarts the global seven-day revenue stream.
-    /// @dev Callable only by the permanently bound ResonanceRouter. First checkpoints global accrual through the prior
-    ///      period's applicable timestamp. During an active period, `amount` must be at least `remainingRevenue()`; the
-    ///      new schedule contains both the transferred amount and that previously scheduled remainder. Division by
-    ///      `REWARD_DURATION` rounds the new per-second rate down, leaving any unscheduled raw-unit remainder as
-    ///      contract surplus. The standard Router additionally requires at least `REWARD_DURATION` raw units so this
-    ///      rate is nonzero. USDG balance deltas are not measured; the schedule uses the nominal `amount` under the
-    ///      standard-token assumption. Reverts for zero, insufficient active-period revenue, or a failed USDG transfer.
-    ///      Emits `RevenueNotified` after the new schedule is stored.
+    /// @dev Callable only by the permanently bound ResonanceRouter. The fresh amount must fit within the precision-
+    ///      coupled lifetime cap and, during an active period, be at least `remainingRevenue()`; both admission checks
+    ///      occur before checkpointing or custody changes. The function then checkpoints global accrual through the
+    ///      prior period's applicable timestamp. The new schedule contains both the transferred amount and that
+    ///      previously scheduled remainder. Division by `REWARD_DURATION` rounds the new per-second rate down, leaving
+    ///      any unscheduled raw-unit remainder as contract surplus. The standard Router additionally requires at least
+    ///      `REWARD_DURATION` raw units so this rate is nonzero. USDG balance deltas are not measured; the schedule
+    ///      uses the nominal `amount` under the standard-token assumption. Reverts for zero, lifetime-cap exhaustion,
+    ///      insufficient active-period revenue, or a failed USDG transfer. Emits `RevenueNotified` after the new
+    ///      schedule is stored.
     /// @param amount Newly supplied raw USDG units to pull from ResonanceRouter, excluding the prior remainder.
     function notifyRevenue(uint256 amount) external nonReentrant onlyResonanceRouter {
-        _updateRevenue(address(0));
         if (amount == 0) revert ZeroAmount();
+
+        uint256 notified = lifetimeRevenueNotified;
+        uint256 maximum = MAX_LIFETIME_REVENUE_AMOUNT;
+        if (amount > maximum - notified) {
+            revert RevenueLifetimeCapExceeded(notified, amount, maximum);
+        }
 
         uint256 remaining = remainingRevenue();
         if (amount < remaining) revert RevenueBelowRemaining(amount, remaining);
 
+        _updateRevenue(address(0));
         usdg.safeTransferFrom(msg.sender, address(this), amount);
 
         RevenueData storage data = revenueData;
         data.revenueRate = (amount + remaining) / REWARD_DURATION;
         data.lastUpdateTime = block.timestamp;
         data.periodFinish = block.timestamp + REWARD_DURATION;
+        lifetimeRevenueNotified = notified + amount;
 
         emit RevenueNotified(msg.sender, amount);
     }

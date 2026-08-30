@@ -114,7 +114,7 @@ contract StartingPointTest is Test {
         targetStrategy = Strategy(targetStrategyAddress);
         gbxStrategy = Strategy(gbxStrategyAddress);
 
-        mine = new Mine(gbx, IERC20(address(usdg)), address(resonanceRouter));
+        mine = new Mine(gbx, IERC20(address(usdg)), address(fund), address(resonanceRouter), address(0), address(this));
         gbx.setMinter(address(mine));
         vm.startPrank(address(mine));
         gbx.mint(ALICE, 200 ether);

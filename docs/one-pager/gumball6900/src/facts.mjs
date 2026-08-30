@@ -28,8 +28,8 @@ function percentFromBps(bps) {
 }
 
 export const numbers = {
-  /** GBX starts at zero supply; Mine is its sole lifetime issuer. */
-  initialSupply: grouped(contractConstants.gbx.initialSupplyTokens),
+  /** GBX constructor starts at zero; the canonical launcher directs Mine's fixed seed into the pair. */
+  canonicalLaunchSupply: grouped(contractConstants.gbx.canonicalLaunchSupplyTokens),
   /** Mine.sol PREVIOUS_MINER_BPS: the outgoing-tenure miner's share of a nonempty replacement. */
   minerShare: percentFromBps(contractConstants.mine.previousMinerBps),
   /** The remainder, which Mine deposits into ResonanceRouter for later permissionless routing. */

@@ -26,11 +26,20 @@ interface IResonance {
     /// @param amount Raw SignalGBX units to remove.
     function removeSignalFor(address account, address strategy, uint256 amount) external;
 
+    /// @notice Claims every registered reward token from each selected Strategy's canonical Bribe for the caller.
+    /// @dev The beneficiary is always `msg.sender`. Strategies may be live or killed. The caller controls the batch
+    ///      length and must split work that would exceed available gas. A failed reward-token transfer reverts the
+    ///      complete batch; direct scalar Bribe claims remain the failure-isolated fallback.
+    /// @param strategies Registered Strategies whose canonical Bribes should pay the caller.
+    function claimBribeRewards(address[] calldata strategies) external;
+
     /// @notice Pulls newly routed USDG and restarts the global seven-day revenue stream.
-    /// @dev Callable only by the permanently bound ResonanceRouter. During an active stream, the new amount must be at
-    ///      least the USDG still scheduled; the restarted schedule combines both values and rounds its whole-unit-per-
-    ///      second rate down. The schedule uses nominal `amount` under the standard-token assumption. Reverts for an
-    ///      unauthorized caller, zero amount, insufficient active-period amount, or failed USDG transfer.
+    /// @dev Callable only by the permanently bound ResonanceRouter. The fresh amount must fit the precision-coupled
+    ///      lifetime admission cap and, during an active stream, be at least the USDG still scheduled. The checks
+    ///      precede the global checkpoint or token interaction. The restarted schedule combines fresh and remaining
+    ///      values and rounds its whole-unit-per-second rate down. It uses nominal `amount` under the standard-token
+    ///      assumption. Reverts for an unauthorized caller, zero amount, lifetime-cap exhaustion, insufficient
+    ///      active-period amount, or failed USDG transfer.
     /// @param amount Nominal raw USDG units to pull from ResonanceRouter.
     function notifyRevenue(uint256 amount) external;
 

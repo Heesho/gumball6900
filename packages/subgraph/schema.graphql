@@ -3,10 +3,14 @@ type ProtocolState @entity(immutable: false) {
   chainId: BigInt!
   resonance: Bytes
   resonanceRouter: Bytes
+  mineRevenueResonance: Bytes
+  mineRevenueRouter: Bytes
   bribeBps: BigInt!
   lifetimeMintedRaw: BigInt!
   lifetimeBurnedRaw: BigInt!
   totalSupplyRaw: BigInt!
+  genesisLiquidityGBXRaw: BigInt!
+  genesisPair: Bytes!
   minedGBXRaw: BigInt!
   miningPaymentsRaw: BigInt!
   previousMinerPaymentsRaw: BigInt!

@@ -1,14 +1,25 @@
 # Threat model
 
-> Development threat model under ADRs through 0050. The external governance integration remains
+> Development threat model under ADRs through 0055. The external governance integration remains
 > unselected and must receive a separate threat model before deployment.
 
 ## Primary risks
 
 - The core includes no Governor, Timelock, generic executor, or provider-specific governance adapter. Resonance's
   external owner can misuse Strategy addition, Strategy death, Bribe reward registration, or the bounded global
-  acquired-asset Bribe rate and can transfer or renounce ownership. Mine and Fund remain outside
-  that authority because they are ownerless.
+  acquired-asset Bribe rate. Mine's external owner can redirect future protocol-share revenue to a replacement graph.
+  Mine and Resonance owners can begin, replace, or cancel pending two-step ownership transfers or immediately renounce.
+  Fund remains ownerless.
+- Mine validates reciprocal replacement Router, Resonance, SignalGBX, GBX, USDG, and Fund identities, but getter
+  consistency cannot authenticate bytecode. A malicious graph can mimic every getter and steal future revenue. Exact
+  runtime provenance, governance authorization, pinned-state simulation, and monitoring remain mandatory for every
+  switch.
+- Mine does not validate replacement Resonance ownership, factory bindings, live Strategies, Bribe parameters, lifetime
+  counters, or pristine schedule state. A consistent but incomplete graph can pass the setter and strand or misdirect
+  later revenue even without counterfeit identity getters.
+- The core imposes no delay, veto, guardian, or rollback on `Mine.setResonanceRouter`. `Ownable2Step` reduces accidental
+  ownership transfer risk but does not delay that setter, protect against a compromised owner, or make immediate
+  renunciation recoverable. External governance must supply and prove any desired delay or cancellation policy.
 - SignalGBX retains historical block-number checkpoints, but the external governance system and its voting rules are
   unselected. If it uses those snapshots, a holder may acquire and signal GBX before a snapshot, withdraw afterward,
   and retain historical weight. Delegation, quorum, capture, and liveness must be reviewed against its exact release.
@@ -35,6 +46,16 @@
 - Accrued Mine rewards are unminted until the individual slot is replaced. Fund includes cached pending emission in its
   effective-supply denominator without checkpointing, but ordinary
   wallet and indexer supply displays must distinguish current `totalSupply()` after burns from effective supply.
+- The completed canonical graph has a fixed `1,000 ether` GBX genesis-liquidity issue even though the GBX constructor
+  starts at zero. Mine is the sole issuer, but `lifetimeMinted` therefore equals settled `totalMined` plus that fixed
+  amount after launch. Integrations that equate all lifetime issuance with mining will misstate supply provenance.
+- Compromise or misconfiguration of the immutable launch authority before launch can select the transaction timing and
+  `finalOwner`, spend its approved `1e6` raw USDG, and attempt the one-shot deployment. Atomicity prevents a partial
+  graph, but it cannot make malicious calldata, a wrong reviewed dependency, or an unsafe governance contract correct.
+  A successful transaction consumes the launcher's only call and makes `finalOwner` pending owner of Mine and
+  Resonance. If that contract cannot accept both ownerships, administration remains inert under the single-use launcher;
+  launch success is not ownership-handoff completion. Although an ordinary callable current owner could replace or
+  cancel a pending transfer, the consumed launcher exposes no post-launch path to do so.
 - Mine replacements settle only the selected slot and redemptions perform no Mine mutation or slot loop.
 - Unrestricted signaling permits rapid allocation changes and wallet-splitting; it deliberately provides no
   epoch-level stability or anti-churn guarantee. Elapsed revenue is checkpointed before each weight change, so a
@@ -52,12 +73,25 @@
   restarts seven days from the current timestamp. It may raise or lower the rate and extend the prior finish. The new
   revenue must be at least the complete amount left, so forcing an early reset requires economically matching that
   remainder; timing influence is nevertheless intentional and accepted.
-- ResonanceRouter retains its complete balance until a permissionless caller invokes `route()`. A balance below
+- Each old or current ResonanceRouter retains its complete balance until a permissionless caller invokes `route()`. A balance below
   `max(REWARD_DURATION, remainingRevenue())` remains held. Decay can remove the active-remainder constraint, but a
   balance below `REWARD_DURATION` never qualifies without another deposit, and qualification does not execute a transaction. Mine only
   deposits and is isolated from later Router/Resonance failure. Interfaces must distinguish delivery to the Router from delivery into the active stream, and
   operators must accept that Mine revenue may wait indefinitely without a manual, frontend, volunteer-keeper, or cron
   caller.
+- A Mine Router change moves no old state. Buffered old-Router USDG, old Resonance schedules and claims, paired Bribe
+  rewards, and old sGBX positions remain graph-local. Users must claim and unsignal through the old graph, then may
+  signal returned GBX into the new graph. If the old graph's own exit path is broken, changing Mine cannot rescue that
+  position. Interfaces that hide the old graph can create an avoidable discovery failure even when its contracts still
+  work.
+- Each replacement graph has a different one-time-bound SignalGBX. An external governance integration reading old sGBX
+  checkpoints does not automatically count new sGBX, while users who unsignal old positions reduce their current old-
+  token voting weight. A poorly ordered transition can strand governance participation or create a circular dependency
+  on votes that users must burn before the transition finishes. Mine does not update the governance voting token.
+- Governance must deploy and fully bind the replacement graph before switching Mine last. A partial, wrong-Fund,
+  wrong-USDG, wrong-GBX, or nonreciprocal candidate is rejected, but a semantically malicious consistent graph is not.
+  Repeated switches are possible until Mine ownership is renounced; every transition expands historical graph discovery
+  and monitoring requirements.
 - Resonance does not carry global-index or per-Strategy division remainders. `1e36` precision makes ordinary individual
   floors small, but checkpoint frequency and protocol lifetime can accumulate unclassified USDG surplus. No exact
   conservation or lifetime dust bound is claimed.
@@ -66,6 +100,10 @@
   later signalers, or has a synchronization, rescue, or recovery path.
 - Bribe uses ordinary Synthetix index floors. Rate dust, zero-weight elapsed rewards, index floors, and account floors
   remain unallocated in Bribe rather than being carried or assigned to Fund.
+- Direct Bribe claims accept only the beneficiary or the Bribe's immutable Resonance. This prevents an outsider from
+  choosing another account's sub-unit flooring cadence. Resonance's cross-Bribe batch always fixes the beneficiary to
+  `msg.sender`; it does not create an operator or arbitrary receiver. Direct EOA keeper/relayer claims are intentionally
+  unavailable, while self-calling smart accounts remain compatible.
 - Mine and SignalGBX trust successful `SafeERC20` calls on canonical GBX/USDG without inspecting balance deltas. If
   either canonical token violates its reviewed standard behavior, Mine claims/revenue or sGBX backing can be
   underfunded without a clean revert. Fund retains exact payout and basket checks for arbitrary
@@ -86,6 +124,10 @@
   removal, settlement, and all-token-claim paths are therefore bounded, but worst-case work is higher than under the
   former eight-token cap. A broken token reverts the atomic all-token claim, while the scalar-token claim isolates
   every unrelated reward.
+- Resonance cross-Bribe claiming adds a caller-controlled outer Strategy loop around each Bribe's bounded all-token
+  loop. A large batch may exceed gas, and one invalid Strategy or broken reward token reverts the complete batch.
+  Callers can split Strategy arrays and use direct scalar Bribe claims for healthy-token isolation. Registered killed
+  Strategies remain valid batch targets.
 - Bribe indexing is also bounded per token and per Bribe by a monotonic lifetime accepted-notification cap of
   `floor(type(uint256).max / 1e36)` raw units. The check occurs before checkpointing or transfer and has no reset,
   setter, or escape hatch, so a token cannot accumulate enough indexed precision to wrap and lock exits. For a normal
@@ -109,17 +151,31 @@
   is accepted by ADR 0028 without a retirement, refund, rescue, or Fund-redirection mechanism.
 - Fund assets are permanently committed: with no successor or recovery path, an asset that redeemers omit stays in
   Fund for the remaining GBX supply indefinitely.
-- The reviewed, externally created fungible Uniswap v2-style USDG/GBX LP token may have thin, imbalanced, manipulated,
-  or disappearing liquidity. The core
-  neither creates nor guarantees the pair and treats its fungible LP token as an ordinary Strategy payment asset.
-- Selecting the wrong LP token or Strategy parameters can direct acquisitions toward an unsuitable asset. Those are
-  bootstrap and governance asset-selection risks, not liquidity-specific core logic.
+- The development launcher pins Robinhood Chain mainnet and one Uniswap V2 Factory address, but an address and code
+  presence are not provenance checks. A substituted or changed Factory/Pair implementation could violate assumed
+  `createPair`, reserve, square-root mint, or LP-lock semantics. Exact runtime hashes and a pinned-state launch
+  simulation remain release gates; the recorded Router is not called during genesis.
+- Pair creation is not exclusive. The launcher always calls Factory `createPair` and never adopts or skims an existing
+  Pair. A precreated Pair reverts with `PairAlreadyExists`. USDG sent to the not-yet-created deterministic Pair leaves
+  the lookup zero and instead fails `PAIR_USDG_DEPOSIT` after creation. Either failed launch rolls back and leaves the launcher unused; the operator must deploy a fresh reviewed launcher, whose
+  caller-scoped CREATE2 outputs produce a different GBX and Pair. A watcher can attempt the race again, so pinned-state
+  simulation and transaction monitoring remain operational requirements.
+- The exact one-USDG/1,000-GBX seed produces only about two dollars of nominal reserve value at launch assumptions.
+  All `31,622,776,601,683` raw genesis LP units are minted to `address(0)` and cannot be recovered, so a wrong ratio,
+  venue, or token cannot be repaired by governance. The lock prevents genesis withdrawal but does not guarantee useful
+  depth, USDG value, trading availability, or price stability.
+- The launch registers GBX and the actual LP as its two initial Strategy payment tokens at fixed development
+  parameters. Both first epochs begin during launch and decay to zero after 24 hours. Because `minimumPrice` resets the
+  next epoch rather than flooring a fill, delayed first inventory can be acquired for zero.
+- LP minted after genesis remains ordinary fungible property. Fund-held later LP is caller-selectable redemption
+  backing and is not burned or locked merely because the genesis LP supply was permanently locked.
 
 ## Explicitly absent protections
 
-The starting point has no pause guardian, proxy upgrade path, Mine replacement authority, emission setter, price
+The starting point has no pause guardian, proxy upgrade path, balance or position migration authority, emission setter, price
 oracle, NAV calculation, curated Fund asset list, or per-user signal cooldown. Signal changes are caller-bounded scalar
 operations coordinated only by SignalGBX; there is no idle receipt, public batch, or forced whole-account reset. These
 omissions are deliberate simplifications and must be reconsidered through testing and audit before any deployment. The
 external governance owner, permissions, voting rules, upgrade paths, delay, batching, and cancellation semantics are
-also unresolved release gates. Current internal hardening does not replace independent security review.
+also unresolved release gates. Mine's narrow validated future-revenue Router setter is not an old-state rescue or
+migration facility. Current internal hardening does not replace independent security review.

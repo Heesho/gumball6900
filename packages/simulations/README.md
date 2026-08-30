@@ -7,7 +7,8 @@ price promises, deployment configurations, or investment projections.
 
 - The models use the canonical deployment assumption of a 6-decimal USDG and 18-decimal GBX and target assets. The
   contracts account only in raw units and do not read or enforce token decimals.
-- GBX starts at zero supply. Mine is its sole lifetime issuer and issuance is unbounded.
+- GBX's constructor starts at zero supply. During the canonical atomic launch, Mine issues the fixed 1,000 GBX
+  genesis-liquidity amount before all resulting LP is permanently locked. Later Mine issuance is unbounded.
 - A live slot accrues `elapsedSeconds * assignedTps`; the assigned TPS remains fixed until replacement.
 - Mine has exactly sixteen slots; time-based halvings affect only newly occupied or replaced slots.
 - A new tenure receives `globalTps(elapsedSinceStart) / 16`; division residue is unissued.
@@ -38,7 +39,8 @@ price promises, deployment configurations, or investment projections.
 
 `fixtures/economic-scenarios.json` covers:
 
-- zero initial supply, unbounded mint/burn reconciliation, time-based halvings, and a positive tail;
+- zero constructor supply, fixed 1,000 GBX launch supply, unbounded later mint/burn reconciliation, time-based
+  halvings, and a positive tail;
 - hourly price endpoints, replacement transitions, zero-price rollover, and 80/20 payment conservation;
 - staggered fixed-slot replacements where an earlier tenure keeps its old TPS and later tenures receive the halved TPS;
 - a time boundary where the earlier tenure retains its rate and only the next replacement receives the lower rate;
@@ -72,13 +74,14 @@ agree, then regenerates the committed SVGs.
 
 ## Traceability
 
-| Requirement                                | Fixture path / evidence                                        |
-| ------------------------------------------ | -------------------------------------------------------------- |
-| Zero initial supply and unbounded issuance | `assumptions.initialSupplyGBXRaw`, `mining.synchronizedSupply` |
-| Tenure-locked fixed-slot TPS               | `mining.staggeredFixedSlots`                                   |
-| Exact time boundaries and empty aging      | `mining.timeBasedSchedule`                                     |
-| Time boundaries affect only new tenures    | `mining.handoffHalving`                                        |
-| Hourly decay and 80/20 split               | `mining.priceCurve`, `mining.paymentExamples`                  |
-| Strategy and Bribe arithmetic              | `strategyAuction`, `bribeRewards`, conservation models         |
-| Resonance streaming and signal time        | TypeScript/Python `conservation-model` tests                   |
-| Raw redemptions and GBX burns              | `redemptionAndGbxBurn`                                         |
+| Requirement                             | Fixture path / evidence                                                           |
+| --------------------------------------- | --------------------------------------------------------------------------------- |
+| Zero constructor / fixed launch supply  | `assumptions.constructorSupplyGBXRaw`, `assumptions.genesisLiquiditySupplyGBXRaw` |
+| Unbounded later issuance                | `assumptions.initialSupplyGBXRaw`, `mining.synchronizedSupply`                    |
+| Tenure-locked fixed-slot TPS            | `mining.staggeredFixedSlots`                                                      |
+| Exact time boundaries and empty aging   | `mining.timeBasedSchedule`                                                        |
+| Time boundaries affect only new tenures | `mining.handoffHalving`                                                           |
+| Hourly decay and 80/20 split            | `mining.priceCurve`, `mining.paymentExamples`                                     |
+| Strategy and Bribe arithmetic           | `strategyAuction`, `bribeRewards`, conservation models                            |
+| Resonance streaming and signal time     | TypeScript/Python `conservation-model` tests                                      |
+| Raw redemptions and GBX burns           | `redemptionAndGbxBurn`                                                            |
