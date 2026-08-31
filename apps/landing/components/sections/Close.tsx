@@ -45,7 +45,10 @@ export function Close() {
             </div>
             <div className="close-status__row">
               <dt>Governance</dt>
-              <dd>One address holds Resonance’s four powers. Who will hold it is not yet decided.</dd>
+              <dd>
+                One unselected external executor is intended to hold Mine and Resonance: five custom protocol powers
+                across two Ownable2Step roles.
+              </dd>
             </div>
             <div className="close-status__row">
               <dt>Network</dt>

@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "entries": [
+    {
+      "ruleId": "gumball-no-inline-assembly",
+      "path": "src/core/Fund.sol",
+      "startLine": 200,
+      "endLine": 200,
+      "rationale": "Reviewed EIP-1153 transient-storage write used only for transaction-scoped redemption duplicate marks."
+    },
+    {
+      "ruleId": "gumball-no-inline-assembly",
+      "path": "src/core/Fund.sol",
+      "startLine": 210,
+      "endLine": 210,
+      "rationale": "Reviewed EIP-1153 transient-storage read used only for transaction-scoped redemption duplicate marks."
+    }
+  ]
+}

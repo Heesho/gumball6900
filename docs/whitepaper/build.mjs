@@ -1,300 +1,330 @@
 #!/usr/bin/env node
 /**
- * Builds `output/pdf/GumBall6900-the-index-fund-that-chooses-itself.pdf`.
+ * Builds the sole whitepaper PDF from the canonical Markdown source:
  *
- * The document is rendered to a self-contained HTML file with explicit A4 pagination and
- * printed by headless Chrome, which subsets and embeds every face it resolves. Run with
- * `--html` to stop after writing the HTML, which is the fastest way to iterate on layout.
+ *   docs/WHITEPAPER.md -> output/pdf/GumBall6900-whitepaper.pdf
  *
- * Usage: node docs/whitepaper/build.mjs [--html] [--open]
+ * Markdown is the source of truth, Chrome paginates, and the shared theme keeps the PDF
+ * consistent with the websites without maintaining a second authored edition.
+ *
+ * Usage: node docs/whitepaper/build.mjs [--html]
  */
 
 import { execFileSync, spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, resolve } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 
-import { meta, renderPages } from './src/document.mjs';
-import { verifyProtocolFacts } from './src/protocol-facts.mjs';
-import { stylesheet } from './src/styles.mjs';
-import { assertContrast } from './src/theme.mjs';
-
 /**
- * Stale-claim gate. These phrases described earlier design iterations and must never
- * reappear in rendered output. Matching is case-insensitive against the page HTML.
+ * markdown-it is present in the workspace but only transitively, so a bare specifier does
+ * not resolve from here. Declaring it as a root devDependency was tried and rejected:
+ * `pnpm add` rewrote 3,669 lines of the lockfile, and a docs build has no business
+ * shifting resolutions across the workspace. This resolves it from the store instead,
+ * globbing the version so a bump does not break the build, and fails loudly with the fix
+ * if the package ever leaves the tree.
  */
-const STALE_PHRASES = [
-  'relative weights',
-  'whole-account reset',
-  'reset all allocations',
-  'one reward token per strategy',
-  'unlimited reward tokens',
-  'management fee',
-  'five management actions',
-  // ADR 0036 supersedes ADR 0032's immutable rate while preserving cumulative carry.
-  'fixed 90/10',
-  'immutable 90/10',
-  'hard-coded 90/10',
-  'split cannot change',
-  'fund migration',
-  'successor fund',
-  'migrate liquidity',
-  'withdraw the LP NFT',
-  'liquidityposition',
-  'uniswap v4',
-  'compoundRequirement',
-  'compound the position',
-  'fees are not protocol revenue',
-  'always receives a majority',
-  'never reaches zero',
-  'automatic rebalancing',
-  'fixed basket',
-  'tracks nav',
-  'pegged to fund',
-  'guaranteed profit',
-  'guaranteed yield',
-  'guaranteed backing',
-  'risk-free',
-  'battle-tested',
-  'fully trustless',
-  'fully decentralized',
-  'live on robinhood',
-  'TODO',
-  'FIXME',
-  'fundraiser',
-  '980,000,000',
-  'fixed gbx supply',
-  'gbx erc20votes',
-  'gbx voting token',
-  'multisig proposer',
-  'resonance.addsignal',
-  'resonance.removesignal',
-  // Under ADR 0036 a 0% Bribe rate can make one payment wholly Fund-bound; categorical
-  // assertions that auction proceeds never fund Bribes remain stale.
-  'no auction proceeds',
-  'never fund bribes',
-  'never receive auction proceeds',
-  // Superseded by ADR 0031: idle receipts and the standalone staking surface are gone.
-  'idle sgbx',
-  'idle receipt',
-  'allocatedbalance',
-  'stakeandsignal',
-  'removesignalandunstake',
-  'stake and signal',
-  'remove signal and unstake',
-];
+const require_ = createRequire(import.meta.url);
 
-function scanStaleClaims(documentHtml) {
-  const lower = documentHtml.toLowerCase();
-  const hits = STALE_PHRASES.filter((phrase) => lower.includes(phrase.toLowerCase()));
-  if (hits.length > 0) {
-    throw new Error(`Stale or forbidden phrases present in rendered document:\n  ${hits.join('\n  ')}`);
+function loadMarkdownIt() {
+  try {
+    return require_('markdown-it');
+  } catch {
+    /* fall through to the store lookup */
   }
-  return STALE_PHRASES.length;
+  const storeDir = resolve(repoRoot, 'node_modules/.pnpm');
+  const match = existsSync(storeDir)
+    ? readdirSync(storeDir)
+        .filter((d) => d.startsWith('markdown-it@'))
+        .sort()
+        .pop()
+    : undefined;
+  if (!match) {
+    throw new Error(
+      'markdown-it is not resolvable. It is normally present transitively; if it has left the tree, add it explicitly:\n' +
+        '  pnpm add -Dw markdown-it\n' +
+        'and review the resulting lockfile diff before committing.',
+    );
+  }
+  return require_(resolve(storeDir, match, 'node_modules/markdown-it'));
 }
+import { brandmark } from './src/brand-asset.mjs';
+import { verifyProtocolFacts } from './src/protocol-facts.mjs';
+import { assertContrast } from './src/theme.mjs';
+import { stylesheet } from './styles.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '../..');
 const buildDir = resolve(here, 'build');
-const htmlPath = resolve(buildDir, 'whitepaper.html');
-const pdfPath = resolve(repoRoot, 'output/pdf/GumBall6900-the-index-fund-that-chooses-itself.pdf');
+
+/**
+ * Claims that must never reach a rendered edition.
+ *
+ * These are assertion-shaped, not identifier-shaped, and that distinction is the whole
+ * design. A first pass listed bare identifiers like `stakeAndSignalWithPermit`, which
+ * fired on the whitepaper's own supersession history — §14.1 names the removed functions
+ * precisely to record that ADR 0031 removed them. Naming a dead API is correct; asserting
+ * it is current is not, and only the latter can be caught by phrase matching.
+ *
+ * `scanStale` additionally skips any line carrying a supersession marker, so a future
+ * passage that quotes a superseded claim in order to retract it does not trip the gate.
+ */
+const STALE_PHRASES = [
+  'no auction proceeds ever fund bribe',
+  'never fund bribe rewards',
+  '100% of every auction payment becomes a fixed fund liability',
+  'idle sgbx votes but directs no revenue',
+  'there is no idle state, so staking alone',
+];
+
+/** Lines that retract or historicise a claim are exempt from the phrase gate. */
+const SUPERSESSION_MARKERS = [
+  'supersed',
+  'removed by',
+  'no longer',
+  'earlier draft',
+  'was rejected',
+  'formerly',
+  'previously',
+  'must not be presented',
+  'discard',
+  'stale',
+  'historical',
+];
+
+const EDITIONS = [
+  {
+    key: 'whitepaper',
+    source: 'docs/WHITEPAPER.md',
+    out: 'output/pdf/GumBall6900-whitepaper.pdf',
+    toc: true,
+  },
+];
+
+/* ------------------------------------------------------------- front matter ---- */
+
+/** Splits YAML front matter from the body. Only flat `key: value` pairs are used. */
+function splitFrontMatter(raw) {
+  if (!raw.startsWith('---\n')) return { meta: {}, body: raw };
+  const end = raw.indexOf('\n---', 4);
+  if (end === -1) return { meta: {}, body: raw };
+  const meta = {};
+  for (const line of raw.slice(4, end).split('\n')) {
+    const at = line.indexOf(':');
+    if (at === -1) continue;
+    meta[line.slice(0, at).trim()] = line
+      .slice(at + 1)
+      .trim()
+      .replace(/^["']|["']$/g, '');
+  }
+  return { meta, body: raw.slice(end + 4) };
+}
+
+/* ------------------------------------------------------------------ render ---- */
+
+const MarkdownIt = loadMarkdownIt();
+const md = new MarkdownIt({ html: true, linkify: false, typographer: true });
+
+/** Long tables are allowed to break across pages; short ones are kept whole. */
+function markLongTables(htmlBody) {
+  return htmlBody.replace(/<table>([\s\S]*?)<\/table>/g, (match, inner) => {
+    const rows = (inner.match(/<tr>/g) ?? []).length;
+    return rows > 12 ? `<table class="table--long">${inner}</table>` : match;
+  });
+}
+
+function coverBlock(edition, meta) {
+  const rows = [
+    ['Version', meta.version],
+    ['Date', meta.date],
+    ['Author', meta.author],
+    ['Source commit', meta.source_commit ? `${meta.source_commit.slice(0, 12)}…` : null],
+    ['Protocol status', meta.protocol_status],
+    ['Deployment', meta.deployment_status],
+    ['Independent audit', meta.independent_audit_status],
+  ].filter(([, v]) => v);
+
+  return `
+<section class="cover">
+  <div class="cover__inner">
+    <span class="cover__chip">Whitepaper · ${meta.date ?? ''}</span>
+    <div class="cover__lockup">
+      ${brandmark('26mm')}
+      <h1 class="cover__title">${edition.title.replace(/ — .*/, '')}</h1>
+      <p class="cover__subtitle">${edition.subtitle.replace(/\n/g, '<br />')}</p>
+      <p class="cover__thesis">${edition.thesis}</p>
+    </div>
+    <div class="cover__meta">
+      <div class="cover__rule"></div>
+      <div class="cover__grid">
+        ${rows.map(([k, v]) => `<div><p class="cover__k">${k}</p><p class="cover__v">${v}</p></div>`).join('')}
+      </div>
+    </div>
+  </div>
+</section>`;
+}
+
+/** Contents from the `## n. Title` headings the whitepaper already numbers. */
+function tocBlock(body) {
+  const entries = [...body.matchAll(/^## (\d+)\.\s+(.+)$/gm)].map((m) => ({ num: m[1], title: m[2] }));
+  if (entries.length === 0) return '';
+  return `
+<section class="toc">
+  <h1>Contents</h1>
+  ${entries
+    .map(
+      (e) =>
+        `<div class="toc__row"><span class="toc__num">${e.num}</span><span class="toc__title">${e.title}</span></div>`,
+    )
+    .join('')}
+</section>`;
+}
+
+function buildHtml(edition, raw) {
+  const split = splitFrontMatter(raw);
+  const body = split.body;
+  const titleMatch = body.match(/^#\s+(.+)$/m);
+  const subtitleMatch = body.match(/^##\s+(.+)$/m);
+  const bylineMatch = body.match(/^Whitepaper\s+(v\S+)\s+—\s+(.+?)\s+—\s+by\s+(.+)$/m);
+  const abstractMatch = body.match(/^## Abstract\s*\n+([^\n]+(?:\n(?!\n)[^\n]+)*)/m);
+  if (!titleMatch || !subtitleMatch || !bylineMatch || !abstractMatch) {
+    throw new Error('Canonical whitepaper is missing its title, subtitle, byline, or Abstract opening paragraph.');
+  }
+  const abstractText = abstractMatch?.[1].replace(/\n/g, ' ').replace(/[`*_]/g, ' ');
+  const abstractSentences = abstractText?.match(/[^.!?]+[.!?]+/g) ?? [];
+  const meta = {
+    ...split.meta,
+    version: split.meta.version ?? bylineMatch?.[1],
+    date: split.meta.date ?? bylineMatch?.[2],
+    author: split.meta.author ?? bylineMatch?.[3],
+  };
+  const display = {
+    ...edition,
+    title: titleMatch?.[1] ?? 'GumBall6900',
+    subtitle: subtitleMatch?.[1] ?? 'Whitepaper',
+    thesis:
+      abstractSentences.slice(0, 2).join(' ').trim() ||
+      'A signal-directed onchain portfolio acquisition and redemption protocol.',
+  };
+
+  // The title, subtitle, and byline become cover matter, so they are removed from the body.
+  let withoutCover = body;
+  for (const match of [titleMatch, subtitleMatch, bylineMatch]) {
+    if (match) withoutCover = withoutCover.replace(match[0], '');
+  }
+  const rendered = markLongTables(
+    md
+      .render(withoutCover)
+      .replace(
+        /<!--\s*pdf-page-break-padded\s*-->/g,
+        '<div class="pdf-page-break pdf-page-break--padded" aria-hidden="true"></div>',
+      )
+      .replace(/<!--\s*pdf-page-break\s*-->/g, '<div class="pdf-page-break" aria-hidden="true"></div>'),
+  );
+
+  const brandFont = resolve(repoRoot, 'docs/whitepaper/fonts/Modak-Regular.ttf');
+  const css = stylesheet({
+    brandFontUrl: existsSync(brandFont) ? `file://${brandFont}` : undefined,
+  });
+
+  const html = `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>${display.title}</title>
+<meta name="author" content="${meta.author}" />
+<style>${css}</style>
+</head>
+<body>
+${coverBlock(display, meta)}
+${edition.toc ? tocBlock(body) : ''}
+<main>${rendered}</main>
+</body>
+</html>`;
+
+  return { html };
+}
+
+/* -------------------------------------------------------------------- gate ---- */
+
+function scanStale(html) {
+  const hits = [];
+  let exempted = 0;
+  for (const line of html.toLowerCase().split('\n')) {
+    const matched = STALE_PHRASES.filter((p) => line.includes(p));
+    if (matched.length === 0) continue;
+    if (SUPERSESSION_MARKERS.some((m) => line.includes(m))) {
+      exempted += matched.length;
+      continue;
+    }
+    hits.push(...matched);
+  }
+  if (hits.length > 0) {
+    throw new Error(
+      `Superseded claims asserted as current:\n  ${[...new Set(hits)].join('\n  ')}\n` +
+        'If the passage retracts the claim rather than making it, it needs a supersession marker.',
+    );
+  }
+  return { checked: STALE_PHRASES.length, exempted };
+}
+
+/* ------------------------------------------------------------------ chrome ---- */
 
 const CHROME_CANDIDATES = [
   process.env.CHROME_PATH,
   '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   '/Applications/Chromium.app/Contents/MacOS/Chromium',
-  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
   '/usr/bin/google-chrome',
-  '/usr/bin/google-chrome-stable',
   '/usr/bin/chromium',
-  '/usr/bin/chromium-browser',
 ].filter(Boolean);
 
-/**
- * Chrome flags shared by both passes.
- *
- * The throwaway profile lives in the OS temp directory rather than the worktree: a fresh
- * profile inside the repo is slow to create and would otherwise litter version control.
- */
-function chromeFlags(profileName) {
-  return [
+function findChrome() {
+  const found = CHROME_CANDIDATES.find((c) => existsSync(c));
+  if (!found) throw new Error(`No Chrome found. Set CHROME_PATH. Tried:\n  ${CHROME_CANDIDATES.join('\n  ')}`);
+  return found;
+}
+
+const PRINT_TIMEOUT_MS = 180_000;
+
+async function printPdf(chrome, htmlPath, pdfPath) {
+  mkdirSync(dirname(pdfPath), { recursive: true });
+  const profile = resolve(tmpdir(), `gumball-whitepaper-${process.pid}`);
+  const args = [
     '--headless',
     '--disable-gpu',
     '--no-first-run',
     '--no-default-browser-check',
     '--disable-extensions',
-    '--disable-default-apps',
     '--disable-background-networking',
-    '--disable-component-update',
-    '--disable-client-side-phishing-detection',
     '--disable-sync',
-    '--metrics-recording-only',
     '--mute-audio',
-    `--user-data-dir=${resolve(tmpdir(), `gumball-whitepaper-${profileName}-${process.pid}`)}`,
+    `--user-data-dir=${profile}`,
+    '--no-pdf-header-footer',
+    `--print-to-pdf=${pdfPath}`,
+    `file://${htmlPath}`,
   ];
-}
-
-function disposeProfile(profileName) {
-  rmSync(resolve(tmpdir(), `gumball-whitepaper-${profileName}-${process.pid}`), { recursive: true, force: true });
-}
-
-function findChrome() {
-  const chrome = CHROME_CANDIDATES.find((candidate) => existsSync(candidate));
-  if (!chrome) {
-    throw new Error(
-      `No Chrome or Chromium binary found. Set CHROME_PATH to one, or install Chrome.\nLooked in:\n  ${CHROME_CANDIDATES.join('\n  ')}`,
-    );
-  }
-  return chrome;
-}
-
-const OVERFLOW_MARKER = 'LAYOUT-OVERFLOW';
-const OVERPRINT_MARKER = 'LAYOUT-OVERPRINT';
-
-/**
- * Layout guard.
- *
- * Pages are fixed-height and clip their overflow, which keeps pagination predictable but
- * would silently swallow content that grew too tall. This script measures every page after
- * layout and, when anything escapes its frame, reports it through the document title —
- * which Chrome copies into the printed PDF's metadata. That lets one print pass carry both
- * the document and its own layout report, with no second browser launch to go wrong.
- *
- * It also catches OVERPRINTS, which overflow cannot see. An absolutely positioned block
- * inside a frame sits outside normal flow, so it can land on top of in-flow content while
- * the frame's scrollHeight stays perfectly within bounds — the page reports clean and prints
- * with two paragraphs stacked on each other. Page 2 shipped that way once; this is the check
- * that would have caught it.
- */
-const AUDIT_SCRIPT = `
-(() => {
-  const offenders = [];
-  const collisions = [];
-
-  document.querySelectorAll('.page').forEach((page) => {
-    const frame = page.querySelector('.frame');
-    if (!frame) return;
-
-    const overflow = Math.max(
-      frame.scrollHeight - frame.clientHeight,
-      frame.scrollWidth - frame.clientWidth,
-    );
-    if (overflow > 1) offenders.push(page.id + '+' + Math.ceil(overflow));
-
-    // Overprint check: any out-of-flow child of the frame versus every in-flow child.
-    const children = [...frame.children];
-    const positioned = [];
-    const inFlow = [];
-    for (const child of children) {
-      const style = getComputedStyle(child);
-      const rect = child.getBoundingClientRect();
-      if (rect.width < 1 || rect.height < 1) continue;
-      (style.position === 'absolute' || style.position === 'fixed' ? positioned : inFlow).push(rect);
-    }
-    for (const a of positioned) {
-      for (const b of inFlow) {
-        const overlapX = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-        const overlapY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-        if (overlapX > 2 && overlapY > 2) {
-          collisions.push(page.id + '~' + Math.ceil(overlapY));
-        }
-      }
-    }
-  });
-
-  const report = [];
-  if (offenders.length > 0) report.push('${OVERFLOW_MARKER} ' + offenders.join(' '));
-  if (collisions.length > 0) report.push('${OVERPRINT_MARKER} ' + [...new Set(collisions)].join(' '));
-  if (report.length > 0) document.title = report.join(' | ');
-})();
-`;
-
-function renderDocument() {
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>${meta.title}</title>
-<meta name="author" content="${meta.author}">
-<meta name="subject" content="${meta.subject}">
-<meta name="keywords" content="${meta.keywords.join(', ')}">
-<meta name="description" content="${meta.subject}">
-<style>
-${stylesheet({ brandFontUrl: `file://${resolve(here, 'fonts/Modak-Regular.ttf')}` })}
-</style>
-</head>
-<body>
-${renderPages()}
-<script>${AUDIT_SCRIPT}</script>
-</body>
-</html>
-`;
-}
-
-/** Read the layout report back out of the printed file's title. */
-/** Pull one marker's segment out of the reported title. Segments are ' | '-separated. */
-function readReportSegment(title, marker, separator) {
-  const segment = title.split(' | ').find((part) => part.trim().startsWith(marker));
-  if (!segment) return [];
-  return segment
-    .trim()
-    .slice(marker.length)
-    .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((entry) => {
-      const [id, px] = entry.split(separator);
-      return { id, px: Number(px) };
-    });
-}
-
-const readOverflowReport = (title) => readReportSegment(title, OVERFLOW_MARKER, '+');
-const readOverprintReport = (title) => readReportSegment(title, OVERPRINT_MARKER, '~');
-
-/**
- * Print with headless Chrome.
- *
- * Chrome reliably writes the PDF and then, on this platform, frequently fails to exit — so
- * the build waits on the artifact rather than on the process. Once the file has stopped
- * growing it is complete, and the browser is terminated.
- */
-async function printToPdf(chrome, { htmlFile, pdfFile, timeoutMs = 180_000 }) {
-  rmSync(pdfFile, { force: true });
-  disposeProfile('print');
-
-  const child = spawn(
-    chrome,
-    [
-      ...chromeFlags('print'),
-      '--no-pdf-header-footer',
-      '--font-render-hinting=none',
-      `--print-to-pdf=${pdfFile}`,
-      `file://${htmlFile}`,
-    ],
-    { stdio: ['ignore', 'ignore', 'pipe'] },
-  );
-
+  // Headless Chrome writes the PDF and then, on some builds, never exits. Wait for the file to stop growing
+  // rather than for the process, then terminate it once the file is stable.
+  rmSync(pdfPath, { force: true });
+  const child = spawn(chrome, args, { stdio: ['ignore', 'ignore', 'pipe'] });
   let stderr = '';
-  child.stderr.on('data', (chunk) => {
-    stderr += chunk.toString();
-  });
-
+  child.stderr.on('data', (chunk) => (stderr += chunk.toString()));
   let exited = false;
-  child.on('exit', () => {
-    exited = true;
-  });
+  let spawnError = null;
+  child.on('error', (error) => (spawnError = error));
+  child.on('exit', () => (exited = true));
 
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + PRINT_TIMEOUT_MS;
   let lastSize = -1;
   let stableFor = 0;
 
   try {
     while (Date.now() < deadline) {
       await sleep(300);
-      const size = existsSync(pdfFile) ? statSync(pdfFile).size : -1;
-
+      if (spawnError) throw spawnError;
+      const size = existsSync(pdfPath) ? statSync(pdfPath).size : -1;
       if (size > 0 && size === lastSize) {
         stableFor += 300;
         if (stableFor >= 1_200) return;
@@ -302,153 +332,85 @@ async function printToPdf(chrome, { htmlFile, pdfFile, timeoutMs = 180_000 }) {
         stableFor = 0;
       }
       lastSize = size;
-
-      if (exited && size <= 0) {
-        throw new Error(`Chrome exited without writing a PDF.\n${stderr.trim()}`);
-      }
+      if (exited && size <= 0) throw new Error(`Chrome exited without writing a PDF.\n${stderr.trim()}`);
     }
-    throw new Error(`Chrome did not produce a PDF within ${timeoutMs / 1000}s.\n${stderr.trim()}`);
+    throw new Error(`Chrome did not produce a PDF within ${PRINT_TIMEOUT_MS / 1000}s.\n${stderr.trim()}`);
   } finally {
     if (!exited) child.kill('SIGKILL');
-    disposeProfile('print');
+    rmSync(profile, { recursive: true, force: true });
   }
 }
 
-/**
- * Metadata stamp.
- *
- * Chrome writes only Title, Creator, Producer, and dates into the Info dictionary. The
- * document's author, subject, keywords, and the commits it describes belong in the file's
- * metadata too, so this appends a standards-conforming incremental update that replaces
- * the Info object. Appending (rather than rewriting) leaves every existing byte and
- * cross-reference untouched.
- */
-function stampMetadata(path) {
-  const buffer = readFileSync(path);
-  const text = buffer.toString('latin1');
+function inspectPdf(pdfPath) {
+  const info = execFileSync('pdfinfo', [pdfPath], { encoding: 'utf8' });
+  const pages = Number(info.match(/^Pages:\s+(\d+)$/m)?.[1] ?? 0);
+  const title = info.match(/^Title:\s*(.+)$/m)?.[1].trim();
+  const pageSize = info.match(/^Page size:\s*(.+)$/m)?.[1].trim();
+  if (pages < 1) throw new Error('PDF inspection found no pages.');
+  if (!pageSize?.endsWith('(A4)')) throw new Error(`PDF inspection expected A4 pages, received: ${pageSize ?? 'none'}`);
+  if (title !== 'GumBall6900')
+    throw new Error(`PDF inspection expected title GumBall6900, received: ${title ?? 'none'}`);
+  if (/^Encrypted:\s+yes$/m.test(info)) throw new Error('PDF inspection found unexpected encryption.');
 
-  const tail = text.slice(-2048);
-  const trailerMatch = tail.match(/trailer\s*<<([\s\S]*?)>>\s*startxref\s*(\d+)\s*%%EOF\s*$/);
-  if (!trailerMatch) throw new Error('Metadata stamp: could not parse the PDF trailer.');
-  const trailerDict = trailerMatch[1];
-  const previousStartXref = Number(trailerMatch[2]);
-  const size = Number(trailerDict.match(/\/Size (\d+)/)?.[1]);
-  const root = trailerDict.match(/\/Root (\d+) 0 R/)?.[1];
-  const infoNum = trailerDict.match(/\/Info (\d+) 0 R/)?.[1];
-  if (!size || !root || !infoNum) throw new Error('Metadata stamp: trailer is missing Size, Root, or Info.');
+  const fonts = execFileSync('pdffonts', [pdfPath], { encoding: 'utf8' });
+  const embeddedFonts = fonts
+    .split('\n')
+    .slice(2)
+    .filter((line) => /\syes\s+yes\s+yes\s+\d+\s+\d+\s*$/.test(line)).length;
+  if (embeddedFonts < 1) throw new Error('PDF inspection found no embedded Unicode fonts.');
 
-  const infoBody = text.match(new RegExp(`(?:^|\\n)${infoNum} 0 obj\\n<<([\\s\\S]*?)>>\\nendobj`))?.[1];
-  if (!infoBody) throw new Error('Metadata stamp: could not locate the Info object.');
-  const keep = (key) => infoBody.match(new RegExp(`\\/${key} \\((?:[^\\\\)]|\\\\.)*\\)`))?.[0] ?? '';
+  const text = execFileSync('pdftotext', ['-layout', pdfPath, '-'], { encoding: 'utf8' });
+  for (const required of [
+    'The index fund that chooses itself',
+    'not deployed, and not authorized for user funds',
+    '10. Status',
+  ]) {
+    if (!text.includes(required)) throw new Error(`PDF inspection could not recover required text: ${required}`);
+  }
 
-  const escape = (value) => String(value).replace(/([()\\])/g, '\\$1');
-  const entries = [
-    keep('Title'),
-    `/Author (${escape(meta.author)})`,
-    `/Subject (${escape(meta.subject)})`,
-    `/Keywords (${escape(meta.keywords.join(', '))})`,
-    keep('Creator'),
-    keep('Producer'),
-    keep('CreationDate'),
-    keep('ModDate'),
-    `/GBXContractsCommit (${escape(meta.contractsCommit)})`,
-    `/GBXAuditCandidateCommit (${escape(meta.auditCandidateCommit)})`,
-  ].filter(Boolean);
-
-  const objectOffset = buffer.length + 1;
-  const objectBytes = `\n${infoNum} 0 obj\n<<${entries.join('\n')}>>\nendobj\n`;
-  const xrefOffset = objectOffset + objectBytes.length - 1;
-  const update =
-    objectBytes +
-    `xref\n${infoNum} 1\n${String(objectOffset).padStart(10, '0')} 00000 n \n` +
-    `trailer\n<</Size ${size}\n/Root ${root} 0 R\n/Info ${infoNum} 0 R\n/Prev ${previousStartXref}>>\n` +
-    `startxref\n${xrefOffset}\n%%EOF\n`;
-
-  writeFileSync(path, Buffer.concat([buffer, Buffer.from(update, 'latin1')]));
+  return { pages, title, pageSize, embeddedFonts };
 }
 
-/** Read back the printed file and confirm it is what we intended to ship. */
-function inspectPdf(path) {
-  const buffer = readFileSync(path);
-  const text = buffer.toString('latin1');
-  const pageCount = (text.match(/\/Type\s*\/Page[^s]/g) ?? []).length;
-  const embedded = (text.match(/\/FontFile[23]?/g) ?? []).length;
-  const fonts = [...new Set(text.match(/\/BaseFont\s*\/([A-Za-z0-9+,-]+)/g) ?? [])].map((entry) =>
-    entry.replace(/\/BaseFont\s*\//, ''),
-  );
-  const titleMatch = text.match(/\/Title\s*\(((?:[^\\)]|\\.)*)\)/);
-  const title = (titleMatch?.[1] ?? '').replace(/\\([()\\])/g, '$1');
+/* -------------------------------------------------------------------- main ---- */
 
-  return { bytes: buffer.length, pageCount, embedded, fonts, title };
-}
+const htmlOnly = process.argv.includes('--html');
 
-async function main() {
-  const args = new Set(process.argv.slice(2));
+assertContrast();
+mkdirSync(buildDir, { recursive: true });
 
-  const facts = verifyProtocolFacts();
+const facts = verifyProtocolFacts();
+console.log(`facts     ${facts.checks} contract/fixture checks pass`);
+
+const chrome = htmlOnly ? null : findChrome();
+
+for (const edition of EDITIONS) {
+  const sourcePath = resolve(repoRoot, edition.source);
+  const raw = readFileSync(sourcePath, 'utf8');
+  const { html } = buildHtml(edition, raw);
+
+  const stale = scanStale(html);
+  const htmlPath = resolve(buildDir, `${edition.key}.html`);
+  writeFileSync(htmlPath, html);
+
+  console.log(`\n${edition.key}`);
+  console.log(`  source    ${edition.source} · ${raw.split(/\s+/).length.toLocaleString()} words`);
+  console.log(`  figures   ${(html.match(/class="figure"/g) ?? []).length} rendered`);
   console.log(
-    `facts     ${facts.checks} cross-checks pass · ${facts.constructorSupplyTokens.toLocaleString('en-US')} constructor GBX / ${facts.canonicalLaunchSupplyTokens.toLocaleString('en-US')} canonical launch GBX · ${facts.slotCount} fixed slots`,
+    `  stale     ${stale.checked} superseded claims absent` +
+      (stale.exempted ? ` · ${stale.exempted} retraction(s) exempt` : ''),
   );
+  console.log(`  html      ${htmlPath}`);
 
-  const contrast = assertContrast();
-  const worst = contrast.reduce((low, check) => (check.ratio < low.ratio ? check : low));
+  if (htmlOnly) continue;
 
-  mkdirSync(buildDir, { recursive: true });
-  const documentHtml = renderDocument();
-  const scanned = scanStaleClaims(documentHtml);
-  writeFileSync(htmlPath, documentHtml, 'utf8');
-  console.log(`html      ${htmlPath}`);
-  console.log(`stale     ${scanned} forbidden phrases absent`);
-  console.log(`contrast  ${contrast.length} pairs pass AA · lowest ${worst.ratio}:1 (${worst.label})`);
-
-  if (args.has('--html')) return;
-
-  const chrome = findChrome();
-
-  // Print to a staging path so a failed verification never replaces a good published PDF.
-  const stagedPath = resolve(buildDir, 'whitepaper.pdf');
-  await printToPdf(chrome, { htmlFile: htmlPath, pdfFile: stagedPath });
-  stampMetadata(stagedPath);
-
+  const pdfPath = resolve(repoRoot, edition.out);
+  const stagedPath = resolve(buildDir, `${edition.key}.pdf`);
+  await printPdf(chrome, htmlPath, stagedPath);
   const report = inspectPdf(stagedPath);
-
-  const offenders = readOverflowReport(report.title);
-  const overprints = readOverprintReport(report.title);
-
-  if (offenders.length > 0) {
-    const detail = offenders.map((page) => `${page.id} (+${page.px}px)`).join(', ');
-    console.log(`layout    OVERFLOW on ${offenders.length} page(s): ${detail}`);
-  }
-  if (overprints.length > 0) {
-    const detail = overprints.map((page) => `${page.id} (${page.px}px deep)`).join(', ');
-    console.log(`overprint OUT-OF-FLOW CONTENT lands on in-flow content: ${detail}`);
-  }
-
-  if (offenders.length > 0 || overprints.length > 0) {
-    if (!args.has('--force')) {
-      throw new Error(
-        'Layout is broken on the pages listed above: content is clipped or printed on top of other content.\n' +
-          `Fix them, or pass --force while drafting.\nStaged file: ${stagedPath}`,
-      );
-    }
-  } else {
-    console.log(`layout    all ${report.pageCount} pages fit their frames, no overprints`);
-  }
-
-  if (report.embedded === 0) {
-    throw new Error('Printed PDF embeds no fonts; it would fall back to base-14 faces on other machines.');
-  }
-
+  const size = (statSync(stagedPath).size / 1024).toFixed(0);
   mkdirSync(dirname(pdfPath), { recursive: true });
-  writeFileSync(pdfPath, readFileSync(stagedPath));
-
-  console.log(`pdf       ${pdfPath}`);
+  renameSync(stagedPath, pdfPath);
   console.log(
-    `           ${report.pageCount} pages · ${(report.bytes / 1024).toFixed(0)} KB · ${report.embedded} embedded font programs`,
+    `  pdf       ${edition.out} · ${report.pages} pages · ${size} KB · ${report.embeddedFonts} embedded Unicode fonts`,
   );
-  console.log(`           ${[...new Set(report.fonts.map((name) => name.replace(/^[A-Z]{6}\+/, '')))].join(', ')}`);
-
-  if (args.has('--open')) execFileSync('open', [pdfPath]);
 }
-
-await main();

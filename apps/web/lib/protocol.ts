@@ -37,7 +37,8 @@ export const MINE = {
   /** `Mine.MIN_INITIAL_PRICE` is 1e6 raw units, and USDG carries six decimals, so one USDG. */
   minInitialPriceValue: 1,
   priceMultiplier: 2,
-  startingSupply: '0 GBX',
+  constructorSupply: '0 GBX',
+  genesisLiquidityIssuance: '1,000 GBX',
   messageBytes: 280,
   /** Prospective global rate after each halving boundary, GBX per second. */
   halvingLadder: [64, 32, 16, 8, 4, 2, 1] as const,
@@ -143,11 +144,12 @@ export const MECHANISMS: readonly Mechanism[] = [
     kicker: 'Issue',
     summary: 'Sixteen permanent slots issue GBX to whoever holds them.',
     accent: 'pink',
-    headline: 'Sixteen slots issue every GBX in existence.',
+    headline: 'Sixteen slots issue every GBX after the fixed genesis-liquidity seed.',
     standfirst:
-      'GBX begins at zero supply. Each of the sixteen permanent slots runs its own hourly ' +
-      'descending-price replacement auction, and the rate a slot is assigned stays locked for its ' +
-      'complete tenure.',
+      'GBX’s constructor begins at zero supply. Canonical launch then issues a fixed 1,000 GBX solely ' +
+      'into permanently locked genesis liquidity. Each of the sixteen permanent slots runs its own ' +
+      'hourly descending-price replacement auction, and the rate a slot is assigned stays locked for ' +
+      'its complete tenure.',
   },
   {
     slug: 'signal',

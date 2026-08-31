@@ -38,7 +38,7 @@ interface AssetModel extends RzAsset {
 
 export function Resonance() {
   useLayoutEffect(() => {
-    /* Lifted from the deck's flow sim (docs/deck/gumball6900-deck.html, lines 1365–1589) and
+    /* Descended from the retired pitch-deck flow prototype preserved in git history and
        adapted: the flow ends at each Strategy holding USDG — the purchase is the next section.
        Sim time ×900 like the deck; particles advance in real time so the flow reads at a
        human pace whatever the sim clock does.
@@ -118,7 +118,6 @@ export function Resonance() {
       asset.barEl = barEl;
       asset.subEl = subEl;
     }
-
 
     let disposed = false;
 

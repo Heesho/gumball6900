@@ -1,0 +1,237 @@
+{
+  "schemaVersion": 1,
+  "targetCommit": "70091b642006f0b2788bd89a6a0e734a632619cf",
+  "findings": [
+    {
+      "id": "CEX-03",
+      "title": "Unknown signal positions are not discoverable from bounded current state",
+      "status": "accepted_risk",
+      "decision_state": "accepted_no_core_change_existing_subgraph_discovery",
+      "severity": "medium",
+      "confidence": "high",
+      "target_commit": "70091b642006f0b2788bd89a6a0e734a632619cf",
+      "contracts": ["Resonance", "SignalPortfolioLens", "subgraph"],
+      "source_locations": [
+        "packages/contracts/src/core/Resonance.sol:84",
+        "packages/contracts/src/periphery/SignalPortfolioLens.sol:11",
+        "packages/subgraph/subgraph.yaml:70",
+        "packages/subgraph/src/mine.ts:110"
+      ],
+      "violated_property": "An account with positive signal must have a state-growth-independent current-state path to discover every Strategy key required for its bounded scalar GBX-principal exits, without relying on a website, SDK, subgraph, keeper, or retained event history.",
+      "attacker_capabilities": "No attacker is required. The failure condition is loss or unavailability of historical wallet/indexer records for an account with one or more live or killed Strategy allocations; a Router cutover adds separately indexed old/new graphs.",
+      "preconditions": [
+        "The account has positive SignalGBX allocated to at least one Strategy.",
+        "The account no longer knows one or more Strategy addresses needed by removeSignal.",
+        "Historical transaction, event, wallet, or indexer records are unavailable or incomplete."
+      ],
+      "minimal_attack_sequence": [
+        "Allocate GBX signal to a Strategy and retain a positive paired-Bribe weight.",
+        "Lose the Strategy key and query only current core and stateless Lens state.",
+        "Observe the aggregate SignalGBX balance but no per-account enumerable membership.",
+        "Recover only by external history or by scanning the globally growing factory deployment history, then call the otherwise bounded scalar exit."
+      ],
+      "impact": "A user who cannot recover the Strategy key cannot construct the scalar removal that returns the corresponding escrowed GBX. Known-key live and killed Strategy exits remain bounded and exact. The current static subgraph further hides replacement-graph positions after a Mine Router cutover, or old positions if consumers switch to a new-only endpoint.",
+      "likelihood": "Low for ordinary users with durable event and wallet records, but practical impact grows across repeated Router graphs and unavailable or incomplete historical indexing.",
+      "proof_or_test_path": "packages/contracts/test/minimal/audit-exitability/HistoricalFindings.t.sol",
+      "proof_or_test_cases": ["test_Repro_LensCannotDiscoverSignalWithoutCallerStrategyKey"],
+      "validator_agent": "/root/fresh_full_system; /root/fresh_integration_surface",
+      "recommended_fix": "Maintainer selected no core membership and explicitly accepted the Medium current-state discovery dependency. Use the existing replaceable subgraph for the initial graph and refresh canonical Bribe balances before writes. If governance later performs a Mine Router cutover, retain the old subgraph endpoint and deploy the same indexer for the new Resonance generation. A single multi-graph index or direct JSON-RPC recovery tool is optional resilience work, not a current release requirement.",
+      "fix_commit": null,
+      "fix_review_evidence": [
+        "docs/adr/0056-accepted-event-history-signal-discovery.md",
+        "existing SignalPosition mapping retains killed-Strategy positions and requires canonical Bribe reads before writes"
+      ],
+      "residual_risk": "Exit construction for an unknown Strategy key remains dependent on durable authenticated event history and historical graph discovery. A missing or incomplete RPC, inventory, wallet, or index can hide a still-exitable position until that history is reconstructed; known-key scalar exits remain exact and bounded.",
+      "historical_count_treatment": "Existing CEX-03 reconfirmed at current HEAD; not a new duplicate count."
+    },
+    {
+      "id": "SECURITY-01",
+      "title": "Zero-price receiver round trips can repeatedly reset a Strategy without clearing revenue",
+      "status": "accepted_risk",
+      "decision_state": "accepted_no_code_change_intended_zero_price_clearance",
+      "severity": "medium",
+      "confidence": "high",
+      "target_commit": "70091b642006f0b2788bd89a6a0e734a632619cf",
+      "contracts": ["Strategy"],
+      "source_locations": [
+        "packages/contracts/src/core/Strategy.sol:151",
+        "packages/contracts/src/core/Strategy.sol:173",
+        "packages/contracts/src/core/Strategy.sol:187",
+        "packages/contracts/src/core/Strategy.sol:202",
+        "packages/contracts/src/core/Strategy.sol:231"
+      ],
+      "violated_property": "An untrusted zero-cost operation must not transform a mature Strategy from price == 0 with inventory R into price > 0 with inventory >= R. Because freely transferable USDG can be returned after buy finishes, a zero-to-positive epoch reset cannot rely on receiver identity or an in-call transfer as proof that inventory was durably cleared.",
+      "attacker_capabilities": "Any account able to submit or order one transaction when the auction has fully decayed. The account may call directly with the Strategy as receiver or use a helper that receives and returns USDG after buy finishes; no GBX balance or allowance is required.",
+      "preconditions": [
+        "The Strategy holds nonzero USDG after Resonance distribution.",
+        "The active epoch has reached its full decay boundary.",
+        "The attacker can land a transaction before an honest zero-price buyer."
+      ],
+      "minimal_attack_sequence": [
+        "Wait until Strategy.currentPrice() is zero.",
+        "Call a helper that invokes buy(address(helper), epochId, deadline, 0).",
+        "Strategy transfers the complete USDG inventory to the helper, advances the epoch, and resets the price to minimumPrice without collecting a payment token.",
+        "After buy returns and its reentrancy guard is unlocked, the helper transfers the complete USDG inventory back to Strategy in the same outer transaction.",
+        "Repeat at each later full-decay boundary, staling competing zero-price transactions."
+      ],
+      "impact": "An ordering adversary can indefinitely delay zero-price clearance of a Strategy's USDG inventory and suppress the associated acquisition and payment flow to Fund and Bribe. This does not lock signal exits or GBX redemption and a buyer willing to pay the reset floor can clear immediately.",
+      "likelihood": "Moderate when a public zero-price fill is economically valuable: the attack costs gas and ordering once per epoch but no protocol token payment.",
+      "proof_or_test_path": "packages/contracts/test/minimal/audit-exitability/reproductions/StrategySelfReceiverGrief.t.sol",
+      "proof_or_test_cases": [
+        "test_Repro_ZeroPriceSelfReceiverCanRepeatedlyResetCanonicalEpochWithoutTokenCost",
+        "test_Repro_ReceiverContractCanRoundTripInventoryAndResetEpochWithoutTokenCost"
+      ],
+      "validator_agent": "/root/verify_self_receiver_grief",
+      "round_trip_validator_agent": "/root/roundtrip_fix_review",
+      "recommended_fix": "Maintainer explicitly accepted the reproduced Medium as intended Euler Fee Flow-shaped auction behavior and selected no code change. Preserve free zero-price fills, caller-selected receivers, epoch advancement, and minimumPrice as only the next epoch's starting floor. Documentation must disclose that a gas-paying adversary can repeat the reset and that acquisition has no bounded completion guarantee.",
+      "fix_commit": null,
+      "fix_review_evidence": [],
+      "residual_risk": "A gas-paying adversary can repeat the zero-cost round trip once per matured epoch and stale competing zero-price fills while leaving the Strategy inventory unchanged or larger. A buyer paying the valid reset floor can clear immediately. Signal exits, Mine claims, and GBX redemption are not blocked."
+    },
+    {
+      "id": "CEX-09",
+      "title": "Public complete-basket claims exceed caller-selected Fund redemption",
+      "status": "accepted_risk",
+      "decision_state": "accepted_no_contract_or_retained_copy_change_frontend_selects_assets",
+      "severity": "medium",
+      "confidence": "high",
+      "target_commit": "70091b642006f0b2788bd89a6a0e734a632619cf",
+      "contracts": ["Fund", "landing", "web", "deck"],
+      "source_locations": [
+        "packages/contracts/src/core/Fund.sol:90",
+        "apps/landing/components/sections/Hero.tsx:92",
+        "apps/landing/components/sections/Why.tsx:48",
+        "apps/landing/components/sections/Fund.tsx:1863",
+        "apps/landing/docs/BRIEF.md:79",
+        "docs/deck/gumball6900-deck.html:932",
+        "docs/deck/gumball6900-deck.html:1029",
+        "apps/web/components/home/mechanism-dashboard.tsx:129"
+      ],
+      "violated_property": "Release-facing material must not present a caller-selected Fund redemption as a contract-enforced complete basket or present discount arbitrage as guaranteed profit and gap closure.",
+      "attacker_capabilities": "No attacker is required. The condition arises when an interface or user does not know and submit every token address held by the registry-free Fund, or when a holder relies on guaranteed-arbitrage language.",
+      "preconditions": [
+        "Fund holds at least one token omitted from the submitted redemption array, or the holder relies on the guaranteed-profit claim.",
+        "The user relies on the tracked complete-basket or arbitrage wording rather than the caller-selected contract interface."
+      ],
+      "minimal_attack_sequence": [
+        "Fund receives one or more assets not included in the interface's submitted token list.",
+        "A holder burns GBX while selecting only the known assets.",
+        "The selected pro-rata payouts succeed and the omitted assets remain in Fund.",
+        "The holder's original omitted shares are permanently forfeited despite the complete-basket wording."
+      ],
+      "impact": "A redeemer can receive less than the advertised complete basket and cannot recover the original omitted shares with a later burn. Market costs and incomplete discovery can also invalidate the tracked guaranteed-profit and guaranteed-gap-closure claim.",
+      "likelihood": "Ordinary interfaces can select every asset they discover, but Fund accepts unsolicited tokens and has no bounded canonical asset list proving that discovery is complete.",
+      "proof_or_test_path": "packages/contracts/test/minimal/Fund.t.sol",
+      "proof_or_test_cases": ["test_OmittedTokensArePermanentlyForfeitedForThatRedeemer"],
+      "validator_agent": "/root/direct-audit-intake; /root/release-copy-validation",
+      "recommended_fix": "Maintainer explicitly accepted the Medium product-claim risk and selected no contract or retained-copy change. Interfaces are expected to submit all assets they discover, but complete selection and profitable gap closure remain unverified and non-guaranteed. The deck was later retired under a separate public-copy consolidation decision, not as a CEX-09 remediation.",
+      "fix_commit": null,
+      "fix_review_evidence": [
+        "2026-08-31 maintainer-approved consolidation retired the deck while preserving the accepted landing/web wording"
+      ],
+      "residual_risk": "A user gets every Fund asset only when every address is correctly selected. Unsolicited or undiscovered assets can be omitted and permanently forfeited for that redeemer. Arbitrage profitability and price convergence remain non-guaranteed, and the retained public wording is not contract-verified."
+    },
+    {
+      "id": "CEX-10",
+      "title": "Public zero-premint claims omit the fixed 1,000 GBX genesis issuance",
+      "status": "remediated",
+      "decision_state": "implemented_exact_approved_copy_diff_independently_verified",
+      "severity": "medium",
+      "confidence": "high",
+      "target_commit": "70091b642006f0b2788bd89a6a0e734a632619cf",
+      "contracts": ["GBX", "Mine", "GBXLauncher", "landing", "web", "deck"],
+      "source_locations": [
+        "packages/contracts/src/core/Mine.sol:76",
+        "packages/contracts/src/core/Mine.sol:254",
+        "packages/contracts/src/launch/GBXLauncher.sol:375",
+        "apps/landing/docs/BRIEF.md:57",
+        "apps/web/lib/protocol.ts:40",
+        "apps/web/lib/protocol.ts:146",
+        "apps/web/components/home/mechanism-dashboard.tsx:56",
+        "apps/web/components/home/cinematic-hero.tsx:23",
+        "docs/deck/gumball6900-deck.html:806"
+      ],
+      "violated_property": "Release-facing supply claims must distinguish the GBX constructor's zero-supply state from completed canonical launch and must not say that every GBX in existence is mined when Mine issues a fixed 1,000 GBX genesis-liquidity allocation.",
+      "attacker_capabilities": "No attacker is required. The mismatch is deterministic whenever canonical launch succeeds while the tracked public surfaces retain zero-post-launch or all-mined supply claims.",
+      "preconditions": [
+        "Canonical launch calls Mine.mintGenesisLiquidity after permanently binding Mine as the GBX issuer.",
+        "A user, integrator, or reviewer relies on a tracked public claim that all GBX in existence comes from mining or that no genesis-liquidity issuance exists."
+      ],
+      "minimal_attack_sequence": [
+        "Deploy GBX and observe zero totalSupply when its constructor returns.",
+        "Complete canonical launch, which issues exactly 1,000 GBX to the new USDG/GBX Pair while Mine.totalMined remains zero.",
+        "Compare the resulting lifetimeMinted and totalSupply to the current public all-mined and zero-at-deployment claims."
+      ],
+      "impact": "Current public copy can misstate launch supply provenance and cause users or integrators to model the initial supply and dilution boundary incorrectly. Onchain supply accounting and Fund redemption use the actual totalSupply and are not corrupted by the copy mismatch.",
+      "likelihood": "Certain if the current tracked copy is published with the canonical launcher: successful launch explicitly asserts 1,000 GBX lifetime minted and zero mined emission.",
+      "proof_or_test_path": "packages/contracts/test/minimal/Mine.t.sol; packages/contracts/test/minimal/GBXLauncher.t.sol",
+      "proof_or_test_cases": [
+        "test_GenesisLiquidityMintIsFixedOneTimeAndClearsAuthority",
+        "testLaunchBuildsCanonicalGraphAndBeginsGovernanceHandoff"
+      ],
+      "validator_agent": "/root/cex10_copy_preview",
+      "recommended_fix": "Implemented after exact-diff approval: keep the No premint positioning but define it as no team, presale, treasury, investor, or discretionary allocation. State that the token constructor returns with zero supply, canonical launch issues a fixed 1,000 GBX solely into permanently locked genesis liquidity, and every subsequent GBX is mined.",
+      "fix_commit": null,
+      "fix_review_evidence": [
+        "docs/adr/0060-no-premint-means-no-discretionary-allocation.md",
+        "plans/CEX10-EXACT-COPY-CHANGE-PREVIEW.md",
+        "plans/CEX10-EXACT-COPY-CHANGE.patch",
+        "approved patch SHA-256 d5cd3fb73752b75ba45c336d5dc3f9d1db010db2ad715de30604004a9794d243 equals the applied six-file git diff",
+        "web Vitest 4 files / 32 tests passed; web typecheck and production build passed",
+        "three focused Mine/launcher supply tests passed; independent /root/cex10_postfix_review verdict PASS",
+        "the deck was subsequently retired under separate maintainer approval; its historical preview and patch remain evidence, and active websites plus docs/WHITEPAPER.md retain the corrected disclosure"
+      ],
+      "residual_risk": "No premint remains a project-defined disclosure term rather than a claim of zero post-launch issuance. Canonical launch supply includes the fixed 1,000 GBX genesis-liquidity issue even though no insider or discretionary allocation exists. Superseded historical ADR 0050 retains its original zero-premint decision but is explicitly superseded by ADR 0054."
+    },
+    {
+      "id": "CEX-11",
+      "title": "Public governance copy omits Mine's continuing owner power",
+      "status": "remediated",
+      "decision_state": "implemented_approved_copy_correction_independently_verified",
+      "severity": "medium",
+      "confidence": "high",
+      "target_commit": "70091b642006f0b2788bd89a6a0e734a632619cf",
+      "contracts": ["Mine", "Resonance", "landing", "web"],
+      "source_locations": [
+        "packages/contracts/src/core/Mine.sol:279",
+        "packages/contracts/src/core/Mine.sol:493",
+        "packages/contracts/src/launch/GBXLauncher.sol:362",
+        "packages/contracts/src/launch/GBXLauncher.sol:363",
+        "apps/landing/components/sections/Extras.tsx:174",
+        "apps/landing/components/sections/Extras.tsx:180",
+        "apps/landing/components/sections/Close.tsx:48",
+        "apps/web/components/home/finale-section.tsx:85"
+      ],
+      "violated_property": "A release-facing enumeration of continuing authority must disclose every custom owner action and every continuing owner role. It must not present Resonance's four calls as the complete surface while Mine separately exposes setResonanceRouter.",
+      "attacker_capabilities": "The reviewed external executor is intended to accept both Mine and Resonance ownership. A compromised, captured, or incorrectly selected Mine owner can call the omitted action; structural graph checks do not prove honest bytecode or honest governance.",
+      "preconditions": [
+        "The external executor has accepted Mine ownership after canonical launch.",
+        "Users rely on a current public claim that Resonance is the only continuing owned contract or that only four governance calls remain."
+      ],
+      "minimal_attack_sequence": [
+        "Deploy and bind a reciprocal replacement Router, Resonance, and SignalGBX graph sharing Mine's immutable GBX, USDG, and Fund.",
+        "Use Mine ownership to call setResonanceRouter on that structurally valid graph.",
+        "All later Mine protocol-share deposits go to the replacement graph even though the current public enumeration omits this fifth action."
+      ],
+      "impact": "The public trust surface understates continuing governance authority over future Mine revenue. A malicious Mine owner cannot sweep old graphs, move existing signals, change mining economics, or seize Fund assets through this setter, but it can redirect all later protocol-share deposits to a structurally consistent malicious graph.",
+      "likelihood": "The copy mismatch is certain on the identified surfaces. Exploitation depends on a compromised, malicious, or mistakenly selected external owner, whose exact implementation remains an unresolved deployment gate.",
+      "proof_or_test_path": "packages/contracts/test/minimal/Mine.t.sol; packages/contracts/test/minimal/GBXLauncher.t.sol",
+      "proof_or_test_cases": [
+        "test_SetResonanceRouterIsOwnerOnlyAndRejectsIncompleteOrMismatchedGraphs",
+        "test_SetResonanceRouterRedirectsOnlyFutureRevenueAndPreservesOldGraphAndMinerClaims",
+        "testGovernanceMustAcceptBothPendingOwnershipTransfers"
+      ],
+      "validator_agent": "/root/release-copy-validation; /root/cex11_postfix_review",
+      "recommended_fix": "Implemented after maintainer approval: the three stale components now disclose Mine and Resonance as the two continuing Ownable2Step roles, enumerate Mine's one future-revenue Router setter plus Resonance's four bounded actions, and state that the intended external executor remains unselected. Contract authority was not changed.",
+      "fix_commit": null,
+      "fix_review_evidence": [
+        "apps/landing/components/sections/Extras.tsx and Close.tsx disclose Mine plus Resonance, five actions, two Ownable2Step roles, and the unselected executor",
+        "apps/web/components/home/finale-section.tsx discloses one Mine call plus four Resonance calls and the unselected executor",
+        "web Vitest 4 files / 32 tests passed; landing and web typechecks and production builds passed",
+        "scoped formatting and stale only-Resonance/four-power search passed",
+        "independent /root/cex11_postfix_review verdict PASS; CEX-11 changed no executable Solidity, and the later provenance-only source footers received a separate bytecode-equivalence review"
+      ],
+      "residual_risk": "Even with accurate copy, the future Mine/Resonance owner remains unselected and deployment-blocking. Mine validates replacement graph identities but not honest bytecode, so exact governance and replacement-graph review remains mandatory."
+    }
+  ]
+}

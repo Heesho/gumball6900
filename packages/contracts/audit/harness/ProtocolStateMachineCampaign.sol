@@ -57,6 +57,12 @@ contract CampaignActor {
         }
         return returnData;
     }
+
+    /// @notice Performs one protocol call without bubbling target failure, so the campaign can persist a liveness fault.
+    function tryRun(address target, bytes memory data) external returns (bool succeeded, bytes memory result) {
+        if (msg.sender != _controller) revert NotController(msg.sender);
+        return target.call(data);
+    }
 }
 
 /// @title ProtocolStateMachineCampaign
@@ -103,6 +109,12 @@ contract ProtocolStateMachineCampaign {
     mapping(address strategy => uint256 amount) public expectedBribeClassification;
     /// @notice Independent cumulative sum of completed Strategy payments.
     mapping(address strategy => uint256 amount) public expectedPaymentTotal;
+    /// @notice Number of successful executions for every campaign action, used by deterministic reachability checks.
+    mapping(bytes32 action => uint256 count) public actionCalls;
+    /// @notice Persists any valid signal exit that unexpectedly reverts instead of returning principal.
+    bool public unexpectedSignalExitFailure;
+    /// @notice Persists any successful signal exit that returns a non-exact GBX principal amount.
+    bool public signalPrincipalReturnMismatch;
 
     constructor() {
         usdg = new CampaignToken("Global Dollar", "USDG", 6);
@@ -176,6 +188,7 @@ contract ProtocolStateMachineCampaign {
 
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), requested)));
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.addSignal, (alive[0], requested)));
+        _markAction("signalDefault");
     }
 
     function withdrawDefault(uint8 actorSeed, uint96 amount) external {
@@ -186,7 +199,10 @@ contract ProtocolStateMachineCampaign {
         address strategy = selected[0];
         uint256 requested = _clamp(amount, 1, _accountSignalWeight(account, strategy));
 
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignal, (strategy, requested)));
+        if (!_executeSignalExit(actor, abi.encodeCall(SignalGBX.removeSignal, (strategy, requested)), requested)) {
+            return;
+        }
+        _markAction("withdrawDefault");
     }
 
     function addSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
@@ -201,6 +217,7 @@ contract ProtocolStateMachineCampaign {
         uint256 requested = _clamp(amount, 1, available);
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), requested)));
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.addSignal, (strategy, requested)));
+        _markAction("addSignal");
     }
 
     function removeSignal(uint8 actorSeed, uint8 strategySeed, uint96 amount) external {
@@ -211,7 +228,10 @@ contract ProtocolStateMachineCampaign {
 
         address strategy = selected[uint256(strategySeed) % selected.length];
         uint256 requested = _clamp(amount, 1, _accountSignalWeight(account, strategy));
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignal, (strategy, requested)));
+        if (!_executeSignalExit(actor, abi.encodeCall(SignalGBX.removeSignal, (strategy, requested)), requested)) {
+            return;
+        }
+        _markAction("removeSignal");
     }
 
     /// @notice Exercises a remove-plus-add reallocation through the canonical scalar operations.
@@ -231,9 +251,10 @@ contract ProtocolStateMachineCampaign {
         if (destination == source) revert("NO_ALTERNATE_LIVE_STRATEGY");
 
         uint256 requested = _clamp(amount, 1, _accountSignalWeight(account, source));
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignal, (source, requested)));
+        if (!_executeSignalExit(actor, abi.encodeCall(SignalGBX.removeSignal, (source, requested)), requested)) return;
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), requested)));
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.addSignal, (destination, requested)));
+        _markAction("reallocateSignal");
     }
 
     function addSignalMany(uint8 actorSeed, uint8 countSeed) external {
@@ -254,6 +275,7 @@ contract ProtocolStateMachineCampaign {
 
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(signalGBX), available)));
         actor.run(address(signalGBX), abi.encodeCall(SignalGBX.addSignalMany, (allocations)));
+        _markAction("addSignalMany");
     }
 
     function removeSignalMany(uint8 actorSeed, uint8 countSeed) external {
@@ -269,7 +291,14 @@ contract ProtocolStateMachineCampaign {
                 SignalGBX.Allocation({ strategy: current[i], amount: _accountSignalWeight(account, current[i]) });
         }
 
-        actor.run(address(signalGBX), abi.encodeCall(SignalGBX.removeSignalMany, (allocations)));
+        uint256 expectedPrincipal;
+        for (uint256 i; i < count; ++i) {
+            expectedPrincipal += allocations[i].amount;
+        }
+        if (!_executeSignalExit(actor, abi.encodeCall(SignalGBX.removeSignalMany, (allocations)), expectedPrincipal)) {
+            return;
+        }
+        _markAction("removeSignalMany");
     }
 
     function mine(uint8 actorSeed, uint8 slotSeed) external {
@@ -286,36 +315,47 @@ contract ProtocolStateMachineCampaign {
             address(mineContract),
             abi.encodeCall(Mine.mine, (address(actor), index, slot.epochId, block.timestamp, payment, ""))
         );
+        _markAction("mine");
     }
 
     function donateRevenue(uint64 amount) external {
         uint256 donation = _clamp(amount, 1, 1_000_000e6);
         _createUSDG(address(resonanceRouter), donation);
         resonanceRouter.route();
+        _markAction("donateRevenue");
     }
 
     function donateRevenueDirectly(uint64 amount) external {
         uint256 donation = _clamp(amount, 1, 1_000_000e6);
         _createUSDG(address(resonance), donation);
+        _markAction("donateRevenueDirectly");
     }
 
     function recordRevenueIndex() external {
         _recordRevenueIndex();
+        _markAction("recordRevenueIndex");
     }
 
     function distributeAll() external {
         for (uint256 i; i < strategies.length; ++i) {
             resonance.distributeRevenue(strategies[i]);
         }
+        _markAction("distributeAll");
     }
 
     function distributeOne(uint8 strategySeed) external {
         resonance.distributeRevenue(_strategy(strategySeed));
+        _markAction("distributeOne");
     }
 
     function buy(uint8 actorSeed, uint8 strategySeed) external {
         CampaignActor actor = _actor(actorSeed);
         Strategy strategy = Strategy(_strategy(strategySeed));
+
+        // Keep a minimal tracked inventory reachable even when no prior revenue distribution selected this Strategy.
+        // This is a direct-donation state the production Strategy accepts, and it prevents positive-price settlement
+        // from becoming contingent on two independently random campaign actions choosing the same Strategy.
+        if (usdg.balanceOf(address(strategy)) == 0) _createUSDG(address(strategy), 1);
 
         uint256 price = strategy.currentPrice();
         address payment = address(strategy.paymentToken());
@@ -354,6 +394,7 @@ contract ProtocolStateMachineCampaign {
             expectedFundClassification[strategyAddress] += fundAmount;
             expectedPaymentTotal[strategyAddress] += price;
         }
+        _markAction("buy");
     }
 
     function claimRewards(uint8 actorSeed, uint8 strategySeed) external {
@@ -361,6 +402,7 @@ contract ProtocolStateMachineCampaign {
         address[] memory selected = new address[](1);
         selected[0] = _strategy(strategySeed);
         actor.run(address(resonance), abi.encodeCall(Resonance.claimBribeRewards, (selected)));
+        _markAction("claimRewards");
     }
 
     function notifySupplementalReward(uint8 actorSeed, uint8 tokenSeed, uint64 amount) external {
@@ -379,6 +421,7 @@ contract ProtocolStateMachineCampaign {
         token.mint(address(actor), reward);
         actor.run(address(token), abi.encodeCall(IERC20.approve, (address(bribe), reward)));
         actor.run(address(bribe), abi.encodeCall(Bribe.notifyReward, (address(token), reward)));
+        _markAction("notifySupplementalReward");
     }
 
     function claimOneReward(uint8 actorSeed, uint8 strategySeed, uint8 tokenSeed) external {
@@ -387,6 +430,7 @@ contract ProtocolStateMachineCampaign {
         address[] memory tokens = bribe.rewardTokens();
         address token = tokens[uint256(tokenSeed) % tokens.length];
         actor.run(address(bribe), abi.encodeCall(Bribe.claimReward, (address(actor), token)));
+        _markAction("claimOneReward");
     }
 
     function routeBribeRewards() external {
@@ -402,18 +446,21 @@ contract ProtocolStateMachineCampaign {
                 revert("INEXACT_BRIBE_ROUTING");
             }
         }
+        _markAction("routeBribeRewards");
     }
 
     /// @notice Exercises the complete owner-authorized prospective rate range without creating a per-Strategy policy.
     function setBribeBps(uint16 requestedBps) external {
         _recordRevenueIndex();
         resonance.setBribeBps(uint256(requestedBps) % (resonance.MAX_BRIBE_BPS() + 1));
+        _markAction("setBribeBps");
     }
 
     function claimMinerPayment(uint8 actorSeed) external {
         CampaignActor actor = _actor(actorSeed);
         if (mineContract.claimableMinerPayment(address(actor)) == 0) revert("NOTHING_TO_CLAIM");
         mineContract.claimMinerPayment(address(actor));
+        _markAction("claimMinerPayment");
     }
 
     function redeem(uint8 actorSeed, uint96 amount, bool includePaymentAsset) external {
@@ -429,12 +476,26 @@ contract ProtocolStateMachineCampaign {
 
         actor.run(address(gbx), abi.encodeCall(IERC20.approve, (address(fund), burned)));
         actor.run(address(fund), abi.encodeCall(Fund.redeem, (burned, address(actor), tokens)));
+        _markAction("redeem");
     }
 
     function burnFundGBX(uint96 amount) external {
         uint256 available = gbx.balanceOf(address(fund));
+        if (available == 0) {
+            // A direct holder transfer is the ordinary production path by which Fund-held GBX becomes burnable.
+            // Arrange the smallest such state so the burn action cannot remain hidden behind a prior GBX auction.
+            for (uint256 i; i < ACTOR_COUNT; ++i) {
+                uint256 actorBalance = gbx.balanceOf(address(actors[i]));
+                if (actorBalance == 0) continue;
+                uint256 transferred = actorBalance > 1 ether ? 1 ether : actorBalance;
+                actors[i].run(address(gbx), abi.encodeCall(IERC20.transfer, (address(fund), transferred)));
+                available = transferred;
+                break;
+            }
+        }
         if (available == 0) return;
         fund.burnGBX(_clamp(amount, 1, available));
+        _markAction("burnFundGBX");
     }
 
     function killStrategy(uint8 strategySeed) external {
@@ -443,6 +504,7 @@ contract ProtocolStateMachineCampaign {
         if (alive.length < 2) revert("LAST_LIVE_STRATEGY");
 
         resonance.killStrategy(alive[uint256(strategySeed) % alive.length]);
+        _markAction("killStrategy");
     }
 
     /// @notice Adds one post-bootstrap Strategy so later actions and properties cover dynamic registration.
@@ -461,6 +523,7 @@ contract ProtocolStateMachineCampaign {
         );
         strategies.push(strategy);
         addedStrategy = true;
+        _markAction("addStrategy");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -548,6 +611,11 @@ contract ProtocolStateMachineCampaign {
             if (summed != signalGBX.balanceOf(actor)) return false;
         }
         return true;
+    }
+
+    /// @notice Every valid scalar or batch signal exit called by the campaign succeeds and returns exact GBX principal.
+    function echidna_signalExitsReturnExactPrincipal() public view returns (bool holds) {
+        return !unexpectedSignalExitFailure && !signalPrincipalReturnMismatch;
     }
 
     /// @notice Append-only reward-token loops can never grow beyond the immutable cap protecting exit and settlement.
@@ -778,6 +846,28 @@ contract ProtocolStateMachineCampaign {
 
     function strategyCount() external view returns (uint256 count) {
         return strategies.length;
+    }
+
+    function _executeSignalExit(CampaignActor actor, bytes memory data, uint256 expectedPrincipal)
+        private
+        returns (bool exact)
+    {
+        uint256 principalBefore = gbx.balanceOf(address(actor));
+        (bool succeeded,) = actor.tryRun(address(signalGBX), data);
+        if (!succeeded) {
+            unexpectedSignalExitFailure = true;
+            return false;
+        }
+
+        if (gbx.balanceOf(address(actor)) != principalBefore + expectedPrincipal) {
+            signalPrincipalReturnMismatch = true;
+            return false;
+        }
+        return true;
+    }
+
+    function _markAction(bytes32 action) private {
+        actionCalls[action] += 1;
     }
 
     function _actor(uint8 seed) private returns (CampaignActor actor) {

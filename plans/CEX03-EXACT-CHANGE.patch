@@ -1,0 +1,58 @@
+diff --git a/packages/contracts/src/core/Resonance.sol b/packages/contracts/src/core/Resonance.sol
+index fda2600..9fffea3 100644
+--- a/packages/contracts/src/core/Resonance.sol
++++ b/packages/contracts/src/core/Resonance.sol
+@@ -9,0 +10 @@ import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.s
++import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+@@ -22,2 +23,3 @@ import { IResonanceRouterIdentity } from "./interfaces/IResonanceRouter.sol";
+-///      allowed to change weights, and each paired Bribe is the canonical ledger for a Strategy's account and total
+-///      weights. Weight changes checkpoint elapsed revenue before changing that ledger. Killing a Strategy checkpoints
++///      allowed to change weights. Each paired Bribe is the canonical ledger for a Strategy's account and total
++///      weights, while a graph-local address-only set exposes each account's current Strategy memberships. Weight
++///      changes checkpoint elapsed revenue before changing the canonical Bribe ledger. Killing a Strategy checkpoints
+@@ -30,0 +33 @@ contract Resonance is ReentrancyGuard, Ownable2Step {
++    using EnumerableSet for EnumerableSet.AddressSet;
+@@ -95,0 +99,3 @@ contract Resonance is ReentrancyGuard, Ownable2Step {
++    /// @dev Graph-local address-only discovery metadata for each account's positive Strategy memberships. Each paired
++    ///      Bribe remains the canonical ledger for signal amounts.
++    mapping(address account => EnumerableSet.AddressSet strategies) private _signalStrategies;
+@@ -240,3 +246,4 @@ contract Resonance is ReentrancyGuard, Ownable2Step {
+-    ///      its prior weight before `totalSignalWeight` and the paired Bribe's canonical virtual balances increase.
+-    ///      Reverts for a zero account, zero amount, unregistered Strategy, or killed Strategy. Emits `SignalAdded`
+-    ///      after the paired Bribe emits `SignalWeightAdded`.
++    ///      its prior weight before `totalSignalWeight` and the paired Bribe's canonical virtual balances increase. Once
++    ///      the canonical Bribe update succeeds, the Strategy is inserted into the account's address-only discovery set
++    ///      idempotently. Reverts for a zero account, zero amount, unregistered Strategy, or killed Strategy. Emits
++    ///      `SignalAdded` after the paired Bribe emits `SignalWeightAdded`.
+@@ -255,0 +263 @@ contract Resonance is ReentrancyGuard, Ownable2Step {
++        _signalStrategies[account].add(strategy);
+@@ -265,2 +273,3 @@ contract Resonance is ReentrancyGuard, Ownable2Step {
+-    ///      account's weight in the paired Bribe. Emits `SignalRemoved` after the paired Bribe emits
+-    ///      `SignalWeightRemoved`.
++    ///      account's weight in the paired Bribe. A successful final canonical removal also removes the Strategy from
++    ///      the account's discovery set; a missing metadata entry is ignored and cannot block that removal. Emits
++    ///      `SignalRemoved` after the paired Bribe emits `SignalWeightRemoved`.
+@@ -282,0 +292 @@ contract Resonance is ReentrancyGuard, Ownable2Step {
++        if (amount == allocated) _signalStrategies[account].remove(strategy);
+@@ -478,0 +489,21 @@ contract Resonance is ReentrancyGuard, Ownable2Step {
++    /// @notice Returns the number of Strategies in an account's graph-local signal-discovery set.
++    /// @dev O(1). The set records addresses only; each paired Bribe remains canonical for signal amounts. Enumeration
++    ///      order is unstable and may change after any membership addition or removal, so count and index reads must be
++    ///      pinned to the same block.
++    /// @param account Account whose current Strategy membership count is queried.
++    /// @return count Number of live-or-killed Strategy memberships currently recorded for the account.
++    function signalStrategyCount(address account) external view returns (uint256 count) {
++        return _signalStrategies[account].length();
++    }
++
++    /// @notice Returns one Strategy from an account's graph-local signal-discovery set.
++    /// @dev O(1). Enumeration order is unstable and may change after any membership addition or removal, so count and
++    ///      index reads must be pinned to the same block. Reverts with Solidity's array-out-of-bounds panic when `index`
++    ///      is not strictly less than `signalStrategyCount(account)`.
++    /// @param account Account whose Strategy membership is queried.
++    /// @param index Current zero-based set index.
++    /// @return strategy Live-or-killed Strategy address stored at `index`.
++    function signalStrategyAt(address account, uint256 index) external view returns (address strategy) {
++        return _signalStrategies[account].at(index);
++    }
++

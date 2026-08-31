@@ -41,9 +41,8 @@ contract CampaignHarnessTest is Test {
         assertEq(campaign.bribeFactory().resonance(), address(campaign.resonance()));
         assertEq(campaign.strategyFactory().resonance(), address(campaign.resonance()));
         assertGt(campaign.gbx().totalSupply(), 0);
-        uint256 genesisIssuance = campaign.mineContract().genesisLiquidityMinted()
-            ? campaign.mineContract().GENESIS_LIQUIDITY_GBX()
-            : 0;
+        uint256 genesisIssuance =
+            campaign.mineContract().genesisLiquidityMinted() ? campaign.mineContract().GENESIS_LIQUIDITY_GBX() : 0;
         assertEq(campaign.gbx().lifetimeMinted(), campaign.mineContract().totalMined() + genesisIssuance);
     }
 
@@ -53,6 +52,10 @@ contract CampaignHarnessTest is Test {
 
     function test_EveryActionDrivesRealStateAndKeepsEveryPropertyTrue() external {
         campaign.signalDefault(0, 1_000 ether);
+        campaign.withdrawDefault(0, 1 ether);
+        campaign.addSignal(0, 1, uint96(10 ether));
+        campaign.removeSignal(0, 1, uint96(1 ether));
+        campaign.reallocateSignal(0, 0, 1, uint96(1 ether));
         _assertAllProperties();
 
         campaign.addSignalMany(0, 2);
@@ -64,6 +67,7 @@ contract CampaignHarnessTest is Test {
         _assertAllProperties();
 
         campaign.donateRevenue(250_000_000);
+        campaign.donateRevenueDirectly(1);
         vm.warp(block.timestamp + 45 minutes);
         campaign.recordRevenueIndex();
         assertGt(campaign.resonance().revenuePerSignal(), 0, "donated revenue must reach the index");
@@ -71,9 +75,17 @@ contract CampaignHarnessTest is Test {
 
         campaign.distributeAll();
         campaign.distributeOne(0);
+        campaign.setBribeBps(500);
         _assertAllProperties();
 
         campaign.buy(2, 0);
+        // The bootstrap auction has fully decayed while rewards stream. Its first zero-price fill
+        // resets the epoch; a later distribution makes the next positive-price GBX fill meaningful.
+        campaign.buy(2, 1);
+        vm.warp(block.timestamp + 10 minutes);
+        campaign.distributeOne(1);
+        campaign.buy(2, 1);
+        campaign.burnFundGBX(type(uint96).max);
         campaign.routeBribeRewards();
         _assertAllProperties();
 
@@ -108,7 +120,9 @@ contract CampaignHarnessTest is Test {
 
         campaign.removeSignalMany(0, 2);
         assertEq(campaign.resonance().totalSignalWeight(), 0);
+        campaign.addStrategy();
         _assertAllProperties();
+        _assertEveryActionReached();
     }
 
     /// @notice A GBX-priced Strategy sends its Fund share inline and buffers only its Bribe share.
@@ -120,10 +134,26 @@ contract CampaignHarnessTest is Test {
         campaign.distributeAll();
 
         address strategy = campaign.strategies(1);
+
+        // Fill the fully decayed bootstrap auction once, then use three funded positive-price epochs.
+        // Their automatic GBX Bribe shares accumulate above the Router's minimum notification threshold.
+        campaign.buy(1, 1);
+        campaign.setBribeBps(uint16(campaign.resonance().MAX_BRIBE_BPS()));
+        for (uint256 i; i < 2; ++i) {
+            vm.warp(block.timestamp + 1 minutes);
+            campaign.distributeOne(1);
+            campaign.buy(1, 1);
+        }
+        vm.warp(block.timestamp + 1 minutes);
+        campaign.distributeOne(1);
+
         address router = campaign.resonance().bribeRouterFor(strategy);
         uint256 price = Strategy(strategy).currentPrice();
         uint256 bribeAmount = (price * campaign.resonance().bribeBps()) / campaign.resonance().BPS();
         uint256 fundAmount = price - bribeAmount;
+        assertGt(price, 0, "the GBX payment cannot be a zero-price reachability witness");
+        assertGt(bribeAmount, 0);
+        assertGt(fundAmount, 0);
         uint256 supplyBefore = campaign.gbx().totalSupply();
         uint256 fundBefore = campaign.gbx().balanceOf(address(campaign.fund()));
         uint256 routerBefore = campaign.gbx().balanceOf(router);
@@ -133,12 +163,14 @@ contract CampaignHarnessTest is Test {
         assertEq(campaign.gbx().balanceOf(address(campaign.fund())), fundBefore + fundAmount);
         assertEq(campaign.gbx().balanceOf(router), routerBefore + bribeAmount);
 
+        uint256 routedAmount = routerBefore + bribeAmount;
+        assertGe(routedAmount, Bribe(campaign.resonance().bribeFor(strategy)).REWARD_DURATION());
         campaign.routeBribeRewards();
         assertEq(campaign.gbx().balanceOf(router), 0);
         assertEq(
             campaign.gbx().balanceOf(campaign.resonance().bribeFor(strategy)),
-            bribeAmount,
-            "the Router forwards only the buffered Bribe share"
+            routedAmount,
+            "the Router forwards the complete automatic Bribe buffer"
         );
         _assertAllProperties();
     }
@@ -290,6 +322,7 @@ contract CampaignHarnessTest is Test {
         assertTrue(campaign.echidna_accountWeightsSumToTheGlobalTotal(), "account weight sum");
         assertTrue(campaign.echidna_signalWeightNeverExceedsTheReceiptBalance(), "weight within balance");
         assertTrue(campaign.echidna_everyAccountExitRemainsBounded(), "bounded account exits");
+        assertTrue(campaign.echidna_signalExitsReturnExactPrincipal(), "exact signal principal return");
         assertTrue(campaign.echidna_rewardTokenLoopsStayBounded(), "bounded reward-token loops");
         assertTrue(campaign.echidna_bribeAccountingMirrorsResonance(), "bribe mirroring");
         assertTrue(campaign.echidna_resonanceIsSolventAgainstClaimableRevenue(), "resonance solvency");
@@ -313,5 +346,45 @@ contract CampaignHarnessTest is Test {
         for (uint256 i; i < campaign.strategyCount(); ++i) {
             if (campaign.resonance().isStrategyLive(campaign.strategies(i))) ++count;
         }
+    }
+
+    function _assertEveryActionReached() private view {
+        string[24] memory actions = _actionNames();
+        for (uint256 i; i < actions.length; ++i) {
+            assertGt(
+                campaign.actionCalls(bytes32(bytes(actions[i]))),
+                0,
+                string.concat("campaign action is unreachable: ", actions[i])
+            );
+        }
+    }
+
+    function _actionNames() private pure returns (string[24] memory actions) {
+        return [
+            "signalDefault",
+            "withdrawDefault",
+            "addSignal",
+            "removeSignal",
+            "reallocateSignal",
+            "addSignalMany",
+            "removeSignalMany",
+            "mine",
+            "donateRevenue",
+            "donateRevenueDirectly",
+            "recordRevenueIndex",
+            "distributeAll",
+            "distributeOne",
+            "buy",
+            "claimRewards",
+            "notifySupplementalReward",
+            "claimOneReward",
+            "routeBribeRewards",
+            "setBribeBps",
+            "claimMinerPayment",
+            "redeem",
+            "burnFundGBX",
+            "killStrategy",
+            "addStrategy"
+        ];
     }
 }

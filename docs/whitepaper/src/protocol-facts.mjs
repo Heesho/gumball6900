@@ -69,20 +69,6 @@ export const contractConstants = {
   },
 };
 
-export const status = {
-  editionVersion: 'v0.11',
-  editionDate: '30 August 2026',
-  contractsCommit: 'f9912533e999454f1a3fd49276558bd85e1390da',
-  contractsCommitShort: 'f991253',
-  auditCandidateCommit: '3ae171b997254b56602298d873b3918d1575b3c7',
-  auditCandidateCommitShort: '3ae171b',
-  deployment: 'Not deployed and not authorized for user funds',
-  externalAudit: 'V12 export received; complete assurance and release closure pending',
-  licensing: 'donut-miner, give.fun, Liquid Signal, and transitive lineage remain unresolved release blockers',
-  architectureImplementation:
-    'Uncommitted development tree based on f991253 and reconciled through ADR 0055; V12 remains pinned to 3ae171b, and independent remediation and launcher review, provisional Mine economics, and the external governance owner remain open',
-};
-
 export function verifyProtocolFacts() {
   const fixturePath = resolve(repoRoot, 'packages/simulations/fixtures/economic-scenarios.json');
   const fixture = JSON.parse(readFileSync(fixturePath, 'utf8'));

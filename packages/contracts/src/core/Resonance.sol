@@ -553,3 +553,10 @@ contract Resonance is ReentrancyGuard, Ownable2Step {
         return block.timestamp < finish ? block.timestamp : finish;
     }
 }
+
+// Upstream provenance (Resonance): the global stream timing, active-period rollover, cumulative-index, earned-revenue,
+// and checkpoint kernel are adapted from Curve MultiRewards commit 99995f90bd129bbe6b5a995daf6233fb79789e4e.
+// Source repository: https://github.com/curvefi/multi-rewards
+// Source path: contracts/MultiRewards.sol at commit 99995f90bd129bbe6b5a995daf6233fb79789e4e.
+// Strategy lifecycle, signal accounting, factories, custody, and authorization are outside this attribution. No
+// upstream audit, endorsement, or security assurance for this contract is implied.

@@ -171,6 +171,16 @@ test('rejects malformed analyzer output', async () => {
   assert.match(result.stderr, /not valid JSON/);
 });
 
+test('rejects Slither JSON that does not explicitly report successful execution', async () => {
+  const paths = await fixture();
+  const current = reports();
+  current.slither.success = false;
+  await writeFile(paths.slither, JSON.stringify(current.slither));
+  const result = run(paths);
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /missing a successful detector result array/);
+});
+
 test('rejects a rationale without complete review metadata', async () => {
   const paths = await fixture();
   const policy = JSON.parse(await readFile(paths.policy, 'utf8'));

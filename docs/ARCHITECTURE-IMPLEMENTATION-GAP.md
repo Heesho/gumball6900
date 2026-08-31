@@ -35,8 +35,8 @@ bodies. Their status headers identify the active superseding ADRs. Current opera
 weighted split carry, deferred payment liabilities, reward queues or pauses, Fund reward carry, or exact remainder
 scheduling as callable behavior. Negative selector-absence regression tests remain intentional.
 
-The one-pager and its fact-check register are regenerated only after their build-time contract guards agree with the
-new architecture. Raw compiler output remains generated rather than hand edited.
+The canonical whitepaper PDF is regenerated from `docs/WHITEPAPER.md` only after its build-time checks pass. Raw
+compiler output remains generated rather than hand edited.
 
 ## Remaining release boundary
 

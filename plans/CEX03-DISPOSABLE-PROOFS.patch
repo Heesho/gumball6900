@@ -1,0 +1,523 @@
+diff --git a/packages/contracts/test/minimal/audit-gauntlet/CEX03MembershipTransitions.t.sol b/packages/contracts/test/minimal/audit-gauntlet/CEX03MembershipTransitions.t.sol
+new file mode 100644
+index 0000000..a04fe82
+--- /dev/null
++++ b/packages/contracts/test/minimal/audit-gauntlet/CEX03MembershipTransitions.t.sol
+@@ -0,0 +1,206 @@
++// SPDX-License-Identifier: MIT
++pragma solidity 0.8.26;
++
++import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
++import { stdError } from "forge-std/StdError.sol";
++
++import { SignalGBX } from "../../../src/core/SignalGBX.sol";
++import { ProtocolFixture } from "../utils/ProtocolFixture.sol";
++
++/// @title CEX03MembershipTransitionsTest
++/// @notice Proves that Resonance's address-only signal discovery metadata follows canonical paired-Bribe weights.
++contract CEX03MembershipTransitionsTest is ProtocolFixture {
++    function setUp() external {
++        _deployProtocol();
++    }
++
++    function test_FirstDuplicatePartialFinalAndReaddedMembershipTransitions() external {
++        uint256 principal = 100 ether;
++        _mintTestGBX(ALICE, principal);
++
++        vm.startPrank(ALICE);
++        gbx.approve(address(signalGBX), principal);
++        signalGBX.addSignal(address(targetStrategy), 20 ether);
++        vm.stopPrank();
++
++        assertEq(resonance.signalStrategyCount(ALICE), 1);
++        assertEq(resonance.signalStrategyAt(ALICE, 0), address(targetStrategy));
++        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 20 ether);
++
++        SignalGBX.Allocation[] memory duplicates = new SignalGBX.Allocation[](2);
++        duplicates[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 10 ether });
++        duplicates[1] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: 20 ether });
++        vm.prank(ALICE);
++        signalGBX.addSignalMany(duplicates);
++
++        assertEq(resonance.signalStrategyCount(ALICE), 1);
++        assertEq(resonance.signalStrategyAt(ALICE, 0), address(targetStrategy));
++        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 50 ether);
++        assertEq(signalGBX.balanceOf(ALICE), 50 ether);
++
++        vm.prank(ALICE);
++        signalGBX.removeSignal(address(targetStrategy), 20 ether);
++
++        assertEq(resonance.signalStrategyCount(ALICE), 1);
++        assertEq(resonance.signalStrategyAt(ALICE, 0), address(targetStrategy));
++        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 30 ether);
++
++        vm.prank(ALICE);
++        signalGBX.removeSignal(address(targetStrategy), 30 ether);
++
++        assertEq(resonance.signalStrategyCount(ALICE), 0);
++        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 0);
++        assertEq(signalGBX.balanceOf(ALICE), 0);
++        assertEq(gbx.balanceOf(ALICE), principal);
++
++        vm.startPrank(ALICE);
++        gbx.approve(address(signalGBX), 25 ether);
++        signalGBX.addSignal(address(targetStrategy), 25 ether);
++        vm.stopPrank();
++
++        assertEq(resonance.signalStrategyCount(ALICE), 1);
++        assertEq(resonance.signalStrategyAt(ALICE, 0), address(targetStrategy));
++        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 25 ether);
++
++        vm.prank(ALICE);
++        signalGBX.removeSignal(address(targetStrategy), 25 ether);
++
++        assertEq(resonance.signalStrategyCount(ALICE), 0);
++        assertEq(signalGBX.balanceOf(ALICE), 0);
++        assertEq(gbx.balanceOf(address(signalGBX)), 0);
++        assertEq(gbx.balanceOf(ALICE), principal);
++    }
++
++    function test_MultipleStrategiesUseSwapAndPopWithoutLosingAnotherMembership() external {
++        (address thirdStrategy,,) = resonance.addStrategy(IERC20(address(secondAsset)), defaultConfig());
++        uint256 principal = 60 ether;
++        _mintTestGBX(ALICE, principal);
++
++        vm.startPrank(ALICE);
++        gbx.approve(address(signalGBX), principal);
++        signalGBX.addSignal(address(targetStrategy), 10 ether);
++        signalGBX.addSignal(address(gbxStrategy), 20 ether);
++        signalGBX.addSignal(thirdStrategy, 30 ether);
++        vm.stopPrank();
++
++        assertEq(resonance.signalStrategyCount(ALICE), 3);
++        assertEq(resonance.signalStrategyAt(ALICE, 0), address(targetStrategy));
++        assertEq(resonance.signalStrategyAt(ALICE, 1), address(gbxStrategy));
++        assertEq(resonance.signalStrategyAt(ALICE, 2), thirdStrategy);
++
++        vm.prank(ALICE);
++        signalGBX.removeSignal(address(gbxStrategy), 20 ether);
++
++        assertEq(resonance.signalStrategyCount(ALICE), 2);
++        assertEq(resonance.signalStrategyAt(ALICE, 0), address(targetStrategy));
++        assertEq(resonance.signalStrategyAt(ALICE, 1), thirdStrategy);
++        assertEq(_accountSignalWeight(ALICE, address(gbxStrategy)), 0);
++        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 10 ether);
++        assertEq(_accountSignalWeight(ALICE, thirdStrategy), 30 ether);
++
++        vm.startPrank(ALICE);
++        signalGBX.removeSignal(address(targetStrategy), 10 ether);
++        signalGBX.removeSignal(thirdStrategy, 30 ether);
++        vm.stopPrank();
++
++        assertEq(resonance.signalStrategyCount(ALICE), 0);
++        assertEq(signalGBX.balanceOf(ALICE), 0);
++        assertEq(gbx.balanceOf(address(signalGBX)), 0);
++        assertEq(gbx.balanceOf(ALICE), principal);
++    }
++
++    function test_AccountMembershipSetsRemainIsolatedForTheSameStrategy() external {
++        uint256 alicePrincipal = 40 ether;
++        uint256 bobPrincipal = 70 ether;
++        _mintTestGBX(ALICE, alicePrincipal);
++        _mintTestGBX(BOB, bobPrincipal);
++
++        vm.startPrank(ALICE);
++        gbx.approve(address(signalGBX), alicePrincipal);
++        signalGBX.addSignal(address(targetStrategy), alicePrincipal);
++        vm.stopPrank();
++
++        vm.startPrank(BOB);
++        gbx.approve(address(signalGBX), bobPrincipal);
++        signalGBX.addSignal(address(targetStrategy), bobPrincipal);
++        vm.stopPrank();
++
++        assertEq(resonance.signalStrategyCount(ALICE), 1);
++        assertEq(resonance.signalStrategyAt(ALICE, 0), address(targetStrategy));
++        assertEq(resonance.signalStrategyCount(BOB), 1);
++        assertEq(resonance.signalStrategyAt(BOB, 0), address(targetStrategy));
++        assertEq(targetBribe.signalWeightOf(ALICE), alicePrincipal);
++        assertEq(targetBribe.signalWeightOf(BOB), bobPrincipal);
++
++        vm.prank(ALICE);
++        signalGBX.removeSignal(address(targetStrategy), alicePrincipal);
++
++        assertEq(resonance.signalStrategyCount(ALICE), 0);
++        assertEq(targetBribe.signalWeightOf(ALICE), 0);
++        assertEq(resonance.signalStrategyCount(BOB), 1);
++        assertEq(resonance.signalStrategyAt(BOB, 0), address(targetStrategy));
++        assertEq(targetBribe.signalWeightOf(BOB), bobPrincipal);
++        assertEq(signalGBX.balanceOf(BOB), bobPrincipal);
++        assertEq(gbx.balanceOf(address(signalGBX)), bobPrincipal);
++
++        vm.prank(BOB);
++        signalGBX.removeSignal(address(targetStrategy), bobPrincipal);
++
++        assertEq(resonance.signalStrategyCount(BOB), 0);
++        assertEq(targetBribe.signalWeightOf(BOB), 0);
++        assertEq(signalGBX.totalSupply(), 0);
++        assertEq(gbx.balanceOf(address(signalGBX)), 0);
++        assertEq(gbx.balanceOf(ALICE), alicePrincipal);
++        assertEq(gbx.balanceOf(BOB), bobPrincipal);
++    }
++
++    function test_KilledStrategyRemainsDiscoverableUntilExactPrincipalExit() external {
++        uint256 principal = 77 ether;
++        _mintTestGBX(ALICE, principal);
++
++        vm.startPrank(ALICE);
++        gbx.approve(address(signalGBX), principal);
++        signalGBX.addSignal(address(targetStrategy), principal);
++        vm.stopPrank();
++
++        resonance.killStrategy(address(targetStrategy));
++
++        assertFalse(resonance.isStrategyLive(address(targetStrategy)));
++        assertEq(resonance.totalSignalWeight(), 0);
++        assertEq(resonance.signalStrategyCount(ALICE), 1);
++        assertEq(resonance.signalStrategyAt(ALICE, 0), address(targetStrategy));
++        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), principal);
++        assertEq(gbx.balanceOf(ALICE), 0);
++        assertEq(gbx.balanceOf(address(signalGBX)), principal);
++
++        vm.prank(ALICE);
++        signalGBX.removeSignal(address(targetStrategy), principal);
++
++        assertEq(resonance.signalStrategyCount(ALICE), 0);
++        assertEq(_accountSignalWeight(ALICE, address(targetStrategy)), 0);
++        assertEq(resonance.totalSignalWeight(), 0);
++        assertEq(signalGBX.balanceOf(ALICE), 0);
++        assertEq(gbx.balanceOf(address(signalGBX)), 0);
++        assertEq(gbx.balanceOf(ALICE), principal);
++    }
++
++    function test_SignalStrategyAtRevertsForEveryOutOfBoundsRead() external {
++        assertEq(resonance.signalStrategyCount(ALICE), 0);
++        vm.expectRevert(stdError.indexOOBError);
++        resonance.signalStrategyAt(ALICE, 0);
++
++        _mintTestGBX(ALICE, 1);
++        vm.startPrank(ALICE);
++        gbx.approve(address(signalGBX), 1);
++        signalGBX.addSignal(address(targetStrategy), 1);
++        vm.stopPrank();
++
++        vm.expectRevert(stdError.indexOOBError);
++        resonance.signalStrategyAt(ALICE, 1);
++
++        vm.prank(ALICE);
++        signalGBX.removeSignal(address(targetStrategy), 1);
++        vm.expectRevert(stdError.indexOOBError);
++        resonance.signalStrategyAt(ALICE, 0);
++    }
++}
+diff --git a/packages/contracts/test/minimal/audit-gauntlet/CEX03RollbackProof.t.sol b/packages/contracts/test/minimal/audit-gauntlet/CEX03RollbackProof.t.sol
+new file mode 100644
+index 0000000..7cb9561
+--- /dev/null
++++ b/packages/contracts/test/minimal/audit-gauntlet/CEX03RollbackProof.t.sol
+@@ -0,0 +1,123 @@
++// SPDX-License-Identifier: MIT
++pragma solidity 0.8.26;
++
++import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
++
++import { Resonance } from "../../../src/core/Resonance.sol";
++import { SignalGBX } from "../../../src/core/SignalGBX.sol";
++import { ProtocolFixture } from "../utils/ProtocolFixture.sol";
++
++/// @title CEX03RollbackProof
++/// @notice Proves discovery metadata remains atomic with the canonical signal and GBX custody ledgers.
++contract CEX03RollbackProof is ProtocolFixture {
++    uint256 private constant TARGET_SIGNAL = 40 ether;
++    uint256 private constant GBX_SIGNAL = 60 ether;
++
++    function setUp() external {
++        _deployProtocol();
++        _mintTestGBX(ALICE, 100 ether);
++    }
++
++    /// @notice A failed final GBX return unwinds every preceding scalar-removal transition, including set deletion.
++    function test_FinalReturnFailureRollsBackMembershipCanonicalWeightReceiptVotesAndCustody() external {
++        _signal(ALICE, address(targetStrategy), 100 ether);
++
++        uint256 membershipCountBefore = resonance.signalStrategyCount(ALICE);
++        address membershipBefore = resonance.signalStrategyAt(ALICE, 0);
++        uint256 accountWeightBefore = targetBribe.signalWeightOf(ALICE);
++        uint256 strategyWeightBefore = targetBribe.totalSignalWeight();
++        uint256 activeWeightBefore = resonance.totalSignalWeight();
++        uint256 receiptBalanceBefore = signalGBX.balanceOf(ALICE);
++        uint256 receiptSupplyBefore = signalGBX.totalSupply();
++        uint256 votesBefore = signalGBX.getVotes(ALICE);
++        address delegateBefore = signalGBX.delegates(ALICE);
++        uint256 userGBXBefore = gbx.balanceOf(ALICE);
++        uint256 custodyBefore = gbx.balanceOf(address(signalGBX));
++
++        assertEq(membershipCountBefore, 1, "precondition: one membership");
++        assertEq(membershipBefore, address(targetStrategy), "precondition: target membership");
++        assertEq(accountWeightBefore, 100 ether, "precondition: final scalar removal");
++
++        bytes memory failure = abi.encodeWithSignature("Error(string)", "GBX_RETURN_REVERTED");
++        vm.mockCallRevert(address(gbx), abi.encodeWithSelector(IERC20.transfer.selector, ALICE, 100 ether), failure);
++
++        vm.prank(ALICE);
++        vm.expectRevert(failure);
++        signalGBX.removeSignal(address(targetStrategy), 100 ether);
++        vm.clearMockedCalls();
++
++        assertEq(resonance.signalStrategyCount(ALICE), membershipCountBefore, "membership count must roll back");
++        assertEq(resonance.signalStrategyAt(ALICE, 0), membershipBefore, "membership address must roll back");
++        assertEq(targetBribe.signalWeightOf(ALICE), accountWeightBefore, "account Bribe weight must roll back");
++        assertEq(targetBribe.totalSignalWeight(), strategyWeightBefore, "Strategy Bribe weight must roll back");
++        assertEq(resonance.totalSignalWeight(), activeWeightBefore, "active total must roll back");
++        assertEq(signalGBX.balanceOf(ALICE), receiptBalanceBefore, "receipt balance must roll back");
++        assertEq(signalGBX.totalSupply(), receiptSupplyBefore, "receipt supply must roll back");
++        assertEq(signalGBX.getVotes(ALICE), votesBefore, "votes must roll back");
++        assertEq(signalGBX.delegates(ALICE), delegateBefore, "delegate must remain unchanged");
++        assertEq(gbx.balanceOf(ALICE), userGBXBefore, "user GBX must roll back");
++        assertEq(gbx.balanceOf(address(signalGBX)), custodyBefore, "GBX custody must roll back");
++    }
++
++    /// @notice A later invalid allocation unwinds an earlier final Bribe removal and membership deletion in the batch.
++    function test_BatchLaterFailureRollsBackEarlierFinalMembershipAndCanonicalRemoval() external {
++        SignalGBX.Allocation[] memory deposits = new SignalGBX.Allocation[](2);
++        deposits[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: TARGET_SIGNAL });
++        deposits[1] = SignalGBX.Allocation({ strategy: address(gbxStrategy), amount: GBX_SIGNAL });
++
++        vm.startPrank(ALICE);
++        gbx.approve(address(signalGBX), TARGET_SIGNAL + GBX_SIGNAL);
++        signalGBX.addSignalMany(deposits);
++        vm.stopPrank();
++
++        uint256 membershipCountBefore = resonance.signalStrategyCount(ALICE);
++        address firstMembershipBefore = resonance.signalStrategyAt(ALICE, 0);
++        address secondMembershipBefore = resonance.signalStrategyAt(ALICE, 1);
++        uint256 targetAccountWeightBefore = targetBribe.signalWeightOf(ALICE);
++        uint256 targetStrategyWeightBefore = targetBribe.totalSignalWeight();
++        uint256 gbxAccountWeightBefore = gbxBribe.signalWeightOf(ALICE);
++        uint256 gbxStrategyWeightBefore = gbxBribe.totalSignalWeight();
++        uint256 activeWeightBefore = resonance.totalSignalWeight();
++        uint256 receiptBalanceBefore = signalGBX.balanceOf(ALICE);
++        uint256 receiptSupplyBefore = signalGBX.totalSupply();
++        uint256 votesBefore = signalGBX.getVotes(ALICE);
++        uint256 userGBXBefore = gbx.balanceOf(ALICE);
++        uint256 custodyBefore = gbx.balanceOf(address(signalGBX));
++
++        assertEq(membershipCountBefore, 2, "precondition: two memberships");
++        assertEq(targetAccountWeightBefore, TARGET_SIGNAL, "precondition: first removal is final");
++
++        SignalGBX.Allocation[] memory removals = new SignalGBX.Allocation[](2);
++        removals[0] = SignalGBX.Allocation({ strategy: address(targetStrategy), amount: TARGET_SIGNAL });
++        removals[1] = SignalGBX.Allocation({ strategy: address(gbxStrategy), amount: GBX_SIGNAL + 1 });
++
++        vm.prank(ALICE);
++        vm.expectRevert(
++            abi.encodeWithSelector(
++                Resonance.InsufficientSignal.selector, address(gbxStrategy), GBX_SIGNAL, GBX_SIGNAL + 1
++            )
++        );
++        signalGBX.removeSignalMany(removals);
++
++        assertEq(resonance.signalStrategyCount(ALICE), membershipCountBefore, "membership count must roll back");
++        assertEq(resonance.signalStrategyAt(ALICE, 0), firstMembershipBefore, "first membership must roll back");
++        assertEq(resonance.signalStrategyAt(ALICE, 1), secondMembershipBefore, "second membership must persist");
++        assertEq(targetBribe.signalWeightOf(ALICE), targetAccountWeightBefore, "first account weight must roll back");
++        assertEq(targetBribe.totalSignalWeight(), targetStrategyWeightBefore, "first total weight must roll back");
++        assertEq(gbxBribe.signalWeightOf(ALICE), gbxAccountWeightBefore, "second account weight must persist");
++        assertEq(gbxBribe.totalSignalWeight(), gbxStrategyWeightBefore, "second total weight must persist");
++        assertEq(resonance.totalSignalWeight(), activeWeightBefore, "active total must roll back");
++        assertEq(signalGBX.balanceOf(ALICE), receiptBalanceBefore, "receipt balance must remain unchanged");
++        assertEq(signalGBX.totalSupply(), receiptSupplyBefore, "receipt supply must remain unchanged");
++        assertEq(signalGBX.getVotes(ALICE), votesBefore, "votes must remain unchanged");
++        assertEq(gbx.balanceOf(ALICE), userGBXBefore, "user GBX must remain unchanged");
++        assertEq(gbx.balanceOf(address(signalGBX)), custodyBefore, "GBX custody must remain unchanged");
++    }
++
++    function _signal(address account, address strategy, uint256 amount) private {
++        vm.startPrank(account);
++        gbx.approve(address(signalGBX), amount);
++        signalGBX.addSignal(strategy, amount);
++        vm.stopPrank();
++    }
++}
+diff --git a/packages/contracts/test/minimal/audit-gauntlet/CEX03FaultFuzzProof.t.sol b/packages/contracts/test/minimal/audit-gauntlet/CEX03FaultFuzzProof.t.sol
+new file mode 100644
+index 0000000..5a9e57d
+--- /dev/null
++++ b/packages/contracts/test/minimal/audit-gauntlet/CEX03FaultFuzzProof.t.sol
+@@ -0,0 +1,176 @@
++// SPDX-License-Identifier: MIT
++pragma solidity 0.8.26;
++
++import { Bribe } from "../../../src/core/Bribe.sol";
++import { ProtocolFixture } from "../utils/ProtocolFixture.sol";
++
++/// @title CEX03FaultFuzzProof
++/// @notice Disposable pre-approval proof for graph-local signal membership and scalar exit independence.
++contract CEX03FaultFuzzProof is ProtocolFixture {
++    uint256 private constant INITIAL_GBX = 1_000_000 ether;
++    uint256 private constant SIGNAL_STRATEGIES_SLOT = 17;
++
++    function setUp() external {
++        _deployProtocol();
++        _mintTestGBX(ALICE, INITIAL_GBX);
++
++        vm.prank(ALICE);
++        gbx.approve(address(signalGBX), type(uint256).max);
++    }
++
++    function test_AbsentMembershipCannotBlockScalarFinalExitAndLaterAddRepairsIt() external {
++        uint256 amount = 123 ether;
++        vm.prank(ALICE);
++        signalGBX.addSignal(address(targetStrategy), amount);
++
++        assertEq(resonance.signalStrategyCount(ALICE), 1);
++        assertEq(resonance.signalStrategyAt(ALICE, 0), address(targetStrategy));
++        assertEq(targetBribe.signalWeightOf(ALICE), amount);
++
++        bytes32 setBase = keccak256(abi.encode(ALICE, SIGNAL_STRATEGIES_SLOT));
++        bytes32 positionSlot =
++            keccak256(abi.encode(bytes32(uint256(uint160(address(targetStrategy)))), uint256(setBase) + 1));
++
++        // Simulate one logically absent member, not arbitrary EnumerableSet structural corruption.
++        vm.store(address(resonance), setBase, bytes32(0));
++        vm.store(address(resonance), positionSlot, bytes32(0));
++
++        assertEq(resonance.signalStrategyCount(ALICE), 0);
++        assertEq(targetBribe.signalWeightOf(ALICE), amount);
++
++        uint256 beforeExit = gbx.balanceOf(ALICE);
++        vm.prank(ALICE);
++        signalGBX.removeSignal(address(targetStrategy), amount);
++
++        assertEq(gbx.balanceOf(ALICE), beforeExit + amount);
++        assertEq(gbx.balanceOf(address(signalGBX)), 0);
++        assertEq(signalGBX.balanceOf(ALICE), 0);
++        assertEq(signalGBX.totalSupply(), 0);
++        assertEq(signalGBX.getVotes(ALICE), 0);
++        assertEq(targetBribe.signalWeightOf(ALICE), 0);
++        assertEq(targetBribe.totalSignalWeight(), 0);
++        assertEq(resonance.totalSignalWeight(), 0);
++        assertEq(resonance.signalStrategyCount(ALICE), 0);
++
++        vm.prank(ALICE);
++        signalGBX.addSignal(address(targetStrategy), amount);
++        assertEq(resonance.signalStrategyCount(ALICE), 1);
++        assertEq(resonance.signalStrategyAt(ALICE, 0), address(targetStrategy));
++
++        vm.prank(ALICE);
++        signalGBX.removeSignal(address(targetStrategy), amount);
++        assertEq(gbx.balanceOf(ALICE), INITIAL_GBX);
++        assertEq(resonance.signalStrategyCount(ALICE), 0);
++    }
++
++    function testFuzz_MembershipMatchesCanonicalWeightAndEverySequenceExits(uint256 seed) external {
++        for (uint256 i; i < 32; ++i) {
++            uint256 entropy = uint256(keccak256(abi.encode(seed, i)));
++            uint256 operation = entropy % 7;
++            address strategy = ((entropy >> 8) & 1) == 0 ? address(targetStrategy) : address(gbxStrategy);
++
++            if (operation <= 1) {
++                _addIfLive(strategy, entropy >> 16);
++            } else if (operation <= 3) {
++                _removeIfPresent(strategy, entropy >> 16);
++            } else if (operation == 4) {
++                _addIfLive(strategy, entropy >> 32);
++                _addIfLive(strategy, entropy >> 64);
++            } else if (operation == 5) {
++                if (resonance.isStrategyLive(address(targetStrategy)) && resonance.liveStrategyCount() > 1) {
++                    resonance.killStrategy(address(targetStrategy));
++                }
++            } else {
++                address other = strategy == address(targetStrategy) ? address(gbxStrategy) : address(targetStrategy);
++                uint256 weight = _accountSignalWeight(ALICE, strategy);
++                if (weight != 0 && resonance.isStrategyLive(other)) {
++                    vm.prank(ALICE);
++                    signalGBX.removeSignal(strategy, weight);
++                    vm.prank(ALICE);
++                    signalGBX.addSignal(other, weight);
++                }
++            }
++
++            _assertMembershipMatchesCanonicalWeights();
++        }
++
++        uint256 targetWeight = targetBribe.signalWeightOf(ALICE);
++        if (targetWeight != 0) {
++            vm.prank(ALICE);
++            signalGBX.removeSignal(address(targetStrategy), targetWeight);
++        }
++
++        uint256 gbxWeight = gbxBribe.signalWeightOf(ALICE);
++        if (gbxWeight != 0) {
++            vm.prank(ALICE);
++            signalGBX.removeSignal(address(gbxStrategy), gbxWeight);
++        }
++
++        assertEq(gbx.balanceOf(ALICE), INITIAL_GBX);
++        assertEq(gbx.balanceOf(address(signalGBX)), 0);
++        assertEq(signalGBX.balanceOf(ALICE), 0);
++        assertEq(signalGBX.totalSupply(), 0);
++        assertEq(signalGBX.getVotes(ALICE), 0);
++        assertEq(targetBribe.signalWeightOf(ALICE), 0);
++        assertEq(gbxBribe.signalWeightOf(ALICE), 0);
++        assertEq(resonance.totalSignalWeight(), 0);
++        assertEq(resonance.signalStrategyCount(ALICE), 0);
++    }
++
++    function _addIfLive(address strategy, uint256 entropy) private {
++        if (!resonance.isStrategyLive(strategy)) return;
++
++        uint256 available = gbx.balanceOf(ALICE);
++        if (available == 0) return;
++
++        uint256 amount = 1 + (entropy % (10 ether));
++        if (amount > available) amount = available;
++
++        vm.prank(ALICE);
++        signalGBX.addSignal(strategy, amount);
++    }
++
++    function _removeIfPresent(address strategy, uint256 entropy) private {
++        uint256 weight = _accountSignalWeight(ALICE, strategy);
++        if (weight == 0) return;
++
++        uint256 amount = ((entropy >> 64) & 1) == 0 ? weight : 1 + (entropy % weight);
++        vm.prank(ALICE);
++        signalGBX.removeSignal(strategy, amount);
++    }
++
++    function _assertMembershipMatchesCanonicalWeights() private view {
++        uint256 targetWeight = targetBribe.signalWeightOf(ALICE);
++        uint256 gbxWeight = gbxBribe.signalWeightOf(ALICE);
++        uint256 expectedCount = (targetWeight == 0 ? 0 : 1) + (gbxWeight == 0 ? 0 : 1);
++
++        assertEq(resonance.signalStrategyCount(ALICE), expectedCount);
++
++        bool sawTarget;
++        bool sawGbx;
++        for (uint256 i; i < expectedCount; ++i) {
++            address member = resonance.signalStrategyAt(ALICE, i);
++            if (member == address(targetStrategy)) {
++                assertFalse(sawTarget);
++                sawTarget = true;
++            } else {
++                assertEq(member, address(gbxStrategy));
++                assertFalse(sawGbx);
++                sawGbx = true;
++            }
++        }
++
++        assertEq(sawTarget, targetWeight != 0);
++        assertEq(sawGbx, gbxWeight != 0);
++
++        uint256 aggregate = targetWeight + gbxWeight;
++        assertEq(signalGBX.balanceOf(ALICE), aggregate);
++        assertEq(signalGBX.totalSupply(), aggregate);
++        assertEq(signalGBX.getVotes(ALICE), aggregate);
++        assertEq(gbx.balanceOf(address(signalGBX)), aggregate);
++
++        uint256 expectedActive = (resonance.isStrategyLive(address(targetStrategy)) ? targetWeight : 0)
++            + (resonance.isStrategyLive(address(gbxStrategy)) ? gbxWeight : 0);
++        assertEq(resonance.totalSignalWeight(), expectedActive);
++    }
++}

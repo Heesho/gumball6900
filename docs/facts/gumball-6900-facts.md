@@ -1,7 +1,7 @@
 # GumBall6900 internal fact registry
 
-> Internal working document. This registry is the evidence base for the public one-pager, layman's article, and
-> technical whitepaper. It is engineering evidence only: it is not an audit, a deployment authorization, a legal
+> Internal working document. This registry is the evidence base for the canonical whitepaper and both websites. It is
+> engineering evidence only: it is not an audit, a deployment authorization, a legal
 > conclusion, or a claim that the protocol is safe for user funds.
 
 - **Reviewed source state:** post-V12 ADR 0054 development tree; V12 covers only
@@ -9,9 +9,9 @@
   lifetime-cap, Bribe claim-authorization/batch remediations, or atomic launcher and fixed genesis issuance
 - **Historical fact baseline:** `dc67d7c4d634097fa6e285fa33ce964d591d2bd2`
 - **Audit revision:** 2026-08-25 tracked intake and independent disposition for the commit-pinned protocol source
-- **Registry revision date:** 2026-08-30
+- **Registry revision date:** 2026-08-31
 
-> **Revision note.** Earlier drafts of this registry and its three public documents were written against commits
+> **Revision note.** Earlier drafts of this registry and the former public-document set were written against commits
 > `281e601` and then `95ed60e`. Two later changes superseded them. ADR 0033 fixed the Mine at sixteen permanent slots
 > with constant-time pending emission, removing capacity governance and the all-slot checkpoint. ADR 0034 deleted
 > `ProtocolGovernor` and the protocol `TimelockController` entirely, leaving `Resonance` owned by an external
@@ -22,6 +22,14 @@
 > facts retain their explicit development or historical stamp. **Section E was rewritten in full: every
 > ProtocolGovernor, Timelock, proposal-lifecycle, quorum, and cancellation fact from earlier editions describes
 > contracts that no longer exist.**
+
+> **Canonical-document note.** On 2026-08-31 the separately authored deck, one-pager, explainer article, compact
+> whitepaper, and long technical whitepaper were retired. `docs/WHITEPAPER.md` is now the sole whitepaper prose source,
+> `output/pdf/GumBall6900-whitepaper.pdf` is its sole generated PDF, and the websites plus retained repository READMEs
+> are the other public copy surfaces. The former compact-edition fact-check and reference ledgers are folded into this
+> more complete registry: current contract and fixture pins remain in the constant cross-check below, repository and
+> external dependencies remain in FACT-EXT-01, and audit/release limitations remain in FACT-STATUS-01 through
+> FACT-STATUS-05.
 
 > **Mine-halving revision.** ADR 0041 supersedes the cumulative-mining halving rule in ADR 0024/0033 and the
 > `HALVING_AMOUNT` selected by ADR 0038. ADR 0042 sets the current development candidate's provisional 69-day schedule
@@ -1954,20 +1962,23 @@ Optional frontend or cron automation belongs in periphery and cannot be treated 
 
 ### FACT-STATUS-04 — Open release gates
 
-| Finding    | Severity | Gate                                                                                                                                                                                   |
-| ---------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| M-03       | High     | Immutable bindings cannot detect a malicious lookalike; requires signed manifest, runtime code hashes, constructor arguments, receipts.                                                |
-| M-04       | High     | Mine economics are selected, hard-coded, and modelled, but still require independent economic review before deployment.                                                                |
-| G-03       | High     | The external governance system that will own Mine and Resonance is unselected; its voting, delegation, permission, acceptance, and delay semantics are unreviewed.                     |
-| G-01       | High     | sGBX checkpoints survive removal; the selected external system's snapshot-to-vote spacing requires independent review of the capture model.                                            |
-| E-02       | High     | Reduced but not eliminated; codehash, parameter, and manifest review remains external.                                                                                                 |
-| CEX-09     | Medium   | Tracked landing/deck/web claims promise every Fund holding and guaranteed gap closure beyond caller-selected redemption; correct before release or redesign Fund under a reviewed ADR. |
-| V12-249702 | Low      | ADR 0054's single transaction removes the canonical pre-handoff interaction window; the later remediation still requires independent closure and exact launch evidence.                |
-| V12-249705 | Low      | ADR 0053 remediates and internally verifies outsider-selected Bribe claim cadence in the working tree; fresh independent closure remains required.                                     |
+| Finding    | Severity | Gate                                                                                                                                                                    |
+| ---------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| M-03       | High     | Immutable bindings cannot detect a malicious lookalike; requires signed manifest, runtime code hashes, constructor arguments, receipts.                                 |
+| M-04       | High     | Mine economics are selected, hard-coded, and modelled, but still require independent economic review before deployment.                                                 |
+| G-03       | High     | The external governance system that will own Mine and Resonance is unselected; its voting, delegation, permission, acceptance, and delay semantics are unreviewed.      |
+| G-01       | High     | sGBX checkpoints survive removal; the selected external system's snapshot-to-vote spacing requires independent review of the capture model.                             |
+| E-02       | High     | Reduced but not eliminated; codehash, parameter, and manifest review remains external.                                                                                  |
+| V12-249702 | Low      | ADR 0054's single transaction removes the canonical pre-handoff interaction window; the later remediation still requires independent closure and exact launch evidence. |
+| V12-249705 | Low      | ADR 0053 remediates and internally verifies outsider-selected Bribe claim cadence in the working tree; fresh independent closure remains required.                      |
 
 V12-249695 was reproduced against the current public graph and remediated in the development tree by ADR 0052. The
 precision-coupled lifetime cap and its generated consumers still require fresh independent review; V12 covers only the
 earlier vulnerable commit.
+
+CEX-09 remains a documented, maintainer-accepted copy risk under ADR 0059 rather than an open remediation gate. The
+retired deck is no longer an active surface; the landing and web wording remains intentionally unchanged, while Fund
+itself continues to enforce caller-selected redemption and permanent forfeiture of omitted shares.
 
 Additionally open in the current post-ADR-0055 source state: the unrelated repository-wide format gate, fresh
 independent review of the claim authorization, Resonance batch, Mine genesis path, launcher, Router migration,

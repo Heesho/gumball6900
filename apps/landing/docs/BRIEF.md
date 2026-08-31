@@ -25,10 +25,9 @@ requests except Google Fonts.
    hierarchy does the work, whitespace is generous, colour is sparse and always means something.
 3. **linear.app** — the bar for dark-theme polish and motion feel. Fast, purposeful easing;
    restrained palette.
-4. **`docs/deck/gumball6900-deck.html`** — the internal bar. Five working, contract-accurate
-   simulations live in its `<script>` (roughly lines 1180–1960). **Do not rewrite the models from
-   scratch — lift them and improve the presentation.** The models are correct; the deck's layout
-   is merely adequate.
+4. **`apps/landing/docs/MODELS.md` and the live section components** — the internal accuracy bar.
+   Preserve the five contract-shaped simulations and improve their presentation without changing
+   their documented mechanics. The retired pitch-deck prototype remains available in git history.
 
 The bar is a standard of craft, not content to copy. Do not reproduce anyone's copy, layout,
 illustrations, or branding.
@@ -54,8 +53,9 @@ Colour meaning (from the whitepaper's diagram grammar — keep it): **blue = USD
 
 ## The protocol — ground truth, never invent
 
-- **GBX** is the token. It begins with zero supply and is issued only to miners. No premint, team allocation,
-  presale, or discretionary mint. Mint authority passes to the Mine once and locks.
+- **GBX** is the token. Its constructor starts with zero supply. No premint means no team, presale, treasury, or
+  discretionary allocation. Canonical launch issues a fixed **1,000 GBX** solely into permanently locked genesis
+  liquidity; every subsequent GBX is mined. Mint authority passes to Mine once and locks.
 - **Mining.** **Sixteen** permanent slots. Every slot is always for sale; its price falls in a
   straight line to zero over **one hour** and restarts at twice the accepted price, subject to a
   **$1 USDG floor**. Taking an occupied slot credits **80%** as the outgoing-tenure miner's pull claim and

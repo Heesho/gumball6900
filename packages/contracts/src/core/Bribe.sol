@@ -354,3 +354,11 @@ contract Bribe is ReentrancyGuard {
         return Math.min(block.timestamp, rewardData[rewardToken].periodFinish);
     }
 }
+
+// Upstream provenance (Bribe): the stream timing, active-period rollover, cumulative-index, earned, and
+// checkpoint-before-weight-change mechanics are adapted from Curve MultiRewards commit
+// 99995f90bd129bbe6b5a995daf6233fb79789e4e.
+// Source repository: https://github.com/curvefi/multi-rewards
+// Source path: contracts/MultiRewards.sol at commit 99995f90bd129bbe6b5a995daf6233fb79789e4e.
+// Deviations from that kernel must be assessed independently. No upstream audit, endorsement, or security assurance
+// for this contract is implied.

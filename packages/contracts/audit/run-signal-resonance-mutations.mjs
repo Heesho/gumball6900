@@ -1,21 +1,49 @@
 #!/usr/bin/env node
 
-import { cpSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { dirname, relative, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+
+import { classifyMutationRun, validateBaselineRun } from './mutation-runner-policy.mjs';
+import { validateMutationScope } from './mutation-scope-policy.mjs';
 
 const auditDirectory = dirname(fileURLToPath(import.meta.url));
 const contractsDirectory = resolve(auditDirectory, '..');
 const packagesDirectory = resolve(contractsDirectory, '..');
 const requestedPattern = process.argv.find((argument) => argument.startsWith('--match='))?.slice('--match='.length);
+const requestedRegexSource = process.argv
+  .find((argument) => argument.startsWith('--match-regex='))
+  ?.slice('--match-regex='.length);
+if (requestedPattern !== undefined && requestedRegexSource !== undefined) {
+  throw new Error('--match and --match-regex cannot be combined');
+}
+let requestedRegex;
+if (requestedRegexSource !== undefined) {
+  try {
+    requestedRegex = new RegExp(requestedRegexSource, 'u');
+  } catch (error) {
+    throw new Error(`invalid --match-regex: ${error.message}`);
+  }
+}
 const listOnly = process.argv.includes('--list');
-const reportPath = resolve(auditDirectory, 'reports/signal-resonance-mutation-latest.json');
-const reportLabel = (requestedPattern ?? 'all')
+const scopeOnly = process.argv.includes('--scope');
+const noReport = process.argv.includes('--no-report');
+const requestedReportDirectory = process.argv
+  .find((argument) => argument.startsWith('--report-dir='))
+  ?.slice('--report-dir='.length);
+if (noReport && requestedReportDirectory !== undefined) {
+  throw new Error('--no-report and --report-dir cannot be combined');
+}
+const reportDirectory = requestedReportDirectory
+  ? resolve(requestedReportDirectory)
+  : resolve(auditDirectory, 'reports');
+const reportPath = resolve(reportDirectory, 'signal-resonance-mutation-latest.json');
+const reportLabel = (requestedPattern ?? requestedRegexSource ?? 'all')
   .replace(/[^A-Za-z0-9]+/g, '-')
   .replace(/^-|-$/g, '')
   .toLowerCase();
-const selectedReportPath = resolve(auditDirectory, `reports/signal-resonance-mutation-${reportLabel}.json`);
+const selectedReportPath = resolve(reportDirectory, `signal-resonance-mutation-${reportLabel}.json`);
 
 const mutants = [
   {
@@ -165,6 +193,48 @@ const mutants = [
       'test/minimal/audit-exitability/ExitabilityBlastRadius.t.sol',
       'test_DuplicateBatchFailureRollsBackAndScalarFallbackFullyExits',
     ],
+  },
+  {
+    id: 'SGBX-16-omit-principal-return',
+    file: 'src/core/SignalGBX.sol',
+    from: '        gbx.safeTransfer(account, amount);',
+    to: '        // MUTANT: burned signal principal is never returned',
+    test: ['test/integration/CampaignHarness.t.sol', 'test_EveryActionDrivesRealStateAndKeepsEveryPropertyTrue'],
+  },
+  {
+    id: 'GBX-01-allow-wrong-mine-identity',
+    file: 'src/core/GBX.sol',
+    from: '            if (mineGBX != address(this)) revert InvalidMine(newMinter);',
+    to: '            if (false && mineGBX != address(this)) revert InvalidMine(newMinter);',
+    test: ['test/minimal/GBX.t.sol', 'test_MinterHandoverIsOneTimeAndRequiresDeployedCode'],
+  },
+  {
+    id: 'GBX-02-omit-permanent-minter-lock',
+    file: 'src/core/GBX.sol',
+    from: '        minterLocked = true;',
+    to: '        // MUTANT: permanent handoff lock omitted',
+    test: ['test/minimal/GBX.t.sol', 'test_MinterHandoverIsOneTimeAndRequiresDeployedCode'],
+  },
+  {
+    id: 'GBX-03-allow-pre-handoff-mint',
+    file: 'src/core/GBX.sol',
+    from: '        if (!minterLocked) revert MinterNotLocked();',
+    to: '        if (false && !minterLocked) revert MinterNotLocked();',
+    test: ['test/minimal/GBX.t.sol', 'test_OnlyPermanentlyBoundMineCanMint'],
+  },
+  {
+    id: 'GBX-04-omit-lifetime-minted-accounting',
+    file: 'src/core/GBX.sol',
+    from: '        lifetimeMinted += amount;',
+    to: '        // MUTANT: lifetime issuance accounting omitted',
+    test: ['test/minimal/GBX.t.sol', 'test_OnlyPermanentlyBoundMineCanMint'],
+  },
+  {
+    id: 'GBX-05-omit-lifetime-burned-accounting',
+    file: 'src/core/GBX.sol',
+    from: '        lifetimeBurned += amount;',
+    to: '        // MUTANT: lifetime destruction accounting omitted',
+    test: ['test/minimal/GBX.t.sol', 'test_BurnTracksCumulativeSupplyDestructionWithoutReopeningHandover'],
   },
   {
     id: 'RES-01-omit-bribe-deposit',
@@ -436,11 +506,95 @@ const mutants = [
     test: ['test/minimal/Mine.t.sol', 'test_SetResonanceRouterRejectsCrossedSignalGBXResonanceBinding'],
   },
   {
+    id: 'BRIBEFACT-01-remove-binding-owner-check',
+    file: 'src/core/BribeFactory.sol',
+    from: '    function setResonance(address resonance_) external onlyOwner {',
+    to: '    function setResonance(address resonance_) external {',
+    test: ['test/minimal/Factories.t.sol', 'test_BribeFactorySetResonanceIsOwnerOnlyValidatedAndSingleUse'],
+  },
+  {
+    id: 'BRIBEFACT-02-allow-reciprocal-identity-mismatch',
+    file: 'src/core/BribeFactory.sol',
+    from: '            if (configuredFactory != address(this)) revert InvalidResonance(resonance_);',
+    to: '            if (false && configuredFactory != address(this)) revert InvalidResonance(resonance_);',
+    test: ['test/minimal/Factories.t.sol', 'test_BribeFactorySetResonanceIsOwnerOnlyValidatedAndSingleUse'],
+  },
+  {
+    id: 'BRIBEFACT-03-public-bribe-deployment',
+    file: 'src/core/BribeFactory.sol',
+    from: '        if (msg.sender != configuredResonance) revert NotResonance(msg.sender);',
+    to: '        if (false && msg.sender != configuredResonance) revert NotResonance(msg.sender);',
+    test: ['test/minimal/Factories.t.sol', 'test_BribeCreationIsResonanceOnly'],
+  },
+  {
+    id: 'STRATFACT-01-remove-binding-owner-check',
+    file: 'src/core/StrategyFactory.sol',
+    from: '    function setResonance(address resonance_) external onlyOwner {',
+    to: '    function setResonance(address resonance_) external {',
+    test: ['test/minimal/Factories.t.sol', 'test_StrategyFactorySetResonanceIsOwnerOnlyValidatedAndSingleUse'],
+  },
+  {
+    id: 'STRATFACT-02-allow-reciprocal-identity-mismatch',
+    file: 'src/core/StrategyFactory.sol',
+    from: '            if (configuredFactory != address(this)) revert InvalidResonance(resonance_);',
+    to: '            if (false && configuredFactory != address(this)) revert InvalidResonance(resonance_);',
+    test: ['test/minimal/Factories.t.sol', 'test_StrategyFactorySetResonanceIsOwnerOnlyValidatedAndSingleUse'],
+  },
+  {
+    id: 'STRATFACT-03-public-strategy-deployment',
+    file: 'src/core/StrategyFactory.sol',
+    from: '        if (msg.sender != configuredResonance) revert NotResonance(msg.sender);',
+    to: '        if (false && msg.sender != configuredResonance) revert NotResonance(msg.sender);',
+    test: ['test/minimal/Factories.t.sol', 'test_StrategyCreationIsResonanceOnly'],
+  },
+  {
+    id: 'STRATFACT-04-wire-router-to-wrong-payment-token',
+    file: 'src/core/StrategyFactory.sol',
+    from: '        bribeRouter = new BribeRouter(IBribe(address(bribe)), paymentToken);',
+    to: '        bribeRouter = new BribeRouter(IBribe(address(bribe)), usdg);',
+    test: ['test/minimal/Factories.t.sol', 'test_ACreatedStrategyIsPairedWithItsOwnRouter'],
+  },
+  {
     id: 'ROUTER-01-route-only-after-strictly-greater',
     file: 'src/core/ResonanceRouter.sol',
     from: '        if (pending < minimum) {',
     to: '        if (pending <= minimum) {',
     test: ['test/minimal/Routing.t.sol', 'test_SubThresholdRevenueWaitsUntilTheRouterBalanceQualifies'],
+  },
+  {
+    id: 'ROUTER-02-route-less-than-complete-balance',
+    file: 'src/core/ResonanceRouter.sol',
+    from: '        amount = pending;',
+    to: '        amount = pending - 1;',
+    test: ['test/minimal/Routing.t.sol', 'test_RouteIsPermissionlessAndForwardsTheCompleteBalance'],
+  },
+  {
+    id: 'ROUTER-03-allow-empty-route',
+    file: 'src/core/ResonanceRouter.sol',
+    from: '        if (pending == 0) revert NoRevenue();',
+    to: '        if (false && pending == 0) revert NoRevenue();',
+    test: ['test/minimal/Routing.t.sol', 'test_RouteRejectsAnEmptyRouter'],
+  },
+  {
+    id: 'BRIBEROUTER-01-reject-exact-duration-threshold',
+    file: 'src/core/BribeRouter.sol',
+    from: 'amount < bribe.REWARD_DURATION()',
+    to: 'amount <= bribe.REWARD_DURATION()',
+    test: ['test/minimal/Routing.t.sol', 'test_RouteAccumulatesUntilTheBalanceCanSustainANonzeroRate'],
+  },
+  {
+    id: 'BRIBEROUTER-02-ignore-active-stream-remaining-gate',
+    file: 'src/core/BribeRouter.sol',
+    from: 'amount < bribe.remainingReward(address(paymentToken))',
+    to: 'false && amount < bribe.remainingReward(address(paymentToken))',
+    test: ['test/minimal/Routing.t.sol', 'test_RouteWaitsUntilTheCompleteBalanceMeetsTheActiveStreamLeft'],
+  },
+  {
+    id: 'BRIBEROUTER-03-route-less-than-complete-buffer',
+    file: 'src/core/BribeRouter.sol',
+    from: '        bribe.notifyReward(address(paymentToken), amount);',
+    to: '        bribe.notifyReward(address(paymentToken), amount - 1);',
+    test: ['test/minimal/Routing.t.sol', 'test_RouteIncludesTheCompleteDirectlyDonatedBalance'],
   },
   {
     id: 'STRAT-01-snapshot-before-claim',
@@ -617,6 +771,158 @@ const mutants = [
     test: ['test/minimal/Resonance.t.sol', 'test_BatchClaimsCanonicalLiveKilledAndDuplicateStrategyBribesForTheCaller'],
   },
   {
+    id: 'TOKENDEPLOY-01-remove-caller-scoped-salt',
+    file: 'src/launch/GBXTokenFundDeployer.sol',
+    from: '        return keccak256(abi.encode(caller, domain));',
+    to: '        return keccak256(abi.encode(domain));',
+    test: [
+      'test/minimal/audit-gauntlet/LaunchComponentDeployerSalts.t.sol',
+      'test_AllComponentOutputsUseCallerScopedContractDomainSalts',
+    ],
+  },
+  {
+    id: 'TOKENDEPLOY-02-give-minter-authority-to-module',
+    file: 'src/launch/GBXTokenFundDeployer.sol',
+    from: '        gbx = new GBX{ salt: _salt(msg.sender, GBX_SALT_DOMAIN) }(msg.sender);',
+    to: '        gbx = new GBX{ salt: _salt(msg.sender, GBX_SALT_DOMAIN) }(address(this));',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchBuildsCanonicalGraphAndBeginsGovernanceHandoff'],
+  },
+  {
+    id: 'SIGNALDEPLOY-01-remove-caller-scoped-salt',
+    file: 'src/launch/GBXSignalBribeDeployer.sol',
+    from: '        return keccak256(abi.encode(caller, domain));',
+    to: '        return keccak256(abi.encode(domain));',
+    test: [
+      'test/minimal/audit-gauntlet/LaunchComponentDeployerSalts.t.sol',
+      'test_AllComponentOutputsUseCallerScopedContractDomainSalts',
+    ],
+  },
+  {
+    id: 'SIGNALDEPLOY-02-give-setup-authority-to-module',
+    file: 'src/launch/GBXSignalBribeDeployer.sol',
+    from: '        signalGBX = new SignalGBX{ salt: _salt(msg.sender, SIGNAL_GBX_SALT_DOMAIN) }(gbx, msg.sender);',
+    to: '        signalGBX = new SignalGBX{ salt: _salt(msg.sender, SIGNAL_GBX_SALT_DOMAIN) }(gbx, address(this));',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchBuildsCanonicalGraphAndBeginsGovernanceHandoff'],
+  },
+  {
+    id: 'STRATEGYDEPLOY-01-remove-caller-scoped-salt',
+    file: 'src/launch/GBXStrategyResonanceDeployer.sol',
+    from: '        return keccak256(abi.encode(caller, domain));',
+    to: '        return keccak256(abi.encode(domain));',
+    test: [
+      'test/minimal/audit-gauntlet/LaunchComponentDeployerSalts.t.sol',
+      'test_AllComponentOutputsUseCallerScopedContractDomainSalts',
+    ],
+  },
+  {
+    id: 'STRATEGYDEPLOY-02-give-factory-authority-to-module',
+    file: 'src/launch/GBXStrategyResonanceDeployer.sol',
+    from: '        strategyFactory = new StrategyFactory{ salt: _salt(msg.sender, STRATEGY_FACTORY_SALT_DOMAIN) }(msg.sender);',
+    to: '        strategyFactory = new StrategyFactory{ salt: _salt(msg.sender, STRATEGY_FACTORY_SALT_DOMAIN) }(address(this));',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchBuildsCanonicalGraphAndBeginsGovernanceHandoff'],
+  },
+  {
+    id: 'ROUTERMINEDEPLOY-01-remove-caller-scoped-salt',
+    file: 'src/launch/GBXRouterMineDeployer.sol',
+    from: '        return keccak256(abi.encode(caller, domain));',
+    to: '        return keccak256(abi.encode(domain));',
+    test: [
+      'test/minimal/audit-gauntlet/LaunchComponentDeployerSalts.t.sol',
+      'test_AllComponentOutputsUseCallerScopedContractDomainSalts',
+    ],
+  },
+  {
+    id: 'ROUTERMINEDEPLOY-02-give-mine-owner-to-module',
+    file: 'src/launch/GBXRouterMineDeployer.sol',
+    from: '            gbx, usdg, fund, address(resonanceRouter), msg.sender, msg.sender',
+    to: '            gbx, usdg, fund, address(resonanceRouter), address(this), msg.sender',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchBuildsCanonicalGraphAndBeginsGovernanceHandoff'],
+  },
+  {
+    id: 'LAUNCH-01-remove-launch-authority-check',
+    file: 'src/launch/GBXLauncher.sol',
+    from: '        if (msg.sender != launchAuthority) revert UnauthorizedLaunch(msg.sender);',
+    to: '        if (false && msg.sender != launchAuthority) revert UnauthorizedLaunch(msg.sender);',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchRejectsWrongCallerWithoutConsumingLauncher'],
+  },
+  {
+    id: 'LAUNCH-02-remove-chain-binding',
+    file: 'src/launch/GBXLauncher.sol',
+    from: '        if (block.chainid != ROBINHOOD_CHAIN_ID) revert InvalidChain(block.chainid);',
+    to: '        if (false && block.chainid != ROBINHOOD_CHAIN_ID) revert InvalidChain(block.chainid);',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchRejectsWrongChainWithoutConsumingLauncher'],
+  },
+  {
+    id: 'LAUNCH-03-do-not-consume-single-use-launcher',
+    file: 'src/launch/GBXLauncher.sol',
+    from: '        launched = true;',
+    to: '        // MUTANT: single-use state is never consumed',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchBuildsCanonicalGraphAndBeginsGovernanceHandoff'],
+  },
+  {
+    id: 'LAUNCH-04-mint-provider-liquidity-to-launcher',
+    file: 'src/launch/GBXLauncher.sol',
+    from: '        uint256 liquidity = pair.mint(address(0));',
+    to: '        uint256 liquidity = pair.mint(address(this));',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchBuildsCanonicalGraphAndBeginsGovernanceHandoff'],
+  },
+  {
+    id: 'LAUNCH-05-ignore-reverse-pair-lookup',
+    file: 'src/launch/GBXLauncher.sol',
+    from: '                || factory.getPair(address(usdg), result.gbx) != pairAddress',
+    to: '                || false && factory.getPair(address(usdg), result.gbx) != pairAddress',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchRejectsAsymmetricFactoryLookup'],
+  },
+  {
+    id: 'LAUNCH-06-strand-predictable-usdg-prefund',
+    file: 'src/launch/GBXLauncher.sol',
+    from: '        if (prefundedUSDG != 0) IERC20(address(usdg)).safeTransfer(_deployment.fund, prefundedUSDG);',
+    to: '        if (prefundedUSDG != 0) { /* MUTANT: prefund stranded in launcher */ }',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testPredictableUSDGPrefundingCannotBlockLaunch'],
+  },
+  {
+    id: 'LAUNCH-07-retain-signal-setup-owner',
+    file: 'src/launch/GBXLauncher.sol',
+    from: '        SignalGBX(result.signalGBX).renounceOwnership();',
+    to: '        // MUTANT: setup-only SignalGBX owner retained',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchBuildsCanonicalGraphAndBeginsGovernanceHandoff'],
+  },
+  {
+    id: 'LAUNCH-08-omit-mine-governance-handoff',
+    file: 'src/launch/GBXLauncher.sol',
+    from: '        Mine(result.mine).transferOwnership(finalOwner);',
+    to: '        // MUTANT: Mine governance handoff omitted',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testGovernanceMustAcceptBothPendingOwnershipTransfers'],
+  },
+  {
+    id: 'LAUNCH-09-skip-final-graph-assertions',
+    file: 'src/launch/GBXLauncher.sol',
+    from: '        _assertFinalState(finalOwner);',
+    to: '        // MUTANT: final graph and pristine-state assertions omitted',
+    test: ['test/minimal/GBXLauncher.t.sol', 'testLaunchRejectsCallbackMutationOfPristineMineState'],
+  },
+  {
+    id: 'LENS-01-disable-signal-graph-binding',
+    file: 'src/periphery/SignalPortfolioLens.sol',
+    from: '        if (expectedResonance != address(resonance)) {',
+    to: '        if (false && expectedResonance != address(resonance)) {',
+    test: ['test/minimal/SignalPortfolioLens.t.sol', 'test_PortfolioRejectsMismatchedSignalGraph'],
+  },
+  {
+    id: 'LENS-02-populate-only-first-strategy-row',
+    file: 'src/periphery/SignalPortfolioLens.sol',
+    from: '        for (uint256 i; i < strategyCount; ++i) {',
+    to: '        for (uint256 i; i < strategyCount && i == 0; ++i) {',
+    test: ['test/minimal/SignalPortfolioLens.t.sol', 'test_PortfolioBatchesAccountStrategyAndBribeReads'],
+  },
+  {
+    id: 'LENS-03-read-available-revenue-from-lens',
+    file: 'src/periphery/SignalPortfolioLens.sol',
+    from: '        strategyView.availableRevenue = strategyContract.usdg().balanceOf(strategy);',
+    to: '        strategyView.availableRevenue = strategyContract.usdg().balanceOf(address(this));',
+    test: ['test/minimal/SignalPortfolioLens.t.sol', 'test_PortfolioBatchesAccountStrategyAndBribeReads'],
+  },
+  {
     id: 'FUND-01-exclude-pending-emission-from-denominator',
     file: 'src/core/Fund.sol',
     from: '        uint256 supplyBeforeBurn = IMine(mine).effectiveTotalSupply();',
@@ -655,6 +961,39 @@ function tail(value, limit = 6_000) {
   return value.length <= limit ? value : value.slice(value.length - limit);
 }
 
+function listSoliditySources(directory) {
+  const sources = [];
+  for (const entry of readdirSync(directory, { withFileTypes: true })) {
+    const absolutePath = resolve(directory, entry.name);
+    if (entry.isDirectory()) {
+      sources.push(...listSoliditySources(absolutePath));
+    } else if (entry.isFile() && entry.name.endsWith('.sol')) {
+      sources.push(relative(contractsDirectory, absolutePath).replaceAll('\\', '/'));
+    }
+  }
+  return sources.sort();
+}
+
+function runTargetTest(workDirectory, testPath, testName) {
+  return spawnSync('forge', ['test', '--match-test', testName, '--suppress-successful-traces'], {
+    cwd: workDirectory,
+    encoding: 'utf8',
+    env: { ...process.env, FOUNDRY_FUZZ_RUNS: '1000', FOUNDRY_TEST: testPath },
+    maxBuffer: 10 * 1024 * 1024,
+  });
+}
+
+function runOutput(run) {
+  return `${run.stdout ?? ''}${run.stderr ?? ''}`;
+}
+
+const mutationScope = validateMutationScope(listSoliditySources(resolve(contractsDirectory, 'src')), mutants);
+
+if (scopeOnly) {
+  console.log(JSON.stringify(mutationScope, null, 2));
+  process.exit(0);
+}
+
 if (listOnly) {
   for (const mutant of mutants) console.log(mutant.id);
   process.exit(0);
@@ -662,8 +1001,10 @@ if (listOnly) {
 
 const selected = requestedPattern
   ? mutants.filter((mutant) => mutant.id.toLowerCase().includes(requestedPattern.toLowerCase()))
-  : mutants;
-if (selected.length === 0) throw new Error(`no mutant matched ${requestedPattern}`);
+  : requestedRegex
+    ? mutants.filter((mutant) => requestedRegex.test(mutant.id))
+    : mutants;
+if (selected.length === 0) throw new Error(`no mutant matched ${requestedPattern ?? requestedRegexSource}`);
 
 const workDirectory = mkdtempSync(resolve(packagesDirectory, '.signal-resonance-mutation.'));
 const safePrefix = resolve(packagesDirectory, '.signal-resonance-mutation.');
@@ -677,6 +1018,7 @@ try {
   symlinkSync(resolve(contractsDirectory, 'node_modules'), resolve(workDirectory, 'node_modules'), 'dir');
 
   const results = [];
+  const validatedBaselines = new Set();
   for (const mutant of selected) {
     const [testPath, testName] = mutant.test;
     const testSource = readFileSync(resolve(workDirectory, testPath), 'utf8');
@@ -684,31 +1026,37 @@ try {
       throw new Error(`mutation target test ${testName} was not found in ${testPath}`);
     }
 
+    const baselineKey = `${testPath}\u0000${testName}`;
+    if (!validatedBaselines.has(baselineKey)) {
+      const baselineRun = runTargetTest(workDirectory, testPath, testName);
+      try {
+        validateBaselineRun(baselineRun, runOutput(baselineRun), `baseline ${testPath}:${testName}`);
+      } catch (error) {
+        throw new Error(`mutation harness baseline failed for ${mutant.id}: ${error.message}`);
+      }
+      validatedBaselines.add(baselineKey);
+    }
+
     const filePath = resolve(workDirectory, mutant.file);
     const original = readFileSync(filePath, 'utf8');
     const mutated = replaceOccurrence(original, mutant.from, mutant.to, mutant.occurrence ?? 0);
     writeFileSync(filePath, mutated);
 
-    const run = spawnSync('forge', ['test', '--match-test', testName, '--suppress-successful-traces'], {
-      cwd: workDirectory,
-      encoding: 'utf8',
-      env: { ...process.env, FOUNDRY_FUZZ_RUNS: '1000', FOUNDRY_TEST: testPath },
-      maxBuffer: 10 * 1024 * 1024,
-    });
-    writeFileSync(filePath, original);
-
-    const output = `${run.stdout ?? ''}${run.stderr ?? ''}`;
-    if (
-      /No tests (?:match|to run)|failed to resolve file|Source ".*" not found|File not found|No such file/.test(output)
-    ) {
-      throw new Error(`mutation harness failed for ${mutant.id}:\n${tail(output)}`);
+    let run;
+    try {
+      run = runTargetTest(workDirectory, testPath, testName);
+    } finally {
+      writeFileSync(filePath, original);
     }
-    const killed = run.status !== 0;
-    const classification = killed
-      ? /Compiler run failed|Compilation failed/.test(output)
-        ? 'compile-killed'
-        : 'test-killed'
-      : 'test-gap';
+
+    const output = runOutput(run);
+    let disposition;
+    try {
+      disposition = classifyMutationRun(run, output, `mutant ${mutant.id}`);
+    } catch (error) {
+      throw new Error(`mutation harness failed for ${mutant.id}: ${error.message}\n${tail(output)}`);
+    }
+    const { killed, classification } = disposition;
     results.push({
       id: mutant.id,
       file: mutant.file,
@@ -728,17 +1076,26 @@ try {
     sourceRoot: contractsDirectory,
     disposableRoot: workDirectory,
     selectedPattern: requestedPattern ?? null,
+    selectedRegex: requestedRegexSource ?? null,
     total: results.length,
     killed,
     survived: results.length - killed,
     rawScorePercent: Number(((killed * 100) / results.length).toFixed(2)),
+    scope: mutationScope,
     results,
   };
-  writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
-  writeFileSync(selectedReportPath, `${JSON.stringify(report, null, 2)}\n`);
+  if (!noReport) {
+    mkdirSync(reportDirectory, { recursive: true });
+    writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+    writeFileSync(selectedReportPath, `${JSON.stringify(report, null, 2)}\n`);
+  }
   console.log(`score     ${killed}/${results.length} killed (${report.rawScorePercent}%)`);
-  console.log(`latest    ${reportPath}`);
-  console.log(`selected  ${selectedReportPath}`);
+  if (noReport) {
+    console.log('reports   disabled');
+  } else {
+    console.log(`latest    ${reportPath}`);
+    console.log(`selected  ${selectedReportPath}`);
+  }
   if (killed !== results.length) process.exitCode = 1;
 } finally {
   if (workDirectory.startsWith(safePrefix)) rmSync(workDirectory, { recursive: true, force: true });

@@ -26,7 +26,7 @@ import {
 } from '../../lib/models/mine';
 import './mining.css';
 
-/* The mine — sixteen reverse Dutch auctions, lifted from docs/deck (mine sim).
+/* The mine — sixteen reverse Dutch auctions, descended from the retired pitch-deck prototype.
    Mirrors Mine.sol mechanics: linear decay to zero over PRICE_DECAY_PERIOD,
    80/20 vs 100% payment allocation, tenure-locked tps, and the prospective
    time-based rate schedule anchored to Mine.startTime. The model stops the

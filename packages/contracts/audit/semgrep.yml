@@ -1,41 +1,43 @@
 rules:
   - id: gumball-no-tx-origin
-    languages: [solidity]
+    # These lexical bans deliberately use the generic engine. The pinned Solidity parser currently rejects named
+    # mapping parameters and annotated assembly, so parser-backed rules could silently skip a whole source file.
+    languages: [generic]
     severity: ERROR
     message: Authentication must never depend on tx.origin.
-    pattern: tx.origin
+    pattern-regex: '(?:\/\/[^\r\n]*|\/\*(?s:.*?)\*\/|"(?:\\.|[^"\\])*")(*SKIP)(*F)|\btx(?:\s|\/\*(?s:.*?)\*\/|\/\/[^\r\n]*(?:\r?\n|$))*\.(?:\s|\/\*(?s:.*?)\*\/|\/\/[^\r\n]*(?:\r?\n|$))*origin\b'
 
   - id: gumball-no-delegatecall
-    languages: [solidity]
+    languages: [generic]
     severity: ERROR
     message: The non-upgradeable protocol forbids delegatecall.
-    pattern: $TARGET.delegatecall(...)
+    pattern-regex: '(?:\/\/[^\r\n]*|\/\*(?s:.*?)\*\/|"(?:\\.|[^"\\])*")(*SKIP)(*F)|\.(?:\s|\/\*(?s:.*?)\*\/|\/\/[^\r\n]*(?:\r?\n|$))*delegatecall(?:\s|\/\*(?s:.*?)\*\/|\/\/[^\r\n]*(?:\r?\n|$))*(?:\(|\{)'
 
   - id: gumball-no-selfdestruct
-    languages: [solidity]
+    languages: [generic]
     severity: ERROR
     message: Protocol contracts must not self-destruct.
-    pattern-either:
-      - pattern: selfdestruct(...)
-      - pattern: suicide(...)
+    pattern-regex: '(?:\/\/[^\r\n]*|\/\*(?s:.*?)\*\/|"(?:\\.|[^"\\])*")(*SKIP)(*F)|\b(?:selfdestruct|suicide)(?:\s|\/\*(?s:.*?)\*\/|\/\/[^\r\n]*(?:\r?\n|$))*\('
 
   - id: gumball-no-inline-assembly
-    languages: [solidity]
+    # Use the generic lexer for this rule so newer Solidity syntax elsewhere in a file cannot hide an assembly block
+    # from the semantic Solidity parser. Exact reviewed assembly locations are enforced by check-semgrep-sarif.mjs.
+    languages: [generic]
     severity: ERROR
     message: Inline assembly requires a separately reviewed, documented exception.
-    pattern-regex: '\bassembly\s*\{'
+    pattern-regex: '(?:\/\/[^\r\n]*|\/\*(?s:.*?)\*\/|"(?:\\.|[^"\\])*")(*SKIP)(*F)|\bassembly(?:\s|\/\*(?s:.*?)\*\/|\/\/[^\r\n]*(?:\r?\n|$))*(?:\([^)]*\)(?:\s|\/\*(?s:.*?)\*\/|\/\/[^\r\n]*(?:\r?\n|$))*)?\{'
 
   - id: gumball-no-unchecked-block
-    languages: [solidity]
+    languages: [generic]
     severity: ERROR
     message: Unchecked arithmetic requires a separately reviewed proof and test.
-    pattern: unchecked { ... }
+    pattern-regex: '(?:\/\/[^\r\n]*|\/\*(?s:.*?)\*\/|"(?:\\.|[^"\\])*")(*SKIP)(*F)|\bunchecked(?:\s|\/\*(?s:.*?)\*\/|\/\/[^\r\n]*(?:\r?\n|$))*\{'
 
   - id: gumball-no-generic-low-level-call
-    languages: [solidity]
+    languages: [generic]
     severity: ERROR
     message: Generic low-level calls are forbidden outside the purpose-limited ProtocolTimelock.
     paths:
       exclude:
         - '**/src/access/ProtocolTimelock.sol'
-    pattern: $TARGET.call(...)
+    pattern-regex: '(?:\/\/[^\r\n]*|\/\*(?s:.*?)\*\/|"(?:\\.|[^"\\])*")(*SKIP)(*F)|\.(?:\s|\/\*(?s:.*?)\*\/|\/\/[^\r\n]*(?:\r?\n|$))*call(?:\s|\/\*(?s:.*?)\*\/|\/\/[^\r\n]*(?:\r?\n|$))*(?:\(|\{)'

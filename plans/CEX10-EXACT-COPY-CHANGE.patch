@@ -1,0 +1,125 @@
+diff --git a/apps/landing/docs/BRIEF.md b/apps/landing/docs/BRIEF.md
+index f4166c8..6b25e40 100644
+--- a/apps/landing/docs/BRIEF.md
++++ b/apps/landing/docs/BRIEF.md
+@@ -54,8 +54,9 @@ Colour meaning (from the whitepaper's diagram grammar — keep it): **blue = USD
+ 
+ ## The protocol — ground truth, never invent
+ 
+-- **GBX** is the token. It begins with zero supply and is issued only to miners. No premint, team allocation,
+-  presale, or discretionary mint. Mint authority passes to the Mine once and locks.
++- **GBX** is the token. Its constructor starts with zero supply. No premint means no team, presale, treasury, or
++  discretionary allocation. Canonical launch issues a fixed **1,000 GBX** solely into permanently locked genesis
++  liquidity; every subsequent GBX is mined. Mint authority passes to Mine once and locks.
+ - **Mining.** **Sixteen** permanent slots. Every slot is always for sale; its price falls in a
+   straight line to zero over **one hour** and restarts at twice the accepted price, subject to a
+   **$1 USDG floor**. Taking an occupied slot credits **80%** as the outgoing-tenure miner's pull claim and
+diff --git a/apps/web/components/home/cinematic-hero.tsx b/apps/web/components/home/cinematic-hero.tsx
+index 39235bb..a61e590 100644
+--- a/apps/web/components/home/cinematic-hero.tsx
++++ b/apps/web/components/home/cinematic-hero.tsx
+@@ -20,7 +20,8 @@ const TICKER = [
+   `${MINE.initialRate} initial rate`,
+   `${MINE.halvingPeriod} halving`,
+   `${MINE.tailRate} tail`,
+-  `${MINE.startingSupply} at genesis`,
++  `${MINE.constructorSupply} at token deployment`,
++  `${MINE.genesisLiquidityIssuance} fixed locked-liquidity issue`,
+   `${SIGNAL.ratio} escrow`,
+   `${SIGNAL.rewardDuration} revenue stream`,
+   `${AUCTION.fundShare} to Fund`,
+diff --git a/apps/web/components/home/mechanism-dashboard.tsx b/apps/web/components/home/mechanism-dashboard.tsx
+index 98bb7fc..aed3fdb 100644
+--- a/apps/web/components/home/mechanism-dashboard.tsx
++++ b/apps/web/components/home/mechanism-dashboard.tsx
+@@ -53,7 +53,11 @@ const BOARDS: Record<ChapterSlug, Omit<Board, 'slug'>> = {
+       ['Price', 'Falls in a straight line to zero over one hour'],
+       ['Emission', `${MINE.initialRate}, halving every ${MINE.halvingPeriod} to a ${MINE.tailRate} tail`],
+       ['Of each payment', `${MINE.outgoingMinerShare} to the outgoing miner, ${MINE.routerShare} onward`],
+-      ['Starting supply', `${MINE.startingSupply}. No premint, no team fee`],
++      [
++        'Supply',
++        `Constructor: ${MINE.constructorSupply}. No team or discretionary premint; canonical launch adds ` +
++          `${MINE.genesisLiquidityIssuance} solely to permanently locked liquidity`,
++      ],
+     ],
+     primary: {
+       Board: MineBoard,
+diff --git a/apps/web/lib/protocol.ts b/apps/web/lib/protocol.ts
+index 3dfd341..2b4c14a 100644
+--- a/apps/web/lib/protocol.ts
++++ b/apps/web/lib/protocol.ts
+@@ -37,7 +37,8 @@ export const MINE = {
+   /** `Mine.MIN_INITIAL_PRICE` is 1e6 raw units, and USDG carries six decimals, so one USDG. */
+   minInitialPriceValue: 1,
+   priceMultiplier: 2,
+-  startingSupply: '0 GBX',
++  constructorSupply: '0 GBX',
++  genesisLiquidityIssuance: '1,000 GBX',
+   messageBytes: 280,
+   /** Prospective global rate after each halving boundary, GBX per second. */
+   halvingLadder: [64, 32, 16, 8, 4, 2, 1] as const,
+@@ -143,11 +144,12 @@ export const MECHANISMS: readonly Mechanism[] = [
+     kicker: 'Issue',
+     summary: 'Sixteen permanent slots issue GBX to whoever holds them.',
+     accent: 'pink',
+-    headline: 'Sixteen slots issue every GBX in existence.',
++    headline: 'Sixteen slots issue every GBX after the fixed genesis-liquidity seed.',
+     standfirst:
+-      'GBX begins at zero supply. Each of the sixteen permanent slots runs its own hourly ' +
+-      'descending-price replacement auction, and the rate a slot is assigned stays locked for its ' +
+-      'complete tenure.',
++      'GBX’s constructor begins at zero supply. Canonical launch then issues a fixed 1,000 GBX solely ' +
++      'into permanently locked genesis liquidity. Each of the sixteen permanent slots runs its own ' +
++      'hourly descending-price replacement auction, and the rate a slot is assigned stays locked for ' +
++      'its complete tenure.',
+   },
+   {
+     slug: 'signal',
+diff --git a/apps/web/tests/minimal/honesty.test.ts b/apps/web/tests/minimal/honesty.test.ts
+index e210f58..4f5caf8 100644
+--- a/apps/web/tests/minimal/honesty.test.ts
++++ b/apps/web/tests/minimal/honesty.test.ts
+@@ -100,7 +100,8 @@ describe('protocol constants track the contracts', () => {
+     expect(MINE.tailRateValue).toBe(1);
+     expect(MINE.outgoingMinerBps).toBe(8_000);
+     expect(MINE.priceMultiplier).toBe(2);
+-    expect(MINE.startingSupply).toBe('0 GBX');
++    expect(MINE.constructorSupply).toBe('0 GBX');
++    expect(MINE.genesisLiquidityIssuance).toBe('1,000 GBX');
+     // 64 halved six times reaches the 1 GBX/s tail.
+     expect(MINE.halvingLadder).toEqual([64, 32, 16, 8, 4, 2, 1]);
+   });
+diff --git a/docs/deck/gumball6900-deck.html b/docs/deck/gumball6900-deck.html
+index 99a3f70..013c2da 100644
+--- a/docs/deck/gumball6900-deck.html
++++ b/docs/deck/gumball6900-deck.html
+@@ -803,14 +803,14 @@
+         </div>
+       </div>
+       <p class="lede" style="margin-top:34px">
+-        <strong>GBX cannot be created on a whim.</strong> Supply starts at zero and GBX is issued only to miners.
+-        There is no team allocation, presale, treasury mint, genesis-liquidity allocation, or second issuer
+-        &mdash; ever.
++        <strong>No premint:</strong> no GBX goes to a team, presale, treasury, investor, or discretionary allocation.
++        The token constructs at zero supply; canonical launch then issues a fixed 1,000 GBX solely into permanently
++        locked genesis liquidity.
+       </p>
+       <div class="stats">
+         <div class="stat">
+           <div class="stat__value num">0</div>
+-          <div class="stat__label">GBX in existence at deployment; all supply begins with mining</div>
++          <div class="stat__label">GBX when the token constructor returns</div>
+         </div>
+         <div class="stat">
+           <div class="stat__value num">1</div>
+@@ -823,7 +823,8 @@
+       </div>
+       <p class="note">
+         The right to mint is handed to the Mine once and then locked shut, so no later owner, vote, or
+-        upgrade can appoint a second issuer. Every GBX after that is earned by holding a mining slot.
++        upgrade can appoint a second issuer. After the fixed 1,000 GBX genesis-liquidity issue, every subsequent GBX is
++        earned by holding a mining slot.
+         Issuance slows over time but never stops, so a holder who neither mines nor signals is gradually
+         diluted.
+       </p>

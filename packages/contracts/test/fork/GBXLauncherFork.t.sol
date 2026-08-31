@@ -19,6 +19,7 @@ import { GBXStrategyResonanceDeployer } from "../../src/launch/GBXStrategyResona
 import { GBXTokenFundDeployer } from "../../src/launch/GBXTokenFundDeployer.sol";
 import { IUniswapV2Factory } from "../../src/launch/interfaces/IUniswapV2Factory.sol";
 import { IUniswapV2Pair } from "../../src/launch/interfaces/IUniswapV2Pair.sol";
+import { MockERC20 } from "../minimal/utils/Tokens.sol";
 
 /// @notice Code-bearing stand-in only for validating the launch handoff on a non-broadcast fork.
 contract ForkLaunchGovernance {
@@ -120,5 +121,25 @@ contract GBXLauncherForkTest is Test {
         assertEq(mine.pendingOwner(), address(0));
         assertEq(resonance.owner(), address(governance));
         assertEq(resonance.pendingOwner(), address(0));
+
+        // Execute the exact launched Fund artifact's EIP-1153 duplicate-mark path on the pinned target-chain fork.
+        // The test-only Mine impersonation creates holder inventory after all canonical launch assertions above; it is
+        // not deployment evidence for additional issuance and is used only to reach one bounded redemption.
+        uint256 burnAmount = 1 ether;
+        vm.prank(address(mine));
+        gbx.mint(address(this), burnAmount);
+        MockERC20 backing = new MockERC20("Fork Redemption Asset", "FRA", 18);
+        uint256 backingAmount = 1_000 ether;
+        backing.mint(result.fund, backingAmount);
+
+        uint256 supplyBeforeBurn = mine.effectiveTotalSupply();
+        uint256 expectedPayout = (backingAmount * burnAmount) / supplyBeforeBurn;
+        address[] memory selectedAssets = new address[](1);
+        selectedAssets[0] = address(backing);
+        gbx.approve(result.fund, burnAmount);
+        Fund(result.fund).redeem(burnAmount, address(this), selectedAssets);
+
+        assertEq(backing.balanceOf(address(this)), expectedPayout, "exact Fund artifact redemption failed");
+        assertEq(gbx.balanceOf(address(this)), 0, "redeemed GBX was not burned");
     }
 }

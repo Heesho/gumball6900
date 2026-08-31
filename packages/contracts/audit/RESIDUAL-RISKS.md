@@ -106,9 +106,10 @@
 - A blocked token can revert its Strategy purchase, Router distribution, or user reward claim. Fund and reward
   destinations remain fixed; the scalar Bribe claim isolates unrelated reward tokens.
 - Omitted redemption assets stay for the post-redemption supply; unsolicited Fund tokens have no recovery path.
-- CEX-09 records that tracked landing, deck, and web copy currently overstate this selective path as a slice of everything; the
-  deck also guarantees profitable gap closure. No publication was established, but those claims are a Medium release
-  blocker until aligned with caller-selected redemption and possible, non-guaranteed arbitrage support.
+- CEX-09 records that tracked landing, deck, and web copy overstate this selective path as a slice of everything; the
+  deck also guarantees profitable gap closure. The maintainer explicitly accepted that Medium product-claim risk on
+  2026-08-31 with no contract or copy change. Users receive every asset only if every address is selected, omitted shares
+  are permanently forfeited, and arbitrage profitability or gap closure remains non-guaranteed.
 - Resonance governance may change the global prospective automatic-Bribe share from 0% through 20%. Every change is
   prospective and cannot reprice an earlier purchase, Fund balance, buffered Bribe share, active stream, or claim.
   Each purchase floors independently with no weighted carry, so payment partitioning can change raw-unit

@@ -220,18 +220,15 @@ docs                  Architecture, economics, security, ADRs, and release evide
 
 ### Reading it in plain English
 
-Four editions describe the protocol for non-Solidity readers, in increasing depth:
+The public explanation has one canonical prose source and one generated PDF:
 
 ```text
-docs/deck                     21-slide pitch deck, self-contained HTML
-docs/one-pager/gumball6900    One-page sheet, built to PDF and PNG
-docs/articles                 Explainer article, built to PDF
-docs/whitepapers/gumball-6900 Technical whitepaper, built to PDF
+docs/WHITEPAPER.md                    Canonical whitepaper source
+output/pdf/GumBall6900-whitepaper.pdf Generated whitepaper PDF
+apps/landing and apps/web             Website explanations
 ```
 
 ```bash
-pnpm docs:one-pager
-pnpm docs:longform
 pnpm docs:whitepaper
 ```
 

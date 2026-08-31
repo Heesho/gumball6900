@@ -621,7 +621,7 @@ export function Fund() {
     }
 
     /* ================================================ acquisition auction ==
-       Lifted from docs/deck/gumball6900-deck.html (auc, lines 1673-1846) and
+       Descended from the retired pitch-deck auction prototype in git history and
        documented in docs/MODELS.md §4. Everything is measured in QQQ units,
        never dollars: fair(auc) is what the USDG lot is worth in QQQ, and the ask
        decays linearly over a six-hour epoch. The lot keeps growing while the
@@ -691,7 +691,6 @@ export function Fund() {
     function aucStep(dt: number) {
       stepAuc(auc, dt, aucFx);
     }
-
 
     /* ---- the stage: the vessel, the ruler, the descending blade ---------- */
     function aucStage() {
@@ -1241,7 +1240,7 @@ export function Fund() {
     });
 
     /* ====================================================== redemption ==
-       Lifted from docs/deck/gumball6900-deck.html (red, lines 1848-1929) and
+       Descended from the retired pitch-deck redemption prototype in git history and
        documented in docs/MODELS.md §5. Nobody operates it: burns arrive on a
        programme of the panel's own accumulated time, alternating other
        holders' small burns with the reader's own 10%-of-supply burn — the
@@ -1311,7 +1310,6 @@ export function Fund() {
     function takeLine(k: number) {
       return '→ ' + holds.map((h, i) => takenFmt(takenAt(i) * k) + ' ' + h.sym).join(' · ');
     }
-
 
     /* The step is the frozen model's; this panel supplies the DOM events. */
     const redFx: RedFx = {

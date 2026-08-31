@@ -41,8 +41,8 @@ says "the bar still wins," it must point at one of these and say why.
    layered translucency, fast purposeful easing, a restrained palette used with confidence.
 4. **The brand itself** — `apps/landing/docs/ART-DIRECTION.md` carries the diagnosis of what is
    wrong today, the palette, and the rules. Read it first; it is binding.
-5. **`docs/deck/gumball6900-deck.html`** (in git history if removed) — the internal ancestor. The
-   current sims descend from its models. Do not regress their accuracy.
+5. **The retired pitch-deck prototype in git history** — the internal ancestor. The current sims
+   descend from its models. Do not regress their accuracy.
 
 The bar is a **standard of craft, not content to copy**. Do not reproduce anyone's copy, layout,
 illustrations, or branding.

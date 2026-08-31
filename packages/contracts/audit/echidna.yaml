@@ -1,5 +1,8 @@
 projectName: GUM BALL 6900 protocol state-machine campaign
 testMode: property
+# Echidna 2.3.2's native macOS build crashes all workers at call zero when this constructor-heavy campaign uses
+# multiple workers (`Set.elemAt: index out of range`). One worker executes the same campaign and property manifest.
+workers: 1
 testLimit: 100000
 seqLen: 150
 timeout: 3600
@@ -16,7 +19,10 @@ testMaxGas: 125000000
 propMaxGas: 125000000
 corpusDir: audit/reports/echidna-corpus
 coverageDir: audit/reports/echidna-coverage
-format: json
+# Echidna 2.3.2's JSON formatter emits placeholder `{name: "name", status: "fuzzing"}`
+# entries for this constructor-heavy campaign even after the text formatter reports the real
+# property manifest. Keep the canonical receipt in text form and validate it fail-closed.
+format: text
 stopOnFail: true
 # No target contains SELFDESTRUCT; enabling destruction mode leaves Echidna 2.3.2
 # with an empty destruction-call set and crashes its workers before the first call.

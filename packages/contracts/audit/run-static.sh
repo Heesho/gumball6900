@@ -21,11 +21,21 @@ status=0
 node "$AUDIT_DIR/verify-toolchain.mjs" static
 
 rm -f "$REPORT_DIR/slither.json" "$REPORT_DIR/aderyn.json"
+slither_exit=0
 slither . \
     --compile-force-framework foundry \
     --config-file slither.config.json \
     --json "$REPORT_DIR/slither.json" \
-    >"$REPORT_DIR/slither.txt" 2>&1 || true
+    >"$REPORT_DIR/slither.txt" 2>&1 || slither_exit=$?
+if jq --exit-status '.success == true and (.results.detectors | type == "array")' \
+    "$REPORT_DIR/slither.json" >/dev/null 2>&1; then
+    if ((slither_exit != 0)); then
+        echo "Slither exited $slither_exit after emitting a valid successful report; reviewed findings remain policy-gated." >&2
+    fi
+else
+    echo "Slither report is absent, malformed, or missing a successful detector result array." >&2
+    status=1
+fi
 
 if ! aderyn . --src src --output "$REPORT_DIR/aderyn.json" >"$REPORT_DIR/aderyn.txt" 2>&1; then
     status=1
@@ -42,17 +52,21 @@ if ! semgrep scan --validate --config "$AUDIT_DIR/semgrep.yml"; then
     status=1
 fi
 
-if ! semgrep scan \
+semgrep_exit=0
+semgrep scan \
     --config "$AUDIT_DIR/semgrep.yml" \
-    --error \
+    --strict \
+    --no-rewrite-rule-ids \
     --sarif \
     --output "$REPORT_DIR/semgrep.sarif" \
-    src; then
+    src || semgrep_exit=$?
+if ((semgrep_exit > 1)); then
+    echo "Semgrep exited $semgrep_exit with an operational failure." >&2
     status=1
 fi
-if ! jq --exit-status '.runs | type == "array" and all(.[]; (.results | type == "array" and length == 0))' \
-    "$REPORT_DIR/semgrep.sarif" >/dev/null; then
-    echo "Semgrep SARIF contains blocking findings or is malformed." >&2
+if ! node "$AUDIT_DIR/check-semgrep-sarif.mjs" \
+    "$AUDIT_DIR/semgrep-reviewed-results.json" \
+    "$REPORT_DIR/semgrep.sarif"; then
     status=1
 fi
 

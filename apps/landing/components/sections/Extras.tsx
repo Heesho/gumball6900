@@ -171,16 +171,17 @@ export function Extras() {
               <span className="fact__n" aria-hidden="true">
                 05
               </span>
-              <h3 className="fact__t">No admin keys — one narrow exception</h3>
+              <h3 className="fact__t">Narrow governance — five custom actions</h3>
             </div>
             {/* DOM order stays prose → list → prose, so the colon still introduces
                 the list for a screen reader; the grid moves the list beside it. */}
             <div className="fact__body fact__body--split fact__body--powers">
               <p className="fact__p">
-                Ten contracts have no owner at all. One — Resonance — answers to a single address with exactly four
-                powers:
+                Mine and Resonance are the only contracts with continuing custom owner powers. Together, they expose
+                five protocol actions:
               </p>
               <ul className="powers fact__aside">
+                <li>redirect future Mine revenue to a validated replacement graph</li>
                 <li>add a Strategy</li>
                 <li>retire a Strategy — never the last one</li>
                 <li>register a reward token</li>
@@ -189,7 +190,8 @@ export function Extras() {
                 </li>
               </ul>
               <p className="fact__p fact__p--after">
-                Who will hold that address has not been decided. There is no DAO today.
+                The same external executor is intended to hold both roles, but it has not been selected. Both roles use
+                two-step ownership and may be renounced. There is no DAO today.
               </p>
             </div>
           </article>

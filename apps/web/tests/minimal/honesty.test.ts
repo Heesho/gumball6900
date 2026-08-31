@@ -100,7 +100,8 @@ describe('protocol constants track the contracts', () => {
     expect(MINE.tailRateValue).toBe(1);
     expect(MINE.outgoingMinerBps).toBe(8_000);
     expect(MINE.priceMultiplier).toBe(2);
-    expect(MINE.startingSupply).toBe('0 GBX');
+    expect(MINE.constructorSupply).toBe('0 GBX');
+    expect(MINE.genesisLiquidityIssuance).toBe('1,000 GBX');
     // 64 halved six times reaches the 1 GBX/s tail.
     expect(MINE.halvingLadder).toEqual([64, 32, 16, 8, 4, 2, 1]);
   });

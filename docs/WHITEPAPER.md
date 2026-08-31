@@ -177,6 +177,8 @@ supported standard-USDG model that amount arrives, but Mine does not verify the 
 role or bounty, so revenue may remain there indefinitely even after qualifying. A manual caller, frontend, volunteer
 keeper, or cron process may advance it. This optional periphery does not affect Mine replacement correctness or liveness.
 
+<!-- pdf-page-break-padded -->
+
 Settlement remains lazy—ordinary signal, distribution, purchase, and qualifying-notification calls materialize elapsed
 revenue—so the protocol needs no per-second keeper. Global-index and per-Strategy floors are accepted surplus rather
 than explicit carry. Stream time continues when active signal weight is zero, making that interval's emission
@@ -258,6 +260,8 @@ ownerless. No core contract has a proxy, general executor, pause switch, rescue 
 or state-migration path. Deployment must bootstrap reviewed initial Strategies and remove temporary setup authority
 before beginning both two-step ownership handoffs.
 
+<!-- pdf-page-break -->
+
 ## 9. Important risks
 
 - GBX price, liquidity, mining profitability, replacement frequency, Strategy fills, and Fund value are uncertain.
@@ -270,6 +274,9 @@ before beginning both two-step ownership handoffs.
   liveness properties require separate review.
 - The external governance system is unselected. The core guarantees no proposal filter, delay, cancellation path,
   guardian, open executor, immutable voting configuration, or external-governance upgrade boundary.
+
+<!-- pdf-page-break -->
+
 - The Resonance owner can change the automatic-Bribe share immediately within its 0%-to-20% bound. Transaction
   ordering determines which rate a pending Strategy fill snapshots; the external governance review must address delay
   and execution transparency.

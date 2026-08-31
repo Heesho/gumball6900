@@ -33,6 +33,13 @@ invariant = { runs = 10_000, depth = 1_000, fail_on_revert = true }
 bytecode_hash = "ipfs"
 cbor_metadata = true
 
+# Medusa's LCOV reporter keys runtime coverage by metadata when available. The campaign and protocol graph contain
+# immutables, so metadata-free deployed runtime bytecode cannot be matched back to the uninitialized compilation
+# runtime used to render source lines. This profile is audit-only and keeps production artifacts metadata-free.
+[profile.medusa]
+bytecode_hash = "ipfs"
+cbor_metadata = true
+
 # The Echidna/Medusa campaign harness deploys the whole protocol graph from its own constructor, as property-mode
 # fuzzing requires, so its initcode exceeds EIP-3860 and cannot live in the default size-gated build profile.
 # Medusa sets `codeSizeCheckDisabled` for the same test-only reason.

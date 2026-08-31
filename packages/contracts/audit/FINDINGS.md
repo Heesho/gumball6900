@@ -192,6 +192,33 @@ recorded separately and does not turn the source into an independent audit.
 | GPT-D-03    | Observed skipped-test result superseded by a later complete local campaign; workflow isolation concern remains                            | No new count           |
 | GPT-D-04    | Live opcode evidence now exists; exact current Fund-artifact replay and signed graph evidence remain open                                 | No new count           |
 
+### SECURITY-01 — Zero-price Strategy resets can retain returned inventory
+
+At full auction decay, a helper can buy a Strategy's complete USDG inventory for zero, let the successful fill advance
+the epoch and restore `minimumPrice`, then return the freely transferable USDG after `buy` completes. The helper can
+repeat the transition at each mature epoch without GBX or allowance. Receiver restrictions and `nonReentrant` do not
+prevent the sequential post-call return.
+
+Disposition: confirmed Medium and explicitly accepted by the maintainer on 2026-08-31 as intended Euler Fee Flow-shaped
+auction behavior, with no Solidity change. ADR
+[0058](../../../docs/adr/0058-accepted-zero-price-strategy-reset.md) records the decision. Upstream lineage and production
+experience informed the economic choice but do not transfer security assurance to GumBall's exact composition. Signal
+exits and Fund redemption remain available, while Strategy acquisition has no guaranteed completion time.
+
+### CEX-03 — Unknown signal positions require event-history recovery
+
+An account's aggregate SignalGBX balance does not enumerate the Strategy addresses required by scalar removal. A known
+live or killed Strategy key has an exact bounded exit, and indexed Resonance signal events plus Mine Router-cutover
+events can reconstruct unknown keys across historical graphs. That reconstruction depends on retained authenticated
+chain history rather than bounded current core state.
+
+Disposition: confirmed Medium and explicitly accepted by the maintainer on 2026-08-31 with no Solidity change. ADR
+[0056](../../../docs/adr/0056-accepted-event-history-signal-discovery.md) records the decision. The existing subgraph is
+the selected replaceable discovery layer for the initial graph, while every write refreshes canonical Bribe state. If a
+future Mine Router cutover occurs, retain the old subgraph and deploy another instance for the new Resonance generation.
+A single multi-graph index and direct JSON-RPC recovery remain optional resilience work, not current release
+requirements. This operational choice does not close or downgrade CEX-03.
+
 ### CEX-08 — Permissionless Strategy checkpoints maximize accepted floor loss
 
 Anyone may call `Resonance.distributeRevenue(strategy)`. The call floors the Strategy's scaled USDG accrual to whole raw
@@ -213,16 +240,62 @@ Fund intentionally pays only the caller-selected token addresses and permanently
 redeemer. A disjoint later burn cannot restore the original fraction, and the registry-free Fund has no bounded current
 list proving a redemption basket is complete.
 
-Current tracked release-facing claims contradict that behavior. `apps/landing/components/sections/Hero.tsx:92-95`,
+Retained tracked release-facing claims contradict that behavior. `apps/landing/components/sections/Hero.tsx:92-95`,
 `Why.tsx:48-58`, and `Fund.tsx:1863-1869` promise every holding in one transaction;
-`apps/landing/docs/BRIEF.md:79-82` specifies the same behavior; `docs/deck/gumball6900-deck.html:932-935` and
-`:1029-1031` repeat it and additionally guarantee profitable gap closure; and
+`apps/landing/docs/BRIEF.md:79-82` specifies the same behavior; and
 `apps/web/components/home/mechanism-dashboard.tsx:129-133` uses an everything title next to a correctly qualified note.
+The now-retired deck repeated the same claim and additionally guaranteed profitable gap closure.
 
-Disposition: confirmed Medium release blocker and counted as CEX-09. No evidence establishes that these surfaces are
-published. Before release, state that holders redeem a pro-rata share of the Fund assets they select, permanently give
-up omitted shares, and may use discount arbitrage as possible support rather than guaranteed profit or convergence. If
-the intended product is complete-basket redemption, Fund requires a new ADR and separately audited architecture.
+Disposition: confirmed Medium and explicitly accepted by the maintainer on 2026-08-31 with no contract or retained-copy
+change.
+ADR [0059](../../../docs/adr/0059-accepted-frontend-composed-fund-basket.md) records the decision. Interfaces are expected
+to select every asset they discover, but Fund cannot attest that the list is complete; omitted shares remain permanently
+forfeited, and arbitrage profitability or gap closure remains non-guaranteed. The retained wording is not treated as a
+contract guarantee or audit-validated release claim. The deck was later removed as part of the separately approved
+public-copy consolidation, not as a CEX-09 remediation.
+
+### CEX-10 — Public zero-premint claims omit the fixed genesis issuance
+
+GBX itself constructs with zero supply. Canonical launch then uses Mine's narrow one-time genesis authority to issue
+exactly 1,000 GBX to the new USDG/GBX Pair, permanently locks the complete genesis LP supply, and finishes with
+`GBX.lifetimeMinted() == 1,000 ether` while `Mine.totalMined() == 0`. Before remediation, tracked public surfaces instead
+said that GBX was issued only to miners, that every GBX in existence came from the sixteen mining slots, or that no
+genesis-liquidity allocation existed.
+
+Disposition: confirmed Medium copy/accounting mismatch, remediated in the uncommitted audit candidate. On 2026-08-31,
+the maintainer selected keeping **No premint**
+with the precise meaning recorded in ADR
+[0060](../../../docs/adr/0060-no-premint-means-no-discretionary-allocation.md): no team, presale, treasury, investor, or
+discretionary allocation; zero supply when the token constructor returns; a fixed 1,000 GBX canonical
+genesis-liquidity issue; and mining for every subsequent GBX. The maintainer approved the exact six-file
+[record](../../../plans/CEX10-EXACT-COPY-CHANGE-PREVIEW.md) and
+[patch](../../../plans/CEX10-EXACT-COPY-CHANGE.patch) before application. Before the later document consolidation, the
+applied six-file diff was byte-identical to that patch and passed 32 web tests, web typecheck/build, formatting, three
+focused Mine/launcher proofs, stale-consumer search, and a fresh independent read-only review. The deck was then retired
+under the maintainer's separate approval; its historical preview and patch remain evidence, while the active websites
+and canonical `docs/WHITEPAPER.md` retain the corrected disclosure. CEX-10 is remediated in the uncommitted candidate;
+nothing is published, and onchain supply accounting was never changed.
+
+### CEX-11 — Public governance copy omits Mine's continuing owner power
+
+Mine and Resonance are separate `Ownable2Step` contracts. Canonical launch begins both ownership transfers to the same
+reviewed external executor, which must accept each role separately. Resonance has four continuing custom owner calls.
+Mine has a fifth: `setResonanceRouter`, which can redirect every later protocol-revenue deposit to a reciprocal
+replacement graph. The identity checks do not prove that replacement bytecode or its owner is honest.
+
+Before remediation, three public components understated this surface.
+`apps/landing/components/sections/Extras.tsx:174-192` called Resonance the one narrow owner exception and listed only
+four powers; `Close.tsx:48` repeated that one-address/four-power description; and
+`apps/web/components/home/finale-section.tsx:85-86` said four governance calls remained. The canonical whitepaper,
+README, fact registry, and web protocol constants already disclosed five actions across Mine and Resonance.
+
+Disposition: confirmed Medium release-copy mismatch, remediated in the uncommitted audit candidate after the maintainer
+approved the copy-only correction. The three components now disclose two continuing `Ownable2Step` roles, Mine's one
+future-revenue Router setter, Resonance's four bounded actions, and the still-unselected external executor. The landing
+and web typechecks/builds, 32 web tests, scoped formatting, stale-claim search, and a fresh independent read-only review
+passed. No authority or Solidity changed. The setter cannot move old graph state, existing signals, miner claims, or
+Fund assets, and it cannot change Mine's slots or emissions; its risk is the destination of future protocol-share
+revenue.
 
 ### GPT-L-03 — BribeRouter headroom reproduction
 

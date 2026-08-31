@@ -239,3 +239,10 @@ contract Strategy is ReentrancyGuard {
         if (nextPrice < minimumPrice) return minimumPrice;
     }
 }
+
+// Upstream provenance (Strategy): the auction parameter bounds, linear price decay, deadline/epoch/slippage guards,
+// multiplied next-starting price, and min/max clamp are adapted from Euler Fee Flow commit
+// 3bee858a1568d1313f37d615953f83391a897866.
+// Source: https://github.com/euler-xyz/fee-flow/blob/3bee858a1568d1313f37d615953f83391a897866/src/FeeFlowController.sol
+// Resonance release, payment splitting, Bribe routing, and token settlement are outside this attribution. No upstream
+// audit, endorsement, or security assurance for this contract is implied.

@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "frozenAt": "2026-08-30T23:36:03Z",
+  "repository": "Heesho/gumball6900",
+  "branch": "main",
+  "targetCommit": "70091b642006f0b2788bd89a6a0e734a632619cf",
+  "targetParent": "f9912533e999454f1a3fd49276558bd85e1390da",
+  "remoteParityAtFreeze": {
+    "originMain": "70091b642006f0b2788bd89a6a0e734a632619cf",
+    "matches": true
+  },
+  "solidity": {
+    "version": "0.8.26",
+    "longVersion": "0.8.26+commit.8a97fa7a",
+    "evmVersion": "cancun",
+    "viaIR": false,
+    "optimizer": true,
+    "optimizerRuns": 10000,
+    "bytecodeHash": "none",
+    "cborMetadata": false
+  },
+  "toolchain": {
+    "node": "22.23.1",
+    "pnpm": "10.14.0",
+    "foundry": "1.7.1",
+    "toolchainLock": "packages/contracts/audit/toolchain.lock",
+    "pnpmLockSha256": "620a43d60c7be8c0f91896da488a558cafeeb51e9c7dd3bef9c1277fb6fd4a33"
+  },
+  "workingTreeAtFreeze": {
+    "contractSourceClean": true,
+    "preExistingExcludedPaths": [
+      "apps/landing/next-env.d.ts",
+      "apps/web/public/media/gumball6900-cinematic-80s.mp4",
+      "apps/web/public/media/gumball6900-cinematic-poster.jpg",
+      "tmp/"
+    ]
+  },
+  "candidateCommit": "70091b642006f0b2788bd89a6a0e734a632619cf",
+  "candidateHasUncommittedAuditChanges": true
+}

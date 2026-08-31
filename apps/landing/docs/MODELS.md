@@ -1,8 +1,8 @@
 # MODELS — the five live simulations in `apps/landing`
 
-The live component implementations are the source of truth. The old
-`docs/deck/gumball6900-deck.html` is an art-direction ancestor, not a current Mine model. Every
-simulation registers with `lib/harness.ts`, which provides one animation loop, visibility pausing,
+The live component implementations are the source of truth. A retired pitch-deck prototype remains
+an art-direction ancestor in git history, not a current Mine model. Every simulation registers with
+`lib/harness.ts`, which provides one animation loop, visibility pausing,
 reset behavior, and a meaningful reduced-motion still.
 
 Mine-bound constants used by `components/sections/Mining.tsx`:

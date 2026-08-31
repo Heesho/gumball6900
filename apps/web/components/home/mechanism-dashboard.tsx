@@ -53,7 +53,11 @@ const BOARDS: Record<ChapterSlug, Omit<Board, 'slug'>> = {
       ['Price', 'Falls in a straight line to zero over one hour'],
       ['Emission', `${MINE.initialRate}, halving every ${MINE.halvingPeriod} to a ${MINE.tailRate} tail`],
       ['Of each payment', `${MINE.outgoingMinerShare} to the outgoing miner, ${MINE.routerShare} onward`],
-      ['Starting supply', `${MINE.startingSupply}. No premint, no team fee`],
+      [
+        'Supply',
+        `Constructor: ${MINE.constructorSupply}. No team or discretionary premint; canonical launch adds ` +
+          `${MINE.genesisLiquidityIssuance} solely to permanently locked liquidity`,
+      ],
     ],
     primary: {
       Board: MineBoard,

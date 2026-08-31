@@ -82,8 +82,8 @@ export function FinaleSection() {
               Everything it will ever do <span className="quiet">is already written down.</span>
             </h2>
             <p className={styles.lede}>
-              The constants are compiled into the bytecode and the four remaining governance calls are bounded in the
-              source. Nothing above needs to be taken on trust.
+              The constants are compiled into the bytecode and the five continuing custom protocol calls — one on Mine
+              and four on Resonance — are bounded in the source. The external executor remains unselected.
             </p>
             <div className={styles.actions}>
               <a

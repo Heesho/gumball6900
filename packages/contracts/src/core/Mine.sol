@@ -586,3 +586,10 @@ contract Mine is ReentrancyGuard, Ownable2Step {
         });
     }
 }
+
+// Upstream provenance (Mine): only each slot's auction-price and epoch-transition kernel, including linear decay,
+// deadline/epoch/slippage guards, doubled next-starting price, and min/max clamp, is adapted from Euler Fee Flow commit
+// 3bee858a1568d1313f37d615953f83391a897866.
+// Source: https://github.com/euler-xyz/fee-flow/blob/3bee858a1568d1313f37d615953f83391a897866/src/FeeFlowController.sol
+// Multi-slot tenure and emission, miner claims, genesis issuance, routing, and administration are outside this
+// attribution. No upstream audit, endorsement, or security assurance for this contract is implied.

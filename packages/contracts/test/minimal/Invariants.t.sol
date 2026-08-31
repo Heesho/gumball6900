@@ -173,9 +173,12 @@ contract ProtocolInvariantsTest is ProtocolFixture {
 
         for (uint256 i; i < handler.actorCount(); ++i) {
             address actor = handler.actors(i);
+            uint256 principalBefore = gbx.balanceOf(actor);
+            uint256 expectedPrincipal;
             for (uint256 j; j < allStrategies.length; ++j) {
                 uint256 amount = _accountSignalWeight(actor, allStrategies[j]);
                 if (amount == 0) continue;
+                expectedPrincipal += amount;
                 vm.prank(actor);
                 signalGBX.removeSignal(allStrategies[j], amount);
             }
@@ -184,6 +187,7 @@ contract ProtocolInvariantsTest is ProtocolFixture {
                 assertEq(_accountSignalWeight(actor, allStrategies[j]), 0);
             }
             assertEq(signalGBX.balanceOf(actor), 0);
+            assertEq(gbx.balanceOf(actor), principalBefore + expectedPrincipal);
         }
 
         assertTrue(vm.revertToState(snapshot));
