@@ -29,6 +29,7 @@ requirements.
 | ---- | -------------------------------------------------------------------------------------------- | -------- | ------ | ------------------------- | ----------------------------------------------- |
 | 001  | Add bounded graph-local signal-position discovery without making metadata an exit dependency | P1       | L      | —                         | REJECTED (accepted CEX-03; no core membership)  |
 | 002  | Index every Resonance graph from its origin block and preserve old positions                 | P3       | L      | future cutover complexity | DEFERRED (optional; not approved for execution) |
+| 003  | Build the Robinhood mainnet demo foundation without changing the core                        | P0       | M      | ADRs 0054, 0055, 0060     | DONE                                            |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | DEFERRED | REJECTED (with one-line rationale)
 
@@ -38,6 +39,9 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | DEFE
   must not be executed without a new maintainer decision.
 - Neither plan changes `SECURITY-01` (the zero-price Strategy reset round trip). The maintainer explicitly accepted that
   behavior with no code change in ADR 0058.
+- Plan 003 is the completed maintainer-approved first boundary for a valueless Robinhood mainnet demo. Its passing fork
+  rehearsal did not broadcast. A separate reviewed plan and explicit authorization remain required before any live
+  transaction, subgraph publication, or interactive website release.
 - The two fresh whole-system red-team passes required by the active audit goal occur only after all approved finding
   decisions and remediations, including `SECURITY-01`, are final. The focused reviews in these plans do not replace that
   final convergence requirement.

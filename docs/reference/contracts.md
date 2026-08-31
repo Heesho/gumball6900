@@ -5,7 +5,7 @@
 
 Compiler artifact versions: `0.8.26+commit.8a97fa7a`.
 
-Documented source surfaces: 28. Documented ABI entries: 487. Documented public ABI functions: 262.
+Documented source surfaces: 31. Documented ABI entries: 573. Documented public ABI functions: 305.
 
 ## Bribe
 
@@ -4156,6 +4156,753 @@ Returns the permanently bound Resonance signal coordinator.
 **Returns**
 
 - `allocator`: Canonical Resonance address.
+
+## DemoFaucetToken
+
+Source: [`src/demo/DemoFaucetToken.sol`](../../packages/contracts/src/demo/DemoFaucetToken.sol)
+
+Artifact: `out/DemoFaucetToken.sol/DemoFaucetToken.json`
+
+Public ABI: 12 functions, 3 events, 7 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(string,string)`
+
+```solidity
+constructor(string assetName, string assetSymbol);
+```
+
+Creates one ownerless, visibly valueless demo asset with automatically prefixed metadata.
+
+**Parameters**
+
+- `assetName`: Human-readable underlying demo label, without the `Mock` prefix.
+- `assetSymbol`: Short underlying demo symbol, without the `m` prefix.
+
+### `FAUCET_AMOUNT()`
+
+```solidity
+function FAUCET_AMOUNT() external view returns (uint256 arg0);
+```
+
+Fixed raw amount minted by every public faucet call.
+
+### `allowance(address,address)`
+
+```solidity
+function allowance(address owner, address spender) external view returns (uint256 arg0);
+```
+
+Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner` through {transferFrom}. This is zero by default. This value changes when {approve} or {transferFrom} are called.
+
+### `approve(address,uint256)`
+
+```solidity
+function approve(address spender, uint256 value) external returns (bool arg0);
+```
+
+See {IERC20-approve}. NOTE: If `value` is the maximum `uint256`, the allowance is not updated on `transferFrom`. This is semantically equivalent to an infinite approval. Requirements: - `spender` cannot be the zero address.
+
+### `balanceOf(address)`
+
+```solidity
+function balanceOf(address account) external view returns (uint256 arg0);
+```
+
+Returns the value of tokens owned by `account`.
+
+### `decimals()`
+
+```solidity
+function decimals() external view returns (uint8 arg0);
+```
+
+Returns the number of decimals used to get its user representation. For example, if `decimals` equals `2`, a balance of `505` tokens should be displayed to a user as `5.05` (`505 / 10 ** 2`). Tokens usually opt for a value of 18, imitating the relationship between Ether and Wei. This is the default value returned by this function, unless it's overridden. NOTE: This information is only used for _display_ purposes: it in no way affects any of the arithmetic of the contract, including {IERC20-balanceOf} and {IERC20-transfer}.
+
+### `faucet()`
+
+```solidity
+function faucet() external;
+```
+
+Mints the fixed valueless demo amount to the caller.
+
+### `isDemoToken()`
+
+```solidity
+function isDemoToken() external pure returns (bool arg0);
+```
+
+Identifies this contract as the repository's fixed demo faucet-token implementation.
+
+### `name()`
+
+```solidity
+function name() external view returns (string arg0);
+```
+
+Returns the name of the token.
+
+### `symbol()`
+
+```solidity
+function symbol() external view returns (string arg0);
+```
+
+Returns the symbol of the token, usually a shorter version of the name.
+
+### `totalSupply()`
+
+```solidity
+function totalSupply() external view returns (uint256 arg0);
+```
+
+Returns the value of tokens in existence.
+
+### `transfer(address,uint256)`
+
+```solidity
+function transfer(address to, uint256 value) external returns (bool arg0);
+```
+
+See {IERC20-transfer}. Requirements: - `to` cannot be the zero address. - the caller must have a balance of at least `value`.
+
+### `transferFrom(address,address,uint256)`
+
+```solidity
+function transferFrom(address from, address to, uint256 value) external returns (bool arg0);
+```
+
+See {IERC20-transferFrom}. Skips emitting an {Approval} event indicating an allowance update. This is not required by the ERC. See {xref-ERC20-\_approve-address-address-uint256-bool-}[_approve]. NOTE: Does not update the allowance if the current allowance is the maximum `uint256`. Requirements: - `from` and `to` cannot be the zero address. - `from` must have a balance of at least `value`. - the caller must have allowance for `from`'s tokens of at least `value`.
+
+### Events
+
+#### `Approval(address,address,uint256)`
+
+```solidity
+event Approval(address indexed owner, address indexed spender, uint256 value);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `FaucetMinted(address,uint256)`
+
+```solidity
+event FaucetMinted(address indexed account, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Transfer(address,address,uint256)`
+
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `ERC20InsufficientAllowance(address,uint256,uint256)`
+
+```solidity
+error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InsufficientBalance(address,uint256,uint256)`
+
+```solidity
+error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidApprover(address)`
+
+```solidity
+error ERC20InvalidApprover(address approver);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidReceiver(address)`
+
+```solidity
+error ERC20InvalidReceiver(address receiver);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidSender(address)`
+
+```solidity
+error ERC20InvalidSender(address sender);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidSpender(address)`
+
+```solidity
+error ERC20InvalidSpender(address spender);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `EmptyLabel()`
+
+```solidity
+error EmptyLabel();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## DemoOwner
+
+Source: [`src/demo/DemoOwner.sol`](../../packages/contracts/src/demo/DemoOwner.sol)
+
+Artifact: `out/DemoOwner.sol/DemoOwner.json`
+
+Public ABI: 13 functions, 3 events, 8 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address,address[])`
+
+```solidity
+constructor(contract GBXLauncher launcher_, address[] demoPaymentTokens_);
+```
+
+Fixes the launcher and complete additional demo-Strategy asset set before launch.
+
+**Parameters**
+
+- `demoPaymentTokens_`: One through four ownerless 18-decimal DemoFaucetTokens.
+- `launcher_`: Not-yet-launched GBXLauncher that will name this contract as final owner.
+
+### `DEMO_STRATEGY_EPOCH_DURATION()`
+
+```solidity
+function DEMO_STRATEGY_EPOCH_DURATION() external view returns (uint256 arg0);
+```
+
+Fixed duration over which each demo Strategy price decays to zero.
+
+### `DEMO_STRATEGY_PRICE()`
+
+```solidity
+function DEMO_STRATEGY_PRICE() external view returns (uint256 arg0);
+```
+
+Fixed first and next-minimum auction price in raw 18-decimal demo-token units.
+
+### `DEMO_STRATEGY_PRICE_MULTIPLIER()`
+
+```solidity
+function DEMO_STRATEGY_PRICE_MULTIPLIER() external view returns (uint256 arg0);
+```
+
+Fixed 1.2x next-starting-price multiplier.
+
+### `MAX_DEMO_STRATEGIES()`
+
+```solidity
+function MAX_DEMO_STRATEGIES() external view returns (uint256 arg0);
+```
+
+Maximum number of additional demo Strategies fixed into one generation.
+
+### `completeSetup()`
+
+```solidity
+function completeSetup() external;
+```
+
+Atomically accepts both protocol ownerships and creates every precommitted demo Strategy.
+Permissionless and callable once. The completion flag is set before external calls; any failure reverts the flag, both ownership acceptances, every Strategy graph, and every event.
+
+### `demoPaymentToken(uint256)`
+
+```solidity
+function demoPaymentToken(uint256 index) external view returns (address token);
+```
+
+Returns one precommitted demo payment token by constructor order.
+
+**Parameters**
+
+- `index`: Zero-based token index below `demoPaymentTokenCount()`.
+
+### `demoPaymentTokenCount()`
+
+```solidity
+function demoPaymentTokenCount() external view returns (uint256 count);
+```
+
+Returns the number of additional demo payment tokens fixed before launch.
+
+### `isDemoPaymentToken(address)`
+
+```solidity
+function isDemoPaymentToken(address token) external view returns (bool included);
+```
+
+Whether a token was precommitted for this demo generation.
+
+### `launcher()`
+
+```solidity
+function launcher() external view returns (contract GBXLauncher arg0);
+```
+
+Single not-yet-launched GBXLauncher whose resulting graph this contract may accept.
+
+### `mine()`
+
+```solidity
+function mine() external view returns (contract Mine arg0);
+```
+
+Mine owned by this contract after successful setup, or zero before setup.
+
+### `resonance()`
+
+```solidity
+function resonance() external view returns (contract Resonance arg0);
+```
+
+Resonance owned by this contract after successful setup, or zero before setup.
+
+### `setupComplete()`
+
+```solidity
+function setupComplete() external view returns (bool arg0);
+```
+
+Whether ownership acceptance and every precommitted Strategy registration completed atomically.
+
+### `strategyForToken(address)`
+
+```solidity
+function strategyForToken(address token) external view returns (address strategy);
+```
+
+Registered Strategy created for each precommitted token after setup.
+
+### Events
+
+#### `DemoSetupCompleted(address,uint256)`
+
+```solidity
+event DemoSetupCompleted(address indexed caller, uint256 strategyCount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `DemoStrategyAdded(address,address,address,address)`
+
+```solidity
+event DemoStrategyAdded(address indexed paymentToken, address indexed strategy, address indexed bribe, address bribeRouter);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ProtocolOwnershipAccepted(address,address)`
+
+```solidity
+event ProtocolOwnershipAccepted(address indexed mine, address indexed resonance);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `DemoStrategyCountOutOfRange(uint256)`
+
+```solidity
+error DemoStrategyCountOutOfRange(uint256 count);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `DuplicateDemoPaymentToken(address)`
+
+```solidity
+error DuplicateDemoPaymentToken(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidDemoPaymentToken(address)`
+
+```solidity
+error InvalidDemoPaymentToken(address token);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidGraph()`
+
+```solidity
+error InvalidGraph();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidLauncher(address)`
+
+```solidity
+error InvalidLauncher(address launcher);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `LaunchIncomplete()`
+
+```solidity
+error LaunchIncomplete();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `OwnershipNotPending(address)`
+
+```solidity
+error OwnershipNotPending(address target);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `SetupAlreadyComplete()`
+
+```solidity
+error SetupAlreadyComplete();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+## DemoUSDG
+
+Source: [`src/demo/DemoUSDG.sol`](../../packages/contracts/src/demo/DemoUSDG.sol)
+
+Artifact: `out/DemoUSDG.sol/DemoUSDG.json`
+
+Public ABI: 18 functions, 5 events, 14 custom errors, 1 constructor, 0 receive entries, 0 fallback entries.
+
+### `constructor(address)`
+
+```solidity
+constructor(address launchAuthority_);
+```
+
+Creates the valueless six-decimal token and mints only the exact genesis seed to its launch authority.
+
+**Parameters**
+
+- `launchAuthority_`: Account that will bind and call the selected launcher.
+
+### `BOOTSTRAP_AMOUNT()`
+
+```solidity
+function BOOTSTRAP_AMOUNT() external view returns (uint256 arg0);
+```
+
+Exact raw mUSDG amount created before launch and consumed by genesis.
+
+### `FAUCET_AMOUNT()`
+
+```solidity
+function FAUCET_AMOUNT() external view returns (uint256 arg0);
+```
+
+Fixed raw mUSDG amount minted by every enabled faucet call.
+
+### `TOKEN_DECIMALS()`
+
+```solidity
+function TOKEN_DECIMALS() external view returns (uint8 arg0);
+```
+
+Display decimals required by GBXLauncher and its fixed V2 seed math.
+
+### `allowance(address,address)`
+
+```solidity
+function allowance(address owner, address spender) external view returns (uint256 arg0);
+```
+
+Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner` through {transferFrom}. This is zero by default. This value changes when {approve} or {transferFrom} are called.
+
+### `approve(address,uint256)`
+
+```solidity
+function approve(address spender, uint256 value) external returns (bool arg0);
+```
+
+See {IERC20-approve}. NOTE: If `value` is the maximum `uint256`, the allowance is not updated on `transferFrom`. This is semantically equivalent to an infinite approval. Requirements: - `spender` cannot be the zero address.
+
+### `balanceOf(address)`
+
+```solidity
+function balanceOf(address account) external view returns (uint256 arg0);
+```
+
+Returns the value of tokens owned by `account`.
+
+### `bindLauncher(address)`
+
+```solidity
+function bindLauncher(contract GBXLauncher launcher_) external;
+```
+
+Permanently binds the matching not-yet-launched GBXLauncher that gates faucet activation.
+
+**Parameters**
+
+- `launcher_`: Launcher configured with this mUSDG and the immutable launch authority.
+
+### `decimals()`
+
+```solidity
+function decimals() external pure returns (uint8 arg0);
+```
+
+Returns the number of decimals used to get its user representation. For example, if `decimals` equals `2`, a balance of `505` tokens should be displayed to a user as `5.05` (`505 / 10 ** 2`). Tokens usually opt for a value of 18, imitating the relationship between Ether and Wei. This is the default value returned by this function, unless it's overridden. NOTE: This information is only used for _display_ purposes: it in no way affects any of the arithmetic of the contract, including {IERC20-balanceOf} and {IERC20-transfer}.
+
+### `enableFaucet()`
+
+```solidity
+function enableFaucet() external;
+```
+
+Irreversibly enables the fixed public faucet after the bound launcher completes genesis.
+
+### `faucet()`
+
+```solidity
+function faucet() external;
+```
+
+Mints the fixed valueless demo amount to the caller after successful genesis activation.
+
+### `faucetEnabled()`
+
+```solidity
+function faucetEnabled() external view returns (bool arg0);
+```
+
+Whether the fixed public self-faucet has been irreversibly enabled.
+
+### `launchAuthority()`
+
+```solidity
+function launchAuthority() external view returns (address arg0);
+```
+
+Sole account funded for and authorized to bind the single launch candidate.
+
+### `launcher()`
+
+```solidity
+function launcher() external view returns (contract GBXLauncher arg0);
+```
+
+Single launcher bound before genesis, or zero until the authority binds it.
+
+### `name()`
+
+```solidity
+function name() external view returns (string arg0);
+```
+
+Returns the name of the token.
+
+### `symbol()`
+
+```solidity
+function symbol() external view returns (string arg0);
+```
+
+Returns the symbol of the token, usually a shorter version of the name.
+
+### `totalSupply()`
+
+```solidity
+function totalSupply() external view returns (uint256 arg0);
+```
+
+Returns the value of tokens in existence.
+
+### `transfer(address,uint256)`
+
+```solidity
+function transfer(address to, uint256 value) external returns (bool arg0);
+```
+
+See {IERC20-transfer}. Requirements: - `to` cannot be the zero address. - the caller must have a balance of at least `value`.
+
+### `transferFrom(address,address,uint256)`
+
+```solidity
+function transferFrom(address from, address to, uint256 value) external returns (bool arg0);
+```
+
+See {IERC20-transferFrom}. Skips emitting an {Approval} event indicating an allowance update. This is not required by the ERC. See {xref-ERC20-\_approve-address-address-uint256-bool-}[_approve]. NOTE: Does not update the allowance if the current allowance is the maximum `uint256`. Requirements: - `from` and `to` cannot be the zero address. - `from` must have a balance of at least `value`. - the caller must have allowance for `from`'s tokens of at least `value`.
+
+### Events
+
+#### `Approval(address,address,uint256)`
+
+```solidity
+event Approval(address indexed owner, address indexed spender, uint256 value);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `FaucetEnabled(address,address,address)`
+
+```solidity
+event FaucetEnabled(address indexed caller, address indexed launcher, address indexed pair);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `FaucetMinted(address,uint256)`
+
+```solidity
+event FaucetMinted(address indexed account, uint256 amount);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `LauncherBound(address)`
+
+```solidity
+event LauncherBound(address indexed launcher);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `Transfer(address,address,uint256)`
+
+```solidity
+event Transfer(address indexed from, address indexed to, uint256 value);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+### Custom errors
+
+#### `ERC20InsufficientAllowance(address,uint256,uint256)`
+
+```solidity
+error ERC20InsufficientAllowance(address spender, uint256 allowance, uint256 needed);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InsufficientBalance(address,uint256,uint256)`
+
+```solidity
+error ERC20InsufficientBalance(address sender, uint256 balance, uint256 needed);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidApprover(address)`
+
+```solidity
+error ERC20InvalidApprover(address approver);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidReceiver(address)`
+
+```solidity
+error ERC20InvalidReceiver(address receiver);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidSender(address)`
+
+```solidity
+error ERC20InvalidSender(address sender);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `ERC20InvalidSpender(address)`
+
+```solidity
+error ERC20InvalidSpender(address spender);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `FaucetAlreadyEnabled()`
+
+```solidity
+error FaucetAlreadyEnabled();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `FaucetDisabled()`
+
+```solidity
+error FaucetDisabled();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `GenesisIncomplete()`
+
+```solidity
+error GenesisIncomplete();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidLaunchAuthority()`
+
+```solidity
+error InvalidLaunchAuthority();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `InvalidLauncher(address)`
+
+```solidity
+error InvalidLauncher(address launcher);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `LauncherAlreadyBound(address)`
+
+```solidity
+error LauncherAlreadyBound(address launcher);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `LauncherNotBound()`
+
+```solidity
+error LauncherNotBound();
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
+
+#### `UnauthorizedSetup(address)`
+
+```solidity
+error UnauthorizedSetup(address caller);
+```
+
+_No additional NatSpec notice is present in the compiled artifact._
 
 ## GBXLauncher
 

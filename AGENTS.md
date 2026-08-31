@@ -30,6 +30,25 @@ authorized for user funds. A green local build is engineering evidence, never a 
   future helper may compose `Mine.mine()` with
   `ResonanceRouter.route()`, but no such helper is required now and Mine must remain complete if routing fails.
 
+## Robinhood mainnet demo environment
+
+- ADR 0061 permits a separate, valueless **Robinhood Mainnet Demo** lane under `packages/contracts/src/demo`. It is not
+  a testnet, production deployment, release candidate, governance selection, or authorization for user funds. Every
+  public surface must say that its mock assets are worthless and interactions spend real ETH for gas.
+- The demo reuses the unchanged GBX core, component deployers, and `GBXLauncher` with a six-decimal `mUSDG`. Its
+  constructor creates exactly the `1e6` raw genesis seed for the launch authority and its public faucet is unavailable
+  before launch. Because the standard token remains transferable, every broadcast preflight must prove the authority
+  still holds the exact seed and the predicted Pair is empty. The authority binds one matching launcher; only a
+  completed launch with a deployed Pair may permissionlessly and irreversibly enable the fixed self-only faucet. Do not
+  add arbitrary-recipient minting or a Pair adoption, cleanup, skim, or recovery path.
+- Other demo assets must identify themselves as mock/no-value tokens and may expose only fixed self-only faucets. The
+  ownerless `DemoOwner` precommits one through four deployments of the exact compiled `DemoFaucetToken` runtime, then
+  permissionlessly accepts both Mine and Resonance ownerships and registers those fixed Strategies in one atomic setup.
+  It exposes no continuing administration or generic call surface. A different asset set requires a newly labelled
+  demo generation.
+- Keep demo plans, artifacts, addresses, start blocks, manifests, subgraphs, and website configuration separate from
+  `packages/config/deployments` and the production release gate. Never use a mock receipt as production evidence.
+
 ## Revenue, signaling, and acquisitions
 
 - Mining revenue follows `Mine -> current ResonanceRouter -> its Resonance seven-day stream -> Strategy`. On a nonempty-slot
